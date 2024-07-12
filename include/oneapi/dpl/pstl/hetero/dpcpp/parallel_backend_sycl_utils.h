@@ -274,7 +274,7 @@ class __kernel_compiler
         if constexpr (__kernel_count > 1)
             return __make_kernels_array(__kernel_bundle, __kernel_ids, ::std::make_index_sequence<__kernel_count>());
         else
-            return __kernel_bundle.template get_kernel(__kernel_ids[0]);
+            return __kernel_bundle.get_kernel(__kernel_ids[0]);
     }
 
   private:
@@ -282,7 +282,7 @@ class __kernel_compiler
     static auto
     __make_kernels_array(_KernelBundle __kernel_bundle, _KernelIds& __kernel_ids, ::std::index_sequence<_Ip...>)
     {
-        return __kernel_array_type{__kernel_bundle.template get_kernel(__kernel_ids[_Ip])...};
+        return __kernel_array_type{__kernel_bundle.get_kernel(__kernel_ids[_Ip])...};
     }
 #else
     template <typename _Exec>
