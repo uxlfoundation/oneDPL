@@ -27,6 +27,25 @@ namespace dpl
 
 template <class _UIntType, internal::element_type_t<_UIntType> _A, internal::element_type_t<_UIntType> _C,
           internal::element_type_t<_UIntType> _M>
+class linear_congruential_engine;
+
+template <class CharT, class Traits, class __UIntType, internal::element_type_t<__UIntType> __A,
+          internal::element_type_t<__UIntType> __C, internal::element_type_t<__UIntType> __M>
+::std::basic_ostream<CharT, Traits>&
+operator<<(::std::basic_ostream<CharT, Traits>&, const linear_congruential_engine<__UIntType, __A, __C, __M>&);
+
+template <class __UIntType, internal::element_type_t<__UIntType> __A, internal::element_type_t<__UIntType> __C,
+          internal::element_type_t<__UIntType> __M>
+const sycl::stream&
+operator<<(const sycl::stream&, const linear_congruential_engine<__UIntType, __A, __C, __M>&);
+
+template <class CharT, class Traits, class __UIntType, internal::element_type_t<__UIntType> __A,
+          internal::element_type_t<__UIntType> __C, internal::element_type_t<__UIntType> __M>
+::std::basic_istream<CharT, Traits>&
+operator>>(::std::basic_istream<CharT, Traits>&, linear_congruential_engine<__UIntType, __A, __C, __M>&);
+
+template <class _UIntType, internal::element_type_t<_UIntType> _A, internal::element_type_t<_UIntType> _C,
+          internal::element_type_t<_UIntType> _M>
 class linear_congruential_engine
 {
   public:
@@ -111,38 +130,21 @@ class linear_congruential_engine
         return !(__x == __y);
     }
 
-    template <class CharT, class Traits>
+    template <class CharT, class Traits, class __UIntType, internal::element_type_t<__UIntType> __A,
+              internal::element_type_t<__UIntType> __C, internal::element_type_t<__UIntType> __M>
     friend ::std::basic_ostream<CharT, Traits>&
-    operator<<(::std::basic_ostream<CharT, Traits>& __os, const linear_congruential_engine& __e)
-    {
-        internal::save_stream_flags<CharT, Traits> __flags(__os);
+    operator<<(::std::basic_ostream<CharT, Traits>& __os,
+               const linear_congruential_engine<__UIntType, __A, __C, __M>& __e);
 
-        __os.setf(std::ios_base::dec | std::ios_base::left);
-        __os.fill(__os.widen(' '));
-
-        return __os << __e.state_;
-    }
-
+    template <class __UIntType, internal::element_type_t<__UIntType> __A, internal::element_type_t<__UIntType> __C,
+              internal::element_type_t<__UIntType> __M>
     friend const sycl::stream&
-    operator<<(const sycl::stream& __os, const linear_congruential_engine& __e)
-    {
-        return __os << __e.state_;
-    }
+    operator<<(const sycl::stream& __os, const linear_congruential_engine<__UIntType, __A, __C, __M>& __e);
 
-    template <class CharT, class Traits>
+    template <class CharT, class Traits, class __UIntType, internal::element_type_t<__UIntType> __A,
+              internal::element_type_t<__UIntType> __C, internal::element_type_t<__UIntType> __M>
     friend ::std::basic_istream<CharT, Traits>&
-    operator>>(::std::basic_istream<CharT, Traits>& __is, linear_congruential_engine& __e)
-    {
-        internal::save_stream_flags<CharT, Traits> __flags(__is);
-
-        __is.setf(std::ios_base::dec);
-
-        linear_congruential_engine::result_type __t;
-        if (__is >> __t)
-            __e.state_ = __t;
-
-        return __is;
-    }
+    operator>>(::std::basic_istream<CharT, Traits>& __is, linear_congruential_engine<__UIntType, __A, __C, __M>& __e);
 
   private:
     // Static asserts
@@ -297,6 +299,43 @@ class linear_congruential_engine
 
     result_type state_;
 };
+
+template <class CharT, class Traits, class __UIntType, internal::element_type_t<__UIntType> __A,
+          internal::element_type_t<__UIntType> __C, internal::element_type_t<__UIntType> __M>
+::std::basic_ostream<CharT, Traits>&
+operator<<(::std::basic_ostream<CharT, Traits>& __os, const linear_congruential_engine<__UIntType, __A, __C, __M>& __e)
+{
+    internal::save_stream_flags<CharT, Traits> __flags(__os);
+
+    __os.setf(std::ios_base::dec | std::ios_base::left);
+    __os.fill(__os.widen(' '));
+
+    return __os << __e.state_;
+}
+
+template <class __UIntType, internal::element_type_t<__UIntType> __A, internal::element_type_t<__UIntType> __C,
+          internal::element_type_t<__UIntType> __M>
+const sycl::stream&
+operator<<(const sycl::stream& __os, const linear_congruential_engine<__UIntType, __A, __C, __M>& __e)
+{
+    return __os << __e.state_;
+}
+
+template <class CharT, class Traits, class __UIntType, internal::element_type_t<__UIntType> __A,
+          internal::element_type_t<__UIntType> __C, internal::element_type_t<__UIntType> __M>
+::std::basic_istream<CharT, Traits>&
+operator>>(::std::basic_istream<CharT, Traits>& __is, linear_congruential_engine<__UIntType, __A, __C, __M>& __e)
+{
+    internal::save_stream_flags<CharT, Traits> __flags(__is);
+
+    __is.setf(std::ios_base::dec);
+
+    __UIntType __t;
+    if (__is >> __t)
+        __e.state_ = __t;
+
+    return __is;
+}
 
 } // namespace dpl
 } // namespace oneapi

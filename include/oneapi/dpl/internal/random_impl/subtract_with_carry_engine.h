@@ -26,6 +26,21 @@ namespace dpl
 {
 
 template <class _UIntType, size_t _W, size_t _S, size_t _R>
+class subtract_with_carry_engine;
+
+template <class CharT, class Traits, class __UIntType, std::size_t __W, std::size_t __S, std::size_t __R>
+::std::basic_ostream<CharT, Traits>&
+operator<<(::std::basic_ostream<CharT, Traits>&, const subtract_with_carry_engine<__UIntType, __W, __S, __R>&);
+
+template <class __UIntType, std::size_t __W, std::size_t __S, std::size_t __R>
+const sycl::stream&
+operator<<(const sycl::stream&, const subtract_with_carry_engine<__UIntType, __W, __S, __R>&);
+
+template <class CharT, class Traits, class __UIntType, std::size_t __W, std::size_t __S, std::size_t __R>
+::std::basic_istream<CharT, Traits>&
+operator>>(::std::basic_istream<CharT, Traits>&, subtract_with_carry_engine<__UIntType, __W, __S, __R>&);
+
+template <class _UIntType, size_t _W, size_t _S, size_t _R>
 class subtract_with_carry_engine
 {
   public:
@@ -133,62 +148,17 @@ class subtract_with_carry_engine
         return !(__x == __y);
     }
 
-    template <class CharT, class Traits>
+    template <class CharT, class Traits, class __UIntType, std::size_t __W, std::size_t __S, std::size_t __R>
     friend ::std::basic_ostream<CharT, Traits>&
-    operator<<(::std::basic_ostream<CharT, Traits>& __os, const subtract_with_carry_engine& __e)
-    {
-        internal::save_stream_flags<CharT, Traits> __flags(__os);
+    operator<<(::std::basic_ostream<CharT, Traits>&, const subtract_with_carry_engine<__UIntType, __W, __S, __R>&);
 
-        __os.setf(std::ios_base::dec | std::ios_base::left);
-        CharT __sp = __os.widen(' ');
-        __os.fill(__sp);
-
-        __os << __e.x_[__e.i_];
-        for (size_t j = __e.i_ + 1; j < _R; ++j)
-            __os << __sp << __e.x_[j];
-        for (size_t j = 0; j < __e.i_; ++j)
-            __os << __sp << __e.x_[j];
-
-        __os << __sp << __e.c_;
-
-        return __os;
-    }
-
+    template <class __UIntType, std::size_t __W, std::size_t __S, std::size_t __R>
     friend const sycl::stream&
-    operator<<(const sycl::stream& __os, const subtract_with_carry_engine& __e)
-    {
-        __os << __e.x_[__e.i_];
-        for (size_t j = __e.i_ + 1; j < _R; ++j)
-            __os << ' ' << __e.x_[j];
-        for (size_t j = 0; j < __e.i_; ++j)
-            __os << ' ' << __e.x_[j];
-
-        __os << ' ' << __e.c_;
-
-        return __os;
-    }
+    operator<<(const sycl::stream&, const subtract_with_carry_engine<__UIntType, __W, __S, __R>&);
 
     template <class CharT, class Traits, class __UIntType, std::size_t __W, std::size_t __S, std::size_t __R>
     friend ::std::basic_istream<CharT, Traits>&
-    operator>>(::std::basic_istream<CharT, Traits>& __is, subtract_with_carry_engine<__UIntType, __W, __S, __R>& __e)
-    {
-        internal::save_stream_flags<CharT, Traits> __flags(__is);
-
-        __is.setf(std::ios_base::dec);
-
-        __UIntType __t[__R + 1];
-        for (size_t i = 0; i < __R + 1; ++i)
-            __is >> __t[i];
-        if (!__is.fail())
-        {
-            for (size_t i = 0; i < __R; ++i)
-                __e.x_[i] = __t[i];
-            __e.c_ = __t[__R];
-            __e.i_ = 0;
-        }
-
-        return __is;
-    }
+    operator>>(::std::basic_istream<CharT, Traits>&, subtract_with_carry_engine<__UIntType, __W, __S, __R>&);
 
   private:
     // Static asserts
@@ -272,6 +242,64 @@ class subtract_with_carry_engine
     scalar_type c_;
     size_t i_ = 0;
 };
+
+template <class CharT, class Traits, class __UIntType, std::size_t __W, std::size_t __S, std::size_t __R>
+::std::basic_ostream<CharT, Traits>&
+operator<<(::std::basic_ostream<CharT, Traits>& __os, const subtract_with_carry_engine<__UIntType, __W, __S, __R>& __e)
+{
+    internal::save_stream_flags<CharT, Traits> __flags(__os);
+
+    __os.setf(std::ios_base::dec | std::ios_base::left);
+    CharT __sp = __os.widen(' ');
+    __os.fill(__sp);
+
+    __os << __e.x_[__e.i_];
+    for (size_t j = __e.i_ + 1; j < __R; ++j)
+        __os << __sp << __e.x_[j];
+    for (size_t j = 0; j < __e.i_; ++j)
+        __os << __sp << __e.x_[j];
+
+    __os << __sp << __e.c_;
+
+    return __os;
+}
+
+template <class __UIntType, std::size_t __W, std::size_t __S, std::size_t __R>
+const sycl::stream&
+operator<<(const sycl::stream& __os, const subtract_with_carry_engine<__UIntType, __W, __S, __R>& __e)
+{
+    __os << __e.x_[__e.i_];
+    for (size_t j = __e.i_ + 1; j < __R; ++j)
+        __os << ' ' << __e.x_[j];
+    for (size_t j = 0; j < __e.i_; ++j)
+        __os << ' ' << __e.x_[j];
+
+    __os << ' ' << __e.c_;
+
+    return __os;
+}
+
+template <class CharT, class Traits, class __UIntType, std::size_t __W, std::size_t __S, std::size_t __R>
+::std::basic_istream<CharT, Traits>&
+operator>>(::std::basic_istream<CharT, Traits>& __is, subtract_with_carry_engine<__UIntType, __W, __S, __R>& __e)
+{
+    internal::save_stream_flags<CharT, Traits> __flags(__is);
+
+    __is.setf(std::ios_base::dec);
+
+    __UIntType __t[__R + 1];
+    for (size_t i = 0; i < __R + 1; ++i)
+        __is >> __t[i];
+    if (!__is.fail())
+    {
+        for (size_t i = 0; i < __R; ++i)
+            __e.x_[i] = __t[i];
+        __e.c_ = __t[__R];
+        __e.i_ = 0;
+    }
+
+    return __is;
+}
 
 } // namespace dpl
 } // namespace oneapi
