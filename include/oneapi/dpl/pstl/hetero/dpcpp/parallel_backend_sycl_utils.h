@@ -645,6 +645,16 @@ struct __result_and_scratch_storage
             return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n];
         }
     }
+
+    template <typename _Event>
+    _T
+    __wait_and_get_value(_Event&& __event, size_t idx = 0) const
+    {
+        if (is_USM())
+            __event.wait_and_throw();
+
+        return __get_value(idx);
+    }
 };
 
 //A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
@@ -666,9 +676,7 @@ class __future : private std::tuple<_Args...>
     constexpr auto
     __wait_and_get_value(__result_and_scratch_storage<_ExecutionPolicy, _T>& __storage)
     {
-        if (__storage.is_USM())
-            wait();
-        return __storage.__get_value();
+        return __storage.__wait_and_get_value(__my_event);
     }
 
     template <typename _T>

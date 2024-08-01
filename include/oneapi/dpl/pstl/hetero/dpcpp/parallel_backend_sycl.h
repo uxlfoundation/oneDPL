@@ -196,6 +196,9 @@ template <typename... _Name>
 class __scan_group_kernel;
 
 template <typename... _Name>
+class __find_or_kernel_one_wg;
+
+template <typename... _Name>
 class __find_or_kernel;
 
 template <typename... _Name>
@@ -1083,13 +1086,9 @@ struct __early_exit_find_or
               typename _BrickTag, typename... _Ranges>
     void
     operator()(const _NDItemId __item_id, const _SrcDataSize __source_data_size,
-               const _IterationDataSize __iteration_data_size, _LocalFoundState& __found_local, _BrickTag __brick_tag,
-               _Ranges&&... __rngs) const
+               const std::size_t __iters_per_work_item, const _IterationDataSize __iteration_data_size,
+               _LocalFoundState& __found_local, _BrickTag __brick_tag, _Ranges&&... __rngs) const
     {
-        // Calculate the number of elements to be processed by each work-item.
-        const auto __iters_per_work_item =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__source_data_size, __iteration_data_size);
-
         // There are 3 possible tag types here:
         //  - __parallel_find_forward_tag : in case when we find the first value in the data;
         //  - __parallel_find_backward_tag : in case when we find the last value in the data;
@@ -1137,49 +1136,73 @@ struct __early_exit_find_or
 //------------------------------------------------------------------------
 
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
-template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
-::std::conditional_t<
-    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
-    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
-__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
-                   _BrickTag __brick_tag, _Ranges&&... __rngs)
+template <typename KernelName, bool __or_tag_check, typename _ExecutionPolicy, typename _BrickTag,
+          typename __FoundStateType, typename _Predicate, typename... _Ranges>
+__FoundStateType
+__parallel_find_or_impl_one_wg(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+                               _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __wgroup_size,
+                               const __FoundStateType __init_value, _Predicate __pred, _Ranges&&... __rngs)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-    using _AtomicType = typename _BrickTag::_AtomicType;
-    using _FindOrKernel =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__find_or_kernel, _CustomName, _Brick,
-                                                                               _BrickTag, _Ranges...>;
-    constexpr bool __or_tag_check = ::std::is_same_v<_BrickTag, __parallel_or_tag>;
+    using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, __FoundStateType>;
+    __result_and_scratch_storage_t __result_storage(__exec, 0);
 
-    assert("This device does not support 64-bit atomics" &&
-           (sizeof(_AtomicType) < 8 || __exec.queue().get_device().has(sycl::aspect::atomic64)));
+    // Calculate the number of elements to be processed by each work-item.
+    const auto __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size);
 
-    auto __rng_n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
-    assert(__rng_n > 0);
+    // main parallel_for
+    auto __event = __exec.queue().submit([&](sycl::handler& __cgh) {
+        oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
+        auto __result_acc = __result_storage.__get_result_acc(__cgh);
 
-    // TODO: find a way to generalize getting of reliable work-group size
-    std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec);
-#if _ONEDPL_COMPILE_KERNEL
-    auto __kernel = __internal::__kernel_compiler<_FindOrKernel>::__compile(__exec);
-    __wgroup_size = ::std::min(__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__exec, __kernel));
-#endif
+        __cgh.parallel_for<KernelName>(
+            sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__wgroup_size), sycl::range</*dim=*/1>(__wgroup_size)),
+            [=](sycl::nd_item</*dim=*/1> __item_id) {
+                auto __local_idx = __item_id.get_local_id(0);
 
-#if _ONEDPL_FPGA_EMU
-    // Limit the maximum work-group size to minimize the cost of work-group reduction.
-    // Limiting this also helps to avoid huge work-group sizes on some devices (e.g., FPGU emulation).
-    __wgroup_size = std::min(__wgroup_size, (std::size_t)2048);
-#endif
-    auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec);
+                // 1. Set initial value to local found state
+                __FoundStateType __found_local = __init_value;
 
-    auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size);
-    __n_groups = ::std::min(__n_groups, decltype(__n_groups)(__max_cu));
+                // 2. Find any element that satisfies pred
+                //  - after this call __found_local may still have initial value:
+                //    1) if no element satisfies pred;
+                //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
+                __pred(__item_id, __rng_n, __iters_per_work_item, __wgroup_size, __found_local, __brick_tag, __rngs...);
 
-    _PRINT_INFO_IN_DEBUG_MODE(__exec, __wgroup_size, __max_cu);
+                // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
+                // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
+                // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
+                // inside all our group items
+                if constexpr (__or_tag_check)
+                    __found_local = __dpl_sycl::__any_of_group(__item_id.get_group(), __found_local);
+                else
+                    __found_local = __dpl_sycl::__reduce_over_group(__item_id.get_group(), __found_local,
+                                                                    typename _BrickTag::_LocalResultsReduceOp{});
 
-    const _AtomicType __init_value = _BrickTag::__init_value(__rng_n);
+                // Set local found state value value to global state to have correct result
+                if (__local_idx == 0)
+                {
+                    __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__result_acc)[0] = __found_local;
+                }
+            });
+    });
+
+    // Wait and return result
+    return __result_storage.__wait_and_get_value(__event);
+}
+
+// Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
+template <typename KernelName, bool __or_tag_check, typename _ExecutionPolicy, typename _BrickTag, typename _AtomicType,
+          typename _Predicate, typename... _Ranges>
+_AtomicType
+__parallel_find_or_impl_multiple_wgs(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+                                     _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __n_groups,
+                                     const std::size_t __wgroup_size, const _AtomicType __init_value, _Predicate __pred,
+                                     _Ranges&&... __rngs)
+{
     auto __result = __init_value;
 
-    auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_ExecutionPolicy, _Brick>{__f};
+    // Calculate the number of elements to be processed by each work-item.
+    const auto __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
 
     // scope is to copy data back to __result after destruction of temporary sycl:buffer
     {
@@ -1190,13 +1213,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             auto __result_sycl_buf_acc = __result_sycl_buf.template get_access<access_mode::read_write>(__cgh);
 
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
-            __cgh.use_kernel_bundle(__kernel.get_kernel_bundle());
-#endif
-            __cgh.parallel_for<_FindOrKernel>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_KERNEL_BUNDLE_PRESENT
-                __kernel,
-#endif
+            __cgh.parallel_for<KernelName>(
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
                                           sycl::range</*dim=*/1>(__wgroup_size)),
                 [=](sycl::nd_item</*dim=*/1> __item_id) {
@@ -1209,7 +1226,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
                     //  - after this call __found_local may still have initial value:
                     //    1) if no element satisfies pred;
                     //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
-                    __pred(__item_id, __rng_n, __n_groups * __wgroup_size, __found_local, __brick_tag, __rngs...);
+                    __pred(__item_id, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
+                           __brick_tag, __rngs...);
 
                     // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
                     // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
@@ -1235,13 +1253,84 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         //The end of the scope  -  a point of synchronization (on temporary sycl buffer destruction)
     }
 
+    return __result;
+}
+
+// Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
+template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
+::std::conditional_t<
+    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
+    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
+__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                   _BrickTag __brick_tag, _Ranges&&... __rngs)
+{
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _FindOrKernelOneWG =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__find_or_kernel_one_wg, _CustomName,
+                                                                               _Brick, _BrickTag, _Ranges...>;
+    using _FindOrKernel =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__find_or_kernel, _CustomName, _Brick,
+                                                                               _BrickTag, _Ranges...>;
+
+    auto __rng_n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
+    assert(__rng_n > 0);
+
+    // TODO: find a way to generalize getting of reliable work-group size
+    std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec);
+
+#if _ONEDPL_FPGA_EMU
+    // Limit the maximum work-group size to minimize the cost of work-group reduction.
+    // Limiting this also helps to avoid huge work-group sizes on some devices (e.g., FPGU emulation).
+    __wgroup_size = std::min(__wgroup_size, (std::size_t)2048);
+#endif
+
+    const auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec);
+    auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size);
+    __n_groups = ::std::min(__n_groups, decltype(__n_groups)(__max_cu));
+
+    // Pass all small data into single WG implementation
+    constexpr std::size_t __max_iters_per_work_item = 32;
+    if (__rng_n <= __wgroup_size * __max_iters_per_work_item)
+    {
+        __n_groups = 1;
+    }
+
+    _PRINT_INFO_IN_DEBUG_MODE(__exec, __wgroup_size, __max_cu);
+
+    using _AtomicType = typename _BrickTag::_AtomicType;
+    const _AtomicType __init_value = _BrickTag::__init_value(__rng_n);
+    const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_ExecutionPolicy, _Brick>{__f};
+
+    constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
+
+    _AtomicType __result;
+    if (__n_groups == 1)
+    {
+        // We shouldn't have any restrictions for _AtomicType type here
+        // because we have a single work-group and we don't need to use atomics for inter-work-group communication.
+
+        // Single WG implementation
+        __result = __parallel_find_or_impl_one_wg<_FindOrKernelOneWG, __or_tag_check>(
+            oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __brick_tag,
+            __rng_n, __wgroup_size, __init_value, __pred, std::forward<_Ranges>(__rngs)...);
+    }
+    else
+    {
+        assert("This device does not support 64-bit atomics" &&
+               (sizeof(_AtomicType) < 8 || __exec.queue().get_device().has(sycl::aspect::atomic64)));
+
+        // Multiple WG implementation
+        __result = __parallel_find_or_impl_multiple_wgs<_FindOrKernel, __or_tag_check>(
+            oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __brick_tag,
+            __rng_n, __n_groups, __wgroup_size, __init_value, __pred, std::forward<_Ranges>(__rngs)...);
+    }
+
     if constexpr (__or_tag_check)
         return __result != __init_value;
     else
         return __result != __init_value ? __result : __rng_n;
 }
 
-//------------------------------------------------------------------------
 // parallel_or - sync pattern
 //------------------------------------------------------------------------
 
