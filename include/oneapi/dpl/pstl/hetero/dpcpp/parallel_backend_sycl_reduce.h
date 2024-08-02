@@ -72,7 +72,7 @@ template <typename _Tp, typename _NDItemId, typename _Size, typename _TransformP
 void
 __work_group_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Size __iters_per_work_item,
                            const bool __is_full, _TransformPattern __transform_pattern, _ReducePattern __reduce_pattern,
-                           _InitType __init, const _AccLocal& __local_mem, const _Res& __res_acc, const _Acc&... __acc)
+                           _InitType __init, const _AccLocal& __local_mem, _Res* __res_ptr, const _Acc&... __acc)
 {
     auto __local_idx = __item_id.get_local_id(0);
     const _Size __group_size = __item_id.get_local_range().size();
@@ -87,7 +87,7 @@ __work_group_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Si
     if (__local_idx == 0)
     {
         __reduce_pattern.apply_init(__init, __result.__v);
-        __res_acc[0] = __result.__v;
+        __res_ptr[0] = __result.__v;
     }
     __result.__v.~_Tp();
 }
