@@ -94,8 +94,7 @@ Macro                              Description
                                    such as ``dpcpp_default`` and ``dpcpp_fpga``. When the macro is not defined (by default)
                                    or evaluates to non-zero, predefined policies objects can be used.
                                    When the macro is set to 0, predefined policies objects and make functions
-                                   without arguments, when ``make_device_policy()``,
-                                   ``make_fpga_policy()``, are not available.
+                                   without arguments (``make_device_policy()`` and ``make_fpga_policy()``) are not available.
 ---------------------------------- ------------------------------
 ``ONEDPL_ALLOW_DEFERRED_WAITING``  This macro allows waiting for completion of certain algorithms executed with
                                    device policies to be deferred. (Disabled by default.)

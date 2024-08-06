@@ -216,9 +216,9 @@ class fpga_policy : public device_policy<KernelName>
 // Starting with c++17 we can simply define sycl as inline variable.
 #    if _ONEDPL___cplusplus >= 201703L
 
-inline device_policy<> dpcpp_default{__internal::__global_instance_tag{}};
+inline const device_policy<> dpcpp_default{__internal::__global_instance_tag{}};
 #        if _ONEDPL_FPGA_DEVICE
-inline fpga_policy<> dpcpp_fpga{__internal::__global_instance_tag{}};
+inline const fpga_policy<> dpcpp_fpga{__internal::__global_instance_tag{}};
 #        endif // _ONEDPL_FPGA_DEVICE
 
 #    endif // _ONEDPL___cplusplus >= 201703L

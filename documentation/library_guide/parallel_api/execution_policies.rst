@@ -100,8 +100,8 @@ names for SYCL kernel functions. The |dpcpp_cpp| supports it by default;
 for other compilers it may need to be enabled with compilation options such as
 ``-fsycl-unnamed-lambda``. Refer to your compiler documentation for more information.
 
-The ``oneapi::dpl::execution::dpcpp_default`` object is a predefined object of
-the ``device_policy`` class. It is created with a default kernel name and a default queue.
+The ``oneapi::dpl::execution::dpcpp_default`` object is a predefined immutable object of
+the ``device_policy`` class. It is created with a default kernel name and uses a default queue.
 Use it to construct customized policy objects or pass directly when invoking an algorithm.
 
 If ``dpcpp_default`` is passed directly to more than one algorithm, you must ensure that the
@@ -167,14 +167,14 @@ The default constructor of ``fpga_policy`` wraps a SYCL queue created
 for ``fpga_selector``, or for ``fpga_emulator_selector``
 if the ``ONEDPL_FPGA_EMULATOR`` is defined.
 
-``oneapi::dpl::execution::dpcpp_fpga`` is a predefined object of
+``oneapi::dpl::execution::dpcpp_fpga`` is a predefined immutable object of
 the ``fpga_policy`` class created with a default unroll factor and a default kernel name.
 Use it to create customized policy objects or pass directly when invoking an algorithm.
 
 .. Note::
 
    Specifying the unroll factor for a policy enables loop unrolling in the implementation of
-   your algorithms. The default value is 1.
+   |onedpl_short| algorithms. The default value is 1.
    To find out how to choose a more precise value, refer to the `unroll Pragma <https://www.intel.com/content/www/us/en/docs/oneapi-fpga-add-on/developer-guide/current/unroll-pragma.html>`_
    and `Loop Analysis <https://www.intel.com/content/www/us/en/docs/oneapi-fpga-add-on/developer-guide/current/loop-analysis.html>`_ content in
    the `Intel® oneAPI FPGA Handbook
