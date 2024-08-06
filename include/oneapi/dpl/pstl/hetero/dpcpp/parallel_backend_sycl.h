@@ -313,6 +313,9 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         // get the work group size adjusted to the local memory limit
         // TODO: find a way to generalize getting of reliable work-group sizes
         ::std::size_t __wgroup_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec, sizeof(_Type));
+        // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
+        // This value matches the current practical limit for GPUs, but may need to be re-evaluated in the future.
+        __wgroup_size = std::min(__wgroup_size, (std::size_t)1024);
 
 #if _ONEDPL_COMPILE_KERNEL
         //Actually there is one kernel_bundle for the all kernels of the pattern.
@@ -1276,13 +1279,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     assert(__rng_n > 0);
 
     // TODO: find a way to generalize getting of reliable work-group size
-    std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec);
-
-#if _ONEDPL_FPGA_EMU
-    // Limit the maximum work-group size to minimize the cost of work-group reduction.
-    // Limiting this also helps to avoid huge work-group sizes on some devices (e.g., FPGU emulation).
-    __wgroup_size = std::min(__wgroup_size, (std::size_t)2048);
-#endif
+    // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
+    // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
+    std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec, (std::size_t)4096);
 
     const auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec);
     auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size);

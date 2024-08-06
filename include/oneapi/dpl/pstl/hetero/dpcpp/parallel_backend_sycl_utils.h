@@ -56,10 +56,14 @@ __device_info(const _ExecutionPolicy& __policy)
 #endif
 
 template <typename _ExecutionPolicy>
-::std::size_t
-__max_work_group_size(const _ExecutionPolicy& __policy)
+std::size_t
+__max_work_group_size(const _ExecutionPolicy& __policy, std::size_t __wg_size_limit = 8192)
 {
-    return __policy.queue().get_device().template get_info<sycl::info::device::max_work_group_size>();
+    std::size_t __wg_size = __policy.queue().get_device().template get_info<sycl::info::device::max_work_group_size>();
+    // Limit the maximum work-group size supported by the device to optimize the throughput or minimize communication
+    // costs. This is limited to 8192 which is the highest current limit of the tested hardware (opencl:cpu devices) to
+    // prevent huge work-group sizes returned on some devices (e.g., FPGU emulation).
+    return std::min(__wg_size, __wg_size_limit);
 }
 
 template <typename _ExecutionPolicy, typename _Size>
@@ -102,19 +106,11 @@ template <typename _ExecutionPolicy>
 __kernel_work_group_size(const _ExecutionPolicy& __policy, const sycl::kernel& __kernel)
 {
     const sycl::device& __device = __policy.queue().get_device();
-    ::std::size_t __max_wg_size =
 #if _USE_KERNEL_DEVICE_SPECIFIC_API
-        __kernel.template get_info<sycl::info::kernel_device_specific::work_group_size>(__device);
+    return __kernel.template get_info<sycl::info::kernel_device_specific::work_group_size>(__device);
 #else
-        __kernel.template get_work_group_info<sycl::info::kernel_work_group::work_group_size>(__device);
+    return __kernel.template get_work_group_info<sycl::info::kernel_work_group::work_group_size>(__device);
 #endif
-    // The variable below is needed to achieve better performance on CPU devices.
-    // Experimentally it was found that the most common divisor is 4 with all patterns.
-    // TODO: choose the divisor according to specific pattern.
-    if (__device.is_cpu() && __max_wg_size >= 4)
-        __max_wg_size /= 4;
-
-    return __max_wg_size;
 }
 
 template <typename _ExecutionPolicy>
