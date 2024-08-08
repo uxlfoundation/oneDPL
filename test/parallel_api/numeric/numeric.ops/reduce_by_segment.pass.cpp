@@ -346,13 +346,22 @@ run_test()
 int
 main()
 {
+    // On Windows, we observe incorrect results with this test with a specific compilation order of the
+    // kernels. This is being filed to the compiler team. In the meantime, we can rearrange this test
+    // to resolve the issue on our side.
+#if _PSTL_RED_BY_SEG_WINDOWS_COMPILE_ORDER_BROKEN
+    run_test<MatrixPoint<float>, UserBinaryPredicate<MatrixPoint<float>>, MaxFunctor<MatrixPoint<float>>>();
+#endif
+
 #if TEST_DPCPP_BACKEND_PRESENT
     // test with flag pred
     test_flag_pred<sycl::usm::alloc::device, class KernelName1, std::uint64_t>();
     test_flag_pred<sycl::usm::alloc::device, class KernelName2, MatrixPoint<float>>();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
+#if !_PSTL_RED_BY_SEG_WINDOWS_COMPILE_ORDER_BROKEN
     run_test<MatrixPoint<float>, UserBinaryPredicate<MatrixPoint<float>>, MaxFunctor<MatrixPoint<float>>>();
+#endif
 
     run_test<int, ::std::equal_to<int>, ::std::plus<int>>();
     run_test<float, ::std::equal_to<float>, ::std::plus<float>>();
