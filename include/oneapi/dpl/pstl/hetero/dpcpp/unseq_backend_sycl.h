@@ -213,7 +213,7 @@ struct transform_reduce
     void
     vectorized_reduction_first(const _Size __start_idx, _Res& __res, const _Acc&... __acc) const
     {
-        new (&__res.__v) _Tp(__unary_op(__start_idx, __acc...));
+        __res.__setup(__unary_op(__start_idx, __acc...));
         _ONEDPL_PRAGMA_UNROLL
         for (_Size __i = 1; __i < _VecSize; ++__i)
             __res.__v = __binary_op(__res.__v, __unary_op(__start_idx + __i, __acc...));
@@ -251,7 +251,7 @@ struct transform_reduce
             return;
         if (__iters_per_work_item == 1)
         {
-            new (&__res.__v) _Tp(__unary_op(__global_idx, __acc...));
+            __res.__setup(__unary_op(__global_idx, __acc...));
             return;
         }
         const _Size __local_range = __item_id.get_local_range(0);
@@ -318,7 +318,7 @@ struct transform_reduce
         // Scalar remainder
         else if (__adjusted_global_id < __adjusted_n)
         {
-            new (&__res.__v) _Tp(__unary_op(__adjusted_global_id, __acc...));
+            __res.__setup(__unary_op(__adjusted_global_id, __acc...));
             const _Size __adjusted_global_id_plus_one = __adjusted_global_id + 1;
             scalar_reduction_remainder(__adjusted_global_id_plus_one, __adjusted_n, __res, __acc...);
         }

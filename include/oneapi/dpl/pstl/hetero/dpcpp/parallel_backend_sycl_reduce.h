@@ -47,14 +47,6 @@ class __reduce_mid_work_group_kernel;
 template <typename... _Name>
 class __reduce_kernel;
 
-// Storage helper since _Tp may not have a default constructor.
-template <typename _Tp>
-union __lazy_ctor_storage
-{
-    _Tp __v;
-    __lazy_ctor_storage() {}
-};
-
 // Adjust number of sequential operations per work-item based on the vector size. Single elements are kept to
 // improve performance of small arrays or remainder loops.
 template <std::uint8_t _VecSize, typename _Size>
@@ -76,7 +68,7 @@ __work_group_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Si
 {
     auto __local_idx = __item_id.get_local_id(0);
     const _Size __group_size = __item_id.get_local_range().size();
-    __lazy_ctor_storage<_Tp> __result;
+    oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __result;
     // 1. Initialization (transform part). Fill local memory
     __transform_pattern(__item_id, __n, __iters_per_work_item, /*global_offset*/ (_Size)0, __is_full,
                         /*__n_groups*/ (_Size)1, __result, __acc...);
@@ -89,7 +81,7 @@ __work_group_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Si
         __reduce_pattern.apply_init(__init, __result.__v);
         __res_ptr[0] = __result.__v;
     }
-    __result.__v.~_Tp();
+    __result.__destroy();
 }
 
 // Device kernel that transforms and reduces __n elements to the number of work groups preliminary results.
@@ -104,7 +96,7 @@ __device_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Size _
     auto __local_idx = __item_id.get_local_id(0);
     auto __group_idx = __item_id.get_group(0);
     const _Size __group_size = __item_id.get_local_range().size();
-    __lazy_ctor_storage<_Tp> __result;
+    oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __result;
     // 1. Initialization (transform part). Fill local memory
     __transform_pattern(__item_id, __n, __iters_per_work_item, /*global_offset*/ (_Size)0, __is_full, __n_groups,
                         __result, __acc...);
@@ -114,7 +106,7 @@ __device_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Size _
     __result.__v = __reduce_pattern(__item_id, __n_items, __result.__v, __local_mem);
     if (__local_idx == 0)
         __temp_acc[__group_idx] = __result.__v;
-    __result.__v.~_Tp();
+    __result.__destroy();
 }
 
 //------------------------------------------------------------------------
@@ -394,7 +386,7 @@ struct __parallel_transform_reduce_impl
                         // 1. Initialization (transform part). Fill local memory
                         _Size __n_items;
                         const bool __is_full = __n == __size_per_work_group * __n_groups;
-                        __lazy_ctor_storage<_Tp> __result;
+                        oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __result;
                         if (__is_first)
                         {
                             __transform_pattern1(__item_id, __n, __iters_per_work_item, /*global_offset*/ (_Size)0,
@@ -420,7 +412,7 @@ struct __parallel_transform_reduce_impl
 
                             __temp_ptr[__offset_1 + __group_idx] = __result.__v;
                         }
-                        __result.__v.~_Tp();
+                        __result.__destroy();
                     });
             });
             __is_first = false;
