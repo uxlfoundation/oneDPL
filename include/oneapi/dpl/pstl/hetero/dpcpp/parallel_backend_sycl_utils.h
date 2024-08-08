@@ -547,8 +547,8 @@ struct __result_and_scratch_storage
     }
 
   public:
-    __result_and_scratch_storage(_ExecutionPolicy& __exec, ::std::size_t __scratch_n)
-        : __exec{__exec}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations(__exec.queue())},
+    __result_and_scratch_storage(const _ExecutionPolicy& __exec_, ::std::size_t __scratch_n)
+        : __exec{__exec_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations(__exec.queue())},
           __supports_USM_device{__use_USM_allocations(__exec.queue())}
     {
         if (__use_USM_host && __supports_USM_device)

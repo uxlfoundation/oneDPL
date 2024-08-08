@@ -529,8 +529,15 @@ struct __mask_assigner
 struct __scan_assigner
 {
     template <typename _OutAcc, typename _OutIdx, typename _InAcc, typename _InIdx>
-    void
+    std::enable_if_t<!std::is_pointer_v<_OutAcc>>
     operator()(_OutAcc& __out_acc, const _OutIdx __out_idx, const _InAcc& __in_acc, _InIdx __in_idx) const
+    {
+        __out_acc[__out_idx] = __in_acc[__in_idx];
+    }
+
+    template <typename _OutAcc, typename _OutIdx, typename _InAcc, typename _InIdx>
+    std::enable_if_t<std::is_pointer_v<_OutAcc>>
+    operator()(_OutAcc __out_acc, const _OutIdx __out_idx, const _InAcc& __in_acc, _InIdx __in_idx) const
     {
         __out_acc[__out_idx] = __in_acc[__in_idx];
     }
@@ -578,11 +585,11 @@ struct __copy_by_mask
     _BinaryOp __binary_op;
     _Assigner __assigner;
 
-    template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsAcc, typename _Size,
+    template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsPtr, typename _RetPtr, typename _Size,
               typename _SizePerWg>
     void
-    operator()(_Item __item, _OutAcc& __out_acc, const _InAcc& __in_acc, const _WgSumsAcc& __wg_sums_acc, _Size __n,
-               _SizePerWg __size_per_wg) const
+    operator()(_Item __item, _OutAcc& __out_acc, const _InAcc& __in_acc, _WgSumsPtr* __wg_sums_ptr, _RetPtr* __ret_ptr,
+               _Size __n, _SizePerWg __size_per_wg) const
     {
         using ::std::get;
         auto __item_idx = __item.get_linear_id();
@@ -598,7 +605,7 @@ struct __copy_by_mask
             if (__item_idx >= __size_per_wg)
             {
                 auto __wg_sums_idx = __item_idx / __size_per_wg - 1;
-                __out_idx = __binary_op(__out_idx, __wg_sums_acc[__wg_sums_idx]);
+                __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx]);
             }
             if (__item_idx % __size_per_wg == 0 || (get<N>(__in_acc[__item_idx]) != get<N>(__in_acc[__item_idx - 1])))
                 // If we work with tuples we might have a situation when internal tuple is assigned to ::std::tuple
@@ -617,6 +624,11 @@ struct __copy_by_mask
                 // is performed(i.e. __typle_type is the same type as its operand).
                 __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
         }
+        if (__item_idx == 0)
+        {
+            //copy final result to output
+            *__ret_ptr = __wg_sums_ptr[(__n - 1) / __size_per_wg];
+        }
     }
 };
 
@@ -625,11 +637,11 @@ struct __partition_by_mask
 {
     _BinaryOp __binary_op;
 
-    template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsAcc, typename _Size,
+    template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsPtr, typename _RetPtr, typename _Size,
               typename _SizePerWg>
     void
-    operator()(_Item __item, _OutAcc& __out_acc, const _InAcc& __in_acc, const _WgSumsAcc& __wg_sums_acc, _Size __n,
-               _SizePerWg __size_per_wg) const
+    operator()(_Item __item, _OutAcc& __out_acc, const _InAcc& __in_acc, _WgSumsPtr* __wg_sums_ptr, _RetPtr* __ret_ptr,
+               _Size __n, _SizePerWg __size_per_wg) const
     {
         auto __item_idx = __item.get_linear_id();
         if (__item_idx < __n)
@@ -646,7 +658,7 @@ struct __partition_by_mask
                     __in_type, ::std::decay_t<decltype(get<0>(__out_acc[__out_idx]))>>::__type;
 
                 if (__not_first_wg)
-                    __out_idx = __binary_op(__out_idx, __wg_sums_acc[__wg_sums_idx - 1]);
+                    __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx - 1]);
                 get<0>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx]));
             }
             else
@@ -656,9 +668,14 @@ struct __partition_by_mask
                     __in_type, ::std::decay_t<decltype(get<1>(__out_acc[__out_idx]))>>::__type;
 
                 if (__not_first_wg)
-                    __out_idx -= __wg_sums_acc[__wg_sums_idx - 1];
+                    __out_idx -= __wg_sums_ptr[__wg_sums_idx - 1];
                 get<1>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx]));
             }
+        }
+        if (__item_idx == 0)
+        {
+            //copy final result to output
+            *__ret_ptr = __wg_sums_ptr[(__n - 1) / __size_per_wg];
         }
     }
 };
@@ -669,10 +686,10 @@ struct __global_scan_functor
     _BinaryOp __binary_op;
     _InitType __init;
 
-    template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsAcc, typename _Size,
+    template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsPtr, typename _RetPtr, typename _Size,
               typename _SizePerWg>
     void
-    operator()(_Item __item, _OutAcc& __out_acc, const _InAcc&, const _WgSumsAcc& __wg_sums_acc, _Size __n,
+    operator()(_Item __item, _OutAcc& __out_acc, const _InAcc&, _WgSumsPtr* __wg_sums_ptr, _RetPtr*, _Size __n,
                _SizePerWg __size_per_wg) const
     {
         constexpr auto __shift = _Inclusive{} ? 0 : 1;
@@ -683,7 +700,7 @@ struct __global_scan_functor
             auto __wg_sums_idx = __item_idx / __size_per_wg - 1;
             // an initial value precedes the first group for the exclusive scan
             __item_idx += __shift;
-            auto __bin_op_result = __binary_op(__wg_sums_acc[__wg_sums_idx], __out_acc[__item_idx]);
+            auto __bin_op_result = __binary_op(__wg_sums_ptr[__wg_sums_idx], __out_acc[__item_idx]);
             using __out_type = ::std::decay_t<decltype(__out_acc[__item_idx])>;
             using __in_type = ::std::decay_t<decltype(__bin_op_result)>;
             __out_acc[__item_idx] =
@@ -712,10 +729,10 @@ struct __scan
     _DataAccessor __data_acc;
 
     template <typename _NDItemId, typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc,
-              typename _WGSumsAcc, typename _SizePerWG, typename _WGSize, typename _ItersPerWG>
+              typename _WGSumsPtr, typename _SizePerWG, typename _WGSize, typename _ItersPerWG>
     void
     scan_impl(_NDItemId __item, _Size __n, _AccLocal& __local_acc, const _InAcc& __acc, _OutAcc& __out_acc,
-              _WGSumsAcc& __wg_sums_acc, _SizePerWG __size_per_wg, _WGSize __wgroup_size, _ItersPerWG __iters_per_wg,
+              _WGSumsPtr* __wg_sums_ptr, _SizePerWG __size_per_wg, _WGSize __wgroup_size, _ItersPerWG __iters_per_wg,
               _InitType __init, std::false_type /*has_known_identity*/) const
     {
         ::std::size_t __group_id = __item.get_group(0);
@@ -785,18 +802,18 @@ struct __scan
                 __gl_assigner(__acc, __out_acc, __adjusted_global_id + __shift, __local_acc, __local_id);
 
             if (__adjusted_global_id == __n - 1)
-                __wg_assigner(__wg_sums_acc, __group_id, __local_acc, __local_id);
+                __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
         }
 
         if (__local_id == __wgroup_size - 1 && __adjusted_global_id - __wgroup_size < __n)
-            __wg_assigner(__wg_sums_acc, __group_id, __local_acc, __local_id);
+            __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
     }
 
     template <typename _NDItemId, typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc,
-              typename _WGSumsAcc, typename _SizePerWG, typename _WGSize, typename _ItersPerWG>
+              typename _WGSumsPtr, typename _SizePerWG, typename _WGSize, typename _ItersPerWG>
     void
     scan_impl(_NDItemId __item, _Size __n, _AccLocal& __local_acc, const _InAcc& __acc, _OutAcc& __out_acc,
-              _WGSumsAcc& __wg_sums_acc, _SizePerWG __size_per_wg, _WGSize __wgroup_size, _ItersPerWG __iters_per_wg,
+              _WGSumsPtr* __wg_sums_ptr, _SizePerWG __size_per_wg, _WGSize __wgroup_size, _ItersPerWG __iters_per_wg,
               _InitType __init, std::true_type /*has_known_identity*/) const
     {
         auto __group_id = __item.get_group(0);
@@ -831,21 +848,21 @@ struct __scan
                 __gl_assigner(__acc, __out_acc, __adjusted_global_id + __shift, __local_acc, __local_id);
 
             if (__adjusted_global_id == __n - 1)
-                __wg_assigner(__wg_sums_acc, __group_id, __local_acc, __local_id);
+                __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
         }
 
         if (__local_id == __wgroup_size - 1 && __adjusted_global_id - __wgroup_size < __n)
-            __wg_assigner(__wg_sums_acc, __group_id, __local_acc, __local_id);
+            __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
     }
 
     template <typename _NDItemId, typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc,
-              typename _WGSumsAcc, typename _SizePerWG, typename _WGSize, typename _ItersPerWG>
+              typename _WGSumsPtr, typename _SizePerWG, typename _WGSize, typename _ItersPerWG>
     void operator()(_NDItemId __item, _Size __n, _AccLocal& __local_acc, const _InAcc& __acc, _OutAcc& __out_acc,
-                    _WGSumsAcc& __wg_sums_acc, _SizePerWG __size_per_wg, _WGSize __wgroup_size,
+                    _WGSumsPtr* __wg_sums_ptr, _SizePerWG __size_per_wg, _WGSize __wgroup_size,
                     _ItersPerWG __iters_per_wg,
                     _InitType __init = __no_init_value<typename _InitType::__value_type>{}) const
     {
-        scan_impl(__item, __n, __local_acc, __acc, __out_acc, __wg_sums_acc, __size_per_wg, __wgroup_size,
+        scan_impl(__item, __n, __local_acc, __acc, __out_acc, __wg_sums_ptr, __size_per_wg, __wgroup_size,
                   __iters_per_wg, __init, __has_known_identity<_BinaryOperation, _Tp>{});
     }
 };
