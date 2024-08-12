@@ -136,7 +136,8 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
         auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
 
-        __result_and_scratch_storage<_ExecutionPolicy, _Tp> __scratch_container(__exec, 0);
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Tp>;
+        __result_and_scratch_storage_t __scratch_container{__exec, 1, 0};
 
         sycl::event __reduce_event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...); // get an access to data under SYCL buffer
@@ -146,9 +147,7 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range<1>(sycl::range<1>(__work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item<1> __item_id) {
-                    auto __res_ptr =
-                        __result_and_scratch_storage<_ExecutionPolicy, _Tp>::__get_usm_or_buffer_accessor_ptr(
-                            __res_acc);
+                    auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
                     __work_group_reduce_kernel<_Tp>(__item_id, __n, __iters_per_work_item, __is_full,
                                                     __transform_pattern, __reduce_pattern, __init, __temp_local,
                                                     __res_ptr, __rngs...);
@@ -191,7 +190,8 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
     auto
     operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, const _Size __n,
                const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
-               _TransformOp __transform_op, __result_and_scratch_storage<_ExecutionPolicy2, _Tp> __scratch_container,
+               _TransformOp __transform_op,
+               const __result_and_scratch_storage<_ExecutionPolicy2, _Tp>& __scratch_container,
                _Ranges&&... __rngs) const
     {
         auto __transform_pattern =
@@ -238,7 +238,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
     auto
     operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, sycl::event& __reduce_event,
                const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
-               _InitType __init, __result_and_scratch_storage<_ExecutionPolicy2, _Tp> __scratch_container) const
+               _InitType __init, const __result_and_scratch_storage<_ExecutionPolicy2, _Tp>& __scratch_container) const
     {
         using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
         auto __transform_pattern =
@@ -247,6 +247,8 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
         auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
 
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
+
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy2, _Tp>;
 
         __reduce_event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
             __cgh.depends_on(__reduce_event);
@@ -258,12 +260,8 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
             __cgh.parallel_for<_KernelName...>(
                 sycl::nd_range<1>(sycl::range<1>(__work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item<1> __item_id) {
-                    auto __temp_ptr =
-                        __result_and_scratch_storage<_ExecutionPolicy2, _Tp>::__get_usm_or_buffer_accessor_ptr(
-                            __temp_acc);
-                    auto __res_ptr =
-                        __result_and_scratch_storage<_ExecutionPolicy2, _Tp>::__get_usm_or_buffer_accessor_ptr(
-                            __res_acc, __n);
+                    auto __temp_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
+                    auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, __n);
                     __work_group_reduce_kernel<_Tp>(__item_id, __n, __iters_per_work_item, __is_full,
                                                     __transform_pattern, __reduce_pattern, __init, __temp_local,
                                                     __res_ptr, __temp_ptr);
@@ -292,7 +290,7 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
     // number of buffer elements processed within workgroup
     const _Size __size_per_work_group = __iters_per_work_item_device_kernel * __work_group_size;
     const _Size __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
-    __result_and_scratch_storage<_ExecutionPolicy, _Tp> __scratch_container(__exec, __n_groups);
+    __result_and_scratch_storage<_ExecutionPolicy, _Tp> __scratch_container{__exec, 1, __n_groups};
 
     sycl::event __reduce_event =
         __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _VecSize, _ReduceDeviceKernel>()(
@@ -341,7 +339,9 @@ struct __parallel_transform_reduce_impl
         _Size __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
 
         // Create temporary global buffers to store temporary values
-        __result_and_scratch_storage<_ExecutionPolicy, _Tp> __scratch_container(__exec, 2 * __n_groups);
+        const std::size_t __n_scratch = 2 * __n_groups;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Tp>;
+        __result_and_scratch_storage_t __scratch_container{__exec, 1, __n_scratch};
 
         // __is_first == true. Reduce over each work_group
         // __is_first == false. Reduce between work groups
@@ -375,12 +375,9 @@ struct __parallel_transform_reduce_impl
                     sycl::nd_range<1>(sycl::range<1>(__n_groups * __work_group_size),
                                       sycl::range<1>(__work_group_size)),
                     [=](sycl::nd_item<1> __item_id) {
-                        auto __temp_ptr =
-                            __result_and_scratch_storage<_ExecutionPolicy, _Tp>::__get_usm_or_buffer_accessor_ptr(
-                                __temp_acc);
+                        auto __temp_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                         auto __res_ptr =
-                            __result_and_scratch_storage<_ExecutionPolicy, _Tp>::__get_usm_or_buffer_accessor_ptr(
-                                __res_acc, 2 * __n_groups);
+                            __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, 2 * __n_groups);
                         auto __local_idx = __item_id.get_local_id(0);
                         auto __group_idx = __item_id.get_group(0);
                         // 1. Initialization (transform part). Fill local memory

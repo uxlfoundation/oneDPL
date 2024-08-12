@@ -511,11 +511,12 @@ struct __result_and_scratch_storage
     using __sycl_buffer_t = sycl::buffer<_T, 1>;
 
     _ExecutionPolicy __exec;
-    ::std::shared_ptr<_T> __scratch_buf;
-    ::std::shared_ptr<_T> __result_buf;
-    ::std::shared_ptr<__sycl_buffer_t> __sycl_buf;
+    std::shared_ptr<_T> __scratch_buf;
+    std::shared_ptr<_T> __result_buf;
+    std::shared_ptr<__sycl_buffer_t> __sycl_buf;
 
-    ::std::size_t __scratch_n;
+    std::size_t __result_n;
+    std::size_t __scratch_n;
     bool __use_USM_host;
     bool __supports_USM_device;
 
@@ -548,40 +549,50 @@ struct __result_and_scratch_storage
     }
 
   public:
-    __result_and_scratch_storage(const _ExecutionPolicy& __exec_, ::std::size_t __scratch_n)
-        : __exec{__exec_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations(__exec.queue())},
-          __supports_USM_device{__use_USM_allocations(__exec.queue())}
+    __result_and_scratch_storage(const _ExecutionPolicy& __exec_, std::size_t __result_n, std::size_t __scratch_n)
+        : __exec{__exec_}, __result_n{__result_n}, __scratch_n{__scratch_n},
+          __use_USM_host{__use_USM_host_allocations(__exec.queue())}, __supports_USM_device{
+                                                                          __use_USM_allocations(__exec.queue())}
     {
-        if (__use_USM_host && __supports_USM_device)
+        const std::size_t __total_n = __scratch_n + __result_n;
+        // Skip in case this is a dummy container
+        if (__total_n > 0)
         {
-            // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
-            if (__scratch_n > 0)
+            if (__use_USM_host && __supports_USM_device)
             {
-                __scratch_buf = ::std::shared_ptr<_T>(
-                    __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::device>{__exec}(__scratch_n),
+                // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
+                if (__scratch_n > 0)
+                {
+                    __scratch_buf = std::shared_ptr<_T>(
+                        __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::device>{__exec}(
+                            __scratch_n),
+                        __internal::__sycl_usm_free<_ExecutionPolicy, _T>{__exec});
+                }
+                if (__result_n > 0)
+                {
+                    __result_buf = std::shared_ptr<_T>(
+                        __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::host>{__exec}(__result_n),
+                        __internal::__sycl_usm_free<_ExecutionPolicy, _T>{__exec});
+                }
+            }
+            else if (__supports_USM_device)
+            {
+                // If we don't use host memory, malloc only a single unified device allocation
+                __scratch_buf = std::shared_ptr<_T>(
+                    __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::device>{__exec}(__total_n),
                     __internal::__sycl_usm_free<_ExecutionPolicy, _T>{__exec});
             }
-            __result_buf = ::std::shared_ptr<_T>(
-                __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::host>{__exec}(1),
-                __internal::__sycl_usm_free<_ExecutionPolicy, _T>{__exec});
-        }
-        else if (__supports_USM_device)
-        {
-            // If we don't use host memory, malloc only a single unified device allocation
-            __scratch_buf = ::std::shared_ptr<_T>(
-                __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::device>{__exec}(__scratch_n + 1),
-                __internal::__sycl_usm_free<_ExecutionPolicy, _T>{__exec});
-        }
-        else
-        {
-            // If we don't have USM support allocate memory here
-            __sycl_buf = ::std::make_shared<__sycl_buffer_t>(__sycl_buffer_t(__scratch_n + 1));
+            else
+            {
+                // If we don't have USM support allocate memory here
+                __sycl_buf = std::make_shared<__sycl_buffer_t>(__sycl_buffer_t(__total_n));
+            }
         }
     }
 
     template <typename _Acc>
     static auto
-    __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, ::std::size_t __scratch_n = 0)
+    __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, std::size_t __scratch_n = 0)
     {
 #if _ONEDPL_SYCL_UNIFIED_USM_BUFFER_PRESENT
         return __acc.__get_pointer();
@@ -591,7 +602,7 @@ struct __result_and_scratch_storage
     }
 
     auto
-    __get_result_acc(sycl::handler& __cgh)
+    __get_result_acc(sycl::handler& __cgh) const
     {
 #if _ONEDPL_SYCL_UNIFIED_USM_BUFFER_PRESENT
         if (__use_USM_host && __supports_USM_device)
@@ -605,7 +616,7 @@ struct __result_and_scratch_storage
     }
 
     auto
-    __get_scratch_acc(sycl::handler& __cgh)
+    __get_scratch_acc(sycl::handler& __cgh) const
     {
 #if _ONEDPL_SYCL_UNIFIED_USM_BUFFER_PRESENT
         if (__use_USM_host || __supports_USM_device)
@@ -627,6 +638,7 @@ struct __result_and_scratch_storage
     _T
     __get_value(size_t idx = 0) const
     {
+        assert(idx < __result_n);
         if (__use_USM_host && __supports_USM_device)
         {
             return *(__result_buf.get() + idx);
@@ -663,7 +675,7 @@ class __future : private std::tuple<_Args...>
 
     template <typename _T>
     constexpr auto
-    __wait_and_get_value(sycl::buffer<_T>& __buf)
+    __wait_and_get_value(const sycl::buffer<_T>& __buf)
     {
         //according to a contract, returned value is one-element sycl::buffer
         return __buf.get_host_access(sycl::read_only)[0];
@@ -671,14 +683,14 @@ class __future : private std::tuple<_Args...>
 
     template <typename _ExecutionPolicy, typename _T>
     constexpr auto
-    __wait_and_get_value(__result_and_scratch_storage<_ExecutionPolicy, _T>& __storage)
+    __wait_and_get_value(const __result_and_scratch_storage<_ExecutionPolicy, _T>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
     }
 
     template <typename _T>
     constexpr auto
-    __wait_and_get_value(_T& __val)
+    __wait_and_get_value(const _T& __val)
     {
         wait();
         return __val;
