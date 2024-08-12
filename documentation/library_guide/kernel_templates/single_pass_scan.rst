@@ -78,7 +78,7 @@ Parameters
 
   Current limitations:
 
-  - The function will internally block until the issued kernels have completed execution.
+  - The function is intended to be asynchronous, but in some cases, the function will not return until the algorithm fully completes.
     Although intended in the future to be an asynchronous call, the algorithm is currently synchronous.
   - The SYCL device associated with the provided queue must support 64-bit atomic operations if the element type is 64-bits.
   - There must be a known identity value for the provided combination of the element type and the binary operation. That is, ``sycl::has_known_identity_v`` must evaluate to true. Such operators are listed in the `SYCL 2020 specification <https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#table.identities>`_.
