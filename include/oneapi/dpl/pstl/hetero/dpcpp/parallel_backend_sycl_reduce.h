@@ -90,7 +90,7 @@ template <typename _Tp, typename _NDItemId, typename _Size, typename _TransformP
 void
 __device_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Size __iters_per_work_item,
                        const bool __is_full, const _Size __n_groups, _TransformPattern __transform_pattern,
-                       _ReducePattern __reduce_pattern, const _AccLocal& __local_mem, const _Tmp& __temp_acc,
+                       _ReducePattern __reduce_pattern, const _AccLocal& __local_mem, _Tmp* __reduce_result_ptr,
                        const _Acc&... __acc)
 {
     auto __local_idx = __item_id.get_local_id(0);
@@ -105,7 +105,7 @@ __device_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Size _
     // 2. Reduce within work group using local memory
     __result.__v = __reduce_pattern(__item_id, __n_items, __result.__v, __local_mem);
     if (__local_idx == 0)
-        __temp_acc[__group_idx] = __result.__v;
+        __reduce_result_ptr[__group_idx] = __result.__v;
     __result.__destroy();
 }
 
