@@ -1134,6 +1134,75 @@ struct __early_exit_find_or
 // parallel_find_or - sync pattern
 //------------------------------------------------------------------------
 
+template <typename Tag>
+struct __parallel_find_or_nd_range_tuner
+{
+    // Tune the amount of work-groups and work-group size
+    template <typename _ExecutionPolicy>
+    std::tuple<std::size_t, std::size_t>
+    operator()(const _ExecutionPolicy& __exec, const std::size_t __rng_n) const
+    {
+        // TODO: find a way to generalize getting of reliable work-group size
+        // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
+        // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
+        const std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec, (std::size_t)4096);
+        std::size_t __n_groups = 1;
+        // If no more than 32 data elements per work item, a single work group will be used
+        if (__rng_n > __wgroup_size * 32)
+        {
+            // Compute the number of groups and limit by the number of compute units
+            __n_groups = std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size),
+                                               oneapi::dpl::__internal::__max_compute_units(__exec));
+        }
+
+        return {__n_groups, __wgroup_size};
+    }
+};
+
+// No tuning for FPGA_EMU because we are not going to tune here the performance for FPGA emulation.
+#if !_ONEDPL_FPGA_EMU
+template <>
+struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>
+{
+    // Tune the amount of work-groups and work-group size
+    template <typename _ExecutionPolicy>
+    std::tuple<std::size_t, std::size_t>
+    operator()(const _ExecutionPolicy& __exec, const std::size_t __rng_n) const
+    {
+        // Call common tuning function to get the work-group size
+        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int>{}(__exec, __rng_n);
+
+        if (__n_groups > 1)
+        {
+            auto __iters_per_work_item =
+                oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
+
+            // If our work capacity is not enough to process all data in one iteration, will tune the number of work-groups
+            if (__iters_per_work_item > 1)
+            {
+                // Empirically found formula for GPU devices.
+                // TODO : need to re-evaluate this formula.
+                const float __rng_x = (float)__rng_n / 4096.f;
+                const float __desired_iters_per_work_item = std::max(std::sqrt(__rng_x), 1.f);
+
+                if (__iters_per_work_item < __desired_iters_per_work_item)
+                {
+                    // Multiply work per item by a power of 2 to reach the desired number of iterations.
+                    // __dpl_bit_ceil rounds the ratio up to the next power of 2.
+                    const std::size_t __k = oneapi::dpl::__internal::__dpl_bit_ceil(
+                        (std::size_t)std::ceil(__desired_iters_per_work_item / __iters_per_work_item));
+                    // Proportionally reduce the number of work groups.
+                    __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
+                        __rng_n, __wgroup_size * __iters_per_work_item * __k);
+                }
+            }
+        }
+
+        return {__n_groups, __wgroup_size};
+    }
+};
+#endif // !_ONEDPL_FPGA_EMU
+
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
 template <typename KernelName, bool __or_tag_check, typename _ExecutionPolicy, typename _BrickTag,
           typename __FoundStateType, typename _Predicate, typename... _Ranges>
@@ -1274,23 +1343,11 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     auto __rng_n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
     assert(__rng_n > 0);
 
-    // TODO: find a way to generalize getting of reliable work-group size
-    // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
-    // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-    std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec, (std::size_t)4096);
+    // Evaluate the amount of work-groups and work-group size
+    const auto [__n_groups, __wgroup_size] =
+        __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__exec, __rng_n);
 
-    const auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec);
-    auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size);
-    __n_groups = ::std::min(__n_groups, decltype(__n_groups)(__max_cu));
-
-    // Pass all small data into single WG implementation
-    constexpr std::size_t __max_iters_per_work_item = 32;
-    if (__rng_n <= __wgroup_size * __max_iters_per_work_item)
-    {
-        __n_groups = 1;
-    }
-
-    _PRINT_INFO_IN_DEBUG_MODE(__exec, __wgroup_size, __max_cu);
+    _PRINT_INFO_IN_DEBUG_MODE(__exec, __wgroup_size);
 
     using _AtomicType = typename _BrickTag::_AtomicType;
     const _AtomicType __init_value = _BrickTag::__init_value(__rng_n);

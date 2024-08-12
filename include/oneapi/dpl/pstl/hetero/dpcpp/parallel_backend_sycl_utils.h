@@ -298,7 +298,7 @@ class __kernel_compiler
 template <typename _Policy>
 inline void
 // Passing policy by value should be enough for debugging
-__print_device_debug_info(_Policy __policy, size_t __wg_size = 0, size_t __max_cu = 0)
+__print_device_debug_info(const _Policy& __policy, size_t __wg_size = 0, size_t __max_cu = 0)
 {
     ::std::cout << "Device info" << ::std::endl;
     ::std::cout << " > device name:         " << oneapi::dpl::__internal::__device_info(__policy) << ::std::endl;
@@ -309,7 +309,8 @@ __print_device_debug_info(_Policy __policy, size_t __wg_size = 0, size_t __max_c
 }
 #else
 template <typename _Policy>
-inline void __print_device_debug_info(_Policy, size_t = 0, size_t = 0)
+inline void
+__print_device_debug_info(const _Policy& __policy, size_t = 0, size_t = 0)
 {
 }
 #endif
