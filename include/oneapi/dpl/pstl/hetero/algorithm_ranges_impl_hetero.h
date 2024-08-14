@@ -49,7 +49,7 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
         oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                           unseq_backend::walk_n<_ExecutionPolicy, _Function>{__f}, __n,
                                                           ::std::forward<_Ranges>(__rngs)...)
-            .wait();
+            .__deferrable_wait();
     }
 }
 
@@ -516,7 +516,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         __par_backend_hetero::__parallel_merge(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                ::std::forward<_Range1>(__rng1), ::std::forward<_Range2>(__rng2),
                                                ::std::forward<_Range3>(__rng3), __comp)
-            .wait();
+            .__deferrable_wait();
     }
 
     return __n;
@@ -533,7 +533,7 @@ __pattern_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __
     if (__rng.size() >= 2)
         __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                      ::std::forward<_Range>(__rng), __comp, __proj)
-            .wait();
+            .__deferrable_wait();
 }
 
 //------------------------------------------------------------------------
@@ -783,7 +783,7 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         __result_end,
         oneapi::dpl::__ranges::take_view_simple(experimental::ranges::views::all_read(__idx), __result_end),
         experimental::ranges::views::all_read(__tmp_out_values), ::std::forward<_Range4>(__out_values))
-        .wait();
+        .__deferrable_wait();
 
     return __result_end;
 }

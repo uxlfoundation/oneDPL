@@ -157,7 +157,7 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
 
             __parallel_histogram(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __init_event,
                                  __input_buf.all_view(), ::std::move(__bins), __binhash_manager)
-                .wait();
+                .__deferrable_wait();
         }
         else
         {

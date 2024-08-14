@@ -54,7 +54,7 @@ __pattern_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, __exec, unseq_backend::walk_n<_ExecutionPolicy, _Function>{__f}, __n, __buf.all_view())
-        .wait();
+        .__deferrable_wait();
 }
 
 //------------------------------------------------------------------------
@@ -75,10 +75,10 @@ __pattern_walk1_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _F
 // walk2
 //------------------------------------------------------------------------
 
-// TODO: A tag _IsSync is used for provide a patterns call pipeline, where the last one should be synchronous
-// Probably it should be re-designed by a pipeline approach, when a pattern returns some sync obejects
+// TODO: A tag _WaitMode is used for provide a patterns call pipeline, where the last one should be synchronous
+// Probably it should be re-designed by a pipeline approach, when a pattern returns some sync objects
 // and ones are combined into a "pipeline" (probably like Range pipeline)
-template <typename _IsSync = ::std::true_type,
+template <typename _WaitMode = __par_backend_hetero::__deferrable_mode,
           __par_backend_hetero::access_mode __acc_mode1 = __par_backend_hetero::access_mode::read,
           __par_backend_hetero::access_mode __acc_mode2 = __par_backend_hetero::access_mode::write,
           typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
@@ -97,12 +97,12 @@ __pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode2, _ForwardIterator2>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    auto __future_obj = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::walk_n<_ExecutionPolicy, _Function>{__f}, __n, __buf1.all_view(), __buf2.all_view());
 
-    if constexpr (_IsSync())
-        __future_obj.wait();
+    // Call no wait, wait or deferrable wait depending on _WaitMode
+    __future.wait(_WaitMode{});
 
     return __first2 + __n;
 }
@@ -126,7 +126,8 @@ _ForwardIterator2
 __pattern_swap(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __f)
 {
-    return __pattern_walk2</*_IsSync=*/::std::true_type, __par_backend_hetero::access_mode::read_write,
+    return __pattern_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
+                           __par_backend_hetero::access_mode::read_write,
                            __par_backend_hetero::access_mode::read_write>(
         __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __f);
 }
@@ -158,7 +159,7 @@ __pattern_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                       unseq_backend::walk_n<_ExecutionPolicy, _Function>{__f}, __n,
                                                       __buf1.all_view(), __buf2.all_view(), __buf3.all_view())
-        .wait();
+        .__deferrable_wait();
 
     return __first3 + __n;
 }
@@ -249,8 +250,8 @@ __pattern_walk2_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
 {
     // Require `read_write` access mode for output sequence to force a copy in for host iterators to capture incoming
     // values of the output sequence for elements where the predicate is false.
-    return __pattern_walk2</*_IsSync=*/::std::true_type, __par_backend_hetero::access_mode::read,
-                           __par_backend_hetero::access_mode::read_write>(
+    return __pattern_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
+                           __par_backend_hetero::access_mode::read, __par_backend_hetero::access_mode::read_write>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk2_transform_if_wrapper>(
             ::std::forward<_ExecutionPolicy>(__exec)),
@@ -1038,7 +1039,8 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
 
     // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
     // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
-    return __pattern_walk2</*_IsSync=*/std::true_type, __par_backend_hetero::access_mode::read_write,
+    return __pattern_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
+                           __par_backend_hetero::access_mode::read_write,
                            __par_backend_hetero::access_mode::read_write>(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
         __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
@@ -1185,7 +1187,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
 
         __par_backend_hetero::__parallel_merge(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp)
-            .wait();
+            .__deferrable_wait();
     }
     return __d_first + __n;
 }
@@ -1243,7 +1245,7 @@ __stable_sort_with_projection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
 
     __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                  __buf.all_view(), __comp, __proj)
-        .wait();
+        .__deferrable_wait();
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare>
@@ -1429,7 +1431,7 @@ __pattern_partial_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _It
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__first),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__mid),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__last), __comp)
-        .wait();
+        .__deferrable_wait();
 }
 
 //------------------------------------------------------------------------
@@ -1482,9 +1484,9 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     {
         // If our output buffer is larger than the input buffer, simply copy elements to the output and use
         // full sort on them.
-        auto __out_end =
-            __pattern_walk2(__tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_1>(__exec), __first, __last,
-                            __out_first, __brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
+        auto __out_end = __pattern_walk2<__par_backend_hetero::__sync_mode>(
+            __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_1>(__exec), __first, __last, __out_first,
+            __brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
 
         // TODO: __pattern_walk2 is a blocking call here, so there is a synchronization between the patterns.
         // But, when the input iterators are a kind of hetero iterator on top of sycl::buffer, SYCL
@@ -1510,7 +1512,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         auto __buf_first = __buf.get();
 
-        auto __buf_last = __pattern_walk2</*_IsSync=*/::std::false_type>(
+        auto __buf_last = __pattern_walk2<__par_backend_hetero::__async_mode>(
             __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_2>(__exec), __first, __last, __buf_first,
             __brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
 
@@ -1571,7 +1573,7 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::__reverse_functor<typename ::std::iterator_traits<_Iterator>::difference_type>{__n}, __n / 2,
         __buf.all_view())
-        .wait();
+        .__deferrable_wait();
 }
 
 //------------------------------------------------------------------------
@@ -1597,7 +1599,7 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bi
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::__reverse_copy<typename ::std::iterator_traits<_BidirectionalIterator>::difference_type>{__n},
         __n, __buf1.all_view(), __buf2.all_view())
-        .wait();
+        .__deferrable_wait();
 
     return __result + __n;
 }
@@ -1648,7 +1650,8 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     auto __temp_rng_rw =
         oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::read_write>(__temp_buf.get_buffer());
     oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __brick,
-                                                      __n, __temp_rng_rw, __buf.all_view()).wait();
+                                                      __n, __temp_rng_rw, __buf.all_view())
+        .__deferrable_wait();
 
     // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
     // we must call __parallel_for with wait() to provide the blocking synchronization for this pattern.
@@ -1683,7 +1686,7 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bid
         unseq_backend::__rotate_copy<typename ::std::iterator_traits<_BidirectionalIterator>::difference_type>{__n,
                                                                                                                __shift},
         __n, __buf1.all_view(), __buf2.all_view())
-        .wait();
+        .__deferrable_wait();
 
     return __result + __n;
 }
@@ -1983,7 +1986,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
 
         oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                           __brick, __size_res, __src, __dst)
-            .wait();
+            .__deferrable_wait();
     }
     else //2. n < size/2; 'n' parallel copying
     {
@@ -1993,7 +1996,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_right>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __brick, __n, __rng)
-            .wait();
+            .__deferrable_wait();
     }
 
     return __size_res;

@@ -118,7 +118,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
             __binary_op, _NoOpFunctor{}, __no_assign_op, __assign_op, __get_data_op},
         // global scan
         unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init})
-        .wait();
+        .__deferrable_wait();
     return __rng1_size;
 }
 
