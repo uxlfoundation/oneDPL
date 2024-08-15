@@ -719,6 +719,29 @@ sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first, _Ran
                              oneapi::dpl::__internal::__pstl_less());
 }
 
+// oneapi::dpl::stable_sort_by_key
+
+template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
+          typename _Compare>
+oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
+stable_sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first, _RandomAccessIterator1 __keys_last,
+                   _RandomAccessIterator2 __values_first, _Compare __comp)
+{
+    const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __keys_first, __values_first);
+
+    oneapi::dpl::__internal::__pattern_stable_sort_by_key(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+                                                          __keys_first, __keys_last, __values_first, __comp);
+}
+
+template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2>
+oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
+stable_sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first, _RandomAccessIterator1 __keys_last,
+                   _RandomAccessIterator2 __values_first)
+{
+    oneapi::dpl::stable_sort_by_key(::std::forward<_ExecutionPolicy>(__exec), __keys_first, __keys_last, __values_first,
+                                    oneapi::dpl::__internal::__pstl_less());
+}
+
 // [mismatch]
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>

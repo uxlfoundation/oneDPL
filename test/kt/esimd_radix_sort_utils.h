@@ -228,39 +228,6 @@ struct USMAllocPresentation
 };
 #endif // LOG_TEST_INFO
 
-template <typename T>
-typename ::std::enable_if_t<std::is_arithmetic_v<T>, void>
-generate_data(T* input, std::size_t size, std::uint32_t seed)
-{
-    std::default_random_engine gen{seed};
-    std::size_t unique_threshold = 75 * size / 100;
-    if constexpr (sizeof(T) < sizeof(short)) // no uniform_int_distribution for chars
-    {
-        std::uniform_int_distribution<int> dist(std::numeric_limits<T>::lowest(), std::numeric_limits<T>::max());
-        std::generate(input, input + unique_threshold, [&] { return T(dist(gen)); });
-    }
-    else if constexpr (std::is_integral_v<T>)
-    {
-        std::uniform_int_distribution<T> dist(std::numeric_limits<T>::lowest(), std::numeric_limits<T>::max());
-        std::generate(input, input + unique_threshold, [&] { return dist(gen); });
-    }
-    else
-    {
-        std::uniform_real_distribution<T> dist_real(std::numeric_limits<T>::min(), log2(1e12));
-        std::uniform_int_distribution<int> dist_binary(0, 1);
-        auto randomly_signed_real = [&dist_real, &dist_binary, &gen]()
-        {
-            auto v = exp2(dist_real(gen));
-            return dist_binary(gen) == 0 ? v : -v;
-        };
-        std::generate(input, input + unique_threshold, [&] { return randomly_signed_real(); });
-    }
-    for (uint32_t i = 0, j = unique_threshold; j < size; ++i, ++j)
-    {
-        input[j] = input[i];
-    }
-}
-
 template <typename Container1, typename Container2>
 void
 print_data(const Container1& expected, const Container2& actual, std::size_t first, std::size_t n = 0)

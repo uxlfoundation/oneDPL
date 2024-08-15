@@ -33,8 +33,8 @@ test_sycl_buffer(sycl::queue q, std::size_t size, KernelParam param)
 {
     std::vector<KeyT> input_keys(size);
     std::vector<ValueT> input_values(size);
-    generate_data(input_keys.data(), size, 6);
-    generate_data(input_values.data(), size, 7);
+    TestUtils::generate_arithmetic_data(input_keys.data(), size, 6);
+    TestUtils::generate_arithmetic_data(input_values.data(), size, 7);
 
     std::vector<KeyT> expected_keys(input_keys);
     std::vector<ValueT> expected_values(input_values);
@@ -83,8 +83,8 @@ test_usm(sycl::queue q, std::size_t size, KernelParam param)
 {
     std::vector<KeyT> input_keys(size);
     std::vector<ValueT> input_values(size);
-    generate_data(input_keys.data(), size, 6);
-    generate_data(input_values.data(), size, 7);
+    TestUtils::generate_arithmetic_data(input_keys.data(), size, 6);
+    TestUtils::generate_arithmetic_data(input_values.data(), size, 7);
 
     std::vector<KeyT> output_keys(size, KeyT{9});
     std::vector<ValueT> output_values(size, ValueT{9});

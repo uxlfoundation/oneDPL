@@ -44,7 +44,7 @@ test_all_view(sycl::queue q, std::size_t size, KernelParam param)
     std::cout << "\ttest_all_view(" << size << ") : " << TypeInfo().name<T>() << std::endl;
 #    endif
     std::vector<T> input(size);
-    generate_data(input.data(), size, 42);
+    TestUtils::generate_arithmetic_data(input.data(), size, 42);
     std::vector<T> input_ref(input);
     std::vector<T> output_ref(input);
     std::vector<T> output(size, T{9});
@@ -74,7 +74,7 @@ test_subrange_view(sycl::queue q, std::size_t size, KernelParam param)
               << std::endl;
 #    endif
     std::vector<T> input_ref(size);
-    generate_data(input_ref.data(), size, 42);
+    TestUtils::generate_arithmetic_data(input_ref.data(), size, 42);
     std::vector<T> output_ref(input_ref);
     std::vector<T> output(size, T{9});
 
@@ -110,7 +110,7 @@ test_usm(sycl::queue q, std::size_t size, KernelParam param)
               << IsAscending << ">(" << size << ");" << std::endl;
 #endif
     std::vector<T> input_ref(size);
-    generate_data(input_ref.data(), size, 42);
+    TestUtils::generate_arithmetic_data(input_ref.data(), size, 42);
     std::vector<T> output_ref(input_ref);
     std::vector<T> output(size, T{9});
 
@@ -143,7 +143,7 @@ test_sycl_iterators(sycl::queue q, std::size_t size, KernelParam param)
     std::cout << "\t\ttest_sycl_iterators<" << TypeInfo().name<T>() << ">(" << size << ");" << std::endl;
 #endif
     std::vector<T> input(size);
-    generate_data(input.data(), size, 42);
+    TestUtils::generate_arithmetic_data(input.data(), size, 42);
     std::vector<T> output(size, T{9});
     std::vector<T> input_ref(input);
     std::vector<T> output_ref(input);
@@ -170,7 +170,7 @@ test_sycl_buffer(sycl::queue q, std::size_t size, KernelParam param)
     std::cout << "\t\ttest_sycl_buffer<" << TypeInfo().name<T>() << ">(" << size << ");" << std::endl;
 #endif
     std::vector<T> input(size);
-    generate_data(input.data(), size, 42);
+    TestUtils::generate_arithmetic_data(input.data(), size, 42);
     std::vector<T> output(size, T{9});
     std::vector<T> input_ref(input);
     std::vector<T> output_ref(input);
@@ -194,7 +194,7 @@ test_small_sizes(sycl::queue q, KernelParam param)
 {
     constexpr int size = 8;
     std::vector<T> input(size);
-    generate_data(input.data(), size, 42);
+    TestUtils::generate_arithmetic_data(input.data(), size, 42);
     std::vector<T> ref(input);
     std::vector<T> output(size, T{9});
     std::vector<T> output_ref(size, T{9});

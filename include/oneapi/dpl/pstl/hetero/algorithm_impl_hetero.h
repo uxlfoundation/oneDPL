@@ -1270,20 +1270,41 @@ __pattern_stable_sort(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
                                   oneapi::dpl::identity{});
 }
 
+//------------------------------------------------------------------------
+// sort_by_key
+//------------------------------------------------------------------------
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Compare>
+void
+__pattern_stable_sort_by_key(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __keys_first,
+                             _Iterator1 __keys_last, _Iterator2 __values_first, _Compare __comp)
+{
+    static_assert(std::is_move_constructible_v<typename std::iterator_traits<_Iterator1>::value_type> &&
+                      std::is_move_constructible_v<typename std::iterator_traits<_Iterator2>::value_type>,
+                  "The keys and values should be move constructible in case of parallel execution.");
+
+    auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
+    auto __end = __beg + (__keys_last - __keys_first);
+    __stable_sort_with_projection(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end, __comp,
+                                  [](const auto& __a) { return std::get<0>(__a); });
+}
+
+//------------------------------------------------------------------------
+// stable_sort_by_key
+//------------------------------------------------------------------------
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Compare>
 void
 __pattern_sort_by_key(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __keys_first,
                       _Iterator1 __keys_last, _Iterator2 __values_first, _Compare __comp)
 {
-    static_assert(::std::is_move_constructible_v<typename ::std::iterator_traits<_Iterator1>::value_type> &&
-                      ::std::is_move_constructible_v<typename ::std::iterator_traits<_Iterator2>::value_type>,
-                  "The keys and values should be move constructible in case of parallel execution.");
-
-    auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
-    auto __end = __beg + (__keys_last - __keys_first);
-    __stable_sort_with_projection(__tag, ::std::forward<_ExecutionPolicy>(__exec), __beg, __end, __comp,
-                                  [](const auto& __a) { return ::std::get<0>(__a); });
+    __pattern_stable_sort_by_key(__tag, std::forward<_ExecutionPolicy>(__exec), __keys_first, __keys_last,
+                                 __values_first, __comp);
 }
+
+//------------------------------------------------------------------------
+// stable_partition
+//------------------------------------------------------------------------
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _UnaryPredicate>
 _Iterator
@@ -1490,7 +1511,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         // TODO: __pattern_walk2 is a blocking call here, so there is a synchronization between the patterns.
         // But, when the input iterators are a kind of hetero iterator on top of sycl::buffer, SYCL
-        // runtime makes a dependency graph. In that case the call of __pattern_walk2 could be changed to 
+        // runtime makes a dependency graph. In that case the call of __pattern_walk2 could be changed to
         // be asynchronous for better performance.
 
         // Use regular sort as partial_sort isn't required to be stable.

@@ -766,7 +766,7 @@ __pattern_stable_sort(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAcce
 // sort_by_key
 //------------------------------------------------------------------------
 
-template <class _Tag, typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
+template <typename _Tag, typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
           typename _Compare>
 void
 __pattern_sort_by_key(_Tag, _ExecutionPolicy&&, _RandomAccessIterator1, _RandomAccessIterator1, _RandomAccessIterator2,
@@ -777,6 +777,22 @@ template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessI
 void
 __pattern_sort_by_key(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _RandomAccessIterator1,
                       _RandomAccessIterator2, _Compare);
+
+//------------------------------------------------------------------------
+// stable_sort_by_key
+//------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
+          typename _Compare>
+void
+__pattern_stable_sort_by_key(_Tag, _ExecutionPolicy&&, _RandomAccessIterator1, _RandomAccessIterator1,
+                             _RandomAccessIterator2, _Compare) noexcept;
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator1,
+          typename _RandomAccessIterator2, typename _Compare>
+void
+__pattern_stable_sort_by_key(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1,
+                             _RandomAccessIterator1, _RandomAccessIterator2, _Compare);
 
 //------------------------------------------------------------------------
 // partial_sort

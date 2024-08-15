@@ -344,6 +344,19 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first, _RandomAccessIterator1 __keys_last,
             _RandomAccessIterator2 __values_first);
 
+// oneapi::dpl::stable_sort_by_key
+
+template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
+          typename _Compare>
+oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
+stable_sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first, _RandomAccessIterator1 __keys_last,
+                   _RandomAccessIterator2 __values_first, _Compare __comp);
+
+template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2>
+oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
+stable_sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first, _RandomAccessIterator1 __keys_last,
+                   _RandomAccessIterator2 __values_first);
+
 // [mismatch]
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>

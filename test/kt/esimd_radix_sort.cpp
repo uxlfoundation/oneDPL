@@ -44,7 +44,7 @@ test_all_view(sycl::queue q, std::size_t size, KernelParam param)
     std::cout << "\ttest_all_view(" << size << ") : " << TypeInfo().name<T>() << std::endl;
 #endif
     std::vector<T> input(size);
-    generate_data(input.data(), size, 42);
+    TestUtils::generate_arithmetic_data(input.data(), size, 42);
     std::vector<T> ref(input);
     std::stable_sort(std::begin(ref), std::end(ref), Compare<T, IsAscending>{});
     {
@@ -66,7 +66,7 @@ test_subrange_view(sycl::queue q, std::size_t size, KernelParam param)
               << std::endl;
 #endif
     std::vector<T> expected(size);
-    generate_data(expected.data(), size, 42);
+    TestUtils::generate_arithmetic_data(expected.data(), size, 42);
 
     TestUtils::usm_data_transfer<sycl::usm::alloc::device, T> dt_input(q, expected.begin(), expected.end());
 
@@ -93,7 +93,7 @@ test_usm(sycl::queue q, std::size_t size, KernelParam param)
               << IsAscending << ">(" << size << ");" << std::endl;
 #endif
     std::vector<T> expected(size);
-    generate_data(expected.data(), size, 42);
+    TestUtils::generate_arithmetic_data(expected.data(), size, 42);
 
     TestUtils::usm_data_transfer<_alloc_type, T> dt_input(q, expected.begin(), expected.end());
 
@@ -118,7 +118,7 @@ test_sycl_iterators(sycl::queue q, std::size_t size, KernelParam param)
     std::cout << "\t\ttest_sycl_iterators<" << TypeInfo().name<T>() << ">(" << size << ");" << std::endl;
 #endif
     std::vector<T> input(size);
-    generate_data(input.data(), size, 42);
+    TestUtils::generate_arithmetic_data(input.data(), size, 42);
     std::vector<T> ref(input);
     std::stable_sort(std::begin(ref), std::end(ref), Compare<T, IsAscending>{});
     {
@@ -149,7 +149,7 @@ test_sycl_buffer(sycl::queue q, std::size_t size, KernelParam param)
     std::cout << "\t\ttest_sycl_buffer<" << TypeInfo().name<T>() << ">(" << size << ");" << std::endl;
 #endif
     std::vector<T> input(size);
-    generate_data(input.data(), size, 42);
+    TestUtils::generate_arithmetic_data(input.data(), size, 42);
     std::vector<T> ref(input);
     std::stable_sort(std::begin(ref), std::end(ref), Compare<T, IsAscending>{});
     {
@@ -167,7 +167,7 @@ test_small_sizes(sycl::queue q, KernelParam param)
 {
     constexpr int size = 8;
     std::vector<T> input(size);
-    generate_data(input.data(), size, 42);
+    TestUtils::generate_arithmetic_data(input.data(), size, 42);
     std::vector<T> ref(input);
 
     oneapi::dpl::experimental::kt::gpu::esimd::radix_sort<IsAscending, RadixBits>(q, oneapi::dpl::begin(input),
