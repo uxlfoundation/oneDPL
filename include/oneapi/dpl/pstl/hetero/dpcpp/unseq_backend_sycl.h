@@ -359,7 +359,6 @@ struct reduce_over_group
     reduce_impl(const _NDItemId __item_id, const _Size __n, const _Tp& __val, const _AccLocal& /*__local_mem*/,
                 std::true_type /*has_known_identity*/) const
     {
-        auto __local_idx = __item_id.get_local_id(0);
         const _Size __global_idx = __item_id.get_global_id(0);
         return __dpl_sycl::__reduce_over_group(
             __item_id.get_group(), __global_idx >= __n ? __known_identity<_BinaryOperation1, _Tp> : __val, __bin_op1);

@@ -211,7 +211,6 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
                              _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _CopyFunc _copy,
                              _CopyFromFirstSet)
 {
-    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
     for (; __first1 != __last1 && __first2 != __last2;)
     {
         if (__comp(*__first1, *__first2))

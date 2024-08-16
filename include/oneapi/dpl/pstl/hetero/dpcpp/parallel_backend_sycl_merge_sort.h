@@ -216,7 +216,6 @@ struct __parallel_sort_submitter<_IdType, __internal::__optional_kernel_name<_Le
     operator()(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter) const
     {
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
-        using _Size = oneapi::dpl::__internal::__difference_t<_Range>;
 
         const std::size_t __n = __rng.size();
         assert(__n > 1);
