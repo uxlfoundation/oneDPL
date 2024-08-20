@@ -49,6 +49,23 @@ struct tuple_element<0, oneapi::dpl::__internal::tuple<T, Rest...>>
     using type = T;
 };
 
+//forward declare new std::get<I>() functions so they can be used in impl
+template <size_t _Idx, typename... _Tp>
+constexpr std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>>&
+get(oneapi::dpl::__internal::tuple<_Tp...>&);
+
+template <size_t _Idx, typename... _Tp>
+constexpr std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>> const&
+get(const oneapi::dpl::__internal::tuple<_Tp...>&);
+
+template <size_t _Idx, typename... _Tp>
+constexpr std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>>&&
+get(oneapi::dpl::__internal::tuple<_Tp...>&&);
+
+template <size_t _Idx, typename... _Tp>
+constexpr std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>> const&&
+get(const oneapi::dpl::__internal::tuple<_Tp...>&&);
+
 template <typename... Args>
 struct tuple_size<oneapi::dpl::__internal::tuple<Args...>> : ::std::integral_constant<::std::size_t, sizeof...(Args)>
 {
@@ -289,6 +306,82 @@ struct __copy_assignable_holder<_Tp, false> : oneapi::dpl::__internal::__value_h
     operator=(__copy_assignable_holder&& other) = default;
 };
 
+template <typename _Tuple1, typename _Tuple2, int I = 0>
+constexpr bool
+__equal(_Tuple1&& __lhs, _Tuple2&& __rhs)
+{
+    static_assert(std::tuple_size_v<std::decay_t<_Tuple1>> == std::tuple_size_v<std::decay_t<_Tuple2>>,
+                  "Tuples must have the same size to be equality compared");
+    if constexpr (I < std::tuple_size_v<std::decay_t<_Tuple1>>)
+    {
+        return std::get<I>(__lhs) == std::get<I>(__rhs) &&
+               oneapi::dpl::__internal::__equal<_Tuple1, _Tuple2, I + 1>(std::forward<_Tuple1>(__lhs),
+                                                                         std::forward<_Tuple2>(__rhs));
+    }
+    else
+    {
+        return true;
+    }
+}
+template <typename _Tuple1, typename _Tuple2, int I = 0>
+constexpr bool
+__less(_Tuple1&& __lhs, _Tuple2&& __rhs)
+{
+    static_assert(std::tuple_size_v<std::decay_t<_Tuple1>> == std::tuple_size_v<std::decay_t<_Tuple2>>,
+                  "Tuples must have the same size to be compared");
+    if constexpr (I < std::tuple_size_v<std::decay_t<_Tuple1>>)
+    {
+        return std::get<I>(__lhs) < std::get<I>(__rhs) ||
+               (!(std::get<I>(__rhs) < std::get<I>(__lhs)) &&
+                oneapi::dpl::__internal::__less<_Tuple1, _Tuple2, I + 1>(std::forward<_Tuple1>(__lhs),
+                                                                         std::forward<_Tuple2>(__rhs)));
+    }
+    else
+    {
+        return false;
+    }
+}
+
+template <typename T>
+struct __is_internal_tuple : std::false_type
+{
+};
+
+template <typename... Ts>
+struct __is_internal_tuple<oneapi::dpl::__internal::tuple<Ts...>> : std::true_type
+{
+};
+
+template <typename T>
+inline constexpr bool __is_internal_tuple_v = __is_internal_tuple<T>::value;
+
+template <typename T>
+struct __is_std_tuple : std::false_type
+{
+};
+
+template <typename... Ts>
+struct __is_std_tuple<std::tuple<Ts...>> : std::true_type
+{
+};
+
+template <typename T>
+inline constexpr bool __is_std_tuple_v = __is_std_tuple<T>::value;
+
+// Either LHS = this internal tuple type + RHS = any compatible tuple type
+// or     LHS = std::tuple               + RHS = this internal tuple type
+// Note: We do not allow LHS to be "any compatible type" with a RHS as this internal tuple type because then we would
+//       have ambiguity comparing two different compatible internal tuple types, because both instantiations would
+//       create the necessary comparison. As written, the type instantiation of the type in the LHS is always
+//       responsible for creating this comparison operator.
+template <typename _ThisTuple, typename _U, typename _V>
+inline constexpr bool __enable_comparison_op_v =
+    (std::is_same_v<std::decay_t<_ThisTuple>, std::decay_t<_U>> &&                         //LHS +
+                    (oneapi::dpl::__internal::__is_std_tuple_v<std::decay_t<_V>> ||        //RHS option 1
+                     oneapi::dpl::__internal::__is_internal_tuple_v<std::decay_t<_V>>)) || //RHS option 2  - OR -
+    (oneapi::dpl::__internal::__is_std_tuple_v<std::decay_t<_U>> &&                        //LHS +
+                    std::is_same_v<std::decay_t<_ThisTuple>, std::decay_t<_V>>);           //RHS
+
 template <typename T1, typename... T>
 struct tuple<T1, T...>
 {
@@ -424,15 +517,52 @@ struct tuple<T1, T...>
         return *this;
     }
 
-    friend bool
-    operator==(const tuple& __lhs, const tuple& __rhs)
+    template <typename _U, typename _V,
+              std::enable_if_t<oneapi::dpl::__internal::__enable_comparison_op_v<tuple, _U, _V>, int> = 0>
+    friend constexpr bool
+    operator==(_U&& __lhs, _V&& __rhs)
     {
-        return __lhs.holder.value == __rhs.holder.value && __lhs.next == __rhs.next;
+        return oneapi::dpl::__internal::__equal(std::forward<_U>(__lhs), std::forward<_V>(__rhs));
     }
-    friend bool
-    operator!=(const tuple& __lhs, const tuple& __rhs)
+
+    template <typename _U, typename _V,
+              std::enable_if_t<oneapi::dpl::__internal::__enable_comparison_op_v<tuple, _U, _V>, int> = 0>
+    friend constexpr bool
+    operator!=(_U&& __lhs, _V&& __rhs)
     {
-        return !(__lhs == __rhs);
+        return !oneapi::dpl::__internal::__equal(std::forward<_U>(__lhs), std::forward<_V>(__rhs));
+    }
+
+    template <typename _U, typename _V,
+              std::enable_if_t<oneapi::dpl::__internal::__enable_comparison_op_v<tuple, _U, _V>, int> = 0>
+    friend constexpr bool
+    operator<(_U&& __lhs, _V&& __rhs)
+    {
+        return oneapi::dpl::__internal::__less(std::forward<_U>(__lhs), std::forward<_V>(__rhs));
+    }
+
+    template <typename _U, typename _V,
+              std::enable_if_t<oneapi::dpl::__internal::__enable_comparison_op_v<tuple, _U, _V>, int> = 0>
+    friend constexpr bool
+    operator<=(_U&& __lhs, _V&& __rhs)
+    {
+        return !oneapi::dpl::__internal::__less(std::forward<_V>(__rhs), std::forward<_U>(__lhs));
+    }
+
+    template <typename _U, typename _V,
+              std::enable_if_t<oneapi::dpl::__internal::__enable_comparison_op_v<tuple, _U, _V>, int> = 0>
+    friend constexpr bool
+    operator>(_U&& __lhs, _V&& __rhs)
+    {
+        return oneapi::dpl::__internal::__less(std::forward<_V>(__rhs), std::forward<_U>(__lhs));
+    }
+
+    template <typename _U, typename _V,
+              std::enable_if_t<oneapi::dpl::__internal::__enable_comparison_op_v<tuple, _U, _V>, int> = 0>
+    friend constexpr bool
+    operator>=(_U&& __lhs, _V&& __rhs)
+    {
+        return !oneapi::dpl::__internal::__less(std::forward<_U>(__lhs), std::forward<_V>(__rhs));
     }
 
     template <typename U1, typename... U, ::std::size_t... _Ip>
@@ -456,6 +586,7 @@ struct tuple<>
 
     tuple operator[](tuple) { return {}; }
     tuple operator[](const tuple&) const { return {}; }
+    operator tuple_type() const { return tuple_type{}; }
     tuple&
     operator=(const tuple&) = default;
     tuple&
@@ -463,8 +594,33 @@ struct tuple<>
     {
         return *this;
     }
-    friend bool
-    operator==(const tuple& /*__lhs*/, const tuple& /*__rhs*/)
+    friend constexpr bool
+    operator==(const tuple&, const tuple&)
+    {
+        return true;
+    }
+    friend constexpr bool
+    operator!=(const tuple&, const tuple&)
+    {
+        return false;
+    }
+    friend constexpr bool
+    operator<(const tuple&, const tuple&)
+    {
+        return false;
+    }
+    friend constexpr bool
+    operator<=(const tuple&, const tuple&)
+    {
+        return true;
+    }
+    friend constexpr bool
+    operator>(const tuple&, const tuple&)
+    {
+        return false;
+    }
+    friend constexpr bool
+    operator>=(const tuple&, const tuple&)
     {
         return true;
     }
