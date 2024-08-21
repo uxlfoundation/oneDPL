@@ -182,7 +182,13 @@ main()
     test<std::uint16_t>(8 * sizeof(std::uint16_t), [](const std::uint16_t& a, const std::uint16_t& b)   { return a == b; });
     test<float64_t>(53,                  [](const float64_t& a, const float64_t& b) { return a == b; });
     test<bool>(1,                        [](const bool& a, const bool& b)           { return a == b; });
+
+    // Avoiding UserType test for dpcpp backend, because UserType is not a device copyable type, with a custom copy
+    // assignment operator which is not the same as a bitwise copy. Therefore, a sycl::buffer with the value type
+    // UserType is not valid.
+#if !TEST_DPCPP_BACKEND_PRESENT
     test<UserType>(256,                  [](const UserType& a, const UserType& b)   { return a == b; });
+#endif
 
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 
