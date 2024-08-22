@@ -49,6 +49,13 @@ struct Num
     }
 };
 
+#if TEST_DPCPP_BACKEND_PRESENT
+template <typename _T>
+struct sycl::is_device_copyable<Num<_T>> : sycl::is_device_copyable<_T>
+{
+};
+#endif //TEST_DPCPP_BACKEND_PRESENT
+
 template <typename Type>
 struct test_one_policy
 {
