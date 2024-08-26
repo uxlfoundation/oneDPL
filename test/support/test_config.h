@@ -161,11 +161,11 @@
 #define _PSTL_TEST_COMPLEX_SINH_BROKEN  _PSTL_TEST_COMPLEX_OP_BROKEN
 #define _PSTL_TEST_COMPLEX_TANH_BROKEN  _PSTL_TEST_COMPLEX_OP_BROKEN
 
-// oneAPI DPC++ compiler 2024.2.0 and earlier is unable to eliminate a "dead" function call to an undefined function
+// oneAPI DPC++ compiler 2025.0.0 and earlier is unable to eliminate a "dead" function call to an undefined function
 // within a sycl kernel which MSVC uses to allow comparisons with literal zero without warning
 #define _PSTL_TEST_COMPARISON_BROKEN                                                                                   \
     ((__cplusplus >= 202002L || _MSVC_LANG >= 202002L) && _MSVC_STL_VERSION >= 143 && _MSVC_STL_UPDATE >= 202303L &&   \
-    __INTEL_LLVM_COMPILER > 0 && __INTEL_LLVM_COMPILER <= 20240200)
+    __INTEL_LLVM_COMPILER > 0 && __INTEL_LLVM_COMPILER <= 20250000)
 
 #define _PSTL_TEST_COMPLEX_TIMES_COMPLEX_BROKEN (_PSTL_TEST_COMPLEX_OP_BROKEN || _PSTL_TEST_COMPLEX_OP_BROKEN_GLIBCXX)
 #define _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN _PSTL_TEST_COMPLEX_OP_BROKEN
