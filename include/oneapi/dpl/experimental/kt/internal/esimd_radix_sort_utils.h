@@ -207,7 +207,6 @@ __create_simd(_T initial, _T step)
 {
     __dpl_esimd::__ns::simd<_T, _N> ret;
     ret.template select<16, 1>(0) = __dpl_esimd::__ns::simd<_T, 16>(0, 1) * step + initial;
-    __dpl_esimd::__ns::fence<__dpl_esimd::__ns::fence_mask::sw_barrier>();
     _ONEDPL_PRAGMA_UNROLL
     for (int pos = 16; pos < _N; pos += 16)
     {
