@@ -598,9 +598,13 @@ struct __radix_sort_onesweep_kernel
         }
         // Make sure the histogram updated at the step 1.3 is visible to other groups
         // The histogram data above is in global memory: no need to flush caches
+#if _ONEDPL_ESIMD_LSC_FENCE_PRESENT
         __dpl_esimd::__ns::fence<__dpl_esimd::__ns::memory_kind::global,
                                  __dpl_esimd::__ns::fence_flush_op::none,
                                  __dpl_esimd::__ns::fence_scope::gpu>();
+#else
+        __dpl_esimd::__ns::fence<__dpl_esimd::__ns::fence_mask::global_coherent_fence>();
+#endif
         __dpl_esimd::__ns::barrier();
 
         // 1.4 One work-item finalizes scan performed at stage 1.2
@@ -644,7 +648,11 @@ struct __radix_sort_onesweep_kernel
                     // This preprocessor check is set to expire and needs to be reevaluated once the SYCL major version
                     // is upgraded to 9.
 #if _ONEDPL_LIBSYCL_VERSION < 90000
+#   if _ONEDPL_ESIMD_LSC_FENCE_PRESENT
                     __dpl_esimd::__ns::fence<__dpl_esimd::__ns::memory_kind::local>();
+#   else
+                    __dpl_esimd::__ns::fence<__dpl_esimd::__ns::fence_mask::sw_barrier>();
+#   endif
 #endif
                 } while (((__prev_group_hist & __hist_updated) == 0).any());
                 __prev_group_hist_sum.merge(__prev_group_hist_sum + __prev_group_hist, __is_not_accumulated);
