@@ -318,6 +318,12 @@
     (!_ONEDPL_CPP20_CONCEPTS_PRESENT ||                                                                                \
      (_ONEDPL_CPP23_RANGES_ZIP_PRESENT && _ONEDPL_CPP23_TUPLE_LIKE_COMMON_REFERENCE_PRESENT))
 
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+#    define _ONEDPL_CPP20_REQUIRES(req) requires(req)
+#else
+#    define _ONEDPL_CPP20_REQUIRES(req)
+#endif
+
 #define _ONEDPL_BUILT_IN_STABLE_NAME_PRESENT __has_builtin(__builtin_sycl_unique_stable_name)
 
 #if defined(_MSC_VER) && __INTEL_LLVM_COMPILER < 20240100
