@@ -131,7 +131,6 @@ if (ONEDPL_TEST_ENABLE_KT_ESIMD)
 endif()
 
 function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type)
-
     if ((NOT TARGET build-scan-kt-tests) AND (NOT TARGET run-scan-kt-tests))
         add_custom_target(build-scan-kt-tests COMMENT "Build all scan kernel template tests")
         add_custom_target(run-scan-kt-tests
@@ -144,7 +143,6 @@ function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type)
     set(_target_name "single_pass_scan_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_type_short}")
     set(_test_path "single_pass_scan.cpp")
 
-    #_generate_test_randomly(${_target_name} ${_test_path} ${_probability_permille})
     _generate_test(${_target_name} ${_test_path})
     if(TARGET ${_target_name})
         add_dependencies(build-scan-kt-tests ${_target_name})
@@ -154,7 +152,6 @@ function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type)
         target_compile_definitions(${_target_name} PRIVATE TEST_WORK_GROUP_SIZE=${_work_group_size})
         target_compile_definitions(${_target_name} PRIVATE TEST_TYPE=${_type})
     endif()
-
 endfunction()
 
 function(_generate_gpu_scan_tests)
@@ -169,9 +166,6 @@ function(_generate_gpu_scan_tests)
             endforeach()
         endforeach()
     endforeach()
-
-    _generate_test("single_pass_scan" "single_pass_scan.cpp")
-    target_compile_definitions("single_pass_scan" PRIVATE TEST_DATA_PER_WORK_ITEM=8 TEST_WORK_GROUP_SIZE=256 TEST_TYPE=uint32_t)
 endfunction()
 
 if (ONEDPL_TEST_ENABLE_KT_SYCL)
