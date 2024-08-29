@@ -23,7 +23,7 @@
 #include "support/scan_serial_impl.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
-#    include <CL/sycl.hpp>
+#include "support/utils_sycl_defs.h"
 
 using namespace oneapi::dpl::execution;
 #endif // TEST_DPCPP_BACKEND_PRESENT
