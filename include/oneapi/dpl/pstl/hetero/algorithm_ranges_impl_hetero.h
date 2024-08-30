@@ -384,17 +384,17 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typ
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 oneapi::dpl::__internal::__difference_t<_Range2>
 __pattern_copy_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
-                  _Predicate __pred, _Assign)
+                  _Predicate __pred, _Assign __assign)
 {
-    using _SizeType = decltype(__rng1.size());
-    using _ReduceOp = ::std::plus<_SizeType>;
+    oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng1.size();
+    if (__n == 0)
+        return 0;
 
-    unseq_backend::__create_mask<_Predicate, _SizeType> __create_mask_op{__pred};
-    unseq_backend::__copy_by_mask<_ReduceOp, _Assign, /*inclusive*/ ::std::true_type, 1> __copy_by_mask_op;
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
+        std::forward<_Range2>(__rng2), __n, __pred, __assign);
 
-    return __ranges::__pattern_scan_copy(__tag, ::std::forward<_ExecutionPolicy>(__exec),
-                                         ::std::forward<_Range1>(__rng1), ::std::forward<_Range2>(__rng2),
-                                         __create_mask_op, __copy_by_mask_op);
+    return __res.get(); //is a blocking call
 }
 
 //------------------------------------------------------------------------

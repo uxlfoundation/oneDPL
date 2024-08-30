@@ -48,6 +48,31 @@ struct noop_non_device_copyable
     }
 };
 
+// Device copyable assignment callable.
+// Intentionally non-trivially copyable to test that device_copyable speciailzation works and we are not
+// relying on trivial copyability
+struct assign_non_device_copyable
+{
+    assign_non_device_copyable(const assign_non_device_copyable& other) { std::cout << "non trivial copy ctor\n"; }
+    template <typename _Xp, typename _Yp>
+    void
+    operator()(const _Xp& __x, _Yp&& __y) const
+    {
+        std::forward<_Yp>(__y) = __x;
+    }
+};
+
+struct assign_device_copyable
+{
+    assign_device_copyable(const assign_device_copyable& other) { std::cout << "non trivial copy ctor\n"; }
+    template <typename _Xp, typename _Yp>
+    void
+    operator()(const _Xp& __x, _Yp&& __y) const
+    {
+        std::forward<_Yp>(__y) = __x;
+    }
+};
+
 // Device copyable int wrapper struct used in testing as surrogate for values, value types, etc.
 // Intentionally non-trivially copyable to test that device_copyable speciailzation works and we are not
 // relying on trivial copyability
@@ -157,6 +182,11 @@ struct constant_iterator_non_device_copyable
 
 template <>
 struct sycl::is_device_copyable<TestUtils::noop_device_copyable> : std::true_type
+{
+};
+
+template <>
+struct sycl::is_device_copyable<TestUtils::assign_device_copyable> : std::true_type
 {
 };
 

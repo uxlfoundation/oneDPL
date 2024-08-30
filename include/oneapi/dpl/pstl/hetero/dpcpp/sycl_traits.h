@@ -245,6 +245,18 @@ namespace oneapi::dpl::__par_backend_hetero
 template <typename _UnaryOp>
 struct __gen_transform_input;
 
+template <typename _Predicate>
+struct __gen_mask;
+
+template <typename _GenMask>
+struct __gen_count_mask;
+
+template <typename _GenMask>
+struct __gen_expand_count_mask;
+
+template <int32_t __offset, typename _Assign>
+struct __write_to_id_if;
+
 template <typename _ExecutionPolicy, typename _Pred>
 struct __early_exit_find_or;
 
@@ -254,6 +266,32 @@ template <typename _UnaryOp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_transform_input,
                                                        _UnaryOp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_UnaryOp>
+{
+};
+
+template <typename _Predicate>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_mask, _Predicate)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
+{
+};
+
+template <typename _GenMask>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask, _GenMask)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
+{
+};
+
+template <typename _GenMask>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask,
+                                                       _GenMask)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
+{
+};
+
+template <int32_t __offset, typename _Assign>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_to_id_if, __offset,
+                                                       _Assign)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Assign>
 {
 };
 
