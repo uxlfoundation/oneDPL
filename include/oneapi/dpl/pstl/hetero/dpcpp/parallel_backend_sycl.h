@@ -38,6 +38,7 @@
 #include "parallel_backend_sycl_reduce.h"
 #include "parallel_backend_sycl_merge.h"
 #include "parallel_backend_sycl_merge_sort.h"
+#include "parallel_backend_sycl_reduce_then_scan.h"
 #include "execution_sycl_defs.h"
 #include "sycl_iterator.h"
 #include "unseq_backend_sycl.h"
@@ -753,10 +754,9 @@ __parallel_transform_scan_base(oneapi::dpl::__internal::__device_backend_tag, _E
 
 template <typename _Type>
 bool
-__group_scan_fits_in_slm(const sycl::queue& __queue, ::std::size_t __n, ::std::size_t __n_uniform)
+__group_scan_fits_in_slm(const sycl::queue& __queue, std::size_t __n, std::size_t __n_uniform,
+                         std::size_t __single_group_upper_limit)
 {
-    constexpr int __single_group_upper_limit = 16384;
-
     // Pessimistically only use half of the memory to take into account memory used by compiled kernel
     const ::std::size_t __max_slm_size =
         __queue.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
@@ -764,6 +764,37 @@ __group_scan_fits_in_slm(const sycl::queue& __queue, ::std::size_t __n, ::std::s
 
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
 }
+
+template <typename _UnaryOp>
+struct __gen_transform_input
+{
+    template <typename _InRng>
+    auto
+    operator()(const _InRng& __in_rng, std::size_t __id) const
+    {
+        // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
+        // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
+        // from modifying the input range when altering the return of this functor.
+        using _ValueType = oneapi::dpl::__internal::__value_t<_InRng>;
+        return __unary_op(_ValueType{__in_rng[__id]});
+    }
+    _UnaryOp __unary_op;
+};
+
+struct __simple_write_to_id
+{
+    template <typename _OutRng, typename _ValueType>
+    void
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v) const
+    {
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed through.
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
+    }
+};
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
@@ -773,24 +804,46 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
                           _InitType __init, _BinaryOperation __binary_op, _Inclusive)
 {
     using _Type = typename _InitType::__value_type;
-
-    // Next power of 2 greater than or equal to __n
-    auto __n_uniform = __n;
-    if ((__n_uniform & (__n_uniform - 1)) != 0)
-        __n_uniform = oneapi::dpl::__internal::__dpl_bit_floor(__n) << 1;
-
-    constexpr bool __can_use_group_scan = unseq_backend::__has_known_identity<_BinaryOperation, _Type>::value;
-    if constexpr (__can_use_group_scan)
+    // Reduce-then-scan is dependent on sycl::shift_group_right which requires the underlying type to be trivially
+    // copyable. If this is not met, then we must fallback to the multi pass scan implementation. The single
+    // work-group implementation requires a fundamental type which must also be trivially copyable.
+    if constexpr (std::is_trivially_copyable_v<_Type>)
     {
-        if (__group_scan_fits_in_slm<_Type>(__exec.queue(), __n, __n_uniform))
+        bool __use_reduce_then_scan = oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec);
+
+        // TODO: Consider re-implementing single group scan to support types without known identities. This could also
+        // allow us to use single wg scan for the last block of reduce-then-scan if it is sufficiently small.
+        constexpr bool __can_use_group_scan = unseq_backend::__has_known_identity<_BinaryOperation, _Type>::value;
+        if constexpr (__can_use_group_scan)
         {
-            return __parallel_transform_scan_single_group(
-                __backend_tag, std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__in_rng),
-                ::std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
+            // Next power of 2 greater than or equal to __n
+            std::size_t __n_uniform = oneapi::dpl::__internal::__dpl_bit_ceil(__n);
+
+            // Empirically found values for reduce-then-scan and multi pass scan implementation for single wg cutoff
+            std::size_t __single_group_upper_limit = __use_reduce_then_scan ? 2048 : 16384;
+            if (__group_scan_fits_in_slm<_Type>(__exec.queue(), __n, __n_uniform, __single_group_upper_limit))
+            {
+                return __parallel_transform_scan_single_group(
+                    __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
+                    std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
+            }
+        }
+        if (__use_reduce_then_scan)
+        {
+            using _GenInput = oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation>;
+            using _ScanInputTransform = oneapi::dpl::__internal::__no_op;
+            using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
+
+            _GenInput __gen_transform{__unary_op};
+
+            return __parallel_transform_reduce_then_scan(
+                __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
+                std::forward<_Range2>(__out_rng), __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{},
+                _WriteOp{}, __init, _Inclusive{});
         }
     }
 
-    // Either we can't use group scan or this input is too big for one workgroup
+    //else use multi pass scan implementation
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
     using _UnaryFunctor = unseq_backend::walk_n<_ExecutionPolicy, _UnaryOperation>;

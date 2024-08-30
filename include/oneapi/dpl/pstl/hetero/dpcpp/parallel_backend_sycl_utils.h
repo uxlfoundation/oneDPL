@@ -20,6 +20,7 @@
 #include <memory>
 #include <type_traits>
 #include <tuple>
+#include <algorithm>
 
 #include "../../iterator_impl.h"
 
@@ -92,6 +93,15 @@ template <typename _ExecutionPolicy>
 __max_compute_units(const _ExecutionPolicy& __policy)
 {
     return __policy.queue().get_device().template get_info<sycl::info::device::max_compute_units>();
+}
+
+template <typename _ExecutionPolicy>
+bool
+__supports_sub_group_size(const _ExecutionPolicy& __exec, std::size_t __target_size)
+{
+    const std::vector<std::size_t> __subgroup_sizes =
+        __exec.queue().get_device().template get_info<sycl::info::device::sub_group_sizes>();
+    return std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), __target_size) != __subgroup_sizes.end();
 }
 
 //-----------------------------------------------------------------------------

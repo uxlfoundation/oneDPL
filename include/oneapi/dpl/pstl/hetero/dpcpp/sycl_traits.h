@@ -242,10 +242,20 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 namespace oneapi::dpl::__par_backend_hetero
 {
 
+template <typename _UnaryOp>
+struct __gen_transform_input;
+
 template <typename _ExecutionPolicy, typename _Pred>
 struct __early_exit_find_or;
 
 } // namespace oneapi::dpl::__par_backend_hetero
+
+template <typename _UnaryOp>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_transform_input,
+                                                       _UnaryOp)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_UnaryOp>
+{
+};
 
 template <typename _ExecutionPolicy, typename _Pred>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__early_exit_find_or,
