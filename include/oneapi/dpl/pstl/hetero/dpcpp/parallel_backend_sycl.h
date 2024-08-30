@@ -867,6 +867,25 @@ struct __write_to_id_if
     _Assign __assign;
 };
 
+template <typename _Assign>
+struct __write_to_id_if_else
+{
+    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    void
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    {
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        if (std::get<1>(__v))
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1]));
+        else
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
+                     std::get<1>(__out_rng[__id - std::get<0>(__v)]));
+    }
+    _Assign __assign;
+};
+
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
 auto
@@ -1043,6 +1062,33 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
                                                               __get_data_op},
         // global scan
         __copy_by_mask_op);
+}
+
+template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
+auto
+__parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+                          _Range1&& __rng, _Range2&& __result, _UnaryPredicate __pred)
+{
+    oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng.size();
+    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
+    {
+        using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
+        using _WriteOp =
+            oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
+
+        return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
+                                                std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
+                                                _GenMask{__pred}, _WriteOp{});
+    }
+    else
+    {
+        using _ReduceOp = std::plus<decltype(__n)>;
+        using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
+        using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp, /*inclusive*/ std::true_type>;
+
+        return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
+                                    std::forward<_Range2>(__result), __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
+    }
 }
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
