@@ -73,6 +73,32 @@ struct assign_device_copyable
     }
 };
 
+// Device copyable binary operator binary operators.
+// Intentionally non-trivially copyable to test that device_copyable speciailzation works and we are not
+// relying on trivial copyability
+struct binary_op_non_device_copyable
+{
+    binary_op_non_device_copyable(const binary_op_non_device_copyable& other)
+    {
+        std::cout << " non trivial copy ctor\n";
+    }
+    int
+    operator()(int a, int b) const
+    {
+        return a;
+    }
+};
+
+struct binary_op_device_copyable
+{
+    binary_op_device_copyable(const binary_op_device_copyable& other) { std::cout << " non trivial copy ctor\n"; }
+    int
+    operator()(int a, int b) const
+    {
+        return a;
+    }
+};
+
 // Device copyable int wrapper struct used in testing as surrogate for values, value types, etc.
 // Intentionally non-trivially copyable to test that device_copyable speciailzation works and we are not
 // relying on trivial copyability
@@ -187,6 +213,11 @@ struct sycl::is_device_copyable<TestUtils::noop_device_copyable> : std::true_typ
 
 template <>
 struct sycl::is_device_copyable<TestUtils::assign_device_copyable> : std::true_type
+{
+};
+
+template <>
+struct sycl::is_device_copyable<TestUtils::binary_op_device_copyable> : std::true_type
 {
 };
 

@@ -386,8 +386,8 @@ unique_copy(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result, _Bin
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng, __result);
 
     return oneapi::dpl::__internal::__ranges::__pattern_unique_copy(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__rng)),
-        views::all_write(::std::forward<_Range2>(__result)), __pred, oneapi::dpl::__internal::__pstl_assign());
+        __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), views::all_read(std::forward<_Range1>(__rng)),
+        views::all_write(std::forward<_Range2>(__result)), __pred);
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2>

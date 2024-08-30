@@ -154,6 +154,11 @@ test_device_copyable()
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_mask<noop_device_copyable>>,
                   "__gen_mask is not device copyable with device copyable types");
 
+    //__gen_unique_mask
+    static_assert(
+        sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_unique_mask<binary_op_device_copyable>>,
+        "__gen_unique_mask is not device copyable with device copyable types");
+
     //__gen_count_mask
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_count_mask<
                       oneapi::dpl::__par_backend_hetero::__gen_mask<noop_device_copyable>>>,
@@ -380,6 +385,11 @@ test_non_device_copyable()
     //__gen_mask
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_mask<noop_non_device_copyable>>,
                   "__gen_mask is device copyable with non device copyable types");
+
+    //__gen_unique_mask
+    static_assert(!sycl::is_device_copyable_v<
+                      oneapi::dpl::__par_backend_hetero::__gen_unique_mask<binary_op_non_device_copyable>>,
+                  "__gen_unique_mask is device copyable with non device copyable types");
 
     //__gen_count_mask
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_count_mask<
