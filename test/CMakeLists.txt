@@ -140,7 +140,6 @@ macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_itera
             if ("${_test_name}" STREQUAL selected_different_device.pass AND _ONEDPL_PSTL_OFFLOAD MATCHES "(cpu|gpu)")
                 set_tests_properties(${_test_name} PROPERTIES ENVIRONMENT "${DEVICE_SELECTION_VARIABLE}=${ONEDPL_DEVICE_BACKEND}:${_ONEDPL_PSTL_OFFLOAD}")
             endif()
-            target_link_directories(${_test_name} PRIVATE "${PROJECT_BINARY_DIR}/src")
         elseif (DEFINED DEVICE_SELECTION_LINE)
             file(GLOB_RECURSE DS_TESTS "parallel_api/dynamic_selection/*.cpp")
             if (NOT "${DS_TESTS}" MATCHES "${_test_name}") # do not set SYCL_DEVICE_FILTER for dynamic selection tests
@@ -275,24 +274,3 @@ foreach (_file IN LISTS UNIT_TESTS)
     endif()
 
 endforeach()
-
-# add additional TUs if required
-if (TARGET interop_allocs.pass)
-    target_sources(interop_allocs.pass PRIVATE "${CMAKE_CURRENT_LIST_DIR}/pstl_offload/memory/interop_allocs_system.cpp"
-                                               "${CMAKE_CURRENT_LIST_DIR}/pstl_offload/memory/interop_allocs_usm.cpp")
-endif()
-
-# we want to test configurations when our dynamic library loaded before pstloffload as well as after pstloffload
-if (TARGET free_after_unload.pass)
-    add_library(free_after_unload_lib SHARED "${CMAKE_CURRENT_LIST_DIR}/pstl_offload/general/free_after_unload_lib.cpp")
-    target_include_directories(free_after_unload_lib PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
-    target_link_libraries(free_after_unload.pass PRIVATE free_after_unload_lib)
-endif()
-
-if (TARGET free_after_unload.pass.after_pstl_offload)
-    if (NOT TARGET free_after_unload_lib)
-        add_library(free_after_unload_lib SHARED "${CMAKE_CURRENT_LIST_DIR}/pstl_offload/general/free_after_unload_lib.cpp")
-        target_include_directories(free_after_unload_lib PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
-    endif()
-    target_link_libraries(free_after_unload.pass.after_pstl_offload PRIVATE pstloffload free_after_unload_lib)
-endif()
