@@ -58,6 +58,9 @@ class __equal_value;
 template <typename _Tp>
 class __not_equal_value;
 
+template <typename _Comp, typename _Proj>
+class __compare;
+
 template <typename _Pred>
 class __transform_functor;
 
@@ -132,6 +135,12 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 template <typename _Tp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__not_equal_value, _Tp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
+{
+};
+
+template <typename _Comp, typename _Proj>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__compare, _Comp, _Proj)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Comp, _Proj>
 {
 };
 

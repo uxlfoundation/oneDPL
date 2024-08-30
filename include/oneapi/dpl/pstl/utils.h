@@ -128,6 +128,21 @@ class __pstl_assign
     }
 };
 
+template <typename _Comp, typename _Proj>
+struct __compare
+{
+    //'mutable' is to relax the requirements for a user comparator or/and projection type operator() may be non-const
+    mutable _Comp __comp;
+    mutable _Proj __proj;
+
+    template <typename _Xp, typename _Yp>
+    bool
+    operator()(const _Xp& __x, const _Yp& __y) const
+    {
+        return __comp(__proj(__x), __proj(__y));
+    }
+};
+
 //! "==" comparison.
 /** Not called "equal" to avoid (possibly unfounded) concerns about accidental invocation via
     argument-dependent name lookup by code expecting to find the usual ::std::equal. */
