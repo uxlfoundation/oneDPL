@@ -32,7 +32,6 @@ constexpr int N = 96;
 
 template <typename Fp>
 int comparison(Fp* r0, Fp* r1, std::uint32_t length) {
-    Fp coeff;
     int numErrors = 0;
     for (size_t i = 0; i < length; ++i) {
         if constexpr (std::is_integral_v<Fp>) {
