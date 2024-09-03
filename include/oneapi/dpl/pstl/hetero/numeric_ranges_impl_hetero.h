@@ -91,7 +91,7 @@ oneapi::dpl::__internal::__difference_t<_Range2>
 __pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                               _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op, _Inclusive)
 {
-    oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng1.size();
+    oneapi::dpl::__internal::__difference_t<_Range2> __n = __rng1.size();
     if (__n == 0)
         return 0;
 

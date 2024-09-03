@@ -340,7 +340,7 @@ oneapi::dpl::__internal::__difference_t<_Range2>
 __pattern_copy_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                   _Predicate __pred, _Assign __assign)
 {
-    oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng1.size();
+    oneapi::dpl::__internal::__difference_t<_Range2> __n = __rng1.size();
     if (__n == 0)
         return 0;
 
