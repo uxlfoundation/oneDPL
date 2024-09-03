@@ -1096,6 +1096,20 @@ struct __write_to_id_if_else
     _Assign __assign;
 };
 
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+// Templated alias to easily reference reduce-then-scan-copy kernels.
+template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _GenMask, typename _Size,
+          typename _WriteOp, typename _IsUniquePattern>
+using __reduce_then_scan_copy_kernels =
+    __reduce_then_scan_kernels<_ExecutionPolicy, _Range1, _Range2,
+                               /*_GenReduceInput=*/oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask>,
+                               /*_ReduceOp=*/std::plus<_Size>,
+                               /*_GenScanInput=*/oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask>,
+                               /*_ScanInputTransform=*/oneapi::dpl::__par_backend_hetero::__get_zeroth_element,
+                               _WriteOp, oneapi::dpl::unseq_backend::__no_init_value<_Size>,
+                               /*_Inclusive=*/std::true_type, _IsUniquePattern>;
+#endif
+
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
 auto
@@ -1128,19 +1142,29 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
                     std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
             }
         }
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
         if (__use_reduce_then_scan)
         {
             using _GenInput = oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation>;
             using _ScanInputTransform = oneapi::dpl::__internal::__no_op;
             using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 
+            // Compile the kernels to check if the sub-group size is 32. This should not be necessary per the SYCL spec
+            // but is needed to check for an IGC workaround for a hardware bug where kernels may be compiled with a
+            // sub-group size of 16 despite requiring 32. If the wrong sub-group size is used, then fallback to
+            // multi-pass scan.
             _GenInput __gen_transform{__unary_op};
-
-            return __parallel_transform_reduce_then_scan(
-                __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
-                std::forward<_Range2>(__out_rng), __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{},
-                _WriteOp{}, __init, _Inclusive{}, /*_IsUniquePattern=*/std::false_type{});
+            __reduce_then_scan_kernels<_ExecutionPolicy, _Range1, _Range2, decltype(__gen_transform), _BinaryOperation, decltype(__gen_transform), _ScanInputTransform,
+                                       _WriteOp, _InitType, _Inclusive, std::false_type> __kernels(__exec);
+            if (__kernels.__is_compiled_sg32())
+            {
+                return __parallel_transform_reduce_then_scan(
+                    __backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels, std::forward<_Range1>(__in_rng),
+                    std::forward<_Range2>(__out_rng), __gen_transform, __binary_op, __gen_transform,
+                    _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{}, /*_IsUniquePattern=*/std::false_type{});
+            }
         }
+#endif
     }
 
     //else use multi pass scan implementation
@@ -1215,11 +1239,12 @@ struct __invoke_single_group_copy_if
     }
 };
 
-template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+template <typename _ExecutionPolicy, typename _Kernels, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
 auto
 __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                                 _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _GenMask __generate_mask,
+                                 _Kernels& __kernels, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _GenMask __generate_mask,
                                  _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask>;
@@ -1228,11 +1253,12 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     return __parallel_transform_reduce_then_scan(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels, std::forward<_InRng>(__in_rng),
         std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask},
         _ScanInputTransform{}, __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
+#endif
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _CreateMaskOp,
           typename _CopyByMaskOp>
@@ -1285,30 +1311,37 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
     // can simply copy the input range to the output.
     assert(__n > 1);
 
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
-
-        return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                                std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
-                                                _GenMask{__pred}, _WriteOp{_Assign{}},
-                                                /*_IsUniquePattern=*/std::true_type{});
+        // Compile the kernels to check if the sub-group size is 32. This should not be necessary per the SYCL spec
+        // but is needed to check for an IGC workaround for a hardware bug where kernels may be compiled with a
+        // sub-group size of 16 despite requiring 32. If the wrong sub-group size is used, then fallback to
+        // multi-pass scan.
+        __reduce_then_scan_copy_kernels<_ExecutionPolicy, _Range1, _Range2, _GenMask,
+                                        oneapi::dpl::__internal::__difference_t<_Range1>, _WriteOp, std::true_type>
+            __kernels(__exec);
+        if (__kernels.__is_compiled_sg32())
+        {
+            return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels,
+                                                    std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
+                                                    _GenMask{__pred}, _WriteOp{_Assign{}},
+                                                    /*_IsUniquePattern=*/std::true_type{});
+        }
     }
-    else
-    {
+#endif
+    using _ReduceOp = std::plus<decltype(__n)>;
+    using _CreateOp =
+        oneapi::dpl::__internal::__create_mask_unique_copy<oneapi::dpl::__internal::__not_pred<_BinaryPredicate>,
+                                                           decltype(__n)>;
+    using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, /*inclusive*/ std::true_type, 1>;
 
-        using _ReduceOp = std::plus<decltype(__n)>;
-        using _CreateOp =
-            oneapi::dpl::__internal::__create_mask_unique_copy<oneapi::dpl::__internal::__not_pred<_BinaryPredicate>,
-                                                               decltype(__n)>;
-        using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, /*inclusive*/ std::true_type, 1>;
-
-        return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
-                                    std::forward<_Range2>(__result), __n,
-                                    _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}},
-                                    _CopyOp{_ReduceOp{}, _Assign{}});
-    }
+    return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
+                                std::forward<_Range2>(__result), __n,
+                                _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}},
+                                _CopyOp{_ReduceOp{}, _Assign{}});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
@@ -1349,25 +1382,33 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
                           _Range1&& __rng, _Range2&& __result, _UnaryPredicate __pred)
 {
     oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng.size();
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
         using _WriteOp =
             oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
-
-        return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                                std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
-                                                _GenMask{__pred}, _WriteOp{}, /*_IsUniquePattern=*/std::false_type{});
+        // Compile the kernels to check if the sub-group size is 32. This should not be necessary per the SYCL spec
+        // but is needed to check for an IGC workaround for a hardware bug where kernels may be compiled with a
+        // sub-group size of 16 despite requiring 32. If the wrong sub-group size is used, then fallback to
+        // multi-pass scan.
+        __reduce_then_scan_copy_kernels<_ExecutionPolicy, _Range1, _Range2, _GenMask,
+                                        oneapi::dpl::__internal::__difference_t<_Range1>, _WriteOp, std::false_type>
+            __kernels(__exec);
+        if (__kernels.__is_compiled_sg32())
+        {
+            return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels,
+                                                    std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
+                                                    _GenMask{__pred}, _WriteOp{}, /*_IsUniquePattern=*/std::false_type{});
+        }
     }
-    else
-    {
-        using _ReduceOp = std::plus<decltype(__n)>;
-        using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
-        using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp, /*inclusive*/ std::true_type>;
+#endif
+    using _ReduceOp = std::plus<decltype(__n)>;
+    using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
+    using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp, /*inclusive*/ std::true_type>;
 
-        return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
-                                    std::forward<_Range2>(__result), __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
-    }
+    return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
+                                std::forward<_Range2>(__result), __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
 }
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
@@ -1401,27 +1442,35 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
             _SingleGroupInvoker{}, __n, std::forward<_ExecutionPolicy>(__exec), __n, std::forward<_InRng>(__in_rng),
             std::forward<_OutRng>(__out_rng), __pred, __assign);
     }
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
-
-        return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                                std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
-                                                _GenMask{__pred}, _WriteOp{__assign},
-                                                /*_IsUniquePattern=*/std::false_type{});
+        // Compile the kernels to check if the sub-group size is 32. This should not be necessary per the SYCL spec
+        // but is needed to check for an IGC workaround for a hardware bug where kernels may be compiled with a
+        // sub-group size of 16 despite requiring 32. If the wrong sub-group size is used, then fallback to
+        // multi-pass scan.
+        __reduce_then_scan_copy_kernels<_ExecutionPolicy, _InRng, _OutRng, _GenMask,
+                                        _Size, _WriteOp, std::false_type>
+            __kernels(__exec);
+        if (__kernels.__is_compiled_sg32())
+        {
+            return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels,
+                                                    std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
+                                                    _GenMask{__pred}, _WriteOp{__assign},
+                                                    /*_IsUniquePattern=*/std::false_type{});
+        }
     }
-    else
-    {
-        using _ReduceOp = std::plus<_Size>;
-        using _CreateOp = unseq_backend::__create_mask<_Pred, _Size>;
-        using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,
-                                                      /*inclusive*/ std::true_type, 1>;
+#endif
+    using _ReduceOp = std::plus<_Size>;
+    using _CreateOp = unseq_backend::__create_mask<_Pred, _Size>;
+    using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,
+                                                  /*inclusive*/ std::true_type, 1>;
 
-        return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                    std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
-                                    _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
-    }
+    return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
+                                std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
+                                _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
