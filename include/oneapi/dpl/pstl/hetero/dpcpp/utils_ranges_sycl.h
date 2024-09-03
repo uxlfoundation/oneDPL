@@ -19,6 +19,10 @@
 #include <iterator>
 #include <type_traits>
 
+#if _ONEDPL_CPP20_SPAN_PRESENT
+#include <span>
+#endif
+
 #include "../../utils_ranges.h"
 #include "../../iterator_impl.h"
 #include "../../glue_numeric_defs.h"
@@ -123,9 +127,9 @@ struct all_view_fn
 
     template <typename _R>
     auto
-    operator()(_R&& __r) const -> decltype(::std::forward<_R>(__r))
+    operator()(_R&& __r) const -> decltype(std::forward<_R>(__r))
     {
-        return ::std::forward<_R>(__r);
+        return std::forward<_R>(__r);
     }
 };
 
@@ -755,5 +759,11 @@ __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _Ranges&&.
 } // namespace __ranges
 } // namespace dpl
 } // namespace oneapi
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+//A specialization for enable_view to true because oneapi::dpl::__ranges::all_view models a view (see C++ standard)
+template <typename _T, sycl::access::mode _AccMode, sycl::target _Target, sycl::access::placeholder _Placeholder>
+inline constexpr bool std::ranges::enable_view<oneapi::dpl::__ranges::all_view<_T, _AccMode, _Target, _Placeholder>> = true;
+#endif
 
 #endif // _ONEDPL_UTILS_RANGES_SYCL_H

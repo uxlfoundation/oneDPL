@@ -49,9 +49,6 @@ class __not_pred;
 template <typename _Pred>
 class __reorder_pred;
 
-template <typename _Tp, typename _Predicate>
-class __equal_value_by_pred;
-
 template <typename _Tp>
 class __equal_value;
 
@@ -117,12 +114,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 template <typename _Pred>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__reorder_pred, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
-{
-};
-
-template <typename _Tp, typename _Predicate>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__equal_value_by_pred, _Tp, _Predicate)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Tp, _Predicate>
 {
 };
 

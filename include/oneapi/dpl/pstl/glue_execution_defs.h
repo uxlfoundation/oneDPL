@@ -29,7 +29,7 @@ using oneapi::dpl::execution::is_execution_policy;
 template <class T>
 inline constexpr bool is_execution_policy_v = is_execution_policy<T>::value;
 #    else
-using oneapi::dpl::execution::is_execution_policy_v;
+using oneapi::dpl::is_execution_policy_v;
 #    endif
 
 namespace execution

@@ -170,6 +170,24 @@ jobs:
             build_type: release
             backend: serial
             device_type: HOST
+          - os: ubuntu-latest
+            cxx_compiler: icpx
+            std: 20
+            build_type: release
+            backend: dpcpp
+            device_type: CPU
+          - os: ubuntu-latest
+            cxx_compiler: icpx
+            std: 20
+            build_type: release
+            backend: tbb
+            device_type: HOST
+          - os: ubuntu-latest
+            cxx_compiler: icpx
+            std: 20
+            build_type: release
+            backend: omp
+            device_type: HOST
     steps:
       - uses: actions/checkout@v4
       - name: Set up Intel APT repository
@@ -209,8 +227,8 @@ jobs:
           echo "::warning::Compiler: $(${{ matrix.cxx_compiler }} --version)"
 
           if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
-            make_targets="build-onedpl-sycl_iterator-tests"
-            ctest_flags="-R sycl_iterator_.*\.pass"
+            make_targets="build-onedpl-sycl_iterator-tests build-onedpl-ranges-tests"
+            ctest_flags="-R (sycl_iterator_.*)|(std_ranges_.*)\.pass"
             echo "::warning::dpcpp backend is set. Compile and run only sycl_iterator tests"
           else
             make_targets="build-onedpl-tests"

@@ -191,10 +191,6 @@ test_device_copyable()
     //__reorder_pred
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__reorder_pred<noop_device_copyable>>,
                   "__reorder_pred is not device copyable with device copyable types");
-    //__equal_value_by_pred
-    static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::__internal::__equal_value_by_pred<int_device_copyable, noop_device_copyable>>,
-                  "__equal_value_by_pred is not device copyable with device copyable types");
     //__equal_value
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__equal_value<int_device_copyable>>,
                   "__equal_value is not device copyable with device copyable types");
@@ -423,12 +419,6 @@ test_non_device_copyable()
     //__reorder_pred
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__reorder_pred<noop_non_device_copyable>>,
                   "__reorder_pred is device copyable with non device copyable types");
-
-    //__equal_value_by_pred
-    static_assert(!sycl::is_device_copyable_v<
-                      oneapi::dpl::__internal::__equal_value_by_pred<int_device_copyable, noop_non_device_copyable>>,
-                  "__equal_value_by_pred is device copyable with non device copyable types");
-
     //__equal_value
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__equal_value<int_non_device_copyable>>,
                   "__equal_value is device copyable with non device copyable types");

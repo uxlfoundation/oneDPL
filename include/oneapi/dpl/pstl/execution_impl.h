@@ -100,6 +100,42 @@ __select_backend(oneapi::dpl::execution::parallel_unsequenced_policy, _IteratorT
     return {};
 }
 
+} //__internal
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+namespace __ranges
+{
+
+::oneapi::dpl::__internal::__serial_tag<std::false_type>
+__select_backend(oneapi::dpl::execution::sequenced_policy)
+{
+    return {};
+}
+
+::oneapi::dpl::__internal::__serial_tag<std::true_type> //vectorization allowed
+__select_backend(oneapi::dpl::execution::unsequenced_policy)
+{
+    return {};
+}
+
+::oneapi::dpl::__internal::__parallel_tag<std::false_type>
+__select_backend(oneapi::dpl::execution::parallel_policy)
+{
+    return {};
+}
+
+::oneapi::dpl::__internal::__parallel_tag<std::true_type> //vectorization allowed
+__select_backend(oneapi::dpl::execution::parallel_unsequenced_policy)
+{
+    return {};
+}
+
+} //__ranges
+
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
+namespace __internal
+{
 //----------------------------------------------------------
 // __is_serial_tag, __is_serial_tag_v
 //----------------------------------------------------------

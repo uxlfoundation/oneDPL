@@ -138,6 +138,25 @@
 #endif
 #endif //!defined(_ENABLE_RANGES_TESTING)
 
+#if (__cplusplus >= 202002L || _MSVC_LANG >= 202002L) && __has_include(<version>)
+#    include <version>
+#    define TEST_STD_FEATURE_MACROS_PRESENT 1
+#endif
+
+#if TEST_STD_FEATURE_MACROS_PRESENT
+// Make sure _ENABLE_STD_RANGES_TESTING is always defined for the use at runtime, e.g. by TestUtils::done
+// Clang 15 and older do not support range adaptors, see https://bugs.llvm.org/show_bug.cgi?id=44833
+#   if __cpp_lib_ranges >= 201911L && !(__clang__ && __clang_major__ < 16)
+#       define _ENABLE_STD_RANGES_TESTING 1
+#   else
+#       define _ENABLE_STD_RANGES_TESTING 0
+#   endif
+#   define TEST_CPP20_SPAN_PRESENT (__cpp_lib_span >= 202002L)
+#else
+#   define _ENABLE_STD_RANGES_TESTING 0
+#   define TEST_CPP20_SPAN_PRESENT 0
+#endif // TEST_STD_FEATURE_MACROS_PRESENT
+
 #define TEST_HAS_NO_INT128
 #define _PSTL_TEST_COMPLEX_NON_FLOAT_AVAILABLE (_MSVC_STL_VERSION < 143)
 
@@ -245,5 +264,8 @@
 // or limited to older compiler versions.
 #define _PSTL_RED_BY_SEG_WINDOWS_COMPILE_ORDER_BROKEN                                                                  \
     (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
+
+// Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
+#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= 20250100)
 
 #endif // _TEST_CONFIG_H

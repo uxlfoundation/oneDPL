@@ -74,6 +74,24 @@ struct __range_has_raw_ptr_iterator<T, ::std::void_t<decltype(::std::declval<T&>
 template <typename T>
 inline constexpr bool __range_has_raw_ptr_iterator_v = __range_has_raw_ptr_iterator<T>::value;
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+//The following '__range_size' type trait should be used in only the context with std::common_type
+//together with a sized range.
+template <typename R>
+struct __range_size {
+    using type = std::uint8_t;
+};
+
+template <std::ranges::sized_range R>
+struct __range_size<R> {
+    using type = std::ranges::range_size_t<R>;
+};
+
+template <typename _R>
+using __range_size_t = typename __range_size<_R>::type;
+
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 } //namespace __internal
 
 namespace __ranges

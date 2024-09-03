@@ -21,7 +21,6 @@
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/numeric_ranges_impl_hetero.h"
-#endif
 
 namespace oneapi
 {
@@ -203,5 +202,7 @@ transform_inclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& 
 } // namespace experimental
 } // namespace dpl
 } // namespace oneapi
+
+#endif //_ONEDPL_HETERO_BACKEND
 
 #endif // _ONEDPL_GLUE_NUMERIC_RANGES_IMPL_H

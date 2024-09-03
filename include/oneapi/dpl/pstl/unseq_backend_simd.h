@@ -823,11 +823,11 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     // Otherwise, vice versa.
     if (__n1 < __n2)
     {
+        auto __u_pred =
+            [__pred, __first](auto&& __val) mutable { return __pred(std::forward<decltype(__val)>(__val), *__first); };
         for (; __first != __last; ++__first)
         {
-            if (__unseq_backend::__simd_or(
-                    __s_first, __n2,
-                    __internal::__equal_value_by_pred<decltype(*__first), _BinaryPredicate&>(*__first, __pred)))
+            if (__unseq_backend::__simd_or(__s_first, __n2, __u_pred))
             {
                 return __first;
             }

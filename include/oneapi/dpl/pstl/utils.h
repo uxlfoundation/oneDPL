@@ -223,24 +223,6 @@ class __pstl_max
     }
 };
 
-//! Like a polymorphic lambda for pred(...,value)
-template <typename _Tp, typename _Predicate>
-class __equal_value_by_pred
-{
-    const _Tp _M_value;
-    _Predicate _M_pred;
-
-  public:
-    __equal_value_by_pred(const _Tp& __value, _Predicate __pred) : _M_value(__value), _M_pred(__pred) {}
-
-    template <typename _Arg>
-    bool
-    operator()(_Arg&& __arg) const
-    {
-        return _M_pred(::std::forward<_Arg>(__arg), _M_value);
-    }
-};
-
 //! Like a polymorphic lambda for ==value
 template <typename _Tp>
 class __equal_value

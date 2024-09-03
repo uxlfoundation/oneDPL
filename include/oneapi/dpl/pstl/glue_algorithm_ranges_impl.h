@@ -16,8 +16,20 @@
 #ifndef _ONEDPL_GLUE_ALGORITHM_RANGES_IMPL_H
 #define _ONEDPL_GLUE_ALGORITHM_RANGES_IMPL_H
 
+#include <utility>
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    include <ranges>
+#    include <functional>
+#    include <type_traits>
+#    include <iterator>
+#endif
+
 #include "execution_defs.h"
-#include "glue_algorithm_defs.h"
+#include "oneapi/dpl/pstl/ranges_defs.h"
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    include "algorithm_ranges_impl.h"
+#endif
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_ranges_impl_hetero.h"
@@ -28,6 +40,289 @@ namespace oneapi
 {
 namespace dpl
 {
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+namespace ranges
+{
+
+// [alg.foreach]
+
+namespace __internal
+{
+
+struct __for_each_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirectly_unary_invocable<std::projected<std::ranges::iterator_t<_R>, _Proj>>  _Fun>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        oneapi::dpl::__internal::__ranges::__pattern_for_each(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __r, __f, __proj);
+
+        return {std::ranges::begin(__r) + std::ranges::size(__r)};
+    }
+}; //__for_each_fn
+}  //__internal
+
+inline constexpr __internal::__for_each_fn for_each;
+
+// [alg.transform]
+
+namespace __internal
+{
+struct __transform_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R,
+             std::ranges::random_access_range _OutRange, std::copy_constructible _F, typename _Proj = std::identity>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+        && std::ranges::sized_range<_OutRange> && std::indirectly_writable<std::ranges::iterator_t<_OutRange>,
+                 std::indirect_result_t<_F&, std::projected<std::ranges::iterator_t<_R>, _Proj>>>
+
+    std::ranges::unary_transform_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r, _F __op, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+
+        using _Size = std::common_type_t<std::ranges::range_size_t<_R>, std::ranges::range_size_t<_OutRange>>;
+        const _Size __size = std::ranges::min((_Size)std::ranges::size(__r), (_Size)std::ranges::size(__out_r));
+
+        oneapi::dpl::__internal::__ranges::__pattern_transform(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+            std::ranges::take_view(__r, __size), std::ranges::take_view(__out_r, __size), __op, __proj);
+
+        return {std::ranges::begin(__r) + __size, std::ranges::begin(__out_r) +  __size};
+    }
+
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+             std::ranges::random_access_range _OutRange, std::copy_constructible _F, typename _Proj1 = std::identity,
+             typename _Proj2 = std::identity>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && (std::ranges::sized_range<_R1>
+        || std::ranges::sized_range<_R2>) && std::ranges::sized_range<_OutRange>
+        && std::indirectly_writable<std::ranges::iterator_t<_OutRange>,
+            std::indirect_result_t<_F&, std::projected<std::ranges::iterator_t<_R1>, _Proj1>,
+            std::projected<std::ranges::iterator_t<_R2>, _Proj2>>>
+
+    std::ranges::binary_transform_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+        std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _F __binary_op,
+               _Proj1 __proj1 = {}, _Proj2 __proj2 = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+
+        using _Size = std::common_type_t<oneapi::dpl::__internal::__range_size_t<_R1>,
+            oneapi::dpl::__internal::__range_size_t<_R2>, std::ranges::range_size_t<_OutRange>>;
+        _Size __size = std::ranges::size(__out_r);
+        if constexpr(std::ranges::sized_range<_R1>)
+            __size = std::ranges::min(__size, (_Size)std::ranges::size(__r1));
+        if constexpr(std::ranges::sized_range<_R2>)
+            __size = std::ranges::min(__size, (_Size)std::ranges::size(__r2));
+
+        //take_view doesn't make unsized range sized, so subrange is used below
+        oneapi::dpl::__internal::__ranges::__pattern_transform(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+            std::ranges::subrange(std::ranges::begin(__r1), std::ranges::begin(__r1) + __size),
+            std::ranges::subrange(std::ranges::begin(__r2), std::ranges::begin(__r2) + __size),
+            std::ranges::take_view(__out_r, __size), __binary_op, __proj1, __proj2);
+
+        return {std::ranges::begin(__r1) + __size, std::ranges::begin(__r2) + __size, std::ranges::begin(__out_r) + __size};
+    }
+}; //__transform_fn
+}  //__internal
+
+inline constexpr __internal::__transform_fn transform;
+
+// [alg.find_if]
+
+namespace __internal
+{
+struct __find_if_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+    auto
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_find_if(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+    }
+}; //__find_if_fn
+}  //__internal
+
+inline constexpr __internal::__find_if_fn find_if;
+
+// [alg.find_if_not]
+
+namespace __internal
+{
+struct __find_if_not_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+    auto
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
+    {
+        return oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy,
+            _Pred>>(__pred), __proj);
+    }
+}; //__find_if_not_fn
+}  //__internal
+
+inline constexpr __internal::__find_if_not_fn find_if_not;
+
+// [alg.find]
+
+namespace __internal
+{
+struct __find_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             typename _T>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+        && std::indirect_binary_predicate<std::ranges::equal_to, std::projected<std::ranges::iterator_t<_R>, _Proj>,
+        const _T*>
+    auto
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
+    {
+        return oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy,
+            const _T>>(__value), __proj);
+    }
+}; //__find_fn
+}  //__internal
+
+inline constexpr __internal::__find_fn find;
+
+namespace __internal
+{
+struct __any_of_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_any_of(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+    }
+}; //__any_of_fn
+}  //__internal
+
+inline constexpr __internal::__any_of_fn any_of;
+
+namespace __internal
+{
+struct __all_of_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
+    {
+        return !oneapi::dpl::ranges::any_of(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>>(__pred),
+            __proj);
+    }
+}; //__all_of_fn
+}  //__internal
+
+inline constexpr __internal::__all_of_fn all_of;
+
+namespace __internal
+{
+struct __none_of_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
+    {
+        return !oneapi::dpl::ranges::any_of(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            __pred, __proj);
+    }
+}; //__none_of_fn
+}  //__internal
+
+inline constexpr __internal::__none_of_fn none_of;
+
+namespace __internal
+{
+struct __adjacent_find_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_binary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>,
+             std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred = std::ranges::equal_to>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+    auto
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred = {}, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_adjacent_find_ranges(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+    }
+}; //__adjacent_find_fn
+}  //__internal
+
+inline constexpr __internal::__adjacent_find_fn adjacent_find;
+
+namespace __internal
+{
+struct __search_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+             typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2>
+        && std::indirectly_comparable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>, _Pred, _Proj1, _Proj2>
+    auto
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
+        _Proj2 __proj2 = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_search(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1,
+            __proj2);
+    }
+}; //__search_fn
+}  //__internal
+
+inline constexpr __internal::__search_fn search;
+
+namespace __internal
+{
+struct __search_n_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _T,
+             typename _Pred = std::ranges::equal_to, typename _Proj = std::identity>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+        && std::indirectly_comparable<std::ranges::iterator_t<_R>, const _T*, _Pred, _Proj>
+    auto
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, std::ranges::range_difference_t<_R> __count, const _T& __value,
+        _Pred __pred = {}, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_search_n(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __count, __value, __pred, __proj);
+    }
+}; //__search_n_fn
+}  //__internal
+
+inline constexpr __internal::__search_n_fn search_n;
+
+} //ranges
+
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
+#if _ONEDPL_HETERO_BACKEND
 namespace experimental
 {
 namespace ranges
@@ -743,6 +1038,9 @@ reduce_by_segment(_ExecutionPolicy&& __exec, _Range1&& __keys, _Range2&& __value
 
 } // namespace ranges
 } // namespace experimental
+
+#endif //_ONEDPL_HETERO_BACKEND
+
 } // namespace dpl
 } // namespace oneapi
 
