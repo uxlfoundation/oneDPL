@@ -24,6 +24,8 @@
 #    include <vector>
 #    include <oneapi/dpl/random>
 
+namespace ex = oneapi::dpl::experimental;
+
 constexpr auto SEED = 777;
 constexpr auto N_GEN = 960;
 constexpr auto MINSTD_A = 48271;
@@ -38,6 +40,17 @@ constexpr auto RANLUX24_BASE_MIN = 0;
 constexpr auto RANLUX24_BASE_MAX = 16777215;
 constexpr auto RANLUX24_P = 223;
 constexpr auto RANLUX24_R = 23;
+constexpr auto PHILOX4x32_W   = 32;
+constexpr auto PHILOX4x64_W   = 64;
+constexpr auto PHILOX4x32_N   = 4;
+constexpr auto PHILOX4x64_N   = 4;
+constexpr auto PHILOX4x32_R   = 10;
+constexpr auto PHILOX4x64_R   = 10;
+constexpr auto PHILOX4x32_MIN = 0;
+constexpr auto PHILOX4x32_MAX = 0xFFFFFFFF;
+constexpr auto PHILOX4x64_MIN = 0;
+constexpr auto PHILOX4x64_MAX = 0xFFFFFFFFFFFFFFFF;
+constexpr auto PHILOX_SEED = 20111115u;
 
 std::int32_t
 check_params(oneapi::dpl::minstd_rand& engine)
@@ -90,6 +103,46 @@ check_params(oneapi::dpl::ranlux24_vec<N>& engine)
     return ((oneapi::dpl::ranlux24_vec<N>::block_size != RANLUX24_P) ||
             (oneapi::dpl::ranlux24_vec<N>::used_block != RANLUX24_R) || (engine.min() != RANLUX24_BASE_MIN) ||
             (engine.max() != RANLUX24_BASE_MAX));
+}
+
+std::int32_t
+check_params(ex::philox4x32& engine)
+{
+    return ((ex::philox4x32::word_size    != PHILOX4x32_W) || 
+            (ex::philox4x32::word_count   != PHILOX4x32_N) ||
+            (ex::philox4x32::round_count  != PHILOX4x32_R) ||
+            (ex::philox4x32::default_seed != PHILOX_SEED)  ||
+            (engine.min() != PHILOX4x32_MIN) || (engine.max() != PHILOX4x32_MAX));
+}
+template <int N>
+std::int32_t
+check_params(ex::philox4x32_vec<N>& engine)
+{
+    return ((ex::philox4x32_vec<N>::word_size    != PHILOX4x32_W) || 
+            (ex::philox4x32_vec<N>::word_count   != PHILOX4x32_N) ||
+            (ex::philox4x32_vec<N>::round_count  != PHILOX4x32_R) ||
+            (ex::philox4x32_vec<N>::default_seed != PHILOX_SEED)  ||
+            (engine.min() != PHILOX4x32_MIN) || (engine.max() != PHILOX4x32_MAX));
+}
+
+std::int32_t
+check_params(ex::philox4x64& engine)
+{
+    return ((ex::philox4x64::word_size    != PHILOX4x64_W) || 
+            (ex::philox4x64::word_count   != PHILOX4x64_N) ||
+            (ex::philox4x64::round_count  != PHILOX4x64_R) ||
+            (ex::philox4x64::default_seed != PHILOX_SEED)  ||
+            (engine.min() != PHILOX4x64_MIN) || (engine.max() != PHILOX4x64_MAX));
+}
+template <int N>
+std::int32_t
+check_params(ex::philox4x64_vec<N>& engine)
+{
+    return ((ex::philox4x64_vec<N>::word_size    != PHILOX4x64_W) || 
+            (ex::philox4x64_vec<N>::word_count   != PHILOX4x64_N) ||
+            (ex::philox4x64_vec<N>::round_count  != PHILOX4x64_R) ||
+            (ex::philox4x64_vec<N>::default_seed != PHILOX_SEED)  ||
+            (engine.min() != PHILOX4x64_MIN) || (engine.max() != PHILOX4x64_MAX));
 }
 
 template <class Engine>
@@ -499,6 +552,36 @@ main()
     err += test_vec<oneapi::dpl::ranlux24_vec<2>>{}.run(queue);
     err += test_vec<oneapi::dpl::ranlux24_vec<1>>{}.run(queue);
 #endif // TEST_LONG_RUN
+    EXPECT_TRUE(!err, "Test FAILED");
+
+    std::cout << "---------------------------------------------------" << std::endl;
+    std::cout << "philox_engine<uint_fast32_t, 32, 4, 10,\n"
+                 "0xCD9E8D57, 0x9E3779B9, 0xD2511F53, 0xBB67AE85>" << std::endl;
+    std::cout << "---------------------------------------------------" << std::endl;
+    err += test<ex::philox4x32>{}.run(queue);
+    #if TEST_LONG_RUN
+    err += test_vec<ex::philox4x32_vec<16>>{}.run(queue);
+    err += test_vec<ex::philox4x32_vec<8>>{}.run(queue);
+    err += test_vec<ex::philox4x32_vec<4>>{}.run(queue);
+    err += test_vec<ex::philox4x32_vec<3>>{}.run(queue);
+    err += test_vec<ex::philox4x32_vec<2>>{}.run(queue);
+    err += test_vec<ex::philox4x32_vec<1>>{}.run(queue);
+    #endif // TEST_LONG_RUN
+    EXPECT_TRUE(!err, "Test FAILED");
+    
+    std::cout << "---------------------------------------------------" << std::endl;
+    std::cout << "philox_engine<uint_fast64_t, 64, 4, 10,\n"
+                 "0xCA5A826395121157, 0x9E3779B97F4A7C15, 0xD2E7470EE14C6C93, 0xBB67AE8584CAA73B>" << std::endl;
+    std::cout << "---------------------------------------------------" << std::endl;
+    err += test<ex::philox4x64>{}.run(queue);
+    #if TEST_LONG_RUN
+    err += test_vec<ex::philox4x64_vec<16>>{}.run(queue);
+    err += test_vec<ex::philox4x64_vec<8>>{}.run(queue);
+    err += test_vec<ex::philox4x64_vec<4>>{}.run(queue);
+    err += test_vec<ex::philox4x64_vec<3>>{}.run(queue);
+    err += test_vec<ex::philox4x64_vec<2>>{}.run(queue);
+    err += test_vec<ex::philox4x64_vec<1>>{}.run(queue);
+    #endif // TEST_LONG_RUN
     EXPECT_TRUE(!err, "Test FAILED");
 
 #endif // TEST_UNNAMED_LAMBDAS

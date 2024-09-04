@@ -27,6 +27,7 @@
 #include "internal/random_impl/linear_congruential_engine.h"
 #include "internal/random_impl/subtract_with_carry_engine.h"
 #include "internal/random_impl/discard_block_engine.h"
+#include "internal/random_impl/philox_engine.h"
 #include "internal/random_impl/uniform_real_distribution.h"
 #include "internal/random_impl/uniform_int_distribution.h"
 #include "internal/random_impl/normal_distribution.h"
@@ -51,6 +52,12 @@ using ranlux24_base = subtract_with_carry_engine<uint_fast32_t, 24, 10, 24>;
 using ranlux48_base = subtract_with_carry_engine<uint_fast64_t, 48, 5, 12>;
 using ranlux24 = discard_block_engine<ranlux24_base, 223, 23>;
 using ranlux48 = discard_block_engine<ranlux48_base, 389, 11>;
+namespace experimental
+{
+using philox4x32 = philox_engine<uint_fast32_t, 32, 4, 10, 0xCD9E8D57, 0x9E3779B9, 0xD2511F53, 0xBB67AE85>;
+using philox4x64 = philox_engine<uint_fast64_t, 64, 4, 10, 0xCA5A826395121157, 0x9E3779B97F4A7C15, 0xD2E7470EE14C6C93,
+                                 0xBB67AE8584CAA73B>;
+} // namespace experimental
 
 // Non-standard engines and engine adaptors with predefined parameters
 template <int _N>
@@ -67,6 +74,17 @@ template <int _N>
 using ranlux24_vec = discard_block_engine<ranlux24_base_vec<_N>, 223, 23>;
 template <int _N>
 using ranlux48_vec = discard_block_engine<ranlux48_base_vec<_N>, 389, 11>;
+
+namespace experimental
+{
+template <int _N>
+using philox4x32_vec =
+    philox_engine<sycl::vec<uint_fast32_t, _N>, 32, 4, 10, 0xCD9E8D57, 0x9E3779B9, 0xD2511F53, 0xBB67AE85>;
+
+template <int _N>
+using philox4x64_vec = philox_engine<sycl::vec<uint_fast64_t, _N>, 64, 4, 10, 0xCA5A826395121157, 0x9E3779B97F4A7C15,
+                                     0xD2E7470EE14C6C93, 0xBB67AE8584CAA73B>;
+} // namespace experimental
 
 } // namespace dpl
 } // namespace oneapi

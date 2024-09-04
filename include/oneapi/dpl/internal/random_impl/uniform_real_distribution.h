@@ -209,7 +209,8 @@ class uniform_real_distribution
     make_real_uniform(_IntegerT __int_val, _Engine& __engine, const param_type& __params)
     {
         return static_cast<scalar_type>(
-            ((__int_val - __engine.min()) / static_cast<scalar_type>(1 + (__engine.max() - __engine.min()))) *
+            ((__int_val - __engine.min()) /
+             (static_cast<scalar_type>(1) + static_cast<scalar_type>(__engine.max() - __engine.min()))) *
                 (__params.b() - __params.a()) +
             __params.a());
     }
