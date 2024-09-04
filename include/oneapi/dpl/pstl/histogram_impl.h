@@ -46,8 +46,8 @@ __pattern_histogram(_Tag, _ExecutionPolicy&& exec, _RandomAccessIterator1 __firs
 
 } // namespace __internal
 
-template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _Size, typename _RandomAccessIterator2,
-          typename _ValueType>
+template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _Size, typename _ValueType,
+          typename _RandomAccessIterator2>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _RandomAccessIterator2>
 histogram(_ExecutionPolicy&& exec, _RandomAccessIterator1 first, _RandomAccessIterator1 last, _Size num_bins,
           _ValueType first_bin_min_val, _ValueType last_bin_max_val, _RandomAccessIterator2 histogram_first)
