@@ -50,8 +50,10 @@ enum TestDataMode
 {
     data_in,
     data_in_out,
+    data_in_out_lim,
     data_in_in,
-    data_in_in_out
+    data_in_in_out,
+    data_in_in_out_lim
 };
 
 auto f_mutuable = [](auto&& val) { return val *= val; };
@@ -184,7 +186,7 @@ private:
     process_data_in_out(int n_in, int n_out, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in,
                         TransOut tr_out, auto... args)
     {
-        static_assert(mode == data_in_out);
+        static_assert(mode == data_in_out || mode == data_in_out_lim);
 
         constexpr int max_n = 10;
         DataType data_in[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -222,6 +224,14 @@ private:
 public:
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
     std::enable_if_t<!std::is_same_v<Policy, std::true_type> && mode == data_in_out>
+    operator()(Policy&& exec, Algo algo, Checker& checker, auto... args)
+    {
+        const int r_size = 10;
+        process_data_in_out(r_size, r_size, std::forward<Policy>(exec), algo, checker, args...);
+    }
+
+    template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
+    std::enable_if_t<!std::is_same_v<Policy, std::true_type> && mode == data_in_out_lim>
     operator()(Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = 10;
@@ -265,7 +275,7 @@ private:
     void
     process_data_in_in_out(int n_in1, int n_in2, int n_out, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut tr_out, auto... args)
     {
-        static_assert(mode == data_in_in_out);
+        static_assert(mode == data_in_in_out || mode == data_in_in_out_lim);
 
         constexpr int max_n = 10;
         DataType data_in1[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -305,6 +315,14 @@ private:
 public:
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
     std::enable_if_t<!std::is_same_v<Policy, std::true_type> && mode == data_in_in_out>
+    operator()(Policy&& exec, Algo algo, Checker& checker, auto... args)
+    {
+        const int r_size = 10;
+        process_data_in_in_out(r_size, r_size, r_size*2, std::forward<Policy>(exec), algo, checker, args...);
+    }
+
+    template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
+    std::enable_if_t<!std::is_same_v<Policy, std::true_type> && mode == data_in_in_out_lim>
     operator()(Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = 10;

@@ -667,8 +667,8 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         void
         operator()(const _ComplexType& __obj)
         {
-            if (!(*__min_comp)(__min_val, __obj.__min_val) &&
-                ((*__min_comp)(__obj.__min_val, __min_val) || __obj.__min_ind - __min_ind < 0))
+            if (!std::invoke(*__min_comp, __min_val, __obj.__min_val) &&
+                (std::invoke(*__min_comp, __obj.__min_val, __min_val) || __obj.__min_ind - __min_ind < 0))
             {
                 __min_val = __obj.__min_val;
                 __min_ind = __obj.__min_ind;

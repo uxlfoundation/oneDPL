@@ -19,11 +19,12 @@
 #include "onedpl_config.h"
 
 #include <new>
-#include <iterator>
-#include <type_traits>
 #include <tuple>
 #include <utility>
 #include <climits>
+#include <iterator>
+#include <functional>
+#include <type_traits>
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "hetero/dpcpp/sycl_defs.h"
@@ -139,7 +140,7 @@ struct __compare
     bool
     operator()(const _Xp& __x, const _Yp& __y) const
     {
-        return __comp(__proj(__x), __proj(__y));
+        return std::invoke(__comp, std::invoke(__proj, __x), std::invoke(__proj, __y));
     }
 };
 
