@@ -17,6 +17,7 @@
 #define _ONEDPL_RANDOM
 
 #include "oneapi/dpl/internal/common_config.h"
+#include "oneapi/dpl/pstl/onedpl_config.h"
 #include "oneapi/dpl/pstl/hetero/dpcpp/sycl_defs.h"
 #include <utility>
 #include <cstdint>

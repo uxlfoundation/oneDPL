@@ -31,7 +31,7 @@ option(ONEDPL_USE_AOT_COMPILATION "Enable the ahead of time compilation" OFF)
 option(ONEDPL_ENABLE_SIMD "Enable SIMD vectorization by passing an OpenMP SIMD flag to the compiler if supported" ON)
 cmake_dependent_option(ONEDPL_TEST_WIN_ICX_FIXES "Enable icx workarounds for Windows" ON "CMAKE_HOST_WIN32;NOT _onedpl_is_subproject" OFF)
 
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/include/oneapi/dpl/pstl/onedpl_config.h
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/include/oneapi/dpl/internal/version_impl.h
     _onedpl_version_info
     LIMIT 1024)
 string(REGEX REPLACE ".*#define ONEDPL_VERSION_MAJOR ([0-9]+).*" "\\1" _onedpl_ver_major "${_onedpl_version_info}")

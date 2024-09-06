@@ -1,0 +1,16 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Copyright (C) Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _ONEDPL_VERSION
+#define _ONEDPL_VERSION
+
+#include "internal/common_config.h"
+#include "internal/version_impl.h"
+
+#endif // _ONEDPL_VERSION
