@@ -485,8 +485,8 @@ __pattern_is_sorted(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     return oneapi::dpl::__internal::__ranges::__pattern_adjacent_find(__tag,
         std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r),
-        oneapi::dpl::__internal::__reorder_pred(__pred_2), oneapi::dpl::__internal::__or_semantic()) 
-        == std::ranges::size(__r);
+        oneapi::dpl::__internal::__reorder_pred(__pred_2),
+        oneapi::dpl::__internal::__or_semantic()) == std::ranges::size(__r);
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
@@ -758,7 +758,7 @@ __pattern_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
 auto
 __pattern_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {

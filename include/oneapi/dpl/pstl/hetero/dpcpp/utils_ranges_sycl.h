@@ -19,10 +19,6 @@
 #include <iterator>
 #include <type_traits>
 
-#if _ONEDPL_CPP20_SPAN_PRESENT
-#include <span>
-#endif
-
 #include "../../utils_ranges.h"
 #include "../../iterator_impl.h"
 #include "../../glue_numeric_defs.h"
