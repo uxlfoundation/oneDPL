@@ -140,7 +140,7 @@ main()
     std::cout << "void discard_overflow_test() [Engine = philox4x64_w49]";
     err += discard_overflow_test<philox4x64_w49>();
 
-    return TestUtils::done(TEST_UNNAMED_LAMBDAS);
+    return TestUtils::done();
 }
 
 /*
