@@ -55,19 +55,16 @@ Example of Async API Usage
     #include <sycl/sycl.hpp>
     
     int main() {
-        using namespace oneapi;
-        {
-            /* Build and compute a simple dependency chain: Fill buffer -> Transform -> Reduce */
-            sycl::buffer<int> a{10};
- 
-            auto fut1 = dpl::experimental::fill_async(dpl::execution::dpcpp_default, 
-                                                      dpl::begin(a),dpl::end(a),7);
-            
-            auto fut2 = dpl::experimental::transform_async(dpl::execution::dpcpp_default,
-                                                           dpl::begin(a),dpl::end(a),dpl::begin(a),
-                                                           [&](const int& x){return x + 1; },fut1);
-            auto ret_val = dpl::experimental::reduce_async(dpl::execution::dpcpp_default,
-                                                           dpl::begin(a),dpl::end(a),fut1,fut2).get();
-        }
+        /* Build and compute a simple dependency chain: Fill buffer -> Transform -> Reduce */
+        sycl::buffer<int> a{10};
+
+        auto fut1 = dpl::experimental::fill_async(dpl::execution::dpcpp_default, 
+                                                  dpl::begin(a),dpl::end(a),7);
+        
+        auto fut2 = dpl::experimental::transform_async(dpl::execution::dpcpp_default,
+                                                       dpl::begin(a),dpl::end(a),dpl::begin(a),
+                                                       [&](const int& x){return x + 1; },fut1);
+        auto ret_val = dpl::experimental::reduce_async(dpl::execution::dpcpp_default,
+                                                       dpl::begin(a),dpl::end(a),fut1,fut2).get();
         return 0;
     }

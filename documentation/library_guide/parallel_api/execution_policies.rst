@@ -47,9 +47,6 @@ Follow these steps to add Parallel API to your application:
    #. ``#include <oneapi/dpl/numeric>``
    #. ``#include <oneapi/dpl/memory>``
 
-   For better coexistence with the C++ standard library,
-   include |onedpl_short| header files before the standard C++ ones.
-
 #. Pass a |onedpl_short| execution policy object, defined in the ``oneapi::dpl::execution``
    namespace, to a parallel algorithm.
 #. Use the C++ standard execution policies:
