@@ -739,7 +739,6 @@ __find_subrange(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _
                 _RandomAccessIterator2 __s_first, _RandomAccessIterator2 __s_last, _BinaryPredicate __pred,
                 bool __b_first, _IsVector __is_vector) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::value_type _ValueType;
     auto __n2 = __s_last - __s_first;
     if (__n2 < 1)
     {
