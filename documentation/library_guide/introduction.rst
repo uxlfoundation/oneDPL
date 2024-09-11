@@ -64,9 +64,7 @@ include the corresponding C++ standard header files and use the ``std`` namespac
 
 Follow the steps below to build your code with |onedpl_short|:
 
-#. To build with the |dpcpp_cpp|, see the `Get Started with the Intel® oneAPI DPC++/C++ Compiler
-   <https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/get-started-guide/current/overview.html>`_
-   for details.
+#. To build with the |dpcpp_cpp|, see the |dpcpp_gsg|_ for details.
 #. Set the environment variables for |onedpl_short| and |onetbb_short|.
 
 Below is an example of a command line used to compile code that contains |onedpl_short| parallel algorithms

@@ -41,6 +41,7 @@ release = '2022.7.0'
 
 rst_epilog = """
 .. include:: /variables.txt
+.. include:: /common_cross_document_links.txt
 """
 
 # -- General configuration ---------------------------------------------------

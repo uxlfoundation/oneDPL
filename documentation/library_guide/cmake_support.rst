@@ -17,7 +17,10 @@ Requirements
 ============
 The minimal supported CMake version for |onedpl_short| is 3.11 on Linux and 3.20 on Windows.
 
-The supported `CMake Generator <https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html#ninja-generators>`_ for Linux is `Unix Makefiles <https://cmake.org/cmake/help/latest/generator/Unix%20Makefiles.html>`_ (default). In the Windows environment, the supported generator is `Ninja <https://cmake.org/cmake/help/latest/generator/Ninja.html>`_ as described in the `Intel® oneAPI DPC++/C++ Compiler Developer Guide and Reference <https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/current/use-cmake-with-the-compiler.html>`_ which may be specified via ``-GNinja``.
+The supported `CMake Generator <https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html#ninja-generators>`_
+for Linux is `Unix Makefiles <https://cmake.org/cmake/help/latest/generator/Unix%20Makefiles.html>`_ (default).
+In the Windows environment, the supported generator is `Ninja <https://cmake.org/cmake/help/latest/generator/Ninja.html>`_
+which may be specified via ``-GNinja`` as described in the |dpcpp_cmake_support|_.
 
 |onedpl_short| Backend Options
 ==============================

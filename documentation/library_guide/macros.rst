@@ -55,9 +55,7 @@ Macro                              Description
 ``PSTL_USE_NONTEMPORAL_STORES``    This macro enables the use of ``#pragma vector nontemporal``
                                    for write-only data when algorithms such as ``std::copy``, ``std::fill``, etc.,
                                    are executed with unsequenced policies.
-                                   For further details about the pragma,
-                                   see the `vector page in the Intel® oneAPI DPC++/C++ Compiler Developer Guide and Reference
-                                   <https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/current/vector.html>`_.
+                                   For further details about the pragma, see the |vector_pragma|_.
                                    If the macro evaluates to a non-zero value,
                                    the use of ``#pragma vector nontemporal`` is enabled.
                                    By default, the macro is not defined.
