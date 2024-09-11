@@ -29,7 +29,7 @@ template <class T>
 void
 test()
 {
-    test(dpl::complex<T>(INFINITY, 1), dpl::complex<T>(0, -INFINITY));
+    test(dpl::complex<T>(TestUtils::infinity_val, 1), dpl::complex<T>(0, -TestUtils::infinity_val));
 }
 
 void test_edges()
@@ -54,12 +54,10 @@ void test_edges()
         }
         else if (std::isfinite(testcases[i].real()) && std::isinf(testcases[i].imag()))
         {
-#if !_PSTL_TEST_COMPLEX_ACOS_BROKEN_IN_KERNEL_GLIB_CXX      // testcases[45]
-            assert(is_about(r.real(), pi/2));
-#endif // _PSTL_TEST_COMPLEX_ACOS_BROKEN_IN_KERNEL_GLIB_CXX
-#if !_PSTL_TEST_COMPLEX_ACOS_BROKEN_IN_KERNEL_GLIB_CXX      // testcases[147]
-            assert(std::isinf(r.imag()));
-#endif // _PSTL_TEST_COMPLEX_ACOS_BROKEN_IN_KERNEL_GLIB_CXX
+#if !_PSTL_TEST_COMPLEX_ACOS_BROKEN_IN_KERNEL
+            assert(is_about(r.real(), pi/2));               // testcases[45]
+            assert(std::isinf(r.imag()));                   // testcases[147]
+#endif
             assert(std::signbit(testcases[i].imag()) != std::signbit(r.imag()));
         }
         else if (std::isfinite(testcases[i].real()) && testcases[i].real() != 0 && std::isnan(testcases[i].imag()))

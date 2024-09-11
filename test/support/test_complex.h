@@ -117,6 +117,12 @@ run_test()
 
 namespace TestUtils
 {
+    // This constant was declared to avoid the substitution and evaluation of the macro INFINITY
+    // inside Kernel code. Since the implementation of INFINITY macro is not regulated, there are
+    // cases where temporary expressions of type double are used to calculate the value of INFINITY.
+    // This lead to an error on devices where the double type is not supported.
+    static constexpr float infinity_val = INFINITY;
+
     template <typename _FncTest>
     void
     invoke_test_if(::std::true_type, _FncTest __fncTest)
