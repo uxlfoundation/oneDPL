@@ -55,8 +55,8 @@ void test_edges()
         else if (std::isfinite(testcases[i].real()) && std::isinf(testcases[i].imag()))
         {
 #if !_PSTL_TEST_COMPLEX_ACOS_BROKEN_IN_KERNEL
-            assert(is_about(r.real(), pi/2));               // testcases[45]
-            assert(std::isinf(r.imag()));                   // testcases[147]
+            assert(is_about(r.real(), pi/2));
+            assert(std::isinf(r.imag()));
 #endif
             assert(std::signbit(testcases[i].imag()) != std::signbit(r.imag()));
         }

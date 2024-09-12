@@ -55,7 +55,7 @@ void test_edges()
         }
         else if (std::isinf(testcases[i].real()) && std::isfinite(testcases[i].imag()))
         {
-#if !_PSTL_TEST_COMPLEX_TANH_BROKEN_IN_KERNEL               // testcases[55]
+#if !_PSTL_TEST_COMPLEX_TANH_BROKEN_IN_KERNEL
             assert(r.real() == (testcases[i].real() > 0 ? 1 : -1));
 #endif
             assert(r.imag() == 0);
@@ -64,14 +64,14 @@ void test_edges()
 #if !_PSTL_TEST_COMPLEX_TANH_BROKEN
         else if (std::isinf(testcases[i].real()) && std::isinf(testcases[i].imag()))
         {
-#if !_PSTL_TEST_COMPLEX_TANH_BROKEN_IN_KERNEL               // testcases[44]
+#if !_PSTL_TEST_COMPLEX_TANH_BROKEN_IN_KERNEL
             assert(r.real() == (testcases[i].real() > 0 ? 1 : -1));
 #endif
             assert(r.imag() == 0);
         }
         else if (std::isinf(testcases[i].real()) && std::isnan(testcases[i].imag()))
         {
-#if !_PSTL_TEST_COMPLEX_TANH_BROKEN_IN_KERNEL               // testcases[33]
+#if !_PSTL_TEST_COMPLEX_TANH_BROKEN_IN_KERNEL
             assert(r.real() == (testcases[i].real() > 0 ? 1 : -1));
 #endif
             assert(r.imag() == 0);
