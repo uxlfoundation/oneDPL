@@ -58,7 +58,7 @@ Existing Issues
 See oneDPL Guide for other `restrictions and known limitations`_.
 
 - When compiled with ``-fsycl-pstl-offload`` option of Intel oneAPI DPC++/C++ compiler and with
-  ``libstdc++`` version 8 or ``libc++``, ``oneapi::dpl::execution::par_unseq`` offloads
+  libstdc++ version 8 or libc++, ``oneapi::dpl::execution::par_unseq`` offloads
   standard parallel algorithms to the SYCL device similarly to ``std::execution::par_unseq``
   in accordance with the ``-fsycl-pstl-offload`` option value.
 - When using the dpl modulefile to initialize the user's environment and compiling with ``-fsycl-pstl-offload``
@@ -122,7 +122,7 @@ Existing Issues
 See oneDPL Guide for other `restrictions and known limitations`_.
 
 - When compiled with ``-fsycl-pstl-offload`` option of Intel oneAPI DPC++/C++ compiler and with
-  ``libstdc++`` version 8 or ``libc++``, ``oneapi::dpl::execution::par_unseq`` offloads
+  libstdc++ version 8 or libc++, ``oneapi::dpl::execution::par_unseq`` offloads
   standard parallel algorithms to the SYCL device similarly to ``std::execution::par_unseq``
   in accordance with the ``-fsycl-pstl-offload`` option value.
 - When using the dpl modulefile to initialize the user's environment and compiling with ``-fsycl-pstl-offload``
@@ -209,7 +209,7 @@ Known Issues and Limitations
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - When compiled with ``-fsycl-pstl-offload`` option of Intel oneAPI DPC++/C++ compiler and with
-  ``libstdc++`` version 8 or ``libc++``, ``oneapi::dpl::execution::par_unseq`` offloads
+  libstdc++ version 8 or libc++, ``oneapi::dpl::execution::par_unseq`` offloads
   standard parallel algorithms to the SYCL device similarly to ``std::execution::par_unseq``
   in accordance with the ``-fsycl-pstl-offload`` option value.
 - When using the dpl modulefile to initialize the user's environment and compiling with ``-fsycl-pstl-offload``

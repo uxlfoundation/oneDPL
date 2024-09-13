@@ -1,41 +1,47 @@
 Execution Policies
 ##################
 
-The implementation supports the device execution policies used to run the massive parallel
-computational model for heterogeneous systems. The policies are specified in
-the |onedpl_long| (|onedpl_short|) section of the `oneAPI Specification
-<https://spec.oneapi.io/versions/latest/elements/oneDPL/source/parallel_api.html#dpc-execution-policy>`_.
+According to `the oneAPI specification
+<https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/index.html>`_,
+|onedpl_long| (|onedpl_short|) provides execution policies semantically aligned with the C++ standard,
+also referred to as *standard aligned* or *host execution policies*, and the *device execution policies*
+to run data parallel computations on heterogeneous systems.
 
-For any of the implemented algorithms, pass one of the execution policy objects as the first
-argument in a call to specify the desired execution behavior. The policies have
-the following meaning:
+The execution policies are defined in the ``oneapi::dpl::execution`` namespace and provided
+in the ``oneapi/dpl/execution`` header. The policies have the following meaning:
 
-================================= ==============================
-Execution Policy Value            Description
-================================= ==============================
-``seq``                           Sequential execution.
---------------------------------- ------------------------------
-``unseq``                         Unsequenced SIMD execution. This policy requires that
-                                  all functions provided are SIMD-safe.
---------------------------------- ------------------------------
-``par``                           Parallel execution by multiple threads.
---------------------------------- ------------------------------
-``par_unseq``                     Combined effect of ``unseq`` and ``par``.
---------------------------------- ------------------------------
-``dpcpp_default``                 Massive parallel execution on devices using |dpcpp_short|.
---------------------------------- ------------------------------
-``dpcpp_fpga``                    Massive parallel execution on FPGA devices.
-================================= ==============================
+====================== =====================================================
+Policy Value or Type   Description
+====================== =====================================================
+``seq``                The standard aligned policy for sequential execution.
+---------------------- -----------------------------------------------------
+``unseq``              The standard aligned policy for unsequenced SIMD execution.
+                       This policy requires user-provided functions to be SIMD-safe.
+---------------------- -----------------------------------------------------
+``par``                The standard aligned policy for parallel execution by multiple threads.
+---------------------- -----------------------------------------------------
+``par_unseq``          The standard aligned policy with the combined effect of ``unseq`` and ``par``.
+---------------------- -----------------------------------------------------
+``device_policy``      The class template to create device policies for data parallel execution.
+---------------------- -----------------------------------------------------
+``dpcpp_default``      The device policy for data parallel execution on the default SYCL device.
+---------------------- -----------------------------------------------------
+``fpga_policy``        The class template to create policies for execution on FPGA devices.
+---------------------- -----------------------------------------------------
+``dpcpp_fpga``         The device policy for data parallel execution on a SYCL FPGA device.
+====================== =====================================================
 
 The implementation is based on Parallel STL from the
 `LLVM Project <https://github.com/llvm/llvm-project/tree/main/pstl>`_.
 
 |onedpl_short| supports two parallel backends for execution with ``par`` and ``par_unseq`` policies:
 
-#. TBB backend (enabled by default) uses |onetbb_long| or |tbb_long| for parallel execution.
+#. The TBB backend (enabled by default) uses |onetbb_long| or |tbb_long| for parallel execution.
 
-#. OpenMP backend uses OpenMP* pragmas for parallel execution. Visit
+#. The OpenMP backend uses OpenMP* pragmas for parallel execution. Visit
    :doc:`Macros <../macros>` for the information how to enable the OpenMP backend.
+
+OpenMP pragmas are also used for SIMD execution with ``unseq`` and ``par_unseq`` policies.
 
 Follow these steps to add Parallel API to your application:
 
@@ -43,23 +49,22 @@ Follow these steps to add Parallel API to your application:
    Then include one or more of the following header files, depending on the algorithms you
    intend to use:
 
-   #. ``#include <oneapi/dpl/algorithm>``
-   #. ``#include <oneapi/dpl/numeric>``
-   #. ``#include <oneapi/dpl/memory>``
+   - ``#include <oneapi/dpl/algorithm>``
+   - ``#include <oneapi/dpl/numeric>``
+   - ``#include <oneapi/dpl/memory>``
 
-#. Pass a |onedpl_short| execution policy object, defined in the ``oneapi::dpl::execution``
-   namespace, to a parallel algorithm.
-#. Use the C++ standard execution policies:
+#. Pass a |onedpl_short| execution policy object as the first argument to a parallel algorithm
+   to specify the desired execution behavior.
 
-   #. Compile the code with options that enable OpenMP parallelism and/or vectorization pragmas.
-   #. Link with the |onetbb_long| or |tbb_long| dynamic library for TBB-based parallelism.
+#. If you use the C++ standard aligned execution policies:
 
-#. Use the device execution policies:
+   - Compile the code with options that enable OpenMP parallelism and/or SIMD vectorization pragmas.
+   - Compile and link with the |onetbb_short| or |tbb_short| library for TBB-based parallelism.
 
-   #. Compile the code with options that enable support for SYCL 2020.
+   If you use the device execution policies, compile the code with options that enable support for SYCL 2020.
 
-Use the C++ Standard Execution Policies
-=======================================
+Use the C++ Standard Aligned Execution Policies
+===============================================
 
 Example:
 
@@ -77,12 +82,10 @@ Example:
   }
 
 Use the Device Execution Policies
-========================================
+=================================
 
-The device execution policy specifies where a parallel algorithm runs.
-It encapsulates a SYCL device or queue and allows you to
-set an optional kernel name. Device execution policies can be used with all
-standard C++ algorithms that support execution policies.
+The device execution policy specifies where a |onedpl_short| parallel algorithm runs.
+It encapsulates a SYCL device or queue and allows you to set an optional kernel name.
 
 To create a policy object, you may use one of the following constructor arguments:
 
@@ -114,8 +117,8 @@ and ``using namespace sycl;`` directives when referring to policy classes and fu
 
 .. code:: cpp
 
-   auto policy_a = device_policy<class PolicyA> {};
-   std::for_each(policy_a, ...);
+  auto policy_a = device_policy<class PolicyA> {};
+  std::for_each(policy_a, ...);
 
 .. code:: cpp
 
@@ -192,7 +195,7 @@ The code below assumes you have added ``using namespace oneapi::dpl::execution;`
 
 
 Error Handling with Device Execution Policies
-====================================================
+=============================================
 
 The SYCL error handling model supports two types of errors: Synchronous errors cause the SYCL host
 runtime libraries throw exceptions. Asynchronous errors may only be processed in a user-supplied error handler
