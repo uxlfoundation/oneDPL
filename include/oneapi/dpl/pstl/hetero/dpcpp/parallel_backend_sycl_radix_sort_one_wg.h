@@ -30,8 +30,7 @@ template <typename... _Name>
 class __radix_sort_one_wg_kernel;
 
 template <typename _KernelNameBase, uint16_t __wg_size = 256 /*work group size*/, uint16_t __block_size = 16,
-          ::std::uint32_t __radix = 4, bool __is_asc = true,
-          uint16_t __req_sub_group_size = (__block_size < 4 ? 32 : 16)>
+          std::uint32_t __radix = 4, bool __is_asc = true>
 struct __subgroup_radix_sort
 {
     template <typename _RangeIn, typename _Proj>
@@ -147,6 +146,7 @@ struct __subgroup_radix_sort
         auto
         operator()(sycl::queue __q, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
         {
+            constexpr std::uint16_t __req_sub_group_size = 16;
             uint16_t __n = __src.size();
             assert(__n <= __block_size * __wg_size);
 
