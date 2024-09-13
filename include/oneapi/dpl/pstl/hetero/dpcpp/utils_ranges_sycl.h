@@ -421,8 +421,8 @@ struct __get_sycl_range
     }
 
   private:
-    //We have to keep sycl buffer(s) instance here by sync reasons;
-    ::std::vector<::std::unique_ptr<oneapi::dpl::__internal::__lifetime_keeper_base>> m_buffers;
+    // We have to keep sycl buffer(s) instance here by sync reasons;
+    std::vector<std::unique_ptr<oneapi::dpl::__internal::__lifetime_keeper_base>> m_buffers;
 
     template <sycl::access::mode _LocalAccMode>
     static constexpr bool __is_copy_direct_v =
@@ -709,7 +709,7 @@ struct __get_sycl_range
         // We have to extend sycl buffer lifetime by sync reasons in case of host iterators. SYCL runtime has sync
         // in buffer destruction and a sycl view instance keeps just placeholder accessor, not a buffer.
         using BufferType = oneapi::dpl::__internal::__lifetime_keeper<decltype(__buf)>;
-        m_buffers.push_back(::std::make_unique<BufferType>(__buf));
+        m_buffers.push_back(std::make_unique<BufferType>(__buf));
 
         using _T = val_t<_Iter>;
         return __range_holder<oneapi::dpl::__ranges::all_view<_T, _LocalAccMode>>{

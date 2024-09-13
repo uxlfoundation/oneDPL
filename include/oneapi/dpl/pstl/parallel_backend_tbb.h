@@ -1105,7 +1105,7 @@ class __stable_sort_func
     _Compare _M_comp;
     _LeafSort _M_leaf_sort;
     bool _M_root;
-    _SizeType _M_nsort; //zero or number of elements to be sorted for partial_sort alforithm
+    _SizeType _M_nsort; //zero or number of elements to be sorted for partial_sort algorithm
 
   public:
     __stable_sort_func(_RandomAccessIterator1 __xs, _RandomAccessIterator1 __xe, _RandomAccessIterator2 __zs,

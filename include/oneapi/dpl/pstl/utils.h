@@ -482,7 +482,7 @@ class __future;
 // empty base class for type erasure
 struct __lifetime_keeper_base
 {
-    virtual ~__lifetime_keeper_base() {}
+    virtual ~__lifetime_keeper_base() = default;
 };
 
 // derived class to keep temporaries (e.g. buffer) alive
