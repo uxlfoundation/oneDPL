@@ -15763,7 +15763,7 @@ struct drop_view : view_interface<drop_view<R>>, private detail::drop_view_cache
 
     template <typename RR = R, ::std::enable_if_t<range<const RR>, int> = 0>
     constexpr auto
-    end()
+    end() const
     {
         return ranges::end(base_);
     }
