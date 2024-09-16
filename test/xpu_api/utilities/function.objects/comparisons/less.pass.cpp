@@ -13,6 +13,16 @@
 //
 //===----------------------------------------------------------------------===//
 
+/*
+ 1) Warning  'first_argument_type' is deprecated: warning STL4007: Many result_type typedefs and all argument_type, first_argument_type, and second_argument_type typedefs are deprecated in C++17.
+    You can define _SILENCE_CXX17_ADAPTOR_TYPEDEFS_DEPRECATION_WARNING or _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS to suppress this warning.
+ 2) Warning  'second_argument_type' is deprecated: warning STL4007: Many result_type typedefs and all argument_type, first_argument_type, and second_argument_type typedefs are deprecated in C++17.
+    You can define _SILENCE_CXX17_ADAPTOR_TYPEDEFS_DEPRECATION_WARNING or _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS to suppress this warning.
+ 3) Warning  'result_type' is deprecated: warning STL4007: Many result_type typedefs and all argument_type, first_argument_type, and second_argument_type typedefs are deprecated in C++17.
+    You can define _SILENCE_CXX17_ADAPTOR_TYPEDEFS_DEPRECATION_WARNING or _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS to suppress this warning.
+ */
+#define _SILENCE_CXX17_ADAPTOR_TYPEDEFS_DEPRECATION_WARNING
+
 #include "support/test_config.h"
 
 #include <oneapi/dpl/functional>
@@ -26,6 +36,11 @@ class KernelLessTest;
 void
 kernel_test()
 {
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
     sycl::queue deviceQueue = TestUtils::get_test_queue();
     bool ret = false;
     sycl::range<1> numOfItems{1};
@@ -54,6 +69,10 @@ kernel_test()
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::less");
+
+#ifdef __clang__
+#    pragma clang diagnostic pop
+#endif
 }
 
 int

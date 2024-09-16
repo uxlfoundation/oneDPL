@@ -110,11 +110,6 @@ run_test()
         auto __fnc = []() { __VA_ARGS__; };                                                           \
         __fnc();                                                                                      \
     }
-#define IF_DOUBLE_SUPPORT_L(...)                                                                      \
-    if constexpr (HasDoubleSupportInRuntime{})                                                        \
-    {                                                                                                 \
-        __VA_ARGS__;                                                                                  \
-    }
 
 // We should use this macros to avoid compile-time error in code with long double type in Kernel.
 #define IF_LONG_DOUBLE_SUPPORT(...)                                                                   \
@@ -122,11 +117,6 @@ run_test()
     {                                                                                                 \
         auto __fnc = []() { __VA_ARGS__; };                                                           \
         __fnc();                                                                                      \
-    }
-#define IF_LONG_DOUBLE_SUPPORT_L(...)                                                                 \
-    if constexpr (HasLongDoubleSupportInCompiletime{})                                                \
-    {                                                                                                 \
-        __VA_ARGS__;                                                                                  \
     }
 
 namespace TestUtils

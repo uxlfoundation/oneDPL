@@ -240,7 +240,7 @@ void test_isinf()
     static_assert((std::is_same_v<decltype(dpl::isinf((float)0)), bool>));
     static_assert((std::is_same_v<decltype(dpl::isinf(0)), bool>));
 
-    auto fnc = []()
+    if constexpr (HasDoubleSupportInRuntime{})
     {
         typedef decltype(dpl::isinf((double)0)) DoubleRetType;
 #if !defined(__linux__) || defined(__clang__)
@@ -252,8 +252,7 @@ void test_isinf()
         // See: https://sourceware.org/bugzilla/show_bug.cgi?id=19439
         static_assert((std::is_same_v<DoubleRetType, bool> || std::is_same_v<DoubleRetType, int>));
 #endif
-    };
-    IF_DOUBLE_SUPPORT_L(fnc)
+    }
 
     IF_LONG_DOUBLE_SUPPORT(static_assert((std::is_same_v<decltype(dpl::isinf((long double)0)), bool>)))
     IF_DOUBLE_SUPPORT(assert(dpl::isinf(-1.0) == false))
@@ -327,7 +326,7 @@ void test_isnan()
 #endif
     static_assert((std::is_same_v<decltype(dpl::isnan((float)0)), bool>));
 
-    auto fnc = []()
+    if constexpr (HasDoubleSupportInRuntime{})
     {
         typedef decltype(dpl::isnan((double)0)) DoubleRetType;
 #if !defined(__linux__) || defined(__clang__)
@@ -339,8 +338,7 @@ void test_isnan()
         // See: https://sourceware.org/bugzilla/show_bug.cgi?id=19439
         static_assert((std::is_same_v<DoubleRetType, bool> || std::is_same_v<DoubleRetType, int>));
 #endif
-    };
-    IF_DOUBLE_SUPPORT_L(fnc)
+    }
 
     static_assert((std::is_same_v<decltype(dpl::isnan(0)), bool>));
     IF_LONG_DOUBLE_SUPPORT(static_assert((std::is_same_v<decltype(dpl::isnan((long double)0)), bool>)))

@@ -13,6 +13,17 @@
 //
 //===----------------------------------------------------------------------===//
 
+/*
+  Warning  'result_of<char F::*(F &)>' is deprecated: warning STL4014: std::result_of and std::result_of_t are deprecated in C++17.
+  They are superseded by std::invoke_result and std::invoke_result_t. You can define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING or _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS to suppress this warning.
+ */
+#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
+
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 #include "support/test_config.h"
 
 #include <oneapi/dpl/type_traits>
@@ -84,8 +95,10 @@ kernel_test()
 
         test_result_of_imp<PMD(F), char&&>();
         test_result_of_imp<PMD(F const), char&&>();
+#if TEST_STD_VER < 20
         test_result_of_imp<PMD(F volatile), char&&>();
         test_result_of_imp<PMD(F const volatile), char&&>();
+#endif
 
         test_result_of_imp<PMD(FD&), char&>();
         test_result_of_imp<PMD(FD const&), char const&>();
@@ -99,8 +112,10 @@ kernel_test()
 
         test_result_of_imp<PMD(FD), char&&>();
         test_result_of_imp<PMD(FD const), char&&>();
+#if TEST_STD_VER < 20
         test_result_of_imp<PMD(FD volatile), char&&>();
         test_result_of_imp<PMD(FD const volatile), char&&>();
+#endif // TEST_STD_VER < 20
 
         test_result_of_imp<PMD(dpl::reference_wrapper<F>), char&>();
         test_result_of_imp<PMD(dpl::reference_wrapper<F const>), const char&>();
@@ -134,9 +149,11 @@ kernel_test()
         test_result_of_imp<int (F::*(F))() const volatile&&, int>();
         test_result_of_imp<int (F::*(F const))() const&&, int>();
         test_result_of_imp<int (F::*(F const))() const volatile&&, int>();
+#if TEST_STD_VER < 20
         test_result_of_imp<int (F::*(F volatile))() volatile&&, int>();
         test_result_of_imp<int (F::*(F volatile))() const volatile&&, int>();
         test_result_of_imp<int (F::*(F const volatile))() const volatile&&, int>();
+#endif // TEST_STD_VER < 20
     }
     {
         test_result_of_imp<int (F::*(FD&))()&, int>();
@@ -165,9 +182,11 @@ kernel_test()
         test_result_of_imp<int (F::*(FD))() const volatile&&, int>();
         test_result_of_imp<int (F::*(FD const))() const&&, int>();
         test_result_of_imp<int (F::*(FD const))() const volatile&&, int>();
+#if TEST_STD_VER < 20
         test_result_of_imp<int (F::*(FD volatile))() volatile&&, int>();
         test_result_of_imp<int (F::*(FD volatile))() const volatile&&, int>();
         test_result_of_imp<int (F::*(FD const volatile))() const volatile&&, int>();
+#endif // TEST_STD_VER < 20
     }
     {
         test_result_of_imp<int (F::*(dpl::reference_wrapper<F>))(), int>();
@@ -198,3 +217,7 @@ main()
 
     return TestUtils::done();
 }
+
+#ifdef __clang__
+#    pragma clang diagnostic pop
+#endif

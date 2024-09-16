@@ -13,6 +13,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+/*
+ 1) Warning  'binary_negate<std::logical_and<int>>' is deprecated: warning STL4008: std::not1(), std::not2(), std::unary_negate, and std::binary_negate are deprecated in C++17.
+    They are superseded by std::not_fn(). You can define _SILENCE_CXX17_NEGATORS_DEPRECATION_WARNING or _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS to suppress this warning.
+ 2) Warning  'F' is deprecated: warning STL4008: std::not1(), std::not2(), std::unary_negate, and std::binary_negate are deprecated in C++17.
+    They are superseded by std::not_fn(). You can define _SILENCE_CXX17_NEGATORS_DEPRECATION_WARNING or _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS to suppress this warning.
+ */
+#define _SILENCE_CXX17_NEGATORS_DEPRECATION_WARNING
+
 #include "support/test_config.h"
 
 #include <oneapi/dpl/functional>
@@ -28,6 +36,11 @@ class KernelBinaryNegTest;
 void
 kernel_test()
 {
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
     sycl::queue deviceQueue = TestUtils::get_test_queue();
     bool ret = false;
     sycl::range<1> numOfItems{1};
@@ -49,6 +62,10 @@ kernel_test()
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::binary_negate");
+
+#ifdef __clang__
+#    pragma clang diagnostic pop
+#endif
 }
 #endif // TEST_STD_VER
 

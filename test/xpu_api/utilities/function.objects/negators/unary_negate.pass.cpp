@@ -13,6 +13,19 @@
 //
 //===----------------------------------------------------------------------===//
 
+/*
+ 1) Warning  'unary_negate<std::logical_not<int>>' is deprecated: warning STL4008: std::not1(), std::not2(), std::unary_negate, and std::binary_negate are deprecated in C++17. They are superseded by std::not_fn().
+    You can define _SILENCE_CXX17_NEGATORS_DEPRECATION_WARNING or _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS to suppress this warning.
+ 2) Warning  'F' is deprecated: warning STL4008: std::not1(), std::not2(), std::unary_negate, and std::binary_negate are deprecated in C++17. They are superseded by std::not_fn().
+    You can define _SILENCE_CXX17_NEGATORS_DEPRECATION_WARNING or _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS to suppress this warning.
+ */
+#define _SILENCE_CXX17_NEGATORS_DEPRECATION_WARNING
+
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 #include "support/test_config.h"
 
 #include <oneapi/dpl/functional>
@@ -58,3 +71,7 @@ main()
 
     return TestUtils::done(TEST_STD_VER == 17);
 }
+
+#ifdef __clang__
+#    pragma clang diagnostic pop
+#endif

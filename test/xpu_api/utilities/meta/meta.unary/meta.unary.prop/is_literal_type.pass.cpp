@@ -13,6 +13,17 @@
 //
 //===----------------------------------------------------------------------===//
 
+/*
+  Warning  'is_literal_type<std::nullptr_t>' is deprecated: warning STL4013: std::is_literal_type and std::is_literal_type_v are deprecated in C++17.
+  You can define _SILENCE_CXX17_IS_LITERAL_TYPE_DEPRECATION_WARNING or _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS to suppress this warning.
+ */
+#define _SILENCE_CXX17_IS_LITERAL_TYPE_DEPRECATION_WARNING
+
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 #include "support/test_config.h"
 
 #include <oneapi/dpl/type_traits>
@@ -131,3 +142,7 @@ main()
 
     return TestUtils::done(TEST_STD_VER == 17);
 }
+
+#ifdef __clang__
+#    pragma clang diagnostic pop
+#endif
