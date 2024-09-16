@@ -52,17 +52,17 @@ int main(int, char**)                                                           
     static_assert(!is_fast_math_switched_on(),                                                        \
                   "Tests of std::complex are not compatible with -ffast-math compiler option.");      \
                                                                                                       \
-    run_test<::std::true_type, ::std::true_type>();                                                   \
+    run_test<std::true_type, std::true_type>();                                                       \
                                                                                                       \
     /* Sometimes we may start test on device, which don't support type double. */                     \
     /* In this case generates run-time error.                                  */                     \
     /* This two types allow us to avoid this situation.                        */                     \
-    using HasDoubleTypeSupportInRuntime = ::std::true_type;                                           \
-    using HasntDoubleTypeSupportInRuntime = ::std::false_type;                                        \
+    using HasDoubleTypeSupportInRuntime = std::true_type;                                             \
+    using HasntDoubleTypeSupportInRuntime = std::false_type;                                          \
                                                                                                       \
     /* long double type generate compile-time error in Kernel code             */                     \
     /* and we never can use this type inside Kernel                            */                     \
-    using HasntLongDoubleSupportInCompiletime = ::std::false_type;                                    \
+    using HasntLongDoubleSupportInCompiletime = std::false_type;                                      \
                                                                                                       \
     TestUtils::run_test_in_kernel(                                                                    \
         /* lambda for the case when we have support of double type on device */                       \
@@ -82,7 +82,7 @@ run_test()
 // Example:
 //     template <class T>
 //     void
-//     test(T x, ::std::enable_if_t<std::is_integral_v<T>>* = 0)
+//     test(T x, std::enable_if_t<std::is_integral_v<T>>* = 0)
 //     {
 //         static_assert((std::is_same_v<decltype(dpl::conj(x)), dpl::complex<double>>));
 //
@@ -105,15 +105,29 @@ run_test()
 //         // ...
 //     }
 #define IF_DOUBLE_SUPPORT(...)                                                                        \
-    TestUtils::invoke_test_if(HasDoubleSupportInRuntime(), []() { __VA_ARGS__; });
+    if constexpr (HasDoubleSupportInRuntime{})                                                        \
+    {                                                                                                 \
+        auto __fnc = []() { __VA_ARGS__; };                                                           \
+        __fnc();                                                                                      \
+    }
 #define IF_DOUBLE_SUPPORT_L(...)                                                                      \
-    TestUtils::invoke_test_if(HasDoubleSupportInRuntime(), __VA_ARGS__);
+    if constexpr (HasDoubleSupportInRuntime{})                                                        \
+    {                                                                                                 \
+        __VA_ARGS__;                                                                                  \
+    }
 
 // We should use this macros to avoid compile-time error in code with long double type in Kernel.
 #define IF_LONG_DOUBLE_SUPPORT(...)                                                                   \
-    TestUtils::invoke_test_if(HasLongDoubleSupportInCompiletime(), []() { __VA_ARGS__; });
+    if constexpr (HasLongDoubleSupportInCompiletime{})                                                \
+    {                                                                                                 \
+        auto __fnc = []() { __VA_ARGS__; };                                                           \
+        __fnc();                                                                                      \
+    }
 #define IF_LONG_DOUBLE_SUPPORT_L(...)                                                                 \
-    TestUtils::invoke_test_if(HasLongDoubleSupportInCompiletime(), __VA_ARGS__);
+    if constexpr (HasLongDoubleSupportInCompiletime{})                                                \
+    {                                                                                                 \
+        __VA_ARGS__;                                                                                  \
+    }
 
 namespace TestUtils
 {
@@ -122,19 +136,6 @@ namespace TestUtils
     // cases where temporary expressions of type double are used to calculate the value of INFINITY.
     // This lead to an error on devices where the double type is not supported.
     static constexpr float infinity_val = INFINITY;
-
-    template <typename _FncTest>
-    void
-    invoke_test_if(::std::true_type, _FncTest __fncTest)
-    {
-        __fncTest();
-    }
-
-    template <typename _FncTest>
-    void
-    invoke_test_if(::std::false_type, _FncTest)
-    {
-    }
 
     // Run test in Kernel as single task
     template <typename TFncDoubleHasSupportInRuntime, typename TFncDoubleHasntSupportInRuntime>
