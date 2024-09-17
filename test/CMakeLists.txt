@@ -274,3 +274,11 @@ foreach (_file IN LISTS UNIT_TESTS)
     endif()
 
 endforeach()
+
+# add additional TUs if required
+if (TARGET multiple_translation_units.pass)
+    target_sources(
+        multiple_translation_units.pass PRIVATE
+        "${CMAKE_CURRENT_LIST_DIR}/general/multiple_translation_units/translation_unit1.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/general/multiple_translation_units/translation_unit2.cpp")
+endif()
