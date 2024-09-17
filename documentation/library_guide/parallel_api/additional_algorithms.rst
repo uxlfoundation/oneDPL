@@ -1,7 +1,7 @@
 Additional Algorithms
 ######################
 
-The definitions of the algorithms listed below are available through the ``oneapi/dpl/algorithm``
+The definitions of the algorithms listed below are available through the ``<oneapi/dpl/algorithm>``
 header.  All algorithms are implemented in the ``oneapi::dpl`` namespace.
 
 * ``reduce_by_segment``: performs partial reductions on a sequence's values and keys. Each

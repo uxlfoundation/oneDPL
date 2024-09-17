@@ -7,6 +7,9 @@ as specified in the ISO/IEC 14882:2017 standard (commonly called C++17), as well
 It offers threaded and SIMD execution of these algorithms on Intel® processors implemented on top of OpenMP*
 and |onetbb_short|, as well as data parallel execution on accelerators backed by SYCL* support in |dpcpp_cpp|.
 
+Extending the capabilities of `range algorithms <https://en.cppreference.com/w/cpp/algorithm/ranges>`_ in C++20,
+the Parallel API provides analogous *parallel range algorithms* that execute according to an execution policy.
+
 In addition, |onedpl_short| provides specific variations of some algorithms, including:
 
 * Segmented reduce
@@ -20,8 +23,7 @@ zip, transform, complete permutation operations on other iterators, and include 
 The function object classes provide minimum, maximum, and identity operations
 that may be passed to algorithms such as reduce or transform.
 
-|onedpl_short| also includes an experimental implementation of range-based algorithms with their
-required ranges, and experimental asynchronous algorithms.
+|onedpl_short| also includes an experimental implementation of asynchronous algorithms.
 
 .. toctree::
    :maxdepth: 2
@@ -31,7 +33,8 @@ required ranges, and experimental asynchronous algorithms.
 
    parallel_api/execution_policies
    parallel_api/iterators
-   parallel_api/async_api
-   parallel_api/range_based_api
+   parallel_api/parallel_range_algorithms
    parallel_api/additional_algorithms
    parallel_api/pass_data_algorithms
+   parallel_api/async_api
+   parallel_api/range_based_api

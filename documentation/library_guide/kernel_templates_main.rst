@@ -10,7 +10,7 @@ It is recommended to use kernel templates when there is an opportunity to custom
 for a particular workload (for example, the number of elements and their type),
 or for a specific device (for example, based on the available local memory).
 
-To use the API, include the ``oneapi/dpl/experimental/kernel_templates`` header file.
+To use the API, include the ``<oneapi/dpl/experimental/kernel_templates>`` header file.
 The primary API namespace is ``oneapi::dpl::experimental::kt``, and nested namespaces are used to further categorize the templates.
 
 * :doc:`Kernel Configuration <kernel_templates/kernel_configuration>`. Generic structure for configuring a kernel template.

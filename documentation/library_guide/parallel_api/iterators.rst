@@ -1,7 +1,7 @@
 Iterators
 #########
 
-The definitions of the iterators are available through the ``oneapi/dpl/iterator``
+The definitions of the iterators are available through the ``<oneapi/dpl/iterator>``
 header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 
 * ``counting_iterator``: a random-access iterator-like type whose dereferenced value is an integer

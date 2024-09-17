@@ -27,6 +27,8 @@ Macro                             Description
 ``_PSTL_VERSION_PATCH``           ``_PSTL_VERSION % 10``: The patch number.
 ================================= ==============================
 
+.. _feature-macros:
+
 Feature Macros
 ==============
 Use these macros to test presence of specific |onedpl_short| functionality.
@@ -40,8 +42,7 @@ Macro                              Macro values and the functionality
 ---------------------------------- -----------------------------------------------
 ``ONEDPL_HAS_RANGE_ALGORITHMS``    Parallel range algorithms.
 
-                                   * ``202409L`` - for_each, transform, find, find_if, find_if_not, any_of, all_of, none_of, adjacent_find, search, search_n,
-                                     count, count_if, equal, is_sorted, sort, stable_sort, min_element, max_element, copy, copy_if, merge
+                                   * ``202409L`` - see :ref:`available algorithms <range-algorithms-202409L>`.
 ================================== ===============================================
 
 Additional Macros

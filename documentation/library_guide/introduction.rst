@@ -82,11 +82,14 @@ to build the standard C++ code for execution on a SYCL device:
   icpx -fsycl -fsycl-pstl-offload=gpu program.cpp -o program
 
 This option redirects C++ parallel algorithms invoked with the ``std::execution::par_unseq`` policy
-to |onedpl_short| algorithms. It does not change the behavior of the |onedpl_short| execution policies and algorithms
-that are directly used in the code.
+to |onedpl_short| algorithms. It does not change the behavior of the |onedpl_short| algorithms and
+execution policies that are directly used in the code.
 
 Useful Information
 ==================
+
+.. _library-restrictions:
+
 
 Difference with Standard C++ Parallel Algorithms
 ************************************************
