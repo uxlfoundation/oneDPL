@@ -90,10 +90,10 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         if (n < 1)
             return;
 
-        using key_type = typename ::std::decay_t<decltype(host_keys[0])>;
+        using key_type = std::decay_t<decltype(host_keys[0])>;
         key_type current_key = key_type(999); //not one of the input keys
 
-        using value_type = typename ::std::decay_t<decltype(val_res[0])>;
+        using value_type = std::decay_t<decltype(val_res[0])>;
 
         ::std::vector<value_type> expected_val_res(n);
         exclusive_scan_by_segment_serial(host_keys, host_vals, ::std::begin(expected_val_res), n,

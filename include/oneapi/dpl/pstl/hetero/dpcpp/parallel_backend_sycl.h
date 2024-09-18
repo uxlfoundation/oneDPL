@@ -564,8 +564,9 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
 
         // This type is used as a workaround for when an internal tuple is assigned to ::std::tuple, such as
         // with zip_iterator
-        using __tuple_type = typename ::oneapi::dpl::__internal::__get_tuple_type<
-            typename ::std::decay_t<decltype(__in_rng[0])>, typename ::std::decay_t<decltype(__out_rng[0])>>::__type;
+        using __tuple_type =
+            typename ::oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__in_rng[0])>,
+                                                                 std::decay_t<decltype(__out_rng[0])>>::__type;
 
         constexpr ::std::uint32_t __elems_per_wg = _ElemsPerItem * _WGSize;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Policy, _Size>;
