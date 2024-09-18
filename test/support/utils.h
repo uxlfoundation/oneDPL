@@ -103,23 +103,36 @@ expect(bool expected, bool condition, const char* file, std::int32_t line, const
 // Do not change signature to const T&.
 // Function must be able to detect const differences between expected and actual.
 template <typename T1, typename T2>
-void
-expect_equal_val(const T1& expected, const T2& actual, const char* file, std::int32_t line, const char* message)
+bool
+is_equal_val(const T1& val1, const T2& val2)
 {
     using T = std::common_type_t<T1, T2>;
 
-    bool __is_error = false;
     if constexpr (std::is_floating_point_v<T>)
     {
         const auto eps = std::numeric_limits<T>::epsilon();
-        __is_error = std::fabs(T(expected) - T(actual)) >= eps;
+        return std::fabs(T(val1) - T(val2)) < eps;
+    }
+
+    if constexpr (std::is_same_v<T1, T2>)
+    {
+        return val1 == val2;
     }
     else
-        __is_error = !(T(expected) == T(actual));
-
-    if (__is_error)
     {
-        ::std::stringstream outstr;
+        return T(val1) == T(val2);
+    }
+}
+
+// Do not change signature to const T&.
+// Function must be able to detect const differences between expected and actual.
+template <typename T1, typename T2>
+void
+expect_equal_val(const T1& expected, const T2& actual, const char* file, std::int32_t line, const char* message)
+{
+    if (!is_equal_val(expected, actual))
+    {
+        std::stringstream outstr;
         outstr << "error at " << file << ":" << line << " - " << message << ", expected " << expected << " got "
                << actual;
         issue_error_message(outstr);
@@ -143,7 +156,7 @@ expect_equal(const R1& expected, const R2& actual, const char* file, std::int32_
     size_t error_count = 0;
     for (size_t k = 0; k < n && error_count < 10; ++k)
     {
-        if (!(expected[k] == actual[k]))
+        if (!is_equal_val(expected[k], actual[k]))
         {
             ::std::stringstream outstr;
             outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k << " expected "
@@ -169,7 +182,7 @@ expect_equal(Iterator1 expected_first, Iterator2 actual_first, Size n, const cha
     size_t error_count = 0;
     for (size_t k = 0; k < n && error_count < 10; ++k, ++expected_first, ++actual_first)
     {
-        if (!(*expected_first == *actual_first))
+        if (!is_equal_val(*expected_first, *actual_first))
         {
             ::std::stringstream outstr;
             outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k;
@@ -185,7 +198,7 @@ check_data(const T1* device_iter, const T2* host_iter, int N)
 {
     for (int i = 0; i < N; ++i)
     {
-        if (*(host_iter + i) != *(device_iter + i))
+        if (!is_equal_val(*(host_iter + i), *(device_iter + i)))
             return false;
     }
     return true;

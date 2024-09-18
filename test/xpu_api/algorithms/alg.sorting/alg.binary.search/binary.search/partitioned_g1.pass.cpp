@@ -39,9 +39,9 @@ struct X
         return this->odd() && !x.odd();
     }
     bool
-    operator!=(const X& x) const
+    operator==(const X& x) const
     {
-        return this->val != x.val;
+        return this->val == x.val;
     }
 };
 
