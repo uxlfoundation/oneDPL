@@ -158,6 +158,27 @@ public:
             return x.current_ <=> y.current_;
         }
 
+        friend constexpr auto operator-(const iterator& x, const iterator& y)
+            requires all_random_access<Const, Views...>
+        {
+            return std::get<0>(x.current_) - std::get<0>(y.current_);
+        }
+
+        friend constexpr iterator operator+(iterator it, difference_type n)
+        {
+            return it+=n;
+        }
+
+        friend constexpr iterator operator+(difference_type n, iterator it)
+        {
+            return it+=n;
+        }
+
+        friend constexpr iterator operator-(iterator it, difference_type n)
+        {
+            return it-=n;
+        }
+
     private:
         template <std::size_t... In>
         constexpr bool compare_equal(iterator y, std::index_sequence<In...>) {
@@ -329,8 +350,3 @@ struct zip_fn {
 inline constexpr zip_fn zip{};
 
 } // namespace my
-
-int main()
-{
-
-}
