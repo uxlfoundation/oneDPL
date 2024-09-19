@@ -33,32 +33,32 @@ namespace experimental
 {
 
 template <typename _UIntType, std::size_t _w, std::size_t _n, std::size_t _r,
-          internal::element_type_t<_UIntType>... _consts>
+          oneapi::dpl::internal::element_type_t<_UIntType>... _consts>
 class philox_engine;
 
 template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          internal::element_type_t<__UIntType>... __consts>
+          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
 std::basic_ostream<__CharT, __Traits>&
 operator<<(std::basic_ostream<__CharT, __Traits>&, const philox_engine<__UIntType, __w, __n, __r, __consts...>&);
 
 template <typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          internal::element_type_t<__UIntType>... __consts>
+          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
 const sycl::stream&
 operator<<(const sycl::stream&, const philox_engine<__UIntType, __w, __n, __r, __consts...>&);
 
 template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          internal::element_type_t<__UIntType>... __consts>
+          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
 std::basic_istream<__CharT, __Traits>&
 operator>>(std::basic_istream<__CharT, __Traits>&, philox_engine<__UIntType, __w, __n, __r, __consts...>&);
 
 template <typename _UIntType, std::size_t _w, std::size_t _n, std::size_t _r,
-          internal::element_type_t<_UIntType>... _consts>
+          oneapi::dpl::internal::element_type_t<_UIntType>... _consts>
 class philox_engine
 {
   public:
     /* Types */
     using result_type = _UIntType;
-    using scalar_type = internal::element_type_t<result_type>;
+    using scalar_type = oneapi::dpl::internal::element_type_t<result_type>;
 
   private:
     /* The size of the consts arrays */
@@ -140,14 +140,14 @@ class philox_engine
     result_type
     operator()()
     {
-        return generate_internal<internal::type_traits_t<result_type>::num_elems>();
+        return generate_internal<oneapi::dpl::internal::type_traits_t<result_type>::num_elems>();
     }
 
     /* operator () overload for result portion generation */
     result_type
     operator()(unsigned int __random_nums)
     {
-        return generate_internal<internal::type_traits_t<result_type>::num_elems>(__random_nums);
+        return generate_internal<oneapi::dpl::internal::type_traits_t<result_type>::num_elems>(__random_nums);
     }
 
     /* Shift the counter only forward relative to its current position */
@@ -175,17 +175,17 @@ class philox_engine
 
     /* Inserters and extractors */
     template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n,
-              std::size_t __r, internal::element_type_t<__UIntType>... __consts>
+              std::size_t __r, oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
     friend std::basic_ostream<__CharT, __Traits>&
     operator<<(std::basic_ostream<__CharT, __Traits>&, const philox_engine<__UIntType, __w, __n, __r, __consts...>&);
 
     template <typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-              internal::element_type_t<__UIntType>... __consts>
+              oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
     friend const sycl::stream&
     operator<<(const sycl::stream&, const philox_engine<__UIntType, __w, __n, __r, __consts...>&);
 
     template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n,
-              std::size_t __r, internal::element_type_t<__UIntType>... __consts>
+              std::size_t __r, oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
     friend std::basic_istream<__CharT, __Traits>&
     operator>>(std::basic_istream<__CharT, __Traits>&, philox_engine<__UIntType, __w, __n, __r, __consts...>&);
 
@@ -447,12 +447,12 @@ class philox_engine
 };
 
 template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          internal::element_type_t<__UIntType>... __consts>
+          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
 std::basic_ostream<__CharT, __Traits>&
 operator<<(std::basic_ostream<__CharT, __Traits>& __os,
            const philox_engine<__UIntType, __w, __n, __r, __consts...>& __engine)
 {
-    internal::save_stream_flags<__CharT, __Traits> __flags(__os);
+    oneapi::dpl::internal::save_stream_flags<__CharT, __Traits> __flags(__os);
 
     __os.setf(std::ios_base::dec | std::ios_base::left);
     __CharT __sp = __os.widen(' ');
@@ -476,7 +476,7 @@ operator<<(std::basic_ostream<__CharT, __Traits>& __os,
 }
 
 template <typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          internal::element_type_t<__UIntType>... __consts>
+          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
 const sycl::stream&
 operator<<(const sycl::stream& __os, const philox_engine<__UIntType, __w, __n, __r, __consts...>& __engine)
 {
@@ -498,17 +498,17 @@ operator<<(const sycl::stream& __os, const philox_engine<__UIntType, __w, __n, _
 }
 
 template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          internal::element_type_t<__UIntType>... __consts>
+          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
 std::basic_istream<__CharT, __Traits>&
 operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType, __w, __n, __r, __consts...>& __engine)
 {
-    internal::save_stream_flags<__CharT, __Traits> __flags(__is);
+    oneapi::dpl::internal::save_stream_flags<__CharT, __Traits> __flags(__is);
 
     __is.setf(std::ios_base::dec);
 
     const std::size_t __state_size = 2 * __n + __n / 2 + 1;
 
-    std::array<internal::element_type_t<__UIntType>, __state_size> __tmp_inp;
+    std::array<oneapi::dpl::internal::element_type_t<__UIntType>, __state_size> __tmp_inp;
     for (std::size_t __i = 0; __i < __state_size; ++__i)
     {
         __is >> __tmp_inp[__i];

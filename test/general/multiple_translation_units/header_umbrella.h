@@ -43,9 +43,11 @@
 #include <oneapi/dpl/memory>
 #include <oneapi/dpl/numeric>
 #include <oneapi/dpl/optional>
-// TODO: investigate issues:
-//     philox_engine.h:36:11: error: no template named 'element_type_t' in namespace 'oneapi::dpl::experimental::internal'; did you mean '::oneapi::dpl::internal::element_type_t'?
-// #include <oneapi/dpl/random>
+
+#if TEST_DPCPP_BACKEND_PRESENT
+#   include <oneapi/dpl/random>
+#endif
+
 #include <oneapi/dpl/ranges>
 #include <oneapi/dpl/ratio>
 #include <oneapi/dpl/tuple>
