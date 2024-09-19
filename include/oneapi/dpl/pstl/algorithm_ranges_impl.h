@@ -331,7 +331,7 @@ __pattern_is_sorted(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-// pattern_sort
+// pattern_sort_ranges
 //---------------------------------------------------------------------------------------------------------------------
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
@@ -342,17 +342,19 @@ __pattern_sort_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
 
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
         std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
-    // Call stable_sort pattern since __pattern_sort_ranges is shared between sort and stable_sort
+    // Use stable sort as a leaf since __pattern_sort_ranges is shared between sort and stable_sort
     // TODO: add a separate pattern for ranges::sort for better performance
-    oneapi::dpl::__internal::__pattern_stable_sort(__tag, std::forward<_ExecutionPolicy>(__exec),
-        std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
+    oneapi::dpl::__internal::__pattern_sort(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+                                            std::ranges::begin(__r) + std::ranges::size(__r), __comp_2,
+                                            std::ranges::stable_sort);
 
     return std::ranges::borrowed_iterator_t<_R>(std::ranges::begin(__r) + std::ranges::size(__r));
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 auto
-__pattern_sort_ranges(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+__pattern_sort_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp,
+                      _Proj __proj)
 {
     return std::ranges::stable_sort(std::forward<_R>(__r), __comp, __proj);
 }

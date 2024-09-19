@@ -28,6 +28,9 @@
 #    include "dpcpp/unseq_backend_sycl.h"
 #endif
 
+#include <cstddef> // std::nullptr_t
+#include <utility> // std::forward
+
 namespace oneapi
 {
 namespace dpl
@@ -1241,23 +1244,11 @@ __stable_sort_with_projection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
         .__deferrable_wait();
 }
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare,
+          typename _LeafSort = std::nullptr_t>
 void
 __pattern_sort(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
-               _Compare __comp)
-{
-    __stable_sort_with_projection(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __comp,
-                                  oneapi::dpl::identity{});
-}
-
-//------------------------------------------------------------------------
-// stable_sort
-//------------------------------------------------------------------------
-
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare>
-void
-__pattern_stable_sort(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
-                      _Compare __comp)
+               _Compare __comp, _LeafSort = {})
 {
     __stable_sort_with_projection(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __comp,
                                   oneapi::dpl::identity{});
@@ -1267,10 +1258,11 @@ __pattern_stable_sort(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 // sort_by_key
 //------------------------------------------------------------------------
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Compare>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Compare,
+          typename _LeafSort = std::nullptr_t>
 void
-__pattern_stable_sort_by_key(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __keys_first,
-                             _Iterator1 __keys_last, _Iterator2 __values_first, _Compare __comp)
+__pattern_sort_by_key(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __keys_first,
+                      _Iterator1 __keys_last, _Iterator2 __values_first, _Compare __comp, _LeafSort = {})
 {
     static_assert(std::is_move_constructible_v<typename std::iterator_traits<_Iterator1>::value_type> &&
                       std::is_move_constructible_v<typename std::iterator_traits<_Iterator2>::value_type>,
@@ -1280,19 +1272,6 @@ __pattern_stable_sort_by_key(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     auto __end = __beg + (__keys_last - __keys_first);
     __stable_sort_with_projection(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end, __comp,
                                   [](const auto& __a) { return std::get<0>(__a); });
-}
-
-//------------------------------------------------------------------------
-// stable_sort_by_key
-//------------------------------------------------------------------------
-
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Compare>
-void
-__pattern_sort_by_key(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __keys_first,
-                      _Iterator1 __keys_last, _Iterator2 __values_first, _Compare __comp)
-{
-    __pattern_stable_sort_by_key(__tag, std::forward<_ExecutionPolicy>(__exec), __keys_first, __keys_last,
-                                 __values_first, __comp);
 }
 
 //------------------------------------------------------------------------
