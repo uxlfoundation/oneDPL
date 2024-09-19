@@ -166,9 +166,10 @@ class exponential_distribution
 
         __is.setf(std::ios_base::dec);
 
-        double __p;
-        if (__is >> __p)
-            __d.param(exponential_distribution::param_type(__p));
+        scalar_type __lambda;
+
+        if (__is >> __lambda)
+            __d.param(exponential_distribution::param_type(__lambda));
 
         return __is;
     }
