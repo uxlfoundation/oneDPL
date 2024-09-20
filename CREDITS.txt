@@ -18,3 +18,7 @@ N: Qually Jiang
 W: https://github.com/Quallyjiang
 E: qually.jiang@intel.com
 D: Implemented a prototype of ESIMD-based radix sort, which was adapted into oneDPL radix sort kernel templates.
+
+N: Mikołaj Komar
+W: https://github.com/Xewar313
+D: Fixed One Definition Rule violation.
