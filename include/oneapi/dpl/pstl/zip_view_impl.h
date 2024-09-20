@@ -5,7 +5,6 @@
 #include <tuple>
 #include <type_traits>
 
-
 namespace my {
 
 template <bool C, typename... Views>
@@ -57,6 +56,8 @@ public:
 
         using difference_type = std::conditional_t<!Const, std::common_type_t<std::ranges::range_difference_t<Views>...>,
                                                            std::common_type_t<std::ranges::range_difference_t<const Views>...>>;
+        using return_tuple_type = std::conditional_t<!Const, std::tuple<typename std::iterator_traits<std::ranges::iterator_t<Views>>::reference...>,
+            std::tuple<typename std::iterator_traits<std::ranges::iterator_t<const Views>>::reference...>>;
 
         iterator() = default;
 
@@ -70,18 +71,16 @@ public:
             : current_(iterators...) {}
     public:
 
-        constexpr auto operator*() const {
-            using return_tuple_type = std::conditional_t<!Const, std::tuple<typename std::iterator_traits<std::ranges::iterator_t<Views>>::reference...>,
-                                                                 std::tuple<typename std::iterator_traits<std::ranges::iterator_t<const Views>>::reference...>>;
+        constexpr return_tuple_type operator*() const {
 
 
-            return std::apply([](auto&... iterators) {
-                                return std::make_tuple((*iterators)...);
+            return std::apply([](auto... iterators) {                                
+                                return return_tuple_type((*iterators)...);
                               },
                               current_);
         }
 
-        constexpr auto operator[]( difference_type n ) const
+        constexpr return_tuple_type operator[]( difference_type n ) const
             requires all_random_access<Const, Views...>
         {
             return *(*this + n);
