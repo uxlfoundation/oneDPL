@@ -8,6 +8,107 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in 2022.7.0
+===============
+
+New Features
+------------
+- Improved performance of the ``adjacent_find``, ``all_of``, ``any_of``, ``copy_if``, ``exclusive_scan``, ``equal``,
+  ``find``, ``find_if``, ``find_end``, ``find_first_of``, ``find_if_not``, ``inclusive_scan``, ``includes``,
+  ``is_heap``, ``is_heap_until``, ``is_partitioned``, ``is_sorted``, ``is_sorted_until``, ``lexicographical_compare``,
+  ``max_element``, ``min_element``, ``minmax_element``, ``mismatch``, ``none_of``, ``partition``, ``partition_copy``,
+  ``reduce``, ``remove``, ``remove_copy``, ``remove_copy_if``, ``remove_if``, ``search``, ``search_n``,
+  ``stable_partition``, ``transform_exclusive_scan``, ``transform_inclusive_scan``, ``unique``, and ``unique_copy``
+  algorithms with device policies. 
+- Improved performance of ``sort``, ``stable_sort`` and ``sort_by_key`` algorithms with device policies when using Merge
+  sort [#fnote1]_.
+- Added ``stable_sort_by_key`` algorithm in ``namespace oneapi::dpl``. 
+- Added parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``all_of``, ``any_of``,
+  ``none_of``, ``for_each``, ``find``, ``find_if``, ``find_if_not``, ``adjacent_find``, ``search``, ``search_n``,
+  ``transform``, ``sort``, ``stable_sort``, ``is_sorted``, ``merge``, ``count``, ``count_if``, ``equal``, ``copy``,
+  ``copy_if``, ``min_element``, ``max_element``. These algorithms operate with C++20 random access ranges
+  and views while also taking an execution policy similarly to other oneDPL algorithms.
+- Added support for operators ==, !=, << and >> for RNG engines and distributions.
+- Added experimental support for the Philox RNG engine in ``namespace oneapi::dpl::experimental``.
+- Added the ``<oneapi/dpl/version>`` header containing oneDPL version macros and new feature testing macros.
+
+Fixed Issues
+------------
+- Fixed unused variable and unused type warnings.
+- Fixed memory leaks when using ``sort`` and ``stable_sort`` algorithms with the oneTBB backend.
+- Fixed a build error for ``oneapi::dpl::begin`` and ``oneapi::dpl::end`` functions used with
+  the Microsoft* Visual C++ standard library and with C++20.
+- Reordered template parameters of the ``histogram`` algorithm to match its function parameter order.
+  For affected ``histogram`` calls we recommend to remove explicit specification of template parameters
+  and instead add explicit type conversions of the function arguments as necessary.
+- ``gpu::esimd::radix_sort`` and ``gpu::esimd::radix_sort_by_key`` kernel templates now throw ``std::bad_alloc``
+  if they fail to allocate global memory.
+- Fixed a potential hang occurring with ``gpu::esimd::radix_sort`` and
+  ``gpu::esimd::radix_sort_by_key`` kernel templates. 
+- Fixed documentation for ``sort_by_key`` algorithm, which used to be mistakenly described as stable, despite being
+  possibly unstable for some execution policies. If stability is required, use ``stable_sort_by_key`` instead. 
+- Fixed an error when calling ``sort`` with device execution policies on CUDA devices.
+- Allow passing C++20 random access iterators to oneDPL algorithms.
+- Fixed issues caused by initialization of SYCL queues in the predefined device execution policies.
+  These policies have been updated to be immutable (``const``) objects.
+
+Known Issues and Limitations
+----------------------------
+New in This Release
+^^^^^^^^^^^^^^^^^^^
+- ``histogram`` may provide incorrect results with device policies in a program built with -O0 option.
+- Inclusion of ``<oneapi/dpl/dynamic_selection>`` prior to ``<oneapi/dpl/random>`` may result in compilation errors.
+  Include ``<oneapi/dpl/random>`` first as a workaround.
+- Incorrect results may occur when using ``oneapi::dpl::experimental::philox_engine`` with no predefined template
+  parameters and with `word_size` values other than 64 and 32.
+- Incorrect results or a synchronous SYCL exception may be observed with the following algorithms built
+  with -O0 option and executed on a GPU device: ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+  ``transform_inclusive_scan``, ``copy_if``, ``remove``, ``remove_copy``, ``remove_copy_if``, ``remove_if``,
+  ``partition``, ``partition_copy``, ``stable_partition``, ``unique``, ``unique_copy``, and ``sort``.
+- The value type of the input sequence should be convertible to the type of the initial element for the following
+  algorithms with device execution policies: ``transform_inclusive_scan``, ``transform_exclusive_scan``,
+  ``inclusive_scan``, and ``exclusive_scan``.
+- The following algorithms with device execution policies may exceed the C++ standard requirements on the number
+  of applications of user-provided predicates or equality operators: ``copy_if``, ``remove``, ``remove_copy``,
+  ``remove_copy_if``, ``remove_if``, ``partition_copy``, ``unique``, and ``unique_copy``. In all cases,
+  the predicate or equality operator is applied ``O(n)`` times.
+- The ``adjacent_find``, ``all_of``, ``any_of``, ``equal``, ``find``, ``find_if``, ``find_end``, ``find_first_of``,
+  ``find_if_not``, ``includes``, ``is_heap``, ``is_heap_until``, ``is_sorted``, ``is_sorted_until``, ``mismatch``,
+  ``none_of``, ``search``, and ``search_n`` algorithms may cause a segmentation fault when used with a device execution
+  policy on a CPU device, and built on Linux with Intel® oneAPI DPC++/C++ Compiler 2025.0.0 and -O0 -g compiler options.
+
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than 4 bytes
+  when used with an FPGA policy.
+- Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows. 
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- ``sort``, ``stable_sort``, ``sort_by_key``, ``stable_sort_by_key``, ``partial_sort_copy`` algorithms
+  may work incorrectly or cause a segmentation fault when used a device execution policy on a CPU device,
+  and built on Linux with Intel® oneAPI DPC++/C++ Compiler and -O0 -g compiler options.
+  To avoid the issue, pass ``-fsycl-device-code-split=per_kernel`` option to the compiler.
+- Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+  ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
+  with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler
+  with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
+  To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
+- Incorrect results may be produced by ``reduce``, ``reduce_by_segment``, and ``transform_reduce``
+  with 64-bit data types when compiled by Intel® oneAPI DPC++/C++ Compiler versions 2021.3 and newer
+  and executed on a GPU device. For a workaround, define the ``ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION``
+  macro to ``1`` before including oneDPL header files.
+- ``std::tuple``, ``std::pair`` cannot be used with SYCL buffers to transfer data between host and device.
+- ``std::array`` cannot be swapped in DPC++ kernels with ``std::swap`` function or ``swap`` member function
+  in the Microsoft* Visual C++ standard library.
+- The ``oneapi::dpl::experimental::ranges::reverse`` algorithm is not available with ``-fno-sycl-unnamed-lambda`` option.
+- STL algorithm functions (such as ``std::for_each``) used in DPC++ kernels do not compile with the debug version of
+  the Microsoft* Visual C++ standard library.
+
 New in 2022.6.0
 ===============
 News
