@@ -125,7 +125,6 @@ More detailed information about the API is provided in the following sections:
 .. toctree::
    :maxdepth: 2
    :titlesonly:
-   :glob:
 
    fixed_resource_policy
    round_robin_policy

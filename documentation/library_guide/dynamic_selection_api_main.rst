@@ -86,7 +86,6 @@ More detailed information about the API is provided in the following sections:
 .. toctree::
    :maxdepth: 2
    :titlesonly:
-   :glob:
 
    dynamic_selection_api/functions
    dynamic_selection_api/policies

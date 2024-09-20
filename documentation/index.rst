@@ -3,6 +3,7 @@ oneAPI DPC++ Library (oneDPL)
 
 .. toctree::
    :maxdepth: 2
+   :titlesonly:
 
    release_notes.rst
    library_guide/overview.rst

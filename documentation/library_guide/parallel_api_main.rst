@@ -28,13 +28,11 @@ that may be passed to algorithms such as reduce or transform.
 .. toctree::
    :maxdepth: 2
    :titlesonly:
-   :glob:
    :hidden:
 
    parallel_api/execution_policies
-   parallel_api/iterators
    parallel_api/parallel_range_algorithms
    parallel_api/additional_algorithms
    parallel_api/pass_data_algorithms
-   parallel_api/async_api
+   parallel_api/iterators
    parallel_api/range_based_api

@@ -20,7 +20,6 @@ The primary API namespace is ``oneapi::dpl::experimental::kt``, and nested names
 .. toctree::
    :maxdepth: 2
    :titlesonly:
-   :glob:
    :hidden:
 
    kernel_templates/kernel_configuration

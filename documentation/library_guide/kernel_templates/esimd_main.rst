@@ -12,7 +12,6 @@ These templates are available in the ``oneapi::dpl::experimental::kt::gpu::esimd
 .. toctree::
    :maxdepth: 2
    :titlesonly:
-   :glob:
    :hidden:
 
    esimd/radix_sort

@@ -1,5 +1,5 @@
-Asynchronous API Algorithms
-###########################
+Asynchronous Algorithms
+#######################
 
 The functions defined in the STL ``<algorithm>`` or ``<numeric>`` headers are traditionally blocking. |onedpl_long| (|onedpl_short|)
 extends the functionality of the C++17 parallel algorithms by providing asynchronous algorithms with non-blocking behavior.
