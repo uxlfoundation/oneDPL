@@ -175,6 +175,12 @@ Constructors
   * - ``auto_tune_policy(const std::vector<resource_type>& u, uint64_t resample_interval_in_milliseconds = 0);``
     - Overrides the default set of resources. An optional resampling interval can be provided.
 
+.. Note::
+
+   When initializing the ``auto_tune_policy`` with SYCL queues, constructing the queues with the
+   ``sycl::property::queue::enable_profiling`` property allows a more accurate determination of the
+   best-performing device to be made.
+
 Deferred Initialization
 -----------------------
 
@@ -192,6 +198,12 @@ to select or submit.
     - Initialize to use the default set of resources. An optional resampling interval can be provided.
   * - ``initialize(const std::vector<resource_type>& u, uint64_t resample_interval_in_milliseconds = 0);``
     - Overrides the default set of resources. An optional resampling interval can be provided.
+
+.. Note::
+
+   When initializing the ``auto_tune_policy`` with SYCL queues, constructing the queues with the
+   ``sycl::property::queue::enable_profiling`` property allows a more accurate determination of the
+   best-performing device to be made.
 
 Queries
 -------
