@@ -42,9 +42,7 @@ An example that calls ``select`` using a ``round_robin_policy``:
     }
   }
   
-The output of this example:
-
-.. code::
+The output of this example is::
 
   selected queue is cpu
   selected queue is gpu
@@ -134,9 +132,7 @@ submitted to the selected queue.
     }
   }
 
-The output from this example:
-
-.. code::
+The output from this example is::
 
   (j == 0): submit to cpu
   (i == 0): async work on main thread
@@ -204,9 +200,7 @@ command groups can be submitted to the selected queue.
     }
   }
 
-The output from this example:
-
-.. code::
+The output from this example is::
 
   (j == 0): submit to cpu
   (i == 0): async work on main thread
@@ -269,9 +263,7 @@ the object returned by ``get_submission_group()`` to ``wait``:
     std::cout << "done waiting for all submissions\n";
   }
   
-The output from this example:
-
-.. code::
+The output from this example is::
 
   (j == 0): submit to cpu
   (i == 0): async work on main thread
@@ -345,9 +337,7 @@ submitted to the selected queue.
     }
   }
 
-The output from this example:
-
-.. code::
+The output from this example is::
 
   (j == 0): submit to cpu
   (i == 0): submission done
@@ -410,9 +400,7 @@ submitted to the selected queue.
   }
 
 
-The output from this example:
-
-.. code::
+The output from this example is::
 
   (j == 0): submit to cpu
   (i == 0): submission done
@@ -462,9 +450,7 @@ selects from. The following example demonstrates the use of the function
       std::cout << "queue is " << ((q.get_device().is_gpu()) ? "gpu\n" : "not-gpu\n");
   }
   
-The output from this example on a test machine is shown below. 
-
-.. code::
+The output from this example on a test machine is::
 
   Resources in explicitly set policy
   queue is cpu

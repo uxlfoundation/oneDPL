@@ -122,7 +122,7 @@ available resource.
 
 Simplified, expository implementation of the selection algorithm:
  
-.. code::
+.. code:: cpp
 
   template<typename... Args>
   selection_type dynamic_load_policy::select(Args&& ...) {

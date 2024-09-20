@@ -127,7 +127,7 @@ The selection algorithm for ``auto_tune_policy`` uses runtime profiling
 to choose the best resource for the given function. A simplified, expository 
 implementation of the selection algorithm follows:
  
-.. code::
+.. code:: cpp
 
   template<typename Function, typename ...Args>
   selection_type auto_tune_policy::select(Function&& f, Args&&...args) {

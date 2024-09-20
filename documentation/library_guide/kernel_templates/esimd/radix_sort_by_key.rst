@@ -172,9 +172,7 @@ In-Place Example
       return 0;
    }
 
-**Output:**
-
-.. code:: none
+**Output**::
 
    1 2 3 3 3 5
    s o r t e d
@@ -245,9 +243,7 @@ Out-of-Place Example
       return 0;
    }
 
-**Output:**
-
-.. code:: none
+**Output**::
 
    3 2 1 5 3 3
    r o s d t e

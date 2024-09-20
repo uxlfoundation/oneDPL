@@ -138,7 +138,7 @@ resource is set during construction or deferred initialization.
 
 Simplified, expository implementation of the selection algorithm:
  
-.. code::
+.. code:: cpp
 
   template<typename... Args>
   selection_type fixed_resource_policy::select(Args&& ...) {

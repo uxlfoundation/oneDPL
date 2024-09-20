@@ -68,9 +68,7 @@ In the preceding example, the key points in the code include:
 #. The submit function returns an object that can be waited on. Calling ``wait`` on the ``done`` object blocks the main thread until the work submitted to the queue by your function is complete.
 #. The whole group of submissions made during the loop can be waited on. In this example, the call is redundant, since each submission was already waited for inside of the loop body.
  
-The output from this example is:
-
-.. code::
+The output from this example is::
 
   submit task to cpu
   submit task to gpu

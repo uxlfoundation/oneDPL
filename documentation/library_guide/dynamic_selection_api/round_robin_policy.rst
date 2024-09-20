@@ -116,7 +116,7 @@ The selection algorithm for ``round_robin_policy`` rotates through
 the elements of the set of available resources. A simplified, expository 
 implementation of the selection algorithm follows:
  
-.. code::
+.. code:: cpp
 
   template<typename ...Args>
   selection_type round_robin_policy::select(Args&&...) {

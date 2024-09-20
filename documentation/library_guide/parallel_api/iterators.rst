@@ -6,7 +6,9 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 
 * ``counting_iterator``: a random-access iterator-like type whose dereferenced value is an integer
   counter. Instances of a ``counting_iterator`` provide read-only dereference operations. The counter of an
-  ``counting_iterator`` instance changes according to the arithmetic of the random-access iterator type::
+  ``counting_iterator`` instance changes according to the arithmetic of the random-access iterator type:
+
+  .. code:: cpp
 
     dpl::counting_iterator<int> count_a(0);
     dpl::counting_iterator<int> count_b = count_a + 10;
@@ -25,7 +27,9 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 
   The ``zip_iterator`` is useful in defining by key algorithms where input iterators
   representing keys and values are processed as key-value pairs. The example below demonstrates a stable sort
-  by key, where only the keys are compared but both keys and values are swapped::
+  by key, where only the keys are compared but both keys and values are swapped:
+
+  .. code:: cpp
 
     auto zipped_begin = dpl::make_zip_iterator(keys_begin, vals_begin);
     dpl::stable_sort(dpl::execution::dpcpp_default, zipped_begin, zipped_begin + n,
@@ -33,7 +37,9 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 
   The dereferenced object of ``zip_iterator`` supports the *structured binding* feature (`C++17 and above
   <https://en.cppreference.com/w/cpp/language/structured_binding>`_) for easier access to
-  wrapped iterators values::
+  wrapped iterators values:
+
+  .. code:: cpp
 
     auto zipped_begin = dpl::make_zip_iterator(sequence1.begin(), sequence2.begin(), sequence3.begin());
     auto found = dpl::find(dpl::execution::dpcpp_default, zipped_begin, zipped_begin + n,
@@ -54,7 +60,9 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
   The ``discard_iterator`` is useful in the implementation of stencil algorithms where the stencil is not part of the
   desired output. An example of this would be a ``copy_if`` algorithm that receives an input iterator range,
   a stencil iterator range, and copies the elements of the input whose corresponding stencil value is 1. Use
-  ``discard_iterator`` so you do not declare a temporary allocation to store the copy of the stencil::
+  ``discard_iterator`` so you do not declare a temporary allocation to store the copy of the stencil:
+
+  .. code:: cpp
 
     auto zipped_first = dpl::make_zip_iterator(first, stencil);
     dpl::copy_if(dpl::execution::dpcpp_default,
@@ -83,7 +91,9 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 
   To simplify the construction of the iterator, ``oneapi::dpl::make_transform_iterator`` is provided. The
   function receives the base iterator and transform operation instance as arguments, and constructs the
-  ``transform_iterator`` instance::
+  ``transform_iterator`` instance:
+
+  .. code:: cpp
 
     dpl::counting_iterator<int> first(0);
     dpl::counting_iterator<int> last(10);
@@ -101,7 +111,9 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
   in cases where algorithms are executed with device policies.
 
   The ``make_permutation_iterator`` is provided to simplify construction of iterator instances. The function
-  receives the source iterator and the iterator or function object representing the index map::
+  receives the source iterator and the iterator or function object representing the index map:
+
+  .. code:: cpp
 
     struct multiply_index_by_two {
         template <typename Index>

@@ -100,9 +100,7 @@ An example, demonstrating this difference, is shown below:
     print_type("p2 selection 4: ", p2s4);
   }
 
-The output of this example:
-
-.. code::
+The output of this example is::
 
   p1 selection 1: cpu
   p2 selection 1: cpu
