@@ -17,14 +17,3 @@ These templates are available in the ``oneapi::dpl::experimental::kt::gpu::esimd
    esimd/radix_sort
    esimd/radix_sort_by_key
 
--------------------
-System Requirements
--------------------
-
-- Hardware: Intel® Data Center GPU Max Series.
-- Compiler: Intel® oneAPI DPC++/C++ Compiler 2023.2 and newer.
-- Operating Systems:
-
-  - Red Hat Enterprise Linux* 9.2,
-  - SUSE Linux Enterprise Server* 15 SP5,
-  - Ubuntu* 22.04.

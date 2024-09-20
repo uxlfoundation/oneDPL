@@ -47,6 +47,9 @@ A synopsis of the ``radix_sort`` function is provided below:
                KernelParam param); // (4)
    }
 
+.. note::
+   The ``radix_sort`` is currently available only for Intel® Data Center GPU Max Series,
+   and requires Intel® oneAPI DPC++/C++ Compiler 2023.2 or newer.
 
 Template Parameters
 --------------------

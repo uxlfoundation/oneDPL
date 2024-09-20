@@ -53,6 +53,9 @@ A synopsis of the ``radix_sort_by_key`` function is provided below:
                       KernelParam param); // (4)
    }
 
+.. note::
+   The ``radix_sort_by_key`` is currently available only for Intel® Data Center GPU Max Series,
+   and requires Intel® oneAPI DPC++/C++ Compiler 2023.2 or newer.
 
 Template Parameters
 --------------------
