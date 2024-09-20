@@ -2,10 +2,10 @@
 #######################################
 
 The |onedpl_long| (|onedpl_short|) is implemented in accordance with the `oneDPL
-Specification <https://spec.oneapi.io/versions/latest/elements/oneDPL/source/index.html>`_.
+Specification <https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/index.html>`_.
 
-To support heterogeneity, |onedpl_short| works with the DPC++ API. More information can be found in the
-`oneAPI Specification <https://spec.oneapi.io/versions/latest/elements/sycl/source/index.html>`_.
+To support heterogeneity, |onedpl_short| uses `SYCL <https://registry.khronos.org/SYCL/>`_.
+More information about SYCL can be found in the `SYCL Specification`_.
 
 Before You Begin
 ================
@@ -90,15 +90,13 @@ Useful Information
 
 .. _library-restrictions:
 
-
 Difference with Standard C++ Parallel Algorithms
 ************************************************
 
 * oneDPL execution policies only result in parallel execution if random access iterators are provided,
   the execution will remain serial for other iterator types.
 * Function objects passed in to algorithms executed with device policies must provide ``const``-qualified ``operator()``.
-  `The SYCL specification <https://registry.khronos.org/SYCL/>`_ states that writing to such an object during a SYCL
-  kernel is undefined behavior.
+  The `SYCL specification`_ states that writing to such an object during a SYCL kernel is undefined behavior.
 * For the following algorithms, ``par_unseq`` and ``unseq`` policies do not result in SIMD execution:
   ``includes``, ``inplace_merge``, ``merge``, ``set_difference``, ``set_intersection``,
   ``set_symmetric_difference``, ``set_union``, ``stable_partition``, ``unique``.
@@ -167,3 +165,5 @@ Known Limitations
   the dereferenced value type of the provided iterators should satisfy the ``DefaultConstructible`` requirements.
 * For ``remove``, ``remove_if``, ``unique`` the dereferenced value type of the provided
   iterators should be ``MoveConstructible``.
+
+.. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html

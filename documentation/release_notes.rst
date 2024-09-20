@@ -524,7 +524,7 @@ Existing Issues
 - The ``using namespace oneapi;`` directive in a oneDPL program code may result in compilation errors
   with some compilers including GCC 7 and earlier. Instead of this directive, explicitly use
   ``oneapi::dpl`` namespace, or create a namespace alias.
-- The implementation does not yet provide ``namespace oneapi::std`` as defined in `the oneDPL Specification`_.
+- The implementation does not yet provide ``namespace oneapi::std`` as defined in the oneDPL Specification.
 - The use of the range-based API requires C++17 and the C++ standard libraries coming with GCC 8.1 (or higher)
   or Clang 7 (or higher).
 - ``std::tuple``, ``std::pair`` cannot be used with SYCL buffers to transfer data between host and device.
@@ -578,7 +578,7 @@ Existing Issues
 - The ``using namespace oneapi;`` directive in a oneDPL program code may result in compilation errors
   with some compilers including GCC 7 and earlier. Instead of this directive, explicitly use
   ``oneapi::dpl`` namespace, or create a namespace alias.
-- The implementation does not yet provide ``namespace oneapi::std`` as defined in `the oneDPL Specification`_.
+- The implementation does not yet provide ``namespace oneapi::std`` as defined in the oneDPL Specification.
 - The use of the range-based API requires C++17 and the C++ standard libraries coming with GCC 8.1 (or higher)
   or Clang 7 (or higher).
 - ``std::tuple``, ``std::pair`` cannot be used with SYCL buffers to transfer data between host and device.
@@ -635,7 +635,7 @@ Existing Issues
 - The ``using namespace oneapi;`` directive in a oneDPL program code may result in compilation errors
   with some compilers including GCC 7 and earlier. Instead of this directive, explicitly use
   ``oneapi::dpl`` namespace, or create a namespace alias.
-- The implementation does not yet provide ``namespace oneapi::std`` as defined in `the oneDPL Specification`_.
+- The implementation does not yet provide ``namespace oneapi::std`` as defined in the oneDPL Specification.
 - The use of the range-based API requires C++17 and the C++ standard libraries coming with GCC 8.1 (or higher)
   or Clang 7 (or higher).
 - ``std::tuple``, ``std::pair`` cannot be used with SYCL buffers to transfer data between host and device.
@@ -689,7 +689,7 @@ Known Issues and Limitations
 - The ``using namespace oneapi;`` directive in a oneDPL program code may result in compilation errors
   with some compilers including GCC 7 and earlier. Instead of this directive, explicitly use
   ``oneapi::dpl`` namespace, or create a namespace alias.
-- The implementation does not yet provide ``namespace oneapi::std`` as defined in `the oneDPL Specification`_.
+- The implementation does not yet provide ``namespace oneapi::std`` as defined in the oneDPL Specification.
 - The use of the range-based API requires C++17 and the C++ standard libraries coming with GCC 8.1 (or higher)
   or Clang 7 (or higher).
 - ``std::tuple``, ``std::pair`` cannot be used with SYCL buffers to transfer data between host and device.
@@ -708,7 +708,7 @@ New in 2021.1 Gold
 
 Key Features
 -------------
-- This version implements `the oneDPL Specification`_ v1.0, including parallel algorithms,
+- This version implements the oneDPL Specification v1.0, including parallel algorithms,
   DPC++ execution policies, special iterators, and other utilities.
 - oneDPL algorithms can work with data in DPC++ buffers as well as in unified shared memory (USM).
 - For several algorithms, experimental API that accepts ranges (similar to C++20) is additionally provided.
@@ -731,7 +731,7 @@ Known Issues and Limitations
   ``oneapi::dpl`` namespace, or create a namespace alias.
 - The ``partial_sort_copy``, ``sort`` and ``stable_sort`` algorithms are prone to ``CL_BUILD_PROGRAM_FAILURE``
   when a program uses Radix sort [#fnote1]_, is built with -O0 option and executed on CPU devices.
-- The implementation does not yet provide ``namespace oneapi::std`` as defined in `the oneDPL Specification`_.
+- The implementation does not yet provide ``namespace oneapi::std`` as defined in the oneDPL Specification.
 - The use of the range-based API requires C++17 and the C++ standard libraries coming with GCC 8.1 (or higher)
   or Clang 7 (or higher).
 - ``std::tuple``, ``std::pair`` cannot be used with SYCL buffers to transfer data between host and device.
@@ -747,7 +747,6 @@ Known Issues and Limitations
 
 .. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types and
    ``sycl::half`` (since oneDPL 2022.6) compared with ``std::less`` or ``std::greater``, otherwise Merge sort.
-.. _`the oneDPL Specification`: https://spec.oneapi.com/versions/latest/elements/oneDPL/source/index.html
 .. _`oneDPL Guide`: https://oneapi-src.github.io/oneDPL/index.html
 .. _`Intel® oneAPI Threading Building Blocks (oneTBB) Release Notes`: https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-threading-building-blocks-release-notes.html
 .. _`restrictions and known limitations`: https://oneapi-src.github.io/oneDPL/introduction.html#restrictions.

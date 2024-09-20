@@ -58,21 +58,19 @@ Member Types
 | ``kernel_name`` | ``KernelName`` | An optional parameter that is used to set a kernel name.                         |
 |                 |                |                                                                                  |
 |                 |                | .. note::                                                                        |
-|                 |                |                                                                                  |
-|                 |                |     The ``KernelName`` parameter might be required in case an implementation of  |
-|                 |                |     SYCL is not fully compliant with the SYCL 2020 Specification and             |
-|                 |                |     does not support optional kernel names.                                      |
+|                 |                |     The ``KernelName`` parameter might be required in case an implementation     |
+|                 |                |     of SYCL is not fully compliant with the `SYCL 2020 Specification`_           |
+|                 |                |     and does not support optional kernel names.                                  |
 |                 |                |                                                                                  |
 |                 |                | If omitted, SYCL kernel name(s) will be automatically generated.                 |
 |                 |                |                                                                                  |
 |                 |                | If provided, it must be a unique C++ typename that satisfies the requirements    |
-|                 |                | for SYCL kernel names (see `SYCL 2020 Specification                              |
-|                 |                | <https://registry.khronos.org/SYCL/specs/                                        |
-|                 |                | sycl-2020/html/sycl-2020.html#sec:naming.kernels>`_).                            |
+|                 |                | for SYCL kernel names in the `SYCL 2020 Specification`_.                         |
 |                 |                |                                                                                  |
 |                 |                | .. note::                                                                        |
-|                 |                |                                                                                  |
 |                 |                |    The provided name can be augmented by oneDPL when used with                   |
 |                 |                |    a template that creates multiple SYCL kernels.                                |
 |                 |                |                                                                                  |
 +-----------------+----------------+----------------------------------------------------------------------------------+
+
+.. _`SYCL 2020 Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec:naming.kernels
