@@ -597,6 +597,28 @@ __pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __
     return __pstl_upper_bound(__a, __first, __last, __val, __comp);
 }
 
+template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
+_Size1
+__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+{
+    auto __n = __last - __first;
+    auto __cur = __n;
+    _Size1 __it;
+    while (__n > 0)
+    {
+        __it = __first;
+        __cur = __n / 2;
+        __it += __cur;
+        if (__comp(__acc[__it], __value))
+        {
+            __n -= __cur + 1, __first = ++__it;
+        }
+        else
+            __n = __cur;
+    }
+    return __first;
+}
+
 template <typename _IntType, typename _Acc>
 struct _ReverseCounter
 {
