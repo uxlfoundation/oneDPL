@@ -48,7 +48,10 @@
 #   include <oneapi/dpl/random>
 #endif
 
-#include <oneapi/dpl/ranges>
+#if _ENABLE_RANGES_TESTING
+#   include <oneapi/dpl/ranges>
+#endif
+
 #include <oneapi/dpl/ratio>
 #include <oneapi/dpl/tuple>
 #include <oneapi/dpl/type_traits>
