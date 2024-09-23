@@ -27,7 +27,7 @@
 #include "sycl_traits.h"                 // SYCL traits specialization for some oneDPL types.
 #include "../../utils.h"                 // __dpl_bit_floor, __dpl_bit_ceil
 #include "../../utils_ranges.h"          // __difference_t
-#include "parallel_backend_sycl_merge.h" // __find_start_point, __serial_merge
+#include "parallel_backend_sycl_merge.h" // __find_merge_path_start_point, __serial_merge
 
 namespace oneapi
 {
@@ -91,8 +91,7 @@ struct __group_merge_path_sorter
             auto __in_ptr1 = __in_ptr + __start1;
             auto __in_ptr2 = __in_ptr + __start2;
 
-            const std::pair<std::uint32_t, std::uint32_t> __start = __find_start_point(
-                __in_ptr1, std::uint32_t{0}, __n1, __in_ptr2, std::uint32_t{0}, __n2, __id_local, __comp);
+            const auto __start = __find_merge_path_start_point(__in_ptr1, __in_ptr2, __id_local, __n1, __n2, __comp);
             // TODO: copy the data into registers before the merge to halve the required amount of SLM
             __serial_merge(__in_ptr1, __in_ptr2, __out_ptr, __start.first, __start.second, __id, __data_per_workitem,
                            __n1, __n2, __comp);
@@ -499,9 +498,12 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                     {
                         if (__data_in_temp)
                         {
-                            DropViews __views(__dst, __data_area);
-                            __serial_merge(__nd_range_params, __data_area, __views, __rng,
-                                           __find_start_point(__data_area, __views, __comp), __comp);
+                            const oneapi::dpl::__ranges::drop_view_simple __rng1(__dst, __offset);
+                            const oneapi::dpl::__ranges::drop_view_simple __rng2(__dst, __offset + __n1);
+
+                            const auto start = __find_merge_path_start_point(__rng1, __rng2, __i_elem_local, __n1, __n2, __comp);
+                            __serial_merge(__rng1, __rng2, __rng /*__rng3*/, start.first, start.second, __i_elem,
+                                           __chunk, __n1, __n2, __comp);
                         }
                         else
                         {
@@ -544,23 +546,9 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
                     const WorkDataArea __data_area(__n, __n_sorted, __linear_id, __nd_range_params.chunk);
 
-                    if (__data_area.is_i_elem_local_inside_merge_matrix())
-                    {
-                        if (__data_in_temp)
-                        {
-                            DropViews __views(__dst, __data_area);
-                            __serial_merge(__nd_range_params, __data_area, __views, __rng,
-                                           __lookup_sp(__linear_id, __nd_range_params, __data_area, __views, __comp,
-                                                       __base_diagonals_sp_global_ptr),
-                                           __comp);
-                        }
-                        else
-                        {
-                            DropViews __views(__rng, __data_area);
-                            __serial_merge(__nd_range_params, __data_area, __views, __dst,
-                                           __lookup_sp(__linear_id, __nd_range_params, __data_area, __views, __comp,
-                                                       __base_diagonals_sp_global_ptr),
-                                           __comp);
+                            const auto start = __find_merge_path_start_point(__rng1, __rng2, __i_elem_local, __n1, __n2, __comp);
+                            __serial_merge(__rng1, __rng2, __dst /*__rng3*/, start.first, start.second, __i_elem,
+                                           __chunk, __n1, __n2, __comp);
                         }
                     }
                 });
