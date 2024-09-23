@@ -107,6 +107,9 @@ Distribution                   Description
 ``cauchy_distribution``        Produces real values according to the Cauchy distribution
 ============================== ============================================================================
 
+.. note::
+  ``bernoulli_distribution``, ``geometric_distribution``, and ``uniform_int_distribution`` can only be used on devices with FP64 support as they rely on double precision in their implementation (use ``sycl::aspect::fp64`` to check if the device supports FP64).
+
 Usage Model of |onedpl_short| Random Number Generation Functionality
 --------------------------------------------------------------------
 
