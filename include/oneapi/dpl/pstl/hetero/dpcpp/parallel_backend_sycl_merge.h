@@ -47,10 +47,10 @@ using _split_point_t = std::pair<_Index, _Index>;
 // 2 | 0   0  0  0 | 1
 //   |             ---->
 // 3 | 0   0  0  0   0 |
-template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
-_split_point_t<_Index>
-__find_start_point(const _Rng1& __rng1, const _Index __rng1_from, _Index __rng1_to, const _Rng2& __rng2,
-                   const _Index __rng2_from, _Index __rng2_to, const _Index __i_elem, _Compare __comp)
+template <typename _Rng1, typename _Rng2, typename _Index, typename _Index1, typename _Index2, typename _Compare>
+auto
+__find_merge_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __i_elem, const _Index __n1,
+                   const _Index __n2, _Compare __comp)
 {
     // ----------------------- EXAMPLE ------------------------
     // Let's consider the following input data:
@@ -236,23 +236,10 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
             auto __result_acc = __get_acc(__p_res_storage, __cgh);
 
             __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__steps), [=](sycl::item</*dim=*/1> __item_id) {
-                auto __id = __item_id.get_linear_id();
-                const _IdType __i_elem = __id * __chunk;
-
-                const auto __n_merge = std::min<_IdType>(__chunk, __n - __i_elem);
-                const auto __start =
-                    __find_start_point(__rng1, _IdType{0}, __n1, __rng2, _IdType{0}, __n2, __i_elem, __comp);
-
-                [[maybe_unused]] const std::pair __ends =
-                    __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem, __n_merge, __n1,
-                                   __n2, __comp, __n);
-
-                if constexpr (_OutSizeLimit{})
-                    if (__id == __steps - 1) //the last WI does additional work
-                    {
-                        auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__result_acc);
-                        *__res_ptr = __ends;
-                    }
+                const _IdType __i_elem = __item_id.get_linear_id() * __chunk;
+                const auto __start = __find_merge_path_start_point(__rng1, __rng2, __i_elem, __n1, __n2, __comp);
+                __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem, __chunk, __n1, __n2,
+                               __comp);
             });
         });
         // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
