@@ -281,7 +281,7 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
                _StatusValues&& __status_vals_full, _StatusValues&& __status_vals_partial,
                std::size_t __current_num_items) const
     {
-        using _LocalAccessorType = sycl::local_accessor<_Type, 1>;
+        using _LocalAccessorType = __dpl_sycl::__local_accessor<_Type, 1>;
         using _KernelFunc =
             __lookback_kernel_func<__data_per_workitem, __workgroup_size, _Type, _FlagType, std::decay_t<_InRng>,
                                    std::decay_t<_OutRng>, std::decay_t<_BinaryOp>, std::decay_t<_StatusFlags>,
