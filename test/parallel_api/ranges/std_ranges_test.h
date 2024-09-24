@@ -18,6 +18,7 @@
 
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/algorithm>
+#include <oneapi/dpl/pstl/zip_view_impl.h>
 
 #include "support/test_config.h"
 #include "support/test_macros.h"
@@ -258,8 +259,17 @@ struct all_dangling_in_result<std::ranges::min_max_result<std::ranges::dangling>
 template <typename _ReturnType>
 constexpr bool all_dangling_in_result_v = all_dangling_in_result<_ReturnType>::value;
 
+void call_with_host_policies(auto algo, auto... args)
+{
+    algo(oneapi::dpl::execution::seq, args...);
+    algo(oneapi::dpl::execution::unseq, args...);
+    algo(oneapi::dpl::execution::par, args...);
+    algo(oneapi::dpl::execution::par_unseq, args...);
+}
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
+
 struct test
 {
     void
@@ -980,6 +990,11 @@ struct test_range_algo
         test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #endif
     }
+
+#if 0//zip_view
+    auto zip_view = [](auto&& v) { return my::zip(v); };
+    test<T, host_subrange<T>, mode>{}(host_policies(), algo, checker, zip_view, std::identity{}, args...);
+#endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
     template <typename Policy>
