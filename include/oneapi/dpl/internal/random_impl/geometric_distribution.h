@@ -229,7 +229,7 @@ class geometric_distribution
         result_type __res;
         oneapi::dpl::uniform_real_distribution<double> __u;
         double __tmp = sycl::log(1.0 - __params.p());
-        for (int i = 0; i < __N; i++)
+        for (unsigned int i = 0; i < __N; i++)
             __res[i] = sycl::floor(sycl::log(1.0 - __u(__engine)) / __tmp);
         return __res;
     }

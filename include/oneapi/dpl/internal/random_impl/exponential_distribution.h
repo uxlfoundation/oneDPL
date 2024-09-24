@@ -231,7 +231,7 @@ class exponential_distribution
     {
         result_type __res;
         oneapi::dpl::uniform_real_distribution<scalar_type> __u;
-        for (int i = 0; i < __N; i++)
+        for (unsigned int i = 0; i < __N; i++)
         {
             __res[i] = -sycl::log(scalar_type{1.0} - __u(__engine)) / __params.lambda();
         }

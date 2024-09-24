@@ -230,7 +230,7 @@ class bernoulli_distribution
     {
         result_type __res;
         oneapi::dpl::uniform_real_distribution<double> __distr;
-        for (int i = 0; i < __N; i++)
+        for (unsigned int i = 0; i < __N; i++)
             __res[i] = __distr(__engine) < __params.p();
         return __res;
     }

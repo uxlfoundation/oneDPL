@@ -50,7 +50,7 @@ test(sycl::queue& queue, double p, int nsamples)
 {
 
     // memory allocation
-    bool samples[nsamples];
+    std::unique_ptr<bool[]> samples(new bool[nsamples]);
 
     constexpr int num_elems = oneapi::dpl::internal::type_traits_t<BoolType>::num_elems == 0
                                   ? 1
@@ -58,7 +58,7 @@ test(sycl::queue& queue, double p, int nsamples)
 
     // dpstd generation
     {
-        sycl::buffer<bool, 1> buffer(samples, nsamples);
+        sycl::buffer<bool, 1> buffer(samples.get(), nsamples);
 
         queue.submit([&](sycl::handler& cgh) {
             sycl::accessor acc(buffer, cgh, sycl::write_only);
@@ -75,7 +75,7 @@ test(sycl::queue& queue, double p, int nsamples)
     }
 
     // statistics check
-    int err = statistics_check(nsamples, p, samples);
+    int err = statistics_check(nsamples, p, samples.get());
 
     if (err)
     {
@@ -95,7 +95,7 @@ test_portion(sycl::queue& queue, double p, int nsamples, unsigned int part)
 {
 
     // memory allocation
-    bool samples[nsamples];
+    std::unique_ptr<bool[]> samples(new bool[nsamples]);
     constexpr unsigned int num_elems = oneapi::dpl::internal::type_traits_t<BoolType>::num_elems == 0
                                            ? 1
                                            : oneapi::dpl::internal::type_traits_t<BoolType>::num_elems;
@@ -104,7 +104,7 @@ test_portion(sycl::queue& queue, double p, int nsamples, unsigned int part)
 
     // generation
     {
-        sycl::buffer<bool, 1> buffer(samples, nsamples);
+        sycl::buffer<bool, 1> buffer(samples.get(), nsamples);
 
         queue.submit([&](sycl::handler& cgh) {
             sycl::accessor acc(buffer, cgh, sycl::write_only);
@@ -123,7 +123,7 @@ test_portion(sycl::queue& queue, double p, int nsamples, unsigned int part)
     }
 
     // statistics check
-    int err = statistics_check(nsamples, p, samples);
+    int err = statistics_check(nsamples, p, samples.get());
 
     if (err)
     {
@@ -133,7 +133,6 @@ test_portion(sycl::queue& queue, double p, int nsamples, unsigned int part)
     {
         std::cout << "\tPassed" << std::endl;
     }
-
     return err;
 }
 

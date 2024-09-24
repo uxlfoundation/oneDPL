@@ -31,7 +31,6 @@ constexpr auto a = 40014u;
 constexpr auto c = 200u;
 constexpr auto m = 2147483647u;
 constexpr auto seed = 777;
-constexpr auto eps = 1;
 
 template<typename IntType>
 std::int32_t statistics_check(int nsamples, IntType left, IntType right,

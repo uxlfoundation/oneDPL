@@ -103,7 +103,7 @@ int test_portion(sycl::queue& queue, oneapi::dpl::internal::element_type_t<UIntT
                 oneapi::dpl::subtract_with_carry_engine<UIntType, w, s, r> engine(seed, offset);
 
                 auto res = engine(part);
-                for(int i = 0; i < n_elems; ++i)
+                for(unsigned int i = 0; i < n_elems; ++i)
                     dpstd_acc[offset + i] = res[i];
             });
         });

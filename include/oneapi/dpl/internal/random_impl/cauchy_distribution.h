@@ -243,7 +243,7 @@ class cauchy_distribution
     {
         result_type __res;
         oneapi::dpl::uniform_real_distribution<scalar_type> __u;
-        for (int i = 0; i < __N; i++)
+        for (unsigned int i = 0; i < __N; i++)
             __res[i] = __params.a() + __params.b() * sycl::tanpi(__u(__engine));
         return __res;
     }

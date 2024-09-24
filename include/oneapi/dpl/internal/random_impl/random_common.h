@@ -65,7 +65,7 @@ class save_stream_flags
     operator=(const save_stream_flags&) = delete;
 
     explicit save_stream_flags(__stream_type& __stream)
-        : __stream_(__stream), __fmtflags_(__stream.flags()), __fill_(__stream.fill())
+        : __fmtflags_(__stream.flags()), __stream_(__stream), __fill_(__stream.fill())
     {
     }
     ~save_stream_flags()

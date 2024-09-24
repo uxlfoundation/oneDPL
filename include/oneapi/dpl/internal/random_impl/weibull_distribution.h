@@ -244,7 +244,7 @@ class weibull_distribution
         result_type __res;
         oneapi::dpl::uniform_real_distribution<scalar_type> __u;
         scalar_type __tmp = scalar_type{1.0} / __params.a();
-        for (int i = 0; i < __N; i++)
+        for (unsigned int i = 0; i < __N; i++)
             __res[i] = __params.b() * sycl::pow(-sycl::log(scalar_type{1.0} - __u(__engine)), __tmp);
         return __res;
     }
