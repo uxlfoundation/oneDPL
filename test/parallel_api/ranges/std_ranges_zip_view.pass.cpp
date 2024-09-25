@@ -24,7 +24,6 @@ main()
 #if _ENABLE_STD_RANGES_TESTING
 
     namespace dpl_ranges = oneapi::dpl::ranges;
-    const char* err_msg = "Wrong effect algo transform with zip_view.";
 
     constexpr int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -33,22 +32,25 @@ main()
     std::ranges::for_each(zip_view, test_std_ranges::f_mutuable, [](const auto& val) { return std::get<1>(val); });
 
     test_std_ranges::call_with_host_policies(dpl_ranges::for_each, zip_view, test_std_ranges::f_mutuable, [](const auto& val) { return std::get<1>(val); });
-    //EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
 
     dpl_ranges::for_each(test_std_ranges::dpcpp_policy(), zip_view, test_std_ranges::f_mutuable, [](const auto& val) { return std::get<1>(val); });
 
     auto zip_view_sort = my::zip(data, data);
 
-    auto it = zip_view_sort.begin();
-    std::sort(zip_view_sort.begin(), zip_view_sort.begin() + 5, [](const auto& val1, const auto& val2) { return std::get<0>(val1) < std::get<0>(val2); });
-    std::ranges::sort(zip_view_sort, std::greater{}, [](auto&& val) { return std::get<0>(val); });
+    std::sort(zip_view_sort.begin(), zip_view_sort.begin() + max_n, [](const auto& val1, const auto& val2) { return std::get<0>(val1) > std::get<0>(val2); });
+    for(int i = 0; i < max_n; ++i)
+        assert(std::get<0>(zip_view_sort[i]) == max_n - 1 - i);
+
+    std::ranges::sort(zip_view_sort, std::less{}, [](auto&& val) { return std::get<0>(val); });
+    for(int i = 0; i < max_n; ++i)
+        assert(std::get<0>(zip_view_sort[i]) == i);
 
     static_assert(std::ranges::random_access_range<decltype(zip_view_sort)>);
     static_assert(std::random_access_iterator<decltype(zip_view_sort.begin())>);
-    //dpl_ranges::sort(oneapi::dpl::execution::seq, zip_view_sort, std::greater{}, [](auto&& val) { return std::get<0>(val); });
 
-    //test_std_ranges::call_with_host_policies(dpl_ranges::sort, zip_view_sort, test_std_ranges::binary_pred, [](const auto& val) { return std::get<0>(val); });
-
+    test_std_ranges::call_with_host_policies(dpl_ranges::sort, zip_view_sort, std::greater{}, [](const auto& val) { return std::get<0>(val); });
+    for(int i = 0; i < max_n; ++i)
+        assert(std::get<0>(zip_view_sort[i]) == max_n - 1 - i);
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
