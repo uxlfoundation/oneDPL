@@ -5,7 +5,13 @@
 #include <tuple>
 #include <type_traits>
 
-namespace my {
+namespace oneapi
+{
+namespace dpl
+{
+
+namespace ranges
+{
 
 template <bool C, typename... Views>
 concept all_forward = ( std::ranges::forward_range<std::conditional_t<C, const Views, Views>> && ... );
@@ -32,9 +38,6 @@ template <bool Const, typename... Views>
 struct declare_iterator_category<Const, Views...> {
     using iterator_category = std::input_iterator_tag;
 };
-
-template <typename... Types>
-using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
 
 template <std::ranges::input_range... Views>
     requires ((std::ranges::view<Views> && ... ) && (sizeof...(Views) > 0))
@@ -283,7 +286,7 @@ public:
 
     constexpr auto begin() const requires ( std::ranges::range<const Views> && ... )
     {
-        auto __tr = [](auto... __args) { return iterator<false>(__args...);};
+        auto __tr = [](auto... __args) { return iterator<true>(__args...);};
         return apply_to_tuple(__tr, std::ranges::begin, views_);
     }
 
@@ -308,20 +311,21 @@ public:
 
     constexpr auto end() const requires (std::ranges::range<const Views> && ...)
     {
-        if constexpr (!zip_is_common<Views...>) {
-            return std::apply([](auto... views) {
-                                  return sentinel<true>(std::ranges::end(views)...);
-                              },
-                              views_);
-        } else if constexpr ((std::ranges::random_access_range<Views> && ...)) {
+        if constexpr (!zip_is_common<Views...>)
+        {
+            auto __tr = [](auto... __args) { return sentinel<true>(__args...);};
+            return apply_to_tuple(__tr, std::ranges::end, views_);
+        } 
+        else if constexpr ((std::ranges::random_access_range<Views> && ...))
+        {
             auto it = begin();
             it += size();
             return it;
-        } else {
-            return std::apply([](auto... views) {
-                                  return iterator<true>(std::ranges::end(views)...);
-                              },
-                              views_);
+        }
+        else
+        {
+            auto __tr = [](auto... __args) { return iterator<true>(__args...);};
+            return apply_to_tuple(__tr, std::ranges::end, views_);
         }
     }
 
@@ -355,4 +359,6 @@ struct zip_fn {
 
 inline constexpr zip_fn zip{};
 
-} // namespace my
+} // namespace ranges
+} // namespace dpl
+} // namespace oneapi
