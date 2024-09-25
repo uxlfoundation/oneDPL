@@ -309,20 +309,21 @@ public:
 
     constexpr auto end() requires (std::ranges::range<Views> && ...) // requires !simple_view {
     {
-        if constexpr (!zip_is_common<Views...>) {
-            return std::apply([](auto... views) {
-                                  return sentinel<false>(std::ranges::end(views)...);
-                              },
-                              views_);
-        } else if constexpr ((std::ranges::random_access_range<Views> && ...)) {
+        if constexpr (!zip_is_common<Views...>)
+        {
+            auto __tr = [](auto... __args) { return sentinel<false>(__args...);};
+            return apply_to_tuple(__tr, std::ranges::end, views_);
+        }
+        else if constexpr ((std::ranges::random_access_range<Views> && ...))
+        {
             auto it = begin();
             it += size();
             return it;
-        } else {
-            return std::apply([](auto... views) {
-                                  return iterator<false>(std::ranges::end(views)...);
-                              },
-                              views_);
+        }
+        else
+        {
+            auto __tr = [](auto... __args) { return iterator<false>(__args...);};
+            return apply_to_tuple(__tr, std::ranges::end, views_);
         }
     }
 
