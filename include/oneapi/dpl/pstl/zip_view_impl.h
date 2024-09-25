@@ -1,8 +1,25 @@
-#include <algorithm>
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Copyright (C) Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// This file incorporates work covered by the following copyright and permission
+// notice:
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _ONEDPL_ZIP_VIEW_IMPL_H
+#define _ONEDPL_ZIP_VIEW_IMPL_H
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+
 #include <ranges>
-#include <iostream>
 #include <vector>
-#include <tuple>
 #include <type_traits>
 
 namespace oneapi
@@ -362,3 +379,7 @@ inline constexpr zip_fn zip{};
 } // namespace ranges
 } // namespace dpl
 } // namespace oneapi
+
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
+#endif //_ONEDPL_ZIP_VIEW_IMPL_H
