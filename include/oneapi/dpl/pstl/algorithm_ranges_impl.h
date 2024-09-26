@@ -334,29 +334,27 @@ __pattern_is_sorted(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&
 // pattern_sort_ranges
 //---------------------------------------------------------------------------------------------------------------------
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp, typename _LeafSort>
 auto
-__pattern_sort_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+__pattern_sort_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj,
+                      _LeafSort __leaf_sort)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
         std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
-    // Use stable sort as a leaf since __pattern_sort_ranges is shared between sort and stable_sort
-    // TODO: add a separate pattern for ranges::sort for better performance
     oneapi::dpl::__internal::__pattern_sort(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
-                                            std::ranges::begin(__r) + std::ranges::size(__r), __comp_2,
-                                            std::ranges::stable_sort);
+                                            std::ranges::begin(__r) + std::ranges::size(__r), __comp_2, __leaf_sort);
 
     return std::ranges::borrowed_iterator_t<_R>(std::ranges::begin(__r) + std::ranges::size(__r));
 }
 
-template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp, typename _LeafSort>
 auto
 __pattern_sort_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp,
-                      _Proj __proj)
+                      _Proj __proj, _LeafSort __leaf_sort)
 {
-    return std::ranges::stable_sort(std::forward<_R>(__r), __comp, __proj);
+    return __leaf_sort(std::forward<_R>(__r), __comp, __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------

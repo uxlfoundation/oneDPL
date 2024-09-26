@@ -22,6 +22,7 @@
 #    include <functional>
 #    include <type_traits>
 #    include <iterator>
+#    include <algorithm> //to use std::ranges::sort, std::ranges::stable_sort
 #endif
 
 #include "execution_defs.h"
@@ -422,7 +423,7 @@ struct __stable_sort_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_sort_ranges(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj, std::ranges::stable_sort);
     }
 }; //__stable_sort_fn
 }  //__internal
@@ -440,8 +441,9 @@ struct __sort_fn
     auto
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
-        return oneapi::dpl::ranges::stable_sort(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            __comp, __proj);
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_sort_ranges(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj, std::ranges::sort);
     }
 }; //__sort_fn
 }  //__internal
@@ -1044,8 +1046,8 @@ sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _Proj __proj)
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng);
 
-    oneapi::dpl::__internal::__ranges::__pattern_sort(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-                                                      views::all(::std::forward<_Range>(__rng)), __comp, __proj);
+    oneapi::dpl::__internal::__ranges::__pattern_stable_sort(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+                                                             views::all(::std::forward<_Range>(__rng)), __comp, __proj);
 }
 
 template <typename _ExecutionPolicy, typename _Range>
@@ -1062,14 +1064,17 @@ template <typename _ExecutionPolicy, typename _Range, typename _Compare>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 stable_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
-    sort(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __comp);
+    const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng);
+    oneapi::dpl::__internal::__ranges::__pattern_stable_sort(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+                                                             views::all(std::forward<_Range>(__rng)), __comp,
+                                                             oneapi::dpl::identity{});
 }
 
 template <typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 stable_sort(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
-    sort(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
+    stable_sort(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng),
          oneapi::dpl::__internal::__pstl_less());
 }
 
