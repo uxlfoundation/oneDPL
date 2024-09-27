@@ -15,7 +15,6 @@
 
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/algorithm>
-#include <oneapi/dpl/pstl/zip_view_impl.h>
 
 #include "support/test_config.h"
 #include "support/test_macros.h"
@@ -547,11 +546,6 @@ struct test_range_algo
 #if TEST_CPP20_SPAN_PRESENT
         test<T, host_vector<T>, mode>{max_n}(host_policies(), algo, checker,  span_view, std::identity{}, args...);
         test<T, host_span<T>, mode>{max_n}(host_policies(), algo, checker, std::views::all, std::identity{}, args...);
-#endif
-
-#if 0//zip_view
-    auto zip_view = [](auto&& v) { return my::zip(v); };
-    test<T, host_subrange<T>, mode>{}(host_policies(), algo, checker, zip_view, std::identity{}, args...);
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT

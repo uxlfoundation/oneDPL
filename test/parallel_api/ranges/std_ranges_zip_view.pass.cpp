@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "std_ranges_test.h"
+#include <oneapi/dpl/pstl/zip_view_impl.h>
 
 template<typename>
 struct print_type;
@@ -33,7 +34,9 @@ main()
 
     test_std_ranges::call_with_host_policies(dpl_ranges::for_each, zip_view, test_std_ranges::f_mutuable, [](const auto& val) { return std::get<1>(val); });
 
+#if TEST_DPCPP_BACKEND_PRESENT
     dpl_ranges::for_each(test_std_ranges::dpcpp_policy(), zip_view, test_std_ranges::f_mutuable, [](const auto& val) { return std::get<1>(val); });
+#endif
 
     auto zip_view_sort = dpl_ranges::zip(data, data);
 
