@@ -63,7 +63,7 @@
     (!PSTL_USE_DEBUG && (__linux__ || __APPLE__) && __INTEL_COMPILER == 1900)
 // ICC 19 generates wrong result with UDS on Windows
 #define _PSTL_ICC_19_TEST_SIMD_UDS_WINDOWS_RELEASE_BROKEN (__INTEL_COMPILER == 1900 && _MSC_VER && !_DEBUG)
-// ICPC compiler generates wrong "openMP simd" code for a user defined scan operation(UDS) for MacOS, Linux and Windows
+// ICPC compiler generates wrong "openMP simd" code for a user defined scan operation(UDS)
 #define _PSTL_ICC_TEST_SIMD_UDS_BROKEN                                                                                \
     (__INTEL_COMPILER && __INTEL_COMPILER_BUILD_DATE < 20211123)
 // ICC 18,19 generate wrong result

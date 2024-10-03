@@ -21,9 +21,9 @@
 
 #include "../../utils_ranges.h"
 #include "../../iterator_impl.h"
-#include "../../glue_numeric_defs.h"
 #include "sycl_iterator.h"
 #include "sycl_defs.h"
+#include "execution_sycl_defs.h"
 
 namespace oneapi
 {

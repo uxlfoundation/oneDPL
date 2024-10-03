@@ -932,13 +932,13 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_keys_wrapper>(__exec), __copy_range,
-            ::std::forward<_Range1>(__keys), ::std::forward<_Range3>(__out_keys));
+            std::forward<_Range1>(__keys), std::forward<_Range3>(__out_keys));
 
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_values_wrapper>(
-                ::std::forward<_ExecutionPolicy>(__exec)),
-            __copy_range, ::std::forward<_Range2>(__values), ::std::forward<_Range4>(__out_values));
+                std::forward<_ExecutionPolicy>(__exec)),
+            __copy_range, std::forward<_Range2>(__values), std::forward<_Range4>(__out_values));
 
         return 1;
     }
@@ -968,7 +968,7 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
                                                   experimental::ranges::views::all_write(__idx));
 
     // use work group size adjusted to shared local memory as the maximum segment size.
-    ::std::size_t __wgroup_size =
+    std::size_t __wgroup_size =
         oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec, sizeof(__key_type) + sizeof(__val_type));
 
     // element is copied if it is the 0th element (marks beginning of first segment), is in an index
@@ -977,14 +977,14 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     // TODO: replace wgroup size with segment size based on platform specifics.
     auto __intermediate_result_end = __ranges::__pattern_copy_if(
         __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2,
-        [__n, __binary_pred, __wgroup_size](const auto& __a) {
+        [__binary_pred, __wgroup_size](const auto& __a) {
             // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
             // for (i-1), but we still need to get its key value as it is the start of a segment
-            const auto index = ::std::get<0>(__a);
+            const auto index = std::get<0>(__a);
             if (index == 0)
                 return true;
-            return index % __wgroup_size == 0                                 // segment size
-                   || !__binary_pred(::std::get<1>(__a), ::std::get<2>(__a)); // key comparison
+            return index % __wgroup_size == 0                             // segment size
+                   || !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // key comparison
         },
         unseq_backend::__brick_assign_key_position{});
 
@@ -994,7 +994,7 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n)>(__binary_op, __n), __intermediate_result_end,
         oneapi::dpl::__ranges::take_view_simple(experimental::ranges::views::all_read(__idx),
                                                 __intermediate_result_end),
-        ::std::forward<_Range2>(__values), experimental::ranges::views::all_write(__tmp_out_values))
+        std::forward<_Range2>(__values), experimental::ranges::views::all_write(__tmp_out_values))
         .wait();
 
     // Round 2: final reduction to get result for each segment of equal adjacent keys
@@ -1023,9 +1023,9 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         [__binary_pred](const auto& __a) {
             // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
             // for (i-1), but we still need to get its key value as it is the start of a segment
-            if (::std::get<0>(__a) == 0)
+            if (std::get<0>(__a) == 0)
                 return true;
-            return !__binary_pred(::std::get<1>(__a), ::std::get<2>(__a)); // keys comparison
+            return !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // keys comparison
         },
         unseq_backend::__brick_assign_key_position{});
 
@@ -1033,12 +1033,12 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
-            ::std::forward<_ExecutionPolicy>(__exec)),
+            std::forward<_ExecutionPolicy>(__exec)),
         unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end)>(
             __binary_op, __intermediate_result_end),
         __result_end,
         oneapi::dpl::__ranges::take_view_simple(experimental::ranges::views::all_read(__idx), __result_end),
-        experimental::ranges::views::all_read(__tmp_out_values), ::std::forward<_Range4>(__out_values))
+        experimental::ranges::views::all_read(__tmp_out_values), std::forward<_Range4>(__out_values))
         .__deferrable_wait();
 
     return __result_end;

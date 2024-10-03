@@ -273,11 +273,11 @@ struct __parallel_scan_submitter;
 template <typename _CustomName, typename... _PropagateScanName>
 struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name<_PropagateScanName...>>
 {
-    template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryOperation,
-              typename _InitType, typename _LocalScan, typename _GroupScan, typename _GlobalScan>
+    template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _InitType,
+              typename _LocalScan, typename _GroupScan, typename _GlobalScan>
     auto
-    operator()(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _BinaryOperation __binary_op,
-               _InitType __init, _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan) const
+    operator()(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _InitType __init,
+               _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan) const
     {
         using _Type = typename _InitType::__value_type;
         using _LocalScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
@@ -738,11 +738,11 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
     }
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryOperation, typename _InitType,
+template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _InitType,
           typename _LocalScan, typename _GroupScan, typename _GlobalScan>
 auto
 __parallel_transform_scan_base(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
-                               _Range1&& __in_rng, _Range2&& __out_rng, _BinaryOperation __binary_op, _InitType __init,
+                               _Range1&& __in_rng, _Range2&& __out_rng, _InitType __init,
                                _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
@@ -751,8 +751,8 @@ __parallel_transform_scan_base(oneapi::dpl::__internal::__device_backend_tag, _E
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__scan_propagate_kernel<_CustomName>>;
 
     return __parallel_scan_submitter<_CustomName, _PropagateKernel>()(
-        ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__in_rng), ::std::forward<_Range2>(__out_rng),
-        __binary_op, __init, __local_scan, __group_scan, __global_scan);
+        std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng),
+        __init, __local_scan, __group_scan, __global_scan);
 }
 
 template <typename _Type>
@@ -761,8 +761,7 @@ __group_scan_fits_in_slm(const sycl::queue& __queue, std::size_t __n, std::size_
                          std::size_t __single_group_upper_limit)
 {
     // Pessimistically only use half of the memory to take into account memory used by compiled kernel
-    const ::std::size_t __max_slm_size =
-        __queue.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+    const std::size_t __max_slm_size = __queue.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
     const auto __req_slm_size = sizeof(_Type) * __n_uniform;
 
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
@@ -906,7 +905,7 @@ template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typenam
           typename _BinaryOperation, typename _Inclusive>
 auto
 __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                          _Range1&& __in_rng, _Range2&& __out_rng, ::std::size_t __n, _UnaryOperation __unary_op,
+                          _Range1&& __in_rng, _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op,
                           _InitType __init, _BinaryOperation __binary_op, _Inclusive)
 {
     using _Type = typename _InitType::__value_type;
@@ -961,7 +960,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
 
     return __parallel_transform_scan_base(
         __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
-        std::forward<_Range2>(__out_rng), __binary_op, __init,
+        std::forward<_Range2>(__out_rng), __init,
         // local scan
         unseq_backend::__scan<_Inclusive, _ExecutionPolicy, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner,
                               _NoOpFunctor, _InitType>{__binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op,
@@ -1047,7 +1046,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
                      _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _CreateMaskOp __create_mask_op,
                      _CopyByMaskOp __copy_by_mask_op)
 {
-    using _ReduceOp = ::std::plus<_Size>;
+    using _ReduceOp = std::plus<_Size>;
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
     using _MaskAssigner = unseq_backend::__mask_assigner<1>;
@@ -1063,19 +1062,18 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, int32_t> __mask_buf(__exec, __n);
 
     return __parallel_transform_scan_base(
-        __backend_tag, ::std::forward<_ExecutionPolicy>(__exec),
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::zip_view(
             __in_rng, oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
                           __mask_buf.get_buffer())),
-        ::std::forward<_OutRng>(__out_rng), __reduce_op, _InitType{},
+        std::forward<_OutRng>(__out_rng), _InitType{},
         // local scan
-        unseq_backend::__scan</*inclusive*/ ::std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _Assigner,
+        unseq_backend::__scan</*inclusive*/ std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _Assigner,
                               _MaskAssigner, _CreateMaskOp, _InitType>{__reduce_op, __get_data_op, __assign_op,
                                                                        __add_mask_op, __create_mask_op},
         // scan between groups
-        unseq_backend::__scan</*inclusive*/ ::std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _NoAssign,
-                              _Assigner, _DataAcc, _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op,
-                                                              __get_data_op},
+        unseq_backend::__scan</*inclusive*/ std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _NoAssign, _Assigner,
+                              _DataAcc, _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
         // global scan
         __copy_by_mask_op);
 }
@@ -1154,16 +1152,16 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
     using _SingleGroupInvoker = __invoke_single_group_copy_if<_Size>;
 
     // Next power of 2 greater than or equal to __n
-    auto __n_uniform = ::oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<::std::make_unsigned_t<_Size>>(__n));
+    auto __n_uniform = ::oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<std::make_unsigned_t<_Size>>(__n));
 
     // Pessimistically only use half of the memory to take into account memory used by compiled kernel
-    const ::std::size_t __max_slm_size =
+    const std::size_t __max_slm_size =
         __exec.queue().get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
 
     // The kernel stores n integers for the predicate and another n integers for the offsets
-    const auto __req_slm_size = sizeof(::std::uint16_t) * __n_uniform * 2;
+    const auto __req_slm_size = sizeof(std::uint16_t) * __n_uniform * 2;
 
-    constexpr ::std::uint16_t __single_group_upper_limit = 2048;
+    constexpr std::uint16_t __single_group_upper_limit = 2048;
 
     std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec);
 
