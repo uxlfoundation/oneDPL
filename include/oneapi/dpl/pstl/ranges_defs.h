@@ -23,6 +23,9 @@
 #include <ranges>
 #endif
 
+//oneapi::dpl::ranges::zip_view support for C++20
+#include "zip_view_impl.h"
+
 #include "utils_ranges.h"
 #if _ONEDPL_BACKEND_SYCL
 #    include "hetero/dpcpp/utils_ranges_sycl.h"

@@ -14,10 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "std_ranges_test.h"
-#include <oneapi/dpl/pstl/zip_view_impl.h>
-
-template<typename>
-struct print_type;
+#include <oneapi/dpl/ranges>
 
 std::int32_t
 main()
