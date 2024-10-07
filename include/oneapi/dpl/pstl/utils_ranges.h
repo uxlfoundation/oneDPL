@@ -21,6 +21,7 @@
 
 #include "iterator_defs.h"
 #include "iterator_impl.h"
+#include "execution_defs.h" // __internal::__difference_t
 
 namespace oneapi
 {
