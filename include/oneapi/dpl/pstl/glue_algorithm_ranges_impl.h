@@ -425,7 +425,13 @@ struct __stable_sort_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_sort_ranges(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj, std::ranges::stable_sort);
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj,
+#if _ONEDPL_STD_RANGES_FUN_OBJ_WINDOWS_BROKEN
+            [](auto&&... __args) { std::ranges::stable_sort(std::forward<decltype(__args)>(__args)...); }
+#else
+            std::ranges::stable_sort
+#endif
+            );
     }
 }; //__stable_sort_fn
 }  //__internal
@@ -445,7 +451,13 @@ struct __sort_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_sort_ranges(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj, std::ranges::sort);
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj,
+#if _ONEDPL_STD_RANGES_FUN_OBJ_WINDOWS_BROKEN
+            [](auto&&... __args) { std::ranges::sort(std::forward<decltype(__args)>(__args)...); }
+#else
+            std::ranges::sort
+#endif
+            );
     }
 }; //__sort_fn
 }  //__internal

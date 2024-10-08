@@ -326,4 +326,11 @@
 #    define _ONEDPL_STD_BIT_FLOOR_BROKEN 0
 #endif
 
+// The implementation of std::ranges algorithms in MS C++ standard library does not meet the C++ standard requirements.
+#if defined(_MSC_VER) && (_MSC_VER < 1939)
+#    define _ONEDPL_STD_RANGES_FUN_OBJ_WINDOWS_BROKEN 1
+#else
+#    define _ONEDPL_STD_RANGES_FUN_OBJ_WINDOWS_BROKEN 0
+#endif
+
 #endif // _ONEDPL_CONFIG_H
