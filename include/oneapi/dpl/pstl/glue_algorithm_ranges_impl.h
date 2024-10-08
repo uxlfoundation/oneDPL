@@ -22,8 +22,10 @@
 #    include <functional>
 #    include <type_traits>
 #    include <iterator>
-#    include <algorithm> //to use std::ranges::sort, std::ranges::stable_sort
+#    include <algorithm> // std::ranges::sort, std::ranges::stable_sort
 #endif
+
+#include "utils_ranges.h" // __difference_t
 
 #include "execution_defs.h"
 #include "oneapi/dpl/pstl/ranges_defs.h"

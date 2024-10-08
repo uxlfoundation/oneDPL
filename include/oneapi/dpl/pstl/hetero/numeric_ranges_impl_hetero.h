@@ -24,6 +24,8 @@
 #    include "dpcpp/unseq_backend_sycl.h"
 #endif
 
+#include "../utils_ranges.h"
+
 namespace oneapi
 {
 namespace dpl

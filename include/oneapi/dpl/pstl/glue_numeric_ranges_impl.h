@@ -17,6 +17,7 @@
 #define _ONEDPL_GLUE_NUMERIC_RANGES_IMPL_H
 
 #include "execution_defs.h"
+#include "utils_ranges.h"
 #include "glue_numeric_defs.h"
 
 #if _ONEDPL_HETERO_BACKEND

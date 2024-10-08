@@ -18,6 +18,7 @@
 
 #include "../algorithm_fwd.h"
 #include "../parallel_backend.h"
+#include "../utils_ranges.h"
 #include "utils_hetero.h"
 
 #if _ONEDPL_BACKEND_SYCL

@@ -25,6 +25,7 @@
 
 #include "sycl_defs.h"                   // __dpl_sycl::__local_accessor, __dpl_sycl::__group_barrier
 #include "../../utils.h"                 // __dpl_bit_floor, __dpl_bit_ceil
+#include "../../utils_ranges.h"          // __difference_t
 #include "parallel_backend_sycl_merge.h" // __find_start_point, __serial_merge
 
 namespace oneapi
