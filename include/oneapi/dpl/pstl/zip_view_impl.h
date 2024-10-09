@@ -22,6 +22,8 @@
 #include <vector>
 #include <type_traits>
 
+#include "tuple_impl.h"
+
 namespace oneapi
 {
 namespace dpl
