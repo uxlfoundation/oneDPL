@@ -141,7 +141,7 @@ struct __access_mode_resolver
 template <typename _NoInitT>
 struct __access_mode_resolver<std::decay_t<decltype(sycl::read_only)>, _NoInitT>
 {
-    static constexpr access_mode __mode = access_mode::read;
+    static constexpr access_mode __value = access_mode::read;
 };
 
 template <typename _NoInitT>
