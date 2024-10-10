@@ -20,7 +20,10 @@
 #define _ONEDPL_INCLUSIVE_SCAN_BY_SEGMENT_IMPL_H
 
 #include "by_segment_extension_defs.h"
+
+#include "../pstl/glue_numeric_defs.h"
 #include "../pstl/glue_numeric_impl.h"
+
 #include "../pstl/parallel_backend.h"
 #include "function.h"
 #include "../pstl/utils.h"
