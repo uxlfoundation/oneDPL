@@ -16,8 +16,16 @@
 #ifndef _ONEDPL_UTILS_RANGES_H
 #define _ONEDPL_UTILS_RANGES_H
 
-#include <iterator>
-#include <type_traits>
+#include <tuple>       // std::get
+#include <cstdint>     // std::uint8_t
+#include <cstddef>     // std::size_t, std::ptrdiff_t
+#include <utility>     // std::declval
+#include <iterator>    // std::iterator_traits
+#include <type_traits> // std::decay_t, std::remove_cv_t, std::remove_reference_t, std::invoke_result_t, ...
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    include <ranges> // std::ranges::sized_range, std::ranges::range_size_t
+#endif
 
 #include "iterator_defs.h"
 #include "iterator_impl.h"
