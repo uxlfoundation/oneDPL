@@ -38,7 +38,7 @@ the profiling phase periodically.
       auto_tune_policy(deferred_initialization_t);
       auto_tune_policy(uint64_t resample_interval_in_milliseconds = 0);
       auto_tune_policy(const std::vector<resource_type>& u,
-                       uint64_t resample_interval_in_milliseconds = 0);  
+                       uint64_t resample_interval_in_milliseconds = 0);
   
       // deferred initializer
       void initialize(uint64_t resample_interval_in_milliseconds = 0);
@@ -142,7 +142,7 @@ implementation of the selection algorithm follows:
         return selection{*this, r, tuner}; 
       }
     } else {
-      throw std::logic_error(“selected called before initialization”);
+      throw std::logic_error("selected called before initialization");
     } 
   }
 

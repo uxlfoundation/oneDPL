@@ -17,7 +17,7 @@ The fixed-resource policy always returns the same resource selection.
 
   namespace oneapi::dpl::experimental {
   
-    template<typename Backend = sycl_backend> 
+    template<typename Backend = sycl_backend>
     class fixed_resource_policy {
     public:
       // useful types
@@ -33,12 +33,12 @@ The fixed-resource policy always returns the same resource selection.
       // constructors
       fixed_resource_policy(deferred_initialization_t);
       fixed_resource_policy(std::size_t offset = 0);
-      fixed_resource_policy(const std::vector<resource_type>& u,  
+      fixed_resource_policy(const std::vector<resource_type>& u,
                             std::size_t offset = 0);
   
       // deferred initializers
       void initialize(std::size_t offset = 0);
-      void initialize(const std::vector<resource_type>& u, 
+      void initialize(const std::vector<resource_type>& u,
                       std::size_t offset = 0);
                       
       // queries
@@ -145,7 +145,7 @@ Simplified, expository implementation of the selection algorithm:
     if (initialized_) {
       return selection_type{*this, resources_[fixed_offset_]};
     } else {
-      throw std::logic_error(“select called before initialization”);
+      throw std::logic_error("select called before initialization");
     }
   }
 

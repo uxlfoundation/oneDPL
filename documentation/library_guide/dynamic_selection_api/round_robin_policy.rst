@@ -1,13 +1,13 @@
 Round-Robin Policy
 ##################
 
-The dynamic selection API is an experimental feature in the |onedpl_long| 
-(|onedpl_short|) that selects an *execution resource* based on a chosen 
-*selection policy*. There are several policies provided as part 
-of the API. Policies encapsulate the logic and any associated state needed 
+The dynamic selection API is an experimental feature in the |onedpl_long|
+(|onedpl_short|) that selects an *execution resource* based on a chosen
+*selection policy*. There are several policies provided as part
+of the API. Policies encapsulate the logic and any associated state needed
 to make a selection. 
 
-The round-robin policy cycles through the set of resources at each selection. ``round_robin_policy`` 
+The round-robin policy cycles through the set of resources at each selection. ``round_robin_policy``
 is useful for offloading kernels of similar cost to devices of similar
 capabilities. In those cases, a round-robin assignment of kernels to devices
 will achieve a good load balancing.
@@ -32,7 +32,7 @@ will achieve a good load balancing.
       // constructors
       round_robin_policy(deferred_initialization_t);
       round_robin_policy();
-      round_robin_policy(const std::vector<resource_type>& u);  
+      round_robin_policy(const std::vector<resource_type>& u);
   
       // deferred initializer
       void initialize();
@@ -70,7 +70,7 @@ the available devices.
  void f(sycl::handler& h, float* v);
 
 
-  int round_robin_example(std::vector<sycl::queue>& similar_devices, 
+  int round_robin_example(std::vector<sycl::queue>& similar_devices,
                           std::vector<float*>& usm_data) {
 
     ex::round_robin_policy p{similar_devices}; // (1)
@@ -124,7 +124,7 @@ implementation of the selection algorithm follows:
       auto& r = resources_[next_context_++ % num_resources_];
       return selection_type{*this, r};
     } else {
-      throw std::logic_error(“selected called before initialization”);
+      throw std::logic_error("selected called before initialization");
     }
   }
 
