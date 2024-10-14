@@ -248,6 +248,23 @@ __simd_count(_Index __index, _DifferenceType __n, _Pred __pred) noexcept
     return __count;
 }
 
+template <typename _Index, typename _DifferenceType, typename _Bound, typename _Pred>
+_DifferenceType
+__simd_count(_Index __index, _DifferenceType __n, _Bound __m, _Pred __pred) noexcept
+{
+    _DifferenceType __count = 0;
+    _ONEDPL_PRAGMA_SIMD_EARLYEXIT_REDUCTION(+ : __count)
+    for (_DifferenceType __i = 0; __i < __n; ++__i)
+    {
+        if(__count >= __m)
+            break;
+        if (__pred(*(__index + __i)))
+            ++__count;
+    }
+
+    return __count;
+}
+
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _BinaryPredicate>
 _OutputIterator
 __simd_unique_copy(_InputIterator __first, _DifferenceType __n, _OutputIterator __result,
