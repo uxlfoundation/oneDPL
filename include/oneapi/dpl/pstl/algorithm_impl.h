@@ -1236,12 +1236,43 @@ __brick_calc_mask_1(_ForwardIterator __first, _ForwardIterator __last, bool* __r
     return ::std::make_pair(__count_true, __size - __count_true);
 }
 
+template <class _DifferenceType, class _ForwardIterator, class _Bound, class _UnaryPredicate>
+::std::pair<_DifferenceType, _DifferenceType>
+__brick_calc_mask_1(_ForwardIterator __first, _ForwardIterator __last, _Bound __m, bool* __restrict __mask, _UnaryPredicate __pred,
+                    /*vector=*/::std::false_type) noexcept
+{
+    auto __count_true = _DifferenceType(0);
+    auto __size = __last - __first;
+
+    static_assert(__is_random_access_iterator_v<_ForwardIterator>,
+                  "Pattern-brick error. Should be a random access iterator.");
+
+    for (; __first != __last && __count_true < __m; ++__first, ++__mask)
+    {
+        *__mask = __pred(*__first);
+        if (*__mask)
+        {
+            ++__count_true;
+        }
+    }
+    return ::std::make_pair(__count_true, __size - __count_true);
+}
+
 template <class _DifferenceType, class _RandomAccessIterator, class _UnaryPredicate>
 ::std::pair<_DifferenceType, _DifferenceType>
 __brick_calc_mask_1(_RandomAccessIterator __first, _RandomAccessIterator __last, bool* __mask, _UnaryPredicate __pred,
                     /*vector=*/::std::true_type) noexcept
 {
     auto __result = __unseq_backend::__simd_calc_mask_1(__first, __last - __first, __mask, __pred);
+    return ::std::make_pair(__result, (__last - __first) - __result);
+}
+
+template <class _DifferenceType, class _RandomAccessIterator, class _Bound, class _UnaryPredicate>
+::std::pair<_DifferenceType, _DifferenceType>
+__brick_calc_mask_1(_RandomAccessIterator __first, _RandomAccessIterator __last, _Bound __m, bool* __mask, _UnaryPredicate __pred,
+                    /*vector=*/::std::true_type) noexcept
+{
+    auto __result = __unseq_backend::__simd_calc_mask_1(__first, __last - __first, __m, __mask, __pred);
     return ::std::make_pair(__result, (__last - __first) - __result);
 }
 

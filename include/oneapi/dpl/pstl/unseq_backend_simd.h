@@ -248,23 +248,6 @@ __simd_count(_Index __index, _DifferenceType __n, _Pred __pred) noexcept
     return __count;
 }
 
-template <typename _Index, typename _DifferenceType, typename _Bound, typename _Pred>
-_DifferenceType
-__simd_count(_Index __index, _DifferenceType __n, _Bound __m, _Pred __pred) noexcept
-{
-    _DifferenceType __count = 0;
-    _ONEDPL_PRAGMA_SIMD_EARLYEXIT_REDUCTION(+ : __count)
-    for (_DifferenceType __i = 0; __i < __n; ++__i)
-    {
-        if(__count >= __m)
-            break;
-        if (__pred(*(__index + __i)))
-            ++__count;
-    }
-
-    return __count;
-}
-
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _BinaryPredicate>
 _OutputIterator
 __simd_unique_copy(_InputIterator __first, _DifferenceType __n, _OutputIterator __result,
@@ -389,6 +372,24 @@ __simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, bool* __mask, _U
     _ONEDPL_PRAGMA_SIMD_REDUCTION(+ : __count)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
+        __mask[__i] = __pred(__first[__i]);
+        __count += __mask[__i];
+    }
+    return __count;
+}
+
+template <typename _InputIterator, typename _DifferenceType, typename _Bound, typename _UnaryPredicate>
+_DifferenceType
+__simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, _Bound __m, bool* __mask, _UnaryPredicate __pred) noexcept
+{
+    _DifferenceType __count = 0;
+
+    _ONEDPL_PRAGMA_SIMD_EARLYEXIT_REDUCTION(+ : __count)
+    for (_DifferenceType __i = 0; __i < __n; ++__i)
+    {
+        if(__count >= __m)
+            break;
+
         __mask[__i] = __pred(__first[__i]);
         __count += __mask[__i];
     }
