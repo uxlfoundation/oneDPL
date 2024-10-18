@@ -45,24 +45,31 @@ void test_policy_instance(const Policy& policy)
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
+template<typename Policy>
+constexpr void assert_is_execution_policy()
+{
+    static_assert(oneapi::dpl::is_execution_policy<Policy>::value, "wrong result for oneapi::dpl::is_execution_policy");
+    static_assert(oneapi::dpl::is_execution_policy_v<Policy>, "wrong result for oneapi::dpl::is_execution_policy_v");
+    static_assert(oneapi::dpl::execution::is_execution_policy<Policy>::value, "wrong result for oneapi::dpl::execution::is_execution_policy");
+    static_assert(oneapi::dpl::execution::is_execution_policy_v<Policy>, "wrong result for oneapi::dpl::execution::is_execution_policy_v");
+}
+
 std::int32_t
 main()
 {
     using namespace oneapi::dpl::execution;
-    static_assert(is_execution_policy<sequenced_policy>::value, "wrong result for is_execution_policy<sequenced_policy>");
-    static_assert(is_execution_policy<unsequenced_policy>::value, "wrong result for is_execution_policy<unsequenced_policy>");
-    static_assert(is_execution_policy<parallel_policy>::value, "wrong result for is_execution_policy<parallel_policy>");
-    static_assert(is_execution_policy<parallel_unsequenced_policy>::value, "wrong result for is_execution_policy<parallel_unsequenced_policy>");
-    static_assert(is_execution_policy_v<sequenced_policy>, "wrong result for is_execution_policy_v<sequenced_policy>");
-    static_assert(is_execution_policy_v<unsequenced_policy>, "wrong result for is_execution_policy_v<unsequenced_policy>");
-    static_assert(is_execution_policy_v<parallel_policy>, "wrong result for is_execution_policy_v<parallel_policy>");
-    static_assert(is_execution_policy_v<parallel_unsequenced_policy>, "wrong result for is_execution_policy_v<parallel_unsequenced_policy>");
+    assert_is_execution_policy<sequenced_policy>();
+    assert_is_execution_policy<unsequenced_policy>();
+    assert_is_execution_policy<parallel_policy>();
+    assert_is_execution_policy<parallel_unsequenced_policy>();
+
+    // Test that the policy is not decayed
+    static_assert(!oneapi::dpl::is_execution_policy_v<sequenced_policy&&>, "wrong result for is_execution_policy_v<sequenced_policy&&>");
 
 #if TEST_DPCPP_BACKEND_PRESENT
     auto q = sycl::queue{TestUtils::default_selector};
 
-    static_assert(is_execution_policy<device_policy<class Kernel_0>>::value, "wrong result for is_execution_policy<device_policy>");
-    static_assert(is_execution_policy_v<device_policy<class Kernel_0>>, "wrong result for is_execution_policy_v<device_policy>");
+    assert_is_execution_policy<device_policy<class Kernel_0>>();
 
     test_policy_instance(dpcpp_default);
 
@@ -92,8 +99,7 @@ main()
     static_assert(std::is_same_v<device_policy<Kernel_25>::kernel_name, Kernel_25>, "wrong result for kernel_name (device_policy)");
 
 #if ONEDPL_FPGA_DEVICE
-    static_assert(is_execution_policy<fpga_policy</*unroll_factor =*/ 1, class Kernel_0>>::value, "wrong result for is_execution_policy<fpga_policy>");
-    static_assert(is_execution_policy_v<fpga_policy</*unroll_factor =*/ 1, class Kernel_0>>, "wrong result for is_execution_policy_v<fpga_policy>");
+    assert_is_execution_policy<device_policy<fpga_policy</*unroll_factor =*/ 1, class Kernel_0>>();
     test_policy_instance(dpcpp_fpga);
 
     // make_fpga_policy
