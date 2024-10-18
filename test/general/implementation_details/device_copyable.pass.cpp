@@ -94,6 +94,11 @@ test_device_copyable()
         sycl::is_device_copyable_v<
             oneapi::dpl::unseq_backend::single_match_pred_by_idx<policy_non_device_copyable, noop_device_copyable>>,
         "single_match_pred_by_idx is not device copyable with device copyable types");
+    //single_match_pred
+    static_assert(
+        sycl::is_device_copyable_v<
+            oneapi::dpl::unseq_backend::single_match_pred<policy_non_device_copyable, noop_device_copyable>>,
+        "single_match_pred is not device copyable with device copyable types");
     //multiple_match_pred
     static_assert(
         sycl::is_device_copyable_v<
@@ -322,6 +327,11 @@ test_non_device_copyable()
         !sycl::is_device_copyable_v<
             oneapi::dpl::unseq_backend::single_match_pred_by_idx<policy_non_device_copyable, noop_non_device_copyable>>,
         "single_match_pred_by_idx is device copyable with non device copyable types");
+    //single_match_pred
+    static_assert(
+        !sycl::is_device_copyable_v<
+            oneapi::dpl::unseq_backend::single_match_pred<policy_non_device_copyable, noop_non_device_copyable>>,
+        "single_match_pred is device copyable with non device copyable types");
     //multiple_match_pred
     static_assert(
         !sycl::is_device_copyable_v<
