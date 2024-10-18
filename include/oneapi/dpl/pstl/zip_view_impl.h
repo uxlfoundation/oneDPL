@@ -189,13 +189,13 @@ public:
         friend constexpr auto operator<=>(const iterator& x, const iterator& y)
             requires all_random_access<Const, Views...>
         {
-            return x.current_ == y.current_;
+            return x.current_ <=> y.current_;
         }
 
         friend constexpr auto operator-(const iterator& x, const iterator& y)
             requires all_random_access<Const, Views...>
         {
-            return std::get<0>(x.current_) - std::get<0>(y.current_);
+            return x.distance_to_it(y.current_, std::make_index_sequence<sizeof...(Views)>());
         }
 
         friend constexpr iterator operator+(iterator it, difference_type n)
@@ -231,6 +231,15 @@ public:
             auto min = std::get<0>(current_) - std::get<0>(sentinels);
 
             ( (min = std::min(min, (std::get<In>(current_) - std::get<In>(sentinels)))) , ... );
+            return min;
+        }
+        template <std::size_t... In>
+        constexpr std::common_type_t<std::conditional_t<!Const, std::ranges::range_difference_t<Views>,
+                                                                std::ranges::range_difference_t<const Views>>...>
+        distance_to_it(const iterator it, std::index_sequence<0, In...>) const {
+            auto min = std::get<0>(it.current_) - std::get<0>(current_);
+
+            ( (min = std::min(min, (std::get<In>(it.current_) - std::get<In>(current_)))) , ... );
             return min;
         }
 
