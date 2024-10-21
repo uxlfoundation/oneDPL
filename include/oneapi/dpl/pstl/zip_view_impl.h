@@ -81,7 +81,7 @@ private:
     }
 
     template <typename _F, typename _Tuple>
-    static auto
+    static decltype(auto)
     apply_to_tuple(_F __f, _Tuple& __t)
     {
         apply_to_tuple([](auto...){}, __f, __t);
