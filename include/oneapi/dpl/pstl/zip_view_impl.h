@@ -123,7 +123,6 @@ public:
     public:
 
         return_tuple_type operator*() const {
-
             auto __tr = [](auto&&... __args) -> decltype(auto) { return return_tuple_type(__args...);};
             return apply_to_tuple(__tr, [](auto it) -> decltype(auto) { return *it;}, current_);
         }
