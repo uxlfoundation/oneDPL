@@ -149,7 +149,6 @@ public:
         }
 
         constexpr iterator& operator--() requires all_bidirectional<Const, Views...> {
-
             zip_view::apply_to_tuple([](auto& it) { return --it; }, current_);
             return *this;
         }
