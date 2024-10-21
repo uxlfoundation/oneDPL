@@ -102,13 +102,15 @@ public:
                                                                                           std::forward_iterator_tag,
                                                                                           std::input_iterator_tag>>>;
 
-        using value_type = std::conditional_t<!Const, tuple_type<std::ranges::range_value_t<Views>...>,
-                                                      tuple_type<std::ranges::range_value_t<const Views>...>>;
+        using value_type = std::conditional_t<Const, tuple_type<std::ranges::range_value_t<const Views>...>,
+                                                     tuple_type<std::ranges::range_value_t<Views>...>>;
 
-        using difference_type = std::conditional_t<!Const, std::common_type_t<std::ranges::range_difference_t<Views>...>,
-                                                           std::common_type_t<std::ranges::range_difference_t<const Views>...>>;
-        using return_tuple_type = std::conditional_t<!Const, tuple_type<typename std::iterator_traits<std::ranges::iterator_t<Views>>::reference...>,
-            tuple_type<typename std::iterator_traits<std::ranges::iterator_t<const Views>>::reference...>>;
+        using difference_type = std::conditional_t<Const, std::common_type_t<std::ranges::range_difference_t<const Views>...>,
+                                                          std::common_type_t<std::ranges::range_difference_t<Views>...>>;
+
+        using return_tuple_type = std::conditional_t<Const, 
+            tuple_type<typename std::iterator_traits<std::ranges::iterator_t<const Views>>::reference...>, 
+            tuple_type<typename std::iterator_traits<std::ranges::iterator_t<Views>>::reference...>>;
 
         iterator() = default;
 
@@ -303,9 +305,9 @@ public:
                                                     tuple_type<std::ranges::sentinel_t<const Views>...>>;
 
         end_type end_;
-    }; // class sentinel    
+    }; // class sentinel
 
-    constexpr auto begin() requires (std::ranges::range<Views> && ...) // !simple_view?
+    constexpr auto begin() requires (std::ranges::range<Views> && ...)
     {
         auto __tr = [](auto... __args) { return iterator<false>(__args...);};
         return apply_to_tuple(__tr, std::ranges::begin, views_);
@@ -317,7 +319,7 @@ public:
         return apply_to_tuple(__tr, std::ranges::begin, views_);
     }
 
-    constexpr auto end() requires (std::ranges::range<Views> && ...) // requires !simple_view {
+    constexpr auto end() requires (std::ranges::range<Views> && ...)
     {
         if constexpr (!zip_is_common<Views...>)
         {
