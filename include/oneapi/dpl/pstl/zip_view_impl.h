@@ -84,7 +84,7 @@ private:
     static auto
     apply_to_tuple(_F __f, _Tuple& __t)
     {
-        apply_to_tuple_impl([](auto...){}, __f, __t, std::make_index_sequence<sizeof...(Views)>{});
+        apply_to_tuple([](auto...){}, __f, __t);
     }
 
 public:
