@@ -205,7 +205,7 @@ public:
 
         friend constexpr iterator operator+(difference_type n, iterator it)
         {
-            return it+=n;
+            return it += n;
         }
 
         friend constexpr iterator operator-(iterator it, difference_type n)
