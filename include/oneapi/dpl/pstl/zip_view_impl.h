@@ -70,7 +70,7 @@ private:
     static decltype(auto)
     apply_to_tuple_impl(_ReturnAdapter __tr, _F __f, _Tuple& __t, std::index_sequence<_Ip...>)
     {
-        return __tr(__f(oneapi::dpl::__internal::get_impl<_Ip>()(__t))...);
+        return __tr(__f(std::get<_Ip>(__t))...);
     }
 
     template <typename _ReturnAdapter, typename _F, typename _Tuple>
@@ -81,7 +81,7 @@ private:
     }
 
     template <typename _F, typename _Tuple>
-    static decltype(auto)
+    static void
     apply_to_tuple(_F __f, _Tuple& __t)
     {
         apply_to_tuple([](auto...){}, __f, __t);
