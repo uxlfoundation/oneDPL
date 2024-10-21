@@ -89,7 +89,7 @@ private:
 
 public:
     zip_view() = default;
-    constexpr zip_view(Views... views) : views_(views...) {}
+    constexpr zip_view(Views... views) : views_(std::move(views)...) {}
 
     template <bool Const>
     class iterator : declare_iterator_category<Const> {
