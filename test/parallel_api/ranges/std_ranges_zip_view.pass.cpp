@@ -16,10 +16,42 @@
 #include "std_ranges_test.h"
 #include <oneapi/dpl/ranges>
 
+#if _ENABLE_STD_RANGES_TESTING
+#include <vector>
+
+void test_zip_view_base_op()
+{
+    namespace dpl_ranges = oneapi::dpl::ranges;
+
+    constexpr int max_n = 100;
+    std::vector<int> vec1(max_n);
+    std::vector<int> vec2(max_n/2);
+
+    auto zip_view = dpl_ranges::zip(vec1, vec2);
+
+    static_assert(std::random_access_iterator<decltype(zip_view.begin())>);
+    static_assert(std::sentinel_for<decltype(zip_view.end()), decltype(zip_view.begin())>);
+
+    static_assert(std::random_access_iterator<decltype(zip_view.cbegin())>);
+    static_assert(std::sentinel_for<decltype(zip_view.cend()), decltype(zip_view.cbegin())>);
+
+    EXPECT_TRUE(zip_view.end() - zip_view.begin() == max_n/2,
+        "Difference operation between an iterator and a sentinel (zip_view) returns a wrong result.");
+
+    EXPECT_TRUE(zip_view[2] == *(zip_view.begin() + 2), 
+        "Subscription or dereferencing operation for zip_view returns a wrong result.");
+
+    EXPECT_TRUE(std::ranges::size(zip_view) == max_n/2, "zip_view::size method returns a wrong result.");
+    EXPECT_TRUE((bool)zip_view, "zip_view::operator bool() method returns a wrong result.");
+}
+#endif //_ENABLE_STD_RANGES_TESTING
+
 std::int32_t
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
+
+    test_zip_view_base_op();
 
     namespace dpl_ranges = oneapi::dpl::ranges;
 
