@@ -190,7 +190,11 @@ public:
         friend constexpr auto operator<=>(const iterator& x, const iterator& y)
             requires all_random_access<Const, Views...>
         {
-            return x.current_ <=> y.current_;
+            if (x.current_ < y.current_)
+                return -1;
+            else if (x.current_ == y.current_)
+                return 0;
+            return 1; //x.current > y.current_
         }
 
         friend constexpr auto operator-(const iterator& x, const iterator& y)
