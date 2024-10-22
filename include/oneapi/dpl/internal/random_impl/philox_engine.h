@@ -258,8 +258,10 @@ class philox_engine
                 __carry = 1;
             }
 
-            //          select high chunk             shift for addition with the next counter chunk
-            __ctr_inc = (__ctr_inc & (~in_mask)) >> (std::numeric_limits<unsigned long long>::digits - word_size);
+            // select high chunk and shift for addition with the next counter chunk
+            __ctr_inc = (word_size == std::numeric_limits<unsigned long long>::digits)
+                            ? 0 // should be added only once for 64-bit word_size
+                            : (__ctr_inc & (~in_mask)) >> word_size;
         }
     }
 
