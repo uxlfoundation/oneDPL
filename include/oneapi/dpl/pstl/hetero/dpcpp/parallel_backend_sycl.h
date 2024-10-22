@@ -319,7 +319,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         // 1. Local scan on each workgroup
         auto __submit_event = __exec.queue().submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
-            auto __temp_acc = __result_and_scratch.__get_scratch_acc(__cgh);
+            auto __temp_acc = __result_and_scratch.template __get_scratch_acc<sycl::access_mode::write>(
+                __cgh, __dpl_sycl::__no_init{});
             __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
             __cgh.use_kernel_bundle(__kernel_1.get_kernel_bundle());
@@ -340,7 +341,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             auto __iters_per_single_wg = oneapi::dpl::__internal::__dpl_ceiling_div(__n_groups, __wgroup_size);
             __submit_event = __exec.queue().submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__submit_event);
-                auto __temp_acc = __result_and_scratch.__get_scratch_acc(__cgh);
+                auto __temp_acc = __result_and_scratch.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
                 __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
                 __cgh.use_kernel_bundle(__kernel_2.get_kernel_bundle());
@@ -362,8 +363,9 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         auto __final_event = __exec.queue().submit([&](sycl::handler& __cgh) {
             __cgh.depends_on(__submit_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
-            auto __temp_acc = __result_and_scratch.__get_scratch_acc(__cgh);
-            auto __res_acc = __result_and_scratch.__get_result_acc(__cgh);
+            auto __temp_acc = __result_and_scratch.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
+            auto __res_acc = __result_and_scratch.template __get_result_acc<sycl::access_mode::write>(
+                __cgh, __dpl_sycl::__no_init{});
             __cgh.parallel_for<_PropagateScanName...>(sycl::range<1>(__n_groups * __size_per_wg), [=](auto __item) {
                 auto __temp_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 auto __res_ptr =
@@ -579,7 +581,8 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
             // predicate on each element of the input range. The second half stores the index of the output
             // range to copy elements of the input range.
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg * 2}, __hdl);
-            auto __res_acc = __result.__get_result_acc(__hdl);
+            auto __res_acc =
+                __result.template __get_result_acc<sycl::access_mode::write>(__hdl, __dpl_sycl::__no_init{});
 
             __hdl.parallel_for<_ScanKernelName...>(
                 sycl::nd_range<1>(_WGSize, _WGSize), [=](sycl::nd_item<1> __self_item) {
@@ -1466,7 +1469,8 @@ __parallel_find_or_impl_one_wg(oneapi::dpl::__internal::__device_backend_tag, _E
     // main parallel_for
     auto __event = __exec.queue().submit([&](sycl::handler& __cgh) {
         oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
-        auto __result_acc = __result_storage.__get_result_acc(__cgh);
+        auto __result_acc =
+            __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
         __cgh.parallel_for<KernelName>(
             sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__wgroup_size), sycl::range</*dim=*/1>(__wgroup_size)),

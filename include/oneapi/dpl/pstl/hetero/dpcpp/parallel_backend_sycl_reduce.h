@@ -141,7 +141,8 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
 
         sycl::event __reduce_event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...); // get an access to data under SYCL buffer
-            auto __res_acc = __scratch_container.__get_result_acc(__cgh);
+            auto __res_acc =
+                __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
             std::size_t __local_mem_size = __reduce_pattern.local_mem_req(__work_group_size);
             __dpl_sycl::__local_accessor<_Tp> __temp_local(sycl::range<1>(__local_mem_size), __cgh);
             __cgh.parallel_for<_Name...>(
@@ -208,7 +209,8 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...); // get an access to data under SYCL buffer
             std::size_t __local_mem_size = __reduce_pattern.local_mem_req(__work_group_size);
             __dpl_sycl::__local_accessor<_Tp> __temp_local(sycl::range<1>(__local_mem_size), __cgh);
-            auto __temp_acc = __scratch_container.__get_scratch_acc(__cgh);
+            auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
+                __cgh, __dpl_sycl::__no_init{});
             __cgh.parallel_for<_KernelName...>(
                 sycl::nd_range<1>(sycl::range<1>(__n_groups * __work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item<1> __item_id) {
@@ -253,8 +255,9 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
         __reduce_event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
             __cgh.depends_on(__reduce_event);
 
-            auto __temp_acc = __scratch_container.__get_scratch_acc(__cgh);
-            auto __res_acc = __scratch_container.__get_result_acc(__cgh);
+            auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
+            auto __res_acc =
+                __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
             __dpl_sycl::__local_accessor<_Tp> __temp_local(sycl::range<1>(__work_group_size), __cgh);
 
             __cgh.parallel_for<_KernelName...>(
@@ -358,8 +361,10 @@ struct __parallel_transform_reduce_impl
             __reduce_event = __exec.queue().submit([&, __is_first, __offset_1, __offset_2, __n,
                                                     __n_groups](sycl::handler& __cgh) {
                 __cgh.depends_on(__reduce_event);
-                auto __temp_acc = __scratch_container.__get_scratch_acc(__cgh);
-                auto __res_acc = __scratch_container.__get_result_acc(__cgh);
+                auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(
+                    __cgh, __is_first ? sycl::property_list{__dpl_sycl::__no_init{}} : sycl::property_list{});
+                auto __res_acc = __scratch_container.template __get_result_acc<sycl::access_mode::write>(
+                    __cgh, __dpl_sycl::__no_init{});
 
                 // get an access to data under SYCL buffer
                 oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
