@@ -38,7 +38,7 @@ main()
         return ret_type{std::ranges::begin(r_in) + size, std::ranges::begin(r_out) +  size};
     };
 
-    test_range_algo<0, int, data_in_out_lim>{}(dpl_ranges::transform, transform_unary_checker, f);
+    test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::transform, transform_unary_checker, f);
     test_range_algo<1, int, data_in_out_lim>{}(dpl_ranges::transform, transform_unary_checker, f, proj);
     test_range_algo<2, P2, data_in_out_lim>{}(dpl_ranges::transform, transform_unary_checker, f, &P2::x);
     test_range_algo<3, P2, data_in_out_lim>{}(dpl_ranges::transform, transform_unary_checker, f, &P2::proj);
@@ -65,7 +65,7 @@ main()
         return ret_type{std::ranges::begin(r_1) + size, std::ranges::begin(r_2) + size, std::ranges::begin(r_out) + size};
     };
 
-    test_range_algo<4, int, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f);
+    test_range_algo<4, int, data_in_in_out_lim>{big_sz}(dpl_ranges::transform, transform_binary_checker, binary_f);
     test_range_algo<5, int, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, proj, proj);
     test_range_algo<6, P2, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, &P2::x, &P2::x);
     test_range_algo<7, P2, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, &P2::proj, &P2::proj);

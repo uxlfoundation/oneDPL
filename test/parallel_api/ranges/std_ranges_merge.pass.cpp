@@ -35,7 +35,7 @@ main()
         return ret_type{res.in1, res.in2, res.out};
     };
 
-    test_range_algo<0, int, data_in_in_out>{}(dpl_ranges::merge, merge_checker, std::ranges::less{});
+    test_range_algo<0, int, data_in_in_out>{big_sz}(dpl_ranges::merge, merge_checker, std::ranges::less{});
 
     test_range_algo<1, int, data_in_in_out>{}(dpl_ranges::merge, merge_checker, std::ranges::less{}, proj, proj);
     test_range_algo<2, P2, data_in_in_out>{}(dpl_ranges::merge, merge_checker, std::ranges::less{}, &P2::x, &P2::x);

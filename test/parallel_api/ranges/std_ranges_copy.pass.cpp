@@ -35,7 +35,7 @@ main()
         return ret_type{std::ranges::begin(r_in) + size, std::ranges::begin(r_out) + size};
     };
 
-    test_range_algo<0, int, data_in_out_lim>{}(dpl_ranges::copy,  copy_checker);
+    test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::copy,  copy_checker);
 
 #endif //_ENABLE_STD_RANGES_TESTING
 

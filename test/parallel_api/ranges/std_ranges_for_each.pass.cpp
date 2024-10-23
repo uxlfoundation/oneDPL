@@ -28,7 +28,7 @@ main()
         return res.in;
     };
 
-    test_range_algo<0>{}(dpl_ranges::for_each, for_each_checker, f_mutuable);
+    test_range_algo<0>{big_sz}(dpl_ranges::for_each, for_each_checker, f_mutuable);
     test_range_algo<1>{}(dpl_ranges::for_each, for_each_checker, f_mutuable, proj_mutuable);
     test_range_algo<2, P2>{}(dpl_ranges::for_each, for_each_checker, f_mutuable, &P2::x);
     test_range_algo<3, P2>{}(dpl_ranges::for_each, for_each_checker, f_mutuable, &P2::proj);

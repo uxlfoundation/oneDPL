@@ -32,9 +32,13 @@ static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202409L);
 #include <type_traits>
 #include <string>
 #include <ranges>
+#include <algorithm>
+#include <memory>
 
 namespace test_std_ranges
 {
+
+inline constexpr std::size_t big_sz = (1<<25) + 10; //32M
 
 #if TEST_DPCPP_BACKEND_PRESENT
 template<int call_id = 0>
@@ -143,6 +147,7 @@ bool is_range<T, std::void_t<decltype(std::declval<T&>().begin())>> = true;
 template<typename DataType, typename Container, TestDataMode test_mode = data_in>
 struct test
 {
+    const int max_n = 10;
     template<typename Policy>
     std::enable_if_t<std::is_same_v<Policy, std::true_type>>
     operator()(Policy, auto algo, auto& checker, auto... args)
@@ -157,28 +162,25 @@ struct test
     std::enable_if_t<!std::is_same_v<Policy, std::true_type> && mode == data_in>
     operator()(Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
-        constexpr int max_n = 10;
-        DataType data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-        DataType expected[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        Container cont_in(exec, max_n, [](auto i) { return i;});
+        Container cont_exp(exec, max_n, [](auto i) { return i;});
 
-        auto expected_view = tr_in(std::ranges::subrange(expected, expected + max_n));
+        auto expected_view = tr_in(std::views::all(cont_exp()));
         auto expected_res = checker(expected_view, args...);
-        {
-            Container cont(exec, std::ranges::begin(data), max_n);
-            typename Container::type& A = cont();
 
-            auto res = algo(exec, tr_in(A), args...);
-
-            //check result
-            static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), args...))>, "Wrong return type");
-
-            auto bres = ret_in_val(expected_res, expected_view.begin()) == ret_in_val(res, tr_in(A).begin());
-            EXPECT_TRUE(bres, (std::string("wrong return value from algo with ranges: ") + typeid(Algo).name() + 
-                typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
-        }
+        typename Container::type& A = cont_in();
+        auto res = algo(exec, tr_in(A), args...);
 
         //check result
-        EXPECT_EQ_N(expected, data, max_n, (std::string("wrong effect algo with ranges: ")
+        static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), args...))>, "Wrong return type");
+
+        auto bres = ret_in_val(expected_res, expected_view.begin()) == ret_in_val(res, tr_in(A).begin());
+        EXPECT_TRUE(bres, (std::string("wrong return value from algo with ranges: ") + typeid(Algo).name() + 
+                typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+
+        //check result
+        auto n = std::ranges::size(expected_view);
+        EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("wrong effect algo with ranges: ")
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
     }
 
@@ -190,37 +192,34 @@ private:
     {
         static_assert(mode == data_in_out || mode == data_in_out_lim);
 
-        constexpr int max_n = 10;
-        DataType data_in[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-        DataType data_out[max_n] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        DataType expected[max_n] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        Container cont_in(exec, n_in, [](auto i) { return i;});
+        Container cont_out(exec, n_out, [](auto i) { return 0;});
+        Container cont_exp(exec, n_out, [](auto i) { return 0;});
 
         assert(n_in <= max_n);
         assert(n_out <= max_n);
 
-        auto src_view = tr_in(std::ranges::subrange(data_in, data_in + n_in));
-        auto expected_res = checker(src_view, std::ranges::subrange(expected, expected + n_out), args...);
-        {
-            Container cont_in(exec, data_in, n_in);
-            Container cont_out(exec, data_out, n_out);
+        auto src_view = tr_in(std::views::all(cont_in()));
+        auto exp_view = tr_out(std::views::all(cont_exp()));
+        auto expected_res = checker(src_view, exp_view, args...);
 
-            typename Container::type& A = cont_in();
-            typename Container::type& B = cont_out();
+        typename Container::type& A = cont_in();
+        typename Container::type& B = cont_out();
 
-            auto res = algo(exec, tr_in(A), tr_out(B), args...);
-
-            //check result
-            static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), B, args...))>, "Wrong return type");
-
-            auto bres_in = ret_in_val(expected_res, src_view.begin()) == ret_in_val(res, tr_in(A).begin());
-            EXPECT_TRUE(bres_in, (std::string("wrong return value from algo with input range: ") + typeid(Algo).name()).c_str());
-
-            auto bres_out = ret_out_val(expected_res, expected) == ret_out_val(res, B.begin());
-            EXPECT_TRUE(bres_out, (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
-        }
+        auto res = algo(exec, tr_in(A), tr_out(B), args...);
 
         //check result
-        EXPECT_EQ_N(expected, data_out, n_out, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_out(B), args...))>, "Wrong return type");
+
+        auto bres_in = ret_in_val(expected_res, src_view.begin()) == ret_in_val(res, tr_in(A).begin());
+        EXPECT_TRUE(bres_in, (std::string("wrong return value from algo with input range: ") + typeid(Algo).name()).c_str());
+
+        auto bres_out = ret_out_val(expected_res, exp_view.begin()) == ret_out_val(res, tr_out(B).begin());
+        EXPECT_TRUE(bres_out, (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
+
+        //check result
+        auto n = std::ranges::size(exp_view);
+        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
     }
 
 public:
@@ -228,7 +227,7 @@ public:
     std::enable_if_t<!std::is_same_v<Policy, std::true_type> && mode == data_in_out>
     operator()(Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
-        const int r_size = 10;
+        const int r_size = max_n;
         process_data_in_out(r_size, r_size, std::forward<Policy>(exec), algo, checker, args...);
     }
 
@@ -236,7 +235,7 @@ public:
     std::enable_if_t<!std::is_same_v<Policy, std::true_type> && mode == data_in_out_lim>
     operator()(Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
-        const int r_size = 10;
+        const int r_size = max_n;
         process_data_in_out(r_size, r_size, std::forward<Policy>(exec), algo, checker, args...);
 
         //test case size of input range is less than size of output and viceversa
@@ -248,28 +247,23 @@ public:
     std::enable_if_t<!std::is_same_v<Policy, std::true_type> && mode == data_in_in>
     operator()(Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
-        constexpr int max_n = 10;
-        DataType data_in1[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-        DataType data_in2[max_n] = {0, 0, 2, 3, 4, 5, 0, 0, 0, 0};
+        Container cont_in1(exec, max_n, [](auto i) { return i;});
+        Container cont_in2(exec, max_n, [](auto i) { return i % 5 ? i : 0;});
 
-        auto src_view1 = tr_in(std::ranges::subrange(data_in1, data_in1 + max_n));
-        auto src_view2 = tr_in(std::ranges::subrange(data_in2, data_in2 + max_n));
+        auto src_view1 = tr_in(std::views::all(cont_in1()));
+        auto src_view2 = tr_in(std::views::all(cont_in2()));
         auto expected_res = checker(src_view1, src_view2, args...);
-        {
-            Container cont_in1(exec, data_in1, max_n);
-            Container cont_in2(exec, data_in2, max_n);
 
-            typename Container::type& A = cont_in1();
-            typename Container::type& B = cont_in2();
+        typename Container::type& A = cont_in1();
+        typename Container::type& B = cont_in2();
 
-            auto res = algo(exec, tr_in(A), tr_in(B), args...);
+        auto res = algo(exec, tr_in(A), tr_in(B), args...);
 
-            static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), args...))>, "Wrong return type");
+        static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), args...))>, "Wrong return type");
 
-            auto bres_in = ret_in_val(expected_res, src_view1.begin()) == ret_in_val(res, tr_in(A).begin());
-            EXPECT_TRUE(bres_in, (std::string("wrong return value from algo: ") + typeid(Algo).name() +
-                typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
-        }
+        auto bres_in = ret_in_val(expected_res, src_view1.begin()) == ret_in_val(res, tr_in(A).begin());
+        EXPECT_TRUE(bres_in, (std::string("wrong return value from algo: ") + typeid(Algo).name() +
+            typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
     }
 
 private:
@@ -279,39 +273,37 @@ private:
     {
         static_assert(mode == data_in_in_out || mode == data_in_in_out_lim);
 
-        constexpr int max_n = 10;
-        DataType data_in1[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-        DataType data_in2[max_n] = {0, 0, 2, 3, 4, 5, 6, 6, 6, 6};
-        constexpr int max_n_out = max_n*2;
-        DataType data_out[max_n_out] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //TODO: size
-        DataType expected[max_n_out] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        Container cont_in1(exec, n_in1, [](auto i) { return i;});
+        Container cont_in2(exec, n_in2, [](auto i) { return i/3;});
+
+        const int max_n_out = max_n*2;
+        Container cont_out(exec, max_n_out, [](auto i) { return 0;});
+        Container cont_exp(exec, max_n_out, [](auto i) { return 0;});
 
         assert(n_in1 <= max_n);
         assert(n_in2 <= max_n);
         assert(n_out <= max_n_out);
         
-        auto src_view1 = tr_in(std::ranges::subrange(data_in1, data_in1 + n_in1));
-        auto src_view2 = tr_in(std::ranges::subrange(data_in2, data_in2 + n_in2));
-        auto expected_res = checker(src_view1, src_view2, std::ranges::subrange(expected, expected + n_out), args...);
-        {
-            Container cont_in1(exec, data_in1, n_in1);
-            Container cont_in2(exec, data_in2, n_in2);
-            Container cont_out(exec, data_out, n_out);
+        auto src_view1 = tr_in(std::views::all(cont_in1()));
+        auto src_view2 = tr_in(std::views::all(cont_in2()));
+        auto expected_view = tr_out(std::views::all(cont_exp()));
+        auto expected_res = checker(src_view1, src_view2, expected_view, args...);
 
-            typename Container::type& A = cont_in1();
-            typename Container::type& B = cont_in2();
-            typename Container::type& C = cont_out();
+        typename Container::type& A = cont_in1();
+        typename Container::type& B = cont_in2();
+        typename Container::type& C = cont_out();
 
-            auto res = algo(exec, tr_in(A), tr_in(B), tr_out(C), args...);
+        auto res = algo(exec, tr_in(A), tr_in(B), tr_out(C), args...);
 
-            static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), C, args...))>, "Wrong return type");
+        static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), tr_out(C), args...))>, "Wrong return type");
 
-            auto bres_in = ret_in_val(expected_res, src_view1.begin()) == ret_in_val(res, tr_in(A).begin());
-            EXPECT_TRUE(bres_in, (std::string("wrong return value from algo: ") + typeid(Algo).name() +
-                typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
-        }
+        auto bres_in = ret_in_val(expected_res, src_view1.begin()) == ret_in_val(res, tr_in(A).begin());
+        EXPECT_TRUE(bres_in, (std::string("wrong return value from algo: ") + typeid(Algo).name() +
+            typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+
         //check result
-        EXPECT_EQ_N(expected, data_out, n_out, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        auto n = std::ranges::size(expected_view);
+        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
     }
 
 public:
@@ -319,7 +311,7 @@ public:
     std::enable_if_t<!std::is_same_v<Policy, std::true_type> && mode == data_in_in_out>
     operator()(Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
-        const int r_size = 10;
+        const int r_size = max_n;
         process_data_in_in_out(r_size, r_size, r_size*2, std::forward<Policy>(exec), algo, checker, args...);
     }
 
@@ -327,7 +319,7 @@ public:
     std::enable_if_t<!std::is_same_v<Policy, std::true_type> && mode == data_in_in_out_lim>
     operator()(Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
-        const int r_size = 10;
+        const int r_size = max_n;
         process_data_in_in_out(r_size, r_size, r_size, exec, algo, checker, args...);
         process_data_in_in_out(r_size/2, r_size, r_size, exec, algo, checker, args...);
         process_data_in_in_out(r_size, r_size/2, r_size, exec, algo, checker, args...);
@@ -369,14 +361,34 @@ private:
 template<typename T, typename ViewType>
 struct host_subrange_impl
 {
+    static_assert(std::is_trivially_copyable_v<T>, 
+        "Memory initialization within the class relies on trivially copyability of the type T");
+
     using type = ViewType;
     ViewType view;
+    T* mem = NULL;
+
+    std::allocator<T> alloc;
 
     template<typename Policy>
     host_subrange_impl(Policy&&, T* data, int n): view(data, data + n) {}
+
+    template<typename Policy, typename DataGen>
+    host_subrange_impl(Policy&&, int n, DataGen gen)
+    {
+        mem = alloc.allocate(n);
+        view = ViewType(mem, mem + n);
+        for(int i = 0; i < n; ++i)
+            view[i] = gen(i);
+    }
     ViewType& operator()()
     {
         return view;
+    }
+    ~host_subrange_impl()
+    {
+        if(mem)
+            alloc.deallocate(mem, view.size());
     }
 };
 
@@ -397,13 +409,21 @@ struct host_vector
 
     template<typename Policy>
     host_vector(Policy&&, T* data, int n): vec(data, data + n), p(data) {}
+    
+    template<typename Policy, typename DataGen>
+    host_vector(Policy&&, int n, DataGen gen): vec(n) 
+    {
+        for(int i = 0; i < n; ++i)
+            vec[i] = gen(i);
+    }
     type& operator()()
     {
         return vec;
     }
     ~host_vector()
     {
-        std::copy_n(vec.begin(), vec.size(), p);
+        if(p)
+            std::copy_n(vec.begin(), vec.size(), p);
     }
 };
 
@@ -422,19 +442,29 @@ struct usm_vector
     {
         assert(vec.size() == n);
     }
+    template<typename Policy, typename DataGen>
+    usm_vector(Policy&& exec, int n, DataGen gen): vec(n, shared_allocator(exec.queue()))
+    {
+        for(int i = 0; i < n; ++i)
+            vec[i] = gen(i);
+    }
     type& operator()()
     {
         return vec;
     }
     ~usm_vector()
     {
-        std::copy_n(vec.begin(), vec.size(), p);
+        if(p)
+            std::copy_n(vec.begin(), vec.size(), p);
     }
 };
 
 template<typename T, typename ViewType>
 struct usm_subrange_impl
 {
+    static_assert(std::is_trivially_copyable_v<T>,
+        "Memory initialization within the class relies on trivially copyability of the type T");
+
     using shared_allocator = sycl::usm_allocator<T, sycl::usm::alloc::shared>;
     using type = ViewType;
 
@@ -449,6 +479,14 @@ struct usm_subrange_impl
         view = ViewType(mem, mem + n);
         std::copy_n(data, n, view.data());
     }
+    template<typename Policy, typename DataGen>
+    usm_subrange_impl(Policy&& exec, int n, DataGen gen): alloc(exec.queue())
+    {
+        auto mem = alloc.allocate(n);
+        view = ViewType(mem, mem + n);
+        for(int i = 0; i < n; ++i)
+            view[i] = gen(i);
+    }
 
     ViewType& operator()()
     {
@@ -457,7 +495,8 @@ struct usm_subrange_impl
 
     ~usm_subrange_impl()
     {
-        std::copy_n(view.data(), view.size(), p);
+        if(p)
+            std::copy_n(view.data(), view.size(), p);
         alloc.deallocate(view.data(), view.size());
     }
 };
@@ -475,6 +514,7 @@ using  usm_span = usm_subrange_impl<T, std::span<T>>;
 template<int call_id = 0, typename T = int, TestDataMode mode = data_in>
 struct test_range_algo
 {
+    const int max_n = 10;
     void operator()(auto algo, auto& checker, auto... args)
     {
 
@@ -483,13 +523,13 @@ struct test_range_algo
         auto span_view = [](auto&& v) { return std::span(v); };
 #endif
 
-        test<T, host_vector<T>, mode>{}(host_policies(), algo, checker, std::identity{}, std::identity{}, args...);
-        test<T, host_vector<T>, mode>{}(host_policies(), algo, checker, subrange_view, std::identity{}, args...);
-        test<T, host_vector<T>, mode>{}(host_policies(), algo, checker, std::views::all, std::identity{}, args...);
-        test<T, host_subrange<T>, mode>{}(host_policies(), algo, checker, std::views::all, std::identity{}, args...);
+        test<T, host_vector<T>, mode>{max_n}(host_policies(), algo, checker, std::identity{}, std::identity{}, args...);
+        test<T, host_vector<T>, mode>{max_n}(host_policies(), algo, checker, subrange_view, std::identity{}, args...);
+        test<T, host_vector<T>, mode>{max_n}(host_policies(), algo, checker, std::views::all, std::identity{}, args...);
+        test<T, host_subrange<T>, mode>{max_n}(host_policies(), algo, checker, std::views::all, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-        test<T, host_vector<T>, mode>{}(host_policies(), algo, checker,  span_view, std::identity{}, args...);
-        test<T, host_span<T>, mode>{}(host_policies(), algo, checker, std::views::all, std::identity{}, args...);
+        test<T, host_vector<T>, mode>{max_n}(host_policies(), algo, checker,  span_view, std::identity{}, args...);
+        test<T, host_span<T>, mode>{max_n}(host_policies(), algo, checker, std::views::all, std::identity{}, args...);
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -500,11 +540,11 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                test<T, usm_vector<T>, mode>{}(dpcpp_policy<call_id + 10>(), algo, checker, subrange_view, subrange_view, args...);
-                test<T, usm_subrange<T>, mode>{}(dpcpp_policy<call_id + 30>(), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>, mode>{max_n}(dpcpp_policy<call_id + 10>(), algo, checker, subrange_view, subrange_view, args...);
+                test<T, usm_subrange<T>, mode>{max_n}(dpcpp_policy<call_id + 30>(), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>, mode>{}(dpcpp_policy<call_id + 20>(), algo, checker, span_view, subrange_view, args...);
-                test<T, usm_span<T>, mode>{}(dpcpp_policy<call_id + 40>(), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>, mode>{max_n}(dpcpp_policy<call_id + 20>(), algo, checker, span_view, subrange_view, args...);
+                test<T, usm_span<T>, mode>{max_n}(dpcpp_policy<call_id + 40>(), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
         }

@@ -22,7 +22,7 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    test_range_algo<0>{}(dpl_ranges::is_sorted, std::ranges::is_sorted, std::ranges::less{});
+    test_range_algo<0>{big_sz}(dpl_ranges::is_sorted, std::ranges::is_sorted, std::ranges::less{});
 
     test_range_algo<1>{}(dpl_ranges::is_sorted, std::ranges::is_sorted, std::ranges::less{}, proj);
     test_range_algo<2, P2>{}(dpl_ranges::is_sorted, std::ranges::is_sorted, std::ranges::less{}, &P2::x);
