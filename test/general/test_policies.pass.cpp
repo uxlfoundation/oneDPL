@@ -99,7 +99,7 @@ main()
     static_assert(std::is_same_v<device_policy<Kernel_25>::kernel_name, Kernel_25>, "wrong result for kernel_name (device_policy)");
 
 #if ONEDPL_FPGA_DEVICE
-    assert_is_execution_policy<device_policy<fpga_policy</*unroll_factor =*/ 1, class Kernel_0>>();
+    assert_is_execution_policy<fpga_policy</*unroll_factor =*/ 1, class Kernel_0>>();
     test_policy_instance(dpcpp_fpga);
 
     // make_fpga_policy
