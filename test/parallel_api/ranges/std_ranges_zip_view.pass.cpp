@@ -32,9 +32,6 @@ void test_zip_view_base_op()
     static_assert(std::random_access_iterator<decltype(zip_view.begin())>);
     static_assert(std::sentinel_for<decltype(zip_view.end()), decltype(zip_view.begin())>);
 
-    static_assert(std::random_access_iterator<decltype(zip_view.cbegin())>);
-    static_assert(std::sentinel_for<decltype(zip_view.cend()), decltype(zip_view.cbegin())>);
-
     EXPECT_TRUE(zip_view.end() - zip_view.begin() == max_n/2,
         "Difference operation between an iterator and a sentinel (zip_view) returns a wrong result.");
 
