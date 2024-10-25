@@ -40,6 +40,9 @@ void test_zip_view_base_op()
 
     EXPECT_TRUE(std::ranges::size(zip_view) == max_n/2, "zip_view::size method returns a wrong result.");
     EXPECT_TRUE((bool)zip_view, "zip_view::operator bool() method returns a wrong result.");
+
+    EXPECT_TRUE(zip_view[0] == zip_view.front(), "zip_view::front method returns a wrong result.");
+    EXPECT_TRUE(zip_view[z_v.size() - 1] == zip_view.back(), "zip_view::back method returns a wrong result.")
 }
 #endif //_ENABLE_STD_RANGES_TESTING
 
