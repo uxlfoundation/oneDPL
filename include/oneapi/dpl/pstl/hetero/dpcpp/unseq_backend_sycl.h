@@ -910,7 +910,7 @@ struct __brick_includes
         auto __val_a = __a[__res];
 
         //searching number of duplication
-        const auto __count_a = __internal::__pstl_right_bound(__a, __res, __a_end, __val_a, __comp) - __res + __res -
+        const auto __count_a = __internal::__pstl_right_bound(__a, __res, __a_end, __val_a, __comp) -
                                __internal::__pstl_left_bound(__a, __a_beg, __res, __val_a, __comp);
 
         const auto __count_b = __internal::__pstl_right_bound(__b, _Size2(__idx_b), __b_end, __val_b, __comp) -

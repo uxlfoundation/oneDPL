@@ -236,7 +236,7 @@ namespace oneapi::dpl::__par_backend_hetero
 template <typename _UnaryOp>
 struct __gen_transform_input;
 
-template <typename _Predicate>
+template <typename _Predicate, typename _RangeTransform>
 struct __gen_mask;
 
 template <typename _BinaryPredicate>
@@ -245,7 +245,7 @@ struct __gen_unique_mask;
 template <typename _GenMask>
 struct __gen_count_mask;
 
-template <typename _GenMask>
+template <typename _GenMask, typename _RangeTransform>
 struct __gen_expand_count_mask;
 
 template <int32_t __offset, typename _Assign>
@@ -266,8 +266,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _Predicate>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_mask, _Predicate)>
+template <typename _Predicate, typename _RangeTransform>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_mask, _Predicate,
+                                                       _RangeTransform)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
 {
 };
@@ -284,9 +285,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _GenMask>
+template <typename _GenMask, typename _RangeTransform>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask,
-                                                       _GenMask)>
+                                                       _GenMask, _RangeTransform)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
 {
 };
