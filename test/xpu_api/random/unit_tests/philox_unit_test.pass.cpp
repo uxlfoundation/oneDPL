@@ -496,7 +496,7 @@ discard_overflow_test()
         std::array<T, Engine::word_count> counter2 = {0};
         for (int i = Engine::word_count - overflown_position - 1; i < Engine::word_count - 1; ++i)
         {
-            counter2[i] = std::numeric_limits<unsigned long long>::max();
+            counter2[i] = std::numeric_limits<T>::max();
         }
 
         engine2.set_counter(counter2);
