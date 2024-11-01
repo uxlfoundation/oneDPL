@@ -108,6 +108,7 @@ endif()
 ###############################################################################
 add_library(oneDPL INTERFACE)
 target_compile_features(oneDPL INTERFACE cxx_std_17)
+target_compile_definitions(oneDPL INTERFACE $<$<CONFIG:Debug>:PSTL_USE_DEBUG=1>)
 
 if (CMAKE_BUILD_TYPE)
     message(STATUS "Build type is ${CMAKE_BUILD_TYPE}")
@@ -180,7 +181,6 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
 
     target_compile_definitions(oneDPL INTERFACE
         $<$<CONFIG:Debug>:TBB_USE_DEBUG=1>
-        $<$<CONFIG:Debug>:PSTL_USE_DEBUG>
         $<$<BOOL:${SET_BACKEND_DPCPP_ONLY}>:ONEDPL_USE_TBB_BACKEND=0>
         $<$<BOOL:${SET_BACKEND_TBB}>:ONEDPL_USE_DPCPP_BACKEND=0>
         )

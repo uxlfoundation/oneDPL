@@ -98,7 +98,15 @@ template <::std::size_t CallNumber, typename In1, typename In2, typename Out, ty
 void
 test(Predicate pred, _IteratorAdapter adap = {})
 {
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    // Testing is restricted for debug build + OpenMP backend as without optimization the compiler generates
+    // very slow code leading to test timeouts.
+    size_t max_n =
+#if PSTL_USE_DEBUG && ONEDPL_USE_OPENMP_BACKEND
+        10000;
+#else
+        100000;
+#endif
+    for (size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         Sequence<In1> in1(n, [](size_t k) { return k % 5 != 1 ? In1(3 * k + 7) : 0; });
         Sequence<In2> in2(n, [](size_t k) { return k % 7 != 2 ? In2(5 * k + 5) : 0; });
