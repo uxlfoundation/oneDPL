@@ -36,6 +36,10 @@
 #include "support/sycl_alloc_utils.h"
 #endif
 
+#if ONEDPL_USE_OPENMP_BACKEND
+#include <omp.h> // omp_get_max_threads, omp_set_num_threads
+#endif
+
 template<typename Name>
 struct USM;
 
@@ -214,6 +218,13 @@ test_shift_by_type(Size m, Size n)
 int
 main()
 {
+#if ONEDPL_USE_OPENMP_BACKEND
+    // Due to small problem sizes in this test, runtime explodes on CPUs with large core counts due to
+    // small grain sizes per thread and cross-socket traffic.
+    const int max_threads = omp_get_max_threads();
+    const int threads_to_use = std::min(max_threads, int(32));
+    omp_set_num_threads(threads_to_use);
+#endif
     using ValueType = ::std::int32_t;
 
     const ::std::size_t N = 100000;
