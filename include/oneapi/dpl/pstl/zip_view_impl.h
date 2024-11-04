@@ -225,7 +225,7 @@ public:
         }
 
         template <typename SentinelsTuple, std::size_t... In>
-        constexpr bool compare_with_sentinels(const SentinelsTuple& sentinels, std::index_sequence<In...>) {
+        constexpr bool compare_with_sentinels(const SentinelsTuple& sentinels, std::index_sequence<In...>) const {
             return ( (std::get<In>(current_) == std::get<In>(sentinels)) || ... );
         }
 
