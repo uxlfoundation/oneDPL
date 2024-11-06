@@ -200,7 +200,7 @@ public:
         friend constexpr auto operator-(const iterator& x, const iterator& y)
             requires all_random_access<Const, Views...>
         {
-            return x.distance_to_it(y.current_, std::make_index_sequence<sizeof...(Views)>());
+            return y.distance_to_it(x.current_, std::make_index_sequence<sizeof...(Views)>());
         }
 
         friend constexpr iterator operator+(iterator it, difference_type n)
