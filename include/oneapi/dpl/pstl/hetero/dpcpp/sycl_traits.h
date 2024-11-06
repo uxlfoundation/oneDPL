@@ -257,6 +257,9 @@ struct __write_to_id_if_else;
 template <typename _ExecutionPolicy, typename _Pred>
 struct __early_exit_find_or;
 
+template <typename _Range, typename _Compare>
+struct __leaf_sorter;
+
 } // namespace oneapi::dpl::__par_backend_hetero
 
 template <typename _UnaryOp>
@@ -310,6 +313,13 @@ template <typename _ExecutionPolicy, typename _Pred>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__early_exit_find_or,
                                                        _ExecutionPolicy, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
+{
+};
+
+template <typename _Range, typename _Compare>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__leaf_sorter, _Range,
+                                                       _Compare)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Range, _Compare>
 {
 };
 

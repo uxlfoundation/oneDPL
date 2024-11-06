@@ -24,6 +24,7 @@
 #include <type_traits> // std::decay_t, std::integral_constant
 
 #include "sycl_defs.h"                   // __dpl_sycl::__local_accessor, __dpl_sycl::__group_barrier
+#include "sycl_traits.h"                 // SYCL traits specialization for some oneDPL types.
 #include "../../utils.h"                 // __dpl_bit_floor, __dpl_bit_ceil
 #include "../../utils_ranges.h"          // __difference_t
 #include "parallel_backend_sycl_merge.h" // __find_start_point, __serial_merge
