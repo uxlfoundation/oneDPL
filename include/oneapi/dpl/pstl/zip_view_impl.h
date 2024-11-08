@@ -108,9 +108,8 @@ public:
         using difference_type = std::conditional_t<Const, std::common_type_t<std::ranges::range_difference_t<const Views>...>,
                                                           std::common_type_t<std::ranges::range_difference_t<Views>...>>;
 
-        using return_tuple_type = std::conditional_t<Const, 
-            tuple_type<typename std::iterator_traits<std::ranges::iterator_t<const Views>>::reference...>, 
-            tuple_type<typename std::iterator_traits<std::ranges::iterator_t<Views>>::reference...>>;
+        using return_tuple_type = std::conditional_t<!Const, tuple_type<std::ranges::range_reference_t<Views>...>,
+                                                             tuple_type<std::ranges::range_reference_t<const Views>...>>;
 
         iterator() = default;
 
