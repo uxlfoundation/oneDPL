@@ -43,10 +43,11 @@ void test_zip_view_base_op()
 
     EXPECT_TRUE(zip_view[0] == zip_view.front(), "zip_view::front method returns a wrong result.");
     EXPECT_TRUE(zip_view[zip_view.size() - 1] == zip_view.back(), "zip_view::back method returns a wrong result.");
+    EXPECT_TRUE(!zip_view.empty(), "zip_view::empty() method returns a wrong result.");
 
     using zip_view_t = dpl_ranges::zip_view<std::ranges::iota_view<int>>;
     auto zip_view_0 = zip_view_t();
-    EXPECT_TRUE(zip_view_0.empty(), "zip_view::empty() method returns a wrong result.");
+    EXPECT_TRUE(!zip_view_0.empty(), "zip_view::empty() method returns a wrong result.");
 }
 #endif //_ENABLE_STD_RANGES_TESTING
 
