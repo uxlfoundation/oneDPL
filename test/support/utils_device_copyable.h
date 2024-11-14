@@ -204,6 +204,34 @@ struct constant_iterator_non_device_copyable
     bool operator>=(const constant_iterator_non_device_copyable& other) const { return true; }
 };
 
+// Non-trivially copyable ranges used in testing as surrogate for ranges.
+// Intentionally non-trivially copyable to test that device_copyable speciailzation (range_device_copyable) works
+// and we are not relying on trivial copyability
+class range_non_device_copyable
+{
+public:
+    using value_type = int;
+    using difference_type = std::ptrdiff_t;
+    using pointer = int*;
+    using reference = int&;
+
+    pointer begin() const { return this->data(); }
+    pointer end() const { return this->data() + this->size(); }
+    pointer data() const { return m_data; }
+    difference_type size() const { return m_size; }
+    reference operator[](difference_type i) const { return m_data[i]; }
+
+    range_non_device_copyable(const range_non_device_copyable& other) : m_data(other.data()), m_size(other.size())
+    {
+        std::cout << "non trivial copy ctor\n";
+    }
+    range_non_device_copyable(pointer data, difference_type size) : m_data(data), m_size(size) {}
+private:
+    pointer m_data = nullptr;
+    difference_type m_size = 0;
+};
+class range_device_copyable: public range_non_device_copyable {};
+
 } /* namespace TestUtils */
 
 template <>
@@ -228,6 +256,11 @@ struct sycl::is_device_copyable<TestUtils::int_device_copyable> : std::true_type
 
 template <>
 struct sycl::is_device_copyable<TestUtils::constant_iterator_device_copyable> : std::true_type
+{
+};
+
+template <>
+struct sycl::is_device_copyable<TestUtils::range_device_copyable> : std::true_type
 {
 };
 #endif // TEST_DPCPP_BACKEND_PRESENT

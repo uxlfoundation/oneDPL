@@ -37,6 +37,8 @@ test_device_copyable()
                   "noop_device_copyable is not trivially copy constructible");
     static_assert(!std::is_trivially_copy_constructible_v<constant_iterator_device_copyable>,
                   "constant_iterator_device_copyable is not trivially copy constructible");
+    static_assert(!std::is_trivially_copy_constructible_v<range_device_copyable>,
+                  "range_device_copyable is not trivially copy constructible");
 
     static_assert(sycl::is_device_copyable_v<int_device_copyable>, "int_device_copyable is not device copyable");
     static_assert(sycl::is_device_copyable_v<noop_device_copyable>, "noop_device_copyable is not device copyable");
@@ -195,7 +197,7 @@ test_device_copyable()
     // sycl::is_device_copyable specialization for __leaf_sorter does not require instantiation of
     // __leaf_sorter with the provided types. See [temp.inst]/1 of C++17 spec for the details.
     static_assert(
-        sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__leaf_sorter<noop_device_copyable,
+        sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__leaf_sorter<range_device_copyable,
                                                                                     noop_device_copyable>>,
         "__leaf_sorter is not device copyable with device copyable types");
 
@@ -282,6 +284,7 @@ test_non_device_copyable()
     static_assert(!sycl::is_device_copyable_v<noop_non_device_copyable>, "functor is device copyable");
     static_assert(!sycl::is_device_copyable_v<int_non_device_copyable>, "struct is device copyable");
     static_assert(!sycl::is_device_copyable_v<constant_iterator_non_device_copyable>, "iterator is device copyable");
+    static_assert(!sycl::is_device_copyable_v<range_non_device_copyable>, "range_non_device_copyable is device copyable");
 
     //custom_brick
     static_assert(
@@ -433,7 +436,7 @@ test_non_device_copyable()
         "__early_exit_find_or is device copyable with non device copyable types");
 
     // __leaf_sorter
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__leaf_sorter<noop_device_copyable,
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__leaf_sorter<range_non_device_copyable,
                                                                                                noop_non_device_copyable>>,
                   "__leaf_sorter is device copyable with non device copyable types");
 
