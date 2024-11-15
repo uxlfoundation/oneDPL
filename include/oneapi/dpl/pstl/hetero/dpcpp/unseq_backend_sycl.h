@@ -30,7 +30,7 @@ namespace dpl
 namespace unseq_backend
 {
 
-#if _USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
+#if _ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
 //This optimization depends on Intel(R) oneAPI DPC++ Compiler implementation such as support of binary operators from std namespace.
 //We need to use defined(SYCL_IMPLEMENTATION_INTEL) macro as a guard.
 
@@ -71,12 +71,12 @@ using __has_known_identity = ::std::conditional_t<
 #    endif //_ONEDPL_LIBSYCL_VERSION >= 50200
     ::std::false_type>;     // This is for the case of __can_use_known_identity<_Tp>==false
 
-#else //_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
+#else //_ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
 
 template <typename _BinaryOp, typename _Tp>
 using __has_known_identity = std::false_type;
 
-#endif //_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
+#endif //_ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
 
 template <typename _BinaryOp, typename _Tp>
 struct __known_identity_for_plus

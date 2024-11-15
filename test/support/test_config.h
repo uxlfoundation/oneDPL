@@ -29,7 +29,7 @@
 //
 // This section contains macros representing the "Latest" version of compilers, STL implementations, etc. for use in
 // broken macros to represent the latest version of something which still has an ongoing issue. The intention is to
-// update this section regularly to reflect the latest version. 
+// update this section regularly to reflect the latest version.
 //
 // When such an issue is fixed, we must replace the usage of these "Latest" macros with the appropriate version number
 // before updating to the newest version in this section.
@@ -88,13 +88,20 @@
 
 #define _PSTL_SYCL_TEST_USM 1
 
-// Enable test when the DPC++ backend is available
-#if ((defined(CL_SYCL_LANGUAGE_VERSION) || defined(SYCL_LANGUAGE_VERSION)) &&                                         \
-     (__has_include(<sycl/sycl.hpp>) || __has_include(<CL/sycl.hpp>))) &&                                             \
-    (!defined(ONEDPL_USE_DPCPP_BACKEND) || ONEDPL_USE_DPCPP_BACKEND != 0)
-#define TEST_DPCPP_BACKEND_PRESENT 1
+#define TEST_SYCL_HEADER_PRESENT (__has_include(<sycl/sycl.hpp>) || __has_include(<CL/sycl.hpp>))
+#define TEST_SYCL_LANGUAGE_VERSION_PRESENT (SYCL_LANGUAGE_VERSION || CL_SYCL_LANGUAGE_VERSION)
+#define TEST_SYCL_AVAILABLE (TEST_SYCL_HEADER_PRESENT && TEST_SYCL_LANGUAGE_VERSION_PRESENT)
+
+// If SYCL is available, and DPCPP backend is not explicitly turned off, enable its testing
+#if TEST_SYCL_AVAILABLE && !defined(ONEDPL_USE_DPCPP_BACKEND)
+#    define TEST_DPCPP_BACKEND_PRESENT 1
+// If DPCPP backend was explicitly requested, enable its testing, even if SYCL availability has not been proven
+// this can be used to force DPCPP backend testing for environments where SYCL_LANGUAGE_VERSION is not predefined
+#elif ONEDPL_USE_DPCPP_BACKEND
+#    define TEST_DPCPP_BACKEND_PRESENT 1
+// Define to 0 in other cases since some tests may rely at the macro value at runtime
 #else
-#define TEST_DPCPP_BACKEND_PRESENT 0
+#    define TEST_DPCPP_BACKEND_PRESENT 0
 #endif
 
 #ifdef __SYCL_UNNAMED_LAMBDA__

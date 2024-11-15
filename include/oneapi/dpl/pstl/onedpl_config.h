@@ -16,27 +16,11 @@
 #ifndef _ONEDPL_CONFIG_H
 #define _ONEDPL_CONFIG_H
 
-#include "../internal/version_impl.h"
 // The version header also defines a few configuration macros used in this file
+#include "../internal/version_impl.h"
 
-#if defined(ONEDPL_FPGA_DEVICE)
-#    undef _ONEDPL_FPGA_DEVICE
-#    define _ONEDPL_FPGA_DEVICE ONEDPL_FPGA_DEVICE
-#endif
+// -- Check availability of parallel backends --
 
-#if defined(ONEDPL_FPGA_EMULATOR)
-#    undef _ONEDPL_FPGA_EMU
-#    define _ONEDPL_FPGA_EMU ONEDPL_FPGA_EMULATOR
-#endif
-
-#if defined(ONEDPL_USE_PREDEFINED_POLICIES)
-#    undef _ONEDPL_PREDEFINED_POLICIES
-#    define _ONEDPL_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
-#elif !defined(_ONEDPL_PREDEFINED_POLICIES)
-#    define _ONEDPL_PREDEFINED_POLICIES 1
-#endif
-
-// Check availability of parallel backends
 #if __has_include(<tbb/tbb.h>)
 #    define _ONEDPL_TBB_AVAILABLE 1
 #endif
@@ -54,14 +38,34 @@
         but OpenMP headers are not found or the compiler does not support OpenMP"
 #endif
 
-#if (defined(SYCL_LANGUAGE_VERSION) || defined(CL_SYCL_LANGUAGE_VERSION)) &&                                           \
-    (__has_include(<sycl/sycl.hpp>) || __has_include(<CL/sycl.hpp>))
-#    define _ONEDPL_SYCL_AVAILABLE 1
+// -- Check availability of heterogeneous backends --
+
+// If DPCPP backend is explicitly requested, optimistically assume SYCL availability;
+// otherwise, make sure that it is definitely available additionally checking SYCL_LANGUAGE_VERSION
+#if __has_include(<sycl/sycl.hpp>) || __has_include(<CL/sycl.hpp>)
+#    if SYCL_LANGUAGE_VERSION || CL_SYCL_LANGUAGE_VERSION || ONEDPL_USE_DPCPP_BACKEND
+#        define _ONEDPL_SYCL_AVAILABLE 1
+#    endif
+#else
+#    if ONEDPL_USE_DPCPP_BACKEND
+#        error "Device execution policies are requested, but SYCL* headers are not found"
+#    endif
 #endif
-#if ONEDPL_USE_DPCPP_BACKEND && !_ONEDPL_SYCL_AVAILABLE
-#    error "Device execution policies are enabled, \
-        but SYCL* headers are not found or the compiler does not support SYCL"
+
+// If DPCPP backend is not explicitly turned off and SYCL is available, enable it
+#if (ONEDPL_USE_DPCPP_BACKEND || !defined(ONEDPL_USE_DPCPP_BACKEND)) && _ONEDPL_SYCL_AVAILABLE
+#    define _ONEDPL_BACKEND_SYCL 1
 #endif
+
+// If at least one heterogeneous backend is available, enable them
+#if _ONEDPL_BACKEND_SYCL
+#    if _ONEDPL_HETERO_BACKEND
+#        undef _ONEDPL_HETERO_BACKEND
+#    endif
+#    define _ONEDPL_HETERO_BACKEND 1
+#endif
+
+// -- Configure host backends and common parts --
 
 // Check the user-defined macro for warnings
 #if !defined(_PSTL_USAGE_WARNINGS) && defined(PSTL_USAGE_WARNINGS)
@@ -252,37 +256,6 @@
 #define _ONEDPL_HAS_NUMERIC_SERIAL_IMPL                                                                                \
     (__GLIBCXX__ && (_GLIBCXX_RELEASE < 9 || (_GLIBCXX_RELEASE == 9 && __GLIBCXX__ < 20200312)))
 
-#if ONEDPL_USE_DPCPP_BACKEND || (!defined(ONEDPL_USE_DPCPP_BACKEND) && _ONEDPL_SYCL_AVAILABLE)
-#    define _ONEDPL_BACKEND_SYCL 1
-#endif
-
-// if SYCL policy switch on then let's switch hetero policy macro on
-#if _ONEDPL_BACKEND_SYCL
-#    if _ONEDPL_HETERO_BACKEND
-#        undef _ONEDPL_HETERO_BACKEND
-#    endif
-#    define _ONEDPL_HETERO_BACKEND 1
-// Include sycl specific options
-// FPGA doesn't support sub-groups
-#    if !(_ONEDPL_FPGA_DEVICE)
-#        define _USE_SUB_GROUPS 1
-#        define _USE_GROUP_ALGOS 1
-#    endif
-
-#    define _USE_RADIX_SORT (_USE_SUB_GROUPS && _USE_GROUP_ALGOS)
-
-// Compilation of a kernel is requiried to obtain valid work_group_size
-// when target devices are CPU or FPGA emulator. Since CPU and GPU devices
-// cannot be distinguished during compilation, the macro is enabled by default.
-#    if !defined(_ONEDPL_COMPILE_KERNEL)
-#        define _ONEDPL_COMPILE_KERNEL 1
-#    endif
-#endif
-
-#if !defined(ONEDPL_ALLOW_DEFERRED_WAITING)
-#    define ONEDPL_ALLOW_DEFERRED_WAITING 0
-#endif
-
 //'present' macros
 // shift_left, shift_right; GCC 10; VS 2019 16.1
 #define _ONEDPL_CPP20_SHIFT_LEFT_RIGHT_PRESENT                                                                         \
@@ -311,8 +284,6 @@
 #    define _ONEDPL_CPP20_REQUIRES(req)
 #endif
 
-#define _ONEDPL_BUILT_IN_STABLE_NAME_PRESENT __has_builtin(__builtin_sycl_unique_stable_name)
-
 #if defined(_MSC_VER) && __INTEL_LLVM_COMPILER < 20240100
 #    define _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN 1
 #else
@@ -332,5 +303,45 @@
 #else
 #    define _ONEDPL_STD_RANGES_ALGO_CPP_FUN 0
 #endif
+
+// -- Configure heterogeneous backends --
+
+#if !defined(ONEDPL_ALLOW_DEFERRED_WAITING)
+#    define ONEDPL_ALLOW_DEFERRED_WAITING 0
+#endif
+
+#if defined(ONEDPL_USE_PREDEFINED_POLICIES)
+#    undef _ONEDPL_PREDEFINED_POLICIES
+#    define _ONEDPL_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
+#elif !defined(_ONEDPL_PREDEFINED_POLICIES)
+#    define _ONEDPL_PREDEFINED_POLICIES 1
+#endif
+
+#if defined(ONEDPL_FPGA_DEVICE)
+#    undef _ONEDPL_FPGA_DEVICE
+#    define _ONEDPL_FPGA_DEVICE ONEDPL_FPGA_DEVICE
+#endif
+#if defined(ONEDPL_FPGA_EMULATOR)
+#    undef _ONEDPL_FPGA_EMU
+#    define _ONEDPL_FPGA_EMU ONEDPL_FPGA_EMULATOR
+#endif
+
+#if _ONEDPL_BACKEND_SYCL
+// Include sycl specific options
+// FPGA doesn't support sub-groups
+#    if !(_ONEDPL_FPGA_DEVICE)
+#        define _ONEDPL_USE_SUB_GROUPS 1
+#        define _ONEDPL_USE_GROUP_ALGOS 1
+#    endif
+
+// Compilation of a kernel is requiried to obtain valid work_group_size
+// when target devices are CPU or FPGA emulator. Since CPU and GPU devices
+// cannot be distinguished during compilation, the macro is enabled by default.
+#    if !defined(_ONEDPL_COMPILE_KERNEL)
+#        define _ONEDPL_COMPILE_KERNEL 1
+#    endif
+
+#    define _ONEDPL_BUILT_IN_STABLE_NAME_PRESENT __has_builtin(__builtin_sycl_unique_stable_name)
+#endif // _ONEDPL_BACKEND_SYCL
 
 #endif // _ONEDPL_CONFIG_H
