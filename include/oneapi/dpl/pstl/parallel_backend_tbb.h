@@ -319,25 +319,34 @@ __upsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsize
     }
 }
 
-template <typename _Index, typename _Tp, typename _Cp, typename _Sp>
-void
+template <typename _Index, typename _Tp, typename _Cp, typename _Sp, typename _OutBound>
+std::pair<_Index, _Index>
 __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsize, _Tp __initial, _Cp __combine,
-            _Sp __scan)
+            _Sp __scan, _OutBound __n_out)
 {
+    std::pair<_Index, _Index> __res{};
     if (__m == 1)
-        __scan(__i * __tilesize, __lastsize, __initial);
+    {
+        if(__initial < __n_out)
+            __res = __scan(__i * __tilesize, __lastsize, __initial, __n_out - __initial);
+    }
     else
     {
         const _Index __k = __split(__m);
+        auto __start = __combine(__initial, __r[__k - 1]);
+
+        std::pair<_Index, _Index> __res_1{}, __res_2{};
         tbb::parallel_invoke(
-            [=] { __tbb_backend::__downsweep(__i, __k, __tilesize, __r, __tilesize, __initial, __combine, __scan); },
+            [=, &__res_1] { __res_1 = __tbb_backend::__downsweep(__i, __k, __tilesize, __r, __tilesize, __initial, __combine, __scan, __n_out); },
             // Assumes that __combine never throws.
             //TODO: Consider adding a requirement for user functors to be constant.
-            [=, &__combine] {
-                __tbb_backend::__downsweep(__i + __k, __m - __k, __tilesize, __r + __k, __lastsize,
-                                           __combine(__initial, __r[__k - 1]), __combine, __scan);
+            [=, &__combine, &__res_2] {
+                __res_2 = __tbb_backend::__downsweep(__i + __k, __m - __k, __tilesize, __r + __k, __lastsize,
+                                        __start, __combine, __scan, __n_out);
             });
+        __res = std::make_pair(__res_1.first + __res_2.first, __res_1.second + __res_2.second);
     }
+    return __res;
 }
 
 // Adapted from Intel(R) Cilk(TM) version from cilkpub.
@@ -356,9 +365,11 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 // T must have a trivial constructor and destructor.
 template <typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
-__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _Index __n, _Tp __initial, _Rp __reduce,
-                       _Cp __combine, _Sp __scan, _Ap __apex)
+__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _Index __n, _Tp __initial,
+                       _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex, int __n_out = -1)
 {
+    if(__n_out < 0)
+        __n_out = __n;
     tbb::this_task_arena::isolate([=, &__combine]() {
         if (__n > 1)
         {
@@ -379,18 +390,22 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _Index __n, _
             _Tp __t = __r[__k - 1];
             while ((__k &= __k - 1))
                 __t = __combine(__r[__k - 1], __t);
-            __apex(__combine(__initial, __t));
-            __tbb_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __initial,
-                                       __combine, __scan);
+
+            auto __res = __tbb_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __initial,
+                                       __combine, __scan, __n_out);
+            __apex(__res.first, __res.second);
             return;
         }
         // Fewer than 2 elements in sequence, or out of memory.  Handle has single block.
         _Tp __sum = __initial;
-        if (__n)
+        if (__n && __n_out > 0)
             __sum = __combine(__sum, __reduce(_Index(0), __n));
-        __apex(__sum);
-        if (__n)
-            __scan(_Index(0), __n, __initial);
+        //__apex(__sum);
+        if (__n && __n_out > 0)
+        {
+            auto __res = __scan(_Index(0), __n, __initial, __n_out);
+            __apex(__res.first, __res.second);
+        }
     });
 }
 
