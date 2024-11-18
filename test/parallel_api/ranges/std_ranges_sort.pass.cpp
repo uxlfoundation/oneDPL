@@ -22,17 +22,19 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    test_range_algo<0>{big_sz}(dpl_ranges::sort, std::ranges::sort);
-    test_range_algo<1>{}(dpl_ranges::sort, std::ranges::sort, std::ranges::less{});
+    auto sort_checker = TEST_PREPARE_CALLABLE(std::ranges::sort);
 
-    test_range_algo<2>{}(dpl_ranges::sort, std::ranges::sort, std::ranges::less{}, proj);
-    test_range_algo<3>{}(dpl_ranges::sort, std::ranges::sort, std::ranges::greater{}, proj);
+    test_range_algo<0>{big_sz}(dpl_ranges::sort, sort_checker);
+    test_range_algo<1>{}(dpl_ranges::sort, sort_checker, std::ranges::less{});
 
-    test_range_algo<4, P2>{}(dpl_ranges::sort, std::ranges::sort, std::ranges::less{}, &P2::x);
-    test_range_algo<5, P2>{}(dpl_ranges::sort, std::ranges::sort, std::ranges::greater{}, &P2::x);
+    test_range_algo<2>{}(dpl_ranges::sort, sort_checker, std::ranges::less{}, proj);
+    test_range_algo<3>{}(dpl_ranges::sort, sort_checker, std::ranges::greater{}, proj);
 
-    test_range_algo<6, P2>{}(dpl_ranges::sort, std::ranges::sort, std::ranges::less{}, &P2::proj);
-    test_range_algo<7, P2>{}(dpl_ranges::sort, std::ranges::sort, std::ranges::greater{}, &P2::proj);
+    test_range_algo<4, P2>{}(dpl_ranges::sort, sort_checker, std::ranges::less{}, &P2::x);
+    test_range_algo<5, P2>{}(dpl_ranges::sort, sort_checker, std::ranges::greater{}, &P2::x);
+
+    test_range_algo<6, P2>{}(dpl_ranges::sort, sort_checker, std::ranges::less{}, &P2::proj);
+    test_range_algo<7, P2>{}(dpl_ranges::sort, sort_checker, std::ranges::greater{}, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

@@ -22,10 +22,12 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    test_range_algo<0>{big_sz}(dpl_ranges::count, std::ranges::count, 4);
-    test_range_algo<1>{}(dpl_ranges::count, std::ranges::count, 4, proj);
-    test_range_algo<2, P2>{}(dpl_ranges::count, std::ranges::count, 4, &P2::x);
-    test_range_algo<3, P2>{}(dpl_ranges::count, std::ranges::count, 4, &P2::proj);
+    auto count_checker = TEST_PREPARE_CALLABLE(std::ranges::count);
+
+    test_range_algo<0>{big_sz}(dpl_ranges::count, count_checker, 4);
+    test_range_algo<1>{}(dpl_ranges::count, count_checker, 4, proj);
+    test_range_algo<2, P2>{}(dpl_ranges::count, count_checker, 4, &P2::x);
+    test_range_algo<3, P2>{}(dpl_ranges::count, count_checker, 4, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

@@ -22,15 +22,17 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    test_range_algo<0>{big_sz}(dpl_ranges::is_sorted, std::ranges::is_sorted, std::ranges::less{});
+    auto is_sorted_checker = TEST_PREPARE_CALLABLE(std::ranges::is_sorted);
 
-    test_range_algo<1>{}(dpl_ranges::is_sorted, std::ranges::is_sorted, std::ranges::less{}, proj);
-    test_range_algo<2, P2>{}(dpl_ranges::is_sorted, std::ranges::is_sorted, std::ranges::less{}, &P2::x);
-    test_range_algo<3, P2>{}(dpl_ranges::is_sorted, std::ranges::is_sorted, std::ranges::less{}, &P2::proj);
+    test_range_algo<0>{big_sz}(dpl_ranges::is_sorted, is_sorted_checker, std::ranges::less{});
 
-    test_range_algo<4>{}(dpl_ranges::is_sorted, std::ranges::is_sorted, std::ranges::greater{}, proj);
-    test_range_algo<5, P2>{}(dpl_ranges::is_sorted, std::ranges::is_sorted, std::ranges::greater{}, &P2::x);
-    test_range_algo<6, P2>{}(dpl_ranges::is_sorted, std::ranges::is_sorted, std::ranges::greater{}, &P2::proj);
+    test_range_algo<1>{}(dpl_ranges::is_sorted, is_sorted_checker, std::ranges::less{}, proj);
+    test_range_algo<2, P2>{}(dpl_ranges::is_sorted, is_sorted_checker, std::ranges::less{}, &P2::x);
+    test_range_algo<3, P2>{}(dpl_ranges::is_sorted, is_sorted_checker, std::ranges::less{}, &P2::proj);
+
+    test_range_algo<4>{}(dpl_ranges::is_sorted, is_sorted_checker, std::ranges::greater{}, proj);
+    test_range_algo<5, P2>{}(dpl_ranges::is_sorted, is_sorted_checker, std::ranges::greater{}, &P2::x);
+    test_range_algo<6, P2>{}(dpl_ranges::is_sorted, is_sorted_checker, std::ranges::greater{}, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

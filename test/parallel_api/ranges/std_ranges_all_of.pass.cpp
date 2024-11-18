@@ -22,10 +22,12 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    test_range_algo<0>{big_sz}(dpl_ranges::all_of,  std::ranges::all_of, pred1);
-    test_range_algo<1>{}(dpl_ranges::all_of,  std::ranges::all_of, pred1, proj);
-    test_range_algo<2, P2>{}(dpl_ranges::all_of,  std::ranges::all_of, pred1, &P2::x);
-    test_range_algo<3, P2>{}(dpl_ranges::all_of,  std::ranges::all_of, pred1, &P2::proj);
+    auto all_of_checker = TEST_PREPARE_CALLABLE(std::ranges::all_of);
+
+    test_range_algo<0>{big_sz}(dpl_ranges::all_of,  all_of_checker, pred1);
+    test_range_algo<1>{}(dpl_ranges::all_of,  all_of_checker, pred1, proj);
+    test_range_algo<2, P2>{}(dpl_ranges::all_of,  all_of_checker, pred1, &P2::x);
+    test_range_algo<3, P2>{}(dpl_ranges::all_of,  all_of_checker, pred1, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

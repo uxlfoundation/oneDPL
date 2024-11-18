@@ -377,4 +377,7 @@ inline void DoNotOptimize(Tp const& value) {
 #define TEST_NO_UNIQUE_ADDRESS
 #endif
 
+#define TEST_PREPARE_CALLABLE(std_algo_name) \
+    [](auto&&... __args) { return std_algo_name(std::forward<decltype(__args)>(__args)...); }
+
 #endif // _SUPPORT_TEST_MACROS_H
