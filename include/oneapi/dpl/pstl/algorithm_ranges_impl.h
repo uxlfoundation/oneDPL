@@ -435,7 +435,6 @@ auto
 __pattern_copy_if_ranges(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r, _OutRange&& __out_r,
                          _Pred __pred, _Proj __proj)
 {
-#if 1
     using __return_type = std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>,
         std::ranges::borrowed_iterator_t<_OutRange>>;
 
@@ -451,9 +450,6 @@ __pattern_copy_if_ranges(__serial_tag</*IsVector*/std::false_type>, _ExecutionPo
     }
 
     return __return_type{__it_in, __it_out};
-#else
-    return std::ranges::copy_if(std::forward<_InRange>(__in_r), std::ranges::begin(__out_r), __pred, __proj);
-#endif
 }
 
 //---------------------------------------------------------------------------------------------------------------------
