@@ -76,11 +76,11 @@ main()
 
     std::sort(zip_view_sort.begin(), zip_view_sort.begin() + max_n, [](const auto& val1, const auto& val2) { return std::get<0>(val1) > std::get<0>(val2); });
     for(int i = 0; i < max_n; ++i)
-        assert(std::get<0>(zip_view_sort[i]) == max_n - 1 - i);
+        EXPECT_TRUE(std::get<0>(zip_view_sort[i]) == max_n - 1 - i, "Wrong effect for std::sort with zip_view.");
 
     std::ranges::sort(zip_view_sort, std::less{}, [](auto&& val) { return std::get<0>(val); });
     for(int i = 0; i < max_n; ++i)
-        assert(std::get<0>(zip_view_sort[i]) == i);
+        EXPECT_TRUE(std::get<0>(zip_view_sort[i]) == i, "Wrong effect for std::ranges::sort with zip_view.");
 
     static_assert(std::ranges::random_access_range<decltype(zip_view_sort)>);
     static_assert(std::random_access_iterator<decltype(zip_view_sort.begin())>);
