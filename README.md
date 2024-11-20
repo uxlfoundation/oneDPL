@@ -1,5 +1,5 @@
 # oneAPI DPC++ Library (oneDPL) <img align="right" width="200" height="100" src=https://github.com/uxlfoundation/artwork/blob/main/foundation/uxl-foundation-logo-horizontal-color.svg>
-[![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE.txt) [![oneDPL CI](https://github.com/oneapi-src/oneDPL/actions/workflows/ci.yml/badge.svg)](https://github.com/oneapi-src/oneDPL/actions/workflows/ci.yml?query=branch%3Amaster)
+[![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE.txt) [![oneDPL CI](https://github.com/oneapi-src/oneDPL/actions/workflows/ci-testing.yml/badge.svg)](https://github.com/oneapi-src/oneDPL/actions/workflows/ci-testing.yml?query=branch%3Amaster)
 [![Join the community on GitHub Discussions](https://badgen.net/badge/join%20the%20discussion/on%20github/blue?icon=github)](https://github.com/oneapi-src/oneDPL/discussions)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/oneapi-src/oneDPL/badge)](https://securityscorecards.dev/viewer/?uri=github.com/oneapi-src/oneDPL)
 
