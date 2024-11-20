@@ -79,6 +79,37 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
     }
 }
 
+template <typename _Index, typename _Tp, typename _Cp, typename _Sp>
+std::pair<_Index, _Index>
+__downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsize, _Tp __initial, _Cp __combine,
+            _Sp __scan, _Index __n_out)
+{
+    std::pair<_Index, _Index> __res{};
+    if (__m == 1)
+    {
+        if(__initial < __n_out)
+            __scan(__i * __tilesize, __lastsize, __initial, __n_out - __initial);
+    }
+    else
+    {
+        const _Index __k = __split(__m);
+        std::pair<_Index, _Index> __res_1{}, __res_2{};
+        oneapi::dpl::__omp_backend::__parallel_invoke_body(
+            [=, &__res_1] {
+                __res_1 = oneapi::dpl::__omp_backend::__downsweep(__i, __k, __tilesize, __r, __tilesize, __initial, __combine,
+                                                                  __scan, __n_out);
+            },
+            // Assumes that __combine never throws.
+            // TODO: Consider adding a requirement for user functors to be constant.
+            [=, &__combine, &__res_2] {
+                __res_2 = oneapi::dpl::__omp_backend::__downsweep(__i + __k, __m - __k, __tilesize, __r + __k, __lastsize,
+                                                                  __combine(__initial, __r[__k - 1]), __combine, __scan, __n_out);
+            });
+        __res = std::make_pair(__res_1.first + __res_2.first, __res_1.second + __res_2.second);
+    }
+    return __res;
+}
+
 template <typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
 __parallel_strict_scan_body(_Index __n, _Tp __initial, _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
@@ -103,6 +134,34 @@ __parallel_strict_scan_body(_Index __n, _Tp __initial, _Rp __reduce, _Cp __combi
     __apex(__combine(__initial, __t));
     oneapi::dpl::__omp_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize,
                                             __initial, __combine, __scan);
+}
+
+
+template <typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
+void
+__parallel_strict_scan_body(_Index __n, _Tp __initial, _Rp __reduce, _Cp __combine,
+                            _Sp __scan, _Ap __apex, _Index __n_out)
+{
+    _Index __p = omp_get_num_threads();
+    const _Index __slack = 4;
+    _Index __tilesize = (__n - 1) / (__slack * __p) + 1;
+    _Index __m = (__n - 1) / __tilesize;
+    __buffer<_Tp> __buf(__m + 1);
+    _Tp* __r = __buf.get();
+
+    oneapi::dpl::__omp_backend::__upsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __reduce,
+                                          __combine);
+
+    std::size_t __k = __m + 1;
+    _Tp __t = __r[__k - 1];
+    while ((__k &= __k - 1))
+    {
+        __t = __combine(__r[__k - 1], __t);
+    }
+
+    auto __res = oneapi::dpl::__omp_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize,
+                                            __initial, __combine, __scan, __n_out);
+    __apex(__res.first, __res.second);
 }
 
 template <typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
@@ -136,6 +195,42 @@ __parallel_strict_scan(oneapi::dpl::__internal::__omp_backend_tag, _Index __n, _
         {
             oneapi::dpl::__omp_backend::__parallel_strict_scan_body(__n, __initial, __reduce, __combine, __scan,
                                                                     __apex);
+        }
+    }
+}
+
+template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
+void
+__parallel_strict_scan(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&& __exec, _Index __n, _Tp __initial,
+                       _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex, _Index __n_out)
+{
+    if(__n_out == 0)
+        return;
+    else if(__n_out < 0)
+        __n_out = __n;
+
+    if (__n <= __default_chunk_size)
+    {
+        if (__n)
+        {
+            auto __res = __scan(_Index(0), __n, __initial, __n_out);
+            __apex(__res.first, __res.second);
+        }
+        return;
+    }
+
+    if (omp_in_parallel())
+    {
+        oneapi::dpl::__omp_backend::__parallel_strict_scan_body(::std::forward<_ExecutionPolicy>(__exec), __n,
+                                                                __initial, __reduce, __combine, __scan, __apex, __n_out);
+    }
+    else
+    {
+        _PSTL_PRAGMA(omp parallel)
+        _PSTL_PRAGMA(omp single nowait)
+        {
+            oneapi::dpl::__omp_backend::__parallel_strict_scan_body(::std::forward<_ExecutionPolicy>(__exec), __n,
+                                                                    __initial, __reduce, __combine, __scan, __apex, __n_out);
         }
     }
 }
