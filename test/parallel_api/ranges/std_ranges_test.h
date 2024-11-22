@@ -169,12 +169,13 @@ struct test
         auto expected_res = checker(expected_view, args...);
 
         typename Container::type& A = cont_in();
-        auto res = algo(exec, tr_in(A), args...);
+        decltype(auto) r_in = tr_in(A);
+        auto res = algo(exec, r_in, args...);
 
         //check result
-        static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), args...))>, "Wrong return type");
+        static_assert(std::is_same_v<decltype(res), decltype(checker(r_in, args...))>, "Wrong return type");
 
-        auto bres = ret_in_val(expected_res, expected_view.begin()) == ret_in_val(res, tr_in(A).begin());
+        auto bres = ret_in_val(expected_res, expected_view.begin()) == ret_in_val(res, r_in.begin());
         EXPECT_TRUE(bres, (std::string("wrong return value from algo with ranges: ") + typeid(Algo).name() + 
                 typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
 
@@ -515,6 +516,14 @@ template<int call_id = 0, typename T = int, TestDataMode mode = data_in>
 struct test_range_algo
 {
     const int max_n = 10;
+    void test_view(auto view, auto algo, auto& checker, auto... args)
+    {
+        test<T, host_subrange<T>, mode>{max_n}(host_policies(), algo, checker, view, std::identity{}, args...);
+#if TEST_DPCPP_BACKEND_PRESENT
+        test<T, usm_subrange<T>, mode>{max_n}(dpcpp_policy<call_id>(), algo, checker, view, std::identity{}, args...);
+#endif //TEST_DPCPP_BACKEND_PRESENT
+    }
+
     void operator()(auto algo, auto& checker, auto... args)
     {
 
