@@ -175,12 +175,12 @@ template <typename T, typename BinOp, typename KernelParam>
 void
 test_general_cases(sycl::queue q, std::size_t size, BinOp bin_op, KernelParam param)
 {
-    test_usm<T, sycl::usm::alloc::shared>(q, size, bin_op, TestUtils::get_new_kernel_params<0>(param));
-    test_usm<T, sycl::usm::alloc::device>(q, size, bin_op, TestUtils::get_new_kernel_params<1>(param));
-    test_sycl_iterators<T>(q, size, bin_op, TestUtils::get_new_kernel_params<2>(param));
+    test_usm<T, sycl::usm::alloc::shared>(q, size, bin_op, TestUtils::create_new_kernel_param_idx<0>(param));
+    test_usm<T, sycl::usm::alloc::device>(q, size, bin_op, TestUtils::create_new_kernel_param_idx<1>(param));
+    test_sycl_iterators<T>(q, size, bin_op, TestUtils::create_new_kernel_param_idx<2>(param));
 #if _ENABLE_RANGES_TESTING
-    test_all_view<T>(q, size, bin_op, TestUtils::get_new_kernel_params<3>(param));
-    test_buffer<T>(q, size, bin_op, TestUtils::get_new_kernel_params<4>(param));
+    test_all_view<T>(q, size, bin_op, TestUtils::create_new_kernel_param_idx<3>(param));
+    test_buffer<T>(q, size, bin_op, TestUtils::create_new_kernel_param_idx<4>(param));
 #endif
 }
 
@@ -188,7 +188,7 @@ template <typename T, typename KernelParam>
 void
 test_all_cases(sycl::queue q, std::size_t size, KernelParam param)
 {
-    test_general_cases<T>(q, size, std::plus<T>{}, TestUtils::get_new_kernel_params<0>(param));
+    test_general_cases<T>(q, size, std::plus<T>{}, TestUtils::create_new_kernel_param_idx<0>(param));
 #if _PSTL_GROUP_REDUCTION_MULT_INT64_BROKEN
     static constexpr bool int64_mult_broken = std::is_integral_v<T> && (sizeof(T) == 8);
 #else
@@ -196,7 +196,7 @@ test_all_cases(sycl::queue q, std::size_t size, KernelParam param)
 #endif
     if constexpr (!int64_mult_broken)
     {
-        test_general_cases<T>(q, size, std::multiplies<T>{}, TestUtils::get_new_kernel_params<1>(param));
+        test_general_cases<T>(q, size, std::multiplies<T>{}, TestUtils::create_new_kernel_param_idx<1>(param));
     }
 }
 
