@@ -106,6 +106,11 @@ Usage Example for Parallel Range Algorithms
         oneapi::dpl::ranges::copy(oneapi::dpl::execution::dpcpp_default, view_in, std::span(vec_out));
     }
 
+Implementation Notes
+--------------------
+The ``sort`` and ``stable_sort`` algorithms use ``std::swap`` and not ``std::ranges::iter_swap`` for swapping elements.
+As a result, customizations targeting ``std::ranges::iter_swap`` will not be respected.
+
 .. rubric:: See also:
 
 :doc:`range_based_api`
