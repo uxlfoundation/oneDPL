@@ -74,6 +74,8 @@ main()
 
     auto zip_view_sort = dpl_ranges::zip(data, data);
 
+    oneapi::dpl::zip_iterator<int*, int*> zip_it = zip_view_sort.begin(); //check conversion to oneapi::dpl::zip_iterator
+
     std::sort(zip_view_sort.begin(), zip_view_sort.begin() + max_n, [](const auto& val1, const auto& val2) { return std::get<0>(val1) > std::get<0>(val2); });
     for(int i = 0; i < max_n; ++i)
         EXPECT_TRUE(std::get<0>(zip_view_sort[i]) == max_n - 1 - i, "Wrong effect for std::sort with zip_view.");
