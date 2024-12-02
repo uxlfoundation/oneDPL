@@ -24,6 +24,10 @@ your change directly to the repository:
 - Submit a
   [pull request](https://docs.github.com/en/free-pro-team@latest/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request) into the
   main branch. You may add a description of your contribution into [CREDITS.txt](https://github.com/oneapi-src/oneDPL/blob/main/CREDITS.txt).
+- Contributors that would like to open branches directly in the oneDPL repo instead of working via fork may request
+  write access to the repository by contacting project maintainers on
+  [UXL Foundation Slack](https://slack-invite.uxlfoundation.org/) using the
+  [#onedpl](https://uxlfoundation.slack.com/channels/onedpl) channel.
 
 # Coding Conventions
 
