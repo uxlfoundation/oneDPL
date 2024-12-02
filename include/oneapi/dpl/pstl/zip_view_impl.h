@@ -23,6 +23,7 @@
 #include <type_traits>
 
 #include "tuple_impl.h"
+#include "iterator_impl.h"
 
 namespace oneapi
 {
@@ -117,6 +118,13 @@ public:
         constexpr iterator(const Iterators&... iterators)
             : current_(iterators...) {}
     public:
+
+        template <typename... Iterators>
+        operator oneapi::dpl::zip_iterator<Iterators...>() const
+        {
+            auto __tr = [](auto&&... __args) -> decltype(auto) { return oneapi::dpl::make_zip_iterator(__args...);};
+            return apply_to_tuple(__tr, [](auto it) -> decltype(auto) { return it;}, current_);
+        }
 
         constexpr decltype(auto) operator*() const {
             auto __tr = [](auto&&... __args) -> decltype(auto) {
