@@ -75,26 +75,38 @@ include(CheckCXXCompilerFlag)
 include(CheckIncludeFileCXX)
 include(GNUInstallDirs)
 
-# Check SYCL support by the compiler
-check_cxx_compiler_flag("-fsycl" _fsycl_option)
-if (_fsycl_option)
-    CHECK_INCLUDE_FILE_CXX("sycl/sycl.hpp" _sycl_header "-fsycl")
-    if (NOT _sycl_header)
-        CHECK_INCLUDE_FILE_CXX("CL/sycl.hpp" _sycl_header_old "-fsycl")
-    endif()
-    if (_sycl_header OR _sycl_header_old)
-        set(_sycl_support TRUE)
-    endif()
-endif()
+# Detect SYCL support
+if (NOT DEFINED ONEDPL_BACKEND OR ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
+    message(STATUS "Checking for SYCL support")
 
-# Exit with an error when DPCPP backend is explicitly set and SYCL is not supported
-if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$" AND NOT _sycl_support)
-    message(FATAL_ERROR "${CMAKE_CXX_COMPILER} doesn't support -fsycl option or sycl.hpp is not available. It is required if ONEDPL_BACKEND=${ONEDPL_BACKEND}")
+    set(FSYCL_OPTION "-fsycl")
+    check_cxx_compiler_flag(${FSYCL_OPTION} _fsycl_option)
+    if (_fsycl_option)
+        set(FSYCL_OPTION_IF_SUPPORTED ${FSYCL_OPTION})
+    endif()
+
+    CHECK_INCLUDE_FILE_CXX("sycl/sycl.hpp" SYCL_HEADER ${FSYCL_OPTION_IF_SUPPORTED})
+    if (NOT SYCL_HEADER)
+        CHECK_INCLUDE_FILE_CXX("CL/sycl.hpp" SYCL_HEADER_OLD ${FSYCL_OPTION_IF_SUPPORTED})
+    endif()
+    if (SYCL_HEADER OR SYCL_HEADER_OLD)
+        set(SYCL_SUPPORT TRUE)
+    endif()
+
+    if (SYCL_SUPPORT)
+        message(STATUS "SYCL is supported")
+    else()
+        if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
+            message(FATAL_ERROR "SYCL is not supported. It is required for ONEDPL_BACKEND=${ONEDPL_BACKEND}")
+        else()
+            message(STATUS "SYCL is not supported")
+        endif()
+    endif()
 endif()
 
 # Set the default backend if one has not been explicitly provided
-if (NOT ONEDPL_BACKEND)
-    if (_sycl_support)
+if (NOT DEFINED ONEDPL_BACKEND)
+    if (SYCL_SUPPORT)
         set(ONEDPL_BACKEND "dpcpp" CACHE STRING "Threading backend")
     else()
         set(ONEDPL_BACKEND "tbb" CACHE STRING "Threading backend")
@@ -186,12 +198,6 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
         )
 
     if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
-        # Enable SYCL* with compilers/compiler drivers not passing -fsycl by default
-        if (_sycl_support AND NOT CMAKE_CXX_COMPILER MATCHES ".*(dpcpp-cl|dpcpp)(.exe)?$")
-            message(STATUS "Adding -fsycl compiler option")
-            set(USE_FSYCL_OPTION TRUE)
-        endif()
-
         # check device type for oneDPL test targets
         if (ONEDPL_DEVICE_TYPE MATCHES "^(CPU|GPU|FPGA_EMU|FPGA_HW)$")
             if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
@@ -274,7 +280,7 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
 
         # DPC++ specific compiler options
         target_compile_options(oneDPL INTERFACE
-            $<$<BOOL:${USE_FSYCL_OPTION}>:-fsycl>
+            ${FSYCL_OPTION_IF_SUPPORTED}
             $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:-fintelfpga>
             )
         if (DEFINED ONEDPL_USE_UNNAMED_LAMBDA)
@@ -305,7 +311,7 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
 
         # DPC++ specific link options
         target_link_libraries(oneDPL INTERFACE
-            $<$<BOOL:${USE_FSYCL_OPTION}>:-fsycl>
+            ${FSYCL_OPTION_IF_SUPPORTED}
             $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:-fintelfpga>
             $<$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>:-Xshardware>
             $<$<AND:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_FPGA_STATIC_REPORT}>>:-fsycl-link>
