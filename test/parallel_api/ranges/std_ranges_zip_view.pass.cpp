@@ -89,7 +89,7 @@ main()
 
     test_std_ranges::call_with_host_policies(dpl_ranges::sort, zip_view_sort, std::greater{}, [](const auto& val) { return std::get<0>(val); });
     for(int i = 0; i < max_n; ++i)
-        assert(std::get<0>(zip_view_sort[i]) == max_n - 1 - i);
+        EXPECT_TRUE(std::get<0>(zip_view_sort[i]) == max_n - 1 - i, "Wrong effect for oneapi::dpl::ranges::sort with zip_view.");
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
