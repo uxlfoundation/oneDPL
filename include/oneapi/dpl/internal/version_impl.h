@@ -13,7 +13,7 @@
 // The library version
 #define ONEDPL_VERSION_MAJOR 2022
 #define ONEDPL_VERSION_MINOR 7
-#define ONEDPL_VERSION_PATCH 0
+#define ONEDPL_VERSION_PATCH 1
 
 #if _ONEDPL___cplusplus >= 202002L && __has_include(<version>)
 #    include <version> // The standard C++20 header
