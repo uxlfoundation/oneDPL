@@ -31,7 +31,7 @@ for information on how to report a potential security issue or vulnerability.
 You can also view the [Security Policy](SECURITY.md).
 
 ## Contributing
-See [CONTRIBUTING.md](https://github.com/oneapi-src/oneDPL/blob/release_oneDPL/CONTRIBUTING.md) for details.
+See [CONTRIBUTING.md](https://github.com/oneapi-src/oneDPL/blob/main/CONTRIBUTING.md) for details.
 
 ## Documentation
 
