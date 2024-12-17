@@ -22,7 +22,7 @@ for more information.
 Visit the latest [Release Notes](https://github.com/oneapi-src/oneDPL/blob/main/documentation/release_notes.rst).
 
 ## License
-oneDPL is licensed under [Apache License Version 2.0 with LLVM exceptions](https://github.com/oneapi-src/oneDPL/blob/release_oneDPL/licensing/LICENSE.txt).
+oneDPL is licensed under [Apache License Version 2.0 with LLVM exceptions](https://github.com/oneapi-src/oneDPL/blob/main/LICENSE.txt).
 Refer to the [LICENSE](licensing/LICENSE.txt) file for the full license text and copyright notice.
 
 ## Security

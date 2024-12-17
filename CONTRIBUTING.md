@@ -7,7 +7,7 @@ We welcome community contributions to oneAPI DPC++ Library (oneDPL). You can:
 
 # License
 
-oneDPL is licensed under the terms in [LICENSE](https://github.com/oneapi-src/oneDPL/blob/release_oneDPL/licensing/LICENSE.txt).
+oneDPL is licensed under the terms in [LICENSE](https://github.com/oneapi-src/oneDPL/blob/main/LICENSE.txt).
 By contributing to the project, you agree to the license and copyright terms therein and
 release your contribution under these terms.
 
