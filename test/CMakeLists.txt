@@ -221,7 +221,7 @@ macro(onedpl_add_test test_source_file switch_off_checked_iterators)
     endif()
 endmacro()
 
-set(_regexp_dpcpp_backend_required "(xpu_api/algorithms|test/xpu_api/cmath/nearbyint|test/xpu_api/containers|xpu_api/functional|test/xpu_api/iterators|test/xpu_api/language.support/support.initlist|test/xpu_api/language.support/support.types|xpu_api/numerics|test/xpu_api/random|test/xpu_api/ratio|test/xpu_api/tuple|test/xpu_api/utilities|parallel_api/dynamic_selection/sycl)")
+set(_regexp_dpcpp_backend_required "(xpu_api/ranges|xpu_api/algorithms|test/xpu_api/cmath/nearbyint|test/xpu_api/containers|xpu_api/functional|test/xpu_api/iterators|test/xpu_api/language.support/support.initlist|test/xpu_api/language.support/support.types|xpu_api/numerics|test/xpu_api/random|test/xpu_api/ratio|test/xpu_api/tuple|test/xpu_api/utilities|parallel_api/dynamic_selection/sycl)")
 set(_regexp_switch_off_checked_it  "(test/general/header_order_ranges|test/parallel_api/algorithm/alg.sorting/alg.min.max|test/parallel_api/ranges|test/parallel_api/dynamic_selection|test/xpu_api/iterators/iterator.primitives|test/xpu_api/random/device_tests|test/xpu_api/random/interface_tests|test/xpu_api/random/statistics_tests|test/parallel_api/numeric/numeric.ops/transform_scan)")
 
 set(_regexp_pstl_offload_only "(test/pstl_offload)")
