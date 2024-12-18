@@ -16,14 +16,17 @@ discussions, etc.
 
 ## Proposal
 
-Replace the text in this section with a full and detailed description of the proposal
-with highlighted consequences.
+Replace the text in this section with a detailed description of the proposal
+with highlighted consequences. The description can be iteratively clarified
+as the proposal matures.
 
-Depending on the kind of the proposal, the description should cover:
+Depending on the kind of the proposal, the description may need to cover the following:
 
 - New use cases supported by the extension.
 - The expected performance benefit for a modification, supported with the data, if available.
 - The API of extensions such as class definitions and function declarations.
+- Key technical design aspects, sufficient to understand how the functionality should work
+  and produce the desired outcome.
 
 A proposal should clearly outline the alternatives that were considered, 
 along with their pros and cons. Each alternative should be clearly separated 
@@ -37,18 +40,20 @@ Pay close attention to the following aspects of the library:
 - Performance implications, as performance is one of the main goals of the library.
 - Dependencies and supported platforms. Does the proposal bring any new
   dependencies or affect the supported configurations?
+- Consistency and possible interaction with the existing library functionality.
 
 Include short explanation and links to the related proposals, if any.
-Sub-proposals could be organized as separate standalone RFCs, but this is
+Sub-proposals could be organized as separate stand-alone RFCs, but this is
 not mandatory. If the related change is insignificant or does not make any sense
 without the original proposal, describe it in the main RFC.
 
 Some other common subsections could be:
 - Usage examples.
 - Testing aspects.
-- Execution plan (next steps), if approved.
+- Next steps (e.g., design review, prototype, etc.), if approved.
 
 ## Open Questions
 
 List any questions that are not sufficiently elaborated in the proposal,
-need more discussion or prototyping experience, etc.
+need more discussion or prototyping experience, etc. Indicate at which state
+(typically, "proposed" or "experimental") a question should be addressed.

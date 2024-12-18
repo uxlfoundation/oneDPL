@@ -66,14 +66,15 @@ The "RFC" label can be used to mark PRs containing RFC/design proposals.
 
 The RFC approval process generally follows the guidelines in the [UXL Foundation Operational Procedures](
 https://github.com/uxlfoundation/uxl_operational_procedures/blob/release/Process_Documents/Organization_Operational_Process.md#review--approval-process).
-Once two or more maintainers approve the PR, it is merged into the main branch
-as an RFC proposed for implementation.
+Once two or more maintainers approve the PR, it is merged into the main branch.
 
-As the RFC moves to different states, use new PRs to update the RFC document
-with additional information.
+RFC documents can be developed iteratively at each stage. For example, an initial RFC
+can be approved even if some details of the design or the API are not yet sufficiently
+elaborated. In that case, subsequent revisions (new PRs) should update the document
+in `rfcs/proposed`, adding the requested information.
 
 A proposal that is subsequently implemented and released as an experimental feature
-is moved into the `rfcs/experimental` folder.
+is moved into the `rfcs/experimental` directory.
 The RFC for such a feature should include a description
 of what is required to move it from experimental to fully supported -- for 
 example, feedback from users, demonstrated performance improvements, etc.
@@ -84,8 +85,19 @@ changes and should therefore have a link to the section in the specification
 with its formal wording.
 
 A feature that is removed or a proposal that is abandoned or rejected will 
-be moved to the `rfcs/archived` folder. It should state the reasons for
+be moved to the `rfcs/archived` directory. It should state the reasons for
 rejection or removal.
+
+There is no requirement that an RFC should pass all the stages in order.
+A typical flow for an RFC would include at least `proposed` and `supported`;
+however, any state can be skipped, depending on the progress and the needs.
+
+For a document that describes a wide set of functionality or a general direction
+and includes sub-RFCs for specific features, a few instances might simultaneously
+reside in different states, adjusted as necessary to reflect the overall progress
+on the direction and on its sub-proposals.
+
+See the README files in respective directories for additional information.
 
 ## Document Style Recommendations
 

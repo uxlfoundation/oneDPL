@@ -9,4 +9,5 @@ changes in the oneDPL specification. The RFC document should, in that case,
 have a link to the formal wording in the specification.
 
 Proposals that appear in `rfcs/supported` may be retained indefinitely to
-provide insight into the design of existing features.
+provide insight into the design of existing features. They could be updated
+over time if the corresponding functionality is extended or modified.
