@@ -82,50 +82,33 @@ __find_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __i_el
 // to rng3 (starting from start3) in 'chunk' steps, but do not exceed the total size of the sequences (n1 and n2)
 template <typename _Rng1, typename _Rng2, typename _Rng3, typename _Index, typename _Compare>
 void
-__serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, _Index __start1, _Index __start2,
-               const _Index __start3, const std::uint8_t __chunk, const _Index __n1, const _Index __n2, _Compare __comp)
+__serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _Index __start1, const _Index __start2,
+               const _Index __start3, const _Index __chunk, const _Index __n1, const _Index __n2, _Compare __comp)
 {
-    if (__start1 >= __n1)
+    const _Index __rng1_size = std::min<_Index>(__n1 > __start1 ? __n1 - __start1 : _Index{0}, __chunk);
+    const _Index __rng2_size = std::min<_Index>(__n2 > __start2 ? __n2 - __start2 : _Index{0}, __chunk);
+    const _Index __rng3_size = std::min<_Index>(__rng1_size + __rng2_size, __chunk);
+
+    const _Index __rng1_idx_end = __start1 + __rng1_size;
+    const _Index __rng2_idx_end = __start2 + __rng2_size;
+    const _Index __rng3_idx_end = __start3 + __rng3_size;
+
+    _Index __rng1_idx = __start1;
+    _Index __rng2_idx = __start2;
+
+    for (_Index __rng3_idx = __start3; __rng3_idx < __rng3_idx_end; ++__rng3_idx)
     {
-        //copying a residual of the second seq
-        const _Index __n = std::min<_Index>(__n2 - __start2, __chunk);
-        for (std::uint8_t __i = 0; __i < __n; ++__i)
-            __rng3[__start3 + __i] = __rng2[__start2 + __i];
-    }
-    else if (__start2 >= __n2)
-    {
-        //copying a residual of the first seq
-        const _Index __n = std::min<_Index>(__n1 - __start1, __chunk);
-        for (std::uint8_t __i = 0; __i < __n; ++__i)
-            __rng3[__start3 + __i] = __rng1[__start1 + __i];
-    }
-    else
-    {
-        for (std::uint8_t __i = 0; __i < __chunk && __start1 < __n1 && __start2 < __n2; ++__i)
-        {
-            const auto& __val1 = __rng1[__start1];
-            const auto& __val2 = __rng2[__start2];
-            if (__comp(__val2, __val1))
-            {
-                __rng3[__start3 + __i] = __val2;
-                if (++__start2 == __n2)
-                {
-                    //copying a residual of the first seq
-                    for (++__i; __i < __chunk && __start1 < __n1; ++__i, ++__start1)
-                        __rng3[__start3 + __i] = __rng1[__start1];
-                }
-            }
-            else
-            {
-                __rng3[__start3 + __i] = __val1;
-                if (++__start1 == __n1)
-                {
-                    //copying a residual of the second seq
-                    for (++__i; __i < __chunk && __start2 < __n2; ++__i, ++__start2)
-                        __rng3[__start3 + __i] = __rng2[__start2];
-                }
-            }
-        }
+        const bool __rng1_idx_less_n1 = __rng1_idx < __rng1_idx_end;
+        const bool __rng2_idx_less_n2 = __rng2_idx < __rng2_idx_end;
+
+        // One of __rng1_idx_less_n1 and __rng2_idx_less_n2 should be true here
+        // because 1) we should fill output data with elements from one of the input ranges
+        // 2) we calculate __rng3_idx_end as std::min<_Index>(__rng1_size + __rng2_size, __chunk).
+        __rng3[__rng3_idx] =
+            ((__rng1_idx_less_n1 && __rng2_idx_less_n2 && __comp(__rng2[__rng2_idx], __rng1[__rng1_idx])) ||
+             !__rng1_idx_less_n1)
+                ? __rng2[__rng2_idx++]
+                : __rng1[__rng1_idx++];
     }
 }
 
@@ -149,7 +132,7 @@ struct __parallel_merge_submitter<_IdType, __internal::__optional_kernel_name<_N
         _PRINT_INFO_IN_DEBUG_MODE(__exec);
 
         // Empirical number of values to process per work-item
-        const std::uint8_t __chunk = __exec.queue().get_device().is_cpu() ? 128 : 4;
+        const _IdType __chunk = __exec.queue().get_device().is_cpu() ? 128 : 4;
 
         const _IdType __steps = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk);
 
