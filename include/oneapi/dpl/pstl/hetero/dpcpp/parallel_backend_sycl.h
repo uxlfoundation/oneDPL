@@ -32,12 +32,14 @@
 #include "../../iterator_impl.h"
 #include "../../execution_impl.h"
 #include "../../utils_ranges.h"
+#include "../../ranges_defs.h"
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
 #include "parallel_backend_sycl_reduce.h"
 #include "parallel_backend_sycl_merge.h"
 #include "parallel_backend_sycl_merge_sort.h"
+#include "parallel_backend_sycl_reduce_by_segment.h"
 #include "parallel_backend_sycl_reduce_then_scan.h"
 #include "execution_sycl_defs.h"
 #include "sycl_iterator.h"
@@ -788,6 +790,182 @@ struct __gen_transform_input
     _UnaryOp __unary_op;
 };
 
+template <typename _BinaryPred>
+struct __gen_red_by_seg_reduce_input
+{
+    // Returns the following tuple:
+    // (new_seg_mask, value)
+    // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
+    // ValueType value     : Current element's value for reduction
+    template <typename _InRng>
+    auto
+    operator()(const _InRng& __in_rng, std::size_t __id) const
+    {
+        const auto __in_keys = std::get<0>(__in_rng.tuple());
+        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
+        // The first segment start (index 0) is not marked with a 1. This is because we need the first
+        // segment's key and value output index to be 0. We begin marking new segments only after the
+        // first.
+        const std::size_t __new_seg_mask = __id > 0 && !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
+        return oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]});
+    }
+    _BinaryPred __binary_pred;
+};
+
+template <typename _BinaryPred>
+struct __gen_red_by_seg_scan_input
+{
+    // Returns the following tuple:
+    // ((new_seg_mask, value), output_value, next_key, current_key)
+    // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
+    // ValueType value     : Current element's value for reduction
+    // bool output_value   : Whether this work-item should write an output (end of segment)
+    // KeyType next_key    : The key of the next segment to write if output_value is true
+    // KeyType current_key : The current element's key. This is only ever used by work-item 0 to write the first key
+    template <typename _InRng>
+    auto
+    operator()(const _InRng& __in_rng, std::size_t __id) const
+    {
+        const auto __in_keys = std::get<0>(__in_rng.tuple());
+        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        using _KeyType = oneapi::dpl::__internal::__value_t<decltype(__in_keys)>;
+        using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
+        const _KeyType& __current_key = __in_keys[__id];
+        const _ValueType& __current_val = __in_vals[__id];
+        // Ordering the most common condition first has yielded the best results.
+        if (__id > 0 && __id < __n - 1)
+        {
+            const _KeyType& __prev_key = __in_keys[__id - 1];
+            const _KeyType& __next_key = __in_keys[__id + 1];
+            const std::size_t __new_seg_mask = !__binary_pred(__prev_key, __current_key);
+            return oneapi::dpl::__internal::make_tuple(
+                oneapi::dpl::__internal::make_tuple(__new_seg_mask, __current_val),
+                !__binary_pred(__current_key, __next_key), __next_key, __current_key);
+        }
+        else if (__id == __n - 1)
+        {
+            const _KeyType& __prev_key = __in_keys[__id - 1];
+            const std::size_t __new_seg_mask = !__binary_pred(__prev_key, __current_key);
+            return oneapi::dpl::__internal::make_tuple(
+                oneapi::dpl::__internal::make_tuple(__new_seg_mask, __current_val), true, __current_key,
+                __current_key); // Passing __current_key as the next key for the last element is a placeholder
+        }
+        else // __id == 0
+        {
+            const _KeyType& __next_key = __in_keys[__id + 1];
+            return oneapi::dpl::__internal::make_tuple(
+                oneapi::dpl::__internal::make_tuple(std::size_t{0}, __current_val),
+                !__binary_pred(__current_key, __next_key), __next_key, __current_key);
+        }
+    }
+    _BinaryPred __binary_pred;
+    // For correctness of the function call operator, __n must be greater than 1.
+    std::size_t __n;
+};
+
+template <typename _BinaryOp>
+struct __red_by_seg_op
+{
+    // Consider the following segment / value pairs that would be processed in reduce-then-scan by a sub-group of size 8:
+    // ----------------------------------------------------------
+    // Keys:   0 0 1 1 2 2 2 2
+    // Values: 1 1 1 1 1 1 1 1
+    // ----------------------------------------------------------
+    // The reduce and scan input generation phase flags new segments (excluding index 0) for use in the sub-group scan
+    // operation. The above key, value pairs correspond to the following flag, value pairs:
+    // ----------------------------------------------------------
+    // Flags:  0 0 1 0 1 0 0 0
+    // Values: 1 1 1 1 1 1 1 1
+    // ----------------------------------------------------------
+    // The sub-group scan operation looks back by powers-of-2 applying encountered prefixes. The __red_by_seg_op
+    // operation performs a standard inclusive scan over the flags to compute output indices while performing a masked
+    // scan over values to avoid applying a previous segment's partial reduction. Previous value elements are reduced
+    // so long as the current index's flag is 0, indicating that input within its segment is still being processed
+    // ----------------------------------------------------------
+    // Start:
+    // ----------------------------------------------------------
+    // Flags:  0 0 1 0 1 0 0 0
+    // Values: 1 1 1 1 1 1 1 1
+    // ----------------------------------------------------------
+    // After step 1 (apply the i-1th value if the ith flag is 0):
+    // ----------------------------------------------------------
+    // Flags:  0 0 1 1 1 1 0 0
+    // Values: 1 2 1 2 1 2 2 2
+    // ----------------------------------------------------------
+    // After step 2 (apply the i-2th value if the ith flag is 0):
+    // ----------------------------------------------------------
+    // Flags:  0 0 1 1 2 2 1 1
+    // Values: 1 2 1 2 1 2 3 4
+    // ----------------------------------------------------------
+    // After step 3 (apply the i-4th value if the ith flag is 0):
+    // ----------------------------------------------------------
+    // Flags:  0 0 1 1 2 2 2 2
+    // Values: 1 2 1 2 1 2 3 4
+    //           ^   ^       ^
+    // ----------------------------------------------------------
+    // Note that the scan of segment flags results in the desired output index of the reduce_by_segment operation in
+    // each segment and the item corresponding to the final key in a segment contains its output reduction value. This
+    // operation is first applied within a sub-group and then across sub-groups, work-groups, and blocks to
+    // reduce-by-segment across the full input. The result of these operations combined with cached key data in
+    // __gen_red_by_seg_scan_input enables the write phase to output keys and reduction values.
+    // =>
+    // Segments : 0 1 2
+    // Values   : 2 2 4
+    template <typename _Tup1, typename _Tup2>
+    auto
+    operator()(const _Tup1& __lhs_tup, const _Tup2& __rhs_tup) const
+    {
+        using std::get;
+        // The left-hand side has processed elements from the same segment, so update the reduction value.
+        if (get<0>(__rhs_tup) == 0)
+        {
+            return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup),
+                                                       __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
+        }
+        // We are looking at elements from a previous segment so just update the output index.
+        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup), get<1>(__rhs_tup));
+    }
+    _BinaryOp __binary_op;
+};
+
+template <typename _BinaryPred>
+struct __write_red_by_seg
+{
+    template <typename _OutRng, typename _Tup>
+    void
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup) const
+    {
+        using std::get;
+        auto __out_keys = get<0>(__out_rng.tuple());
+        auto __out_values = get<1>(__out_rng.tuple());
+        using _KeyType = oneapi::dpl::__internal::__value_t<decltype(__out_keys)>;
+        using _ValType = oneapi::dpl::__internal::__value_t<decltype(__out_values)>;
+
+        const _KeyType& __next_key = get<2>(__tup);
+        const _KeyType& __current_key = get<3>(__tup);
+        const _ValType& __current_value = get<1>(get<0>(__tup));
+        const bool __is_seg_end = get<1>(__tup);
+        const std::size_t __out_idx = get<0>(get<0>(__tup));
+
+        // With the exception of the first key which is output by index 0, the first key in each segment is written
+        // by the work item that outputs the previous segment's reduction value. This is because the reduce_by_segment
+        // API requires that the first key in a segment is output and is important for when keys in a segment might not
+        // be the same (but satisfy the predicate). The last segment does not output a key as there are no future
+        // segments process.
+        if (__id == 0)
+            __out_keys[0] = __current_key;
+        if (__is_seg_end)
+        {
+            __out_values[__out_idx] = __current_value;
+            if (__id != __n - 1)
+                __out_keys[__out_idx + 1] = __next_key;
+        }
+    }
+    _BinaryPred __binary_pred;
+    std::size_t __n;
+};
+
 struct __simple_write_to_id
 {
     template <typename _OutRng, typename _ValueType>
@@ -1186,6 +1364,38 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
                                     _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}},
                                     _CopyOp{_ReduceOp{}, _Assign{}});
     }
+}
+
+template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
+          typename _BinaryPredicate, typename _BinaryOperator>
+auto
+__parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
+                                              _ExecutionPolicy&& __exec, _Range1&& __keys, _Range2&& __values,
+                                              _Range3&& __out_keys, _Range4&& __out_values,
+                                              _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
+{
+    // Flags new segments and passes input value through a 2-tuple
+    using _GenReduceInput = __gen_red_by_seg_reduce_input<_BinaryPredicate>;
+    // Operation that computes output indices and output reduction values per segment
+    using _ReduceOp = __red_by_seg_op<_BinaryOperator>;
+    // Returns 4-component tuple which contains flags, keys, value, and a flag to write output
+    using _GenScanInput = __gen_red_by_seg_scan_input<_BinaryPredicate>;
+    // Returns the first component from scan input which is scanned over
+    using _ScanInputTransform = __get_zeroth_element;
+    // Writes current segment's output reduction and the next segment's output key
+    using _WriteOp = __write_red_by_seg<_BinaryPredicate>;
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
+    std::size_t __n = __keys.size();
+    // __gen_red_by_seg_scan_input requires that __n > 1
+    assert(__n > 1);
+    return __parallel_transform_reduce_then_scan(
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
+        oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values)),
+        _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{__binary_pred, __n},
+        _ScanInputTransform{}, _WriteOp{__binary_pred, __n},
+        oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>{},
+        /*Inclusive*/ std::true_type{}, /*_IsUniquePattern=*/std::false_type{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
@@ -2126,6 +2336,189 @@ __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag __backend_
     return __parallel_partial_sort_impl(__backend_tag, ::std::forward<_ExecutionPolicy>(__exec), __buf.all_view(),
                                         __partial_merge_kernel<decltype(__mid_idx)>{__mid_idx}, __comp);
 }
+
+//------------------------------------------------------------------------
+// reduce_by_segment - sync pattern
+//
+// TODO: The non-identity fallback path of reduce-by-segment must currently be implemented synchronously due to the
+// inability to create event dependency chains across separate parallel pattern calls. If we ever add support for
+// cross parallel pattern dependencies, then we can implement this as an async pattern.
+//------------------------------------------------------------------------
+template <typename _Name>
+struct __reduce1_wrapper;
+
+template <typename _Name>
+struct __reduce2_wrapper;
+
+template <typename _Name>
+struct __assign_key1_wrapper;
+
+template <typename _Name>
+struct __assign_key2_wrapper;
+
+template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
+          typename _BinaryPredicate, typename _BinaryOperator>
+oneapi::dpl::__internal::__difference_t<_Range3>
+__parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+                                      _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
+                                      _Range4&& __out_values, _BinaryPredicate __binary_pred,
+                                      _BinaryOperator __binary_op,
+                                      /*known_identity=*/std::false_type)
+{
+    using __diff_type = oneapi::dpl::__internal::__difference_t<_Range1>;
+    using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
+    using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
+
+    const auto __n = __keys.size();
+    // Round 1: reduce with extra indices added to avoid long segments
+    // TODO: At threshold points check if the key is equal to the key at the previous threshold point, indicating a long sequence.
+    // Skip a round of copy_if and reduces if there are none.
+    auto __idx = oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, __diff_type>(__exec, __n).get_buffer();
+    auto __tmp_out_keys =
+        oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, __key_type>(__exec, __n).get_buffer();
+    auto __tmp_out_values =
+        oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, __val_type>(__exec, __n).get_buffer();
+
+    // Replicating first element of keys view to be able to compare (i-1)-th and (i)-th key with aligned sequences,
+    //  dropping the last key for the i-1 sequence.
+    auto __k1 =
+        oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::replicate_start_view_simple(__keys, 1), __n);
+
+    // view1 elements are a tuple of the element index and pairs of adjacent keys
+    // view2 elements are a tuple of the elements where key-index pairs will be written by copy_if
+    auto __view1 = oneapi::dpl::__ranges::zip_view(experimental::ranges::views::iota(0, __n), __k1, __keys);
+    auto __view2 = oneapi::dpl::__ranges::zip_view(oneapi::dpl::__ranges::views::all_write(__tmp_out_keys),
+                                                   oneapi::dpl::__ranges::views::all_write(__idx));
+
+    // use work group size adjusted to shared local memory as the maximum segment size.
+    std::size_t __wgroup_size =
+        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec, sizeof(__key_type) + sizeof(__val_type));
+
+    // element is copied if it is the 0th element (marks beginning of first segment), is in an index
+    // evenly divisible by wg size (ensures segments are not long), or has a key not equal to the
+    // adjacent element (marks end of real segments)
+    // TODO: replace wgroup size with segment size based on platform specifics.
+    auto __intermediate_result_end =
+        oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+            oneapi::dpl::__internal::__device_backend_tag{},
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2,
+            __n,
+            [__binary_pred, __wgroup_size](const auto& __a) {
+                // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
+                // for (i-1), but we still need to get its key value as it is the start of a segment
+                const auto index = std::get<0>(__a);
+                if (index == 0)
+                    return true;
+                return index % __wgroup_size == 0                             // segment size
+                       || !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // key comparison
+            },
+            unseq_backend::__brick_assign_key_position{})
+            .get();
+
+    //reduce by segment
+    oneapi::dpl::__par_backend_hetero::__parallel_for(
+        oneapi::dpl::__internal::__device_backend_tag{},
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
+        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n)>(__binary_op, __n), __intermediate_result_end,
+        oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx),
+                                                __intermediate_result_end),
+        std::forward<_Range2>(__values), oneapi::dpl::__ranges::views::all_write(__tmp_out_values))
+        .wait();
+
+    // Round 2: final reduction to get result for each segment of equal adjacent keys
+    // create views over adjacent keys
+    oneapi::dpl::__ranges::all_view<__key_type, __par_backend_hetero::access_mode::read_write> __new_keys(
+        __tmp_out_keys);
+
+    // Replicating first element of key views to be able to compare (i-1)-th and (i)-th key,
+    //  dropping the last key for the i-1 sequence.  Only taking the appropriate number of keys to start with here.
+    auto __clipped_new_keys = oneapi::dpl::__ranges::take_view_simple(__new_keys, __intermediate_result_end);
+
+    auto __k3 = oneapi::dpl::__ranges::take_view_simple(
+        oneapi::dpl::__ranges::replicate_start_view_simple(__clipped_new_keys, 1), __intermediate_result_end);
+
+    // view3 elements are a tuple of the element index and pairs of adjacent keys
+    // view4 elements are a tuple of the elements where key-index pairs will be written by copy_if
+    auto __view3 = oneapi::dpl::__ranges::zip_view(experimental::ranges::views::iota(0, __intermediate_result_end),
+                                                   __k3, __clipped_new_keys);
+    auto __view4 = oneapi::dpl::__ranges::zip_view(oneapi::dpl::__ranges::views::all_write(__out_keys),
+                                                   oneapi::dpl::__ranges::views::all_write(__idx));
+
+    // element is copied if it is the 0th element (marks beginning of first segment), or has a key not equal to
+    // the adjacent element (end of a segment). Artificial segments based on wg size are not created.
+    auto __result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+                            oneapi::dpl::__internal::__device_backend_tag{},
+                            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec),
+                            __view3, __view4, __view3.size(),
+                            [__binary_pred](const auto& __a) {
+                                // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
+                                // for (i-1), but we still need to get its key value as it is the start of a segment
+                                if (std::get<0>(__a) == 0)
+                                    return true;
+                                return !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // keys comparison
+                            },
+                            unseq_backend::__brick_assign_key_position{})
+                            .get();
+
+    //reduce by segment
+    oneapi::dpl::__par_backend_hetero::__parallel_for(
+        oneapi::dpl::__internal::__device_backend_tag{},
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
+            std::forward<_ExecutionPolicy>(__exec)),
+        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end)>(
+            __binary_op, __intermediate_result_end),
+        __result_end,
+        oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx), __result_end),
+        oneapi::dpl::__ranges::views::all_read(__tmp_out_values), std::forward<_Range4>(__out_values))
+        .__deferrable_wait();
+    return __result_end;
+}
+
+template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
+          typename _BinaryPredicate, typename _BinaryOperator>
+oneapi::dpl::__internal::__difference_t<_Range3>
+__parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __keys,
+                             _Range2&& __values, _Range3&& __out_keys, _Range4&& __out_values,
+                             _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
+{
+    // The algorithm reduces values in __values where the
+    // associated keys for the values are equal to the adjacent key.
+    //
+    // Example: __keys       = { 1, 2, 3, 4, 1, 1, 3, 3, 1, 1, 3, 3, 0 }
+    //          __values     = { 1, 2, 3, 4, 1, 1, 3, 3, 1, 1, 3, 3, 0 }
+    //
+    //          __out_keys   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 }
+    //          __out_values = { 1, 2, 3, 4, 2, 6, 2, 6, 0 }
+
+    const auto __n = __keys.size();
+
+    using __diff_type = oneapi::dpl::__internal::__difference_t<_Range1>;
+    using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
+    using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
+    // Prior to icpx 2025.0, the reduce-then-scan path performs poorly and should be avoided.
+#if !defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000
+    if constexpr (std::is_trivially_copyable_v<__val_type>)
+    {
+        if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
+        {
+            auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan(
+                oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+                std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
+                std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
+            __res.wait();
+            // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
+            // past-the-end iterator pair of segmented reduction.
+            return std::get<0>(__res.get()) + 1;
+        }
+    }
+#endif
+    return __parallel_reduce_by_segment_fallback(
+        oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+        std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
+        std::forward<_Range4>(__out_values), __binary_pred, __binary_op,
+        oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
+}
+
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi

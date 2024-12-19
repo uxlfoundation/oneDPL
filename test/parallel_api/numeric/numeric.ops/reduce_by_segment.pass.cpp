@@ -301,7 +301,7 @@ test_flag_pred()
 }
 #endif
 
-template <typename ValueType, typename BinaryPredicate, typename BinaryOperation>
+template <bool use_device_alloc, typename ValueType, typename BinaryPredicate, typename BinaryOperation>
 void
 run_test_on_device()
 {
@@ -313,10 +313,8 @@ run_test_on_device()
     {
         if (TestUtils::has_type_support<ValueType>(TestUtils::get_test_queue().get_device()))
         {
-            // Run tests for USM shared memory
-            test4buffers<sycl::usm::alloc::shared, test_reduce_by_segment<ValueType, BinaryPredicate, BinaryOperation>>();
-            // Run tests for USM device memory
-            test4buffers<sycl::usm::alloc::device, test_reduce_by_segment<ValueType, BinaryPredicate, BinaryOperation>>();
+            constexpr sycl::usm::alloc allocation_type = use_device_alloc ? sycl::usm::alloc::device : sycl::usm::alloc::shared;
+            test4buffers<allocation_type, test_reduce_by_segment<ValueType, BinaryPredicate, BinaryOperation>>();
         }
     }
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -335,12 +333,12 @@ run_test_on_host()
 #endif // !_PSTL_ICC_TEST_SIMD_UDS_BROKEN && !_PSTL_ICPX_TEST_RED_BY_SEG_OPTIMIZER_CRASH
 }
 
-template <typename ValueType, typename BinaryPredicate, typename BinaryOperation>
+template <bool use_device_alloc, typename ValueType, typename BinaryPredicate, typename BinaryOperation>
 void
 run_test()
 {
     run_test_on_host<ValueType, BinaryPredicate, BinaryOperation>();
-    run_test_on_device<ValueType, BinaryPredicate, BinaryOperation>();
+    run_test_on_device<use_device_alloc, ValueType, BinaryPredicate, BinaryOperation>();
 }
 
 int
@@ -350,7 +348,7 @@ main()
     // kernels. This is being filed to the compiler team. In the meantime, we can rearrange this test
     // to resolve the issue on our side.
 #if _PSTL_RED_BY_SEG_WINDOWS_COMPILE_ORDER_BROKEN
-    run_test<MatrixPoint<float>, UserBinaryPredicate<MatrixPoint<float>>, MaxFunctor<MatrixPoint<float>>>();
+    run_test</*use_device_alloc=*/true, MatrixPoint<float>, UserBinaryPredicate<MatrixPoint<float>>, MaxFunctor<MatrixPoint<float>>>();
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -360,17 +358,17 @@ main()
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 #if !_PSTL_RED_BY_SEG_WINDOWS_COMPILE_ORDER_BROKEN
-    run_test<MatrixPoint<float>, UserBinaryPredicate<MatrixPoint<float>>, MaxFunctor<MatrixPoint<float>>>();
+    run_test</*use_device_alloc=*/true, MatrixPoint<float>, UserBinaryPredicate<MatrixPoint<float>>, MaxFunctor<MatrixPoint<float>>>();
 #endif
 
-    run_test<int, ::std::equal_to<int>, ::std::plus<int>>();
-    run_test<float, ::std::equal_to<float>, ::std::plus<float>>();
-    run_test<double, ::std::equal_to<double>, ::std::plus<double>>();
+    run_test</*use_device_alloc=*/false, int, ::std::equal_to<int>, ::std::plus<int>>();
+    run_test</*use_device_alloc=*/true, float, ::std::equal_to<float>, ::std::plus<float>>();
+    run_test</*use_device_alloc=*/false, double, ::std::equal_to<double>, ::std::plus<double>>();
 
     // TODO investigate possible overflow: see issue #1416
-    run_test_on_device<int, ::std::equal_to<int>, ::std::multiplies<int>>();
-    run_test_on_device<float, ::std::equal_to<float>, ::std::multiplies<float>>();
-    run_test_on_device<double, ::std::equal_to<double>, ::std::multiplies<double>>();
+    run_test_on_device</*use_device_alloc=*/true, int, ::std::equal_to<int>, ::std::multiplies<int>>();
+    run_test_on_device</*use_device_alloc=*/false, float, ::std::equal_to<float>, ::std::multiplies<float>>();
+    run_test_on_device</*use_device_alloc=*/true, double, ::std::equal_to<double>, ::std::multiplies<double>>();
 
     return TestUtils::done();
 }
