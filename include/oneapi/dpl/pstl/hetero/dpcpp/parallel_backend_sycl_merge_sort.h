@@ -91,8 +91,8 @@ struct __group_merge_path_sorter
             auto __in_ptr1 = __in_ptr + __start1;
             auto __in_ptr2 = __in_ptr + __start2;
 
-            const std::pair<std::uint32_t, std::uint32_t> __start =
-                __find_start_point(__in_ptr1, __in_ptr2, __id_local, __n1, __n2, __comp);
+            const std::pair<std::uint32_t, std::uint32_t> __start = __find_start_point(
+                __in_ptr1, std::uint32_t{0}, __n1, __in_ptr2, std::uint32_t{0}, __n2, __id_local, __comp);
             // TODO: copy the data into registers before the merge to halve the required amount of SLM
             __serial_merge(__in_ptr1, __in_ptr2, __out_ptr, __start.first, __start.second, __id, __data_per_workitem,
                            __n1, __n2, __comp);
@@ -272,7 +272,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                             const oneapi::dpl::__ranges::drop_view_simple __rng1(__dst, __offset);
                             const oneapi::dpl::__ranges::drop_view_simple __rng2(__dst, __offset + __n1);
 
-                            const auto start = __find_start_point(__rng1, __rng2, __i_elem_local, __n1, __n2, __comp);
+                            const auto start = __find_start_point(__rng1, _IndexT{0}, __n1, __rng2, _IndexT{0}, __n2,
+                                                                  __i_elem_local, __comp);
                             __serial_merge(__rng1, __rng2, __rng /*__rng3*/, start.first, start.second, __i_elem,
                                            __chunk, __n1, __n2, __comp);
                         }
@@ -281,7 +282,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                             const oneapi::dpl::__ranges::drop_view_simple __rng1(__rng, __offset);
                             const oneapi::dpl::__ranges::drop_view_simple __rng2(__rng, __offset + __n1);
 
-                            const auto start = __find_start_point(__rng1, __rng2, __i_elem_local, __n1, __n2, __comp);
+                            const auto start = __find_start_point(__rng1, _IndexT{0}, __n1, __rng2, _IndexT{0}, __n2,
+                                                                  __i_elem_local, __comp);
                             __serial_merge(__rng1, __rng2, __dst /*__rng3*/, start.first, start.second, __i_elem,
                                            __chunk, __n1, __n2, __comp);
                         }
