@@ -129,7 +129,7 @@ struct all_view_fn
     }
 };
 
-#if _ONEDPL_SYCL_PLACEHOLDER_HOST_ACCESSOR_DEPRECATED
+#if _ONEDPL_SYCL2020_HOST_ACCESSOR_PRESENT
 struct all_host_view_fn
 {
     // An overload for sycl::buffer template type
@@ -163,11 +163,13 @@ inline constexpr all_view_fn<sycl::access::mode::read, __dpl_sycl::__target_devi
 inline constexpr all_view_fn<sycl::access::mode::write, __dpl_sycl::__target_device, sycl::access::placeholder::true_t>
     all_write;
 
-#if _ONEDPL_SYCL_PLACEHOLDER_HOST_ACCESSOR_DEPRECATED
+#if _ONEDPL_SYCL2020_HOST_ACCESSOR_PRESENT
 inline constexpr all_host_view_fn
-#else
+#elif _ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200)
 inline constexpr all_view_fn<sycl::access::mode::read_write, __dpl_sycl::__host_target,
                              sycl::access::placeholder::false_t>
+#else
+#    error "sycl::host_accessor is not supported, and no alternative is available"
 #endif
     host_all;
 } // namespace views

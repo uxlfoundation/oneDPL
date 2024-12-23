@@ -198,11 +198,11 @@ __radix_sort_count_submit(_ExecutionPolicy&& __exec, ::std::size_t __segments, :
         oneapi::dpl::__ranges::__require_access(__hdl, __val_rng, __count_rng);
         // an accessor per work-group with value counters from each work-item
         auto __count_lacc = __dpl_sycl::__local_accessor<_CountT>(__wg_size * __radix_states, __hdl);
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
         __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
 #endif
         __hdl.parallel_for<_KernelName>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __kernel,
 #endif
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
@@ -299,11 +299,11 @@ __radix_sort_scan_submit(_ExecutionPolicy&& __exec, ::std::size_t __scan_wg_size
         __hdl.depends_on(__dependency_event);
         // access the counters for all work groups
         oneapi::dpl::__ranges::__require_access(__hdl, __count_rng);
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
         __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
 #endif
         __hdl.parallel_for<_KernelName>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __kernel,
 #endif
             sycl::nd_range<1>(__radix_states * __scan_wg_size, __scan_wg_size), [=](sycl::nd_item<1> __self_item) {
@@ -346,7 +346,7 @@ enum class __peer_prefix_algo
 template <std::uint32_t __radix_states, typename _OffsetT, __peer_prefix_algo _Algo>
 struct __peer_prefix_helper;
 
-#if (_ONEDPL_LIBSYCL_VERSION >= 50700)
+#if _ONEDPL_SYCL2020_SUBGROUP_BARRIER_PRESENT
 template <std::uint32_t __radix_states, typename _OffsetT>
 struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::atomic_fetch_or>
 {
@@ -390,7 +390,7 @@ struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::atomic
         return __offset;
     }
 };
-#endif // (_ONEDPL_LIBSYCL_VERSION >= 50700)
+#endif // _ONEDPL_SYCL2020_SUBGROUP_BARRIER_PRESENT
 
 template <std::uint32_t __radix_states, typename _OffsetT>
 struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::scan_then_broadcast>
@@ -428,7 +428,7 @@ struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::scan_t
     }
 };
 
-#if _ONEDPL_SYCL_SUB_GROUP_MASK_PRESENT
+#if _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
 template <std::uint32_t __radix_states, typename _OffsetT>
 struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::subgroup_ballot>
 {
@@ -468,7 +468,7 @@ struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::subgro
         return __offset;
     }
 };
-#endif // _ONEDPL_SYCL_SUB_GROUP_MASK_PRESENT
+#endif // _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
 
 template <typename _InRange, typename _OutRange>
 void
@@ -544,11 +544,11 @@ __radix_sort_reorder_submit(_ExecutionPolicy&& __exec, ::std::size_t __segments,
 
         typename _PeerHelper::_TempStorageT __peer_temp(1, __hdl);
 
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
         __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
 #endif
         __hdl.parallel_for<_KernelName>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __kernel,
 #endif
             //Each SYCL work group processes one data segment.
@@ -726,13 +726,13 @@ struct __parallel_radix_sort_iteration
         sycl::event __reorder_event{};
         if (__reorder_sg_size == 8 || __reorder_sg_size == 16 || __reorder_sg_size == 32)
         {
-#if _ONEDPL_SYCL_SUB_GROUP_MASK_PRESENT
+#if _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
             constexpr auto __peer_algorithm = __peer_prefix_algo::subgroup_ballot;
-#elif _ONEDPL_LIBSYCL_VERSION >= 50700
+#elif _ONEDPL_SYCL2020_SUBGROUP_BARRIER_PRESENT
             constexpr auto __peer_algorithm = __peer_prefix_algo::atomic_fetch_or;
 #else
             constexpr auto __peer_algorithm = __peer_prefix_algo::scan_then_broadcast;
-#endif // _ONEDPL_SYCL_SUB_GROUP_MASK_PRESENT
+#endif // _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
 
             __reorder_event =
                 __radix_sort_reorder_submit<_RadixReorderPeerKernel, __radix_bits, __is_ascending, __peer_algorithm>(

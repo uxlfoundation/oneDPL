@@ -164,12 +164,12 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     auto __seg_end_identification = __exec.queue().submit([&](sycl::handler& __cgh) {
         oneapi::dpl::__ranges::__require_access(__cgh, __keys);
         auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::write>(__cgh);
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
         __cgh.use_kernel_bundle(__seg_reduce_count_kernel.get_kernel_bundle());
 #endif
         __cgh.parallel_for<_SegReduceCountKernel>(
             sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
                                                                               __seg_reduce_count_kernel,
 #endif
                                                                               sycl::nd_item<1> __item) {
@@ -202,11 +202,11 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         __cgh.depends_on(__seg_end_identification);
         auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::read>(__cgh);
         auto __seg_ends_scan_acc = __seg_ends_scanned.template get_access<sycl::access_mode::read_write>(__cgh);
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
         __cgh.use_kernel_bundle(__seg_reduce_offset_kernel.get_kernel_bundle());
 #endif
         __cgh.parallel_for<_SegReduceOffsetKernel>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __seg_reduce_offset_kernel,
 #endif
             sycl::nd_range<1>{__wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
@@ -225,11 +225,11 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         auto __partials_acc = __partials.template get_access<sycl::access_mode::read_write>(__cgh);
         auto __seg_ends_scan_acc = __seg_ends_scanned.template get_access<sycl::access_mode::read>(__cgh);
         __dpl_sycl::__local_accessor<__val_type> __loc_acc(2 * __wgroup_size, __cgh);
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
         __cgh.use_kernel_bundle(__seg_reduce_wg_kernel.get_kernel_bundle());
 #endif
         __cgh.parallel_for<_SegReduceWgKernel>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __seg_reduce_wg_kernel,
 #endif
             sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
@@ -348,11 +348,11 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
             __dpl_sycl::__local_accessor<__diff_type> __loc_seg_ends_acc(__wgroup_size, __cgh);
 
             __cgh.depends_on(__wg_reduce);
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __cgh.use_kernel_bundle(__seg_reduce_prefix_kernel.get_kernel_bundle());
 #endif
             __cgh.parallel_for<_SegReducePrefixKernel>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
                 __seg_reduce_prefix_kernel,
 #endif
                 sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {

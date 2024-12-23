@@ -23,6 +23,9 @@
 #include "../../utils.h"
 #include "sycl_defs.h"
 
+#define _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT                                                                            \
+    (_ONEDPL_SYCL2020_KNOWN_IDENTITY_PRESENT || _ONEDPL_LIBSYCL_KNOWN_IDENTITY_PRESENT)
+
 namespace oneapi
 {
 namespace dpl
@@ -49,7 +52,7 @@ inline constexpr bool __can_use_known_identity =
 template <typename _BinaryOp, typename _Tp>
 using __has_known_identity = ::std::conditional_t<
     __can_use_known_identity<_Tp>,
-#    if _ONEDPL_LIBSYCL_VERSION >= 50200
+#    if _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT
     typename ::std::disjunction<
         __dpl_sycl::__has_known_identity<_BinaryOp, _Tp>,
         ::std::conjunction<::std::is_arithmetic<_Tp>,
@@ -61,14 +64,14 @@ using __has_known_identity = ::std::conditional_t<
                                               ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__minimum<void>>,
                                               ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__maximum<_Tp>>,
                                               ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__maximum<void>>>>>,
-#    else  //_ONEDPL_LIBSYCL_VERSION >= 50200
+#    else
     typename ::std::conjunction<
         ::std::is_arithmetic<_Tp>,
         ::std::disjunction<::std::is_same<::std::decay_t<_BinaryOp>, ::std::plus<_Tp>>,
                            ::std::is_same<::std::decay_t<_BinaryOp>, ::std::plus<void>>,
                            ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<_Tp>>,
                            ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<void>>>>,
-#    endif //_ONEDPL_LIBSYCL_VERSION >= 50200
+#    endif
     ::std::false_type>;     // This is for the case of __can_use_known_identity<_Tp>==false
 
 #else //_ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
@@ -90,11 +93,11 @@ struct __known_identity_for_plus
 
 template <typename _BinaryOp, typename _Tp>
 inline constexpr _Tp __known_identity =
-#if _ONEDPL_LIBSYCL_VERSION >= 50200
+#if _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT
     __dpl_sycl::__known_identity<_BinaryOp, _Tp>::value;
-#else  //_ONEDPL_LIBSYCL_VERSION >= 50200
+#else
     __known_identity_for_plus<_BinaryOp, _Tp>::value; //for plus only
-#endif //_ONEDPL_LIBSYCL_VERSION >= 50200
+#endif
 
 template <typename _ExecutionPolicy, typename _F>
 struct walk_n
