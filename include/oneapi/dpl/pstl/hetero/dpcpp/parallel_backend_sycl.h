@@ -939,12 +939,10 @@ struct __write_red_by_seg
         using std::get;
         auto __out_keys = get<0>(__out_rng.tuple());
         auto __out_values = get<1>(__out_rng.tuple());
-        using _KeyType = oneapi::dpl::__internal::__value_t<decltype(__out_keys)>;
-        using _ValType = oneapi::dpl::__internal::__value_t<decltype(__out_values)>;
 
-        const _KeyType& __next_key = get<2>(__tup);
-        const _KeyType& __current_key = get<3>(__tup);
-        const _ValType& __current_value = get<1>(get<0>(__tup));
+        const auto& __next_key = get<2>(__tup);
+        const auto& __current_key = get<3>(__tup);
+        const auto& __current_value = get<1>(get<0>(__tup));
         const bool __is_seg_end = get<1>(__tup);
         const std::size_t __out_idx = get<0>(get<0>(__tup));
 
