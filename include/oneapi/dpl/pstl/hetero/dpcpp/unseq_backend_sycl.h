@@ -113,8 +113,9 @@ struct walk_n
 // Base class which establishes tuning parameters including vectorization / scalar path decider at compile time
 // for walk / for based algorithms
 template <typename... _Ranges>
-class walk_vector_or_scalar_base
+struct walk_vector_or_scalar_base
 {
+  private:
     using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<_Ranges>...>;
     constexpr static std::uint8_t __min_type_size = oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value;
     // Empirically determined 'bytes-in-flight' to maximize bandwidth utilization
@@ -135,8 +136,9 @@ class walk_vector_or_scalar_base
 
 // Path that intentionally disables vectorization for algorithms with a scattered access pattern (e.g. binary_search)
 template <typename... _Ranges>
-class walk_scalar_base
+struct walk_scalar_base
 {
+  private:
     using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<_Ranges>...>;
     constexpr static std::uint8_t __min_type_size = oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value;
     constexpr static std::uint8_t __bytes_per_item = 16;
