@@ -155,9 +155,13 @@ struct walk_scalar_base
 template <typename _ExecutionPolicy, typename _F, typename _Range>
 struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
 {
+  private:
     using __base_t = walk_vector_or_scalar_base<_Range>;
     _F __f;
     std::size_t __n;
+
+  public:
+    walk1_vector_or_scalar(_F __f, std::size_t __n) : __f(__f), __n(__n) {}
 
     template <typename _IsFull, typename _ItemId>
     void
@@ -191,9 +195,13 @@ struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
 struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+  private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     _F __f;
     std::size_t __n;
+
+  public:
+    walk2_vectors_or_scalars(_F __f, std::size_t __n) : __f(__f), __n(__n) {}
 
     template <typename _IsFull, typename _ItemId>
     void
@@ -242,9 +250,13 @@ struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Ra
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2, typename _Range3>
 struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Range2, _Range3>
 {
+  private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2, _Range3>;
     _F __f;
     std::size_t __n;
+
+  public:
+    walk3_vectors_or_scalars(_F __f, std::size_t __n) : __f(__f), __n(__n) {}
 
     template <typename _IsFull, typename _ItemId>
     void
@@ -322,9 +334,13 @@ struct walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
 struct walk_adjacent_difference : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+  private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     _F __f;
     std::size_t __n;
+
+  public:
+    walk_adjacent_difference(_F __f, std::size_t __n) : __f(__f), __n(__n) {}
 
     template <typename _IsFull, typename _ItemId>
     void
@@ -1156,9 +1172,14 @@ struct __brick_includes
 template <typename _Size, typename _Range>
 struct __reverse_functor : public walk_vector_or_scalar_base<_Range>
 {
+  private:
     using __base_t = walk_vector_or_scalar_base<_Range>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
     _Size __size;
+
+  public:
+    __reverse_functor(_Size __size) : __size(__size) {}
+
     template <typename _IsFull, typename _Idx>
     void
     __vector_path(_IsFull __is_full, const _Idx __left_start_idx, _Range __rng) const
@@ -1231,9 +1252,13 @@ struct __reverse_functor : public walk_vector_or_scalar_base<_Range>
 template <typename _Size, typename _Range1, typename _Range2>
 struct __reverse_copy : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+  private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
     _Size __size;
+
+  public:
+    __reverse_copy(_Size __size) : __size(__size) {}
 
     template <typename _IsFull, typename _Idx>
     void
@@ -1296,10 +1321,15 @@ struct __reverse_copy : public walk_vector_or_scalar_base<_Range1, _Range2>
 template <typename _Size, typename _Range1, typename _Range2>
 struct __rotate_copy : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+  private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
     _Size __size;
     _Size __shift;
+
+  public:
+    __rotate_copy(_Size __size, _Size __shift) : __size(__size), __shift(__shift) {}
+
     template <typename _IsFull, typename _Idx>
     void
     __vector_path(_IsFull __is_full, const _Idx __idx, const _Range1 __rng1, _Range2 __rng2) const
@@ -1515,9 +1545,14 @@ struct __brick_reduce_idx : public walk_scalar_base<_Range>
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
 struct __brick_swap : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+  private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     _F __f;
     std::size_t __n;
+
+  public:
+    __brick_swap(_F __f, std::size_t __n) : __f(__f), __n(__n) {}
+
     template <typename _IsFull, typename _ItemId>
     void
     __vector_path(_IsFull __is_full, const _ItemId __idx, _Range1 __rng1, _Range2 __rng2) const
