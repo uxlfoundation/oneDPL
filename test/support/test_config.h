@@ -276,6 +276,4 @@
 // Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
 #define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= 20250100)
 
-#define TEST_FOR_ALGORITHM_LARGE_SUBMITTER TEST_DPCPP_BACKEND_PRESENT
-
 #endif // _TEST_CONFIG_H

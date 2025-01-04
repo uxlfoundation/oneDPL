@@ -104,7 +104,7 @@ test(Predicate pred, _IteratorAdapter adap = {})
 #if PSTL_USE_DEBUG && ONEDPL_USE_OPENMP_BACKEND
         10000;
 #else
-        100000;
+        TestUtils::get_pattern_for_max_n();
 #endif
     for (size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {

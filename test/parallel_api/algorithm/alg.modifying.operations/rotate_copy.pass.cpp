@@ -100,7 +100,7 @@ void
 test()
 {
 
-    const ::std::size_t max_len = 100000;
+    const std::size_t max_len = TestUtils::get_pattern_for_max_n();
 
     Sequence<T2> actual(max_len, [](::std::size_t i) { return T1(i); });
 

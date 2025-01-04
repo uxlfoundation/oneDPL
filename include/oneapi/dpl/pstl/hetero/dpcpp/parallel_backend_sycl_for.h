@@ -129,16 +129,10 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     static std::size_t
     __estimate_best_start_size(const _ExecutionPolicy& __exec, _Fp __brick)
     {
-        // To ensure that the large submitter gets tested on all devices, set the switch point to 10,000 only when compiling
-        // oneDPL tests.
-#if TEST_FOR_ALGORITHM_LARGE_SUBMITTER
-        return 10000;
-#else
         const std::size_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__exec, __max_work_group_size);
         const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec);
         return __work_group_size * _Fp::__preferred_iters_per_item * __max_cu;
-#endif
     }
 
     template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>

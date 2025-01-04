@@ -1013,6 +1013,26 @@ generate_arithmetic_data(T* input, std::size_t size, std::uint32_t seed)
         input[j] = input[i];
     }
 }
+
+// Utility that models __estimate_best_start_size in the SYCL backend parallel_for
+// to ensure large enough inputs are used to test the large submitter path.
+// A multiplier to the max n is added to ensure we get a few separate test inputs for
+// this path.
+std::size_t
+get_pattern_for_max_n()
+{
+#if TEST_DPCPP_BACKEND_PRESENT
+    sycl::queue q = TestUtils::get_test_queue();
+    sycl::device d = q.get_device();
+    constexpr std::size_t max_iters_per_item = 16;
+    constexpr std::size_t multiplier = 4;
+    return multiplier * max_iters_per_item * d.get_info<sycl::info::device::max_work_group_size>() *
+           d.get_info<sycl::info::device::max_compute_units>();
+#else
+    return TestUtils::max_n;
+#endif
+}
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H

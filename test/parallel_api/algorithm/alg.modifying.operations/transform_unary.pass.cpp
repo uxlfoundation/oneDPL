@@ -84,7 +84,8 @@ template <::std::size_t CallNumber, typename Tin, typename Tout, typename _Op = 
 void
 test()
 {
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    size_t max_n = TestUtils::get_pattern_for_max_n();
+    for (size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         Sequence<Tin> in(n, [](std::int32_t k) { return k % 5 != 1 ? 3 * k - 7 : 0; });
 

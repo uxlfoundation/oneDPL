@@ -139,7 +139,7 @@ template <typename T1, typename T2, typename Pred>
 void
 test(Pred pred)
 {
-    const ::std::size_t max_len = 100000;
+    const std::size_t max_len = TestUtils::get_pattern_for_max_n();
 
     const T2 value = T2(77);
     const T1 trash = T1(31);

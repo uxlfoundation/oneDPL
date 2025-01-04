@@ -101,7 +101,7 @@ int
 main()
 {
 
-    const ::std::size_t N = 100000;
+    const std::size_t N = TestUtils::get_pattern_for_max_n();
 
     for (::std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.1415 * n))
     {
