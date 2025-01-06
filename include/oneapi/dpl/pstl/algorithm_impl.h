@@ -4344,8 +4344,7 @@ __pattern_histogram(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             });
         // now accumulate temporary storage into output global histogram
         __par_backend::__parallel_for(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __histogram_first,
-            __histogram_first + __num_bins,
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __histogram_first, __histogram_first + __num_bins,
             [__histogram_first, &__tls](auto __global_histogram_first, auto __global_histogram_last) {
                 _DiffType __local_n = __global_histogram_last - __global_histogram_first;
                 std::uint32_t __num_temporary_copies = __tls.size();
