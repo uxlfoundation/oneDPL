@@ -790,7 +790,15 @@ union __lazy_ctor_storage
     }
 };
 
-// Returns the smallest type within a set of potentially nested template types.
+// To implement __min_nested_type_size, a general utility with an internal tuple
+// specialization, we need to forward declare our internal tuple first as tuple_impl.h
+// already includes this header.
+template <typename... T>
+struct tuple;
+
+// Returns the smallest type within a set of potentially nested template types. This function
+// recursively explores std::tuple and oneapi::dpl::__internal::tuple for the smallest type.
+// For all other types, its size is used directly.
 // E.g. If we consider the type: T = tuple<float, tuple<short, long>, int, double>,
 // then __min_nested_type_size<T>::value returns sizeof(short).
 template <typename _T>
@@ -799,8 +807,14 @@ struct __min_nested_type_size
     constexpr static std::size_t value = sizeof(_T);
 };
 
-template <template <typename...> typename _WrapperType, typename... _Ts>
-struct __min_nested_type_size<_WrapperType<_Ts...>>
+template <typename... _Ts>
+struct __min_nested_type_size<std::tuple<_Ts...>>
+{
+    constexpr static std::size_t value = std::min({__min_nested_type_size<_Ts>::value...});
+};
+
+template <typename... _Ts>
+struct __min_nested_type_size<oneapi::dpl::__internal::tuple<_Ts...>>
 {
     constexpr static std::size_t value = std::min({__min_nested_type_size<_Ts>::value...});
 };
