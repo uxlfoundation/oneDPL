@@ -89,9 +89,6 @@
 
 #define _ONEDPL_SYCL_DEVICE_COPYABLE_SPECIALIZATION_BROKEN (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(70100))
 
-// TODO: determine which compiler configurations provide subgroup load/store
-#define _ONEDPL_SYCL_SUB_GROUP_LOAD_STORE_PRESENT false
-
 // Macro to check if we are compiling for SPIR-V devices. This macro must only be used within
 // SYCL kernels for determining SPIR-V compilation. Using this macro on the host may lead to incorrect behavior.
 #ifndef _ONEDPL_DETECT_SPIRV_COMPILATION // Check if overridden for testing
