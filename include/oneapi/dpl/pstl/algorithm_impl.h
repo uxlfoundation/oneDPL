@@ -4326,7 +4326,7 @@ __pattern_histogram(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
     using _HistogramValueT = typename std::iterator_traits<_RandomAccessIterator2>::value_type;
-    using _DiffType = typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _DiffType = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
 
     _DiffType __n = __last - __first;
     if (__n > 0)
@@ -4337,14 +4337,14 @@ __pattern_histogram(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         //main histogram loop
         //TODO: add defaulted grain-size option for __parallel_for and use larger one here to account for overhead
         __par_backend::__parallel_for(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            __backend_tag{}, __exec, __first, __last,
             [__func, &__tls](_RandomAccessIterator1 __first_local, _RandomAccessIterator1 __last_local) {
                 __internal::__brick_histogram(__first_local, __last_local, __func,
                                               __tls.get_for_current_thread().begin(), _IsVector{});
             });
         // now accumulate temporary storage into output global histogram
         __par_backend::__parallel_for(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __histogram_first,
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __histogram_first,
             __histogram_first + __num_bins,
             [__histogram_first, &__tls](auto __global_histogram_first, auto __global_histogram_last) {
                 _DiffType __local_n = __global_histogram_last - __global_histogram_first;

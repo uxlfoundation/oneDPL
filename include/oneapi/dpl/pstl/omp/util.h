@@ -170,7 +170,7 @@ class __construct_by_args : public __construct_by_args_base<_StorageType>
 {
   public:
     std::unique_ptr<_StorageType>
-    construct()
+    construct() override
     {
         return std::move(
             std::apply([](auto... __arg_pack) { return std::make_unique<_StorageType>(__arg_pack...); }, __pack));
