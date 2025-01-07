@@ -848,11 +848,11 @@ Known Issues and Limitations
 
 .. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types and
    ``sycl::half`` (since oneDPL 2022.6) compared with ``std::less`` or ``std::greater``, otherwise Merge sort.
-.. _`oneDPL Guide`: https://oneapi-src.github.io/oneDPL/index.html
+.. _`oneDPL Guide`: https://uxlfoundation.github.io/oneDPL/index.html
 .. _`Intel® oneAPI Threading Building Blocks (oneTBB) Release Notes`: https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-threading-building-blocks-release-notes.html
-.. _`restrictions and known limitations`: https://oneapi-src.github.io/oneDPL/introduction.html#restrictions.
-.. _`Tested Standard C++ API`: https://oneapi-src.github.io/oneDPL/api_for_sycl_kernels/tested_standard_cpp_api.html#tested-standard-c-api-reference
-.. _`Macros`: https://oneapi-src.github.io/oneDPL/macros.html
-.. _`2022.0 Changes`: https://oneapi-src.github.io/oneDPL/oneDPL_2022.0_changes.html
+.. _`restrictions and known limitations`: https://uxlfoundation.github.io/oneDPL/introduction.html#restrictions.
+.. _`Tested Standard C++ API`: https://uxlfoundation.github.io/oneDPL/api_for_sycl_kernels/tested_standard_cpp_api.html#tested-standard-c-api-reference
+.. _`Macros`: https://uxlfoundation.github.io/oneDPL/macros.html
+.. _`2022.0 Changes`: https://uxlfoundation.github.io/oneDPL/oneDPL_2022.0_changes.html
 .. _`sycl device copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
 .. _`oneAPI DPC++ Library Manual Migration Guide`: https://www.intel.com/content/www/us/en/developer/articles/guide/oneapi-dpcpp-library-manual-migration.html 

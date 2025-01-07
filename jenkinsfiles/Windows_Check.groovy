@@ -113,7 +113,7 @@ pipeline {
     parameters {
         string(name: 'Commit_id', defaultValue: 'None', description: '',)
         string(name: 'PR_number', defaultValue: 'None', description: '',)
-        string(name: 'Repository', defaultValue: 'oneapi-src/oneDPL', description: '',)
+        string(name: 'Repository', defaultValue: 'uxlfoundation/oneDPL', description: '',)
         string(name: 'User', defaultValue: 'None', description: '',)
         string(name: 'OneAPI_Package_Date', defaultValue: 'Default', description: '',)
         string(name: 'Base_branch', defaultValue: 'main', description: '',)
@@ -200,7 +200,7 @@ pipeline {
                                     bat script: """
                                         d:
                                         cd ${env.WORKSPACE}
-                                        git clone https://github.com/oneapi-src/oneDPL.git src
+                                        git clone https://github.com/uxlfoundation/oneDPL.git src
                                         cd src
                                         git config --local --add remote.origin.fetch +refs/pull/${env.PR_number}/head:refs/remotes/origin/pr/${env.PR_number}
                                         git pull origin

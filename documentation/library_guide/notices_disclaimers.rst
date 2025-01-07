@@ -20,7 +20,7 @@ License
 
 oneDPL is licensed under Apache License Version 2.0 with LLVM exceptions. 
 
-Refer to the `LICENSE <https://github.com/oneapi-src/oneDPL/blob/main/LICENSE.txt>`_ file for the full license text and copyright notice.
+Refer to the `LICENSE <https://github.com/uxlfoundation/oneDPL/blob/main/LICENSE.txt>`_ file for the full license text and copyright notice.
 
 
 

@@ -12,7 +12,7 @@ programming efforts across devices for high performance parallel applications.
 * Macros
 
 
-For general information about |onedpl_short|, visit the `oneDPL GitHub* repository <https://github.com/oneapi-src/oneDPL>`_,
+For general information about |onedpl_short|, visit the `oneDPL GitHub* repository <https://github.com/uxlfoundation/oneDPL>`_,
 or visit the |onedpl_library_guide|_ and the `Intel® oneAPI DPC++ Library main page
 <https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-library.html>`_.
 

@@ -104,7 +104,7 @@ pipeline {
     parameters {
         string(name: 'Commit_id', defaultValue: 'None', description: '',)
         string(name: 'PR_number', defaultValue: 'None', description: '',)
-        string(name: 'Repository', defaultValue: 'oneapi-src/oneDPL', description: '',)
+        string(name: 'Repository', defaultValue: 'uxlfoundation/oneDPL', description: '',)
         string(name: 'User', defaultValue: 'None', description: '',)
         string(name: 'OneAPI_Package_Date', defaultValue: 'Default', description: '',)
         string(name: 'Base_branch', defaultValue: 'main', description: '',)

@@ -113,7 +113,7 @@ html_theme_options = {
     #'collapse_navigation': False,  # Collapse navigation (False makes it tree-like)
     #'navigation_depth': 4  # Depth of the headers shown in the navigation bar
     #'display_version': True,  # Display the docs version
-    'repository_url': 'https://github.com/oneapi-src/oneDPL',
+    'repository_url': 'https://github.com/uxlfoundation/oneDPL',
     'path_to_docs': 'documentation/library_guide',
     'use_issues_button': True,
     'use_edit_page_button': True,
