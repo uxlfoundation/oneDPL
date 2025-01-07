@@ -125,7 +125,7 @@ struct walk_vector_or_scalar_base
 
   public:
     constexpr static bool __can_vectorize =
-        (oneapi::dpl::__ranges::__is_vectorizable_range<_Ranges>::value && ...) &&
+        (oneapi::dpl::__ranges::__is_vectorizable_range<std::decay_t<_Ranges>>::value && ...) &&
         (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) && __min_type_size < 4;
     // Vectorize for small types, so we generate 128-byte load / stores in a sub-group
     constexpr static std::uint8_t __preferred_vector_size =
