@@ -196,7 +196,9 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
             // by our all / guard views interfere with compiler vectorization. At this point, we have ensured that
             // input is contiguous and can be operated on directly. The begin() function for these views will return a
             // pointer which is passed to the kernel.
-            if constexpr (_Fp::__can_vectorize)
+            //
+            // For buffers, pointers cannot be grabbed from an accessor outside of a kernel, so we have to fallback.
+            if constexpr (_Fp::__can_vectorize && (oneapi::dpl::__ranges::__is_passed_directly_range<std::decay_t<_Ranges>>::value && ...))
             {
                 return __large_submitter{}(std::forward<_ExecutionPolicy>(__exec), __brick, __count,
                                            std::forward<_Ranges>(__rngs).begin()...);
