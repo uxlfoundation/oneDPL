@@ -780,16 +780,6 @@ struct __is_vectorizable_range<oneapi::dpl::__ranges::all_view<_Args...>> : std:
 {
 };
 
-template <typename _Rng>
-struct __is_passed_directly_range : std::false_type
-{
-};
-
-template <typename... _Args>
-struct __is_passed_directly_range<oneapi::dpl::__ranges::guard_view<_Args...>> : std::true_type
-{
-};
-
 } // namespace __ranges
 } // namespace dpl
 } // namespace oneapi
