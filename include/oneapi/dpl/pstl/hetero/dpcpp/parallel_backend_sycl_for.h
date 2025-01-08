@@ -69,7 +69,7 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
                 auto __idx = __item_id.get_linear_id();
                 // For small inputs, do not vectorize or perform multiple iterations per work item. Spread input evenly
                 // across compute units.
-                __brick.__scalar_path(std::true_type{}, __idx, __rngs...);
+                __brick.__scalar_path_impl(std::true_type{}, __idx, __rngs...);
             });
         });
         return __future(__event);

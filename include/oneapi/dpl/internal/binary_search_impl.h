@@ -76,7 +76,7 @@ struct custom_brick : oneapi::dpl::unseq_backend::walk_scalar_base<_Range>
     }
     template <typename _IsFull, typename _ItemId, typename _Acc>
     void
-    __scalar_path(_IsFull, _ItemId idx, _Acc acc) const
+    __scalar_path_impl(_IsFull, _ItemId idx, _Acc acc) const
     {
         if (use_32bit_indexing)
             search_impl<std::uint32_t>(idx, acc);
@@ -87,7 +87,7 @@ struct custom_brick : oneapi::dpl::unseq_backend::walk_scalar_base<_Range>
     void
     operator()(_IsFull __is_full, _ItemId idx, _Acc acc) const
     {
-        __scalar_path(__is_full, idx, acc);
+        __scalar_path_impl(__is_full, idx, acc);
     }
 };
 #endif
