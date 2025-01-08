@@ -44,12 +44,20 @@ struct __custom_boundary_range_binhash
     _Range __boundaries;
     __custom_boundary_range_binhash(_Range __boundaries_) : __boundaries(__boundaries_) {}
 
-    template <typename _T2>
-    auto
-    get_bin(_T2 __value) const
+    template <typename _T>
+    std::int32_t
+    get_bin(_T __value) const
     {
         return oneapi::dpl::__internal::__custom_boundary_get_bin_helper(
-            __boundaries, __boundaries.size(), __value, __boundaries[0], __boundaries[__boundaries.size() - 1]);
+            __boundaries, __boundaries.size(), __value);
+    }
+
+    template <typename _T>
+    bool
+    check_bounds(_T __value) const
+    {
+        return oneapi::dpl::__internal::__custom_boundary_check_bounds_helper(__value, __boundaries[0],
+                                                                              __boundaries[__boundaries.size() - 1]);
     }
 };
 
@@ -66,10 +74,17 @@ struct __binhash_SLM_wrapper
     }
 
     template <typename _T>
-    auto
+    std::int32_t
     get_bin(_T __value) const
     {
         return __bin_hash.get_bin(__value);
+    }
+
+    template <typename _T>
+    bool
+    check_bounds(_T __value) const
+    {
+        return __bin_hash.check_bounds(__value);
     }
 };
 
@@ -106,8 +121,16 @@ struct __binhash_SLM_wrapper<__custom_boundary_range_binhash<_Range>, _ExtraMemA
     get_bin(_T __value) const
     {
         auto __size = __slm_mem.size();
-        return oneapi::dpl::__internal::__custom_boundary_get_bin_helper(__slm_mem, __size, __value, __slm_mem[0],
-                                                                         __slm_mem[__size - 1]);
+        return oneapi::dpl::__internal::__custom_boundary_get_bin_helper(__slm_mem, __size, __value);
+    }
+    
+    template <typename _T>
+    bool
+    check_bounds(_T __value) const
+    {
+        auto __size = __slm_mem.size();
+        return oneapi::dpl::__internal::__custom_boundary_check_bounds_helper(__value, __slm_mem[0],
+                                                                              __slm_mem[__size - 1]);
     }
 };
 
@@ -155,10 +178,9 @@ template <typename _BinIdxType, typename _ValueType, typename _HistReg, typename
 void
 __accum_local_register_iter(const _ValueType& __x, _HistReg* __histogram, _BinFunc __func)
 {
-    _BinIdxType c = __func.get_bin(__x);
-    if (c >= 0)
+    if (__func.check_bounds(__x))
     {
-        ++__histogram[c];
+        ++__histogram[__func.get_bin(__x)];
     }
 }
 
@@ -169,10 +191,9 @@ __accum_local_atomics_iter(const _ValueType& __x, const _HistAccessor& __wg_loca
                            _BinFunc __func)
 {
     using _histo_value_type = typename _HistAccessor::value_type;
-    _BinIdxType __c = __func.get_bin(__x);
-    if (__c >= 0)
+    if (__func.check_bounds(__x))
     {
-        __dpl_sycl::__atomic_ref<_histo_value_type, _AddressSpace> __local_bin(__wg_local_histogram[__offset + __c]);
+        __dpl_sycl::__atomic_ref<_histo_value_type, _AddressSpace> __local_bin(__wg_local_histogram[__offset + __func.get_bin(__x)]);
         ++__local_bin;
     }
 }

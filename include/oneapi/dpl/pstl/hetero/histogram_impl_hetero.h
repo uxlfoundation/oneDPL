@@ -106,7 +106,8 @@ __make_binhash_manager(oneapi::dpl::__internal::__custom_boundary_binhash<_Rando
     auto __buffer_lifetime_holder =
         oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read,
                                                 _RandomAccessIterator>();
-    auto __range_holder = __buffer_lifetime_holder(__bin_hash.__boundary_first, __bin_hash.__boundary_last);
+    auto __range_holder = __buffer_lifetime_holder(__bin_hash.__boundary_first,
+                                                   __bin_hash.__boundary_first + __bin_hash.__size);
     auto __bin_hash_range =
         oneapi::dpl::__par_backend_hetero::__custom_boundary_range_binhash{__range_holder.all_view()};
     return __binhash_manager_custom_boundary{::std::move(__bin_hash_range), ::std::move(__buffer_lifetime_holder)};

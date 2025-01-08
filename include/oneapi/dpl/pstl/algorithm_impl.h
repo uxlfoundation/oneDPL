@@ -4296,10 +4296,11 @@ __brick_histogram(_ForwardIterator __first, _ForwardIterator __last, _IdxHashFun
 {
     for (; __first != __last; ++__first)
     {
-        std::int32_t __bin = __func.get_bin(*__first);
-        if (__bin >= 0)
+        using __value_t = typename std::iterator_traits<_ForwardIterator>::value_type;
+        __value_t __value = *__first;
+        if (__func.check_bounds(__value))
         {
-            ++__histogram_first[__bin];
+            ++__histogram_first[__func.get_bin(__value)];
         }
     }
 }
