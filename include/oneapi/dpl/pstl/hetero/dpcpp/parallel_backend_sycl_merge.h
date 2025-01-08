@@ -227,11 +227,6 @@ struct __parallel_merge_submitter_large<_IdType, _CustomName,
     nd_range_params
     eval_nd_range_params(_ExecutionPolicy&& __exec, const _Range1& __rng1, const _Range2& __rng2) const
     {
-        using _Range1ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
-        using _Range2ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
-        using _RangeValueType = std::conditional_t<(sizeof(_Range1ValueType) > sizeof(_Range2ValueType)),
-                                                   _Range1ValueType, _Range2ValueType>;
-
         const std::size_t __n = __rng1.size() + __rng2.size();
 
         // Empirical number of values to process per work-item

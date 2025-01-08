@@ -486,11 +486,8 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
             __hdl.parallel_for<_ScanKernelName...>(
                 sycl::nd_range<1>(_WGSize, _WGSize), [=](sycl::nd_item<1> __self_item) {
                     const auto& __group = __self_item.get_group();
-                    const auto& __subgroup = __self_item.get_sub_group();
                     // This kernel is only launched for sizes less than 2^16
                     const ::std::uint16_t __item_id = __self_item.get_local_linear_id();
-                    const ::std::uint16_t __subgroup_id = __subgroup.get_group_id();
-                    const ::std::uint16_t __subgroup_size = __subgroup.get_local_linear_range();
 
                     auto __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
                     for (std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
@@ -559,11 +556,8 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
                 sycl::nd_range<1>(_WGSize, _WGSize), [=](sycl::nd_item<1> __self_item) {
                     auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
                     const auto& __group = __self_item.get_group();
-                    const auto& __subgroup = __self_item.get_sub_group();
                     // This kernel is only launched for sizes less than 2^16
                     const ::std::uint16_t __item_id = __self_item.get_local_linear_id();
-                    const ::std::uint16_t __subgroup_id = __subgroup.get_group_id();
-                    const ::std::uint16_t __subgroup_size = __subgroup.get_local_linear_range();
                     auto __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
                     for (std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
                     {
@@ -2437,8 +2431,6 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 
     const auto __n = __keys.size();
 
-    using __diff_type = oneapi::dpl::__internal::__difference_t<_Range1>;
-    using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
     // Prior to icpx 2025.0, the reduce-then-scan path performs poorly and should be avoided.
 #if !defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000
