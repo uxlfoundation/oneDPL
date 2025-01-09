@@ -1026,8 +1026,10 @@ get_pattern_for_max_n()
     sycl::device d = q.get_device();
     constexpr std::size_t max_iters_per_item = 16;
     constexpr std::size_t multiplier = 4;
-    return multiplier * max_iters_per_item * d.get_info<sycl::info::device::max_work_group_size>() *
-           d.get_info<sycl::info::device::max_compute_units>();
+    std::size_t __max_n = multiplier * max_iters_per_item * d.get_info<sycl::info::device::max_work_group_size>() *
+                          d.get_info<sycl::info::device::max_compute_units>();
+    __max_n = std::min(std::size_t{10000000}, __max_n);
+    return __max_n;
 #else
     return TestUtils::max_n;
 #endif
