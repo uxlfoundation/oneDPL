@@ -840,6 +840,39 @@ class __static_monotonic_dispatcher<::std::integer_sequence<::std::uint16_t, _X,
     }
 };
 
+// This exception handler is intended to handle a software workaround by IGC for a hardware bug that
+// causes IGC to throw a sycl::errc::kernel_not_supported exception for certain integrated graphics
+// devices.
+struct __bypass_sycl_kernel_not_supported
+{
+    void
+    operator()(const sycl::exception& __e) const
+    {
+        // TODO: We are currently just suppressing any synchronous SYCL exception. The best solution
+        // would be to compare __e.code() and sycl::errc::kernel_not_supported and rethrow the encountered exception
+        // if the two do not compare equal. However, the icpx compiler currently returns a generic error code
+        // which is not compliant with the SYCL spec and this approach cannot be used until error code issue is
+        // resolved.
+    }
+};
+
+template <typename _Callable, typename _Handler = __bypass_sycl_kernel_not_supported>
+auto
+__handle_sync_sycl_exception(_Callable __caller, _Handler __handler = {})
+    -> std::tuple<std::optional<decltype(__caller())>, std::error_code>
+{
+    try
+    {
+        return std::make_tuple(__caller(), sycl::errc::success);
+    }
+    catch (const sycl::exception& __e)
+    {
+        // Handle the error and return an empty optional with the encountered error code.
+        __handler(__e);
+        return std::make_tuple(std::optional<decltype(__caller())>{}, __e.code());
+    }
+}
+
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi

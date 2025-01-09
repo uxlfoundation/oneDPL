@@ -17,20 +17,20 @@
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_THEN_SCAN_H
 
 // Kernel bundles are required to use this header
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
 
-#include <algorithm>
-#include <cstdint>
-#include <type_traits>
-#include <array>
+#    include <algorithm>
+#    include <cstdint>
+#    include <type_traits>
+#    include <array>
 
-#include "sycl_defs.h"
-#include "parallel_backend_sycl_utils.h"
-#include "execution_sycl_defs.h"
-#include "unseq_backend_sycl.h"
-#include "utils_ranges_sycl.h"
+#    include "sycl_defs.h"
+#    include "parallel_backend_sycl_utils.h"
+#    include "execution_sycl_defs.h"
+#    include "unseq_backend_sycl.h"
+#    include "utils_ranges_sycl.h"
 
-#include "../../utils.h"
+#    include "../../utils.h"
 
 namespace oneapi
 {
@@ -297,6 +297,7 @@ struct __parallel_reduce_then_scan_reduce_submitter
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
+            __cgh.use_kernel_bundle(__reduce_kernel.get_kernel_bundle());
             __cgh.parallel_for<_KernelName>(
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
@@ -447,7 +448,7 @@ struct __parallel_reduce_then_scan_scan_submitter
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
-
+            __cgh.use_kernel_bundle(__scan_kernel.get_kernel_bundle());
             __cgh.parallel_for<_KernelName>(
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 _InitValueType* __tmp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
@@ -718,14 +719,16 @@ struct __parallel_reduce_then_scan_scan_submitter
 
 // We accept a set of variadic types to disambiguate between the different scan kernels. The set
 // of template parameters for __parallel_transform_reduce_then_scan here is expected to be used.
-template <typename _ExecutionPolicy, typename... ParamTypes>
+template <typename _ExecutionPolicy, typename... _ParamTypes>
 struct __reduce_then_scan_kernels
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-    using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-        __reduce_then_scan_reduce_kernel, _CustomName, ParamTypes...>;
-    using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-        __reduce_then_scan_scan_kernel, _CustomName, ParamTypes...>;
+    using _ReduceKernel =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__reduce_then_scan_reduce_kernel,
+                                                                               _CustomName, _ParamTypes...>;
+    using _ScanKernel =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__reduce_then_scan_scan_kernel,
+                                                                               _CustomName, _ParamTypes...>;
     explicit __reduce_then_scan_kernels(const _ExecutionPolicy& __exec)
         : __exec(__exec)
         , __kernels(__internal::__kernel_compiler<_ReduceKernel, _ScanKernel>::__compile(__exec))

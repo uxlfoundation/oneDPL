@@ -190,7 +190,9 @@ struct test_set_intersection
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_intersection(first1, last1, first2, last2, expect.begin());
-        auto res = ::std::set_intersection(exec, first1, last1, first2, last2, out.begin());
+        // TODO before merging: Why did create_new_policy_idx have to be added to avoid duplicate kernel names for set intersection only? Is there a bug
+        // in the reduce-then-scan kernel naming logic?
+        auto res = ::std::set_intersection(create_new_policy_idx<3>(exec), first1, last1, first2, last2, out.begin());
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_intersection without comparator");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_intersection effect without comparator");

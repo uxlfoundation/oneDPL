@@ -1096,20 +1096,6 @@ struct __write_to_id_if_else
     _Assign __assign;
 };
 
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
-// Templated alias to easily reference reduce-then-scan-copy kernels.
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _GenMask, typename _Size,
-          typename _WriteOp, typename _IsUniquePattern>
-using __reduce_then_scan_copy_kernels =
-    __reduce_then_scan_kernels<_ExecutionPolicy, _Range1, _Range2,
-                               /*_GenReduceInput=*/oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask>,
-                               /*_ReduceOp=*/std::plus<_Size>,
-                               /*_GenScanInput=*/oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask>,
-                               /*_ScanInputTransform=*/oneapi::dpl::__par_backend_hetero::__get_zeroth_element,
-                               _WriteOp, oneapi::dpl::unseq_backend::__no_init_value<_Size>,
-                               /*_Inclusive=*/std::true_type, _IsUniquePattern>;
-#endif
-
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
 auto
@@ -1123,7 +1109,12 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     // work-group implementation requires a fundamental type which must also be trivially copyable.
     if constexpr (std::is_trivially_copyable_v<_Type>)
     {
-        bool __use_reduce_then_scan = oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec);
+        bool __use_reduce_then_scan =
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+            oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec);
+#else
+            false;
+#endif
 
         // TODO: Consider re-implementing single group scan to support types without known identities. This could also
         // allow us to use single wg scan for the last block of reduce-then-scan if it is sufficiently small.
@@ -1142,27 +1133,26 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
                     std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
             }
         }
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
         if (__use_reduce_then_scan)
         {
             using _GenInput = oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation>;
             using _ScanInputTransform = oneapi::dpl::__internal::__no_op;
             using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 
-            // Compile the kernels to check if the sub-group size is 32. This should not be necessary per the SYCL spec
-            // but is needed to check for an IGC workaround for a hardware bug where kernels may be compiled with a
-            // sub-group size of 16 despite requiring 32. If the wrong sub-group size is used, then fallback to
-            // multi-pass scan.
-            _GenInput __gen_transform{__unary_op};
-            __reduce_then_scan_kernels<_ExecutionPolicy, _Range1, _Range2, decltype(__gen_transform), _BinaryOperation, decltype(__gen_transform), _ScanInputTransform,
-                                       _WriteOp, _InitType, _Inclusive, std::false_type> __kernels(__exec);
-            if (__kernels.__is_compiled_sg32())
-            {
+            auto [__opt_return, _] = __handle_sync_sycl_exception([&] {
+                _GenInput __gen_transform{__unary_op};
+                __reduce_then_scan_kernels<_ExecutionPolicy, _Range1, _Range2, decltype(__gen_transform),
+                                           _BinaryOperation, decltype(__gen_transform), _ScanInputTransform, _WriteOp,
+                                           _InitType, _Inclusive, std::false_type>
+                    __kernels(__exec);
                 return __parallel_transform_reduce_then_scan(
                     __backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels, std::forward<_Range1>(__in_rng),
                     std::forward<_Range2>(__out_rng), __gen_transform, __binary_op, __gen_transform,
                     _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{}, /*_IsUniquePattern=*/std::false_type{});
-            }
+            });
+            if (__opt_return)
+                return __opt_return.value();
         }
 #endif
     }
@@ -1239,18 +1229,22 @@ struct __invoke_single_group_copy_if
     }
 };
 
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
-template <typename _ExecutionPolicy, typename _Kernels, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
 auto
 __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                                 _Kernels& __kernels, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _GenMask __generate_mask,
+                                 _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _GenMask __generate_mask,
                                  _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask>;
     using _ReduceOp = std::plus<_Size>;
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
+    __reduce_then_scan_kernels<_ExecutionPolicy, _InRng, _OutRng, _GenReduceInput, _ReduceOp, _GenScanInput,
+                               _ScanInputTransform, _WriteOp, oneapi::dpl::unseq_backend::__no_init_value<_Size>,
+                               /*_Inclusive*/ std::true_type, _IsUniquePattern>
+        __kernels(__exec);
 
     return __parallel_transform_reduce_then_scan(
         __backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels, std::forward<_InRng>(__in_rng),
@@ -1311,25 +1305,19 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
     // can simply copy the input range to the output.
     assert(__n > 1);
 
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
-        using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
-        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
-        // Compile the kernels to check if the sub-group size is 32. This should not be necessary per the SYCL spec
-        // but is needed to check for an IGC workaround for a hardware bug where kernels may be compiled with a
-        // sub-group size of 16 despite requiring 32. If the wrong sub-group size is used, then fallback to
-        // multi-pass scan.
-        __reduce_then_scan_copy_kernels<_ExecutionPolicy, _Range1, _Range2, _GenMask,
-                                        oneapi::dpl::__internal::__difference_t<_Range1>, _WriteOp, std::true_type>
-            __kernels(__exec);
-        if (__kernels.__is_compiled_sg32())
-        {
-            return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels,
+        auto [__opt_return, _] = __handle_sync_sycl_exception([&] {
+            using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
+            using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
+            return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
                                                     std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
                                                     _GenMask{__pred}, _WriteOp{_Assign{}},
                                                     /*_IsUniquePattern=*/std::true_type{});
-        }
+        });
+        if (__opt_return)
+            return __opt_return.value();
     }
 #endif
     using _ReduceOp = std::plus<decltype(__n)>;
@@ -1344,6 +1332,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
                                 _CopyOp{_ReduceOp{}, _Assign{}});
 }
 
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 auto
@@ -1363,11 +1352,20 @@ __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_
     // Writes current segment's output reduction and the next segment's output key
     using _WriteOp = __write_red_by_seg<_BinaryPredicate>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
+    using _Zip1Type =
+        decltype(oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)));
+    using _Zip2Type = decltype(oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys),
+                                                                    std::forward<_Range4>(__out_values)));
+    using __reduce_by_segment_kernels = __reduce_then_scan_kernels<
+        _ExecutionPolicy, _Zip1Type, _Zip2Type, _GenReduceInput, _ReduceOp, _GenScanInput, _ScanInputTransform,
+        _WriteOp, oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>,
+        /*_Inclusive=*/std::true_type, std::false_type>;
+    __reduce_by_segment_kernels __kernels(__exec);
     std::size_t __n = __keys.size();
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
     return __parallel_transform_reduce_then_scan(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec),
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels,
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values)),
         _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{__binary_pred, __n},
@@ -1375,6 +1373,7 @@ __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_
         oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>{},
         /*Inclusive*/ std::true_type{}, /*_IsUniquePattern=*/std::false_type{});
 }
+#endif
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
 auto
@@ -1382,25 +1381,20 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
                           _Range1&& __rng, _Range2&& __result, _UnaryPredicate __pred)
 {
     oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng.size();
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
-        using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
-        using _WriteOp =
-            oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
-        // Compile the kernels to check if the sub-group size is 32. This should not be necessary per the SYCL spec
-        // but is needed to check for an IGC workaround for a hardware bug where kernels may be compiled with a
-        // sub-group size of 16 despite requiring 32. If the wrong sub-group size is used, then fallback to
-        // multi-pass scan.
-        __reduce_then_scan_copy_kernels<_ExecutionPolicy, _Range1, _Range2, _GenMask,
-                                        oneapi::dpl::__internal::__difference_t<_Range1>, _WriteOp, std::false_type>
-            __kernels(__exec);
-        if (__kernels.__is_compiled_sg32())
-        {
-            return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels,
+        auto [__opt_return, _] = __handle_sync_sycl_exception([&] {
+            using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
+            using _WriteOp =
+                oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
+            return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
                                                     std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
-                                                    _GenMask{__pred}, _WriteOp{}, /*_IsUniquePattern=*/std::false_type{});
-        }
+                                                    _GenMask{__pred}, _WriteOp{},
+                                                    /*_IsUniquePattern=*/std::false_type{});
+        });
+        if (__opt_return)
+            return __opt_return.value();
     }
 #endif
     using _ReduceOp = std::plus<decltype(__n)>;
@@ -1442,25 +1436,19 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
             _SingleGroupInvoker{}, __n, std::forward<_ExecutionPolicy>(__exec), __n, std::forward<_InRng>(__in_rng),
             std::forward<_OutRng>(__out_rng), __pred, __assign);
     }
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
-        using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
-        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
-        // Compile the kernels to check if the sub-group size is 32. This should not be necessary per the SYCL spec
-        // but is needed to check for an IGC workaround for a hardware bug where kernels may be compiled with a
-        // sub-group size of 16 despite requiring 32. If the wrong sub-group size is used, then fallback to
-        // multi-pass scan.
-        __reduce_then_scan_copy_kernels<_ExecutionPolicy, _InRng, _OutRng, _GenMask,
-                                        _Size, _WriteOp, std::false_type>
-            __kernels(__exec);
-        if (__kernels.__is_compiled_sg32())
-        {
-            return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels,
-                                                    std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
-                                                    _GenMask{__pred}, _WriteOp{__assign},
+        auto [__opt_return, _] = __handle_sync_sycl_exception([&] {
+            using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
+            using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
+            return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
+                                                    std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
+                                                    __n, _GenMask{__pred}, _WriteOp{__assign},
                                                     /*_IsUniquePattern=*/std::false_type{});
-        }
+        });
+        if (__opt_return)
+            return __opt_return.value();
     }
 #endif
     using _ReduceOp = std::plus<_Size>;
@@ -1473,6 +1461,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
                                 _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
 }
 
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _IsOpDifference>
 auto
@@ -1495,18 +1484,25 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, std::int32_t> __mask_buf(__exec, __rng1.size());
+    auto __zipped = oneapi::dpl::__ranges::make_zip_view(
+        std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+        oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
+            __mask_buf.get_buffer()));
+
+    using __set_kernels = __reduce_then_scan_kernels<_ExecutionPolicy, decltype(__zipped), _Range3, _GenReduceInput,
+                                                     _GenScanInput, _ScanRangeTransform, _ScanInputTransform, _WriteOp,
+                                                     oneapi::dpl::unseq_backend::__no_init_value<_Size>, std::true_type,
+                                                     std::false_type, std::decay_t<_Compare>>;
+    __set_kernels __kernels(__exec);
 
     return __parallel_transform_reduce_then_scan(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::make_zip_view(
-            std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
-                __mask_buf.get_buffer())),
-        std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp}}, _ReduceOp{},
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels, __zipped, std::forward<_Range3>(__result),
+        _GenReduceInput{_GenMaskReduce{__comp}}, _ReduceOp{},
         _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
         _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
 }
+#endif
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _IsOpDifference>
@@ -1567,16 +1563,17 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _
 {
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
-        return __parallel_set_reduce_then_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                               std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                                               std::forward<_Range3>(__result), __comp, __is_op_difference);
+        auto [__opt_return, _] = __handle_sync_sycl_exception([&] {
+            return __parallel_set_reduce_then_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
+                                                   std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                                                   std::forward<_Range3>(__result), __comp, __is_op_difference);
+        });
+        if (__opt_return)
+            return __opt_return.value();
     }
-    else
-    {
-        return __parallel_set_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
-                                   std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
-                                   __is_op_difference);
-    }
+    return __parallel_set_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
+                               std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
+                               __is_op_difference);
 }
 
 //------------------------------------------------------------------------
@@ -2490,19 +2487,24 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
     // Prior to icpx 2025.0, the reduce-then-scan path performs poorly and should be avoided.
-#if !defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000
+#if (!defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000) &&                                          \
+    (_ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT)
     if constexpr (std::is_trivially_copyable_v<__val_type>)
     {
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
         {
-            auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan(
-                oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
-                std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
-                std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
-            __res.wait();
-            // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
-            // past-the-end iterator pair of segmented reduction.
-            return std::get<0>(__res.get()) + 1;
+            auto [__opt_return, _] = __handle_sync_sycl_exception([&] {
+                auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan(
+                    oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+                    std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
+                    std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
+                __res.wait();
+                // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
+                // past-the-end iterator pair of segmented reduction.
+                return std::get<0>(__res.get()) + 1;
+            });
+            if (__opt_return)
+                return __opt_return.value();
         }
     }
 #endif
