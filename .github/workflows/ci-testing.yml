@@ -291,7 +291,7 @@ jobs:
           :: By default, CMD shell only reports the error level of the final command.
           set exit_code=0
 
-          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" .. || set exit_code=%level%
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" .. || set exit_code=%errorlevel%
 
           ninja -j 2 -v %ninja_targets% > build.log 2>&1 || set exit_code=%errorlevel%
           :: Display the results after executing all tests because "tee" alternative is unavailable in CMD.
