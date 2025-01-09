@@ -202,7 +202,6 @@ jobs:
           if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
             make_targets="build-onedpl-sycl_iterator-tests build-onedpl-ranges-tests"
             ctest_flags="-R (sycl_iterator_.*)|(std_ranges_.*)\.pass"
-            echo "dpcpp backend is set. Compile and run only sycl_iterator tests"
           else
             make_targets="build-onedpl-tests"
           fi
