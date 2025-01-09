@@ -835,7 +835,7 @@ class __static_monotonic_dispatcher<::std::integer_sequence<::std::uint16_t, _X,
 };
 
 // For use with __lazy_ctor_storage
-struct __lazy_load_transform_op
+struct __lazy_load_op
 {
     template <typename _IdxType1, typename _IdxType2, typename _SourceAcc, typename _DestAcc>
     void
@@ -850,22 +850,22 @@ struct __vector_load
 {
     static_assert(__vec_size <= 4, "Only vector sizes of 4 or less are supported");
     std::size_t __n;
-    template <typename _IdxType, typename _LoadOp, typename... _Acc>
+    template <typename _IdxType, typename _LoadOp, typename... _Rngs>
     void
-    operator()(std::true_type, _IdxType __start_idx, _LoadOp __load_op, _Acc... __acc) const
+    operator()(/*__is_full*/ std::true_type, _IdxType __start_idx, _LoadOp __load_op, _Rngs&&... __rngs) const
     {
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint8_t __i = 0; __i < __vec_size; ++__i)
-            __load_op(__start_idx + __i, __i, __acc...);
+            __load_op(__start_idx + __i, __i, __rngs...);
     }
 
-    template <typename _IdxType, typename _LoadOp, typename... _Acc>
+    template <typename _IdxType, typename _LoadOp, typename... _Rngs>
     void
-    operator()(std::false_type, _IdxType __start_idx, _LoadOp __load_op, _Acc... __acc) const
+    operator()(/*__is_full*/ std::false_type, _IdxType __start_idx, _LoadOp __load_op, _Rngs&&... __rngs) const
     {
         std::uint8_t __elements = std::min(std::size_t{__vec_size}, std::size_t{__n - __start_idx});
         for (std::uint8_t __i = 0; __i < __elements; ++__i)
-            __load_op(__start_idx + __i, __i, __acc...);
+            __load_op(__start_idx + __i, __i, __rngs...);
     }
 };
 
@@ -929,7 +929,7 @@ struct __vector_store
 
     template <typename _IdxType, typename _StoreOp, typename... _Rngs>
     void
-    operator()(std::true_type, _IdxType __start_idx, _StoreOp __store_op, _Rngs... __rngs) const
+    operator()(std::true_type, _IdxType __start_idx, _StoreOp __store_op, _Rngs&&... __rngs) const
     {
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint8_t __i = 0; __i < __vec_size; ++__i)
@@ -937,7 +937,7 @@ struct __vector_store
     }
     template <typename _IdxType, typename _StoreOp, typename... _Rngs>
     void
-    operator()(std::false_type, _IdxType __start_idx, _StoreOp __store_op, _Rngs... __rngs) const
+    operator()(std::false_type, _IdxType __start_idx, _StoreOp __store_op, _Rngs&&... __rngs) const
     {
         std::uint8_t __elements = std::min(std::size_t{__vec_size}, std::size_t{__n - __start_idx});
         for (std::uint8_t __i = 0; __i < __elements; ++__i)
@@ -949,21 +949,20 @@ template <std::uint8_t __vec_size>
 struct __vector_reverse
 {
     static_assert(__vec_size <= 4, "Only vector sizes of 4 or less are supported");
-    template <typename _IsFull, typename _Idx, typename _Array>
+    template <typename _Idx, typename _Array>
     void
-    operator()(_IsFull __is_full, const _Idx __elements_to_process, _Array __array) const
+    operator()(/*__is_full*/ std::true_type, const _Idx __elements_to_process, _Array __array) const
     {
-        if constexpr (__is_full)
-        {
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint8_t __i = 0; __i < __vec_size / 2; ++__i)
-                std::swap(__array[__i].__v, __array[__vec_size - __i - 1].__v);
-        }
-        else
-        {
-            for (std::uint8_t __i = 0; __i < __elements_to_process / 2; ++__i)
-                std::swap(__array[__i].__v, __array[__elements_to_process - __i - 1].__v);
-        }
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::uint8_t __i = 0; __i < __vec_size / 2; ++__i)
+            std::swap(__array[__i].__v, __array[__vec_size - __i - 1].__v);
+    }
+    template <typename _Idx, typename _Array>
+    void
+    operator()(/*__is_full*/ std::false_type, const _Idx __elements_to_process, _Array __array) const
+    {
+        for (std::uint8_t __i = 0; __i < __elements_to_process / 2; ++__i)
+            std::swap(__array[__i].__v, __array[__elements_to_process - __i - 1].__v);
     }
 };
 
