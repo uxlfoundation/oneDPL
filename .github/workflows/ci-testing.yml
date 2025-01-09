@@ -283,7 +283,6 @@ jobs:
           if "${{ matrix.backend }}" == "dpcpp" (
             set ninja_targets="build-onedpl-sycl_iterator-tests"
             set ctest_flags=-R sycl_iterator_.*\.pass
-            echo dpcpp backend is set. Compile and run only sycl_iterator tests
           ) else (
             set ninja_targets=build-onedpl-tests
           )
