@@ -1149,7 +1149,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
                         _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
                         /*_IsUniquePattern=*/std::false_type{});
                 },
-                oneapi::dpl::__par_backend_hetero::__bypass_sycl_kernel_not_supported{});
+                __bypass_sycl_kernel_not_supported{});
             if (__opt_return)
                 return __opt_return.value();
         }
@@ -1312,7 +1312,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
                                                         __n, _GenMask{__pred}, _WriteOp{_Assign{}},
                                                         /*_IsUniquePattern=*/std::true_type{});
             },
-            oneapi::dpl::__par_backend_hetero::__bypass_sycl_kernel_not_supported{});
+            __bypass_sycl_kernel_not_supported{});
         if (__opt_return)
             return __opt_return.value();
     }
@@ -1382,7 +1382,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
                                                         __n, _GenMask{__pred}, _WriteOp{},
                                                         /*_IsUniquePattern=*/std::false_type{});
             },
-            oneapi::dpl::__par_backend_hetero::__bypass_sycl_kernel_not_supported{});
+            __bypass_sycl_kernel_not_supported{});
         if (__opt_return)
             return __opt_return.value();
     }
