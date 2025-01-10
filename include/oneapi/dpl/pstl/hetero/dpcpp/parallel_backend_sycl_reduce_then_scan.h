@@ -717,36 +717,6 @@ struct __parallel_reduce_then_scan_scan_submitter
     _InitType __init;
 };
 
-// We accept a set of variadic types to disambiguate between the different scan kernels. The set
-// of template parameters for __parallel_transform_reduce_then_scan here is expected to be used.
-template <typename _ExecutionPolicy, typename... _ParamTypes>
-struct __reduce_then_scan_kernels
-{
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-    using _ReduceKernel =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__reduce_then_scan_reduce_kernel,
-                                                                               _CustomName, _ParamTypes...>;
-    using _ScanKernel =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__reduce_then_scan_scan_kernel,
-                                                                               _CustomName, _ParamTypes...>;
-    explicit __reduce_then_scan_kernels(const _ExecutionPolicy& __exec)
-        : __exec(__exec)
-        , __kernels(__internal::__kernel_compiler<_ReduceKernel, _ScanKernel>::__compile(__exec))
-    {
-    }
-    sycl::kernel __get_reduce_kernel() const { return __kernels[0]; }
-    sycl::kernel __get_scan_kernel() const { return __kernels[1]; }
-    bool __is_compiled_sg32() const
-    {
-        return oneapi::dpl::__internal::__kernel_sub_group_size(__exec, __get_reduce_kernel()) == std::uint32_t{32} &&
-               oneapi::dpl::__internal::__kernel_sub_group_size(__exec, __get_scan_kernel()) == std::uint32_t{32};
-    }
-private:
-    // idx 0 is the reduce kernel and idx 1 is the scan kernel
-    std::array<sycl::kernel, 2> __kernels;
-    const _ExecutionPolicy& __exec;
-};
-
 // reduce_then_scan requires subgroup size of 32, and performs well only on devices with fast coordinated subgroup
 // operations.  We do not want to run this scan on CPU targets, as they are not performant with this algorithm.
 template <typename _ExecutionPolicy>
@@ -767,18 +737,27 @@ __is_gpu_with_sg_32(const _ExecutionPolicy& __exec)
 // _ReduceOp - a binary function which is used in the reduction and scan operations
 // _WriteOp - a function which accepts output range, index, and output of `_GenScanInput` applied to the input range
 //            and performs the final write to output operation
-template <typename _ExecutionPolicy, typename _Kernels, typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp,
+template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
           typename _Inclusive, typename _IsUniquePattern>
 auto
 __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
-                                      _Kernels& __kernels,
                                       _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
                                       _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
                                       _ScanInputTransform __scan_input_transform, _WriteOp __write_op, _InitType __init,
                                       _Inclusive, _IsUniquePattern)
 {
     using _ValueType = typename _InitType::__value_type;
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
+        __reduce_then_scan_reduce_kernel, _CustomName, _InRng, _OutRng, _GenReduceInput, _ReduceOp, _InitType,
+        _Inclusive, _IsUniquePattern>;
+    using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
+        __reduce_then_scan_scan_kernel, _CustomName, _InRng, _OutRng, _GenScanInput, _ScanInputTransform, _WriteOp,
+        _InitType, _Inclusive, _IsUniquePattern>;
+    auto __kernels = __internal::__kernel_compiler<_ReduceKernel, _ScanKernel>::__compile(__exec);
+    sycl::kernel& __reduce_kernel = __kernels[0];
+    sycl::kernel& __scan_kernel = __kernels[1];
 
     constexpr std::uint8_t __sub_group_size = 32;
     constexpr std::uint8_t __block_size_scale = std::max(std::size_t{1}, sizeof(double) / sizeof(_ValueType));
@@ -828,11 +807,11 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     using _ReduceSubmitter =
         __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inputs_per_item, __inclusive,
                                                      __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType,
-                                                     typename _Kernels::_ReduceKernel>;
+                                                     _ReduceKernel>;
     using _ScanSubmitter =
         __parallel_reduce_then_scan_scan_submitter<__sub_group_size, __max_inputs_per_item, __inclusive,
                                                    __is_unique_pattern_v, _ReduceOp, _GenScanInput, _ScanInputTransform,
-                                                   _WriteOp, _InitType, typename _Kernels::_ScanKernel>;
+                                                   _WriteOp, _InitType, _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__max_inputs_per_block,
                                         __num_sub_groups_local,
                                         __num_sub_groups_global,
@@ -866,10 +845,10 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
         __event = __reduce_submitter(__exec, __kernel_nd_range, __in_rng, __result_and_scratch, __event,
-                                     __inputs_per_sub_group, __inputs_per_item, __b, __kernels.__get_reduce_kernel());
+                                     __inputs_per_sub_group, __inputs_per_item, __b, __reduce_kernel);
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
         __event = __scan_submitter(__exec, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __event,
-                                   __inputs_per_sub_group, __inputs_per_item, __b, __kernels.__get_scan_kernel());
+                                   __inputs_per_sub_group, __inputs_per_item, __b, __scan_kernel);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         // We only need to resize these parameters prior to the last block as it is the only non-full case.
         if (__b + 2 == __num_blocks)

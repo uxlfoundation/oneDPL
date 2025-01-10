@@ -1142,12 +1142,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
 
             auto [__opt_return, _] = __handle_sync_sycl_exception([&] {
                 _GenInput __gen_transform{__unary_op};
-                __reduce_then_scan_kernels<_ExecutionPolicy, _Range1, _Range2, decltype(__gen_transform),
-                                           _BinaryOperation, decltype(__gen_transform), _ScanInputTransform, _WriteOp,
-                                           _InitType, _Inclusive, std::false_type>
-                    __kernels(__exec);
                 return __parallel_transform_reduce_then_scan(
-                    __backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels, std::forward<_Range1>(__in_rng),
+                    __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
                     std::forward<_Range2>(__out_rng), __gen_transform, __binary_op, __gen_transform,
                     _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{}, /*_IsUniquePattern=*/std::false_type{});
             });
@@ -1241,13 +1237,9 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
     using _ReduceOp = std::plus<_Size>;
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
-    __reduce_then_scan_kernels<_ExecutionPolicy, _InRng, _OutRng, _GenReduceInput, _ReduceOp, _GenScanInput,
-                               _ScanInputTransform, _WriteOp, oneapi::dpl::unseq_backend::__no_init_value<_Size>,
-                               /*_Inclusive*/ std::true_type, _IsUniquePattern>
-        __kernels(__exec);
 
     return __parallel_transform_reduce_then_scan(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels, std::forward<_InRng>(__in_rng),
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
         std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask},
         _ScanInputTransform{}, __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
@@ -1352,20 +1344,11 @@ __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_
     // Writes current segment's output reduction and the next segment's output key
     using _WriteOp = __write_red_by_seg<_BinaryPredicate>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
-    using _Zip1Type =
-        decltype(oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)));
-    using _Zip2Type = decltype(oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys),
-                                                                    std::forward<_Range4>(__out_values)));
-    using __reduce_by_segment_kernels = __reduce_then_scan_kernels<
-        _ExecutionPolicy, _Zip1Type, _Zip2Type, _GenReduceInput, _ReduceOp, _GenScanInput, _ScanInputTransform,
-        _WriteOp, oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>,
-        /*_Inclusive=*/std::true_type, std::false_type>;
-    __reduce_by_segment_kernels __kernels(__exec);
     std::size_t __n = __keys.size();
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
     return __parallel_transform_reduce_then_scan(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels,
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values)),
         _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{__binary_pred, __n},
@@ -1484,20 +1467,14 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, std::int32_t> __mask_buf(__exec, __rng1.size());
-    auto __zipped = oneapi::dpl::__ranges::make_zip_view(
-        std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-        oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
-            __mask_buf.get_buffer()));
-
-    using __set_kernels = __reduce_then_scan_kernels<_ExecutionPolicy, decltype(__zipped), _Range3, _GenReduceInput,
-                                                     _GenScanInput, _ScanRangeTransform, _ScanInputTransform, _WriteOp,
-                                                     oneapi::dpl::unseq_backend::__no_init_value<_Size>, std::true_type,
-                                                     std::false_type, std::decay_t<_Compare>>;
-    __set_kernels __kernels(__exec);
 
     return __parallel_transform_reduce_then_scan(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __kernels, __zipped, std::forward<_Range3>(__result),
-        _GenReduceInput{_GenMaskReduce{__comp}}, _ReduceOp{},
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::make_zip_view(
+            std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
+                __mask_buf.get_buffer())),
+        std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp}}, _ReduceOp{},
         _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
         _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
