@@ -19,18 +19,18 @@
 // Kernel compilation must be supported to properly work around hardware bug on certain iGPUs
 #if _ONEDPL_COMPILE_KERNEL
 
-#    include <algorithm>
-#    include <cstdint>
-#    include <type_traits>
-#    include <array>
+#include <algorithm>
+#include <cstdint>
+#include <type_traits>
+#include <array>
 
-#    include "sycl_defs.h"
-#    include "parallel_backend_sycl_utils.h"
-#    include "execution_sycl_defs.h"
-#    include "unseq_backend_sycl.h"
-#    include "utils_ranges_sycl.h"
+#include "sycl_defs.h"
+#include "parallel_backend_sycl_utils.h"
+#include "execution_sycl_defs.h"
+#include "unseq_backend_sycl.h"
+#include "utils_ranges_sycl.h"
 
-#    include "../../utils.h"
+#include "../../utils.h"
 
 namespace oneapi
 {
