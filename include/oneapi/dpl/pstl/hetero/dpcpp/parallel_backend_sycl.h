@@ -1547,6 +1547,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _
                   _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                   _IsOpDifference __is_op_difference)
 {
+#if _ONEDPL_COMPILER_KERNEL
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
         auto __opt_return = __handle_sync_sycl_exception(
@@ -1559,6 +1560,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _
         if (__opt_return)
             return __opt_return.value();
     }
+#endif
     return __parallel_set_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
                                std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
                                __is_op_difference);

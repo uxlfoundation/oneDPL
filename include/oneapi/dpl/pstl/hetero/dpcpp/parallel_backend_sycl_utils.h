@@ -873,7 +873,7 @@ __handle_sync_sycl_exception(_Callable __caller, _Handler __handler) -> std::opt
     }
     catch (const sycl::exception& __e)
     {
-        // Handle the error and return an empty optional with the encountered error code.
+        // Handle the error and return an empty std::optional
         __handler(__e);
         return {};
     }
