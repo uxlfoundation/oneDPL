@@ -16,8 +16,8 @@
 #ifndef _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_THEN_SCAN_H
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_THEN_SCAN_H
 
-// Kernel bundles are required to use this header
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+// Kernel compilation must be supported to properly work around hardware bug on certain iGPUs
+#if _ONEDPL_COMPILE_KERNEL
 
 #    include <algorithm>
 #    include <cstdint>
@@ -288,7 +288,7 @@ struct __parallel_reduce_then_scan_reduce_submitter
     operator()(_ExecutionPolicy&& __exec, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::uint32_t __inputs_per_sub_group, const std::uint32_t __inputs_per_item,
-               const std::size_t __block_num, sycl::kernel __reduce_kernel) const
+               const std::size_t __block_num, sycl::kernel& __reduce_kernel) const
     {
         using _InitValueType = typename _InitType::__value_type;
         return __exec.queue().submit([&, this](sycl::handler& __cgh) {
@@ -297,8 +297,13 @@ struct __parallel_reduce_then_scan_reduce_submitter
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
+#if _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __cgh.use_kernel_bundle(__reduce_kernel.get_kernel_bundle());
+#endif
             __cgh.parallel_for<_KernelName>(
+#if !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+                    __reduce_kernel,
+#endif
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 std::size_t __group_id = __ndi.get_group(0);
@@ -433,7 +438,7 @@ struct __parallel_reduce_then_scan_scan_submitter
     operator()(_ExecutionPolicy&& __exec, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::uint32_t __inputs_per_sub_group, const std::uint32_t __inputs_per_item,
-               const std::size_t __block_num, sycl::kernel __scan_kernel) const
+               const std::size_t __block_num, sycl::kernel& __scan_kernel) const
     {
         std::uint32_t __inputs_in_block = std::min(__n - __block_num * __max_block_size, std::size_t{__max_block_size});
         std::uint32_t __active_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
@@ -448,8 +453,13 @@ struct __parallel_reduce_then_scan_scan_submitter
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+#if _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __cgh.use_kernel_bundle(__scan_kernel.get_kernel_bundle());
+#endif
             __cgh.parallel_for<_KernelName>(
+#if !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+                    __scan_kernel,
+#endif
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 _InitValueType* __tmp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 _InitValueType* __res_ptr =

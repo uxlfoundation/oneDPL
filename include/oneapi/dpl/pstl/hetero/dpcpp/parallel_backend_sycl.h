@@ -1110,7 +1110,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     if constexpr (std::is_trivially_copyable_v<_Type>)
     {
         bool __use_reduce_then_scan =
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL
             oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec);
 #else
             false;
@@ -1133,7 +1133,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
                     std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
             }
         }
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL
         if (__use_reduce_then_scan)
         {
             using _GenInput = oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation>;
@@ -1225,7 +1225,7 @@ struct __invoke_single_group_copy_if
     }
 };
 
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
 auto
@@ -1297,7 +1297,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
     // can simply copy the input range to the output.
     assert(__n > 1);
 
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
         auto [__opt_return, _] = __handle_sync_sycl_exception([&] {
@@ -1324,7 +1324,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
                                 _CopyOp{_ReduceOp{}, _Assign{}});
 }
 
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 auto
@@ -1364,7 +1364,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
                           _Range1&& __rng, _Range2&& __result, _UnaryPredicate __pred)
 {
     oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng.size();
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
         auto [__opt_return, _] = __handle_sync_sycl_exception([&] {
@@ -1419,7 +1419,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
             _SingleGroupInvoker{}, __n, std::forward<_ExecutionPolicy>(__exec), __n, std::forward<_InRng>(__in_rng),
             std::forward<_OutRng>(__out_rng), __pred, __assign);
     }
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
         auto [__opt_return, _] = __handle_sync_sycl_exception([&] {
@@ -1444,7 +1444,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
                                 _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
 }
 
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _IsOpDifference>
 auto
@@ -2464,8 +2464,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
     // Prior to icpx 2025.0, the reduce-then-scan path performs poorly and should be avoided.
-#if (!defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000) &&                                          \
-    (_ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT)
+#if (!defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000) && _ONEDPL_COMPILE_KERNEL
     if constexpr (std::is_trivially_copyable_v<__val_type>)
     {
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
