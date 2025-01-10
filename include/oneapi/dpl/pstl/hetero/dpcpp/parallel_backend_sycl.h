@@ -1141,7 +1141,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 
             auto __opt_return = __handle_sync_sycl_exception(
-                [&] {
+                [=, &__exec, &__in_rng, &__out_rng] {
                     _GenInput __gen_transform{__unary_op};
                     return __parallel_transform_reduce_then_scan(
                         __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
@@ -1304,7 +1304,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
         auto __opt_return = __handle_sync_sycl_exception(
-            [&] {
+            [=, &__exec, &__rng, &__result] {
                 using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
                 using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
                 return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
@@ -1373,7 +1373,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
         auto __opt_return = __handle_sync_sycl_exception(
-            [&] {
+            [=, &__exec, &__rng, &__result] {
                 using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
                 using _WriteOp =
                     oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
@@ -1430,7 +1430,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
         auto __opt_return = __handle_sync_sycl_exception(
-            [&] {
+            [=, &__exec, &__in_rng, &__out_rng] {
                 using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
                 using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
                 return __parallel_reduce_then_scan_copy(
@@ -1550,7 +1550,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
     {
         auto __opt_return = __handle_sync_sycl_exception(
-            [&] {
+            [=, &__exec, &__rng1, &__rng2, &__result] {
                 return __parallel_set_reduce_then_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
                                                        std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
                                                        std::forward<_Range3>(__result), __comp, __is_op_difference);
@@ -2481,7 +2481,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_sg_32(__exec))
         {
             auto __opt_return = __handle_sync_sycl_exception(
-                [&] {
+                [=, &__exec, &__keys, &__values, &__out_keys, &__out_values] {
                     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan(
                         oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
                         std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
