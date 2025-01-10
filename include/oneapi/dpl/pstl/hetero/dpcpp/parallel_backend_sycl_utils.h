@@ -855,10 +855,10 @@ struct __bypass_sycl_kernel_not_supported
         // compiler, then compare the value of the error code. Otherwise, assume the implementation is spec compliant.
 #ifdef _ONEDPL_LIBSYCL_VERSION // Detects either icpx or the open-source intel/llvm compiler
         if (__e.code().value() != 7)
-            throw __e;
+            throw;
 #else // Generic SYCL compiler. Assume it is spec compliant.
         if (__e.code() != sycl::errc::kernel_not_supported)
-            throw __e;
+            throw;
 #endif
     }
 };
