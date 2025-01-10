@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <tuple>
 #include <algorithm>
+#include <optional>
 
 #include "../../iterator_impl.h"
 
@@ -841,35 +842,40 @@ class __static_monotonic_dispatcher<::std::integer_sequence<::std::uint16_t, _X,
 };
 
 // This exception handler is intended to handle a software workaround by IGC for a hardware bug that
-// causes IGC to throw a sycl::errc::kernel_not_supported exception for certain integrated graphics
-// devices.
+// causes IGC to throw an exception for certain integrated graphics devices with -O0 compilation and
+// a required sub-group size of 32.
 struct __bypass_sycl_kernel_not_supported
 {
     void
     operator()(const sycl::exception& __e) const
     {
-        // TODO: We are currently just suppressing any synchronous SYCL exception. The best solution
-        // would be to compare __e.code() and sycl::errc::kernel_not_supported and rethrow the encountered exception
-        // if the two do not compare equal. However, the icpx compiler currently returns a generic error code
-        // which is not compliant with the SYCL spec and this approach cannot be used until error code issue is
-        // resolved.
+        // The SYCL spec compliant solution would be to compare __e.code() and sycl::errc::kernel_not_supported
+        // and rethrow the encountered exception if the two do not compare equal. However, the icpx compiler currently
+        // returns a generic error code in violation of the SYCL spec which has a value of 7. If we are using the Intel
+        // compiler, then compare the value of the error code. Otherwise, assume the implementation is spec compliant.
+#ifdef _ONEDPL_LIBSYCL_VERSION // Detects either icpx or the open-source intel/llvm compiler
+        if (__e.code().value() != 7)
+            throw __e;
+#else // Generic SYCL compiler. Assume it is spec compliant.
+        if (__e.code() != sycl::errc::kernel_not_supported)
+            throw __e;
+#endif
     }
 };
 
-template <typename _Callable, typename _Handler = __bypass_sycl_kernel_not_supported>
+template <typename _Callable, typename _Handler>
 auto
-__handle_sync_sycl_exception(_Callable __caller, _Handler __handler = {})
-    -> std::tuple<std::optional<decltype(__caller())>, std::error_code>
+__handle_sync_sycl_exception(_Callable __caller, _Handler __handler) -> std::optional<decltype(__caller())>
 {
     try
     {
-        return std::make_tuple(__caller(), sycl::errc::success);
+        return __caller();
     }
     catch (const sycl::exception& __e)
     {
         // Handle the error and return an empty optional with the encountered error code.
         __handler(__e);
-        return std::make_tuple(std::optional<decltype(__caller())>{}, __e.code());
+        return {};
     }
 }
 
