@@ -765,9 +765,9 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
         __reduce_then_scan_scan_kernel, _CustomName, _InRng, _OutRng, _GenScanInput, _ScanInputTransform, _WriteOp,
         _InitType, _Inclusive, _IsUniquePattern>;
-    auto __kernels = __internal::__kernel_compiler<_ReduceKernel, _ScanKernel>::__compile(__exec);
-    sycl::kernel& __reduce_kernel = __kernels[0];
-    sycl::kernel& __scan_kernel = __kernels[1];
+    static auto __kernels = __internal::__kernel_compiler<_ReduceKernel, _ScanKernel>::__compile(__exec);
+    sycl::kernel __reduce_kernel = __kernels[0];
+    sycl::kernel __scan_kernel = __kernels[1];
 
     constexpr std::uint8_t __sub_group_size = 32;
     constexpr std::uint8_t __block_size_scale = std::max(std::size_t{1}, sizeof(double) / sizeof(_ValueType));
