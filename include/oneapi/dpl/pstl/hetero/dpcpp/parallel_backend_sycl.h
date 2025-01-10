@@ -1448,9 +1448,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
     using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,
                                                   /*inclusive*/ std::true_type, 1>;
 
-    return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
-                                _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
+    return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
+                                std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
+                                _CopyOp{_ReduceOp{}, __assign});
 }
 
 #if _ONEDPL_COMPILE_KERNEL
