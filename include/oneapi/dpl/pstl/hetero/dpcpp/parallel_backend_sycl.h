@@ -237,7 +237,7 @@ struct __parallel_for_submitter<__internal::__optional_kernel_name<_Name...>>
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
         _PRINT_INFO_IN_DEBUG_MODE(__exec);
-        auto __event = __exec.queue().submit([&__rngs..., &__brick, __count](sycl::handler& __cgh) {
+        auto __event = __exec.queue().submit([&](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
@@ -2150,7 +2150,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         sycl::event __event1;
         do
         {
-            __event1 = __exec.queue().submit([&, __data_in_temp, __k](sycl::handler& __cgh) {
+            __event1 = __exec.queue().submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__event1);
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
                 auto __temp_acc = __temp.template get_access<access_mode::read_write>(__cgh);

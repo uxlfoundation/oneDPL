@@ -252,7 +252,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         const std::int64_t __n_iter = sycl::ctz(__n_power2) - sycl::ctz(__leaf_size);
         for (std::int64_t __i = 0; __i < __n_iter; ++__i)
         {
-            __event_chain = __q.submit([&, __event_chain, __n_sorted, __data_in_temp](sycl::handler& __cgh) {
+            __event_chain = __q.submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__event_chain);
 
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
@@ -306,7 +306,7 @@ struct __merge_sort_copy_back_submitter<__internal::__optional_kernel_name<_Copy
     sycl::event
     operator()(sycl::queue& __q, _Range& __rng, _TempBuf& __temp_buf, sycl::event __event_chain) const
     {
-        __event_chain = __q.submit([&, __event_chain](sycl::handler& __cgh) {
+        __event_chain = __q.submit([&](sycl::handler& __cgh) {
             __cgh.depends_on(__event_chain);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __temp_acc = __temp_buf.template get_access<access_mode::read>(__cgh);
