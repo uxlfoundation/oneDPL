@@ -2490,7 +2490,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, cons
     }
 #endif
     return __parallel_reduce_by_segment_fallback(
-        oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__internal::__device_backend_tag{}, __exec,
         std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
         std::forward<_Range4>(__out_values), __binary_pred, __binary_op,
         oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
