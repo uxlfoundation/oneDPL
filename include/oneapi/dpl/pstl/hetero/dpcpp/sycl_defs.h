@@ -68,6 +68,7 @@
 #define _ONEDPL_SYCL2020_ATOMIC_REF_PRESENT                   (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50500))
 #define _ONEDPL_SYCL2020_SUB_GROUP_PRESENT                    (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50700))
 #define _ONEDPL_SYCL2020_SUBGROUP_BARRIER_PRESENT             (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50700))
+#define _ONEDPL_SYCL2020_GROUP_BARRIER_PRESENT                (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50700))
 // 20201214 value corresponds to DPC++ 2021.1.2
 #define _ONEDPL_SYCL2020_KERNEL_DEVICE_API_PRESENT                                                                     \
     (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50700) || __SYCL_COMPILER_VERSION > 20201214)
@@ -210,13 +211,19 @@ template <typename _Item>
 constexpr void
 __group_barrier(_Item __item)
 {
-#if 0 // !defined(_ONEDPL_LIBSYCL_VERSION) || _ONEDPL_LIBSYCL_VERSION >= 50300
-    //TODO: usage of sycl::group_barrier: probably, we have to revise SYCL parallel patterns which use a group_barrier.
-    // 1) sycl::group_barrier() implementation is not ready
-    // 2) sycl::group_barrier and sycl::item::group_barrier are not quite equivalent
+    // TODO: switch to SYCL 2020 with DPC++ compiler.
+    // SYCL 1.2.1 version is used due to better performance on Intel GPUs.
+    // The performance gap is negligible since
+    // https://github.com/intel/intel-graphics-compiler/commit/ed639f68d142bc963a7b626badc207a42fb281cb (Aug 20, 2024)
+    // But the fix is not a part of the LTS GPU drivers (Linux) yet.
+#if _ONEDPL_SYCL2020_GROUP_BARRIER_PRESENT && !defined(_ONEDPL_LIBSYCL_VERSION)
+    // SYCL 2020 barrier: applies to local and global memory within a work-group
     sycl::group_barrier(__item.get_group(), sycl::memory_scope::work_group);
-#else
+#elif defined(_ONEDPL_LIBSYCL_VERSION)
+    // SYCL 1.2.1 barrier: applies to local memory within a work-group
     __item.barrier(sycl::access::fence_space::local_space);
+#else
+#    error "sycl::group_barrier is not supported, and no alternative is available"
 #endif
 }
 
