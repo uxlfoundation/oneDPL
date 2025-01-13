@@ -34,6 +34,7 @@
 #include <tbb/parallel_invoke.h>
 #include <tbb/task_arena.h>
 #include <tbb/tbb_allocator.h>
+#include <tbb/enumerable_thread_specific.h>
 #if TBB_INTERFACE_VERSION > 12000
 #    include <tbb/task.h>
 #endif
@@ -1305,6 +1306,35 @@ __parallel_for_each(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy
 {
     tbb::this_task_arena::isolate([&]() { tbb::parallel_for_each(__begin, __end, __f); });
 }
+
+template <typename _StorageType>
+struct __thread_enumerable_storage
+{
+    template <typename... Args>
+    __thread_enumerable_storage(Args&&... __args) : __thread_specific_storage(std::forward<Args>(__args)...)
+    {
+    }
+
+    std::uint32_t
+    size() const
+    {
+        return __thread_specific_storage.size();
+    }
+
+    _StorageType&
+    get_for_current_thread()
+    {
+        return __thread_specific_storage.local();
+    }
+
+    _StorageType&
+    get_with_id(std::uint32_t __i)
+    {
+        return __thread_specific_storage.begin()[__i];
+    }
+
+    tbb::enumerable_thread_specific<_StorageType> __thread_specific_storage;
+};
 
 } // namespace __tbb_backend
 } // namespace dpl

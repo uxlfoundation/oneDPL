@@ -20,11 +20,13 @@
 #include <atomic>
 #include <iterator>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <vector>
 #include <type_traits>
 #include <omp.h>
+#include <tuple>
 
 #include "../parallel_backend_utils.h"
 #include "../unseq_backend_simd.h"
@@ -152,6 +154,95 @@ __process_chunk(const __chunk_metrics& __metrics, _Iterator __base, _Index __chu
     auto __last = __first + __this_chunk_size;
     __f(__first, __last);
 }
+
+// abstract class to allow inclusion in __thread_enumerable_storage as member without requiring explicit template
+// instantiation of param types
+template <typename _StorageType>
+class __construct_by_args_base
+{
+  public:
+    virtual ~__construct_by_args_base() = default;
+    virtual std::unique_ptr<_StorageType> construct() = 0;
+};
+
+// Helper class to allow construction of _StorageType from a stored argument pack
+template <typename _StorageType, typename... _P>
+class __construct_by_args : public __construct_by_args_base<_StorageType>
+{
+  public:
+    std::unique_ptr<_StorageType>
+    construct() override
+    {
+        return std::apply([](_P... __arg_pack) { return std::make_unique<_StorageType>(__arg_pack...); }, __pack);
+    }
+    __construct_by_args(_P&&... __args) : __pack(std::forward<_P>(__args)...) {}
+
+  private:
+    const std::tuple<_P...> __pack;
+};
+
+template <typename _StorageType>
+struct __thread_enumerable_storage
+{
+    template <typename... Args>
+    __thread_enumerable_storage(Args&&... __args) : __num_elements(0)
+    {
+        __storage_factory = std::make_unique<__construct_by_args<_StorageType, Args...>>(std::forward<Args>(__args)...);
+        _PSTL_PRAGMA(omp parallel)
+        _PSTL_PRAGMA(omp single) { __thread_specific_storage.resize(omp_get_num_threads()); }
+    }
+
+    // Note: Size should not be used concurrantly with parallel loops which may instantiate storage objects, as it may
+    // not return an accurate count of instantiated storage objects in lockstep with the number allocated and stored.
+    // This is because the count is not atomic with the allocation and storage of the storage objects.
+    std::uint32_t
+    size() const
+    {
+        // only count storage which has been instantiated
+        return __num_elements.load();
+    }
+
+    _StorageType&
+    get_with_id(std::uint32_t __i)
+    {
+        assert(__i < size());
+
+        std::uint32_t __j = 0;
+
+        if (size() == __thread_specific_storage.size())
+        {
+            return *__thread_specific_storage[__i];
+        }
+
+        for (std::uint32_t __count = 0; __j < __thread_specific_storage.size() && __count <= __i; ++__j)
+        {
+            // Only include storage from threads which have instantiated a storage object
+            if (__thread_specific_storage[__j])
+            {
+                __count++;
+            }
+        }
+        // Need to back up one once we have found a valid storage object
+        return *__thread_specific_storage[__j - 1];
+    }
+
+    _StorageType&
+    get_for_current_thread()
+    {
+        std::uint32_t __i = omp_get_thread_num();
+        if (!__thread_specific_storage[__i])
+        {
+            // create temporary storage on first usage to avoid extra parallel region and unnecessary instantiation
+            __thread_specific_storage[__i] = __storage_factory->construct();
+            __num_elements.fetch_add(1);
+        }
+        return *__thread_specific_storage[__i];
+    }
+
+    std::vector<std::unique_ptr<_StorageType>> __thread_specific_storage;
+    std::atomic<std::uint32_t> __num_elements;
+    std::unique_ptr<__construct_by_args_base<_StorageType>> __storage_factory;
+};
 
 } // namespace __omp_backend
 } // namespace dpl

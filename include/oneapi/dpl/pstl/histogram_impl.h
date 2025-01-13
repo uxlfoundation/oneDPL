@@ -19,6 +19,7 @@
 #include "histogram_extension_defs.h"
 #include "histogram_binhash_utils.h"
 #include "iterator_impl.h"
+#include "algorithm_impl.h"
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/histogram_impl_hetero.h"
@@ -28,23 +29,6 @@ namespace oneapi
 {
 namespace dpl
 {
-
-namespace __internal
-{
-
-template <class _Tag, typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _Size, typename _IdxHashFunc,
-          typename _RandomAccessIterator2>
-void
-__pattern_histogram(_Tag, _ExecutionPolicy&& exec, _RandomAccessIterator1 __first, _RandomAccessIterator1 __last,
-                    _Size __num_bins, _IdxHashFunc __func, _RandomAccessIterator2 __histogram_first)
-{
-    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
-
-    static_assert(sizeof(_Size) == 0 /*false*/,
-                  "Histogram API is currently unsupported for policies other than device execution policies");
-}
-
-} // namespace __internal
 
 template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _Size, typename _ValueType,
           typename _RandomAccessIterator2>
