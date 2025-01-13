@@ -769,14 +769,14 @@ struct __is_vectorizable_range
 #endif
 };
 // If the outer view is a guard view, then the input is passed directly as a pointer and we can use.
-template <typename... _Args>
-struct __is_vectorizable_range<oneapi::dpl::__ranges::guard_view<_Args...>> : std::true_type
+template <typename _Iterator>
+struct __is_vectorizable_range<oneapi::dpl::__ranges::guard_view<_Iterator>> : std::true_type
 {
 };
 // If all_view is passed, then we are processing a sycl::buffer directly which is contiguous and can
 // be used.
-template <typename... _Args>
-struct __is_vectorizable_range<oneapi::dpl::__ranges::all_view<_Args...>> : std::true_type
+template <typename _T, sycl::access::mode _AccMode, __dpl_sycl::__target _Target, sycl::access::placeholder _Placeholder>
+struct __is_vectorizable_range<oneapi::dpl::__ranges::all_view<_T, _AccMode, _Target, _Placeholder>> : std::true_type
 {
 };
 
