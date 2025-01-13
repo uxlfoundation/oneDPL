@@ -728,7 +728,7 @@ class __merge_func
     _SizeType _M_zs;
     _Compare _M_comp;
     _LeafMerge _M_leaf_merge;
-    _SizeType _M_nsort; //number of elements to be sorted for partial_sort alforithm
+    _SizeType _M_nsort; //number of elements to be sorted for partial_sort algorithm
 
     static const _SizeType __merge_cut_off = _ONEDPL_MERGE_CUT_OFF;
 

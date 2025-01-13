@@ -83,7 +83,7 @@ class __onesweep_memory_holder
     ::std::uint8_t* __m_raw_mem_ptr = nullptr;
     // Memory to store global histograms, where each stage has its own histogram
     _HistT* __m_global_hist_ptr = nullptr;
-    // Memory to store group historgrams, which contain offsets relative to "previous" groups
+    // Memory to store group histograms, which contain offsets relative to "previous" groups
     _HistT* __m_group_hist_ptr = nullptr;
     // Memory to store intermediate results of sorting
     _KeyT* __m_keys_ptr = nullptr;

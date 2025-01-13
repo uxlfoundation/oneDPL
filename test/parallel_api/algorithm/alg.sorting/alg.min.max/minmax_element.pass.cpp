@@ -111,7 +111,7 @@ struct check_minmaxelement_predicate
         typedef typename ::std::iterator_traits<Iterator>::value_type T;
         const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
         const ::std::pair<Iterator, Iterator> got_pred = ::std::minmax_element(exec, begin, end, ::std::less<T>());
-        EXPECT_TRUE(expect == got_pred, "wrong return result from minmax_element wuth predicate");
+        EXPECT_TRUE(expect == got_pred, "wrong return result from minmax_element with predicate");
     }
 };
 

@@ -51,7 +51,7 @@ the [#onedpl](https://uxlfoundation.slack.com/channels/onedpl) channel.
 The oneDPL project is governed by the [UXL Foundation] and you can get involved in
 this project. Members can join the Open Source and Specification Working Group
 meetings to participate in discussions on the evolution of oneDPL and other oneAPI components
-governed by th [UXL Foundation]. See [How to Contribute] for more details.
+governed by the [UXL Foundation]. See [How to Contribute] for more details.
 
 You can also join the [mailing lists for the UXL Foundation] to be informed
 of when meetings are happening and receive the latest information and

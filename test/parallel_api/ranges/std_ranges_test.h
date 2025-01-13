@@ -239,7 +239,7 @@ public:
         const int r_size = max_n;
         process_data_in_out(r_size, r_size, std::forward<Policy>(exec), algo, checker, args...);
 
-        //test case size of input range is less than size of output and viceversa
+        //test case size of input range is less than size of output and vice-versa
         process_data_in_out(r_size/2, r_size, exec, algo, checker, args...);
         process_data_in_out(r_size, r_size/2, std::forward<Policy>(exec), algo, checker, args...);
     }

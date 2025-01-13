@@ -263,7 +263,7 @@ kernel_test()
     test_is_not_convertible<NonCopyable&, NonCopyable>();
 
     // Ensure that CannotInstantiate is not instantiated by is_convertible when it is not needed.
-    // For example CannotInstantiate is instatiated as a part of ADL lookup for arguments of type CannotInstantiate*.
+    // For example CannotInstantiate is instantiated as a part of ADL lookup for arguments of type CannotInstantiate*.
     static_assert(dpl::is_convertible<CannotInstantiate<int>*, CannotInstantiate<int>*>::value);
 
     return true;

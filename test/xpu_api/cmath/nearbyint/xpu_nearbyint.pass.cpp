@@ -59,7 +59,7 @@ test(Function fnc, const std::vector<ValueType>& args, const char* message)
         });
     }
 
-    // Check results: compare resuls evaluated in Kernel and on host
+    // Check results: compare results evaluated in Kernel and on host
     for (size_t i = 0; i < args_count; ++i)
     {
         auto host_result = fnc(args[i]);

@@ -54,7 +54,7 @@ main()
     ::std::transform(data, data + max_n, expected, lambda1);
     ::std::transform(expected, expected + max_n, expected, expected, lambda2);
 
-    EXPECT_EQ_N(expected, data2, max_n, "wrong effect from trasnform2 with sycl ranges");
+    EXPECT_EQ_N(expected, data2, max_n, "wrong effect from transform2 with sycl ranges");
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);
