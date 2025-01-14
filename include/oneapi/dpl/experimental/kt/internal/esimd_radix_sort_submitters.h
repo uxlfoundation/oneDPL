@@ -27,7 +27,7 @@ namespace oneapi::dpl::experimental::kt::gpu::esimd::__impl
 {
 
 //------------------------------------------------------------------------
-// Please see the comment for __parallel_for_submitter for optional kernel name explanation
+// Please see the comment above __parallel_for_small_submitter for optional kernel name explanation
 //------------------------------------------------------------------------
 
 template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,

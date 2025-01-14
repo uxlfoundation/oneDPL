@@ -18,6 +18,9 @@
 
 #include <iterator>
 #include <type_traits>
+#if _ONEDPL_CPP20_RANGES_PRESENT && _ONEDPL_CPP20_CONCEPTS_PRESENT
+#include <ranges> // std::ranges::contiguous_range
+#endif
 
 #include "../../utils_ranges.h"
 #include "../../iterator_impl.h"
@@ -753,6 +756,31 @@ __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _Ranges&&.
     return {};
 }
 #endif
+
+// Check the outer view type type to see if we can vectorize. Any non-contiguous inputs (e.g. reverse
+// views, permutation views, etc.) cannot be vectorized. If C++20 ranges are present, then we can
+// use the std::ranges::contiguous_range concept.
+template <typename _Rng>
+struct __is_vectorizable_range
+{
+    constexpr static bool value =
+#if _ONEDPL_CPP20_RANGES_PRESENT && _ONEDPL_CPP20_CONCEPTS_PRESENT
+        std::ranges::contiguous_range<_Rng>;
+#else
+        false;
+#endif
+};
+// If the outer view is a guard view, then the input is passed directly as a pointer and we can use.
+template <typename _Iterator>
+struct __is_vectorizable_range<oneapi::dpl::__ranges::guard_view<_Iterator>> : std::true_type
+{
+};
+// If all_view is passed, then we are processing a sycl::buffer directly which is contiguous and can
+// be used.
+template <typename _T, sycl::access::mode _AccMode, __dpl_sycl::__target _Target, sycl::access::placeholder _Placeholder>
+struct __is_vectorizable_range<oneapi::dpl::__ranges::all_view<_T, _AccMode, _Target, _Placeholder>> : std::true_type
+{
+};
 
 } // namespace __ranges
 } // namespace dpl

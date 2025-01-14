@@ -111,7 +111,7 @@ __device_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Size _
 
 //------------------------------------------------------------------------
 // parallel_transform_reduce - async patterns
-// Please see the comment for __parallel_for_submitter for optional kernel name explanation
+// Please see the comment above __parallel_for_small_submitter for optional kernel name explanation
 //------------------------------------------------------------------------
 
 // Parallel_transform_reduce for a small arrays using a single work group.
