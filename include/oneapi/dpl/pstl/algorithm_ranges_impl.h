@@ -420,14 +420,14 @@ __pattern_copy_if_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_
     auto __pred_1 = [__pred, __proj](auto&& __val) { return std::invoke(__pred, std::invoke(__proj,
         std::forward<decltype(__val)>(__val)));};
 
-    auto __res_idx = oneapi::dpl::__internal::__pattern_copy_if(__tag, std::forward<_ExecutionPolicy>(__exec),
+    auto __res = oneapi::dpl::__internal::__pattern_copy_if(__tag, std::forward<_ExecutionPolicy>(__exec),
         std::ranges::begin(__in_r), std::ranges::begin(__in_r) + std::ranges::size(__in_r),
-        std::ranges::begin(__out_r), __pred_1) - std::ranges::begin(__out_r);
+        std::ranges::begin(__out_r), __pred_1, std::ranges::size(__out_r));
 
     using __return_type = std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>,
         std::ranges::borrowed_iterator_t<_OutRange>>;
 
-    return __return_type{std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r) + __res_idx};
+    return __return_type{__res.first, __res.second};
 }
 
 template<typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _Proj>
@@ -435,7 +435,21 @@ auto
 __pattern_copy_if_ranges(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r,
                          _Pred __pred, _Proj __proj)
 {
-    return std::ranges::copy_if(std::forward<_InRange>(__in_r), std::ranges::begin(__out_r), __pred, __proj);
+    using __return_type = std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>,
+        std::ranges::borrowed_iterator_t<_OutRange>>;
+
+    auto __it_in = std::ranges::begin(__in_r);
+    auto __it_out = std::ranges::begin(__out_r);
+    for(; __it_in != std::ranges::end(__in_r) && __it_out != std::ranges::end(__out_r); ++__it_in)
+    {
+         if (std::invoke(__pred, std::invoke(__proj, *__it_in)))
+         {
+             *__it_out = *__it_in;
+             ++__it_out;
+         }
+    }
+
+    return __return_type{__it_in, __it_out};
 }
 
 //---------------------------------------------------------------------------------------------------------------------

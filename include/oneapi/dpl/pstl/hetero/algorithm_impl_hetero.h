@@ -901,15 +901,14 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
     if (__first == __last)
         return __result_first;
 
-    _It1DifferenceType __n = __last - __first;
-
+    auto __n = __last - __first;
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
     auto __buf1 = __keep1(__first, __last);
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _Iterator2>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
     auto __res = __par_backend_hetero::__parallel_copy_if(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-                                                          __buf1.all_view(), __buf2.all_view(), __n, __pred);
+                                                          __buf1.all_view(), __buf2.all_view(), __pred);
 
     ::std::size_t __num_copied = __res.get(); //is a blocking call
     return __result_first + __num_copied;
