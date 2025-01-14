@@ -522,6 +522,7 @@ struct __usm_or_buffer_accessor
 struct __result_and_scratch_storage_base
 {
     virtual ~__result_and_scratch_storage_base() = default;
+    virtual std::size_t __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
 template <typename _ExecutionPolicy, typename _T>
@@ -654,6 +655,16 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 #endif
     }
 
+    _T
+    __wait_and_get_value(sycl::event __event) const
+    {
+        if (is_USM())
+            __event.wait_and_throw();
+
+        return __get_value();
+    }
+
+private:
     bool
     is_USM() const
     {
@@ -663,17 +674,17 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     // Note: this member function assumes the result is *ready*, since the __future has already
     // waited on the relevant event.
     _T
-    __get_value(size_t idx = 0) const
+    __get_value() const
     {
-        assert(idx < __result_n);
+        assert( __result_n == 1);
         if (__use_USM_host && __supports_USM_device)
         {
-            return *(__result_buf.get() + idx);
+            return *(__result_buf.get());
         }
         else if (__supports_USM_device)
         {
             _T __tmp;
-            __exec.queue().memcpy(&__tmp, __scratch_buf.get() + __scratch_n + idx, 1 * sizeof(_T)).wait();
+            __exec.queue().memcpy(&__tmp, __scratch_buf.get() + __scratch_n, 1 * sizeof(_T)).wait();
             return __tmp;
         }
         else
@@ -682,14 +693,29 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
     }
 
-    template <typename _Event>
-    _T
-    __wait_and_get_value(_Event&& __event, size_t idx = 0) const
+    template<typename _Type>
+    std::size_t
+    __fill_data(std::pair<_Type, _Type>&& __p, std::size_t* __p_buf) const
+    {
+        __p_buf[0] = __p.first;
+        __p_buf[1] = __p.second;
+        return 2;
+    }
+
+    template<typename _Args>
+    std::size_t
+    __fill_data(_Args&&...) const
+    {
+        assert(!"Unsupported return type");
+        return 0;
+    }
+
+    virtual std::size_t __get_data(sycl::event __event, std::size_t* __p_buf) const override
     {
         if (is_USM())
             __event.wait_and_throw();
 
-        return __get_value(idx);
+        return __fill_data(__get_value(), __p_buf);
     }
 };
 
@@ -727,6 +753,16 @@ class __future : private std::tuple<_Args...>
     __wait_and_get_value(const __result_and_scratch_storage<_ExecutionPolicy, _T>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
+    }
+
+    constexpr auto
+    __wait_and_get_value(const std::shared_ptr<__result_and_scratch_storage_base>& __p_storage)
+    {
+        std::size_t __buf[2] = {0, 0};
+        auto __n =  __p_storage->__get_data(__my_event, __buf);
+        assert(__n == 2);
+
+        return std::pair<std::size_t, std::size_t>{__buf[0], __buf[1]};
     }
 
     template <typename _T>

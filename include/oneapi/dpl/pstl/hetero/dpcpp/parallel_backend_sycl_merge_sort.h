@@ -95,7 +95,7 @@ struct __group_merge_path_sorter
                 __in_ptr1, std::uint32_t{0}, __n1, __in_ptr2, std::uint32_t{0}, __n2, __id_local, __comp);
             // TODO: copy the data into registers before the merge to halve the required amount of SLM
             __serial_merge(__in_ptr1, __in_ptr2, __out_ptr, __start.first, __start.second, __id, __data_per_workitem,
-                           __n1, __n2, __comp);
+                           __n1, __n2, __n1 + __n2, __comp);
             __dpl_sycl::__group_barrier(__item);
 
             __sorted = __next_sorted;
@@ -275,7 +275,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                             const auto start = __find_start_point(__rng1, _IndexT{0}, __n1, __rng2, _IndexT{0}, __n2,
                                                                   __i_elem_local, __comp);
                             __serial_merge(__rng1, __rng2, __rng /*__rng3*/, start.first, start.second, __i_elem,
-                                           __chunk, __n1, __n2, __comp);
+                                           __chunk, __n1, __n2, __n1 + __n2, __comp);
                         }
                         else
                         {
@@ -285,7 +285,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                             const auto start = __find_start_point(__rng1, _IndexT{0}, __n1, __rng2, _IndexT{0}, __n2,
                                                                   __i_elem_local, __comp);
                             __serial_merge(__rng1, __rng2, __dst /*__rng3*/, start.first, start.second, __i_elem,
-                                           __chunk, __n1, __n2, __comp);
+                                           __chunk, __n1, __n2, __n1 + __n2, __comp);
                         }
                     });
             });

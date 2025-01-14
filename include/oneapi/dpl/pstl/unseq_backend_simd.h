@@ -879,6 +879,40 @@ __simd_remove_if(_RandomAccessIterator __first, _DifferenceType __n, _UnaryPredi
     }
     return __current + __cnt;
 }
+
+template<typename _Iterator1, typename _Iterator2, typename _Iterator3, typename _Comp>
+std::pair<_Iterator1, _Iterator2>
+__simd_merge(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterator2 __y_e, _Iterator3 __i, _Iterator3 __j, _Comp __comp)
+{
+    _ONEDPL_PRAGMA_SIMD
+    for(_Iterator3 __k = __i; __k < __j; ++__k)
+    {
+        if(__x >= __x_e)
+        {
+            assert(__y < __y_e);
+            *__k = *__y;
+            ++__y;
+        }
+        else if(__y >= __y_e)
+        {
+            assert(__x < __x_e);
+            *__k = *__x;
+            ++__x;
+        }
+        else if(std::invoke(__comp, *__x, *__y))
+        {
+            *__k = *__x;
+            ++__x;
+        }
+        else
+        {
+            *__k = *__y;
+            ++__y;
+        }
+    }
+    return {__x, __y};
+}
+
 } // namespace __unseq_backend
 } // namespace dpl
 } // namespace oneapi

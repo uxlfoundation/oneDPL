@@ -31,6 +31,7 @@
 #include "parallel_backend.h"
 #include "parallel_impl.h"
 #include "iterator_impl.h"
+#include "../functional"
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_impl_hetero.h" // for __pattern_fill_n, __pattern_generate_n
@@ -2948,6 +2949,49 @@ __pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 // merge
 //------------------------------------------------------------------------
 
+template<typename It1, typename It2, typename ItOut, typename _Comp>
+std::pair<It1, It2>
+__brick_merge_2(It1 __it_1, It1 __it_1_e, It2 __it_2, It2 __it_2_e, ItOut __it_out, ItOut __it_out_e, _Comp __comp,
+              /* __is_vector = */ std::false_type)
+{
+    while(__it_1 != __it_1_e && __it_2 != __it_2_e)
+    {
+         if (__comp(*__it_1, *__it_2))
+         {
+             *__it_out = *__it_1;
+             ++__it_out, ++__it_1;
+         }
+         else
+         {
+             *__it_out = *__it_2;
+             ++__it_out, ++__it_2;
+         }
+         if(__it_out == __it_out_e)
+            return {__it_1, __it_2};
+    }
+
+    if(__it_1 == __it_1_e)
+    {
+        for(; __it_2 != __it_2_e && __it_out != __it_out_e; ++__it_2, ++__it_out)
+            *__it_out = *__it_2;
+    }
+    else
+    {
+        //assert(__it_2 == __it_2_e);
+        for(; __it_1 != __it_1_e && __it_out != __it_out_e; ++__it_1, ++__it_out)
+            *__it_out = *__it_1;
+    }
+    return {__it_1, __it_2};
+}
+
+template<typename It1, typename It2, typename ItOut, typename _Comp>
+std::pair<It1, It2>
+__brick_merge_2(It1 __it_1, It1 __it_1_e, It2 __it_2, It2 __it_2_e, ItOut __it_out, ItOut __it_out_e, _Comp __comp,
+              /* __is_vector = */ std::true_type)
+{
+    return __unseq_backend::__simd_merge(__it_1, __it_1_e, __it_2, __it_2_e, __it_out, __it_out_e, __comp);
+}
+
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
 _OutputIterator
 __brick_merge(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
@@ -2980,10 +3024,87 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
                                      typename _Tag::__is_vector{});
 }
 
+template<class _Tag, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2,
+         typename _Index2, typename _OutIt, typename _Index3, typename _Comp>
+std::pair<_It1, _It2>
+__pattern_merge_2(_Tag, _ExecutionPolicy&& __exec, _It1 __it_1, _Index1 __n_1, _It2 __it_2,
+                _Index2 __n_2, _OutIt __it_out, _Index3 __n_out, _Comp __comp)
+{
+    return __brick_merge_2(__it_1, __it_1 + __n_1, __it_2, __it_2 + __n_2, __it_out, __it_out + __n_out, __comp,
+                           typename _Tag::__is_vector{});
+}
+
+template<typename _IsVector, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2,
+         typename _Index2, typename _OutIt, typename _Index3, typename _Comp>
+std::pair<_It1, _It2>
+__pattern_merge_2(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 __it_1, _Index1 __n_1, _It2 __it_2,
+                _Index2 __n_2, _OutIt __it_out, _Index3 __n_out, _Comp __comp)
+{
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    _It1 __it_res_1;
+    _It2 __it_res_2;
+
+    __internal::__except_handler([&]() {
+        __par_backend::__parallel_for(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index3(0), __n_out,
+                                      [=, &__it_res_1, &__it_res_2](_Index3 __i, _Index3 __j)
+                                      {
+                                            //a start merging point on the merge path; for each thread
+                                            _Index1 __r = 0; //row index
+                                            _Index2 __c = 0; //column index
+
+                                            if(__i > 0)
+                                            {
+                                                //calc merge path intersection:
+                                                const _Index3 __d_size = 
+                                                    std::abs(std::max<_Index2>(0, __i - __n_2) - (std::min<_Index1>(__i, __n_1) - 1)) + 1;
+
+                                                auto __get_row = [__i, __n_1](auto __d)
+                                                    { return std::min<_Index1>(__i, __n_1) - __d - 1; };
+                                                auto __get_column = [__i, __n_1](auto __d)
+                                                    { return std::max<_Index1>(0, __i - __n_1 - 1) + __d + (__i / (__n_1 + 1) > 0 ? 1 : 0); };
+
+                                                oneapi::dpl::counting_iterator<_Index3> __it_d(0);
+
+                                                auto __res_d = *std::lower_bound(__it_d, __it_d + __d_size, 1,
+                                                    [&](auto __d, auto __val) {
+                                                        auto __r = __get_row(__d);
+                                                        auto __c = __get_column(__d);
+
+                                                        oneapi::dpl::__internal::__compare<_Comp, oneapi::dpl::identity>
+                                                            __cmp{__comp, oneapi::dpl::identity{}};
+                                                        const auto __res = (__cmp(__it_1[__r], __it_2[__c]) ? 1 : 0);
+
+                                                        return __res < __val;
+                                                    }
+                                                );
+
+                                                //intersection point
+                                                __r = __get_row(__res_d);
+                                                __c = __get_column(__res_d);
+                                                ++__r; //to get a merge matrix ceil, lying on the current diagonal
+                                            }
+
+                                            //serial merge n elements, starting from input x and y, to [i, j) output range
+                                            auto __res = __brick_merge_2(__it_1 + __r, __it_1 + __n_1,
+                                                                         __it_2 + __c, __it_2 + __n_2,
+                                                                         __it_out + __i, __it_out + __j, __comp, _IsVector{});
+
+                                            if(__j == __n_out)
+                                            {
+                                                __it_res_1 = __res.first;
+                                                __it_res_2 = __res.second;
+                                            }
+                                      }, _ONEDPL_MERGE_CUT_OFF); //grainsize
+    });
+
+    return {__it_res_1, __it_res_2};
+}
+
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
-__pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+__pattern_merge(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                 _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                 _RandomAccessIterator3 __d_first, _Compare __comp)
 {
