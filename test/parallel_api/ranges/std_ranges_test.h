@@ -277,14 +277,12 @@ private:
         Container cont_in1(exec, n_in1, [](auto i) { return i;});
         Container cont_in2(exec, n_in2, [](auto i) { return i/3;});
 
-        const int max_n_out = max_n*2;
-        Container cont_out(exec, max_n_out, [](auto i) { return 0;});
-        Container cont_exp(exec, max_n_out, [](auto i) { return 0;});
+        Container cont_out(exec, n_out, [](auto i) { return 0;});
+        Container cont_exp(exec, n_out, [](auto i) { return 0;});
 
         assert(n_in1 <= max_n);
         assert(n_in2 <= max_n);
-        assert(n_out <= max_n_out);
-        
+
         auto src_view1 = tr_in(std::views::all(cont_in1()));
         auto src_view2 = tr_in(std::views::all(cont_in2()));
         auto expected_view = tr_out(std::views::all(cont_exp()));
@@ -322,6 +320,7 @@ public:
     {
         const int r_size = max_n;
         process_data_in_in_out(r_size, r_size, r_size, exec, algo, checker, args...);
+        process_data_in_in_out(r_size, r_size, r_size*2, exec, algo, checker, args...);
         process_data_in_in_out(r_size/2, r_size, r_size, exec, algo, checker, args...);
         process_data_in_in_out(r_size, r_size/2, r_size, exec, algo, checker, args...);
         process_data_in_in_out(r_size, r_size, r_size/2, std::forward<Policy>(exec), algo, checker, args...);

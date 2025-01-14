@@ -35,6 +35,9 @@
 #    endif
 #endif
 
+//the parallel backend constants
+#define _ONEDPL_MERGE_CUT_OFF 2000
+
 namespace oneapi
 {
 namespace dpl
