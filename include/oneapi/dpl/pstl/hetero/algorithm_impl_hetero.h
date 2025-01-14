@@ -56,12 +56,11 @@ __pattern_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator>();
     auto __buf = __keep(__first, __last);
 
-    auto __view = __buf.all_view();
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, __exec,
-        unseq_backend::walk1_vector_or_scalar<_ExecutionPolicy, _Function, decltype(__view)>{
+        unseq_backend::walk1_vector_or_scalar<_ExecutionPolicy, _Function, decltype(__buf.all_view())>{
             __f, static_cast<std::size_t>(__n)},
-        __n, __view)
+        __n, __buf.all_view())
         .__deferrable_wait();
 }
 
@@ -105,14 +104,11 @@ __pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode2, _ForwardIterator2>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    auto __view1 = __buf1.all_view();
-    auto __view2 = __buf2.all_view();
-
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _Function, decltype(__view1), decltype(__view2)>{
-            __f, static_cast<std::size_t>(__n)},
-        __n, __view1, __view2);
+        unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _Function, decltype(__buf1.all_view()),
+                                                decltype(__buf2.all_view())>{__f, static_cast<std::size_t>(__n)},
+        __n, __buf1.all_view(), __buf2.all_view());
 
     // Call no wait, wait or deferrable wait depending on _WaitMode
     __future.wait(_WaitMode{});
@@ -151,14 +147,11 @@ __pattern_swap(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Forw
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator2>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    auto __view1 = __buf1.all_view();
-    auto __view2 = __buf2.all_view();
-
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::__brick_swap<_ExecutionPolicy, _Function, decltype(__view1), decltype(__view2)>{
-            __f, static_cast<std::size_t>(__n)},
-        __n, __view1, __view2);
+        unseq_backend::__brick_swap<_ExecutionPolicy, _Function, decltype(__buf1.all_view()),
+                                    decltype(__buf2.all_view())>{__f, static_cast<std::size_t>(__n)},
+        __n, __buf1.all_view(), __buf2.all_view());
     __future.wait(__par_backend_hetero::__deferrable_mode{});
     return __first2 + __n;
 }
@@ -187,15 +180,12 @@ __pattern_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode3, _ForwardIterator3>();
     auto __buf3 = __keep3(__first3, __first3 + __n);
 
-    auto __view1 = __buf1.all_view();
-    auto __view2 = __buf2.all_view();
-    auto __view3 = __buf3.all_view();
-
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::walk3_vectors_or_scalars<_ExecutionPolicy, _Function, decltype(__view1), decltype(__view2),
-                                                decltype(__view3)>{__f, static_cast<std::size_t>(__n)},
-        __n, __view1, __view2, __view3)
+        unseq_backend::walk3_vectors_or_scalars<_ExecutionPolicy, _Function, decltype(__buf1.all_view()),
+                                                decltype(__buf2.all_view()), decltype(__buf3.all_view())>{
+            __f, static_cast<std::size_t>(__n)},
+        __n, __buf1.all_view(), __buf2.all_view(), __buf3.all_view())
         .__deferrable_wait();
 
     return __first3 + __n;
@@ -1623,13 +1613,11 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bi
     auto __keep2 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _ForwardIterator>();
     auto __buf2 = __keep2(__result, __result + __n);
-    auto __view1 = __buf1.all_view();
-    auto __view2 = __buf2.all_view();
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::__reverse_copy<typename std::iterator_traits<_BidirectionalIterator>::difference_type,
-                                      decltype(__view1), decltype(__view2)>{__n},
-        __n, __view1, __view2)
+                                      decltype(__buf1.all_view()), decltype(__buf2.all_view())>{__n},
+        __n, __buf1.all_view(), __buf2.all_view())
         .__deferrable_wait();
 
     return __result + __n;
@@ -1663,16 +1651,15 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     auto __buf = __keep(__first, __last);
     auto __temp_buf = oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _Tp>(__exec, __n);
 
-    auto __view = __buf.all_view();
     auto __temp_rng_w =
         oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::write>(__temp_buf.get_buffer());
 
     const auto __shift = __new_first - __first;
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_wrapper>(__exec),
-        unseq_backend::__rotate_copy<typename std::iterator_traits<_Iterator>::difference_type, decltype(__view),
-                                     decltype(__temp_rng_w)>{__n, __shift},
-        __n, __view, __temp_rng_w);
+        unseq_backend::__rotate_copy<typename std::iterator_traits<_Iterator>::difference_type,
+                                     decltype(__buf.all_view()), decltype(__temp_rng_w)>{__n, __shift},
+        __n, __buf.all_view(), __temp_rng_w);
 
     //An explicit wait isn't required here because we are working with a temporary sycl::buffer and sycl accessors and
     //SYCL runtime makes a dependency graph to prevent the races between two __parallel_for patterns.
@@ -1713,16 +1700,13 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bid
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _ForwardIterator>();
     auto __buf2 = __keep2(__result, __result + __n);
 
-    auto __view1 = __buf1.all_view();
-    auto __view2 = __buf2.all_view();
-
     const auto __shift = __new_first - __first;
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::__rotate_copy<typename ::std::iterator_traits<_BidirectionalIterator>::difference_type,
-                                     decltype(__view1), decltype(__view2)>{__n, __shift},
-        __n, __view1, __view2)
+                                     decltype(__buf1.all_view()), decltype(__buf2.all_view())>{__n, __shift},
+        __n, __buf1.all_view(), __buf2.all_view())
         .__deferrable_wait();
 
     return __result + __n;
