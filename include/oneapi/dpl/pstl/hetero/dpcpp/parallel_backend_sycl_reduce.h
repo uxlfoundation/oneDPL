@@ -374,7 +374,7 @@ struct __parallel_transform_reduce_impl
                 __cgh.use_kernel_bundle(__kernel.get_kernel_bundle());
 #endif
                 __cgh.parallel_for<_ReduceKernel>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
                     __kernel,
 #endif
                     sycl::nd_range<1>(sycl::range<1>(__n_groups * __work_group_size),

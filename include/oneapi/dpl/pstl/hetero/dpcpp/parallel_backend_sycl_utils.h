@@ -255,6 +255,7 @@ using __kernel_name_generator =
     _BaseName<_CustomName>;
 #endif
 
+#if _ONEDPL_COMPILE_KERNEL
 template <typename... _KernelNames>
 class __kernel_compiler
 {
@@ -287,7 +288,7 @@ class __kernel_compiler
     {
         return __kernel_array_type{__kernel_bundle.get_kernel(__kernel_ids[_Ip])...};
     }
-#else
+#elif _ONEDPL_LIBSYCL_PROGRAM_PRESENT
     template <typename _Exec>
     static auto
     __compile(_Exec&& __exec)
@@ -300,6 +301,7 @@ class __kernel_compiler
     }
 #endif
 };
+#endif // _ONEDPL_COMPILE_KERNEL
 
 #if _ONEDPL_DEBUG_SYCL
 template <typename _Policy>

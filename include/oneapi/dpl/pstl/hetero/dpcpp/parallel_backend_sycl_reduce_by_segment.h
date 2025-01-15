@@ -169,7 +169,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 #endif
         __cgh.parallel_for<_SegReduceCountKernel>(
             sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
                                                                               __seg_reduce_count_kernel,
 #endif
                                                                               sycl::nd_item<1> __item) {
@@ -206,7 +206,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         __cgh.use_kernel_bundle(__seg_reduce_offset_kernel.get_kernel_bundle());
 #endif
         __cgh.parallel_for<_SegReduceOffsetKernel>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
             __seg_reduce_offset_kernel,
 #endif
             sycl::nd_range<1>{__wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
@@ -229,7 +229,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         __cgh.use_kernel_bundle(__seg_reduce_wg_kernel.get_kernel_bundle());
 #endif
         __cgh.parallel_for<_SegReduceWgKernel>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
             __seg_reduce_wg_kernel,
 #endif
             sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
@@ -352,7 +352,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
             __cgh.use_kernel_bundle(__seg_reduce_prefix_kernel.get_kernel_bundle());
 #endif
             __cgh.parallel_for<_SegReducePrefixKernel>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
                 __seg_reduce_prefix_kernel,
 #endif
                 sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
