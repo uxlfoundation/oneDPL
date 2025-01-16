@@ -498,7 +498,7 @@ struct tuple<T1, T...>
         next = other.next;
         return *this;
     }
-    
+
     template <typename U1, typename... U>
     tuple&
     operator=(const tuple<U1, U...>& other) const
