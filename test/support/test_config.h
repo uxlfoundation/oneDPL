@@ -34,7 +34,7 @@
 // When such an issue is fixed, we must replace the usage of these "Latest" macros with the appropriate version number
 // before updating to the newest version in this section.
 
-#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250000
+#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250100
 
 #define _PSTL_TEST_LATEST_MSVC_STL_VERSION 143
 
@@ -209,7 +209,7 @@
 // within a sycl kernel which MSVC uses to allow comparisons with literal zero without warning
 #define _PSTL_TEST_COMPARISON_BROKEN                                                                                   \
     ((__cplusplus >= 202002L || _MSVC_LANG >= 202002L) && _MSVC_STL_VERSION >= 143 && _MSVC_STL_UPDATE >= 202303L &&   \
-    __INTEL_LLVM_COMPILER > 0 && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
+    __INTEL_LLVM_COMPILER > 0 && __INTEL_LLVM_COMPILER < 20250100)
 
 #define _PSTL_TEST_COMPLEX_TIMES_COMPLEX_BROKEN (_PSTL_TEST_COMPLEX_OP_BROKEN || _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER)
 #define _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN _PSTL_TEST_COMPLEX_OP_BROKEN
@@ -258,7 +258,7 @@
 // building for an FPGA device.  This prevents fpga compilation of usm-allocated std vector wrapped in zip, transform,
 // and permutation iterators (as a map).
 #if (TEST_DPCPP_BACKEND_PRESENT && defined(ONEDPL_FPGA_DEVICE) && defined(__INTEL_LLVM_COMPILER) &&                   \
-        __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
+        __INTEL_LLVM_COMPILER < 20250100)
 #    define _PSTL_ICPX_FPGA_TEST_USM_VECTOR_ITERATOR_BROKEN 1
 #else
 #    define _PSTL_ICPX_FPGA_TEST_USM_VECTOR_ITERATOR_BROKEN 0
@@ -268,12 +268,9 @@
 // the test while the issue is being reported to the compiler team. Once it is resolved, this macro can be removed
 // or limited to older compiler versions.
 #define _PSTL_RED_BY_SEG_WINDOWS_COMPILE_ORDER_BROKEN                                                                  \
-    (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
+    (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250100)
 
 // Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
-#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= 20250100)
-
-// Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
-#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= 20250100)
+#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250200)
 
 #endif // _TEST_CONFIG_H
