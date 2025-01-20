@@ -242,7 +242,9 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         const _IndexT __n = __rng.size();
         _IndexT __n_sorted = __leaf_size;
         const bool __is_cpu = __q.get_device().is_cpu();
-        const _IndexT __chunk = __is_cpu ? 32 : 4;
+        // The chunk size must not exceed two sorted sub-sequences to be merged,
+        // ensuring that at least one work-item processes them.
+        const _IndexT __chunk = std::min<_IndexT>(__is_cpu ? 32 : 4, __n_sorted * 2);
         const std::size_t __steps = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk);
         bool __data_in_temp = false;
 
