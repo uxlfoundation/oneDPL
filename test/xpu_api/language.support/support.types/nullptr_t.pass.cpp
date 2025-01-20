@@ -26,6 +26,8 @@
 #include "support/test_macros.h"
 #include "support/utils.h"
 
+#include <cstdint>
+
 struct A
 {
     A(dpl::nullptr_t) {}
@@ -33,7 +35,7 @@ struct A
 
 template <class T>
 void
-test_conversions(cl_int& i)
+test_conversions(std::int32_t& i)
 {
     {
         T p = 0;
@@ -65,7 +67,7 @@ struct has_less<T, typename Voider<decltype(std::declval<T>() < nullptr)>::type>
 
 template <class T>
 void
-test_comparisons(cl_int& i)
+test_comparisons(std::int32_t& i)
 {
     T p = nullptr;
     i += (p == nullptr);
@@ -79,7 +81,7 @@ test_comparisons(cl_int& i)
 #    pragma clang diagnostic ignored "-Wnull-conversion"
 #endif
 void
-test_nullptr_conversions(cl_int& i)
+test_nullptr_conversions(std::int32_t& i)
 {
     // GCC does not accept this due to CWG Defect #1423
     // http://www.open-std.org/jtc1/sc22/wg21/docs/cwg_defects.html#1423
@@ -106,7 +108,7 @@ main()
             cgh.single_task<class KernelTest1>([=]() {
                 static_assert(sizeof(dpl::nullptr_t) == sizeof(void*), "sizeof(dpl::nullptr_t) == sizeof(void*)");
 
-                cl_int i = 0;
+                std::int32_t i = 0;
                 {
                     test_conversions<dpl::nullptr_t>(i);
                     test_conversions<void*>(i);

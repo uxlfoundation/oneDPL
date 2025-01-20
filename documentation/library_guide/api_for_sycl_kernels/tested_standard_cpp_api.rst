@@ -17,29 +17,22 @@ Below is an example code that shows how to use ``oneapi::dpl::swap`` in SYCL dev
   #include <oneapi/dpl/utility>
   #include <sycl/sycl.hpp>
   #include <iostream>
-  constexpr sycl::access::mode sycl_read_write = sycl::access::mode::read_write;
-  class KernelSwap;
-  void kernel_test() {    
-    sycl::queue deviceQueue;
-    sycl::range<1> numOfItems{2};
-    sycl::cl_int swap_num[2] = {4, 5};
-    std::cout << swap_num[0] << ", " << swap_num[1] << std::endl;
-    {
-    sycl::buffer<sycl::cl_int, 1> swap_buffer
-    (swap_num, numOfItems);
-    deviceQueue.submit([&](sycl::handler &cgh) {
-    auto swap_accessor = swap_buffer.get_access<sycl_read_write>(cgh);
-    cgh.single_task<class KernelSwap>([=]() {
-        int & num1 = swap_accessor[0];
-        int & num2 = swap_accessor[1];
-        oneapi::dpl::swap(num1, num2);
-        });
-    });
-    }
-    std::cout << swap_num[0] << ", " << swap_num[1] << std::endl;
-  }
-  int main() {
-      kernel_test();
+  #include <cstdint>
+  int main()
+  {
+      sycl::queue queue;
+      constexpr std::uint32_t size = 2;
+      std::uint32_t data[size] = {4, 5};
+      std::cout << "Initial data: " << data[0] << ", " << data[1] << std::endl;
+      sycl::buffer<std::uint32_t> buffer(data, size);
+      queue.submit([&](sycl::handler& cgh) {
+          auto access = buffer.get_access(cgh, sycl::read_write);
+          cgh.single_task<class KernelSwap>([=]() {
+              oneapi::dpl::swap(access[0], access[1]);
+          });
+      }).wait();
+      auto host_access = buffer.get_host_access(sycl::read_only);
+      std::cout << "After swap: " << host_access[0] << ", " << host_access[1] << std::endl;
       return 0;
   }
 
@@ -47,17 +40,14 @@ Use the following command to build and run the program (assuming it resides in t
 
 .. code:: cpp
 
-  dpcpp kernel_swap.cpp -o kernel_swap.exe
-
-  ./kernel_swap.exe
+  icpx -fsycl kernel_swap.cpp -o kernel_swap && ./kernel_swap
 
 The printed result is:
 
 .. code:: cpp
 
-  4, 5
-
-  5, 4
+  Initial data: 4, 5
+  After swap: 5, 4
 
 Tested Standard C++ API Reference
 =================================
@@ -468,11 +458,11 @@ libstdc++ (GNU)                               Provided with GCC*-7.5.0, GCC*-9.3
 libc++ (LLVM)                                 Provided with Clang*-11.0
 --------------------------------------------- ---------------------------------------------
 Microsoft Visual C++* (MSVC) Standard Library Provided with Microsoft Visual Studio* 2017;
-                                              Microsoft Visual Studio 2019; and Microsoft 
+                                              Microsoft Visual Studio 2019; and Microsoft
                                               Visual Studio 2022, version 17.0, preview 4.1.
-                                              
+
                                               .. Note::
-                                              
+
                                                  Support for Microsoft Visual Studio 2017 is
                                                  deprecated as of the Intel® oneAPI 2022.1
                                                  release, and will be removed in a future
