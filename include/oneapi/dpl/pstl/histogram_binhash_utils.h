@@ -105,8 +105,7 @@ struct __custom_boundary_binhash
     __custom_boundary_binhash(_RandomAccessIterator __boundary_first_, _RandomAccessIterator __boundary_last_)
         : __boundary_first(__boundary_first_), __boundary_last(__boundary_last_)
     {
-        ::std::size_t __num_bins = ::std::distance(__boundary_first, __boundary_last);
-        assert(__num_bins < ::std::numeric_limits<::std::int32_t>::max());
+        assert(std::distance(__boundary_first, __boundary_last) < std::numeric_limits<std::int32_t>::max());
     }
 
     template <typename _T2>
