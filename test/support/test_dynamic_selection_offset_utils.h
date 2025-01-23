@@ -7,112 +7,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _ONEDPL_TEST_OFFSET_UTILS_H
-#define _ONEDPL_TEST_OFFSET_UTILS_H
+#ifndef _ONEDPL_TEST_DYNAMIC_SELECTION_OFFSET_UTILS_H
+#define _ONEDPL_TEST_DYNAMIC_SELECTION_OFFSET_UTILS_H
 
-#include <thread>
-#include <chrono>
-#include <random>
-#include <algorithm>
-#include <iostream>
-
-template <typename Policy, typename T>
-int
-test_initialization(const std::vector<T>& u)
-{
-    // initialize
-    using my_policy_t = Policy;
-    my_policy_t p{u};
-    auto u2 = oneapi::dpl::experimental::get_resources(p);
-    auto u2s = u2.size();
-    if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
-    {
-        std::cout << "ERROR: provided resources and queried resources are not equal\n";
-        return 1;
-    }
-
-    // deferred initialization
-    my_policy_t p2{oneapi::dpl::experimental::deferred_initialization};
-    try
-    {
-        auto u3 = oneapi::dpl::experimental::get_resources(p2);
-        if (!u3.empty())
-        {
-            std::cout << "ERROR: deferred initialization not respected\n";
-            return 1;
-        }
-    }
-    catch (...)
-    {
-    }
-    p2.initialize(u);
-    auto u3 = oneapi::dpl::experimental::get_resources(p);
-    auto u3s = u3.size();
-    if (!std::equal(std::begin(u3), std::end(u3), std::begin(u)))
-    {
-        std::cout << "ERROR: reported resources and queried resources are not equal after deferred initialization\n";
-        return 1;
-    }
-
-    std::cout << "initialization: OK\n" << std::flush;
-    return 0;
-}
-
-template <typename Policy, typename UniverseContainer, typename ResourceFunction, bool AutoTune = false>
-int
-test_select(UniverseContainer u, ResourceFunction&& f)
-{
-    using my_policy_t = Policy;
-    my_policy_t p{u};
-
-    const int N = 100;
-    std::atomic<int> ecount = 0;
-    bool pass = true;
-
-    auto function_key = []() {};
-
-    for (int i = 1; i <= N; ++i)
-    {
-        auto test_resource = f(i);
-        if constexpr (AutoTune)
-        {
-            auto h = select(p, function_key);
-            if (oneapi::dpl::experimental::unwrap(h) != test_resource)
-            {
-                pass = false;
-            }
-        }
-        else
-        {
-            auto h = select(p);
-            if (oneapi::dpl::experimental::unwrap(h) != test_resource)
-            {
-                pass = false;
-            }
-        }
-        ecount += i;
-        int count = ecount.load();
-        if (count != i * (i + 1) / 2)
-        {
-            std::cout << "ERROR: scheduler did not execute all tasks exactly once\n";
-            return 1;
-        }
-    }
-    if (!pass)
-    {
-        std::cout << "ERROR: did not select expected resources\n";
-        return 1;
-    }
-    std::cout << "select: OK\n";
-    return 0;
-}
+#include "test_dynamic_selection_utils.h"
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, size_t offset = 0)
+test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, int offset = 0)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u, offset};
+    my_policy_t p(u, offset);
 
     int N = 100;
     std::atomic<int> ecount = 0;
@@ -172,10 +77,10 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, size_t 
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, size_t offset = 0)
+test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, int offset = 0)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u, offset};
+    my_policy_t p(u, offset);
 
     const int N = 100;
     bool pass = true;
@@ -250,10 +155,10 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, size_t 
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, size_t offset = 0)
+test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, int offset = 0)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u, offset};
+    my_policy_t p(u, offset);
 
     const int N = 100;
     std::atomic<int> ecount = 0;
@@ -319,4 +224,5 @@ test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, size_t offset = 
     return 0;
 }
 
-#endif /* _ONEDPL_TEST_OFFSET_UTILS_H */
+
+#endif /* _ONEDPL_TEST_DYNAMIC_SELECTION_UTILS_H */

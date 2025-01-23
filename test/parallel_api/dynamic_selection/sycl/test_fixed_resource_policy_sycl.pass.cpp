@@ -10,7 +10,7 @@
 #include "support/test_config.h"
 
 #include "oneapi/dpl/dynamic_selection"
-#include "support/test_dynamic_selection_utils.h"
+#include "support/test_dynamic_selection_offset_utils.h"
 #include "support/utils.h"
 
 int

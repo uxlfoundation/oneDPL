@@ -12,7 +12,7 @@
 #include "oneapi/dpl/dynamic_selection"
 
 #include "support/inline_backend.h"
-#include "support/test_offset_utils.h"
+#include "support/test_dynamic_selection_offset_utils.h"
 #include "support/utils.h"
 
 int
