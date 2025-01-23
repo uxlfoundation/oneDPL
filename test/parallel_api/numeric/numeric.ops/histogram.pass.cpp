@@ -24,12 +24,11 @@
 
 using namespace TestUtils;
 
-#if TEST_DPCPP_BACKEND_PRESENT
 
 struct test_histogram_even_bins
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
-    void
+    std::enable_if_t<TestUtils::is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 expected_bin_first,
                Iterator2 expected_bin_last, Iterator3 bin_first, Iterator3 bin_last, Size n, T bin_min, T bin_max,
                Size trash)
@@ -41,13 +40,21 @@ struct test_histogram_even_bins
         EXPECT_EQ_N(expected_bin_first, bin_first, bin_size, "wrong result from histogram");
         ::std::fill_n(bin_first, bin_size, trash);
     }
+
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
+    std::enable_if_t<!TestUtils::is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
+    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 expected_bin_first,
+               Iterator2 expected_bin_last, Iterator3 bin_first, Iterator3 bin_last, Size n, T bin_min, T bin_max,
+               Size trash)
+    {
+    }
 };
 
 struct test_histogram_range_bins
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Iterator4,
               typename Size>
-    void
+    std::enable_if_t<TestUtils::is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 boundary_first, Iterator2 boundary_last,
                Iterator3 expected_bin_first, Iterator3 /* expected_bin_last */, Iterator4 bin_first, Iterator4 bin_last,
                Size trash)
@@ -58,6 +65,15 @@ struct test_histogram_range_bins
         EXPECT_TRUE(bin_last == orr, "histogram returned wrong iterator");
         EXPECT_EQ_N(expected_bin_first, bin_first, bin_size, "wrong result from histogram");
         ::std::fill_n(bin_first, bin_size, trash);
+    }
+
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Iterator4,
+              typename Size>
+    std::enable_if_t<!TestUtils::is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
+    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 boundary_first, Iterator2 boundary_last,
+               Iterator3 expected_bin_first, Iterator3 /* expected_bin_last */, Iterator4 bin_first, Iterator4 bin_last,
+               Size trash)
+    {
     }
 };
 
@@ -74,11 +90,11 @@ test_range_and_even_histogram(Size n, T min_boundary, T max_boundary, T overflow
     Sequence<Size> expected(num_bins, [](size_t k) { return 0; });
     Sequence<Size> out(num_bins, [&](size_t k) { return trash; });
 
-    invoke_on_all_hetero_policies<CallNumber * 4>()(test_histogram_even_bins(), in.begin(), in.end(), expected.begin(),
+    invoke_on_all_policies<CallNumber * 4>()(test_histogram_even_bins(), in.begin(), in.end(), expected.begin(),
                                                     expected.end(), out.begin(), out.end(), Size(in.size()),
                                                     min_boundary, max_boundary, trash);
 #    if !ONEDPL_FPGA_DEVICE
-    invoke_on_all_hetero_policies<CallNumber * 4 + 1>()(test_histogram_even_bins(), in.cbegin(), in.cend(),
+    invoke_on_all_policies<CallNumber * 4 + 1>()(test_histogram_even_bins(), in.cbegin(), in.cend(),
                                                         expected.begin(), expected.end(), out.begin(), out.end(),
                                                         Size(in.size()), min_boundary, max_boundary, trash);
 #    endif // !ONEDPL_FPGA_DEVICE
@@ -86,14 +102,15 @@ test_range_and_even_histogram(Size n, T min_boundary, T max_boundary, T overflow
     T offset = (max_boundary - min_boundary) / T(num_bins);
     Sequence<T> boundaries(num_bins + 1, [&](size_t k) { return k * offset + (std::rand() % jitter) + min_boundary; });
 
-    invoke_on_all_hetero_policies<CallNumber * 4 + 2>()(test_histogram_range_bins(), in.begin(), in.end(),
+    invoke_on_all_policies<CallNumber * 4 + 2>()(test_histogram_range_bins(), in.begin(), in.end(),
                                                         boundaries.begin(), boundaries.end(), expected.begin(),
                                                         expected.end(), out.begin(), out.end(), trash);
 #    if !ONEDPL_FPGA_DEVICE
-    invoke_on_all_hetero_policies<CallNumber * 4 + 3>()(test_histogram_range_bins(), in.cbegin(), in.cend(),
+    invoke_on_all_policies<CallNumber * 4 + 3>()(test_histogram_range_bins(), in.cbegin(), in.cend(),
                                                         boundaries.cbegin(), boundaries.cend(), expected.begin(),
                                                         expected.end(), out.begin(), out.end(), trash);
 #    endif // !ONEDPL_FPGA_DEVICE
+
 }
 
 template <::std::size_t CallNumber, typename T, typename Size>
@@ -108,19 +125,15 @@ test_histogram(T min_boundary, T max_boundary, T overflow, Size jitter, Size tra
         }
     }
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     test_histogram<0, float, uint32_t>(10000.0f, 110000.0f, 300.0f, uint32_t(50), uint32_t(99999));
 
 #if !ONEDPL_FPGA_DEVICE
     test_histogram<1, std::int32_t, uint64_t>(-50000, 50000, 10000, uint64_t(5), uint64_t(99999));
 #endif //!ONEDPL_FPGA_DEVICE
 
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    return done(TEST_DPCPP_BACKEND_PRESENT);
+    return done();
 }

@@ -20,11 +20,11 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <numeric>
 #include <utility>
 #include <type_traits>
-
 #include "parallel_backend_utils.h"
 
 namespace oneapi
@@ -33,6 +33,48 @@ namespace dpl
 {
 namespace __serial_backend
 {
+
+namespace __detail
+{
+
+template <typename _ValueType>
+struct __enumerable_thread_local_storage
+{
+    template <typename... _LocalArgs>
+    __enumerable_thread_local_storage(_LocalArgs&&... __args) : __storage(std::forward<_LocalArgs>(__args)...)
+    {
+    }
+
+    std::size_t
+    size() const
+    {
+        return std::size_t{1};
+    }
+
+    _ValueType&
+    get_for_current_thread()
+    {
+        return __storage;
+    }
+
+    _ValueType&
+    get_with_id(std::size_t /*__i*/)
+    {
+        return get_for_current_thread();
+    }
+
+    _ValueType __storage;
+};
+
+} //namespace __detail
+
+// enumerable thread local storage should only be created from make function
+template <typename _ValueType, typename... Args>
+__detail::__enumerable_thread_local_storage<_ValueType>
+__make_enumerable_tls(Args&&... __args)
+{
+    return __detail::__enumerable_thread_local_storage<_ValueType>(std::forward<Args>(__args)...);
+}
 
 template <typename _ExecutionPolicy, typename _Tp>
 using __buffer = oneapi::dpl::__utils::__buffer_impl<std::decay_t<_ExecutionPolicy>, _Tp, std::allocator>;

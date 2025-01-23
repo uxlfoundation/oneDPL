@@ -34,6 +34,7 @@
 #include <tbb/parallel_invoke.h>
 #include <tbb/task_arena.h>
 #include <tbb/tbb_allocator.h>
+#include <tbb/enumerable_thread_specific.h>
 #if TBB_INTERFACE_VERSION > 12000
 #    include <tbb/task.h>
 #endif
@@ -1304,6 +1305,49 @@ __parallel_for_each(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy
                     _ForwardIterator __end, _Fp __f)
 {
     tbb::this_task_arena::isolate([&]() { tbb::parallel_for_each(__begin, __end, __f); });
+}
+
+namespace __detail
+{
+
+template <typename _ValueType>
+struct __enumerable_thread_local_storage
+{
+    template <typename... _LocalArgs>
+    __enumerable_thread_local_storage(_LocalArgs&&... __args)
+        : __thread_specific_storage(std::forward<_LocalArgs>(__args)...)
+    {
+    }
+
+    std::size_t
+    size() const
+    {
+        return __thread_specific_storage.size();
+    }
+
+    _ValueType&
+    get_for_current_thread()
+    {
+        return __thread_specific_storage.local();
+    }
+
+    _ValueType&
+    get_with_id(std::size_t __i)
+    {
+        return __thread_specific_storage.begin()[__i];
+    }
+
+    tbb::enumerable_thread_specific<_ValueType> __thread_specific_storage;
+};
+
+} // namespace __detail
+
+// enumerable thread local storage should only be created from make function
+template <typename _ValueType, typename... Args>
+__detail::__enumerable_thread_local_storage<_ValueType>
+__make_enumerable_tls(Args&&... __args)
+{
+    return __detail::__enumerable_thread_local_storage<_ValueType>(std::forward<Args>(__args)...);
 }
 
 } // namespace __tbb_backend
