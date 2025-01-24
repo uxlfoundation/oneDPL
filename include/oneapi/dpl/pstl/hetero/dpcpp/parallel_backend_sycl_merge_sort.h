@@ -29,6 +29,28 @@
 #include "../../utils_ranges.h"          // __difference_t
 #include "parallel_backend_sycl_merge.h" // __find_start_point, __serial_merge
 
+// TODO remove before merge into main branch
+#define TRACE_BASE_DIAGS 1
+
+#if TRACE_BASE_DIAGS
+#    ifdef __SYCL_DEVICE_ONLY__
+#        define __SYCL_CONSTANT_AS __attribute__((opencl_constant))
+#    else
+#        define __SYCL_CONSTANT_AS
+#    endif
+
+const __SYCL_CONSTANT_AS char fmt_create_diags_storage[] = "Create base diagonals storage: __n_sorted = %8d, storage size = [%8d]\n";
+const __SYCL_CONSTANT_AS char fmt_eval_base_diag_data_area[] = "Evaluate base diag: __n_sorted = %8d, __data_in_temp = %s, sp[%8d] = (%8d, %8d) <- WorkDataArea : i_elem = %8d, i_elem_local = %8d, offset = %8d, n1 = %8d, n2 = %8d\n";
+const __SYCL_CONSTANT_AS char fmt_lookup_sp[] = "Lookup sp - common case : __linear_id = %8d, sp_left[%8d] = (%8d, %8d), sp_right[%8d] = (%8d, %8d)\n";
+#endif
+
+#define MERGE_SORT_DISPLAY_STATISTIC 1
+#define MERGE_SORT_EXCLUDE_NEW_IMPL  0
+
+#if MERGE_SORT_DISPLAY_STATISTIC
+#include <chrono>
+#endif
+
 namespace oneapi
 {
 namespace dpl
@@ -567,6 +589,17 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         });
     }
 
+#if MERGE_SORT_DISPLAY_STATISTIC    
+    void dump_nd_range_params(const std::string& title, const nd_range_params& param) const
+    {
+        std::cout << title << std::endl;
+        std::cout << "\tchunk = " << param.chunk << std::endl;
+        std::cout << "\tsteps = " << param.steps << std::endl;
+        std::cout << "\tsteps_between_two_base_diags = " << param.steps_between_two_base_diags << std::endl;
+        std::cout << "\tbase_diag_count = " << param.base_diag_count << std::endl;
+    }
+#endif
+
   public:
     template <typename _ExecutionPolicy, typename _Range, typename _Compare, typename _TempBuf, typename _LeafSizeT>
     std::tuple<sycl::event, bool, std::shared_ptr<__result_and_scratch_storage_base>>
@@ -583,8 +616,16 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
         using __value_type = oneapi::dpl::__internal::__value_t<_Range>;
 
+#if MERGE_SORT_DISPLAY_STATISTIC
+        std::cout << "__merge_sort_global_submitter::operator() : __n_sorted = " << __n_sorted << std::endl;
+#endif
+
         // Calculate nd-range params
         const nd_range_params __nd_range_params = eval_nd_range_params(__exec, __n, __n_sorted);
+
+#if MERGE_SORT_DISPLAY_STATISTIC
+        dump_nd_range_params("Initial nd_range_params", __nd_range_params);
+#endif        
 
         using __base_diagonals_sp_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _merge_split_point_t>;
 
@@ -605,15 +646,29 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
         for (std::int64_t __i = 0; __i < __n_iter; ++__i)
         {
+#if MERGE_SORT_DISPLAY_STATISTIC
+            const auto __start_time = std::chrono::high_resolution_clock::now();
+            bool __new_impl_ran = false;
+            std::size_t __base_diags_count_evaluated = 0;
+            std::size_t __base_diags_count_evaluated_for_each_2_n_sorted = 0;
+#endif
+
+#if !MERGE_SORT_EXCLUDE_NEW_IMPL
             // TODO required to re-check threshold data size
             if (2 * __n_sorted < __get_starting_size_limit_for_large_submitter<__value_type>())
+#endif
             {
                 // Process parallel merge
                 __event_chain = run_parallel_merge(__event_chain, __n_sorted, __data_in_temp, __exec, __rng, __temp_buf,
                                                    __comp, __nd_range_params);
             }
+#if !MERGE_SORT_EXCLUDE_NEW_IMPL
             else
             {
+#if MERGE_SORT_DISPLAY_STATISTIC
+                __new_impl_ran = true;
+#endif                
+
                 if (nullptr == __p_base_diagonals_sp_global_storage)
                 {
                     // Create storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
@@ -628,6 +683,10 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                 nd_range_params __nd_range_params_this =
                     eval_nd_range_params(__exec, std::size_t(2 * __n_sorted), __n_sorted);
 
+#if MERGE_SORT_DISPLAY_STATISTIC
+                __base_diags_count_evaluated_for_each_2_n_sorted = __nd_range_params_this.base_diag_count;
+#endif
+
                 // Check that each base diagonal started from beginning of merge matrix
                 assert(0 == (2 * __n_sorted) %
                                 (__nd_range_params_this.steps_between_two_base_diags * __nd_range_params_this.chunk));
@@ -638,6 +697,10 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                 __nd_range_params_this.steps *= __portions;
                 assert(__nd_range_params_this.base_diag_count <= __max_base_diags_count);
 
+#if MERGE_SORT_DISPLAY_STATISTIC
+                __base_diags_count_evaluated = std::max(__base_diags_count_evaluated, __nd_range_params_this.base_diag_count);
+#endif
+
                 // Calculation of split-points on each base diagonal
                 __event_chain =
                     eval_split_points_for_groups(__event_chain, __n_sorted, __data_in_temp, __exec, __rng, __temp_buf,
@@ -647,7 +710,24 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                 __event_chain = run_parallel_merge_from_diagonals(__event_chain, __n_sorted, __data_in_temp, __exec,
                                                                   __rng, __temp_buf, __comp, __nd_range_params_this,
                                                                   *__p_base_diagonals_sp_global_storage);
+#if MERGE_SORT_DISPLAY_STATISTIC
+                __event_chain.wait_and_throw();
+#endif                
             }
+#endif
+
+#if MERGE_SORT_DISPLAY_STATISTIC
+            __event_chain.wait_and_throw();
+            const auto __stop_time = std::chrono::high_resolution_clock::now();
+            const auto __elapsed = __stop_time - __start_time;
+            if (__new_impl_ran)
+                std::cout << "(N) ";
+            std::cout << "iteration: " << __i << " __n_sorted = " << __n_sorted << ", time = " << std::chrono::duration_cast<std::chrono::microseconds>(__elapsed).count() << " (mcs) ";
+            if (__new_impl_ran)
+                std::cout << "base diags for every merge matrix: " << __base_diags_count_evaluated_for_each_2_n_sorted << ", all base_diags = " << __base_diags_count_evaluated;
+            std::cout << ", __data_in_temp = " << __data_in_temp;
+            std::cout << std::endl;
+#endif
 
             __n_sorted *= 2;
             __data_in_temp = !__data_in_temp;
@@ -720,8 +800,19 @@ __merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSo
 
     sycl::queue __q = __exec.queue();
 
+#if MERGE_SORT_DISPLAY_STATISTIC
+    const auto __start_time = std::chrono::high_resolution_clock::now();
+#endif
+
     // 1. Perform sorting of the leaves of the merge sort tree
     sycl::event __event_leaf_sort = __merge_sort_leaf_submitter<_LeafSortKernel>()(__q, __rng, __leaf_sorter);
+
+#if MERGE_SORT_DISPLAY_STATISTIC
+    __event_leaf_sort.wait_and_throw();
+    const auto __stop_time = std::chrono::high_resolution_clock::now();
+    const auto __elapsed = __stop_time - __start_time;
+    std::cout << "leaf sorter: time =  " << std::chrono::duration_cast<std::chrono::microseconds>(__elapsed).count() << " (mcs) " << std::endl;
+#endif
 
     // 2. Merge sorting
     oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _Tp> __temp(__exec, __rng.size());
