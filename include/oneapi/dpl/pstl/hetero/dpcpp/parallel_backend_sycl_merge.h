@@ -26,6 +26,13 @@
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
 
+//#define MERGE_DISPLAY_STATISTIC 1
+#define MERGE_EXCLUDE_NEW_IMPL 0
+
+#if MERGE_DISPLAY_STATISTIC
+#    include <chrono>
+#endif
+
 namespace oneapi
 {
 namespace dpl
@@ -487,44 +494,92 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
     using __value_type = oneapi::dpl::__internal::__value_t<_Range3>;
 
     const std::size_t __n = std::min<std::size_t>(__rng1.size() + __rng2.size(), __rng3.size());
+#if !MERGE_EXCLUDE_NEW_IMPL    
     if (__n < __get_starting_size_limit_for_large_submitter<__value_type>())
+#endif
     {
+#if MERGE_DISPLAY_STATISTIC
+        const auto __start_time = std::chrono::high_resolution_clock::now();
+#endif
+
         using _WiIndex = std::uint32_t;
         static_assert(__get_starting_size_limit_for_large_submitter<__value_type>() <=
                       std::numeric_limits<_WiIndex>::max());
         using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __merge_kernel_name<_CustomName, _WiIndex>>;
-        return __parallel_merge_submitter<_OutSizeLimit, _WiIndex, _MergeKernelName>()(
+        auto __f = __parallel_merge_submitter<_OutSizeLimit, _WiIndex, _MergeKernelName>()(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             std::forward<_Range3>(__rng3), __comp);
+
+#if MERGE_DISPLAY_STATISTIC
+        __f.wait();
+        const auto __stop_time = std::chrono::high_resolution_clock::now();
+        const auto __elapsed = __stop_time - __start_time;
+        std::cout << "__parallel_merge_submitter : __n = " << __n
+                  << ", merge time =  " << std::chrono::duration_cast<std::chrono::microseconds>(__elapsed).count()
+                  << " (mcs) " << std::endl;
+#endif
+
+        return __f;
     }
+#if !MERGE_EXCLUDE_NEW_IMPL
     else
     {
         if (__n <= std::numeric_limits<std::uint32_t>::max())
         {
+#    if MERGE_DISPLAY_STATISTIC
+            const auto __start_time = std::chrono::high_resolution_clock::now();
+#    endif
+
             using _WiIndex = std::uint32_t;
             using _DiagonalsKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __diagonals_kernel_name<_CustomName, _WiIndex>>;
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __merge_kernel_name_large<_CustomName, _WiIndex>>;
-            return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
+            auto __f = __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
                                                     _MergeKernelName>()(
                 std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
                 std::forward<_Range3>(__rng3), __comp);
+
+#    if MERGE_DISPLAY_STATISTIC
+            __f.wait();
+            const auto __stop_time = std::chrono::high_resolution_clock::now();
+            const auto __elapsed = __stop_time - __start_time;
+            std::cout << "__parallel_merge_submitter_large(std::uint32_t) : __n = " << __n
+                      << ", merge time =  " << std::chrono::duration_cast<std::chrono::microseconds>(__elapsed).count()
+                      << " (mcs) " << std::endl;
+#    endif
+
+            return __f;
         }
         else
         {
+#    if MERGE_DISPLAY_STATISTIC
+            const auto __start_time = std::chrono::high_resolution_clock::now();
+#    endif
+
             using _WiIndex = std::uint64_t;
             using _DiagonalsKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __diagonals_kernel_name<_CustomName, _WiIndex>>;
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __merge_kernel_name_large<_CustomName, _WiIndex>>;
-            return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
+            auto __f = __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
                                                     _MergeKernelName>()(
                 std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
                 std::forward<_Range3>(__rng3), __comp);
+#    if MERGE_DISPLAY_STATISTIC
+            __f.wait();
+            const auto __stop_time = std::chrono::high_resolution_clock::now();
+            const auto __elapsed = __stop_time - __start_time;
+            std::cout << "__parallel_merge_submitter_large(std::uint64_t) : __n = " << __n
+                      << ", merge time =  " << std::chrono::duration_cast<std::chrono::microseconds>(__elapsed).count()
+                      << " (mcs) " << std::endl;
+#    endif
+
+            return __f;                
         }
     }
+#endif
 }
 
 } // namespace __par_backend_hetero
