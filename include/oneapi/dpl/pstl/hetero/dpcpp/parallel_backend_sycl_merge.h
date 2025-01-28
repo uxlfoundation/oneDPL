@@ -164,10 +164,13 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
     _Index __rng1_idx = __start1;
     _Index __rng2_idx = __start2;
 
+    bool __rng1_idx_less_n1 = false;
+    bool __rng2_idx_less_n2 = false;
+
     for (_Index __rng3_idx = __start3; __rng3_idx < __rng3_idx_end; ++__rng3_idx)
     {
-        const bool __rng1_idx_less_n1 = __rng1_idx < __rng1_idx_end;
-        const bool __rng2_idx_less_n2 = __rng2_idx < __rng2_idx_end;
+        __rng1_idx_less_n1 = __rng1_idx < __rng1_idx_end;
+        __rng2_idx_less_n2 = __rng2_idx < __rng2_idx_end;
 
         // One of __rng1_idx_less_n1 and __rng2_idx_less_n2 should be true here
         // because 1) we should fill output data with elements from one of the input ranges

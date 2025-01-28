@@ -186,15 +186,12 @@ main()
     auto fstep_small = [](std::size_t size){ return size <= 16 ? size + 1 : size_t(3.1415 * size);};
     test_merge_by_type(start_size_small, max_size_small, fstep_small);
 
-    // Large data sizes (on GPU only)
+    // Large data sizes
 #if TEST_DPCPP_BACKEND_PRESENT
-    if (!TestUtils::get_test_queue().get_device().is_cpu())
-    {
-        const size_t start_size_large = 4'000'000;
-        const size_t max_size_large = 8'000'000;
-        auto fstep_large = [](std::size_t size){ return size + 2'000'000; };
-        test_merge_by_type(start_size_large, max_size_large, fstep_large);
-    }
+    const size_t start_size_large = 4'000'000;
+    const size_t max_size_large = 8'000'000;
+    auto fstep_large = [](std::size_t size){ return size + 2'000'000; };
+    test_merge_by_type(start_size_large, max_size_large, fstep_large);
 #endif
 
 #if !TEST_DPCPP_BACKEND_PRESENT

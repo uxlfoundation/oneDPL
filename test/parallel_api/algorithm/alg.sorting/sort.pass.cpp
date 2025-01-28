@@ -360,11 +360,11 @@ test_default_name_gen(Convert convert, size_t n)
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 
-template <::std::size_t CallNumber, typename T, typename Compare, typename Convert>
+template <::std::size_t CallNumber, typename T, typename Compare, typename Convert, typename FStep>
 void
-test_sort(Compare compare, Convert convert)
+test_sort(Compare compare, Convert convert, size_t start_size, size_t max_size, FStep fstep)
 {
-    for (size_t n = 0; n < 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = start_size; n <= max_size; n = fstep(n))
     {
         LastIndex = n + 2;
         // The rand()%(2*n+1) encourages generation of some duplicates.
@@ -408,48 +408,42 @@ struct NonConstCmp
     }
 };
 
-int
-main()
+template <std::size_t CallNumber, typename FStep>
+void
+test_sort(size_t start_size, size_t max_size, FStep fstep)
 {
-    ::std::srand(42);
-    std::int32_t start = 0;
-    std::int32_t end = 2;
-#ifndef _PSTL_TEST_SORT
-    start = 1;
-#endif // #ifndef _PSTL_TEST_SORT
-#ifndef _PSTL_TEST_STABLE_SORT
-    end = 1;
-#endif // _PSTL_TEST_STABLE_SORT
-    for (std::int32_t kind = start; kind < end; ++kind)
-    {
-        Stable = kind != 0;
-
 #if !TEST_DPCPP_BACKEND_PRESENT
         // ParanoidKey has atomic increment in ctors. It's not allowed in kernel
         test_sort<0, ParanoidKey>(KeyCompare(TestUtils::OddTag()),
-                                  [](size_t k, size_t val) { return ParanoidKey(k, val, TestUtils::OddTag()); });
+                                  [](size_t k, size_t val) { return ParanoidKey(k, val, TestUtils::OddTag()); },
+                                  start_size, max_size, fstep);
 #endif // !TEST_DPCPP_BACKEND_PRESENT
 
 #if !ONEDPL_FPGA_DEVICE
-        test_sort<10, TestUtils::float32_t>([](TestUtils::float32_t x, TestUtils::float32_t y) { return x < y; },
-                                            [](size_t k, size_t val)
-                                            { return TestUtils::float32_t(val) * (k % 2 ? 1 : -1); });
+        test_sort<CallNumber + 10, TestUtils::float32_t>([](TestUtils::float32_t x, TestUtils::float32_t y) { return x < y; },
+                                                         [](size_t k, size_t val)
+                                                         { return TestUtils::float32_t(val) * (k % 2 ? 1 : -1); },
+                                                         start_size, max_size, fstep);
 
-        test_sort<20, unsigned char>([](unsigned char x, unsigned char y)
-                                     { return x > y; }, // Reversed so accidental use of < will be detected.
-                                     [](size_t k, size_t val) { return (unsigned char)val; });
+        test_sort<CallNumber + 20, unsigned char>([](unsigned char x, unsigned char y)
+                                                  { return x > y; }, // Reversed so accidental use of < will be detected.
+                                                  [](size_t k, size_t val) { return (unsigned char)val; },
+                                                  start_size, max_size, fstep);
 
-        test_sort<30, unsigned char>(NonConstCmp{}, [](size_t k, size_t val) { return (unsigned char)val; });
+        test_sort<CallNumber + 30, unsigned char>(NonConstCmp{}, [](size_t k, size_t val) { return (unsigned char)val; },
+                                                  start_size, max_size, fstep);
 
 #endif // !ONEDPL_FPGA_DEVICE
-        test_sort<40, std::int32_t>([](std::int32_t x, std::int32_t y)
-                                    { return x > y; }, // Reversed so accidental use of < will be detected.
-                                    [](size_t k, size_t val) { return std::int32_t(val) * (k % 2 ? 1 : -1); });
+        test_sort<CallNumber + 40, std::int32_t>([](std::int32_t x, std::int32_t y)
+                                                 { return x > y; }, // Reversed so accidental use of < will be detected.
+                                                 [](size_t k, size_t val) { return std::int32_t(val) * (k % 2 ? 1 : -1); },
+                                                 start_size, max_size, fstep);
 
-        test_sort<50, std::int16_t>(
+        test_sort<CallNumber + 50, std::int16_t>(
             std::greater<std::int16_t>(),
             [](size_t k, size_t val) {
-            return std::int16_t(val) * (k % 2 ? 1 : -1); });
+            return std::int16_t(val) * (k % 2 ? 1 : -1); },
+            start_size, max_size, fstep);
 
 #if TEST_DPCPP_BACKEND_PRESENT
         auto convert = [](size_t k, size_t val) {
@@ -466,7 +460,41 @@ main()
             }
             return sycl::bit_cast<sycl::half>(raw);
         };
-        test_sort<60, sycl::half>(std::greater<sycl::half>(), convert);
+        test_sort<CallNumber + 60, sycl::half>(std::greater<sycl::half>(), convert,
+                                               start_size, max_size, fstep);
+#endif
+}
+
+int
+main()
+{
+    ::std::srand(42);
+    std::int32_t start = 0;
+    std::int32_t end = 2;
+#ifndef _PSTL_TEST_SORT
+    start = 1;
+#endif // #ifndef _PSTL_TEST_SORT
+#ifndef _PSTL_TEST_STABLE_SORT
+    end = 1;
+#endif // _PSTL_TEST_STABLE_SORT
+
+    const size_t start_size_small = 0;
+    const size_t max_size_small = 100'000;
+    auto fstep_small = [](std::size_t size){ return size <= 16 ? size + 1 : size_t(3.1415 * size);};
+
+    for (std::int32_t kind = start; kind < end; ++kind)
+    {
+        Stable = kind != 0;
+
+        test_sort<100>(start_size_small, max_size_small, fstep_small);
+
+        // Large data sizes
+#if TEST_DPCPP_BACKEND_PRESENT
+        const size_t start_size_large = 4'000'000;
+        const size_t max_size_large = 8'000'000;
+        auto fstep_large = [](std::size_t size){ return size + 2'000'000; };
+
+        test_sort<200>(start_size_large, max_size_large, fstep_large);
 #endif
     }
 

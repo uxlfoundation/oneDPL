@@ -2212,6 +2212,9 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
     }
 };
 
+template <typename... _Name>
+class __sort_global_kernel;
+
 template <typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare>
 auto
 __parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
