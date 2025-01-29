@@ -824,7 +824,18 @@ __merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSo
     // 3. If the data remained in the temporary buffer then copy it back
     if (__data_in_temp)
     {
+#if MERGE_SORT_DISPLAY_STATISTIC
+        const auto __start_time = std::chrono::high_resolution_clock::now();
+#endif
+
         __event_sort = __merge_sort_copy_back_submitter<_CopyBackKernel>()(__q, __rng, __temp_buf, __event_sort);
+
+#if MERGE_SORT_DISPLAY_STATISTIC
+        __event_sort.wait();
+        const auto __stop_time = std::chrono::high_resolution_clock::now();
+        const auto __elapsed = __stop_time - __start_time;
+        std::cout << "Copy back time = " << std::chrono::duration_cast<std::chrono::microseconds>(__elapsed).count() << " (mcs)" << std::endl;
+#endif
     }
     return __future(__event_sort, std::move(__temp_sp_storages));
 }
