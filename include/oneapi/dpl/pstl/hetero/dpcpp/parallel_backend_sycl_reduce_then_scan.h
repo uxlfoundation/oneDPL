@@ -16,6 +16,9 @@
 #ifndef _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_THEN_SCAN_H
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_THEN_SCAN_H
 
+// Kernel compilation must be supported to properly work around hardware bug on certain iGPUs
+#if _ONEDPL_COMPILE_KERNEL
+
 #include <algorithm>
 #include <cstdint>
 #include <type_traits>
@@ -275,14 +278,7 @@ class __reduce_then_scan_scan_kernel;
 template <std::uint8_t __sub_group_size, std::uint16_t __max_inputs_per_item, bool __is_inclusive,
           bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp, typename _InitType,
           typename _KernelName>
-struct __parallel_reduce_then_scan_reduce_submitter;
-
-template <std::uint8_t __sub_group_size, std::uint16_t __max_inputs_per_item, bool __is_inclusive,
-          bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp, typename _InitType,
-          typename... _KernelName>
-struct __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inputs_per_item, __is_inclusive,
-                                                    __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType,
-                                                    __internal::__optional_kernel_name<_KernelName...>>
+struct __parallel_reduce_then_scan_reduce_submitter
 {
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
@@ -291,7 +287,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inpu
     operator()(_ExecutionPolicy&& __exec, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::uint32_t __inputs_per_sub_group, const std::uint32_t __inputs_per_item,
-               const std::size_t __block_num) const
+               const std::size_t __block_num, const sycl::kernel& __reduce_kernel) const
     {
         using _InitValueType = typename _InitType::__value_type;
         return __exec.queue().submit([&, this](sycl::handler& __cgh) {
@@ -300,7 +296,13 @@ struct __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inpu
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
-            __cgh.parallel_for<_KernelName...>(
+#if _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+            __cgh.use_kernel_bundle(__reduce_kernel.get_kernel_bundle());
+#endif
+            __cgh.parallel_for<_KernelName>(
+#if !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+                    __reduce_kernel,
+#endif
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 std::size_t __group_id = __ndi.get_group(0);
@@ -412,14 +414,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inpu
 template <std::uint8_t __sub_group_size, std::uint16_t __max_inputs_per_item, bool __is_inclusive,
           bool __is_unique_pattern_v, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
           typename _WriteOp, typename _InitType, typename _KernelName>
-struct __parallel_reduce_then_scan_scan_submitter;
-
-template <std::uint8_t __sub_group_size, std::uint16_t __max_inputs_per_item, bool __is_inclusive,
-          bool __is_unique_pattern_v, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
-          typename _WriteOp, typename _InitType, typename... _KernelName>
-struct __parallel_reduce_then_scan_scan_submitter<
-    __sub_group_size, __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
-    _ScanInputTransform, _WriteOp, _InitType, __internal::__optional_kernel_name<_KernelName...>>
+struct __parallel_reduce_then_scan_scan_submitter
 {
     using _InitValueType = typename _InitType::__value_type;
 
@@ -442,7 +437,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
     operator()(_ExecutionPolicy&& __exec, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::uint32_t __inputs_per_sub_group, const std::uint32_t __inputs_per_item,
-               const std::size_t __block_num) const
+               const std::size_t __block_num, const sycl::kernel& __scan_kernel) const
     {
         std::uint32_t __inputs_in_block = std::min(__n - __block_num * __max_block_size, std::size_t{__max_block_size});
         std::uint32_t __active_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
@@ -457,8 +452,13 @@ struct __parallel_reduce_then_scan_scan_submitter<
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
-
-            __cgh.parallel_for<_KernelName...>(
+#if _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+            __cgh.use_kernel_bundle(__scan_kernel.get_kernel_bundle());
+#endif
+            __cgh.parallel_for<_KernelName>(
+#if !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+                    __scan_kernel,
+#endif
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 _InitValueType* __tmp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 _InitValueType* __res_ptr =
@@ -756,12 +756,21 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
                                       _ScanInputTransform __scan_input_transform, _WriteOp __write_op, _InitType __init,
                                       _Inclusive, _IsUniquePattern)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-    using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __reduce_then_scan_reduce_kernel<_CustomName>>;
-    using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __reduce_then_scan_scan_kernel<_CustomName>>;
     using _ValueType = typename _InitType::__value_type;
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    // Note that __sub_group_size and __max_inputs_per_item are not included in kernel names. __sub_group_size
+    // is always constant (32) and __max_inputs_per_item is directly tied to the input type so these are not
+    // necessary to obtain a unique kernel name. However, if these compile time variables are adjusted in the
+    // future, then we need to be careful here to ensure unique kernel naming.
+    using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
+        __reduce_then_scan_reduce_kernel, _CustomName, _InRng, _OutRng, _GenReduceInput, _ReduceOp, _InitType,
+        _Inclusive, _IsUniquePattern>;
+    using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
+        __reduce_then_scan_scan_kernel, _CustomName, _InRng, _OutRng, _GenScanInput, _ReduceOp, _ScanInputTransform,
+        _WriteOp, _InitType, _Inclusive, _IsUniquePattern>;
+    static auto __kernels = __internal::__kernel_compiler<_ReduceKernel, _ScanKernel>::__compile(__exec);
+    const sycl::kernel& __reduce_kernel = __kernels[0];
+    const sycl::kernel& __scan_kernel = __kernels[1];
 
     constexpr std::uint8_t __sub_group_size = 32;
     constexpr std::uint8_t __block_size_scale = std::max(std::size_t{1}, sizeof(double) / sizeof(_ValueType));
@@ -849,10 +858,10 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
         __event = __reduce_submitter(__exec, __kernel_nd_range, __in_rng, __result_and_scratch, __event,
-                                     __inputs_per_sub_group, __inputs_per_item, __b);
+                                     __inputs_per_sub_group, __inputs_per_item, __b, __reduce_kernel);
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
         __event = __scan_submitter(__exec, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __event,
-                                   __inputs_per_sub_group, __inputs_per_item, __b);
+                                   __inputs_per_sub_group, __inputs_per_item, __b, __scan_kernel);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         // We only need to resize these parameters prior to the last block as it is the only non-full case.
         if (__b + 2 == __num_blocks)
@@ -872,4 +881,5 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
 } // namespace dpl
 } // namespace oneapi
 
+#endif // _ONEDPL_COMPILE_KERNEL
 #endif // _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_THEN_SCAN_H

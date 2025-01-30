@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <tuple>
 #include <algorithm>
+#include <system_error>
 
 #include "../../iterator_impl.h"
 
@@ -841,6 +842,26 @@ class __static_monotonic_dispatcher<::std::integer_sequence<::std::uint16_t, _X,
         }
     }
 };
+
+// This exception handler is intended to handle a software workaround by IGC for a hardware bug that
+// causes IGC to throw an exception for certain integrated graphics devices with -O0 compilation and
+// a required sub-group size of 32.
+inline void
+__bypass_sycl_kernel_not_supported(const sycl::exception& __e)
+{
+    // The SYCL spec compliant solution would be to compare __e.code() and sycl::errc::kernel_not_supported
+    // and rethrow the encountered exception if the two do not compare equal. However, the icpx compiler currently
+    // returns a sycl::errc::build in violation of the SYCL spec. If we are using the Intel compiler, then compare
+    // to this error code. Otherwise, assume the implementation is spec compliant.
+    const std::error_code __kernel_not_supported_ec =
+#if _ONEDPL_SYCL_KERNEL_NOT_SUPPORTED_EXCEPTION_BROKEN
+        sycl::errc::build;
+#else // Generic SYCL compiler. Assume it is spec compliant.
+        sycl::errc::kernel_not_supported;
+#endif
+    if (__e.code() != __kernel_not_supported_ec)
+        throw;
+}
 
 } // namespace __par_backend_hetero
 } // namespace dpl
