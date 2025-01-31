@@ -87,7 +87,7 @@ __cancel_execution(oneapi::dpl::__internal::__serial_backend_tag)
 template <class _ExecutionPolicy, class _Index, class _Fp>
 void
 __parallel_for(oneapi::dpl::__internal::__serial_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last,
-               _Fp __f)
+               _Fp __f, std::size_t /*__grainsize*/ = 1)
 {
     __f(__first, __last);
 }

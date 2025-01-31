@@ -525,6 +525,8 @@ struct __usm_or_buffer_accessor
 struct __result_and_scratch_storage_base
 {
     virtual ~__result_and_scratch_storage_base() = default;
+    virtual std::size_t
+    __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
 template <typename _ExecutionPolicy, typename _T>
@@ -657,10 +659,13 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 #endif
     }
 
-    bool
-    is_USM() const
+    _T
+    __wait_and_get_value(sycl::event __event) const
     {
-        return __supports_USM_device;
+        if (is_USM())
+            __event.wait_and_throw();
+
+        return __get_value();
     }
 
     // Note: this member function assumes the result is *ready*, since the __future has already
@@ -681,18 +686,41 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else
         {
-            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n];
+            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + idx];
         }
     }
 
-    template <typename _Event>
-    _T
-    __wait_and_get_value(_Event&& __event, size_t idx = 0) const
+  private:
+    bool
+    is_USM() const
+    {
+        return __supports_USM_device;
+    }
+
+    template <typename _Type>
+    std::size_t
+    __fill_data(std::pair<_Type, _Type>&& __p, std::size_t* __p_buf) const
+    {
+        __p_buf[0] = __p.first;
+        __p_buf[1] = __p.second;
+        return 2;
+    }
+
+    template <typename _Args>
+    std::size_t
+    __fill_data(_Args&&...) const
+    {
+        assert(!"Unsupported return type");
+        return 0;
+    }
+
+    virtual std::size_t
+    __get_data(sycl::event __event, std::size_t* __p_buf) const override
     {
         if (is_USM())
             __event.wait_and_throw();
 
-        return __get_value(idx);
+        return __fill_data(__get_value(), __p_buf);
     }
 };
 
@@ -718,7 +746,7 @@ class __future : private std::tuple<_Args...>
     _Event __my_event;
 
     template <typename _T>
-    constexpr auto
+    constexpr _T
     __wait_and_get_value(const sycl::buffer<_T>& __buf)
     {
         //according to a contract, returned value is one-element sycl::buffer
@@ -732,8 +760,18 @@ class __future : private std::tuple<_Args...>
         return __storage.__wait_and_get_value(__my_event);
     }
 
+    constexpr std::pair<std::size_t, std::size_t>
+    __wait_and_get_value(const std::shared_ptr<__result_and_scratch_storage_base>& __p_storage)
+    {
+        std::size_t __buf[2] = {0, 0};
+        auto __n = __p_storage->__get_data(__my_event, __buf);
+        assert(__n == 2);
+
+        return {__buf[0], __buf[1]};
+    }
+
     template <typename _T>
-    constexpr auto
+    constexpr _T
     __wait_and_get_value(const _T& __val)
     {
         wait();

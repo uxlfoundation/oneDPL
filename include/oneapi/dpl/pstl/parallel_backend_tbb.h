@@ -93,10 +93,13 @@ class __parallel_for_body
 // wrapper over tbb::parallel_for
 template <class _ExecutionPolicy, class _Index, class _Fp>
 void
-__parallel_for(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f)
+__parallel_for(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f,
+               std::size_t __grainsize = 1 /*matches the default grainsize value of tbb::blocked_range according to
+               the specification*/)
 {
     tbb::this_task_arena::isolate([=]() {
-        tbb::parallel_for(tbb::blocked_range<_Index>(__first, __last), __parallel_for_body<_Index, _Fp>(__f));
+        tbb::parallel_for(tbb::blocked_range<_Index>(__first, __last, __grainsize),
+                          __parallel_for_body<_Index, _Fp>(__f));
     });
 }
 
@@ -412,7 +415,6 @@ __parallel_transform_scan(oneapi::dpl::__internal::__tbb_backend_tag, _Execution
 //
 // These are used by parallel implementations but do not depend on them.
 //------------------------------------------------------------------------
-#define _ONEDPL_MERGE_CUT_OFF 2000
 
 template <typename _Func>
 class __func_task;
@@ -712,6 +714,8 @@ class __root_task : public __task
 };
 #endif // TBB_INTERFACE_VERSION <= 12000
 
+inline constexpr std::size_t __merge_cut_off = 2000;
+
 template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _Compare, typename _Cleanup,
           typename _LeafMerge>
 class __merge_func
@@ -730,8 +734,6 @@ class __merge_func
     _Compare _M_comp;
     _LeafMerge _M_leaf_merge;
     _SizeType _M_nsort; //number of elements to be sorted for partial_sort algorithm
-
-    static const _SizeType __merge_cut_off = _ONEDPL_MERGE_CUT_OFF;
 
     bool _root;   //means a task is merging root task
     bool _x_orig; //"true" means X(or left ) subrange is in the original container; false - in the buffer
@@ -1223,7 +1225,6 @@ operator()(__task* __self)
     typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
     typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
     const _SizeType __n = (_M_xe - _M_xs) + (_M_ye - _M_ys);
-    const _SizeType __merge_cut_off = _ONEDPL_MERGE_CUT_OFF;
     if (__n <= __merge_cut_off)
     {
         _M_leaf_merge(_M_xs, _M_xe, _M_ys, _M_ye, _M_zs, _M_comp);
@@ -1264,7 +1265,6 @@ __parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&,
     typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
     typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
     const _SizeType __n = (__xe - __xs) + (__ye - __ys);
-    const _SizeType __merge_cut_off = _ONEDPL_MERGE_CUT_OFF;
     if (__n <= __merge_cut_off)
     {
         // Fall back on serial merge

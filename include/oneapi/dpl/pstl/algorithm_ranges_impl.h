@@ -448,31 +448,36 @@ auto
 __pattern_merge(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                 _Proj1 __proj1, _Proj2 __proj2)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-    assert(std::ranges::size(__r1) + std::ranges::size(__r2) <= std::ranges::size(__out_r)); // for debug purposes only
+    using __return_type =
+        std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                  std::ranges::borrowed_iterator_t<_OutRange>>;
 
     auto __comp_2 = [__comp, __proj1, __proj2](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
         std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)), std::invoke(__proj2,
         std::forward<decltype(__val2)>(__val2)));};
 
-    auto __res = oneapi::dpl::__internal::__pattern_merge(__tag, std::forward<_ExecutionPolicy>(__exec),
-        std::ranges::begin(__r1), std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
-        std::ranges::begin(__r2) + std::ranges::size(__r2), std::ranges::begin(__out_r), __comp_2);
+    using _Index1 = std::ranges::range_difference_t<_R1>;
+    using _Index2 = std::ranges::range_difference_t<_R2>;
+    using _Index3 = std::ranges::range_difference_t<_OutRange>;
 
-    using __return_type = std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-        std::ranges::borrowed_iterator_t<_OutRange>>;
+    const _Index1 __n_1 = std::ranges::size(__r1);
+    const _Index2 __n_2 = std::ranges::size(__r2);
+    const _Index3 __n_out = std::min<_Index3>(__n_1 + __n_2, std::ranges::size(__out_r));
 
-    return __return_type{std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2) + std::ranges::size(__r2), __res};
-}
+    auto __it_1 = std::ranges::begin(__r1);
+    auto __it_2 = std::ranges::begin(__r2);
+    auto __it_out = std::ranges::begin(__out_r);
 
-template<typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
-         typename _Proj1, typename _Proj2>
-auto
-__pattern_merge(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
-                _Proj1 __proj1, _Proj2 __proj2)
-{
-    return std::ranges::merge(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r), __comp, __proj1,
-                              __proj2);
+    if (__n_out == 0)
+        return __return_type{__it_1, __it_2, __it_out};
+
+    // Parallel and serial versions of ___merge_path_out_lim merge the 1st sequence and the 2nd sequence in "reverse order":
+    // the identical elements from the 2nd sequence are merged first.
+    // So, the call to ___merge_path_out_lim swaps the order of sequences.
+    std::pair __res = ___merge_path_out_lim(__tag, std::forward<_ExecutionPolicy>(__exec), __it_2, __n_2, __it_1, __n_1,
+                                            __it_out, __n_out, __comp_2);
+
+    return __return_type{__res.second, __res.first, __it_out + __n_out};
 }
 
 } // namespace __ranges
