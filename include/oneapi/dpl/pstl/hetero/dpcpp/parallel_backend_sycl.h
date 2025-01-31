@@ -615,8 +615,7 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
 
     // Although we do not actually need result storage in this case, we need to construct
     // a placeholder here to match the return type of the non-single-work-group implementation
-    using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _ValueType>;
-    __result_and_scratch_storage_t __dummy_result_and_scratch{__exec, 0, 0};
+    __result_and_scratch_storage<_ExecutionPolicy, _ValueType> __dummy_result_and_scratch{__exec, 0, 0};
 
     if (__max_wg_size >= __targeted_wg_size)
     {
@@ -1093,7 +1092,7 @@ struct __write_to_id_if_else
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
 auto
-__parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const _ExecutionPolicy& __exec,
+__parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                           _Range1&& __in_rng, _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op,
                           _InitType __init, _BinaryOperation __binary_op, _Inclusive)
 {
@@ -1122,9 +1121,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             std::size_t __single_group_upper_limit = __use_reduce_then_scan ? 2048 : 16384;
             if (__group_scan_fits_in_slm<_Type>(__exec.queue(), __n, __n_uniform, __single_group_upper_limit))
             {
-                return __parallel_transform_scan_single_group(__backend_tag, __exec, std::forward<_Range1>(__in_rng),
-                                                              std::forward<_Range2>(__out_rng), __n, __unary_op, __init,
-                                                              __binary_op, _Inclusive{});
+                return __parallel_transform_scan_single_group(
+                    __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
+                    std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
             }
         }
 #if _ONEDPL_COMPILE_KERNEL
@@ -1161,7 +1160,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     _NoOpFunctor __get_data_op;
 
     return __parallel_transform_scan_base(
-        __backend_tag, __exec, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
+        std::forward<_Range2>(__out_rng), __init,
         // local scan
         unseq_backend::__scan<_Inclusive, _ExecutionPolicy, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner,
                               _NoOpFunctor, _InitType>{__binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op,
@@ -1283,7 +1283,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryPredicate>
 auto
-__parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const _ExecutionPolicy& __exec,
+__parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                        _Range1&& __rng, _Range2&& __result, _BinaryPredicate __pred)
 {
     using _Assign = oneapi::dpl::__internal::__pstl_assign;
@@ -1316,8 +1316,9 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
                                                            decltype(__n)>;
     using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, /*inclusive*/ std::true_type, 1>;
 
-    return __parallel_scan_copy(__backend_tag, __exec, std::forward<_Range1>(__rng), std::forward<_Range2>(__result),
-                                __n, _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}},
+    return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
+                                std::forward<_Range2>(__result), __n,
+                                _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}},
                                 _CopyOp{_ReduceOp{}, _Assign{}});
 }
 
@@ -1357,7 +1358,7 @@ __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
 auto
-__parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const _ExecutionPolicy& __exec,
+__parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                           _Range1&& __rng, _Range2&& __result, _UnaryPredicate __pred)
 {
     oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng.size();
@@ -1383,14 +1384,14 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
     using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
     using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp, /*inclusive*/ std::true_type>;
 
-    return __parallel_scan_copy(__backend_tag, __exec, std::forward<_Range1>(__rng), std::forward<_Range2>(__result),
-                                __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
+    return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
+                                std::forward<_Range2>(__result), __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
 }
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 auto
-__parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const _ExecutionPolicy& __exec,
+__parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                    _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Pred __pred, _Assign __assign = _Assign{})
 {
     using _SingleGroupInvoker = __invoke_single_group_copy_if<_Size>;
@@ -1440,8 +1441,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
     using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,
                                                   /*inclusive*/ std::true_type, 1>;
 
-    return __parallel_scan_copy(__backend_tag, __exec, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
-                                __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
+    return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
+                                std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
+                                _CopyOp{_ReduceOp{}, __assign});
 }
 
 #if _ONEDPL_COMPILE_KERNEL
@@ -1534,7 +1536,7 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _IsOpDifference>
 auto
-__parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const _ExecutionPolicy& __exec,
+__parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                   _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                   _IsOpDifference __is_op_difference)
 {
@@ -1552,8 +1554,9 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, c
         }
     }
 #endif
-    return __parallel_set_scan(__backend_tag, __exec, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                               std::forward<_Range3>(__result), __comp, __is_op_difference);
+    return __parallel_set_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
+                               std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
+                               __is_op_difference);
 }
 
 //------------------------------------------------------------------------
@@ -2467,8 +2470,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
-__parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec,
-                             _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys, _Range4&& __out_values,
+__parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __keys,
+                             _Range2&& __values, _Range3&& __out_keys, _Range4&& __out_values,
                              _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
     // The algorithm reduces values in __values where the
@@ -2506,7 +2509,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, cons
     }
 #endif
     return __parallel_reduce_by_segment_fallback(
-        oneapi::dpl::__internal::__device_backend_tag{}, __exec,
+        oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
         std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
         std::forward<_Range4>(__out_values), __binary_pred, __binary_op,
         oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});

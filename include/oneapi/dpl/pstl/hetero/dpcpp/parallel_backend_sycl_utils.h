@@ -530,7 +530,7 @@ struct __result_and_scratch_storage_base
 };
 
 template <typename _ExecutionPolicy, typename _T>
-struct __result_and_scratch_storage : __result_and_scratch_storage_base
+struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 {
   private:
     using __sycl_buffer_t = sycl::buffer<_T, 1>;
@@ -578,10 +578,10 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 
   public:
-    __result_and_scratch_storage(const _ExecutionPolicy& __exec_, std::size_t __result_n, std::size_t __scratch_n)
+    __result_and_scratch_storage_impl(const _ExecutionPolicy& __exec_, std::size_t __result_n, std::size_t __scratch_n)
         : __exec{__exec_}, __result_n{__result_n}, __scratch_n{__scratch_n},
-          __use_USM_host{__use_USM_host_allocations(__exec.queue())}, __supports_USM_device{
-                                                                          __use_USM_allocations(__exec.queue())}
+          __use_USM_host{__use_USM_host_allocations(__exec.queue())},
+          __supports_USM_device{__use_USM_allocations(__exec.queue())}
     {
         const std::size_t __total_n = __scratch_n + __result_n;
         // Skip in case this is a dummy container
@@ -724,6 +724,9 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 };
 
+template <typename _ExecutionPolicy, typename _T>
+using __result_and_scratch_storage = __result_and_scratch_storage_impl<std::decay_t<_ExecutionPolicy>, _T>;
+
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
 {
@@ -753,9 +756,12 @@ class __future : private std::tuple<_Args...>
         return __buf.get_host_access(sycl::read_only)[0];
     }
 
-    template <typename _ExecutionPolicy, typename _T>
+    // Here we use __result_and_scratch_storage_impl rather than __result_and_scratch_storage because we need to
+    // match the type with the overload and are deducing the policy type. If we used __result_and_scratch_storage,
+    // it would cause issues in type deduction due to decay of the policy in that using statement.
+    template <typename _DecayedExecutionPolicy, typename _T>
     constexpr auto
-    __wait_and_get_value(const __result_and_scratch_storage<_ExecutionPolicy, _T>& __storage)
+    __wait_and_get_value(const __result_and_scratch_storage_impl<_DecayedExecutionPolicy, _T>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
     }
