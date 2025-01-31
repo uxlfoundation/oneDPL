@@ -125,8 +125,9 @@ template <typename T, typename Convert>
 void
 test(T trash, Convert convert)
 {
+    size_t max_n = TestUtils::get_pattern_for_max_n();
     // Try sequences of various lengths.
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         // count is number of output elements, plus a handful
         // more for sake of detecting buffer overruns.
@@ -165,6 +166,9 @@ main()
 {
     test<std::int32_t>(-666, [](size_t j) { return std::int32_t(j); });
     test<float64_t>(-666.0, [](size_t j) { return float64_t(j); });
+
+    test<std::uint16_t>(42, [](size_t j) { return std::uint16_t(j); });
+    test<std::uint8_t>(42, [](size_t j) { return std::uint8_t(j); });
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     /*TODO: copy support of a class with no default constructor*/

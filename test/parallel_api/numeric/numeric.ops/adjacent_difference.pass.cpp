@@ -139,7 +139,7 @@ template <typename T1, typename T2, typename Pred>
 void
 test(Pred pred)
 {
-    const ::std::size_t max_len = 100000;
+    const std::size_t max_len = TestUtils::get_pattern_for_max_n();
 
     const T2 value = T2(77);
     const T1 trash = T1(31);
@@ -165,6 +165,7 @@ int
 main()
 {
     test<std::uint8_t, std::uint32_t>([](std::uint32_t a, std::uint32_t b) { return a - b; });
+    test<std::uint16_t, std::uint16_t>([](std::uint16_t a, std::uint16_t b) { return a > b ? a - b : b - a; });
     test<std::int32_t, std::int64_t>([](std::int64_t a, std::int64_t b) { return a / (b + 1); });
     test<std::int64_t, float32_t>([](float32_t a, float32_t b) { return (a + b) / 2; });
 #if !TEST_DPCPP_BACKEND_PRESENT

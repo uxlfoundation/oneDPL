@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- shift_left.pass.cpp -----------------------------------------------===//
+//===-- shift_left_right.pass.cpp -----------------------------------------------===//
 //
 // Copyright (C) Intel Corporation
 //
@@ -40,8 +40,11 @@
 #include <omp.h> // omp_get_max_threads, omp_set_num_threads
 #endif
 
-template<typename Name>
-struct USM;
+template <typename... Name>
+struct USMKernelName;
+
+template <typename... Name>
+struct BufferKernelName;
 
 struct test_shift
 {
@@ -80,7 +83,9 @@ struct test_shift
         TestUtils::usm_data_transfer<alloc_type, _ValueType> dt_helper(queue, first, m);
 
         auto ptr = dt_helper.get_data();
-        auto het_res = algo(TestUtils::make_device_policy<USM<Algo>>(::std::forward<Policy>(exec)), ptr, ptr + m, n);
+        auto het_res =
+            algo(TestUtils::make_device_policy<USMKernelName<Algo, _ValueType>>(std::forward<Policy>(exec)), ptr,
+                 ptr + m, n);
         _DiffType res_idx = het_res - ptr;
 
         //3.2 check result
@@ -95,13 +100,13 @@ struct test_shift
     operator()(Policy&& exec, It first, typename ::std::iterator_traits<It>::difference_type m,
         It first_exp, typename ::std::iterator_traits<It>::difference_type n, Algo algo)
     {
+        using _ValueType = typename std::iterator_traits<It>::value_type;
+        using _DiffType = typename std::iterator_traits<It>::difference_type;
+        auto buffer_policy = TestUtils::make_device_policy<BufferKernelName<_ValueType, Algo>>(exec);
         //1.1 run a test with hetero policy and host itertors
-        auto res = algo(::std::forward<Policy>(exec), first, first + m, n);
+        auto res = algo(buffer_policy, first, first + m, n);
         //1.2 check result
         algo.check(res, first, m, first_exp, n);
-
-        using _ValueType = typename ::std::iterator_traits<It>::value_type;
-        using _DiffType = typename ::std::iterator_traits<It>::difference_type;
 
         //2.1 run a test with hetero policy and hetero itertors
         _DiffType res_idx(0);
@@ -112,7 +117,7 @@ struct test_shift
 
             auto het_begin = oneapi::dpl::begin(buf);
 
-            auto het_res = algo(::std::forward<Policy>(exec), het_begin, het_begin + m, n);
+            auto het_res = algo(buffer_policy, het_begin, het_begin + m, n);
             res_idx = het_res - het_begin;
         }
         //2.2 check result
@@ -121,7 +126,7 @@ struct test_shift
 #if _PSTL_SYCL_TEST_USM
         //3. run a test with hetero policy and USM shared/device memory pointers
         test_usm<sycl::usm::alloc::shared>(exec, first, m, first_exp, n, algo);
-        test_usm<sycl::usm::alloc::device>(exec, first, m, first_exp, n, algo);
+        test_usm<sycl::usm::alloc::device>(std::forward<Policy>(exec), first, m, first_exp, n, algo);
 #endif
     }
 #endif
@@ -208,10 +213,10 @@ test_shift_by_type(Size m, Size n)
     TestUtils::Sequence<T> in(m, [](::std::size_t v) -> T { return T(v); }); //fill data
 
 #ifdef _PSTL_TEST_SHIFT_LEFT
-    TestUtils::invoke_on_all_policies<0>()(test_shift(), in.begin(), m, orig.begin(), n, shift_left_algo{});
+    TestUtils::invoke_on_all_policies()(test_shift(), in.begin(), m, orig.begin(), n, shift_left_algo{});
 #endif
 #ifdef _PSTL_TEST_SHIFT_RIGHT
-    TestUtils::invoke_on_all_policies<1>()(test_shift(), in.begin(), m, orig.begin(), n, shift_right_algo{});
+    TestUtils::invoke_on_all_policies()(test_shift(), in.begin(), m, orig.begin(), n, shift_right_algo{});
 #endif
 }
 
@@ -233,6 +238,16 @@ main()
     {
        test_shift_by_type<ValueType>(m, n);
     }
+#if TEST_DPCPP_BACKEND_PRESENT
+    // Test both paths of the vectorized implementation in the SYCL backend. Use shift factors that will not divide
+    // into the vector size to assess edge case handling.
+    const std::size_t large_n = 1000000;
+    const std::size_t quarter_shift = 250111;
+    const std::size_t three_quarters_shift = 750203;
+    test_shift_by_type<std::uint8_t>(large_n, quarter_shift);
+    test_shift_by_type<std::uint8_t>(three_quarters_shift, large_n);
+    test_shift_by_type<std::uint16_t>(large_n, quarter_shift);
+#endif
 
     return TestUtils::done();
 }

@@ -82,7 +82,7 @@ template <typename T1, typename T2>
 void
 test()
 {
-    const ::std::size_t max_len = 100000;
+    const std::size_t max_len = TestUtils::get_pattern_for_max_n();
     Sequence<T2> actual(max_len);
     Sequence<T1> data(max_len, [](::std::size_t i) { return T1(i); });
 
@@ -100,6 +100,7 @@ main()
 {
     // clang-3.8 fails to correctly auto vectorize the loop in some cases of different types of container's elements,
     // for example: std::int32_t and std::int8_t. This issue isn't detected for clang-3.9 and newer versions.
+    test<std::uint8_t, std::uint8_t>();
     test<std::int16_t, std::int8_t>();
     test<std::uint16_t, float32_t>();
     test<float64_t, std::int64_t>();

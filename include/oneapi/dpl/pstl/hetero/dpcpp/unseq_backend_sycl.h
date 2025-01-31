@@ -22,6 +22,7 @@
 #include "../../onedpl_config.h"
 #include "../../utils.h"
 #include "sycl_defs.h"
+#include "utils_ranges_sycl.h"
 
 #define _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT                                                                            \
     (_ONEDPL_SYCL2020_KNOWN_IDENTITY_PRESENT || _ONEDPL_LIBSYCL_KNOWN_IDENTITY_PRESENT)
@@ -112,6 +113,190 @@ struct walk_n
     }
 };
 
+// Base class which establishes tuning parameters including vectorization / scalar path decider at compile time
+// for walk / for based algorithms
+template <typename... _Ranges>
+struct walk_vector_or_scalar_base
+{
+  private:
+    using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<_Ranges>...>;
+    constexpr static std::uint8_t __min_type_size = oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value;
+    // Empirically determined 'bytes-in-flight' to maximize bandwidth utilization
+    constexpr static std::uint8_t __bytes_per_item = 16;
+    // Maximum size supported by compilers to generate vector instructions
+    constexpr static std::uint8_t __max_vector_size = 4;
+
+  public:
+    constexpr static bool __can_vectorize =
+        (oneapi::dpl::__ranges::__is_vectorizable_range<std::decay_t<_Ranges>>::value && ...) &&
+        (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) && __min_type_size < 4;
+    // Vectorize for small types, so we generate 128-byte load / stores in a sub-group
+    constexpr static std::uint8_t __preferred_vector_size =
+        __can_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1;
+    constexpr static std::uint8_t __preferred_iters_per_item =
+        __bytes_per_item / (__min_type_size * __preferred_vector_size);
+
+  protected:
+    using __vec_load_t = oneapi::dpl::__par_backend_hetero::__vector_load<__preferred_vector_size>;
+    using __vec_store_t = oneapi::dpl::__par_backend_hetero::__vector_store<__preferred_vector_size>;
+    using __vec_reverse_t = oneapi::dpl::__par_backend_hetero::__vector_reverse<__preferred_vector_size>;
+    using __vec_walk_t = oneapi::dpl::__par_backend_hetero::__vector_walk<__preferred_vector_size>;
+};
+
+// Path that intentionally disables vectorization for algorithms with a scattered access pattern (e.g. binary_search)
+template <typename... _Ranges>
+struct walk_scalar_base
+{
+  private:
+    using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<_Ranges>...>;
+    constexpr static std::uint8_t __min_type_size = oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value;
+    constexpr static std::uint8_t __bytes_per_item = 16;
+
+  public:
+    constexpr static bool __can_vectorize = false;
+    // With no vectorization, the vector size is 1
+    constexpr static std::uint8_t __preferred_vector_size = 1;
+    // To achieve full bandwidth utilization, multiple iterations need to be processed by a work item
+    constexpr static std::uint8_t __preferred_iters_per_item =
+        __bytes_per_item / (__min_type_size * __preferred_vector_size);
+};
+
+template <typename _ExecutionPolicy, typename _F, typename _Range>
+struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
+{
+  private:
+    using __base_t = walk_vector_or_scalar_base<_Range>;
+    _F __f;
+    std::size_t __n;
+
+  public:
+    walk1_vector_or_scalar(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
+
+    template <typename _IsFull>
+    void
+    __vector_path_impl(_IsFull __is_full, const std::size_t __idx, _Range __rng) const
+    {
+        typename __base_t::__vec_walk_t{__n}(__is_full, __idx, __f, __rng);
+    }
+
+    // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
+    template <typename _IsFull>
+    void
+    __scalar_path_impl(_IsFull, const std::size_t __idx, _Range __rng) const
+    {
+        __f(__rng[__idx]);
+    }
+
+    template <typename _IsFull>
+    void
+    operator()(_IsFull __is_full, const std::size_t __idx, _Range __rng) const
+    {
+        if constexpr (__base_t::__can_vectorize)
+            __vector_path_impl(__is_full, __idx, __rng);
+        else
+            __scalar_path_impl(__is_full, __idx, __rng);
+    }
+};
+
+template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
+struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Range2>
+{
+  private:
+    using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
+    _F __f;
+    std::size_t __n;
+
+  public:
+    walk2_vectors_or_scalars(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
+
+    template <typename _IsFull>
+    void
+    __vector_path_impl(_IsFull __is_full, const std::size_t __idx, _Range1 __rng1, _Range2 __rng2) const
+    {
+        using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
+        _ValueType1 __rng1_vector[__base_t::__preferred_vector_size];
+        // 1. Load input into a vector
+        typename __base_t::__vec_load_t{__n}(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{},
+                                             __rng1, __rng1_vector);
+        // 2. Apply functor to vector and store into global memory
+        typename __base_t::__vec_store_t{__n}(__is_full, __idx,
+                                              oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f},
+                                              __rng1_vector, __rng2);
+    }
+
+    // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
+    template <typename _IsFull, typename _ItemId>
+    void
+    __scalar_path_impl(_IsFull, const _ItemId __idx, _Range1 __rng1, _Range2 __rng2) const
+    {
+
+        __f(__rng1[__idx], __rng2[__idx]);
+    }
+
+    template <typename _IsFull, typename _ItemId>
+    void
+    operator()(_IsFull __is_full, const _ItemId __idx, _Range1 __rng1, _Range2 __rng2) const
+    {
+        if constexpr (__base_t::__can_vectorize)
+            __vector_path_impl(__is_full, __idx, __rng1, __rng2);
+        else
+            __scalar_path_impl(__is_full, __idx, __rng1, __rng2);
+    }
+};
+
+template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2, typename _Range3>
+struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Range2, _Range3>
+{
+  private:
+    using __base_t = walk_vector_or_scalar_base<_Range1, _Range2, _Range3>;
+    _F __f;
+    std::size_t __n;
+
+  public:
+    walk3_vectors_or_scalars(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
+
+    template <typename _IsFull, typename _ItemId>
+    void
+    __vector_path_impl(_IsFull __is_full, const _ItemId __idx, _Range1 __rng1, _Range2 __rng2, _Range3 __rng3) const
+    {
+        using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
+        using _ValueType2 = oneapi::dpl::__internal::__value_t<_Range2>;
+
+        _ValueType1 __rng1_vector[__base_t::__preferred_vector_size];
+        _ValueType2 __rng2_vector[__base_t::__preferred_vector_size];
+
+        typename __base_t::__vec_load_t __vec_load{__n};
+        typename __base_t::__vec_store_t __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
+
+        // 1. Load inputs into vectors
+        __vec_load(__is_full, __idx, __load_op, __rng1, __rng1_vector);
+        __vec_load(__is_full, __idx, __load_op, __rng2, __rng2_vector);
+        // 2. Apply binary functor to vector and store into global memory
+        __vec_store(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f},
+                    __rng1_vector, __rng2_vector, __rng3);
+    }
+
+    // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
+    template <typename _IsFull, typename _ItemId>
+    void
+    __scalar_path_impl(_IsFull, const _ItemId __idx, _Range1 __rng1, _Range2 __rng2, _Range3 __rng3) const
+    {
+
+        __f(__rng1[__idx], __rng2[__idx], __rng3[__idx]);
+    }
+
+    template <typename _IsFull, typename _ItemId>
+    void
+    operator()(_IsFull __is_full, const _ItemId __idx, _Range1 __rng1, _Range2 __rng2, _Range3 __rng3) const
+    {
+        if constexpr (__base_t::__can_vectorize)
+            __vector_path_impl(__is_full, __idx, __rng1, __rng2, __rng3);
+        else
+            __scalar_path_impl(__is_full, __idx, __rng1, __rng2, __rng3);
+    }
+};
+
 // If read accessor returns temporary value then __no_op returns lvalue reference to it.
 // After temporary value destroying it will be a reference on invalid object.
 // So let's don't call functor in case of __no_op
@@ -132,22 +317,56 @@ struct walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>
 // walk_adjacent_difference
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _F>
-struct walk_adjacent_difference
+template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
+struct walk_adjacent_difference : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+  private:
+    using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     _F __f;
+    std::size_t __n;
+    oneapi::dpl::__internal::__pstl_assign __assigner;
 
-    template <typename _ItemId, typename _Acc1, typename _Acc2>
+  public:
+    walk_adjacent_difference(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
+
+    template <typename _IsFull, typename _ItemId>
     void
-    operator()(const _ItemId __idx, const _Acc1& _acc_src, _Acc2& _acc_dst) const
+    __scalar_path_impl(_IsFull, const _ItemId __idx, const _Range1 __rng1, _Range2 __rng2) const
     {
-        using ::std::get;
-
         // just copy an element if it is the first one
         if (__idx == 0)
-            _acc_dst[__idx] = _acc_src[__idx];
+            __assigner(__rng1[__idx], __rng2[__idx]);
         else
-            __f(_acc_src[__idx + (-1)], _acc_src[__idx], _acc_dst[__idx]);
+            __f(__rng1[__idx + (-1)], __rng1[__idx], __rng2[__idx]);
+    }
+    template <typename _IsFull, typename _ItemId>
+    void
+    __vector_path_impl(_IsFull __is_full, const _ItemId __idx, const _Range1 __rng1, _Range2 __rng2) const
+    {
+        using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
+        _ValueType __rng1_vector[__base_t::__preferred_vector_size + 1];
+        // 1. Establish a vector of __preferred_vector_size + 1 where a scalar load is performed on the first element
+        // followed by a vector load of the specified length.
+        __assigner(__idx != 0 ? __rng1[__idx - 1] : __rng1[0], __rng1_vector[0]);
+        typename __base_t::__vec_load_t{__n}(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{},
+                                             __rng1, &__rng1_vector[1]);
+        // 2. Perform a vector store of __preferred_vector_size adjacent differences.
+        typename __base_t::__vec_store_t{__n}(__is_full, __idx,
+                                              oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f},
+                                              __rng1_vector, &__rng1_vector[1], __rng2);
+        // A dummy value is first written to global memory followed by an overwrite for the first index. Pulling the vector loads / stores into an if branch
+        // to better handle this results in performance degradation.
+        if (__idx == 0)
+            __assigner(__rng1_vector[0], __rng2[0]);
+    }
+    template <typename _IsFull, typename _ItemId>
+    void
+    operator()(_IsFull __is_full, const _ItemId __idx, const _Range1 __rng1, _Range2 __rng2) const
+    {
+        if constexpr (__base_t::__can_vectorize)
+            __vector_path_impl(__is_full, __idx, __rng1, __rng2);
+        else
+            __scalar_path_impl(__is_full, __idx, __rng1, __rng2);
     }
 };
 
@@ -927,47 +1146,203 @@ struct __brick_includes
 //------------------------------------------------------------------------
 // reverse
 //------------------------------------------------------------------------
-template <typename _Size>
-struct __reverse_functor
+template <typename _Size, typename _Range>
+struct __reverse_functor : public walk_vector_or_scalar_base<_Range>
 {
+  private:
+    using __base_t = walk_vector_or_scalar_base<_Range>;
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
     _Size __size;
-    template <typename _Idx, typename _Accessor>
+
+  public:
+    __reverse_functor(_Size __size) : __size(__size) {}
+
+    template <typename _IsFull>
     void
-    operator()(const _Idx __idx, _Accessor& __acc) const
+    __vector_path_impl(_IsFull, const std::size_t __left_start_idx, _Range __rng) const
+    {
+        const std::size_t __n = __size;
+
+        // In the below implementation, we see that _IsFull is ignored in favor of std::true_type{} in all cases.
+        // This relaxation is due to the fact that in-place reverse launches work only over the first half of the
+        // buffer. As long as __size >= __vec_size there is no risk of an OOB accesses or a race condition. There may
+        // exist a  single point of double processing between left and right vectors in the last work-item which
+        // reverses middle elements. This extra processing of elements <= __vec_size is more performant than applying
+        // additional branching (such as in reverse_copy).
+
+        const std::size_t __right_start_idx = __size - __left_start_idx - __base_t::__preferred_vector_size;
+
+        _ValueType __rng_left_vector[__base_t::__preferred_vector_size];
+        _ValueType __rng_right_vector[__base_t::__preferred_vector_size];
+
+        typename __base_t::__vec_load_t __vec_load{__n};
+        typename __base_t::__vec_reverse_t __vec_reverse;
+        typename __base_t::__vec_store_t __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
+        oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
+            __store_op;
+
+        // 1. Load two vectors that we want to swap: one from the left half of the buffer and one from the right
+        __vec_load(std::true_type{}, __left_start_idx, __load_op, __rng, __rng_left_vector);
+        __vec_load(std::true_type{}, __right_start_idx, __load_op, __rng, __rng_right_vector);
+        // 2. Reverse vectors in registers. Note that due to indices we have chosen, there will always be a full
+        // vector of elements to load
+        __vec_reverse(std::true_type{}, __left_start_idx, __rng_left_vector);
+        __vec_reverse(std::true_type{}, __right_start_idx, __rng_right_vector);
+        // 3. Store the left-half vector to the corresponding right-half indices and vice versa
+        __vec_store(std::true_type{}, __right_start_idx, __store_op, __rng_left_vector, __rng);
+        __vec_store(std::true_type{}, __left_start_idx, __store_op, __rng_right_vector, __rng);
+    }
+    template <typename _IsFull>
+    void
+    __scalar_path_impl(_IsFull, const std::size_t __idx, _Range __rng) const
     {
         using ::std::swap;
-        swap(__acc[__idx], __acc[__size - __idx - 1]);
+        swap(__rng[__idx], __rng[__size - __idx - 1]);
+    }
+    template <typename _IsFull>
+    void
+    operator()(_IsFull __is_full, const std::size_t __idx, _Range __rng) const
+    {
+        if constexpr (__base_t::__can_vectorize)
+            __vector_path_impl(__is_full, __idx, __rng);
+        else
+            __scalar_path_impl(__is_full, __idx, __rng);
     }
 };
 
 //------------------------------------------------------------------------
 // reverse_copy
 //------------------------------------------------------------------------
-template <typename _Size>
-struct __reverse_copy
+template <typename _Size, typename _Range1, typename _Range2>
+struct __reverse_copy : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+  private:
+    using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
     _Size __size;
-    template <typename _Idx, typename _AccessorSrc, typename _AccessorDst>
+    oneapi::dpl::__internal::__pstl_assign __assigner;
+
+  public:
+    __reverse_copy(_Size __size) : __size(__size) {}
+
+    template <typename _IsFull>
     void
-    operator()(const _Idx __idx, const _AccessorSrc& __acc1, _AccessorDst& __acc2) const
+    __scalar_path_impl(_IsFull, const std::size_t __idx, const _Range1 __rng1, _Range2 __rng2) const
     {
-        __acc2[__idx] = __acc1[__size - __idx - 1];
+        __rng2[__idx] = __rng1[__size - __idx - 1];
+    }
+    template <typename _IsFull>
+    void
+    __vector_path_impl(_IsFull __is_full, const std::size_t __idx, const _Range1 __rng1, _Range2 __rng2) const
+    {
+        const std::size_t __n = __size;
+        const std::size_t __remaining_elements = __n - __idx;
+        const std::uint8_t __elements_to_process =
+            std::min(static_cast<std::size_t>(__base_t::__preferred_vector_size), __remaining_elements);
+        const std::size_t __output_start = __size - __idx - __elements_to_process;
+        // 1. Load vector to reverse
+        _ValueType __rng1_vector[__base_t::__preferred_vector_size];
+        typename __base_t::__vec_load_t{__n}(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{},
+                                             __rng1, __rng1_vector);
+        // 2. Reverse in registers
+        typename __base_t::__vec_reverse_t{}(__is_full, __elements_to_process, __rng1_vector);
+        // 3. Flip the location of the vector in the output buffer
+        if constexpr (_IsFull::value)
+        {
+            typename __base_t::__vec_store_t{__n}(std::true_type{}, __output_start,
+                                                  oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<
+                                                      oneapi::dpl::__internal::__pstl_assign>{},
+                                                  __rng1_vector, __rng2);
+        }
+        else
+        {
+            // The non-full case is processed manually here due to the translation of indices in the reverse operation.
+            // The last few elements in the buffer are reversed into the beginning of the buffer. However,
+            // __vector_store would believe that we always have a full vector length of elements due to the starting
+            // index having greater than __preferred_vector_size elements until the end of the buffer.
+            for (std::uint8_t __i = 0; __i < __elements_to_process; ++__i)
+                __assigner(__rng1_vector[__i], __rng2[__output_start + __i]);
+        }
+    }
+    template <typename _IsFull>
+    void
+    operator()(_IsFull __is_full, const std::size_t __idx, const _Range1 __rng1, _Range2 __rng2) const
+    {
+        if constexpr (__base_t::__can_vectorize)
+            __vector_path_impl(__is_full, __idx, __rng1, __rng2);
+        else
+            __scalar_path_impl(__is_full, __idx, __rng1, __rng2);
     }
 };
 
 //------------------------------------------------------------------------
 // rotate_copy
 //------------------------------------------------------------------------
-template <typename _Size>
-struct __rotate_copy
+template <typename _Size, typename _Range1, typename _Range2>
+struct __rotate_copy : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+  private:
+    using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
     _Size __size;
     _Size __shift;
-    template <typename _Idx, typename _AccessorSrc, typename _AccessorDst>
+    oneapi::dpl::__internal::__pstl_assign __assigner;
+
+  public:
+    __rotate_copy(_Size __size, _Size __shift) : __size(__size), __shift(__shift) {}
+
+    template <typename _IsFull>
     void
-    operator()(const _Idx __idx, const _AccessorSrc& __acc1, _AccessorDst& __acc2) const
+    __vector_path_impl(_IsFull __is_full, const std::size_t __idx, const _Range1 __rng1, _Range2 __rng2) const
     {
-        __acc2[__idx] = __acc1[(__shift + __idx) % __size];
+        const std::size_t __shifted_idx = __shift + __idx;
+        const std::size_t __wrapped_idx = __shifted_idx % __size;
+        const std::size_t __n = __size;
+        _ValueType __rng1_vector[__base_t::__preferred_vector_size];
+        //1. Vectorize loads only if we know the wrap around point is beyond the current vector elements to process
+        if (__wrapped_idx + __base_t::__preferred_vector_size <= __n)
+        {
+            typename __base_t::__vec_load_t{__n}(
+                __is_full, __wrapped_idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{}, __rng1, __rng1_vector);
+        }
+        else
+        {
+            // A single point of non-contiguity within the rotation operation. Manually process two loops here:
+            // the first before the wraparound point and the second after.
+            const std::size_t __remaining_elements = __n - __idx;
+            const std::uint8_t __elements_to_process =
+                std::min(std::size_t{__base_t::__preferred_vector_size}, __remaining_elements);
+            // __n - __wrapped_idx can safely fit into a uint8_t due to the condition check above.
+            const std::uint8_t __loop1_elements =
+                std::min(__elements_to_process, static_cast<std::uint8_t>(__n - __wrapped_idx));
+            const std::uint8_t __loop2_elements = __elements_to_process - __loop1_elements;
+            std::uint8_t __i = 0;
+            for (__i = 0; __i < __loop1_elements; ++__i)
+                __assigner(__rng1[__wrapped_idx + __i], __rng1_vector[__i]);
+            for (std::uint8_t __j = 0; __j < __loop2_elements; ++__j)
+                __assigner(__rng1[__j], __rng1_vector[__i + __j]);
+        }
+        // 2. Store the rotation
+        typename __base_t::__vec_store_t{__n}(
+            __is_full, __idx,
+            oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>{},
+            __rng1_vector, __rng2);
+    }
+    template <typename _IsFull>
+    void
+    __scalar_path_impl(_IsFull, const std::size_t __idx, const _Range1 __rng1, _Range2 __rng2) const
+    {
+        __rng2[__idx] = __rng1[(__shift + __idx) % __size];
+    }
+    template <typename _IsFull>
+    void
+    operator()(_IsFull __is_full, const std::size_t __idx, const _Range1 __rng1, _Range2 __rng2) const
+    {
+        if constexpr (__base_t::__can_vectorize)
+            __vector_path_impl(__is_full, __idx, __rng1, __rng2);
+        else
+            __scalar_path_impl(__is_full, __idx, __rng1, __rng2);
     }
 };
 
@@ -1041,15 +1416,73 @@ class __brick_set_op
     }
 };
 
-template <typename _ExecutionPolicy, typename _DiffType>
+template <typename _ExecutionPolicy, typename _DiffType, typename _Range>
 struct __brick_shift_left
 {
+  private:
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
+    // Maximum size supported by compilers to generate vector instructions
+    constexpr static std::uint8_t __max_vector_size = 4;
+
+  public:
+    // Multiple iterations per item are manually processed in the brick with a nd-range strided approach.
+    constexpr static std::uint8_t __preferred_iters_per_item = 1;
+    constexpr static bool __can_vectorize =
+        oneapi::dpl::__ranges::__is_vectorizable_range<std::decay_t<_Range>>::value &&
+        std::is_fundamental_v<_ValueType> && sizeof(_ValueType) < 4;
+    constexpr static std::uint8_t __preferred_vector_size =
+        __can_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, sizeof(_ValueType)) : 1;
+
     _DiffType __size;
     _DiffType __n;
 
-    template <typename _ItemId, typename _Range>
+    template <typename _IsFull, typename _ItemId>
     void
-    operator()(const _ItemId __idx, _Range&& __rng) const
+    __vector_path_impl(_IsFull __is_full, const _ItemId __idx, _Range __rng) const
+    {
+        const std::size_t __unsigned_size = __size;
+        const _DiffType __i = __idx - __n;
+        oneapi::dpl::__par_backend_hetero::__vector_load<__preferred_vector_size> __vec_load{__unsigned_size};
+        oneapi::dpl::__par_backend_hetero::__vector_store<__preferred_vector_size> __vec_store{__unsigned_size};
+        oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
+        oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
+            __store_op;
+        for (_DiffType __k = __n; __k < __size; __k += __n)
+        {
+            const _DiffType __read_offset = __k + __idx;
+            const _DiffType __write_offset = __k + __i;
+            if constexpr (_IsFull::value)
+            {
+                if (__read_offset + __preferred_vector_size <= __size)
+                {
+                    _ValueType __rng_vector[__preferred_vector_size];
+                    __vec_load(std::true_type{}, __read_offset, __load_op, __rng, __rng_vector);
+                    __vec_store(std::true_type{}, __write_offset, __store_op, __rng_vector, __rng);
+                }
+                else if (__read_offset < __size)
+                {
+                    const std::size_t __num_remaining = __size - __read_offset;
+                    for (_DiffType __j = 0; __j < __num_remaining; ++__j)
+                        __rng[__write_offset + __j] = __rng[__read_offset + __j];
+                }
+            }
+            else
+            {
+                // Some items within a sub-group may still have a full vector length to process even if _IsFull is
+                // false by intentional design of __stride_recommender. While these are vectorizable, this will result
+                // in branch divergence and masked execution of both vectorized and serial paths for all items in the
+                // sub-group which may worsen performance. Instead, have each item in the sub-group process its work
+                // serially.
+                for (_DiffType __j = 0; __j < std::min(std::size_t{__preferred_vector_size}, __n - __idx); ++__j)
+                    if (__read_offset + __j < __size)
+                        __rng[__write_offset + __j] = __rng[__read_offset + __j];
+            }
+        }
+    }
+
+    template <typename _IsFull, typename _ItemId>
+    void
+    __scalar_path_impl(_IsFull, const _ItemId __idx, _Range __rng) const
     {
         const _DiffType __i = __idx - __n; //loop invariant
         for (_DiffType __k = __n; __k < __size; __k += __n)
@@ -1057,6 +1490,16 @@ struct __brick_shift_left
             if (__k + __idx < __size)
                 __rng[__k + __i] = ::std::move(__rng[__k + __idx]);
         }
+    }
+
+    template <typename _IsFull, typename _ItemId>
+    void
+    operator()(_IsFull __is_full, const _ItemId __idx, _Range __rng) const
+    {
+        if constexpr (__can_vectorize)
+            __vector_path_impl(__is_full, __idx, __rng);
+        else
+            __scalar_path_impl(__is_full, __idx, __rng);
     }
 };
 
@@ -1074,14 +1517,14 @@ struct __brick_assign_key_position
 };
 
 // reduce the values in a segment associated with a key
-template <typename _BinaryOperator, typename _Size>
-struct __brick_reduce_idx
+template <typename _BinaryOperator, typename _Size, typename _Range>
+struct __brick_reduce_idx : public walk_scalar_base<_Range>
 {
     __brick_reduce_idx(const _BinaryOperator& __b, const _Size __n_) : __binary_op(__b), __n(__n_) {}
 
-    template <typename _Idx, typename _Values>
+    template <typename _Values>
     auto
-    reduce(_Idx __segment_begin, _Idx __segment_end, const _Values& __values) const
+    reduce(std::size_t __segment_begin, std::size_t __segment_end, const _Values& __values) const
     {
         using __ret_type = oneapi::dpl::__internal::__decay_with_tuple_specialization_t<decltype(__values[0])>;
         __ret_type __res = __values[__segment_begin];
@@ -1090,21 +1533,80 @@ struct __brick_reduce_idx
             __res = __binary_op(__res, __values[__segment_begin]);
         return __res;
     }
-
-    template <typename _ItemId, typename _ReduceIdx, typename _Values, typename _OutValues>
+    template <typename _IsFull, typename _ItemId, typename _ReduceIdx, typename _Values, typename _OutValues>
     void
-    operator()(const _ItemId __idx, const _ReduceIdx& __segment_starts, const _Values& __values,
-               _OutValues& __out_values) const
+    __scalar_path_impl(_IsFull, const _ItemId __idx, const _ReduceIdx& __segment_starts, const _Values& __values,
+                       _OutValues& __out_values) const
     {
         using __value_type = decltype(__segment_starts[__idx]);
         __value_type __segment_end =
             (__idx == __segment_starts.size() - 1) ? __value_type(__n) : __segment_starts[__idx + 1];
         __out_values[__idx] = reduce(__segment_starts[__idx], __segment_end, __values);
     }
+    template <typename _IsFull, typename _ItemId, typename _ReduceIdx, typename _Values, typename _OutValues>
+    void
+    operator()(_IsFull __is_full, const _ItemId __idx, const _ReduceIdx& __segment_starts, const _Values& __values,
+               _OutValues& __out_values) const
+    {
+        __scalar_path_impl(__is_full, __idx, __segment_starts, __values, __out_values);
+    }
 
   private:
     _BinaryOperator __binary_op;
     _Size __n;
+};
+
+// std::swap_ranges is unique in that both sets of provided ranges will be modified. Due to this,
+// we define a separate functor from __walk2_vectors_or_scalars with a customized vectorization path.
+template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
+struct __brick_swap : public walk_vector_or_scalar_base<_Range1, _Range2>
+{
+  private:
+    using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
+    _F __f;
+    std::size_t __n;
+
+  public:
+    __brick_swap(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
+
+    template <typename _IsFull>
+    void
+    __vector_path_impl(_IsFull __is_full, const std::size_t __idx, _Range1 __rng1, _Range2 __rng2) const
+    {
+        // Copies are used in the vector path of swap due to the restriction to fundamental types.
+        using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
+        _ValueType __rng_vector[__base_t::__preferred_vector_size];
+        typename __base_t::__vec_load_t __vec_load{__n};
+        typename __base_t::__vec_store_t __vec_store{__n};
+        // 1. Load elements from __rng1.
+        __vec_load(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{}, __rng1, __rng_vector);
+        // 2. Swap the __rng1 elements in the vector with __rng2 elements from global memory. Note the store operation
+        // updates __rng_vector due to the swap functor.
+        __vec_store(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f},
+                    __rng_vector, __rng2);
+        // 3. Store __rng2 elements in the vector into __rng1.
+        __vec_store(
+            __is_full, __idx,
+            oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>{},
+            __rng_vector, __rng1);
+    }
+
+    template <typename _IsFull>
+    void
+    __scalar_path_impl(_IsFull __is_full, const std::size_t __idx, const _Range1 __rng1, _Range2 __rng2) const
+    {
+        __f(__rng1[__idx], __rng2[__idx]);
+    }
+
+    template <typename _IsFull>
+    void
+    operator()(_IsFull __is_full, const std::size_t __idx, const _Range1 __rng1, _Range2 __rng2) const
+    {
+        if constexpr (__base_t::__can_vectorize)
+            __vector_path_impl(__is_full, __idx, __rng1, __rng2);
+        else
+            __scalar_path_impl(__is_full, __idx, __rng1, __rng2);
+    }
 };
 
 } // namespace unseq_backend

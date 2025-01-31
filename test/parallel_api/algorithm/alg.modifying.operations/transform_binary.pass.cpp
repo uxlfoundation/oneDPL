@@ -104,7 +104,7 @@ test(Predicate pred, _IteratorAdapter adap = {})
 #if PSTL_USE_DEBUG && ONEDPL_USE_OPENMP_BACKEND
         10000;
 #else
-        100000;
+        TestUtils::get_pattern_for_max_n();
 #endif
     for (size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
@@ -152,6 +152,8 @@ main()
 
     //test case for zip iterator
     test<50, std::int32_t, std::int32_t, std::int32_t>(TheOperationZip<std::int32_t>(1), _ZipIteratorAdapter{});
+
+    test<60, std::uint16_t, std::uint16_t, std::int32_t>(TheOperation<std::uint16_t, std::uint16_t, std::int32_t>(1));
 
     return done();
 }

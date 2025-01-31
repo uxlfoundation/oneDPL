@@ -162,10 +162,11 @@ void
 test()
 {
     const ::std::int64_t init_val = 999;
-    for (size_t n = 1; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    const size_t max_n = TestUtils::get_pattern_for_max_n();
+    for (size_t n = 1; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         {
-            Sequence<_Type> in1(n, [=](size_t k) { return (3 * k); });
+            Sequence<_Type> in1(n, [=](size_t k) { return (3 * k) % std::numeric_limits<_Type>::max(); });
             Sequence<_Type> in2(n, [=](size_t k) { return k % 2 == 0 ? 1 : 0; });
 
             Sequence<_Type> out(n, [=](size_t) { return init_val; });
@@ -178,7 +179,7 @@ test()
 #endif
         }
         {
-            Sequence<_Type> in1(n, [=](size_t k) { return k; });
+            Sequence<_Type> in1(n, [=](size_t k) { return k % std::numeric_limits<_Type>::max(); });
             Sequence<_Type> out(n, [=](size_t) { return init_val; });
 
             invoke_on_all_policies<2>()(test_transform_if_unary<_Type>(), in1.begin(), in1.end(), out.begin(),
@@ -196,10 +197,11 @@ void
 test_inplace()
 {
     const ::std::int64_t init_val = 999;
-    for (size_t n = 1; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    const size_t max_n = TestUtils::get_pattern_for_max_n();
+    for (size_t n = 1; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         {
-            Sequence<_Type> in1(n, [=](size_t k) { return k; });
+            Sequence<_Type> in1(n, [=](size_t k) { return k % std::numeric_limits<_Type>::max(); });
             Sequence<_Type> out(n, [=](size_t) { return 0; });
 
             invoke_on_all_policies<4>()(test_transform_if_unary_inplace<_Type>(), in1.begin(), in1.end(), out.begin(),
@@ -211,11 +213,15 @@ test_inplace()
 int
 main()
 {
-    test<::std::int32_t>();
-    test<::std::int64_t>();
+    test<std::int8_t>();
+    test<std::int16_t>();
+    test<std::int32_t>();
+    test<std::int64_t>();
 
-    test_inplace<::std::int32_t>();
-    test_inplace<::std::int64_t>();
+    test_inplace<std::int8_t>();
+    test_inplace<std::int16_t>();
+    test_inplace<std::int32_t>();
+    test_inplace<std::int64_t>();
 
     return done();
 }

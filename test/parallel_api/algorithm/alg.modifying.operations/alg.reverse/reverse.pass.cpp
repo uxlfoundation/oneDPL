@@ -69,7 +69,7 @@ template <typename T>
 void
 test()
 {
-    const ::std::size_t max_len = 100000;
+    const std::size_t max_len = TestUtils::get_pattern_for_max_n();
 
     Sequence<T> actual(max_len);
 
@@ -99,6 +99,7 @@ int
 main()
 {
     test<std::int32_t>();
+    test<std::uint8_t>();
     test<std::uint16_t>();
     test<float64_t>();
     test<wrapper<float32_t>>();

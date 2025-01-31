@@ -36,6 +36,7 @@
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
+#include "parallel_backend_sycl_for.h"
 #include "parallel_backend_sycl_reduce.h"
 #include "parallel_backend_sycl_merge.h"
 #include "parallel_backend_sycl_merge_sort.h"
@@ -219,56 +220,10 @@ template <typename... Name>
 class __scan_copy_single_wg_kernel;
 
 //------------------------------------------------------------------------
-// parallel_for - async pattern
-//------------------------------------------------------------------------
-
-// Use the trick with incomplete type and partial specialization to deduce the kernel name
-// as the parameter pack that can be empty (for unnamed kernels) or contain exactly one
-// type (for explicitly specified name by the user)
-template <typename _KernelName>
-struct __parallel_for_submitter;
-
-template <typename... _Name>
-struct __parallel_for_submitter<__internal::__optional_kernel_name<_Name...>>
-{
-    template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
-    auto
-    operator()(_ExecutionPolicy&& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
-    {
-        assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
-        _PRINT_INFO_IN_DEBUG_MODE(__exec);
-        auto __event = __exec.queue().submit([&__rngs..., &__brick, __count](sycl::handler& __cgh) {
-            //get an access to data under SYCL buffer:
-            oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
-
-            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item_id) {
-                auto __idx = __item_id.get_linear_id();
-                __brick(__idx, __rngs...);
-            });
-        });
-        return __future(__event);
-    }
-};
-
-//General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
-//for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
-template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
-auto
-__parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Fp __brick, _Index __count,
-               _Ranges&&... __rngs)
-{
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-    using _ForKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<_CustomName>;
-
-    return __parallel_for_submitter<_ForKernel>()(::std::forward<_ExecutionPolicy>(__exec), __brick, __count,
-                                                  ::std::forward<_Ranges>(__rngs)...);
-}
-
-//------------------------------------------------------------------------
 // parallel_transform_scan - async pattern
 //------------------------------------------------------------------------
 
-// Please see the comment for __parallel_for_submitter for optional kernel name explanation
+// Please see the comment above __parallel_for_small_submitter for optional kernel name explanation
 template <typename _CustomName, typename _PropagateScanName>
 struct __parallel_scan_submitter;
 
@@ -2174,7 +2129,7 @@ struct __partial_merge_kernel
     }
 };
 
-// Please see the comment for __parallel_for_submitter for optional kernel name explanation
+// Please see the comment above __parallel_for_small_submitter for optional kernel name explanation
 template <typename _GlobalSortName, typename _CopyBackName>
 struct __parallel_partial_sort_submitter;
 
@@ -2412,7 +2367,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
-        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n)>(__binary_op, __n), __intermediate_result_end,
+        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n), _Range2>(__binary_op, __n),
+        __intermediate_result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx),
                                                 __intermediate_result_end),
         std::forward<_Range2>(__values), oneapi::dpl::__ranges::views::all_write(__tmp_out_values))
@@ -2458,7 +2414,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
             std::forward<_ExecutionPolicy>(__exec)),
-        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end)>(
+        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end), _Range4>(
             __binary_op, __intermediate_result_end),
         __result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx), __result_end),

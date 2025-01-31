@@ -75,8 +75,9 @@ template <typename T, typename Convert, typename Predicate>
 void
 test(T trash, const T& old_value, const T& new_value, Predicate pred, Convert convert)
 {
+    const size_t max_n = TestUtils::get_pattern_for_max_n();
     // Try sequences of various lengths.
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         Sequence<T> in(n, [&](size_t k) -> T { return convert(n ^ k); });
         Sequence<T> out(n, [=](size_t) { return trash; });
@@ -122,6 +123,10 @@ main()
 
     test<std::int32_t>(-666, 42, 99, [](const std::int32_t& x) { return x != 42; },
                   [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 42 : -1 - std::int32_t(j); });
+
+    test<std::uint8_t>(123, 42, 99, [](const std::uint8_t& x) { return x != 42; },
+                  [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 42 : 255; });
+
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<Number>(Number(42, OddTag()), Number(2001, OddTag()), Number(2017, OddTag()), IsMultiple(3, OddTag()),

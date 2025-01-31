@@ -82,7 +82,8 @@ template <typename T>
 void
 test_generate_by_type()
 {
-    for (size_t n = 0; n <= 100000; n = n < 16 ? n + 1 : size_t(3.1415 * n))
+    size_t max_n = TestUtils::get_pattern_for_max_n();
+    for (size_t n = 0; n <= max_n; n = n < 16 ? n + 1 : size_t(3.1415 * n))
     {
         Sequence<T> in(n, [](size_t) -> T { return T(0); }); //fill by zero
 
@@ -123,6 +124,7 @@ struct test_non_const_generate_n
 int
 main()
 {
+    test_generate_by_type<std::uint8_t>();
     test_generate_by_type<std::int32_t>();
     test_generate_by_type<float64_t>();
 

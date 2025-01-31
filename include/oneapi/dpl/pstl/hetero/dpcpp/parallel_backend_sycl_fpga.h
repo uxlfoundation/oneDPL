@@ -48,7 +48,7 @@ namespace __par_backend_hetero
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
 //for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
 
-// Please see the comment for __parallel_for_submitter for optional kernel name explanation
+// Please see the comment above __parallel_for_small_submitter for optional kernel name explanation
 template <typename _Name>
 struct __parallel_for_fpga_submitter;
 
@@ -70,7 +70,7 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
 #pragma unroll(::std::decay <_ExecutionPolicy>::type::unroll_factor)
                 for (auto __idx = 0; __idx < __count; ++__idx)
                 {
-                    __brick(__idx, __rngs...);
+                    __brick.__scalar_path_impl(std::true_type{}, __idx, __rngs...);
                 }
             });
         });

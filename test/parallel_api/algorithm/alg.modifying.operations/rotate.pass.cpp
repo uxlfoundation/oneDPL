@@ -132,7 +132,7 @@ template <typename T>
 void
 test()
 {
-    const std::int32_t max_len = 100000;
+    const std::int32_t max_len = TestUtils::get_pattern_for_max_n();
 
     Sequence<T> actual(max_len, [](::std::size_t i) { return T(i); });
     Sequence<T> data(max_len, [](::std::size_t i) { return T(i); });
@@ -154,6 +154,8 @@ test()
 int
 main()
 {
+    test<std::int8_t>();
+    test<std::int16_t>();
     test<std::int32_t>();
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<wrapper<float64_t>>();
