@@ -245,7 +245,7 @@ __onesweep_impl(sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pa
     constexpr ::std::uint32_t __global_hist_item_count = __bin_count * __stage_count;
     const ::std::uint32_t __group_hist_item_count = __bin_count * __stage_count * __sweep_work_group_count;
 
-    // TODO: check if it is more performant to fill it inside the histgogram kernel
+    // TODO: check if it is more performant to fill it inside the histogram kernel
     // This line assumes that global and group histograms are stored sequentially
     sycl::event __event_chain = __q.memset(__mem_holder.__global_hist_ptr(), 0,
                                            (__global_hist_item_count + __group_hist_item_count) * sizeof(_GlobalHistT));
