@@ -25,6 +25,7 @@
 
 #include <type_traits>
 #include <cassert>
+#include <limits>
 
 #if !_PSTL_MSVC_LESS_THAN_CPP20_COMPLEX_CONSTEXPR_BROKEN
 #    define STD_COMPLEX_TESTS_STATIC_ASSERT(arg) static_assert(arg)
@@ -121,11 +122,8 @@ run_test()
 
 namespace TestUtils
 {
-    // This constant was declared to avoid the substitution and evaluation of the macro INFINITY
-    // inside Kernel code. Since the implementation of INFINITY macro is not regulated, there are
-    // cases where temporary expressions of type double are used to calculate the value of INFINITY.
-    // This lead to an error on devices where the double type is not supported.
-    static constexpr float infinity_val = INFINITY;
+    template <typename T>
+    static constexpr float infinity_val = std::numeric_limits<T>::infinity();
 
     // Run test in Kernel as single task
     template <typename TFncDoubleHasSupportInRuntime, typename TFncDoubleHasntSupportInRuntime>
