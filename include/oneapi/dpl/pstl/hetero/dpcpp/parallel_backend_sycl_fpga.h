@@ -62,7 +62,8 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
 
         _PRINT_INFO_IN_DEBUG_MODE(__exec);
-        auto __event = __exec.queue().submit([&__rngs..., &__brick, __count](sycl::handler& __cgh) {
+        auto __event = __exec.queue().submit([__brick, __count, // KSA: FIXED
+                                              __rngs...](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
