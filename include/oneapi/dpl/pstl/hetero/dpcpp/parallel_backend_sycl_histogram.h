@@ -229,7 +229,8 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
         ::std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
         ::std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
-        return __exec.queue().submit([&](auto& __h) {
+        return __exec.queue().submit([&__init_event, __work_group_size, &__input, &__bins, &__binhash_manager, __n, // KSA: FIXED
+                                      __num_bins, __extra_SLM_elements, __segments](auto& __h) {
             __h.depends_on(__init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
@@ -330,7 +331,9 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
         const ::std::size_t __num_bins = __bins.size();
         ::std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
-        return __exec.queue().submit([&](auto& __h) {
+        return __exec.queue().submit([__init_event, __work_group_size, &__input, // KSA: FIXED
+                                      &__bins, &__binhash_manager, __extra_SLM_elements,
+                                      __n, __num_bins, __segments](auto& __h) {
             __h.depends_on(__init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
@@ -432,7 +435,10 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
             oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _bin_type>(__exec, __segments * __num_bins)
                 .get_buffer();
 
-        return __exec.queue().submit([&](auto& __h) {
+        return __exec.queue().submit([&__init_event, __min_iters_per_work_item, __work_group_size, // KSA: FIXED
+                                      &__input, &__bins,
+                                      &__binhash_manager, __n, __num_bins, __iters_per_work_item, __segments,
+                                      &__private_histograms](auto& __h) {
             __h.depends_on(__init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
