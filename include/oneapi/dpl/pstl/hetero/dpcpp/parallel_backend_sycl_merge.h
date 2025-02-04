@@ -230,8 +230,10 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         else
             assert(__rng3.size() >= __n1 + __n2);
 
-        auto __event = __exec.queue().submit([&__rng1, &__rng2, &__rng3, __p_res_storage, __comp, __chunk, __steps, __n,
-                                              __n1, __n2](sycl::handler& __cgh) {
+        auto __event = __exec.queue().submit([&__rng1,  // KSA: FIXED
+                                              &__rng2,
+                                              &__rng3, __p_res_storage, __comp, __chunk,
+                                              __steps, __n, __n1, __n2](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
             auto __result_acc = __get_acc(__p_res_storage, __cgh);
 
@@ -322,8 +324,9 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
         const _IdType __base_diag_chunk = __nd_range_params.steps_between_two_base_diags * __nd_range_params.chunk;
 
-        return __exec.queue().submit([&__rng1, &__rng2, __comp, __nd_range_params, __base_diagonals_sp_global_storage,
-                                      __n1, __n2, __n, __base_diag_chunk](sycl::handler& __cgh) {
+        return __exec.queue().submit([&__rng1, &__rng2,  // KSA: FIXED
+                                      __comp, __nd_range_params, __base_diagonals_sp_global_storage, __n1, __n2, __n,
+                                      __base_diag_chunk](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2);
             auto __base_diagonals_sp_global_acc =
                 __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::write>(
@@ -358,8 +361,10 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         const _IdType __n2 = __rng2.size();
         const _IdType __n = std::min<_IdType>(__n1 + __n2, __rng3.size());
 
-        return __exec.queue().submit([&__event, &__rng1, &__rng2, &__rng3, __n, __comp, __nd_range_params,
-                                      __base_diagonals_sp_global_storage, __n1, __n2](sycl::handler& __cgh) {
+        return __exec.queue().submit([&__event, &__rng1,  // KSA: FIXED
+                                      &__rng2, &__rng3,
+                                      __n, __comp, __nd_range_params, __base_diagonals_sp_global_storage, __n1,
+                                      __n2](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
             auto __base_diagonals_sp_global_acc =
                 __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
