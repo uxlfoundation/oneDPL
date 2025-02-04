@@ -168,7 +168,8 @@ struct __subgroup_radix_sort
             _TempBuf<uint32_t, _SLM_counter> __buf_count(__counter_buf_sz);
 
             sycl::nd_range __range{sycl::range{__wg_size}, sycl::range{__wg_size}};
-            return __q.submit([&](sycl::handler& __cgh) {
+            return __q.submit([&__src, __proj, __n, &__buf_val, &__buf_count, // KSA: FIXED
+                               __range](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __src);
 
                 auto __exchange_lacc = __buf_val.get_acc(__cgh);
