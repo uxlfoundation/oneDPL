@@ -161,7 +161,12 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, __diff_type>(__exec, __n_groups).get_buffer();
 
     // 1. Count the segment ends in each workgroup
-    auto __seg_end_identification = __exec.queue().submit([&](sycl::handler& __cgh) {
+    auto __seg_end_identification = __exec.queue().submit([&__keys, &__seg_ends, __n_groups, __wgroup_size, // KSA: FIXED
+                                                           __vals_per_item, __binary_op, __binary_pred, __n
+#if _ONEDPL_COMPILE_KERNEL
+                                                           , __seg_reduce_count_kernel
+#endif
+    ](sycl::handler& __cgh) {
         oneapi::dpl::__ranges::__require_access(__cgh, __keys);
         auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::write>(__cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
@@ -198,7 +203,12 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     });
 
     // 1.5 Small single-group kernel
-    auto __single_group_scan = __exec.queue().submit([&](sycl::handler& __cgh) {
+    auto __single_group_scan = __exec.queue().submit([&__seg_end_identification, &__seg_ends, &__seg_ends_scanned, // KSA: FIXED
+                                                      __wgroup_size, __n_groups
+#if _ONEDPL_COMPILE_KERNEL
+                                                      , __seg_reduce_offset_kernel
+#endif
+    ](sycl::handler& __cgh) {
         __cgh.depends_on(__seg_end_identification);
         auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::read>(__cgh);
         auto __seg_ends_scan_acc = __seg_ends_scanned.template get_access<sycl::access_mode::read_write>(__cgh);
@@ -218,7 +228,13 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     });
 
     // 2. Work group reduction
-    auto __wg_reduce = __exec.queue().submit([&](sycl::handler& __cgh) {
+    auto __wg_reduce = __exec.queue().submit([&__single_group_scan, &__keys, &__out_keys, &__out_values, &__values, // KSA: FIXED
+                                              __n_groups, __wgroup_size, __vals_per_item, __n, __binary_op, __binary_pred,
+                                              &__seg_ends_scanned, &__partials
+#if _ONEDPL_COMPILE_KERNEL
+                                              , __seg_reduce_wg_kernel
+#endif
+    ](sycl::handler& __cgh) {
         __cgh.depends_on(__single_group_scan);
         oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_keys, __out_values, __values);
 
@@ -336,7 +352,12 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // 3. Apply inter work-group aggregates
     __exec.queue()
-        .submit([&](sycl::handler& __cgh) {
+        .submit([&__wg_reduce, &__keys, &__out_keys, &__out_values, &__partials, &__seg_ends_scanned, &__seg_ends, // KSA: FIXED
+                 &__end_idx, __n_groups, __wgroup_size, __vals_per_item, __n, __binary_op, __binary_pred
+#if _ONEDPL_COMPILE_KERNEL
+                 , __seg_reduce_prefix_kernel
+#endif
+    ](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_keys, __out_values);
 
             auto __partials_acc = __partials.template get_access<sycl::access_mode::read>(__cgh);
