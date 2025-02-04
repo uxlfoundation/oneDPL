@@ -191,7 +191,14 @@ __radix_sort_count_submit(_ExecutionPolicy&& __exec, ::std::size_t __segments, :
         oneapi::dpl::__ranges::all_view<_CountT, __par_backend_hetero::access_mode::read_write>(__count_buf);
 
     // submit to compute arrays with local count values
-    sycl::event __count_levent = __exec.queue().submit([&](sycl::handler& __hdl) {
+    sycl::event __count_levent = __exec.queue().submit([&__dependency_event, __segments, __wg_size, __radix_offset, // KSA: FIXED
+                                                        &__val_rng, __proj, __radix_states, __n, __elem_per_segment,
+                                                        __no_op_flag_idx, __count_rng
+#if _ONEDPL_COMPILE_KERNEL
+                                                        ,
+                                                        __kernel
+#endif
+    ](sycl::handler& __hdl) {
         __hdl.depends_on(__dependency_event);
 
         // ensure the input data and the space for counters are accessible
@@ -295,7 +302,12 @@ __radix_sort_scan_submit(_ExecutionPolicy&& __exec, ::std::size_t __scan_wg_size
 
     // compilation of the kernel prevents out of resources issue, which may occur due to usage of
     // collective algorithms such as joint_exclusive_scan even if local memory is not explicitly requested
-    sycl::event __scan_event = __exec.queue().submit([&](sycl::handler& __hdl) {
+    sycl::event __scan_event = __exec.queue().submit([&__dependency_event, __scan_wg_size, __n, __no_op_flag_idx, // KSA: FIXED
+                                                      &__count_rng, __scan_size, __radix_states
+#if _ONEDPL_COMPILE_KERNEL
+                                                      , __kernel
+#endif
+    ](sycl::handler& __hdl) {
         __hdl.depends_on(__dependency_event);
         // access the counters for all work groups
         oneapi::dpl::__ranges::__require_access(__hdl, __count_rng);
@@ -535,7 +547,14 @@ __radix_sort_reorder_submit(_ExecutionPolicy&& __exec, ::std::size_t __segments,
         oneapi::dpl::__ranges::all_view<::std::uint32_t, __par_backend_hetero::access_mode::read>(__offset_buf);
 
     // submit to reorder values
-    sycl::event __reorder_event = __exec.queue().submit([&](sycl::handler& __hdl) {
+    sycl::event __reorder_event = __exec.queue().submit([&__dependency_event, __segments, __sg_size, __radix_offset, // KSA: FIXED
+                                                         &__input_rng, &__output_rng, __proj, __radix_states, __n,
+                                                         __elem_per_segment, __no_op_flag_idx, __offset_rng
+#if _ONEDPL_COMPILE_KERNEL
+                                                         ,
+                                                         __kernel
+#endif
+    ](sycl::handler& __hdl) {
         __hdl.depends_on(__dependency_event);
         // access the offsets for all work groups
         oneapi::dpl::__ranges::__require_access(__hdl, __offset_rng);
