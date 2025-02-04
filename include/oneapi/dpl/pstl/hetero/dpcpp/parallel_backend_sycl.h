@@ -276,7 +276,13 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         _PRINT_INFO_IN_DEBUG_MODE(__exec, __wgroup_size, __max_cu);
 
         // 1. Local scan on each workgroup
-        auto __submit_event = __exec.queue().submit([&](sycl::handler& __cgh) {
+        auto __submit_event = __exec.queue().submit([&__rng1, &__rng2, __n, __wgroup_size, __iters_per_witem, // KSA: FIXED
+                                                     __size_per_wg, __n_groups, __init, __local_scan,
+                                                     &__result_and_scratch
+#if _ONEDPL_COMPILE_KERNEL
+            , __kernel_1
+#endif
+        ](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
             auto __temp_acc = __result_and_scratch.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
@@ -298,7 +304,12 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         if (__n_groups > 1)
         {
             auto __iters_per_single_wg = oneapi::dpl::__internal::__dpl_ceiling_div(__n_groups, __wgroup_size);
-            __submit_event = __exec.queue().submit([&](sycl::handler& __cgh) {
+            __submit_event = __exec.queue().submit([__submit_event, &__result_and_scratch, __wgroup_size, __n_groups, // KSA: FIXED
+                                                    __iters_per_single_wg, __group_scan
+#if _ONEDPL_COMPILE_KERNEL
+                                                    , __kernel_2
+#endif
+            ](sycl::handler& __cgh) {
                 __cgh.depends_on(__submit_event);
                 auto __temp_acc = __result_and_scratch.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
                 __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
@@ -319,7 +330,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         }
 
         // 3. Final scan for whole range
-        auto __final_event = __exec.queue().submit([&](sycl::handler& __cgh) {
+        auto __final_event = __exec.queue().submit([__submit_event, &__rng1, &__rng2, &__result_and_scratch, __n_groups, // KSA: FIXED
+                                                    __size_per_wg, __n, __global_scan](sycl::handler& __cgh) {
             __cgh.depends_on(__submit_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
             auto __temp_acc = __result_and_scratch.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
@@ -379,7 +391,8 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
         const ::std::uint16_t __elems_per_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size);
         const ::std::uint16_t __elems_per_wg = __elems_per_item * __wg_size;
 
-        return __policy.queue().submit([&](sycl::handler& __hdl) {
+        return __policy.queue().submit([&__in_rng, &__out_rng, __n, __init, __bin_op, __unary_op, __wg_size, // KSA: FIXED
+                                        __elems_per_wg](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
@@ -433,7 +446,9 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
 
         constexpr ::uint32_t __elems_per_wg = _ElemsPerItem * _WGSize;
 
-        return __policy.queue().submit([&](sycl::handler& __hdl) {
+        return __policy.queue().submit([&__in_rng, // KSA: FIXED
+                                        &__out_rng, __n, __init, __bin_op,
+                                        __unary_op, __elems_per_wg](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
@@ -497,7 +512,9 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Policy, _Size>;
         __result_and_scratch_storage_t __result{__policy, 1, 0};
 
-        auto __event = __policy.queue().submit([&](sycl::handler& __hdl) {
+        auto __event = __policy.queue().submit([&__in_rng, // KSA: FIXED
+                                                &__out_rng, __n, __init, __bin_op,
+                                                __unary_op, __assign, __elems_per_wg, &__result](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
             // Local memory is split into two parts. The first half stores the result of applying the
@@ -1750,7 +1767,9 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
         const auto __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size);
 
         // main parallel_for
-        auto __event = __exec.queue().submit([&](sycl::handler& __cgh) {
+        auto __event = __exec.queue().submit([__brick_tag, __rng_n, __wgroup_size, __init_value, __pred, // KSA: FIXED
+                                              __rngs..., &__result_storage,
+                                              __iters_per_work_item](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             auto __result_acc =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
@@ -1819,7 +1838,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
             sycl::buffer<_AtomicType, 1> __result_sycl_buf(&__result, 1); // temporary storage for global atomic
 
             // main parallel_for
-            __exec.queue().submit([&](sycl::handler& __cgh) {
+            __exec.queue().submit([__brick_tag, __rng_n, __n_groups, __wgroup_size, __init_value, __pred, // KSA: FIXED
+                                   __rngs..., &__result_sycl_buf, __iters_per_work_item](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
                 auto __result_sycl_buf_acc = __result_sycl_buf.template get_access<access_mode::read_write>(__cgh);
 
@@ -2119,7 +2139,8 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         sycl::event __event1;
         do
         {
-            __event1 = __exec.queue().submit([&, __data_in_temp, __k](sycl::handler& __cgh) {
+            __event1 = __exec.queue().submit([&__event1, &__rng, __merge, __comp, __n, &__temp, __k, // KSA: FIXED
+                                              __data_in_temp](sycl::handler& __cgh) {
                 __cgh.depends_on(__event1);
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
                 auto __temp_acc = __temp.template get_access<access_mode::read_write>(__cgh);
@@ -2150,7 +2171,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         // if results are in temporary buffer then copy back those
         if (__data_in_temp)
         {
-            __event1 = __exec.queue().submit([&](sycl::handler& __cgh) {
+            __event1 = __exec.queue().submit([&__event1, &__rng, &__temp, __n](sycl::handler& __cgh) { // KSA: FIXED
                 __cgh.depends_on(__event1);
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
                 auto __temp_acc = __temp.template get_access<access_mode::read>(__cgh);
