@@ -139,7 +139,9 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Tp>;
         __result_and_scratch_storage_t __scratch_container{__exec, 1, 0};
 
-        sycl::event __reduce_event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
+        sycl::event __reduce_event = __exec.queue().submit([__n, __work_group_size, __iters_per_work_item, __init, // KSA: FIXED
+                                                            __rngs..., __is_full, &__scratch_container,
+                                                            __transform_pattern, __reduce_pattern](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...); // get an access to data under SYCL buffer
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
@@ -204,7 +206,9 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
         const _Size __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
         const bool __is_full = __n == __size_per_work_group * __n_groups;
 
-        return __exec.queue().submit([&, __n](sycl::handler& __cgh) {
+        return __exec.queue().submit([__n, __work_group_size, __iters_per_work_item, __scratch_container, __rngs..., // KSA: FIXED
+                                      __n_groups, __is_full, __transform_pattern,
+                                      __reduce_pattern](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...); // get an access to data under SYCL buffer
             std::size_t __local_mem_size = __reduce_pattern.local_mem_req(__work_group_size);
             __dpl_sycl::__local_accessor<_Tp> __temp_local(sycl::range<1>(__local_mem_size), __cgh);
@@ -250,7 +254,9 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
 
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Tp>;
 
-        __reduce_event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
+        __reduce_event = __exec.queue().submit([&__reduce_event, __n, __work_group_size, __iters_per_work_item, __init, // KSA: FIXED
+                                                &__scratch_container, __transform_pattern, __reduce_pattern,
+                                                __is_full](sycl::handler& __cgh) {
             __cgh.depends_on(__reduce_event);
 
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
@@ -356,8 +362,14 @@ struct __parallel_transform_reduce_impl
         sycl::event __reduce_event;
         do
         {
-            __reduce_event = __exec.queue().submit([&, __is_first, __offset_1, __offset_2, __n,
-                                                    __n_groups](sycl::handler& __cgh) {
+            __reduce_event = __exec.queue().submit([&__reduce_event, __n, __work_group_size, __iters_per_work_item, // KSA: FIXED
+                                                    __init, __rngs..., &__transform_pattern1, &__transform_pattern2,           // KSA: TODO: what is correct capture mode for __transform_pattern1, __transform_pattern2, __reduce_pattern ?
+                                                    &__reduce_pattern, __size_per_work_group, __n_groups,
+                                                    &__scratch_container, __is_first, __offset_1, __offset_2
+#if _ONEDPL_COMPILE_KERNEL
+                                                    , __kernel
+#endif
+            ](sycl::handler& __cgh) {
                 __cgh.depends_on(__reduce_event);
                 auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(
                     __cgh, __is_first ? sycl::property_list{__dpl_sycl::__no_init{}} : sycl::property_list{});
