@@ -124,8 +124,8 @@ struct __sycl_scan_by_segment_impl
 
         const ::std::size_t __n = __keys.size();
 
-        constexpr ::std::uint16_t __vals_per_item =
-            4; // Assigning 4 elements per work item resulted in best performance on gpu.
+        // Assigning 4 elements per work item resulted in best performance on gpu.
+        constexpr ::std::uint16_t __vals_per_item = 4;
 
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
@@ -156,7 +156,13 @@ struct __sycl_scan_by_segment_impl
             oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, bool>(__exec, __n_groups).get_buffer();
 
         // 1. Work group reduction
-        auto __wg_scan = __exec.queue().submit([&](sycl::handler& __cgh) {
+        auto __wg_scan = __exec.queue().submit([&__partials, &__seg_ends, &__keys, // KSA: FIXED
+                                                &__values, &__out_values, __n_groups,
+                                                __wgroup_size, __identity, __init, __binary_op, __binary_pred, __n
+#    if _ONEDPL_COMPILE_KERNEL
+                                                , __seg_scan_wg_kernel
+#    endif
+        ](sycl::handler& __cgh) {
             auto __partials_acc = __partials.template get_access<sycl::access_mode::write>(__cgh);
             auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::write>(__cgh);
 
@@ -257,7 +263,12 @@ struct __sycl_scan_by_segment_impl
 
         // 2. Apply work group carry outs, calculate output indices, and load results into correct indices.
         __exec.queue()
-            .submit([&](sycl::handler& __cgh) {
+            .submit([&__wg_scan, &__partials, &__seg_ends, __wgroup_size, __n, &__keys, &__out_values, __identity, // KSA: FIXED
+                     __binary_op, __binary_pred, __n_groups
+#    if _ONEDPL_COMPILE_KERNEL
+                     , __seg_scan_prefix_kernel
+#    endif
+        ](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_values);
 
                 auto __partials_acc = __partials.template get_access<sycl::access_mode::read>(__cgh);
