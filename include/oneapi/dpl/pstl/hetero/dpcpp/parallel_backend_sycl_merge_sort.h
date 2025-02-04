@@ -215,7 +215,7 @@ struct __merge_sort_leaf_submitter<__internal::__optional_kernel_name<_LeafSortN
     sycl::event
     operator()(sycl::queue& __q, _Range& __rng, _LeafSorter& __leaf_sorter) const
     {
-        return __q.submit([&__rng, &__leaf_sorter](sycl::handler& __cgh) {
+        return __q.submit([&__rng, &__leaf_sorter](sycl::handler& __cgh) { // KSA: FIXED
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __storage_acc = __leaf_sorter.create_storage_accessor(__cgh);
             const std::uint32_t __wg_count =
@@ -390,7 +390,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     {
         const _IndexT __n = __rng.size();
 
-        return __exec.queue().submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp,
+        return __exec.queue().submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp, // KSA: FIXED
                                       __nd_range_params, &__base_diagonals_sp_global_storage,
                                       __n](sycl::handler& __cgh) {
             __cgh.depends_on(__event_chain);
@@ -482,7 +482,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     {
         const _IndexT __n = __rng.size();
 
-        return __exec.queue().submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp,
+        return __exec.queue().submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp, // KSA: FIXED
                                       __nd_range_params, __n](sycl::handler& __cgh) {
             __cgh.depends_on(__event_chain);
 
@@ -524,7 +524,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     {
         const _IndexT __n = __rng.size();
 
-        return __exec.queue().submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp,
+        return __exec.queue().submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp, // KSA: FIXED
                                       __nd_range_params, &__base_diagonals_sp_global_storage,
                                       __n](sycl::handler& __cgh) {
             __cgh.depends_on(__event_chain);
@@ -667,7 +667,7 @@ struct __merge_sort_copy_back_submitter<__internal::__optional_kernel_name<_Copy
     sycl::event
     operator()(sycl::queue& __q, _Range& __rng, _TempBuf& __temp_buf, sycl::event __event_chain) const
     {
-        return __q.submit([&__rng, &__temp_buf, &__event_chain](sycl::handler& __cgh) {
+        return __q.submit([&__rng, &__temp_buf, &__event_chain](sycl::handler& __cgh) { // KSA: FIXED
             __cgh.depends_on(__event_chain);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __temp_acc = __temp_buf.template get_access<access_mode::read>(__cgh);
