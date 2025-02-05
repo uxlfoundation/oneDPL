@@ -140,7 +140,12 @@ void test_edges()
 
 ONEDPL_TEST_NUM_MAIN
 {
+#if !_PSTL_TEST_COMPLEX_OP_ACOS_USING_DOUBLE
     test<float>();
+#else
+    IF_DOUBLE_SUPPORT(test<float>())
+#endif
+
     IF_DOUBLE_SUPPORT(test<double>())
     IF_LONG_DOUBLE_SUPPORT(test<long double>())
     IF_DOUBLE_SUPPORT(test_edges())
