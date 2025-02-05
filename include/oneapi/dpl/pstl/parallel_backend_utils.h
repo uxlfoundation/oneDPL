@@ -16,8 +16,13 @@
 #ifndef _ONEDPL_PARALLEL_BACKEND_UTILS_H
 #define _ONEDPL_PARALLEL_BACKEND_UTILS_H
 
+#include <atomic>
+#include <cstddef>
 #include <iterator>
+#include <memory>
+#include <tuple>
 #include <utility>
+#include <vector>
 #include <cassert>
 #include "utils.h"
 #include "memory_fwd.h"
@@ -301,6 +306,77 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     return __cc_range(__first2, __last2, __result);
 }
 
+namespace __detail
+{
+
+template <typename _ValueType, typename _GetNumThreads, typename _GetThreadNum, typename... _Args>
+struct __enumerable_thread_local_storage
+{
+
+    template <typename... _LocalArgs>
+    __enumerable_thread_local_storage(_LocalArgs&&... __args)
+        : __thread_specific_storage(_GetNumThreads{}()), __num_elements(0), __args(std::forward<_LocalArgs>(__args)...)
+    {
+    }
+
+    // Note: size should not be used concurrently with parallel loops which may instantiate storage objects, as it may
+    // not return an accurate count of instantiated storage objects in lockstep with the number allocated and stored.
+    // This is because the count is not atomic with the allocation and storage of the storage objects.
+    std::size_t
+    size() const
+    {
+        // only count storage which has been instantiated
+        return __num_elements.load(std::memory_order_relaxed);
+    }
+
+    // Note: get_with_id should not be used concurrently with parallel loops which may instantiate storage objects,
+    // as its operation may provide an out of date view of the stored objects based on the timing new object creation
+    // and incrementing of the size.
+    // TODO: Consider replacing this access with a visitor pattern.
+    _ValueType&
+    get_with_id(std::size_t __i)
+    {
+        assert(__i < size());
+
+        if (size() == __thread_specific_storage.size())
+        {
+            return *__thread_specific_storage[__i];
+        }
+
+        std::size_t __j = 0;
+        for (std::size_t __count = 0; __j < __thread_specific_storage.size() && __count <= __i; ++__j)
+        {
+            // Only include storage from threads which have instantiated a storage object
+            if (__thread_specific_storage[__j])
+            {
+                ++__count;
+            }
+        }
+        // Need to back up one once we have found a valid storage object
+        return *__thread_specific_storage[__j - 1];
+    }
+
+    _ValueType&
+    get_for_current_thread()
+    {
+        const std::size_t __i = _GetThreadNum{}();
+        std::unique_ptr<_ValueType>& __thread_local_storage = __thread_specific_storage[__i];
+        if (!__thread_local_storage)
+        {
+            // create temporary storage on first usage to avoid extra parallel region and unnecessary instantiation
+            __thread_local_storage =
+                std::apply([](_Args... __arg_pack) { return std::make_unique<_ValueType>(__arg_pack...); }, __args);
+            __num_elements.fetch_add(1, std::memory_order_relaxed);
+        }
+        return *__thread_local_storage;
+    }
+
+    std::vector<std::unique_ptr<_ValueType>> __thread_specific_storage;
+    std::atomic_size_t __num_elements;
+    const std::tuple<_Args...> __args;
+};
+
+} // namespace __detail
 } // namespace __utils
 } // namespace dpl
 } // namespace oneapi
