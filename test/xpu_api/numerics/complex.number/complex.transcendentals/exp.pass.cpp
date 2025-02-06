@@ -83,7 +83,7 @@ void test_edges()
         else if (std::isinf(testcases[i].real()) && testcases[i].real() > 0 && std::isnan(testcases[i].imag()))
         {
             assert(std::isinf(r.real()));
-#if !_PSTL_ICC_TEST_COMPLEX_EXP_BROKEN_TEST_EDGES
+#if !_PSTL_ICC_TEST_COMPLEX_EXP_BROKEN_TEST_EDGES && !_PSTL_ICC_TEST_COMPLEX_EXP_BROKEN_TEST_EDGES_LATEST
             assert(std::isnan(r.imag()));
 #endif
         }
