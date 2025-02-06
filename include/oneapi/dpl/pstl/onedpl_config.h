@@ -157,6 +157,15 @@
 #define _ONEDPL_CPP17_EXECUTION_POLICIES_PRESENT                                                                       \
     (_ONEDPL___cplusplus >= 201703L && (_MSC_VER >= 1912 || (_GLIBCXX_RELEASE >= 9 && __GLIBCXX__ >= 20190503)))
 
+// In the SYCL backend reduce-then-scan path, we need to be able to differentiate between when a compiler enables
+// optimizations and when it does not. With GCC and clang-based compilers, we can detect this with the __OPTIMIZE__
+// flag.
+#if _ONEDPL_GCC_VERSION > 0 || defined(_ONEDPL_CLANG_VERSION)
+#    define _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED __OPTIMIZE__
+#else
+#    define _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED 0
+#endif
+
 #define _ONEDPL_EARLYEXIT_PRESENT (__INTEL_COMPILER >= 1800)
 #if (defined(_PSTL_PRAGMA_SIMD_EARLYEXIT) && _PSTL_EARLYEXIT_PRESENT)
 #    define _ONEDPL_PRAGMA_SIMD_EARLYEXIT _PSTL_PRAGMA_SIMD_EARLYEXIT
