@@ -1308,35 +1308,46 @@ __parallel_for_each(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy
 
 namespace __detail
 {
-struct __get_num_threads
+
+// Workaround for VS 2017: declare an alias to the CRTP base template
+template <typename _ValueType, typename... _Args>
+struct __enumerable_thread_local_storage;
+
+template <typename... _Ts>
+using __etls_base = __utils::__enumerable_thread_local_storage_base<__enumerable_thread_local_storage, _Ts...>;
+
+template <typename _ValueType, typename... _Args>
+struct __enumerable_thread_local_storage : public __etls_base<_ValueType, _Args...>
 {
-    std::size_t
-    operator()() const
+
+    template <typename... _LocalArgs>
+    __enumerable_thread_local_storage(_LocalArgs&&... __args)
+        : __etls_base<_ValueType, _Args...>({std::forward<_LocalArgs>(__args)...})
+    {
+    }
+
+    static std::size_t
+    get_num_threads()
     {
         return tbb::this_task_arena::max_concurrency();
     }
-};
 
-struct __get_thread_num
-{
-    std::size_t
-    operator()() const
+    static std::size_t
+    get_thread_num()
     {
         return tbb::this_task_arena::current_thread_index();
     }
 };
-} //namespace __detail
 
-// enumerable thread local storage should only be created from make function
-template <typename _ValueType, typename... Args>
-oneapi::dpl::__utils::__detail::__enumerable_thread_local_storage<
-    _ValueType, oneapi::dpl::__tbb_backend::__detail::__get_num_threads,
-    oneapi::dpl::__tbb_backend::__detail::__get_thread_num, Args...>
-__make_enumerable_tls(Args&&... __args)
+} // namespace __detail
+
+// enumerable thread local storage should only be created with this make function
+template <typename _ValueType, typename... _Args>
+__detail::__enumerable_thread_local_storage<_ValueType, std::remove_reference_t<_Args>...>
+__make_enumerable_tls(_Args&&... __args)
 {
-    return oneapi::dpl::__utils::__detail::__enumerable_thread_local_storage<
-        _ValueType, oneapi::dpl::__tbb_backend::__detail::__get_num_threads,
-        oneapi::dpl::__tbb_backend::__detail::__get_thread_num, Args...>(std::forward<Args>(__args)...);
+    return __detail::__enumerable_thread_local_storage<_ValueType, std::remove_reference_t<_Args>...>(
+        std::forward<_Args>(__args)...);
 }
 
 } // namespace __tbb_backend
