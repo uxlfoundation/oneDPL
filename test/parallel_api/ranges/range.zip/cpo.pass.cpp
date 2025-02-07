@@ -22,72 +22,67 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
+namespace dpl = oneapi::dpl;
 
-}
+#if 1
+template <typename... Types>
+using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
+#else
+using tuple_type = std::tuple<Types...>;
+#endif
 
-namespace _std = oneapi::dpl::ranges;
-
-static_assert(std::is_invocable_v<decltype((_std::views::zip))>);
-static_assert(!std::is_invocable_v<decltype((_std::views::zip)), int>);
-static_assert(std::is_invocable_v<decltype((_std::views::zip)), SizedRandomAccessView>);
+static_assert(std::is_invocable_v<decltype((dpl::views::zip))>);
+static_assert(!std::is_invocable_v<decltype((dpl::views::zip)), int>);
+static_assert(std::is_invocable_v<decltype((dpl::views::zip)), SizedRandomAccessView>);
 static_assert(
-    std::is_invocable_v<decltype((_std::views::zip)), SizedRandomAccessView, std::ranges::iota_view<int, int>>);
-static_assert(!std::is_invocable_v<decltype((_std::views::zip)), SizedRandomAccessView, int>);
+    std::is_invocable_v<decltype((dpl::views::zip)), SizedRandomAccessView, std::ranges::iota_view<int, int>>);
+static_assert(!std::is_invocable_v<decltype((dpl::views::zip)), SizedRandomAccessView, int>);
 
-constexpr bool test() {
+int test() {
   {
     // zip zero arguments
-    auto v = _std::views::zip();
+    auto v = dpl::views::zip();
     assert(std::ranges::empty(v));
-    static_assert(std::is_same_v<decltype(v), std::ranges::empty_view<std::tuple<>>>);
+    static_assert(std::is_same_v<decltype(v), std::ranges::empty_view<tuple_type<>>>);
   }
 
   {
     // zip a view
     int buffer[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-    std::same_as<std::ranges::zip_view<SizedRandomAccessView>> decltype(auto) v =
-        _std::views::zip(SizedRandomAccessView{buffer});
+    std::same_as<dpl::ranges::zip_view<SizedRandomAccessView>> decltype(auto) v =
+        dpl::views::zip(SizedRandomAccessView{buffer});
     assert(std::ranges::size(v) == 8);
-    static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v)>, std::tuple<int&>>);
+    static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v)>, tuple_type<int&>>);
   }
 
   {
     // zip a viewable range
     std::array a{1, 2, 3};
-    std::same_as<std::ranges::zip_view<std::ranges::ref_view<std::array<int, 3>>>> decltype(auto) v =
-        _std::views::zip(a);
+    std::same_as<dpl::ranges::zip_view<std::ranges::ref_view<std::array<int, 3>>>> decltype(auto) v =
+        dpl::views::zip(a);
     assert(&(std::get<0>(*v.begin())) == &(a[0]));
-    static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v)>, std::tuple<int&>>);
+    static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v)>, tuple_type<int&>>);
   }
 
   {
     // zip the zip_view
     int buffer[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-    std::same_as<std::ranges::zip_view<SizedRandomAccessView, SizedRandomAccessView>> decltype(auto) v =
-        _std::views::zip(SizedRandomAccessView{buffer}, SizedRandomAccessView{buffer});
+    std::same_as<dpl::ranges::zip_view<SizedRandomAccessView, SizedRandomAccessView>> decltype(auto) v =
+        dpl::views::zip(SizedRandomAccessView{buffer}, SizedRandomAccessView{buffer});
 
     std::same_as<
-        std::ranges::zip_view<std::ranges::zip_view<SizedRandomAccessView, SizedRandomAccessView>>> decltype(auto) v2 =
-        _std::views::zip(v);
+        dpl::ranges::zip_view<dpl::ranges::zip_view<SizedRandomAccessView, SizedRandomAccessView>>> decltype(auto) v2 =
+        dpl::views::zip(v);
 
 #ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
-    static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v2)>, std::tuple<std::pair<int&, int&>>>);
+    static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v2)>, tuple_type<std::pair<int&, int&>>>);
 #else
-    static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v2)>, std::tuple<std::tuple<int&, int&>>>);
+    static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v2)>, tuple_type<tuple_type<int&, int&>>>);
 #endif
   }
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }
