@@ -891,7 +891,7 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
 
 }
 
-template <typename SetOp, typename _Compare>
+template <typename _SetOp, typename _Compare>
 struct __gen_set_balances_path
 {
     template <typename _InRng>
@@ -902,24 +902,22 @@ struct __gen_set_balances_path
         // dereferencing is dangerous
         auto __set_a = std::get<0>(__in_rng.tuple());    // first sequence
         auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence
+
+        //consider building these into the definition of the building block with a requires function
         auto __set_temp_output = std::get<2>(__in_rng.tuple()); // temp_output sequence
         auto __set_temp_count = std::get<3>(__in_rng.tuple()); // temp_count sequence
 
 
         //Find balanced path for diagonal start
-        auto [__set_a_pos, __set_b_pos]  = __find_balanced_path_start_point(__set_a, __set_b, __id * __diagonal_spacing, __set_a.size(), __set_b.size(), __comp);
+        auto [__set_a_pos, __set_b_pos, star_offset]  = __find_balanced_path_start_point(__set_a, __set_b, __id * __diagonal_spacing, __set_a.size(), __set_b.size(), __comp);
+        auto& __set_temp_count_ref = __set_temp_count[_id];
+        __set_temp_count_ref = __set_op(__set_a.begin() + __set_a_pos, __set_b.begin() + __set_b_pos, __diagonal_spacing - star_offset,
+                                          __set_temp_output.begin() + __id * __diagonal_spacing + star_offset, __comp);
 
-        //Find balanced path for diagonal end (is this necessary??)
-        auto [__set_a_pos2, __set_b_pos2]  = __find_balanced_path_start_point(__set_a, __set_b, (__id + 1) * __diagonal_spacing, __set_a.size(), __set_b.size(), __comp);
-
-        __set_temp_count[__id] = __set_op(__set_a.begin() + __set_a_pos, __set_a.begin() + __set_a_pos2,
-                                          __set_b.begin() + __set_b_pos, __set_a.begin() + __set_b_pos2,
-                                          __set_temp_output.begin() + __id * __diagonal_spacing, __comp);
-
-        return __set_temp_count[__id];
+        return __set_temp_count_ref;
     }
     _Compare __comp;
-    std::size_t __diagonal_spacing;
+    std::uint16_t __diagonal_spacing;
     _SetOp __set_op;
 };
 
