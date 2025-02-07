@@ -109,7 +109,7 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
                                               tuple_type<std::ranges::range_value_t<Views>...>>;
 
         using reference_type = std::conditional_t<Const, tuple_type<std::ranges::range_reference_t<const Views>...>,
-                                              tuple_type<std::ranges::range_reference_t<Views>...>>;
+                                                  tuple_type<std::ranges::range_reference_t<Views>...>>;
 
         using difference_type =
             std::conditional_t<Const, std::common_type_t<std::ranges::range_difference_t<const Views>...>,
@@ -273,9 +273,9 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
       private:
         template <std::size_t... In>
         constexpr bool
-        compare_equal(iterator y, std::index_sequence<In...>)
+        compare_equal(iterator y, std::index_sequence<In...>) const
         {
-            return ((std::get<In>(current_) == std::get<In>(y.current_)) && ...);
+            return ((std::get<In>(current_) == std::get<In>(y.current_)) || ...);
         }
 
         template <typename SentinelsTuple, std::size_t... In>
@@ -390,7 +390,7 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
     }
 
     constexpr auto
-    end() requires(std::ranges::range<Views>&&...)
+    end() requires(!(__simple_view_concept<Views> && ...))
     {
         if constexpr (!zip_is_common<Views...>)
         {
