@@ -58,6 +58,11 @@ requires all_forward<Const, Views...> struct declare_iterator_category<Const, Vi
     using iterator_category = std::input_iterator_tag;
 };
 
+template <typename _R>
+    concept __simple_view_concept =
+        std::ranges::view<_R> && std::ranges::range<const _R> && std::same_as<std::ranges::iterator_t<_R>,
+        std::ranges::iterator_t<const _R>> && std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
+
 template <std::ranges::input_range... Views>
 requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_view
     : public std::ranges::view_interface<zip_view<Views...>>
@@ -103,6 +108,9 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
         using value_type = std::conditional_t<Const, tuple_type<std::ranges::range_value_t<const Views>...>,
                                               tuple_type<std::ranges::range_value_t<Views>...>>;
 
+        using reference_type = std::conditional_t<Const, tuple_type<std::ranges::range_reference_t<const Views>...>,
+                                              tuple_type<std::ranges::range_reference_t<Views>...>>;
+
         using difference_type =
             std::conditional_t<Const, std::common_type_t<std::ranges::range_difference_t<const Views>...>,
                                std::common_type_t<std::ranges::range_difference_t<Views>...>>;
@@ -133,9 +141,7 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
         operator*() const
         {
             auto __tr = [](auto&&... __args) -> decltype(auto) {
-                using return_tuple_type =
-                    std::conditional_t<!Const, tuple_type<std::ranges::range_reference_t<Views>...>,
-                                       tuple_type<std::ranges::range_reference_t<const Views>...>>;
+                using return_tuple_type = reference_type;
                 return return_tuple_type(std::forward<decltype(__args)>(__args)...);
             };
             return apply_to_tuple(__tr, [](auto it) -> decltype(auto) { return *it; }, current_);
@@ -197,8 +203,10 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
             return *this;
         }
 
+        //TODO: this implemntation leads to ambiguity in case of 'iterator<false> == iterator<true>'
+        /*template<bool ConstX, bool ConstY>
         friend constexpr bool
-        operator==(const iterator& x, const iterator& y) requires(
+        operator==(const iterator<ConstX>& x, const iterator<ConstY>& y) requires(
             std::equality_comparable<
                 std::conditional_t<!Const, std::ranges::iterator_t<Views>, std::ranges::iterator_t<const Views>>>&&...)
         {
@@ -209,6 +217,22 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
             else
             {
                 return x.compare_equal(y, std::make_index_sequence<sizeof...(Views)>());
+            }
+        }*/
+
+        template<bool ConstY>
+        constexpr bool
+        operator==(const iterator<ConstY>& y) const requires(
+            std::equality_comparable<
+                std::conditional_t<!Const, std::ranges::iterator_t<Views>, std::ranges::iterator_t<const Views>>>&&...)
+        {
+            if constexpr (all_bidirectional<Const, Views...>)
+            {
+                return current_ == y.current_;
+            }
+            else
+            {
+                return compare_equal(y, std::make_index_sequence<sizeof...(Views)>());
             }
         }
 
@@ -352,7 +376,7 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
     }; // class sentinel
 
     constexpr auto
-    begin() requires(std::ranges::range<Views>&&...)
+    begin() requires(!(__simple_view_concept<Views> && ...))
     {
         auto __tr = [](auto... __args) { return iterator<false>(__args...); };
         return apply_to_tuple(__tr, std::ranges::begin, views_);
