@@ -455,19 +455,35 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
 template <typename... Rs>
 zip_view(Rs&&...) -> zip_view<std::views::all_t<Rs>...>;
 
+namespace __internal
+{
 struct zip_fn
 {
-    template <std::ranges::viewable_range... Rs>
+    /*template <std::ranges::viewable_range... Rs>
     constexpr auto
     operator()(Rs&&... rs) const
     {
-        return zip_view<std::views::all_t<decltype((rs))>...>(std::forward<Rs>(rs)...);
+        return oneapi::dpl::ranges::zip_view<std::views::all_t<decltype((rs))>...>(std::forward<Rs>(rs)...);
+    }*/
+
+    template <class... _Ranges>
+    constexpr auto
+    operator()(_Ranges&&... __rs) const noexcept(noexcept(oneapi::dpl::ranges::zip_view<std::views::all_t<_Ranges&&>...>(std::forward<_Ranges>(__rs)...)))
+      -> decltype(oneapi::dpl::ranges::zip_view<std::views::all_t<_Ranges&&>...>(std::forward<_Ranges>(__rs)...)) {
+    return oneapi::dpl::ranges::zip_view<std::views::all_t<_Ranges>...>(std::forward<_Ranges>(__rs)...);
     }
+    
+    constexpr auto
+    operator()() const noexcept { return std::ranges::empty_view<oneapi::dpl::__internal::tuple<>>{}; }
 };
-
-inline constexpr zip_fn zip{};
-
+} // namespace __internal
 } // namespace ranges
+
+namespace views
+{
+inline constexpr oneapi::dpl::ranges::__internal::zip_fn zip{};
+} //namespace views
+
 } // namespace dpl
 } // namespace oneapi
 
