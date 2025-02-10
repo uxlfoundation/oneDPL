@@ -23,20 +23,12 @@
 #include "types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
 
-}
-
-namespace _std = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 int main(int, char**) {
   {
-    std::ranges::zip_view v{
+    dpl_ranges::zip_view v{
         std::array{1, 2},
         std::vector{4, 5, 6},
         std::array{7},
@@ -48,7 +40,7 @@ int main(int, char**) {
     using namespace std::string_literals;
     std::vector v{1, 2, 3, 4};
     std::array a{"abc"s, "def"s, "gh"s};
-    auto view = _std::views::zip(v, a);
+    auto view = dpl_ranges::views::zip(v, a);
     auto it = view.begin();
     assert(&(std::get<0>(*it)) == &(v[0]));
     assert(&(std::get<1>(*it)) == &(a[0]));
