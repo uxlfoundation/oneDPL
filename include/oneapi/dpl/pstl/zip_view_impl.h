@@ -93,7 +93,7 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
 
   public:
     zip_view() = default;
-    constexpr zip_view(Views... views) : views_(std::move(views)...) {}
+    constexpr explicit zip_view(Views... views) : views_(std::move(views)...) {}
 
     template <bool Const>
     class iterator : declare_iterator_category<Const, Views...>
@@ -441,13 +441,6 @@ namespace __internal
 {
 struct zip_fn
 {
-    /*template <std::ranges::viewable_range... Rs>
-    constexpr auto
-    operator()(Rs&&... rs) const
-    {
-        return oneapi::dpl::ranges::zip_view<std::views::all_t<decltype((rs))>...>(std::forward<Rs>(rs)...);
-    }*/
-
     template <class... _Ranges>
     constexpr auto
     operator()(_Ranges&&... __rs) const noexcept(noexcept(oneapi::dpl::ranges::zip_view<std::views::all_t<_Ranges&&>...>(std::forward<_Ranges>(__rs)...)))
