@@ -130,7 +130,8 @@ class __histo_kernel_private_glocal_atomics;
 template <typename _HistAccessor, typename _OffsetT, typename _Size>
 void
 __clear_wglocal_histograms(const _HistAccessor& __local_histogram, const _OffsetT& __offset, _Size __num_bins,
-                           const sycl::nd_item<1>& __self_item)
+                           const sycl::nd_item<1>& __self_item,
+                           __dpl_sycl::__fence_space_t __fence_space = __dpl_sycl::__fence_space_local)
 {
     using _BinUint_t =
         ::std::conditional_t<(sizeof(_Size) >= sizeof(::std::uint32_t)), ::std::uint64_t, ::std::uint32_t>;
@@ -148,7 +149,7 @@ __clear_wglocal_histograms(const _HistAccessor& __local_histogram, const _Offset
     {
         __local_histogram[__offset + __gSize * __k + __self_lidx] = 0;
     }
-    __dpl_sycl::__group_barrier(__self_item);
+    __dpl_sycl::__group_barrier(__self_item, __fence_space);
 }
 
 template <typename _BinIdxType, typename _ValueType, typename _HistReg, typename _BinFunc>
@@ -444,7 +445,8 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                     const ::std::size_t __wgroup_idx = __self_item.get_group(0);
                     const ::std::size_t __seg_start = __work_group_size * __iters_per_work_item * __wgroup_idx;
 
-                    __clear_wglocal_histograms(__hacc_private, __wgroup_idx * __num_bins, __num_bins, __self_item);
+                    __clear_wglocal_histograms(__hacc_private, __wgroup_idx * __num_bins, __num_bins, __self_item,
+                                               __dpl_sycl::__fence_space_global);
 
                     if (__seg_start + __work_group_size * __iters_per_work_item < __n)
                     {
@@ -469,7 +471,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                         }
                     }
 
-                    __dpl_sycl::__group_barrier(__self_item);
+                    __dpl_sycl::__group_barrier(__self_item, __dpl_sycl::__fence_space_global);
 
                     __reduce_out_histograms<_bin_type, ::std::uint32_t>(__hacc_private, __wgroup_idx * __num_bins,
                                                                         __bins, __num_bins, __self_item);
