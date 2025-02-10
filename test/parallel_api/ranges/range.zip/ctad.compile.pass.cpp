@@ -12,19 +12,12 @@
 // zip_view(Rs&&...) -> zip_view<views::all_t<Rs>...>;
 
 #include <cassert>
-#include <ranges>
 #include <utility>
 
 #include <oneapi/dpl/ranges>
+#include <ranges>
 
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
-
-}
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 struct Container {
   int* begin() const;
@@ -37,14 +30,16 @@ struct View : std::ranges::view_base {
 };
 
 void testCTAD() {
-  static_assert(std::is_same_v<decltype(std::ranges::zip_view(Container{})),
-                               std::ranges::zip_view<std::ranges::owning_view<Container>>>);
+  using t1 = std::ranges::owning_view<Container>;
+  auto var = dpl_ranges::zip_view(Container{});
+  static_assert(std::is_same_v<decltype(dpl_ranges::zip_view(Container{})),
+                               dpl_ranges::zip_view<std::ranges::owning_view<Container>>>);
 
-  static_assert(std::is_same_v<decltype(std::ranges::zip_view(Container{}, View{})),
-                               std::ranges::zip_view<std::ranges::owning_view<Container>, View>>);
+  static_assert(std::is_same_v<decltype(dpl_ranges::zip_view(Container{}, View{})),
+                               dpl_ranges::zip_view<std::ranges::owning_view<Container>, View>>);
 
   Container c{};
   static_assert(std::is_same_v<
-                decltype(std::ranges::zip_view(Container{}, View{}, c)),
-                std::ranges::zip_view<std::ranges::owning_view<Container>, View, std::ranges::ref_view<Container>>>);
+                decltype(dpl_ranges::zip_view(Container{}, View{}, c)),
+                dpl_ranges::zip_view<std::ranges::owning_view<Container>, View, std::ranges::ref_view<Container>>>);
 }
