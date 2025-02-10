@@ -43,6 +43,9 @@ using ::std::cyl_bessel_il;         // https://learn.microsoft.com/en-us/cpp/sta
 using ::std::cyl_bessel_j;          // https://learn.microsoft.com/en-us/cpp/standard-library/cmath?view=msvc-170#cylindrical-bessel-functions-of-the-first-kind
 using ::std::cyl_bessel_jf;         // https://learn.microsoft.com/en-us/cpp/standard-library/cmath?view=msvc-170#cylindrical-bessel-functions-of-the-first-kind
 using ::std::cyl_bessel_jl;         // https://learn.microsoft.com/en-us/cpp/standard-library/cmath?view=msvc-170#cylindrical-bessel-functions-of-the-first-kind
+using ::std::cyl_bessel_k;          // https://learn.microsoft.com/en-us/cpp/standard-library/cmath?view=msvc-170#irregular-modified-cylindrical-bessel-functions
+using ::std::cyl_bessel_kf;         // https://learn.microsoft.com/en-us/cpp/standard-library/cmath?view=msvc-170#irregular-modified-cylindrical-bessel-functions
+using ::std::cyl_bessel_kl;         // https://learn.microsoft.com/en-us/cpp/standard-library/cmath?view=msvc-170#irregular-modified-cylindrical-bessel-functions
 using ::std::erf;
 using ::std::erfc;
 using ::std::exp;
