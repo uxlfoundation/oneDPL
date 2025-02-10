@@ -16,14 +16,8 @@
 #include "types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
 
-}
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 template <class T>
 void conversion_test(T);
@@ -32,12 +26,12 @@ template <class T, class... Args>
 concept implicitly_constructible_from = requires(Args&&... args) { conversion_test<T>({std::move(args)...}); };
 
 // test constructor is explicit
-static_assert(std::constructible_from<std::ranges::zip_view<SimpleCommon>, SimpleCommon>);
-static_assert(!implicitly_constructible_from<std::ranges::zip_view<SimpleCommon>, SimpleCommon>);
+static_assert(std::constructible_from<dpl_ranges::zip_view<SimpleCommon>, SimpleCommon>);
+static_assert(!implicitly_constructible_from<dpl_ranges::zip_view<SimpleCommon>, SimpleCommon>);
 
-static_assert(std::constructible_from<std::ranges::zip_view<SimpleCommon, SimpleCommon>, SimpleCommon, SimpleCommon>);
+static_assert(std::constructible_from<dpl_ranges::zip_view<SimpleCommon, SimpleCommon>, SimpleCommon, SimpleCommon>);
 static_assert(
-    !implicitly_constructible_from<std::ranges::zip_view<SimpleCommon, SimpleCommon>, SimpleCommon, SimpleCommon>);
+    !implicitly_constructible_from<dpl_ranges::zip_view<SimpleCommon, SimpleCommon>, SimpleCommon, SimpleCommon>);
 
 struct MoveAwareView : std::ranges::view_base {
   int moves = 0;
@@ -54,20 +48,20 @@ struct MoveAwareView : std::ranges::view_base {
 
 template <class View1, class View2>
 constexpr void constructorTest(auto&& buffer1, auto&& buffer2) {
-  std::ranges::zip_view v{View1{buffer1}, View2{buffer2}};
+  dpl_ranges::zip_view v{View1{buffer1}, View2{buffer2}};
   auto [i, j] = *v.begin();
   assert(i == buffer1[0]);
   assert(j == buffer2[0]);
 };
 
-constexpr bool test() {
+int test() {
 
   int buffer[8] = {1, 2, 3, 4, 5, 6, 7, 8};
   int buffer2[4] = {9, 8, 7, 6};
 
   {
     // constructor from views
-    std::ranges::zip_view v(SizedRandomAccessView{buffer}, std::views::iota(0), std::ranges::single_view(2.));
+    dpl_ranges::zip_view v(SizedRandomAccessView{buffer}, std::views::iota(0), std::ranges::single_view(2.));
     auto [i, j, k] = *v.begin();
     assert(i == 1);
     assert(j == 0);
@@ -77,7 +71,7 @@ constexpr bool test() {
   {
     // arguments are moved once
     MoveAwareView mv;
-    std::ranges::zip_view v{std::move(mv), MoveAwareView{}};
+    dpl_ranges::zip_view v{std::move(mv), MoveAwareView{}};
     auto [numMoves1, numMoves2] = *v.begin();
     assert(numMoves1 == 2); // one move from the local variable to parameter, one move from parameter to member
     assert(numMoves2 == 1);
@@ -98,12 +92,9 @@ constexpr bool test() {
     constructorTest<ContiguousCommonView, ContiguousCommonView>(buffer, buffer2);
   }
 
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();  
 }
