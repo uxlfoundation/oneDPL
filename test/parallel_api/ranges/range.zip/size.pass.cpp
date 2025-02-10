@@ -17,20 +17,11 @@
 #include <tuple>
 #include <utility>
 
-#include "test_iterators.h"
 #include "types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
 
-}
-
-namespace _std = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 int buffer[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 struct View : std::ranges::view_base {
@@ -57,31 +48,31 @@ struct StrangeSizeView : std::ranges::view_base {
   constexpr auto size() const { return 6; }
 };
 
-constexpr bool test() {
+int test() {
   {
     // single range
-    std::ranges::zip_view v(View(8));
+    dpl_ranges::zip_view v(View(8));
     assert(v.size() == 8);
     assert(std::as_const(v).size() == 8);
   }
 
   {
     // multiple ranges same type
-    std::ranges::zip_view v(View(2), View(3));
+    dpl_ranges::zip_view v(View(2), View(3));
     assert(v.size() == 2);
     assert(std::as_const(v).size() == 2);
   }
 
   {
     // multiple ranges different types
-    std::ranges::zip_view v(std::views::iota(0, 500), View(3));
+    dpl_ranges::zip_view v(std::views::iota(0, 500), View(3));
     assert(v.size() == 3);
     assert(std::as_const(v).size() == 3);
   }
 
   {
     // const-view non-sized range
-    std::ranges::zip_view v(SizedNonConst(2), View(3));
+    dpl_ranges::zip_view v(SizedNonConst(2), View(3));
     assert(v.size() == 2);
     static_assert(std::ranges::sized_range<decltype(v)>);
     static_assert(!std::ranges::sized_range<decltype(std::as_const(v))>);
@@ -89,23 +80,20 @@ constexpr bool test() {
 
   {
     // const/non-const has different sizes
-    std::ranges::zip_view v(StrangeSizeView{});
+    dpl_ranges::zip_view v(StrangeSizeView{});
     assert(v.size() == 5);
     assert(std::as_const(v).size() == 6);
   }
 
   {
     // underlying range not sized
-    std::ranges::zip_view v(InputCommonView{buffer});
+    dpl_ranges::zip_view v(InputCommonView{buffer});
     static_assert(!std::ranges::sized_range<decltype(v)>);
     static_assert(!std::ranges::sized_range<decltype(std::as_const(v))>);
   }
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }
