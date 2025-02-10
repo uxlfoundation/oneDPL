@@ -16,13 +16,7 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
-}
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 struct Borrowed : std::ranges::view_base {
   int* begin() const;
@@ -31,6 +25,8 @@ struct Borrowed : std::ranges::view_base {
 
 template <>
 inline constexpr bool std::ranges::enable_borrowed_range<Borrowed> = true;
+
+static_assert(std::is_lvalue_reference_v<dpl_ranges::zip_view<Borrowed>>);
 
 static_assert(std::ranges::borrowed_range<Borrowed>);
 
@@ -41,8 +37,8 @@ struct NonBorrowed : std::ranges::view_base {
 static_assert(!std::ranges::borrowed_range<NonBorrowed>);
 
 // test borrowed_range
-static_assert(std::ranges::borrowed_range<std::ranges::zip_view<Borrowed>>);
-static_assert(std::ranges::borrowed_range<std::ranges::zip_view<Borrowed, Borrowed>>);
-static_assert(!std::ranges::borrowed_range<std::ranges::zip_view<Borrowed, NonBorrowed>>);
-static_assert(!std::ranges::borrowed_range<std::ranges::zip_view<NonBorrowed>>);
-static_assert(!std::ranges::borrowed_range<std::ranges::zip_view<NonBorrowed, NonBorrowed>>);
+static_assert(std::ranges::borrowed_range<dpl_ranges::zip_view<Borrowed>>);
+static_assert(std::ranges::borrowed_range<dpl_ranges::zip_view<Borrowed, Borrowed>>);
+static_assert(!std::ranges::borrowed_range<dpl_ranges::zip_view<Borrowed, NonBorrowed>>);
+static_assert(!std::ranges::borrowed_range<dpl_ranges::zip_view<NonBorrowed>>);
+static_assert(!std::ranges::borrowed_range<dpl_ranges::zip_view<NonBorrowed, NonBorrowed>>);
