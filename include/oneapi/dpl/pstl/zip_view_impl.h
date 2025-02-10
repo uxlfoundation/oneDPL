@@ -125,7 +125,7 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
 
       private:
         template <typename... Iterators>
-        constexpr iterator(const Iterators&... iterators) : current_(iterators...)
+        constexpr explicit iterator(const Iterators&... iterators): current_(iterators...)
         {
         }
 
@@ -203,10 +203,8 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
             return *this;
         }
 
-        //TODO: this implemntation leads to ambiguity in case of 'iterator<false> == iterator<true>'
-        /*template<bool ConstX, bool ConstY>
         friend constexpr bool
-        operator==(const iterator<ConstX>& x, const iterator<ConstY>& y) requires(
+            operator==(const iterator& x, const iterator& y) requires(
             std::equality_comparable<
                 std::conditional_t<!Const, std::ranges::iterator_t<Views>, std::ranges::iterator_t<const Views>>>&&...)
         {
@@ -217,22 +215,6 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
             else
             {
                 return x.compare_equal(y, std::make_index_sequence<sizeof...(Views)>());
-            }
-        }*/
-
-        template<bool ConstY>
-        constexpr bool
-        operator==(const iterator<ConstY>& y) const requires(
-            std::equality_comparable<
-                std::conditional_t<!Const, std::ranges::iterator_t<Views>, std::ranges::iterator_t<const Views>>>&&...)
-        {
-            if constexpr (all_bidirectional<Const, Views...>)
-            {
-                return current_ == y.current_;
-            }
-            else
-            {
-                return compare_equal(y, std::make_index_sequence<sizeof...(Views)>());
             }
         }
 
@@ -249,7 +231,7 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
         friend constexpr auto
         operator-(const iterator& x, const iterator& y) requires all_random_access<Const, Views...>
         {
-            return y.distance_to_it(x.current_, std::make_index_sequence<sizeof...(Views)>());
+            return y.distance_to_it(x, std::make_index_sequence<sizeof...(Views)>());
         }
 
         friend constexpr iterator
