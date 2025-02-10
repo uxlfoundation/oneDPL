@@ -427,7 +427,12 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
     constexpr auto
     size() const requires(std::ranges::sized_range<const Views>&&...)
     {
-        return const_cast<zip_view*>(this)->size();
+        auto __tr = [](auto... __args) {
+            using CT = std::make_unsigned_t<std::common_type_t<decltype(__args)...>>;
+            return std::ranges::min({CT(__args)...});
+        };
+
+        return apply_to_tuple(__tr, std::ranges::size, views_);
     }
 
   private:
@@ -452,12 +457,13 @@ struct zip_fn
     operator()() const noexcept { return std::ranges::empty_view<oneapi::dpl::__internal::tuple<>>{}; }
 };
 } // namespace __internal
-} // namespace ranges
 
 namespace views
 {
 inline constexpr oneapi::dpl::ranges::__internal::zip_fn zip{};
 } //namespace views
+
+} // namespace ranges
 
 } // namespace dpl
 } // namespace oneapi
