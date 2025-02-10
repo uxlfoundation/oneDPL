@@ -18,14 +18,14 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
+namespace dpl_ranges = oneapi::dpl::ranges;
 
-}
+#if 1
+template <typename... Types>
+using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
+#else
+using tuple_type = std::tuple<Types...>;
+#endif
 
 constexpr int buff[] = {1, 2, 3};
 
@@ -48,35 +48,32 @@ struct NoDefaultCtrView : std::ranges::view_base {
 // The default constructor requires all underlying views to be default constructible.
 // It is implicitly required by the tuple's constructor. If any of the iterators are
 // not default constructible, zip iterator's =default would be implicitly deleted.
-static_assert(std::is_default_constructible_v<std::ranges::zip_view<DefaultConstructibleView>>);
+static_assert(std::is_default_constructible_v<dpl_ranges::zip_view<DefaultConstructibleView>>);
 static_assert(
-    std::is_default_constructible_v<std::ranges::zip_view<DefaultConstructibleView, DefaultConstructibleView>>);
-static_assert(!std::is_default_constructible_v<std::ranges::zip_view<DefaultConstructibleView, NoDefaultCtrView>>);
-static_assert(!std::is_default_constructible_v<std::ranges::zip_view<NoDefaultCtrView, NoDefaultCtrView>>);
-static_assert(!std::is_default_constructible_v<std::ranges::zip_view<NoDefaultCtrView>>);
+    std::is_default_constructible_v<dpl_ranges::zip_view<DefaultConstructibleView, DefaultConstructibleView>>);
+static_assert(!std::is_default_constructible_v<dpl_ranges::zip_view<DefaultConstructibleView, NoDefaultCtrView>>);
+static_assert(!std::is_default_constructible_v<dpl_ranges::zip_view<NoDefaultCtrView, NoDefaultCtrView>>);
+static_assert(!std::is_default_constructible_v<dpl_ranges::zip_view<NoDefaultCtrView>>);
 
-constexpr bool test() {
+int test() {
   {
-    using View = std::ranges::zip_view<DefaultConstructibleView, DefaultConstructibleView>;
+    using View = dpl_ranges::zip_view<DefaultConstructibleView, DefaultConstructibleView>;
     View v = View(); // the default constructor is not explicit
     assert(v.size() == 3);
     auto it = v.begin();
 #ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
     using Value = std::pair<const int&, const int&>;
 #else
-    using Value = std::tuple<const int&, const int&>;
+    using Value = tuple_type<const int&, const int&>;
 #endif
     assert(*it++ == Value(buff[0], buff[0]));
     assert(*it++ == Value(buff[1], buff[1]));
     assert(*it == Value(buff[2], buff[2]));
   }
 
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }
