@@ -125,9 +125,8 @@ template <typename T, typename Convert>
 void
 test(T trash, Convert convert)
 {
-    size_t max_n = TestUtils::get_pattern_for_max_n();
     // Try sequences of various lengths.
-    for (size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         // count is number of output elements, plus a handful
         // more for sake of detecting buffer overruns.

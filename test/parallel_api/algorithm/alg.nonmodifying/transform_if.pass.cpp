@@ -162,8 +162,7 @@ void
 test()
 {
     const ::std::int64_t init_val = 999;
-    const size_t max_n = TestUtils::get_pattern_for_max_n();
-    for (size_t n = 1; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         {
             Sequence<_Type> in1(n, [=](size_t k) { return (3 * k) % std::numeric_limits<_Type>::max(); });
@@ -197,8 +196,7 @@ void
 test_inplace()
 {
     const ::std::int64_t init_val = 999;
-    const size_t max_n = TestUtils::get_pattern_for_max_n();
-    for (size_t n = 1; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         {
             Sequence<_Type> in1(n, [=](size_t k) { return k % std::numeric_limits<_Type>::max(); });

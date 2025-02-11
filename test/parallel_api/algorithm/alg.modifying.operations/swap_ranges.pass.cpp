@@ -115,12 +115,13 @@ template <typename T>
 void
 test()
 {
-    const std::size_t max_len = TestUtils::get_pattern_for_max_n();
+    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
+    const std::size_t max_len = test_sizes.back();
 
     Sequence<T> data(max_len);
     Sequence<T> actual(max_len);
 
-    for (::std::size_t len = 0; len < max_len; len = len <= 16 ? len + 1 : ::std::size_t(3.1415 * len))
+    for (std::size_t len : test_sizes)
     {
         invoke_on_all_policies<>()(test_one_policy<T>(), data.begin(), data.begin() + len, actual.begin(),
                                    actual.begin() + len);

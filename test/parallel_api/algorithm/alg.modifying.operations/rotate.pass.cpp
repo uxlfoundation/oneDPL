@@ -132,12 +132,13 @@ template <typename T>
 void
 test()
 {
-    const std::int32_t max_len = TestUtils::get_pattern_for_max_n();
+    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
+    const std::int32_t max_len = test_sizes.back();
 
     Sequence<T> actual(max_len, [](::std::size_t i) { return T(i); });
     Sequence<T> data(max_len, [](::std::size_t i) { return T(i); });
 
-    for (std::int32_t len = 0; len < max_len; len = len <= 16 ? len + 1 : std::int32_t(3.1415 * len))
+    for (std::int32_t len : test_sizes)
     {
         std::int32_t shifts[] = {0, 1, 2, len / 3, (2 * len) / 3, len - 1};
         for (auto shift : shifts)

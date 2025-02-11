@@ -100,24 +100,29 @@ test(Predicate pred, _IteratorAdapter adap = {})
 {
     // Testing is restricted for debug build + OpenMP backend as without optimization the compiler generates
     // very slow code leading to test timeouts.
+
+    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
     size_t max_n =
 #if PSTL_USE_DEBUG && ONEDPL_USE_OPENMP_BACKEND
         10000;
 #else
-        TestUtils::get_pattern_for_max_n();
+        test_sizes.back();
 #endif
-    for (size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : test_sizes)
     {
-        Sequence<In1> in1(n, [](size_t k) { return k % 5 != 1 ? In1(3 * k + 7) : 0; });
-        Sequence<In2> in2(n, [](size_t k) { return k % 7 != 2 ? In2(5 * k + 5) : 0; });
+        if (n <= max_n)
+        {
+            Sequence<In1> in1(n, [](size_t k) { return k % 5 != 1 ? In1(3 * k + 7) : 0; });
+            Sequence<In2> in2(n, [](size_t k) { return k % 7 != 2 ? In2(5 * k + 5) : 0; });
 
-        Sequence<Out> out(n, [](size_t) { return -1; });
+            Sequence<Out> out(n, [](size_t) { return -1; });
 
-        invoke_on_all_policies<CallNumber>()(test_one_policy(), adap(in1.begin()), adap(in1.end()), adap(in2.begin()),
-                                             adap(in2.end()), adap(out.begin()), adap(out.end()), pred);
-        invoke_on_all_policies<CallNumber + 1>()(test_one_policy(), adap(in1.cbegin()), adap(in1.cend()),
-                                                 adap(in2.cbegin()), adap(in2.cend()), adap(out.begin()),
-                                                 adap(out.end()), pred);
+            invoke_on_all_policies<CallNumber>()(test_one_policy(), adap(in1.begin()), adap(in1.end()), adap(in2.begin()),
+                                                 adap(in2.end()), adap(out.begin()), adap(out.end()), pred);
+            invoke_on_all_policies<CallNumber + 1>()(test_one_policy(), adap(in1.cbegin()), adap(in1.cend()),
+                                                     adap(in2.cbegin()), adap(in2.cend()), adap(out.begin()),
+                                                     adap(out.end()), pred);
+        }
     }
 }
 

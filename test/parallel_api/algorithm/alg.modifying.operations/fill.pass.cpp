@@ -100,10 +100,7 @@ test_fill_by_type(::std::size_t n)
 int
 main()
 {
-
-    const std::size_t N = TestUtils::get_pattern_for_max_n();
-
-    for (::std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.1415 * n))
+    for (std::size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         test_fill_by_type<std::int8_t>(n);
         test_fill_by_type<std::int16_t>(n);

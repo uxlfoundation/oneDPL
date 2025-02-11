@@ -114,7 +114,8 @@ template <typename T1, typename T2, typename Pred>
 void
 test(Pred pred)
 {
-    const std::size_t max_len = TestUtils::get_pattern_for_max_n();
+    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
+    const std::size_t max_len = test_sizes.back();
 
     const T1 value = T1(0);
     const T1 new_value = T1(666);
@@ -124,7 +125,7 @@ test(Pred pred)
 
     Sequence<T2> data(max_len, [=](::std::size_t i) { return i % 3 == 2 ? T1(i) : value; });
 
-    for (::std::size_t len = 0; len < max_len; len = len <= 16 ? len + 1 : ::std::size_t(3.1415 * len))
+    for (std::size_t len : test_sizes)
     {
 #ifdef _PSTL_TEST_REPLACE
         invoke_on_all_policies<0>()(test_replace<T1, T2>{},

@@ -85,8 +85,7 @@ template <typename T>
 void
 test()
 {
-    const size_t max_n = TestUtils::get_pattern_for_max_n();
-    for (size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         Sequence<T> in_out(n, Gen<T>());
         Sequence<T> expected(n, Gen<T>());

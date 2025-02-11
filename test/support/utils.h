@@ -1014,26 +1014,43 @@ generate_arithmetic_data(T* input, std::size_t size, std::uint32_t seed)
     }
 }
 
-// Utility that models __estimate_best_start_size in the SYCL backend parallel_for
-// to ensure large enough inputs are used to test the large submitter path.
-// A multiplier to the max n is added to ensure we get a few separate test inputs for
-// this path.
-std::size_t
-get_pattern_for_max_n()
+// Utility that models __estimate_best_start_size in the SYCL backend parallel_for to ensure large enough inputs are
+// used to test the large submitter path. A multiplier to the max n is added to ensure we get a few separate test inputs
+// for this path. For debug testing, only test with a single large n to avoid timeouts. Returns a monotonically increasing
+// sequence for use in testing.
+inline std::vector<std::size_t>
+get_pattern_for_test_sizes()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
+    std::size_t max_n = 0;
+    // We do not enable large input size testing for FPGA devices as __parallel_for_submitter_fpga only has a single
+    // implementation with the standard input sizes providing full coverage, and testing large inputs is slow with the
+    // FPGA emulator.
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     sycl::queue q = TestUtils::get_test_queue();
     sycl::device d = q.get_device();
     constexpr std::size_t max_iters_per_item = 16;
     constexpr std::size_t multiplier = 4;
     constexpr std::size_t max_work_group_size = 512;
-    std::size_t __max_n = multiplier * max_iters_per_item * max_work_group_size *
-                          d.get_info<sycl::info::device::max_compute_units>();
-    __max_n = std::min(std::size_t{10000000}, __max_n);
-    return __max_n;
-#else
-    return TestUtils::max_n;
+    const std::size_t large_submitter_limit =
+        max_iters_per_item * max_work_group_size * d.get_info<sycl::info::device::max_compute_units>();
 #endif
+#if TEST_DPCPP_BACKEND_PRESENT && !PSTL_USE_DEBUG && !ONEDPL_FPGA_DEVICE
+    std::size_t cap = 10000000;
+    max_n = multiplier * large_submitter_limit;
+    // Ensure that TestUtils::max_n <= max_n <= cap
+    max_n = std::max(TestUtils::max_n, std::min(cap, max_n));
+#else
+    max_n = TestUtils::max_n;
+#endif
+    // Generate the sequence of test input sizes
+    std::vector<std::size_t> sizes;
+    for (std::size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : std::size_t(3.1415 * n))
+        sizes.push_back(n);
+#if TEST_DPCPP_BACKEND_PRESENT && PSTL_USE_DEBUG && !ONEDPL_FPGA_DEVICE
+    if (max_n < large_submitter_limit)
+        sizes.push_back(large_submitter_limit);
+#endif
+    return sizes;
 }
 
 } /* namespace TestUtils */
