@@ -91,7 +91,6 @@ To create a policy object, you may use one of the following constructor argument
 
 * A SYCL queue
 * A SYCL device
-* A SYCL device selector
 * An existing policy object with a different kernel name
 
 A kernel name is set with a policy template argument.
