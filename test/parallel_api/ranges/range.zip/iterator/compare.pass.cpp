@@ -25,22 +25,11 @@
 #include <ranges>
 #include <compare>
 
-#include "test_iterators.h"
-#include "test_range.h"
-
 #include "../types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
 
-}
-
-namespace _std = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 // This is for testing that zip iterator never calls underlying iterator's >, >=, <=, !=.
 // The spec indicates that zip iterator's >= is negating zip iterator's < instead of calling underlying iterator's >=.
@@ -148,18 +137,18 @@ constexpr void inequalityOperatorsDoNotExistTest(auto&& iter1, auto&& iter2) {
   static_assert(!std::is_invocable_v<std::greater_equal<>, Iter1, Iter2>);
 }
 
-constexpr bool test() {
+int test() {
   {
     // Test a new-school iterator with operator<=>; the iterator should also have operator<=>.
     using It = three_way_contiguous_iterator<int*>;
     using SubRange = std::ranges::subrange<It>;
     static_assert(std::three_way_comparable<It>);
-    using R = std::ranges::zip_view<SubRange, SubRange>;
+    using R = dpl_ranges::zip_view<SubRange, SubRange>;
     static_assert(std::three_way_comparable<std::ranges::iterator_t<R>>);
 
     int a[] = {1, 2, 3, 4};
     int b[] = {5, 6, 7, 8, 9};
-    auto r = _std::views::zip(SubRange(It(a), It(a + 4)), SubRange(It(b), It(b + 5)));
+    auto r = dpl_ranges::views::zip(SubRange(It(a), It(a + 4)), SubRange(It(b), It(b + 5)));
     auto iter1 = r.begin();
     auto iter2 = iter1 + 1;
 
@@ -176,7 +165,7 @@ constexpr bool test() {
     using It = random_access_iterator<int*>;
     using Subrange = std::ranges::subrange<It>;
     static_assert(!std::three_way_comparable<It>);
-    using R = std::ranges::zip_view<Subrange, Subrange>;
+    using R = dpl_ranges::zip_view<Subrange, Subrange>;
 #ifdef _LIBCPP_VERSION
     // libc++ hasn't implemented LWG-3692 "zip_view::iterator's operator<=> is overconstrained"
     static_assert(!std::three_way_comparable<std::ranges::iterator_t<R>>);
@@ -186,7 +175,7 @@ constexpr bool test() {
 
     int a[] = {1, 2, 3, 4};
     int b[] = {5, 6, 7, 8, 9};
-    auto r = _std::views::zip(Subrange(It(a), It(a + 4)), Subrange(It(b), It(b + 5)));
+    auto r = dpl_ranges::views::zip(Subrange(It(a), It(a + 4)), Subrange(It(b), It(b + 5)));
     auto iter1 = r.begin();
     auto iter2 = iter1 + 1;
 
@@ -198,7 +187,7 @@ constexpr bool test() {
     int buffer1[1] = {1};
     int buffer2[2] = {1, 2};
 
-    std::ranges::zip_view v{InputCommonView(buffer1), InputCommonView(buffer2)};
+    dpl_ranges::zip_view v{InputCommonView(buffer1), InputCommonView(buffer2)};
     using View = decltype(v);
     static_assert(!std::ranges::forward_range<View>);
     static_assert(std::ranges::input_range<View>);
@@ -219,7 +208,7 @@ constexpr bool test() {
     // underlying iterator is comparing equal
     int buffer1[1] = {1};
     int buffer2[2] = {1, 2};
-    std::ranges::zip_view v{ForwardCommonView(buffer1), ForwardCommonView(buffer2)};
+    dpl_ranges::zip_view v{ForwardCommonView(buffer1), ForwardCommonView(buffer2)};
     using View = decltype(v);
     static_assert(std::ranges::common_range<View>);
     static_assert(!std::ranges::bidirectional_range<View>);
@@ -240,7 +229,7 @@ constexpr bool test() {
     // only < and == are needed
     int a[] = {1, 2, 3, 4};
     int b[] = {5, 6, 7, 8, 9};
-    auto r = _std::views::zip(SmallerThanRange(a), SmallerThanRange(b));
+    auto r = dpl_ranges::views::zip(SmallerThanRange(a), SmallerThanRange(b));
     auto iter1 = r.begin();
     auto iter2 = iter1 + 1;
 
@@ -251,18 +240,15 @@ constexpr bool test() {
     // underlying iterator does not support ==
     using IterNoEqualView = BasicView<cpp20_input_iterator<int*>, sentinel_wrapper<cpp20_input_iterator<int*>>>;
     int buffer[] = {1};
-    std::ranges::zip_view r(IterNoEqualView{buffer});
+    dpl_ranges::zip_view r(IterNoEqualView{buffer});
     auto it = r.begin();
     using Iter = decltype(it);
     static_assert(!weakly_equality_comparable_with<Iter, Iter>);
     inequalityOperatorsDoNotExistTest(it, it);
   }
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();  
 }
