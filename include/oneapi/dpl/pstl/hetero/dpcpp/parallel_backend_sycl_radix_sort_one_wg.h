@@ -182,7 +182,7 @@ struct __subgroup_radix_sort
                             _ValT __v[__block_size];
                             __storage() {}
                         } __values;
-                        uint16_t __wi = __it.get_local_linear_id();
+                        const uint16_t __wi = __it.get_local_linear_id();
                         uint16_t __begin_bit = 0;
                         constexpr uint16_t __end_bit = sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
