@@ -20,25 +20,19 @@
 #include "../types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
 
-}
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 using ConstIterIncompatibleView = BasicView<forward_iterator<int*>, forward_iterator<int*>,
                                             random_access_iterator<const int*>, random_access_iterator<const int*>>;
 static_assert(!std::convertible_to<std::ranges::iterator_t<ConstIterIncompatibleView>,
                                    std::ranges::iterator_t<const ConstIterIncompatibleView>>);
 
-constexpr bool test() {
+int test() {
   int buffer[3] = {1, 2, 3};
 
   {
-    std::ranges::zip_view v(NonSimpleCommon{buffer});
+    dpl_ranges::zip_view v(NonSimpleCommon{buffer});
     auto iter1 = v.begin();
     std::ranges::iterator_t<const decltype(v)> iter2 = iter1;
     assert(iter1 == iter2);
@@ -51,7 +45,7 @@ constexpr bool test() {
 
   {
     // underlying non-const to const not convertible
-    std::ranges::zip_view v(ConstIterIncompatibleView{buffer});
+    dpl_ranges::zip_view v(ConstIterIncompatibleView{buffer});
     auto iter1 = v.begin();
     auto iter2 = std::as_const(v).begin();
 
@@ -61,12 +55,9 @@ constexpr bool test() {
     static_assert(!std::constructible_from<decltype(iter2), decltype(iter1)>);
   }
 
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }
