@@ -60,7 +60,7 @@ template <typename _ExecutionPolicy>
 std::size_t
 __max_work_group_size(const _ExecutionPolicy& __policy, std::size_t __wg_size_limit = 8192)
 {
-    std::size_t __wg_size = __policy.queue().get_device().template get_info<sycl::info::device::max_work_group_size>();
+    const std::size_t __wg_size = __policy.queue().get_device().template get_info<sycl::info::device::max_work_group_size>();
     // Limit the maximum work-group size supported by the device to optimize the throughput or minimize communication
     // costs. This is limited to 8192 which is the highest current limit of the tested hardware (opencl:cpu devices) to
     // prevent huge work-group sizes returned on some devices (e.g., FPGU emulation).
@@ -73,7 +73,7 @@ __slm_adjusted_work_group_size(const _ExecutionPolicy& __policy, _Size __local_m
 {
     if (__wg_size == 0)
         __wg_size = __max_work_group_size(__policy);
-    auto __local_mem_size = __policy.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
+    const auto __local_mem_size = __policy.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
     return sycl::min<_Size>(__local_mem_size / __local_mem_per_wi, __wg_size);
 }
 
@@ -82,7 +82,7 @@ template <typename _ExecutionPolicy>
 ::std::size_t
 __max_sub_group_size(const _ExecutionPolicy& __policy)
 {
-    auto __supported_sg_sizes = __policy.queue().get_device().template get_info<sycl::info::device::sub_group_sizes>();
+    const auto __supported_sg_sizes = __policy.queue().get_device().template get_info<sycl::info::device::sub_group_sizes>();
     //The result of get_info<sycl::info::device::sub_group_sizes>() can be empty; if so, return 0
     return __supported_sg_sizes.empty() ? 0 : __supported_sg_sizes.back();
 }
