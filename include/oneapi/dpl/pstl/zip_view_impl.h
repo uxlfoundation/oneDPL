@@ -118,6 +118,9 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
             std::conditional_t<Const, std::common_type_t<std::ranges::range_difference_t<const Views>...>,
                                std::common_type_t<std::ranges::range_difference_t<Views>...>>;
 
+        using current_type = std::conditional_t<!Const, tuple_type<std::ranges::iterator_t<Views>...>,
+                                                tuple_type<std::ranges::iterator_t<const Views>...>>;
+
         iterator() = default;
 
         constexpr iterator(iterator<!Const> i) requires Const &&
@@ -126,11 +129,8 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         {
         }
 
-      private:
-        template <typename... Iterators>
-        constexpr explicit iterator(const Iterators&... iterators): current_(iterators...)
-        {
-        }
+      private:        
+        constexpr explicit iterator(current_type __t): current_(std::move(__t)) {}
 
       public:
         template <typename... Iterators>
@@ -225,10 +225,10 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         operator<=>(const iterator& x, const iterator& y) requires all_random_access<Const, Views...>
         {
             if (x.current_ < y.current_)
-                return -1;
+                return std::weak_ordering::less;
             else if (x.current_ == y.current_)
-                return 0;
-            return 1; //x.current > y.current_
+                return std::weak_ordering::equivalent;
+            return std::weak_ordering::greater; //x.current > y.current_
         }
         
         friend constexpr auto
@@ -289,9 +289,6 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         }
 
         friend class zip_view;
-
-        using current_type = std::conditional_t<!Const, tuple_type<std::ranges::iterator_t<Views>...>,
-                                                tuple_type<std::ranges::iterator_t<const Views>...>>;
 
         current_type current_;
     }; // class iterator
@@ -360,14 +357,22 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
     constexpr auto
     begin() requires(!(__simple_view_concept<Views> && ...))
     {
-        auto __tr = [](auto... __args) { return iterator<false>(__args...); };
+        using current_type = tuple_type<std::ranges::iterator_t<Views>...>;
+
+        auto __tr = [](auto&&... __args) {
+            return iterator<false>(current_type(std::forward<decltype(__args)>(__args)...)); 
+        };
         return apply_to_tuple(__tr, std::ranges::begin, views_);
     }
 
     constexpr auto
     begin() const requires(std::ranges::range<const Views>&&...)
     {
-        auto __tr = [](auto... __args) { return iterator<true>(__args...); };
+        using current_type = tuple_type<std::ranges::iterator_t<const Views>...>;
+
+        auto __tr = [](auto&&... __args) { 
+            return iterator<true>(current_type(std::forward<decltype(__args)>(__args)...)); 
+        };
         return apply_to_tuple(__tr, std::ranges::begin, views_);
     }
 
@@ -408,7 +413,8 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         }
         else
         {
-            auto __tr = [](auto... __args) { return iterator<true>(__args...); };
+            using current_type = tuple_type<std::ranges::iterator_t<const Views>...>;
+            auto __tr = [](auto... __args) { return iterator<true>(current_type(__args...)); };
             return apply_to_tuple(__tr, std::ranges::end, views_);
         }
     }
