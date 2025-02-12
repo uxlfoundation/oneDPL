@@ -238,7 +238,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
             auto __result_acc = __get_acc(__p_res_storage, __cgh);
 
             __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__steps), [=](sycl::item</*dim=*/1> __item_id) {
-                auto __id = __item_id.get_linear_id();
+                const auto __id = __item_id.get_linear_id();
                 const _IdType __i_elem = __id * __chunk;
 
                 const auto __n_merge = std::min<_IdType>(__chunk, __n - __i_elem);
@@ -334,7 +334,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
             __cgh.parallel_for<_DiagonalsKernelName...>(
                 sycl::range</*dim=*/1>(__nd_range_params.base_diag_count + 1), [=](sycl::item</*dim=*/1> __item_id) {
-                    auto __global_idx = __item_id.get_linear_id();
+                    const auto __global_idx = __item_id.get_linear_id();
                     auto __base_diagonals_sp_global_ptr =
                         _Storage::__get_usm_or_buffer_accessor_ptr(__base_diagonals_sp_global_acc);
 
@@ -375,12 +375,12 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
             __cgh.parallel_for<_MergeKernelName...>(
                 sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item_id) {
-                    auto __global_idx = __item_id.get_linear_id();
+                    const auto __global_idx = __item_id.get_linear_id();
                     const _IdType __i_elem = __global_idx * __nd_range_params.chunk;
 
                     auto __base_diagonals_sp_global_ptr =
                         _Storage::__get_usm_or_buffer_accessor_ptr(__base_diagonals_sp_global_acc);
-                    auto __diagonal_idx = __global_idx / __nd_range_params.steps_between_two_base_diags;
+                    const auto __diagonal_idx = __global_idx / __nd_range_params.steps_between_two_base_diags;
 
                     _split_point_t<_IdType> __start;
                     if (__global_idx % __nd_range_params.steps_between_two_base_diags != 0)
