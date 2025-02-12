@@ -66,7 +66,7 @@ __work_group_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Si
                            const bool __is_full, _TransformPattern __transform_pattern, _ReducePattern __reduce_pattern,
                            _InitType __init, const _AccLocal& __local_mem, _Res* __res_ptr, const _Acc&... __acc)
 {
-    auto __local_idx = __item_id.get_local_id(0);
+    const auto __local_idx = __item_id.get_local_id(0);
     const _Size __group_size = __item_id.get_local_range().size();
     oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __result;
     // 1. Initialization (transform part). Fill local memory
@@ -93,8 +93,8 @@ __device_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Size _
                        _ReducePattern __reduce_pattern, const _AccLocal& __local_mem, _Tmp* __reduce_result_ptr,
                        const _Acc&... __acc)
 {
-    auto __local_idx = __item_id.get_local_id(0);
-    auto __group_idx = __item_id.get_group(0);
+    const auto __local_idx = __item_id.get_local_id(0);
+    const auto __group_idx = __item_id.get_group(0);
     const _Size __group_size = __item_id.get_local_range().size();
     oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __result;
     // 1. Initialization (transform part). Fill local memory
@@ -393,8 +393,8 @@ struct __parallel_transform_reduce_impl
                         auto __temp_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                         auto __res_ptr =
                             __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, 2 * __n_groups);
-                        auto __local_idx = __item_id.get_local_id(0);
-                        auto __group_idx = __item_id.get_group(0);
+                        const auto __local_idx = __item_id.get_local_id(0);
+                        const auto __group_idx = __item_id.get_group(0);
                         // 1. Initialization (transform part). Fill local memory
                         _Size __n_items;
                         const bool __is_full = __n == __size_per_work_group * __n_groups;
