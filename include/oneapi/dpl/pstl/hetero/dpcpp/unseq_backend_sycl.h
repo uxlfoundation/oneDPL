@@ -486,8 +486,8 @@ struct transform_reduce
         if constexpr (_Commutative{})
         {
             __stride *= __local_range; // coalesced loads with _VecSize-wide vectors
-            _Size __local_idx = __item_id.get_local_id(0);
-            _Size __group_idx = __item_id.get_group_linear_id();
+            const _Size __local_idx = __item_id.get_local_id(0);
+            const _Size __group_idx = __item_id.get_group_linear_id();
             __adjusted_global_id += __group_idx * __local_range * __iters_per_work_item + __local_idx * _VecSize;
         }
         else
@@ -495,8 +495,8 @@ struct transform_reduce
 
         // Groups are full if n is evenly divisible by the number of elements processed per work-group.
         // Multi group reductions will be full for all groups before the last group.
-        _Size __group_idx = __item_id.get_group(0);
-        _Size __n_groups_minus_one = __n_groups - 1;
+        const _Size __group_idx = __item_id.get_group(0);
+        const _Size __n_groups_minus_one = __n_groups - 1;
 
         // _VecSize-wide vectorized path (__iters_per_work_item are multiples of _VecSize)
         if (__is_full || (__group_idx < __n_groups_minus_one))
@@ -591,9 +591,9 @@ struct reduce_over_group
     reduce_impl(const _NDItemId __item_id, const _Size __n, const _Tp& __val, const _AccLocal& __local_mem,
                 std::false_type /*has_known_identity*/) const
     {
-        auto __local_idx = __item_id.get_local_id(0);
+        const auto __local_idx = __item_id.get_local_id(0);
         const _Size __global_idx = __item_id.get_global_id(0);
-        auto __group_size = __item_id.get_local_range().size();
+        const auto __group_size = __item_id.get_local_range().size();
 
         __local_mem[__local_idx] = __val;
         for (std::uint32_t __power_2 = 1; __power_2 < __group_size; __power_2 *= 2)
@@ -813,7 +813,7 @@ struct __copy_by_mask
                _Size __n, _SizePerWg __size_per_wg) const
     {
         using ::std::get;
-        auto __item_idx = __item.get_linear_id();
+        const auto __item_idx = __item.get_linear_id();
         if (__item_idx < __n && get<N>(__in_acc[__item_idx]))
         {
             auto __out_idx = get<N>(__in_acc[__item_idx]) - 1;
@@ -864,7 +864,7 @@ struct __partition_by_mask
     operator()(_Item __item, _OutAcc& __out_acc, const _InAcc& __in_acc, _WgSumsPtr* __wg_sums_ptr, _RetPtr* __ret_ptr,
                _Size __n, _SizePerWg __size_per_wg) const
     {
-        auto __item_idx = __item.get_linear_id();
+        const auto __item_idx = __item.get_linear_id();
         if (__item_idx < __n)
         {
             using ::std::get;
@@ -956,9 +956,9 @@ struct __scan
               _WGSumsPtr* __wg_sums_ptr, _SizePerWG __size_per_wg, _WGSize __wgroup_size, _ItersPerWG __iters_per_wg,
               _InitType __init, std::false_type /*has_known_identity*/) const
     {
-        ::std::size_t __group_id = __item.get_group(0);
-        ::std::size_t __global_id = __item.get_global_id(0);
-        ::std::size_t __local_id = __item.get_local_id(0);
+        const std::size_t __group_id = __item.get_group(0);
+        const std::size_t __global_id = __item.get_global_id(0);
+        const std::size_t __local_id = __item.get_local_id(0);
         __init_processing<_Tp> __use_init{};
 
         constexpr ::std::size_t __shift = _Inclusive{} ? 0 : 1;
@@ -1037,8 +1037,8 @@ struct __scan
               _WGSumsPtr* __wg_sums_ptr, _SizePerWG __size_per_wg, _WGSize __wgroup_size, _ItersPerWG __iters_per_wg,
               _InitType __init, std::true_type /*has_known_identity*/) const
     {
-        auto __group_id = __item.get_group(0);
-        auto __local_id = __item.get_local_id(0);
+        const auto __group_id = __item.get_group(0);
+        const auto __local_id = __item.get_local_id(0);
         auto __use_init = __init_processing<_Tp>{};
 
         constexpr auto __shift = _Inclusive{} ? 0 : 1;

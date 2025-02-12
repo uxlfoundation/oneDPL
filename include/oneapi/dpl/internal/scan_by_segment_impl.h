@@ -181,14 +181,14 @@ struct __sycl_scan_by_segment_impl
                     __val_type __accumulator = __identity;
 
                     auto __group = __item.get_group();
-                    ::std::size_t __global_id = __item.get_global_id(0);
-                    ::std::size_t __local_id = __item.get_local_id(0);
+                    const std::size_t __global_id = __item.get_global_id(0);
+                    const std::size_t __local_id = __item.get_local_id(0);
 
                     // 1a. Perform a serial scan within the work item over assigned elements. Store partial
                     // reductions in work item memory, and write the accumulated value and number of counted
                     // segments into work group memory.
-                    ::std::size_t __start = __global_id * __vals_per_item;
-                    ::std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
+                    const std::size_t __start = __global_id * __vals_per_item;
+                    const std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
 
                     // First work item must set their accumulator to the provided init
                     if (__global_id == 0)
@@ -226,11 +226,11 @@ struct __sycl_scan_by_segment_impl
                     ::std::int32_t __closest_seg_id = __dpl_sycl::__inclusive_scan_over_group(
                         __group, __max_end, __dpl_sycl::__maximum<decltype(__max_end)>());
 
-                    bool __group_has_segment_break = (__closest_seg_id != __no_segment_break);
+                    const bool __group_has_segment_break = (__closest_seg_id != __no_segment_break);
 
                     //get rid of no segment end found flag
                     __closest_seg_id = ::std::max(::std::int32_t(0), __closest_seg_id);
-                    __val_type __carry_in =
+                    const __val_type __carry_in =
                         __wg_segmented_scan(__item, __loc_acc, __local_id, __local_id - __closest_seg_id, __accumulator,
                                             __identity, __binary_op, __wgroup_size); // need to use exclusive scan delta
 
@@ -245,7 +245,7 @@ struct __sycl_scan_by_segment_impl
 
                     if (__local_id == __wgroup_size - 1) // last work item writes the group's carry out
                     {
-                        ::std::size_t __group_id = __item.get_group(0);
+                        const std::size_t __group_id = __item.get_group(0);
 
                         __seg_ends_acc[__group_id] = __group_has_segment_break;
 
@@ -288,13 +288,13 @@ struct __sycl_scan_by_segment_impl
 #endif
                     sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
                         auto __group = __item.get_group();
-                        ::std::size_t __group_id = __item.get_group(0);
-                        ::std::size_t __global_id = __item.get_global_id(0);
-                        ::std::size_t __local_id = __item.get_local_id(0);
-                        ::std::size_t __start = __global_id * __vals_per_item;
-                        ::std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
+                        const std::size_t __group_id = __item.get_group(0);
+                        const std::size_t __global_id = __item.get_global_id(0);
+                        const std::size_t __local_id = __item.get_local_id(0);
+                        const std::size_t __start = __global_id * __vals_per_item;
+                        const std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
 
-                        ::std::int32_t __wg_agg_idx = __group_id - 1;
+                        const std::int32_t __wg_agg_idx = __group_id - 1;
                         __val_type __agg_collector = __identity;
 
                         //TODO:  just launch with one fewer group and adjust indexing since group zero can skip phase
@@ -350,7 +350,7 @@ struct __sycl_scan_by_segment_impl
 
                             // 2c. Second pass over the keys, reidentifying end segments and applying work group
                             // aggregates if appropriate.
-                            ::std::size_t __end_nm1_cap =
+                            const std::size_t __end_nm1_cap =
                                 __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n - 1);
                             ::std::size_t __local_min_key_idx = __n - 1;
 
@@ -363,7 +363,7 @@ struct __sycl_scan_by_segment_impl
                                 }
                             }
 
-                            ::std::size_t __wg_min_seg_end = __dpl_sycl::__reduce_over_group(
+                            const std::size_t __wg_min_seg_end = __dpl_sycl::__reduce_over_group(
                                 __group, __local_min_key_idx, __dpl_sycl::__minimum<::std::size_t>());
 
                             // apply work group aggregates

@@ -179,12 +179,12 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 #endif
                                                                               sycl::nd_item<1> __item) {
                 auto __group = __item.get_group();
-                std::size_t __group_id = __item.get_group(0);
-                std::uint32_t __local_id = __item.get_local_id(0);
-                std::size_t __global_id = __item.get_global_id(0);
+                const std::size_t __group_id = __item.get_group(0);
+                const std::uint32_t __local_id = __item.get_local_id(0);
+                const std::size_t __global_id = __item.get_global_id(0);
 
-                std::size_t __start = __global_id * __vals_per_item;
-                std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
+                const std::size_t __start = __global_id * __vals_per_item;
+                const std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
                 std::size_t __item_segments = 0;
 
                 // 1a. Work item scan to identify segment ends
@@ -193,7 +193,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                         ++__item_segments;
 
                 // 1b. Work group reduction
-                std::size_t __num_segs = __dpl_sycl::__reduce_over_group(
+                const std::size_t __num_segs = __dpl_sycl::__reduce_over_group(
                     __group, __item_segments, __dpl_sycl::__plus<decltype(__item_segments)>());
 
                 // 1c. First work item writes segment count to global memory
@@ -252,12 +252,12 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                 std::array<__val_type, __vals_per_item> __loc_partials;
 
                 auto __group = __item.get_group();
-                std::size_t __group_id = __item.get_group(0);
-                std::size_t __local_id = __item.get_local_id(0);
-                std::size_t __global_id = __item.get_global_id(0);
+                const std::size_t __group_id = __item.get_group(0);
+                const std::size_t __local_id = __item.get_local_id(0);
+                const std::size_t __global_id = __item.get_global_id(0);
 
                 // 2a. Lookup the number of prior segs
-                auto __wg_num_prior_segs = __seg_ends_scan_acc[__group_id];
+                const auto __wg_num_prior_segs = __seg_ends_scan_acc[__group_id];
 
                 // 2b. Perform a serial scan within the work item over assigned elements. Store partial
                 // reductions in work group local memory.
@@ -282,12 +282,12 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                 }
 
                 // 2c. Count the number of prior work segments cooperatively over group
-                std::size_t __prior_segs_in_wg = __dpl_sycl::__exclusive_scan_over_group(
+                const std::size_t __prior_segs_in_wg = __dpl_sycl::__exclusive_scan_over_group(
                     __group, __item_segments, __dpl_sycl::__plus<std::size_t>());
-                std::size_t __start_idx = __wg_num_prior_segs + __prior_segs_in_wg;
+                const std::size_t __start_idx = __wg_num_prior_segs + __prior_segs_in_wg;
 
                 // 2d. Find the greatest segment end less than the current index (inclusive)
-                std::size_t __closest_seg_id = __dpl_sycl::__inclusive_scan_over_group(
+                const std::size_t __closest_seg_id = __dpl_sycl::__inclusive_scan_over_group(
                     __group, __max_end, __dpl_sycl::__maximum<std::size_t>());
 
                 // __wg_segmented_scan is a derivative work and responsible for the third header copyright
@@ -378,15 +378,15 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 #endif
                 sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
                     auto __group = __item.get_group();
-                    std::int64_t __group_id = __item.get_group(0);
-                    std::size_t __global_id = __item.get_global_id(0);
-                    std::size_t __local_id = __item.get_local_id(0);
+                    const std::int64_t __group_id = __item.get_group(0);
+                    const std::size_t __global_id = __item.get_global_id(0);
+                    const std::size_t __local_id = __item.get_local_id(0);
 
-                    std::size_t __start = __global_id * __vals_per_item;
-                    std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
+                    const std::size_t __start = __global_id * __vals_per_item;
+                    const std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
                     std::size_t __item_segments = 0;
 
-                    std::int64_t __wg_agg_idx = __group_id - 1;
+                    const std::int64_t __wg_agg_idx = __group_id - 1;
                     __val_type __agg_collector = unseq_backend::__known_identity<_BinaryOperator, __val_type>;
 
                     bool __ag_exists = false;
@@ -445,7 +445,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                         if (__i == __n - 1 || !__binary_pred(__keys[__i], __keys[__i + 1]))
                             ++__item_segments;
 
-                    std::size_t __prior_segs_in_wg = __dpl_sycl::__exclusive_scan_over_group(
+                    const std::size_t __prior_segs_in_wg = __dpl_sycl::__exclusive_scan_over_group(
                         __group, __item_segments, __dpl_sycl::__plus<decltype(__item_segments)>());
 
                     // 3c. Determine prior index

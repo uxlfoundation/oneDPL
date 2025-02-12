@@ -85,10 +85,10 @@ struct __binhash_SLM_wrapper<__custom_boundary_range_binhash<_Range>, _ExtraMemA
         : __slm_mem(__slm_mem_)
     {
         //initialize __slm_memory
-        ::std::uint32_t __gSize = __self_item.get_local_range()[0];
-        ::std::uint32_t __self_lidx = __self_item.get_local_id(0);
-        auto __size = __bin_hash.__boundaries.size();
-        ::std::uint8_t __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__size, __gSize);
+        const std::uint32_t __gSize = __self_item.get_local_range()[0];
+        const std::uint32_t __self_lidx = __self_item.get_local_id(0);
+        const auto __size = __bin_hash.__boundaries.size();
+        const std::uint8_t __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__size, __gSize);
         ::std::uint8_t __k = 0;
         for (; __k < __factor - 1; ++__k)
         {
@@ -136,8 +136,8 @@ __clear_wglocal_histograms(const _HistAccessor& __local_histogram, const _Offset
     using _BinUint_t =
         ::std::conditional_t<(sizeof(_Size) >= sizeof(::std::uint32_t)), ::std::uint64_t, ::std::uint32_t>;
     _BinUint_t __gSize = __self_item.get_local_range()[0];
-    ::std::uint32_t __self_lidx = __self_item.get_local_id(0);
-    ::std::uint8_t __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__num_bins, __gSize);
+    const std::uint32_t __self_lidx = __self_item.get_local_id(0);
+    const std::uint8_t __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__num_bins, __gSize);
     ::std::uint8_t __k = 0;
 
     for (; __k < __factor - 1; ++__k)
@@ -186,9 +186,9 @@ __reduce_out_histograms(const _HistAccessorIn& __in_histogram, const _OffsetT& _
 {
     using _BinUint_t =
         ::std::conditional_t<(sizeof(_Size) >= sizeof(::std::uint32_t)), ::std::uint64_t, ::std::uint32_t>;
-    _BinUint_t __gSize = __self_item.get_local_range()[0];
-    ::std::uint32_t __self_lidx = __self_item.get_local_id(0);
-    _FactorType __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__num_bins, __gSize);
+    const _BinUint_t __gSize = __self_item.get_local_range()[0];
+    const std::uint32_t __self_lidx = __self_item.get_local_id(0);
+    const _FactorType __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__num_bins, __gSize);
     _FactorType __k = 0;
 
     for (; __k < __factor - 1; ++__k)
@@ -226,8 +226,8 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
         using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
-        ::std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
-        ::std::size_t __segments =
+        const std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
+        const std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
         return __exec.queue().submit([&__init_event, __work_group_size, &__input, &__bins, &__binhash_manager, __n, // KSA: FIXED
                                       __num_bins, __extra_SLM_elements, __segments](auto& __h) {
@@ -326,10 +326,10 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
         using _histogram_index_type = ::std::int16_t;
         using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
-        ::std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
-        const ::std::size_t __n = __input.size();
-        const ::std::size_t __num_bins = __bins.size();
-        ::std::size_t __segments =
+        const std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
+        const std::size_t __n = __input.size();
+        const std::size_t __num_bins = __bins.size();
+        const std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
         return __exec.queue().submit([__init_event, __work_group_size, &__input, // KSA: FIXED
                                       &__bins, &__binhash_manager, __extra_SLM_elements,
@@ -518,7 +518,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
     // Limit the maximum work-group size for better performance. Empirically found value.
     std::uint16_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__exec, std::uint16_t(1024));
 
-    auto __local_mem_size = __exec.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
+    const auto __local_mem_size = __exec.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
     constexpr ::std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
 
     // if bins fit into registers, use register private accumulation
