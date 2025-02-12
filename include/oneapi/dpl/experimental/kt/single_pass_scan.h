@@ -148,7 +148,9 @@ struct __lookback_init_submitter<_FlagType, _Type, _BinaryOp,
     operator()(sycl::queue __q, _StatusFlags&& __status_flags, _PartialValues&& __partial_values,
                std::size_t __status_flags_size, std::uint16_t __status_flag_padding) const
     {
-        return __q.submit([&](sycl::handler& __hdl) {
+        return __q.submit([&__status_flags,  // KSA: FIXED
+                           &__partial_values, __status_flags_size,
+                           __status_flag_padding](sycl::handler& __hdl) {
             __hdl.parallel_for<_Name...>(sycl::range<1>{__status_flags_size}, [=](const sycl::item<1>& __item) {
                 auto __id = __item.get_linear_id();
                 __status_flags[__id] =
@@ -289,7 +291,12 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
 
         static constexpr std::uint32_t __elems_in_tile = __workgroup_size * __data_per_workitem;
 
-        return __q.submit([&](sycl::handler& __hdl) {
+        return __q.submit([&__prev_event, &__in_rng,  // KSA: FIXED
+                           &__out_rng, __binary_op, __n,
+                           &__status_flags, __status_flags_size,
+                           &__status_vals_full,
+                           &__status_vals_partial,
+                           __current_num_items](sycl::handler& __hdl) {
             auto __tile_vals = _LocalAccessorType(sycl::range<1>{__elems_in_tile}, __hdl);
             __hdl.depends_on(__prev_event);
 
@@ -388,7 +395,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     // we should replace this code with the asynchronous version below.
     if (0)
     {
-        return __queue.submit([=](sycl::handler& __hdl) {
+        return __queue.submit([&__prev_event, __device_mem, __queue](sycl::handler& __hdl) { // KSA: FIXED
             __hdl.depends_on(__prev_event);
             __hdl.host_task([=]() { sycl::free(__device_mem, __queue); });
         });
