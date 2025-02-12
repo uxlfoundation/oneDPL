@@ -42,7 +42,7 @@ __exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
                                   _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
                                   _LazyValueType& __init_and_carry)
 {
-    std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
+    const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
     _ONEDPL_PRAGMA_UNROLL
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
@@ -84,7 +84,7 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
                                   _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
                                   _LazyValueType& __init_and_carry)
 {
-    std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
+    const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
     _ONEDPL_PRAGMA_UNROLL
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
@@ -303,10 +303,10 @@ struct __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inpu
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
-                std::size_t __group_id = __ndi.get_group(0);
+                const std::size_t __group_id = __ndi.get_group(0);
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
-                std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
-                std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
+                const std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
+                const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
 
                 oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __sub_group_carry;
                 std::size_t __group_start_id =
@@ -316,11 +316,11 @@ struct __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inpu
                     // for unique patterns, the first element is always copied to the output, so we need to skip it
                     __group_start_id += 1;
                 }
-                std::size_t __max_inputs_in_group = __inputs_per_sub_group * __num_sub_groups_local;
-                std::uint32_t __inputs_in_group = std::min(__n - __group_start_id, __max_inputs_in_group);
-                std::uint32_t __active_subgroups =
+                const std::size_t __max_inputs_in_group = __inputs_per_sub_group * __num_sub_groups_local;
+                const std::uint32_t __inputs_in_group = std::min(__n - __group_start_id, __max_inputs_in_group);
+                const std::uint32_t __active_subgroups =
                     oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_in_group, __inputs_per_sub_group);
-                std::size_t __subgroup_start_id = __group_start_id + (__sub_group_id * __inputs_per_sub_group);
+                const std::size_t __subgroup_start_id = __group_start_id + (__sub_group_id * __inputs_per_sub_group);
 
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
@@ -463,10 +463,10 @@ struct __parallel_reduce_then_scan_scan_submitter<
                 _InitValueType* __tmp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 _InitValueType* __res_ptr =
                     _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__res_acc, __num_sub_groups_global + 2);
-                std::uint32_t __group_id = __ndi.get_group(0);
+                const std::uint32_t __group_id = __ndi.get_group(0);
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
-                std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
-                std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
+                const std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
+                const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
 
                 std::size_t __group_start_id =
                     (__block_num * __max_block_size) + (__group_id * __inputs_per_sub_group * __num_sub_groups_local);
@@ -476,9 +476,9 @@ struct __parallel_reduce_then_scan_scan_submitter<
                     __group_start_id += 1;
                 }
 
-                std::size_t __max_inputs_in_group = __inputs_per_sub_group * __num_sub_groups_local;
-                std::uint32_t __inputs_in_group = std::min(__n - __group_start_id, __max_inputs_in_group);
-                std::uint32_t __active_subgroups =
+                const std::size_t __max_inputs_in_group = __inputs_per_sub_group * __num_sub_groups_local;
+                const std::uint32_t __inputs_in_group = std::min(__n - __group_start_id, __max_inputs_in_group);
+                const std::uint32_t __active_subgroups =
                     oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_in_group, __inputs_per_sub_group);
                 oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __carry_last;
 
@@ -663,7 +663,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                 }
 
                 // step 5) apply global carries
-                std::size_t __subgroup_start_id = __group_start_id + (__sub_group_id * __inputs_per_sub_group);
+                const std::size_t __subgroup_start_id = __group_start_id + (__sub_group_id * __inputs_per_sub_group);
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
                 if (__sub_group_carry_initialized)

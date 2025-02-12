@@ -87,7 +87,7 @@ struct __scan_status_flag
     cooperative_lookback(const _Subgroup& __subgroup, _BinaryOp __binary_op)
     {
         _T __running = oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _T>;
-        auto __local_id = __subgroup.get_local_id();
+        const auto __local_id = __subgroup.get_local_id();
 
         for (int __tile = static_cast<int>(__tile_id) - 1; __tile >= 0; __tile -= SUBGROUP_SIZE)
         {
@@ -152,7 +152,7 @@ struct __lookback_init_submitter<_FlagType, _Type, _BinaryOp,
                            &__partial_values, __status_flags_size,
                            __status_flag_padding](sycl::handler& __hdl) {
             __hdl.parallel_for<_Name...>(sycl::range<1>{__status_flags_size}, [=](const sycl::item<1>& __item) {
-                auto __id = __item.get_linear_id();
+                const auto __id = __item.get_linear_id();
                 __status_flags[__id] =
                     __id < __status_flag_padding ? _FlagType::__oob_status : _FlagType::__initialized_status;
                 __partial_values[__id] = oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _Type>;
@@ -189,7 +189,7 @@ struct __lookback_kernel_func
     {
         auto __group = __item.get_group();
         auto __subgroup = __item.get_sub_group();
-        auto __local_id = __item.get_local_id(0);
+        const auto __local_id = __item.get_local_id(0);
 
         std::uint32_t __tile_id = 0;
 
