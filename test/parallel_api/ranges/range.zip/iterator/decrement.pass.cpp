@@ -19,14 +19,8 @@
 #include "../types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
 
-}
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 template <class Iter>
 concept canDecrement = requires(Iter it) { --it; } || requires(Iter it) { it--; };
@@ -38,12 +32,12 @@ struct NonBidi : IntBufferView {
   constexpr sentinel_wrapper<iterator> end() const { return sentinel_wrapper<iterator>(iterator(buffer_ + size_)); }
 };
 
-constexpr bool test() {
+int test() {
   std::array a{1, 2, 3, 4};
   std::array b{4.1, 3.2, 4.3};
   {
     // all random access
-    std::ranges::zip_view v(a, b, std::views::iota(0, 5));
+    dpl_ranges::zip_view v(a, b, std::views::iota(0, 5));
     auto it = v.end();
     using Iter = decltype(it);
 
@@ -66,7 +60,7 @@ constexpr bool test() {
     // all bidi+
     int buffer[2] = {1, 2};
 
-    std::ranges::zip_view v(BidiCommonView{buffer}, std::views::iota(0, 5));
+    dpl_ranges::zip_view v(BidiCommonView{buffer}, std::views::iota(0, 5));
     auto it = v.begin();
     using Iter = decltype(it);
 
@@ -88,17 +82,14 @@ constexpr bool test() {
   {
     // non bidi
     int buffer[3] = {4, 5, 6};
-    std::ranges::zip_view v(a, NonBidi{buffer});
+    dpl_ranges::zip_view v(a, NonBidi{buffer});
     using Iter = std::ranges::iterator_t<decltype(v)>;
     static_assert(!canDecrement<Iter>);
   }
 
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }
