@@ -63,9 +63,12 @@ template <typename _R>
         std::ranges::view<_R> && std::ranges::range<const _R> && std::same_as<std::ranges::iterator_t<_R>,
         std::ranges::iterator_t<const _R>> && std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
 
+template <bool Const, typename T>
+using __maybe_const = std::conditional_t<Const, const T, T>;
+
 template <std::ranges::input_range... Views>
-requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_view
-    : public std::ranges::view_interface<zip_view<Views...>>
+requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0))
+class zip_view: public std::ranges::view_interface<zip_view<Views...>>
 {
     template <typename... Types>
     using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
@@ -227,27 +230,28 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
                 return 0;
             return 1; //x.current > y.current_
         }
-
+        
         friend constexpr auto
-        operator-(const iterator& x, const iterator& y) requires all_random_access<Const, Views...>
+        operator-(const iterator& x, const iterator& y) requires 
+        (std::sized_sentinel_for<std::ranges::iterator_t<__maybe_const<Const, Views>>, std::ranges::iterator_t<__maybe_const<Const, Views>>> && ...)
         {
             return y.distance_to_it(x, std::make_index_sequence<sizeof...(Views)>());
         }
 
         friend constexpr iterator
-        operator+(iterator it, difference_type n)
+        operator+(iterator it, difference_type n) requires all_random_access<Const, Views...>
         {
             return it += n;
         }
 
         friend constexpr iterator
-        operator+(difference_type n, iterator it)
+        operator+(difference_type n, iterator it) requires all_random_access<Const, Views...>
         {
             return it += n;
         }
 
         friend constexpr iterator
-        operator-(iterator it, difference_type n)
+        operator-(iterator it, difference_type n) requires all_random_access<Const, Views...>
         {
             return it -= n;
         }
@@ -270,22 +274,18 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
         template <typename SentinelsTuple, std::size_t... In>
         constexpr std::common_type_t<std::conditional_t<!Const, std::ranges::range_difference_t<Views>,
                                                         std::ranges::range_difference_t<const Views>>...>
-        distance_to_sentinels(const SentinelsTuple& sentinels, std::index_sequence<0, In...>)
+        distance_to_sentinels(const SentinelsTuple& sentinels, std::index_sequence<In...>) const
         {
-            auto min = std::get<0>(current_) - std::get<0>(sentinels);
-
-            ((min = std::min(min, (std::get<In>(current_) - std::get<In>(sentinels)))), ...);
-            return min;
+            return std::ranges::min({difference_type(std::get<In>(current_) - std::get<In>(sentinels))...}, std::less{},
+                                    [](auto a){ return std::abs(a);});
         }
         template <std::size_t... In>
         constexpr std::common_type_t<std::conditional_t<!Const, std::ranges::range_difference_t<Views>,
                                                         std::ranges::range_difference_t<const Views>>...>
-        distance_to_it(const iterator it, std::index_sequence<0, In...>) const
+        distance_to_it(const iterator it, std::index_sequence<In...>) const
         {
-            auto min = std::get<0>(it.current_) - std::get<0>(current_);
-
-            ((min = std::min(min, (std::get<In>(it.current_) - std::get<In>(current_)))), ...);
-            return min;
+            return std::ranges::min({difference_type(std::get<In>(it.current_) - std::get<In>(current_))...}, std::less{},
+                                    [](auto a){ return std::abs(a);});
         }
 
         friend class zip_view;
@@ -309,7 +309,7 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
 
       private:
         template <typename... Sentinels>
-        constexpr sentinel(const Sentinels&... sentinels) : end_(sentinels...)
+        constexpr explicit sentinel(const Sentinels&... sentinels) : end_(sentinels...)
         {
         }
 
@@ -328,8 +328,8 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
         requires(std::sized_sentinel_for<
                  std::conditional_t<!Const, std::ranges::sentinel_t<Views>, std::ranges::sentinel_t<const Views>>,
                  std::conditional_t<!OtherConst, std::ranges::iterator_t<Views>,
-                                    std::ranges::iterator_t<const Views>>>&&...) friend constexpr std::
-            common_type_t<std::conditional_t<!Const, std::ranges::range_difference_t<Views>,
+                                    std::ranges::iterator_t<const Views>>>&&...)
+        friend constexpr std::common_type_t<std::conditional_t<!Const, std::ranges::range_difference_t<Views>,
                                              std::ranges::range_difference_t<const Views>>...>
             operator-(const iterator<OtherConst>& x, const sentinel& y)
         {
@@ -340,8 +340,8 @@ requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0)) class zip_
         requires(std::sized_sentinel_for<
                  std::conditional_t<!Const, std::ranges::sentinel_t<Views>, std::ranges::sentinel_t<const Views>>,
                  std::conditional_t<!OtherConst, std::ranges::iterator_t<Views>,
-                                    std::ranges::iterator_t<const Views>>>&&...) friend constexpr std::
-            common_type_t<std::conditional_t<!Const, std::ranges::range_difference_t<Views>,
+                                    std::ranges::iterator_t<const Views>>>&&...)
+        friend constexpr std::common_type_t<std::conditional_t<!Const, std::ranges::range_difference_t<Views>,
                                              std::ranges::range_difference_t<const Views>>...>
             operator-(const sentinel& y, const iterator<OtherConst>& x)
         {
