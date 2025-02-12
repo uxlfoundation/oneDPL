@@ -164,7 +164,7 @@ struct __radix_sort_copyback_submitter<oneapi::dpl::__par_backend_hetero::__inte
             // TODO: make sure that access is read_only for __keys_tmp_rng/__vals_tmp_rng  and is write_only for __keys_rng/__vals_rng
             __cgh.depends_on(__e);
             __cgh.parallel_for<_Name...>(sycl::range<1>{__n}, [=](sycl::item<1> __item) {
-                auto __global_id = __item.get_linear_id();
+                const auto __global_id = __item.get_linear_id();
                 __rng_data(__out_pack.__keys_rng())[__global_id] = __rng_data(__in_pack.__keys_rng())[__global_id];
                 if constexpr (::std::decay_t<_InRngPack>::__has_values)
                 {
