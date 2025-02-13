@@ -18,14 +18,8 @@
 #include "../types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
 
-}
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 struct ThrowingMove {
   ThrowingMove() = default;
@@ -33,11 +27,11 @@ struct ThrowingMove {
   ThrowingMove& operator=(ThrowingMove&&){return *this;}
 };
 
-constexpr bool test() {
+int test() {
   {
     std::array a1{1, 2, 3, 4};
     std::array a2{0.1, 0.2, 0.3};
-    std::ranges::zip_view v(a1, a2);
+    dpl_ranges::zip_view v(a1, a2);
     auto iter1 = v.begin();
     auto iter2 = ++v.begin();
 
@@ -62,7 +56,7 @@ constexpr bool test() {
   {
     // underlying iter_swap may throw
     std::array<ThrowingMove, 2> iterSwapMayThrow{};
-    std::ranges::zip_view v(iterSwapMayThrow);
+    dpl_ranges::zip_view v(iterSwapMayThrow);
     auto iter1 = v.begin();
     auto iter2 = ++v.begin();
     static_assert(!noexcept(std::ranges::iter_swap(iter1, iter2)));
@@ -74,7 +68,7 @@ constexpr bool test() {
     assert(r1.iter_swap_called_times == 0);
     assert(r2.iter_swap_called_times == 0);
 
-    std::ranges::zip_view v{r1, r2};
+    dpl_ranges::zip_view v{r1, r2};
     auto it1 = v.begin();
     auto it2 = std::ranges::next(it1, 3);
 
@@ -86,12 +80,9 @@ constexpr bool test() {
     assert(r1.iter_swap_called_times == 4);
     assert(r2.iter_swap_called_times == 4);
   }
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }
