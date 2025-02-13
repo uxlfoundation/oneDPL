@@ -17,19 +17,18 @@
 #include "../types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
 
-constexpr bool test() {
+namespace dpl_ranges = oneapi::dpl::ranges;
+
+template <typename... Types>
+using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
+
+int test() {
   int buffer[8] = {1, 2, 3, 4, 5, 6, 7, 8};
 
   {
     // random_access_range
-    std::ranges::zip_view v(SizedRandomAccessView{buffer}, std::views::iota(0));
+    dpl_ranges::zip_view v(SizedRandomAccessView{buffer}, std::views::iota(0));
     auto it = v.begin();
     assert(it[0] == *it);
     assert(it[2] == *(it + 2));
@@ -38,13 +37,13 @@ constexpr bool test() {
 #ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
     static_assert(std::is_same_v<decltype(it[2]), std::pair<int&, int>>);
 #else
-    static_assert(std::is_same_v<decltype(it[2]), std::tuple<int&, int>>);
+    static_assert(std::is_same_v<decltype(it[2]), tuple_type<int&, int>>);
 #endif
   }
 
   {
     // contiguous_range
-    std::ranges::zip_view v(ContiguousCommonView{buffer}, ContiguousCommonView{buffer});
+    dpl_ranges::zip_view v(ContiguousCommonView{buffer}, ContiguousCommonView{buffer});
     auto it = v.begin();
     assert(it[0] == *it);
     assert(it[2] == *(it + 2));
@@ -53,24 +52,21 @@ constexpr bool test() {
 #ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
     static_assert(std::is_same_v<decltype(it[2]), std::pair<int&, int&>>);
 #else
-    static_assert(std::is_same_v<decltype(it[2]), std::tuple<int&, int&>>);
+    static_assert(std::is_same_v<decltype(it[2]), tuple_type<int&, int&>>);
 #endif
   }
 
   {
     // non random_access_range
-    std::ranges::zip_view v(BidiCommonView{buffer});
+    dpl_ranges::zip_view v(BidiCommonView{buffer});
     auto iter = v.begin();
     const auto canSubscript = [](auto&& it) { return requires { it[0]; }; };
     static_assert(!canSubscript(iter));
   }
 
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }

@@ -19,14 +19,8 @@
 #include "../types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
 
-}
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 struct ThrowOnIncrementIterator {
   int* it_;
@@ -60,7 +54,7 @@ void test() {
   int buffer[] = {1, 2, 3};
   {
     // zip iterator should be able to be destroyed after member function throws
-    std::ranges::zip_view v{ThrowOnIncrementView{buffer}};
+    dpl_ranges::zip_view v{ThrowOnIncrementView{buffer}};
     auto it = v.begin();
     try {
       ++it;
@@ -72,7 +66,7 @@ void test() {
 
   {
     // zip iterator should be able to be assigned after member function throws
-    std::ranges::zip_view v{ThrowOnIncrementView{buffer}};
+    dpl_ranges::zip_view v{ThrowOnIncrementView{buffer}};
     auto it = v.begin();
     try {
       ++it;
