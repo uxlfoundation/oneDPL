@@ -114,6 +114,10 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         using reference_type = std::conditional_t<Const, tuple_type<std::ranges::range_reference_t<const Views>...>,
                                                   tuple_type<std::ranges::range_reference_t<Views>...>>;
 
+        using rvalue_reference_type = 
+            std::conditional_t<Const, tuple_type<std::ranges::range_rvalue_reference_t<const Views>...>,
+                               tuple_type<std::ranges::range_rvalue_reference_t<Views>...>>;
+
         using difference_type =
             std::conditional_t<Const, std::common_type_t<std::ranges::range_difference_t<const Views>...>,
                                std::common_type_t<std::ranges::range_difference_t<Views>...>>;
@@ -254,6 +258,18 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         operator-(iterator it, difference_type n) requires all_random_access<Const, Views...>
         {
             return it -= n;
+        }
+
+        friend constexpr decltype(auto) iter_move(const iterator& x) noexcept(
+            (noexcept(std::ranges::iter_move(std::declval<const std::ranges::iterator_t<__maybe_const<Const, Views>>&>())) && ...) &&
+            (std::is_nothrow_move_constructible_v<std::ranges::range_rvalue_reference_t<__maybe_const<Const, Views>>> && ...))
+        {
+            auto __tr = [](auto&&... __args) -> decltype(auto) {
+                using return_tuple_type = rvalue_reference_type;
+                return return_tuple_type(std::forward<decltype(__args)>(__args)...);
+            };
+            return apply_to_tuple(__tr, std::ranges::iter_move, x.current_);
+
         }
 
       private:
