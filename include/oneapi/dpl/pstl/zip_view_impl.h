@@ -113,7 +113,7 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
     constexpr explicit zip_view(Views... views) : views_(std::move(views)...) {}
 
     template <bool Const>
-    class iterator : declare_iterator_category<Const, Views...>
+    class iterator : public declare_iterator_category<Const, Views...>
     {
       public:
         using iterator_concept = std::conditional_t<
