@@ -23,7 +23,7 @@
 #endif
 
 #include "../../utils_ranges.h"
-#include "../../ranges_defs.h" // contiguous_range and contiguous_iterator from nanorange
+#include "../../ranges/nanorange.hpp" // contiguous_range from nanorange
 #include "../../iterator_impl.h"
 #include "sycl_iterator.h"
 #include "sycl_defs.h"
