@@ -19,29 +19,26 @@
 #include "../types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
 
-}
+namespace dpl_ranges = oneapi::dpl::ranges;
+
+template <typename... Types>
+using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
 
 struct ThrowingMove {
   ThrowingMove() = default;
   ThrowingMove(ThrowingMove&&) {}
 };
 
-constexpr bool test() {
+int test() {
   {
     // underlying iter_move noexcept
     std::array a1{1, 2, 3, 4};
     const std::array a2{3.0, 4.0};
 
-    std::ranges::zip_view v(a1, a2, std::views::iota(3L));
+    dpl_ranges::zip_view v(a1, a2, std::views::iota(3L));
     assert(std::ranges::iter_move(v.begin()) == std::make_tuple(1, 3.0, 3L));
-    static_assert(std::is_same_v<decltype(std::ranges::iter_move(v.begin())), std::tuple<int&&, const double&&, long>>);
+    static_assert(std::is_same_v<decltype(std::ranges::iter_move(v.begin())), tuple_type<int&&, const double&&, long>>);
 
     auto it = v.begin();
     static_assert(noexcept(std::ranges::iter_move(it)));
@@ -51,7 +48,7 @@ constexpr bool test() {
     // underlying iter_move may throw
     auto throwingMoveRange =
         std::views::iota(0, 2) | std::views::transform([](auto) noexcept { return ThrowingMove{}; });
-    std::ranges::zip_view v(throwingMoveRange);
+    dpl_ranges::zip_view v(throwingMoveRange);
     auto it = v.begin();
     static_assert(!noexcept(std::ranges::iter_move(it)));
   }
@@ -61,7 +58,7 @@ constexpr bool test() {
     adltest::IterMoveSwapRange r1{}, r2{};
     assert(r1.iter_move_called_times == 0);
     assert(r2.iter_move_called_times == 0);
-    std::ranges::zip_view v(r1, r2);
+    dpl_ranges::zip_view v(r1, r2);
     auto it = v.begin();
     {
       [[maybe_unused]] auto&& i = std::ranges::iter_move(it);
@@ -75,12 +72,9 @@ constexpr bool test() {
     }
   }
 
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }
