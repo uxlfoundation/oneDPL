@@ -29,6 +29,7 @@ struct View : std::ranges::view_base {
   int* end() const;
 };
 
+#if __GNUC__ && _ONEDPL_GCC_VERSION >= 120100
 void testCTAD() {
   using t1 = std::ranges::owning_view<Container>;
   auto var = dpl_ranges::zip_view(Container{});
@@ -43,3 +44,9 @@ void testCTAD() {
                 decltype(dpl_ranges::zip_view(Container{}, View{}, c)),
                 dpl_ranges::zip_view<std::ranges::owning_view<Container>, View, std::ranges::ref_view<Container>>>);
 }
+ #endif
+
+ int main()
+ {
+    return 0;
+ }

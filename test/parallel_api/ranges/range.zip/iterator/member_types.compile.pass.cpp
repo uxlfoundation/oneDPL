@@ -147,6 +147,7 @@ void test() {
     static_assert(std::is_same_v<Iter::value_type, tuple_type<int>>);
   }
 
+  #if __GNUC__ && _ONEDPL_GCC_VERSION >= 120100
   {
     // difference_type of single view
     dpl_ranges::zip_view v{DiffTypeRange<std::intptr_t>{}};
@@ -160,6 +161,7 @@ void test() {
     using Iter = decltype(v.begin());
     static_assert(std::is_same_v<Iter::difference_type, std::common_type_t<std::intptr_t, std::ptrdiff_t>>);
   }
+  #endif
 
   const std::array foos{Foo{}};
   std::array bars{Bar{}, Bar{}};
@@ -181,6 +183,7 @@ void test() {
 #endif
   }
 
+  #if __GNUC__ && _ONEDPL_GCC_VERSION >= 120100
   {
     // const-iterator different from iterator
     dpl_ranges::zip_view v{ConstVeryDifferentRange{}};
@@ -197,5 +200,12 @@ void test() {
     static_assert(std::is_same_v<ConstIter::difference_type, std::ptrdiff_t>);
     static_assert(std::is_same_v<ConstIter::value_type, tuple_type<double>>);
   }
+  #endif
 
+}
+
+int main()
+{
+  test();
+  return 0;
 }
