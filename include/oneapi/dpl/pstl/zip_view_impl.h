@@ -78,7 +78,7 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
     apply_to_tuple_impl(_ReturnAdapter __tr, _F __f, _Tuple& __t, std::index_sequence<_Ip...>)
     {
         return __tr(__f(std::get<_Ip>(__t))...);
-    }
+    }    
 
     template <typename _ReturnAdapter, typename _F, typename _Tuple>
     static decltype(auto)
@@ -92,6 +92,20 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
     apply_to_tuple(_F __f, _Tuple& __t)
     {
         apply_to_tuple([](auto&&...) {}, __f, __t);
+    }
+
+    template <typename _F, typename _Tuple1, typename _Tuple2, std::size_t... _Ip>
+    static void
+    bi_apply_to_tuple_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence<_Ip...>)
+    {
+        (__f(std::get<_Ip>(__t1), std::get<_Ip>(__t2)), ...);
+    }
+
+    template <typename _F, typename _Tuple1, typename _Tuple2>
+    static void
+    bi_apply_to_tuple(_F __f, _Tuple1& __t1, _Tuple2& __t2)
+    {
+        return bi_apply_to_tuple_impl(__f, __t1, __t2, std::make_index_sequence<sizeof...(Views)>{});
     }
 
   public:
@@ -163,7 +177,7 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         constexpr iterator&
         operator++()
         {
-            zip_view::apply_to_tuple([](auto& it) -> decltype(auto) { return ++it; }, current_);
+            apply_to_tuple([](auto& it) -> decltype(auto) { return ++it; }, current_);
             return *this;
         }
 
@@ -184,7 +198,7 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         constexpr iterator&
         operator--() requires all_bidirectional<Const, Views...>
         {
-            zip_view::apply_to_tuple([](auto& it) { return --it; }, current_);
+            apply_to_tuple([](auto& it) { return --it; }, current_);
             return *this;
         }
 
@@ -199,14 +213,14 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         constexpr iterator&
         operator+=(difference_type n) requires all_random_access<Const, Views...>
         {
-            zip_view::apply_to_tuple([n](auto& it) { return it += n; }, current_);
+            apply_to_tuple([n](auto& it) { return it += n; }, current_);
             return *this;
         }
 
         constexpr iterator&
         operator-=(difference_type n) requires all_random_access<Const, Views...>
         {
-            zip_view::apply_to_tuple([n](auto& it) { return it -= n; }, current_);
+            apply_to_tuple([n](auto& it) { return it -= n; }, current_);
             return *this;
         }
 
@@ -270,6 +284,14 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
             };
             return apply_to_tuple(__tr, std::ranges::iter_move, x.current_);
 
+        }
+
+        friend constexpr void iter_swap(const iterator& x, const iterator& y) noexcept(
+            (noexcept(std::ranges::iter_swap(std::declval<const std::ranges::iterator_t<__maybe_const<Const, Views>>&>(),
+                                        std::declval<const std::ranges::iterator_t<__maybe_const<Const, Views>>&>())) && ...))
+          requires(std::indirectly_swappable<std::ranges::iterator_t<__maybe_const<Const, Views>>> && ...)
+        {
+            bi_apply_to_tuple(std::ranges::iter_swap, x.current_, y.current_);
         }
 
       private:
