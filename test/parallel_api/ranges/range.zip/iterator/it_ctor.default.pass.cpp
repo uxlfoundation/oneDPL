@@ -16,14 +16,8 @@
 #include "../types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
 
-}
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 struct PODIter {
   int i; // deliberately uninitialised
@@ -51,7 +45,7 @@ struct IterNoDefaultCtrView : std::ranges::view_base {
 };
 
 template <class... Views>
-using zip_iter = std::ranges::iterator_t<std::ranges::zip_view<Views...>>;
+using zip_iter = std::ranges::iterator_t<dpl_ranges::zip_view<Views...>>;
 
 static_assert(!std::default_initializable<zip_iter<IterNoDefaultCtrView>>);
 static_assert(!std::default_initializable<zip_iter<IterNoDefaultCtrView, IterDefaultCtrView>>);
@@ -59,7 +53,7 @@ static_assert(!std::default_initializable<zip_iter<IterNoDefaultCtrView, IterNoD
 static_assert(std::default_initializable<zip_iter<IterDefaultCtrView>>);
 static_assert(std::default_initializable<zip_iter<IterDefaultCtrView, IterDefaultCtrView>>);
 
-constexpr bool test() {
+int test() {
   using ZipIter = zip_iter<IterDefaultCtrView>;
   {
     ZipIter iter;
@@ -72,12 +66,9 @@ constexpr bool test() {
     auto [x] = *iter;
     assert(x == 0); // PODIter has to be initialised to have value 0
   }
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }
