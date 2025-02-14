@@ -123,18 +123,9 @@ test_sycl_iterators(sycl::queue q, std::size_t size, KernelParam param)
     std::stable_sort(std::begin(ref), std::end(ref), Compare<T, IsAscending>{});
     {
         sycl::buffer<T> buf(input.data(), input.size());
-
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-        // Deprecated namespace is used deliberatelly to make sure the functionality is still available
-        oneapi::dpl::experimental::kt::esimd::radix_sort<IsAscending>(q, oneapi::dpl::begin(buf), oneapi::dpl::end(buf),
-                                                                      param)
+        oneapi::dpl::experimental::kt::gpu::esimd::radix_sort<IsAscending>(q, oneapi::dpl::begin(buf), oneapi::dpl::end(buf),
+                                                                           param)
             .wait();
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
     }
 
     std::string msg = "wrong results with oneapi::dpl::begin/end, n: " + std::to_string(size);
