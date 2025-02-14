@@ -3,6 +3,9 @@ on:
   # use pull_request_target to run on PRs from forks and have access to secrets
   pull_request_target:
     types: [labeled]
+  # consider labeled discussions as well
+  discussion:
+    types: [labeled]
 
 env:
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -10,6 +13,7 @@ env:
 
 permissions:
   pull-requests: read
+  discussions: read
 
 jobs:
   rfc:
