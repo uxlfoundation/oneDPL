@@ -39,6 +39,7 @@ namespace oneapi
 namespace dpl
 {
 using ::std::accumulate;
+using ::std::adjacent_difference;
 using ::std::inner_product;
 using ::std::iota;
 using ::std::partial_sum;
