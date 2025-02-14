@@ -48,6 +48,53 @@ namespace dpl
 namespace ranges
 {
 
+namespace __internal
+{
+
+template<typename _T>
+concept __is_subscriptable = requires(_T&& __a) { __a[0]; };
+
+template<typename _T>
+concept __is_not_subscriptable = !__is_subscriptable<_T>;
+
+template<typename _T>
+concept __is_sizeable = requires(_T&& __a) { __a.size(); };
+
+template<typename _T>
+concept __is_empty_method = requires(_T&& __a) { __a.empty(); };
+
+template <typename _R>
+struct _WrapperRAR: public _R
+{
+    template <typename _Base>
+    _WrapperRAR(_Base&& __r): _R(std::forward<_Base>(__r)) {}
+    decltype(auto) operator[](auto __i) { return _R::begin()[__i]; }
+    decltype(auto) operator[](auto __i) const { return _R::begin()[__i]; }
+
+    std::enable_if_t<!__is_sizeable<_R>, std::ranges::range_size_t<_R>>
+    size() const { return this->_R::end() - this->_R::begin(); }
+
+    std::enable_if_t<!__is_empty_method<_R>, bool>
+    empty() const { return this->_R::end() - this->_R::begin() <= 0; }
+};
+
+template <__is_not_subscriptable _R>
+constexpr decltype (auto)
+__get_r(_R&& __r)
+{
+    using _T = std::remove_reference_t<_R>;
+    return _WrapperRAR<_T>(std::forward<_R>(__r));
+}
+
+template <__is_subscriptable _R>
+constexpr decltype (auto)
+__get_r(_R&& __r)
+{
+    return std::forward<_R>(__r);
+}
+
+}  //__internal
+
 // [alg.foreach]
 
 namespace __internal
@@ -64,7 +111,7 @@ struct __for_each_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         oneapi::dpl::__internal::__ranges::__pattern_for_each(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __r, __f, __proj);
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __get_r(__r), __f, __proj);
 
         return {std::ranges::begin(__r) + std::ranges::size(__r)};
     }
@@ -149,8 +196,11 @@ struct __find_if_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_find_if(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+
+        auto __ra = __get_r(__r);
+        auto __res = oneapi::dpl::__internal::__ranges::__pattern_find_if(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), __ra, __pred, __proj) - __ra.begin();
+        return __r.begin() + __res;
     }
 }; //__find_if_fn
 }  //__internal
@@ -213,7 +263,7 @@ struct __any_of_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_any_of(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+            std::forward<_ExecutionPolicy>(__exec), __get_r(std::forward<_R>(__r)), __pred, __proj);
     }
 }; //__any_of_fn
 }  //__internal

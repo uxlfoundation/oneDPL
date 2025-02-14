@@ -144,6 +144,28 @@ template<typename T>
 static constexpr
 bool is_range<T, std::void_t<decltype(std::declval<T&>().begin())>> = true;
 
+//a random access range, but without operator[] and size() method
+template<typename R>
+struct RangeRA
+{
+    RangeRA(R r): m_r(r) {}
+    R m_r;
+    auto  begin() { return  m_r.begin(); }
+    auto end() { return  m_r.end(); }
+    auto  begin() const { return  m_r.begin(); }
+    auto end() const { return  m_r.end(); }
+};
+
+struct __range_ra_fn
+{
+    template<typename R>
+    RangeRA<R>
+    operator()(R r)
+    {
+        return RangeRA<R>(r);
+    }
+} __range_ra_wr;
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in>
 struct test
 {
@@ -535,6 +557,7 @@ struct test_range_algo
         test<T, host_vector<T>, mode>{max_n}(host_policies(), algo, checker, subrange_view, std::identity{}, args...);
         test<T, host_vector<T>, mode>{max_n}(host_policies(), algo, checker, std::views::all, std::identity{}, args...);
         test<T, host_subrange<T>, mode>{max_n}(host_policies(), algo, checker, std::views::all, std::identity{}, args...);
+        test<T, host_subrange<T>, mode>{max_n}(host_policies(), algo, checker, __range_ra_wr, __range_ra_wr, args...);
 #if TEST_CPP20_SPAN_PRESENT
         test<T, host_vector<T>, mode>{max_n}(host_policies(), algo, checker,  span_view, std::identity{}, args...);
         test<T, host_span<T>, mode>{max_n}(host_policies(), algo, checker, std::views::all, std::identity{}, args...);
@@ -550,6 +573,7 @@ struct test_range_algo
             {
                 test<T, usm_vector<T>, mode>{max_n}(dpcpp_policy<call_id + 10>(), algo, checker, subrange_view, subrange_view, args...);
                 test<T, usm_subrange<T>, mode>{max_n}(dpcpp_policy<call_id + 30>(), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_subrange<T>, mode>{max_n}(dpcpp_policy<call_id + 35>(), algo, checker, __range_ra_wr, __range_ra_wr, args...);
 #if TEST_CPP20_SPAN_PRESENT
                 test<T, usm_vector<T>, mode>{max_n}(dpcpp_policy<call_id + 20>(), algo, checker, span_view, subrange_view, args...);
                 test<T, usm_span<T>, mode>{max_n}(dpcpp_policy<call_id + 40>(), algo, checker, std::identity{}, std::identity{}, args...);
