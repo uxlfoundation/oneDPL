@@ -16,13 +16,8 @@
 #include "../types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
-}
+
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 template <class T>
 struct convertible_sentinel_wrapper {
@@ -57,10 +52,10 @@ static_assert(std::convertible_to<std::ranges::sentinel_t<NonSimpleNonCommonConv
                                   std::ranges::sentinel_t<NonSimpleNonCommonConvertibleView const>>);
 static_assert(!simple_view<NonSimpleNonCommonConvertibleView>);
 
-constexpr bool test() {
+int test() {
   int buffer1[4] = {1, 2, 3, 4};
   int buffer2[5] = {1, 2, 3, 4, 5};
-  std::ranges::zip_view v{NonSimpleNonCommonConvertibleView(buffer1), NonSimpleNonCommonConvertibleView(buffer2)};
+  dpl_ranges::zip_view v{NonSimpleNonCommonConvertibleView(buffer1), NonSimpleNonCommonConvertibleView(buffer2)};
   static_assert(!std::ranges::common_range<decltype(v)>);
   auto sent1 = v.end();
   std::ranges::sentinel_t<const decltype(v)> sent2 = sent1;
@@ -73,12 +68,9 @@ constexpr bool test() {
 
   // Cannot create a non-const iterator from a const iterator.
   static_assert(!std::constructible_from<decltype(sent1), decltype(sent2)>);
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }
