@@ -99,7 +99,6 @@ int test() {
     return 0;
   }
 
-#if 0 //TODO
   {
     // underlying const R is not a range
     using View = dpl_ranges::zip_view<SimpleCommon, NoConstBeginView>;
@@ -107,7 +106,6 @@ int test() {
     static_assert(HasOnlyNonConstBegin<View>);
     static_assert(!HasConstAndNonConstBegin<View>);
   }
-  #endif
 }
 
 int main(int, char**) {
