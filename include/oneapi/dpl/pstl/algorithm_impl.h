@@ -345,12 +345,10 @@ __pattern_walk2(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
         auto __begin = _iterator_tuple(__first1, __first2);
         auto __end = _iterator_tuple(__last1, /*dummy parameter*/ _ForwardIterator2());
 
-        typedef typename ::std::iterator_traits<_ForwardIterator1>::reference _ReferenceType1;
-        typedef typename ::std::iterator_traits<_ForwardIterator2>::reference _ReferenceType2;
-
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
-                                           [&__f](::std::tuple<_ReferenceType1, _ReferenceType2> __val) {
-                                               __f(::std::get<0>(__val), ::std::get<1>(__val));
+                                            [&__f](auto&& __t) {
+                                               __f(std::get<0>(std::forward<decltype(__t)>(__t)), 
+                                                   std::get<1>(std::forward<decltype(__t)>(__t)));
                                            });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
