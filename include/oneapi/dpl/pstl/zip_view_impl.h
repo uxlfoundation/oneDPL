@@ -122,22 +122,15 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
                 all_bidirectional<Const, Views...>, std::bidirectional_iterator_tag,
                 std::conditional_t<all_forward<Const, Views...>, std::forward_iterator_tag, std::input_iterator_tag>>>;
 
-        using value_type = std::conditional_t<Const, tuple_type<std::ranges::range_value_t<const Views>...>,
-                                              tuple_type<std::ranges::range_value_t<Views>...>>;
+        using value_type = tuple_type<std::ranges::range_value_t<__maybe_const<Const, Views>>...>;
 
-        using reference_type = std::conditional_t<Const, tuple_type<std::ranges::range_reference_t<const Views>...>,
-                                                  tuple_type<std::ranges::range_reference_t<Views>...>>;
+        using reference_type = tuple_type<std::ranges::range_reference_t<__maybe_const<Const, Views>>...>;        
 
-        using rvalue_reference_type = 
-            std::conditional_t<Const, tuple_type<std::ranges::range_rvalue_reference_t<const Views>...>,
-                               tuple_type<std::ranges::range_rvalue_reference_t<Views>...>>;
+        using rvalue_reference_type = tuple_type<std::ranges::range_rvalue_reference_t<__maybe_const<Const, Views>>...>;
 
-        using difference_type =
-            std::conditional_t<Const, std::common_type_t<std::ranges::range_difference_t<const Views>...>,
-                               std::common_type_t<std::ranges::range_difference_t<Views>...>>;
+        using difference_type = std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>;
 
-        using current_type = std::conditional_t<!Const, tuple_type<std::ranges::iterator_t<Views>...>,
-                                                tuple_type<std::ranges::iterator_t<const Views>...>>;
+        using current_type = tuple_type<std::ranges::iterator_t<__maybe_const<Const, Views>>...>;
 
         iterator() = default;
 
@@ -223,11 +216,10 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
             apply_to_tuple([n](auto& it) { return it -= n; }, current_);
             return *this;
         }
-
+        
         friend constexpr bool
             operator==(const iterator& x, const iterator& y) requires(
-            std::equality_comparable<
-                std::conditional_t<!Const, std::ranges::iterator_t<Views>, std::ranges::iterator_t<const Views>>>&&...)
+                std::equality_comparable<std::ranges::iterator_t<__maybe_const<Const, Views>>>&&...)
         {
             if constexpr (all_bidirectional<Const, Views...>)
             {
@@ -308,18 +300,17 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         {
             return ((std::get<In>(current_) == std::get<In>(sentinels)) || ...);
         }
-
+        
         template <typename SentinelsTuple, std::size_t... In>
-        constexpr std::common_type_t<std::conditional_t<!Const, std::ranges::range_difference_t<Views>,
-                                                        std::ranges::range_difference_t<const Views>>...>
+        constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>        
         distance_to_sentinels(const SentinelsTuple& sentinels, std::index_sequence<In...>) const
         {
             return std::ranges::min({difference_type(std::get<In>(current_) - std::get<In>(sentinels))...}, std::less{},
                                     [](auto a){ return std::abs(a);});
         }
+        
         template <std::size_t... In>
-        constexpr std::common_type_t<std::conditional_t<!Const, std::ranges::range_difference_t<Views>,
-                                                        std::ranges::range_difference_t<const Views>>...>
+        constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>
         distance_to_it(const iterator it, std::index_sequence<In...>) const
         {
             return std::ranges::min({difference_type(std::get<In>(it.current_) - std::get<In>(current_))...}, std::less{},
@@ -334,50 +325,41 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
     template <bool Const>
     class sentinel
     {
-      public:
-        sentinel() = default;
-        constexpr sentinel(sentinel<!Const> i) requires Const &&
-            (std::convertible_to<std::ranges::sentinel_t<Views>, std::ranges::sentinel_t<const Views>> && ...)
-            : end_(std::move(i.end_))
-        {
-        }
-
-      private:
         template <typename... Sentinels>
         constexpr explicit sentinel(const Sentinels&... sentinels) : end_(sentinels...)
         {
         }
 
       public:
+        sentinel() = default;        
+        constexpr sentinel(sentinel<!Const> i) requires Const &&
+            (std::convertible_to<std::ranges::sentinel_t<Views>, std::ranges::sentinel_t<__maybe_const<Const, Views>>> && ...)
+            : end_(std::move(i.end_))
+        {
+        }
+      
         template <bool OtherConst>
-        requires(std::sentinel_for<
-                 std::conditional_t<!Const, std::ranges::sentinel_t<Views>, std::ranges::sentinel_t<const Views>>,
-                 std::conditional_t<!OtherConst, std::ranges::iterator_t<Views>,
-                                    std::ranges::iterator_t<const Views>>>&&...) friend constexpr bool
+        requires(std::sentinel_for<std::ranges::sentinel_t<__maybe_const<Const, Views>>, 
+                                   std::ranges::iterator_t<__maybe_const<OtherConst, Views>>>&&...)
+        friend constexpr bool
         operator==(const iterator<OtherConst>& x, const sentinel& y)
         {
             return x.compare_with_sentinels(y.end_, std::make_index_sequence<sizeof...(Views)>());
         }
-
+        
         template <bool OtherConst>
-        requires(std::sized_sentinel_for<
-                 std::conditional_t<!Const, std::ranges::sentinel_t<Views>, std::ranges::sentinel_t<const Views>>,
-                 std::conditional_t<!OtherConst, std::ranges::iterator_t<Views>,
-                                    std::ranges::iterator_t<const Views>>>&&...)
-        friend constexpr std::common_type_t<std::conditional_t<!Const, std::ranges::range_difference_t<Views>,
-                                             std::ranges::range_difference_t<const Views>>...>
+        requires(std::sized_sentinel_for<std::ranges::sentinel_t<__maybe_const<Const, Views>>, 
+                                         std::ranges::iterator_t<__maybe_const<OtherConst, Views>>>&&...)
+        friend constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>        
             operator-(const iterator<OtherConst>& x, const sentinel& y)
         {
             return x.distance_to_sentinels(y.end_, std::make_index_sequence<sizeof...(Views)>());
         }
-
+        
         template <bool OtherConst>
-        requires(std::sized_sentinel_for<
-                 std::conditional_t<!Const, std::ranges::sentinel_t<Views>, std::ranges::sentinel_t<const Views>>,
-                 std::conditional_t<!OtherConst, std::ranges::iterator_t<Views>,
-                                    std::ranges::iterator_t<const Views>>>&&...)
-        friend constexpr std::common_type_t<std::conditional_t<!Const, std::ranges::range_difference_t<Views>,
-                                             std::ranges::range_difference_t<const Views>>...>
+        requires(std::sized_sentinel_for<std::ranges::sentinel_t<__maybe_const<Const, Views>>, 
+                                         std::ranges::iterator_t<__maybe_const<OtherConst, Views>>>&&...)
+        friend constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>
             operator-(const sentinel& y, const iterator<OtherConst>& x)
         {
             return -(x - y);
@@ -385,10 +367,9 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
 
       private:
         friend class zip_view;
-
-        using end_type = std::conditional_t<!Const, tuple_type<std::ranges::sentinel_t<Views>...>,
-                                            tuple_type<std::ranges::sentinel_t<const Views>...>>;
-
+        
+        using end_type = tuple_type<std::ranges::sentinel_t<__maybe_const<Const, Views>>...>;
+public:
         end_type end_;
     }; // class sentinel
 
