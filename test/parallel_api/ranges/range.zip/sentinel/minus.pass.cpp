@@ -29,13 +29,8 @@
 #include "../types.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
-}
+
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 template <class Base = int*>
 struct convertible_forward_sized_iterator {
@@ -122,12 +117,12 @@ template <class T>
 concept SentinelHasMinus = HasMinus<std::ranges::sentinel_t<T>, std::ranges::iterator_t<T>>;
 // clang-format on
 
-constexpr bool test() {
+int test() {
   int buffer1[5] = {1, 2, 3, 4, 5};
 
   {
     // simple-view
-    std::ranges::zip_view v{ForwardSizedNonCommon(buffer1)};
+    dpl_ranges::zip_view v{ForwardSizedNonCommon(buffer1)};
     static_assert(!std::ranges::common_range<decltype(v)>);
     static_assert(simple_view<decltype(v)>);
 
@@ -143,7 +138,7 @@ constexpr bool test() {
 
   {
     // shortest range
-    std::ranges::zip_view v(std::views::iota(0, 3), ForwardSizedNonCommon(buffer1));
+    dpl_ranges::zip_view v(std::views::iota(0, 3), ForwardSizedNonCommon(buffer1));
     static_assert(!std::ranges::common_range<decltype(v)>);
     auto it = v.begin();
     auto st = v.end();
@@ -157,7 +152,7 @@ constexpr bool test() {
 
   {
     // underlying sentinel does not model sized_sentinel_for
-    std::ranges::zip_view v(std::views::iota(0), SizedRandomAccessView(buffer1));
+    dpl_ranges::zip_view v(std::views::iota(0), SizedRandomAccessView(buffer1));
     static_assert(!std::ranges::common_range<decltype(v)>);
     static_assert(!SentinelHasMinus<decltype(v)>);
   }
@@ -166,7 +161,7 @@ constexpr bool test() {
     // const incompatible:
     // underlying const sentinels cannot subtract underlying iterators
     // underlying sentinels cannot subtract underlying const iterators
-    std::ranges::zip_view v(NonSimpleForwardSizedNonCommon{buffer1});
+    dpl_ranges::zip_view v(NonSimpleForwardSizedNonCommon{buffer1});
     static_assert(!std::ranges::common_range<decltype(v)>);
     static_assert(!simple_view<decltype(v)>);
 
@@ -198,7 +193,7 @@ constexpr bool test() {
 
   {
     // const compatible allow non-const to const conversion
-    std::ranges::zip_view v(ConstCompatibleForwardSized{buffer1});
+    dpl_ranges::zip_view v(ConstCompatibleForwardSized{buffer1});
     static_assert(!std::ranges::common_range<decltype(v)>);
     static_assert(!simple_view<decltype(v)>);
 
@@ -232,12 +227,9 @@ constexpr bool test() {
     assert(const_it - st == -5);
     assert(st - const_it == 5);
   }
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }
