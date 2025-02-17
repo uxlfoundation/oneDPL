@@ -18,16 +18,10 @@
 #include <tuple>
 
 #include "../types.h"
-#include "test_range.h"
 
 #include <oneapi/dpl/ranges>
-namespace std
-{
-namespace ranges
-{
-using oneapi::dpl::ranges::zip_view;
-}
-}
+
+namespace dpl_ranges = oneapi::dpl::ranges;
 
 using Iterator = random_access_iterator<int*>;
 using ConstIterator = random_access_iterator<const int*>;
@@ -64,13 +58,13 @@ struct ConstIncompatibleView : std::ranges::view_base {
   sentinel_wrapper<forward_iterator<const int*>> end() const;
 };
 
-constexpr bool test() {
+int test() {
   int buffer1[4] = {1, 2, 3, 4};
   int buffer2[5] = {1, 2, 3, 4, 5};
   int buffer3[8] = {1, 2, 3, 4, 5, 6, 7, 8};
   {
     // simple-view: const and non-const have the same iterator/sentinel type
-    std::ranges::zip_view v{SimpleNonCommon(buffer1), SimpleNonCommon(buffer2), SimpleNonCommon(buffer3)};
+    dpl_ranges::zip_view v{SimpleNonCommon(buffer1), SimpleNonCommon(buffer2), SimpleNonCommon(buffer3)};
     static_assert(!std::ranges::common_range<decltype(v)>);
     static_assert(simple_view<decltype(v)>);
 
@@ -83,7 +77,7 @@ constexpr bool test() {
 
   {
     // !simple-view: const and non-const have different iterator/sentinel types
-    std::ranges::zip_view v{NonSimpleNonCommon(buffer1), SimpleNonCommon(buffer2), SimpleNonCommon(buffer3)};
+    dpl_ranges::zip_view v{NonSimpleNonCommon(buffer1), SimpleNonCommon(buffer2), SimpleNonCommon(buffer3)};
     static_assert(!std::ranges::common_range<decltype(v)>);
     static_assert(!simple_view<decltype(v)>);
 
@@ -108,7 +102,7 @@ constexpr bool test() {
 
   {
     // underlying const/non-const sentinel can be compared with both const/non-const iterator
-    std::ranges::zip_view v{ComparableView(buffer1), ComparableView(buffer2)};
+    dpl_ranges::zip_view v{ComparableView(buffer1), ComparableView(buffer2)};
     static_assert(!std::ranges::common_range<decltype(v)>);
     static_assert(!simple_view<decltype(v)>);
 
@@ -133,7 +127,7 @@ constexpr bool test() {
 
   {
     // underlying const/non-const sentinel cannot be compared with non-const/const iterator
-    std::ranges::zip_view v{ComparableView(buffer1), ConstIncompatibleView{}};
+    dpl_ranges::zip_view v{ComparableView(buffer1), ConstIncompatibleView{}};
     static_assert(!std::ranges::common_range<decltype(v)>);
     static_assert(!simple_view<decltype(v)>);
 
@@ -149,12 +143,9 @@ constexpr bool test() {
     static_assert(!weakly_equality_comparable_with<Iter, ConstSentinel>);
     static_assert(weakly_equality_comparable_with<ConstIter, ConstSentinel>);
   }
-  return true;
+  return 0;
 }
 
-int main(int, char**) {
-  test();
-  static_assert(test());
-
-  return 0;
+int main() {
+  return test();
 }
