@@ -385,8 +385,8 @@ inline constexpr bool __enable_comparison_op_v =
 template <typename T1, typename... T>
 struct tuple<T1, T...>
 {
-    oneapi::dpl::__internal::__copy_assignable_holder<T1> holder;
-    tuple<T...> next;
+    oneapi::dpl::__internal::__copy_assignable_holder<T1> holder{};
+    tuple<T...> next{};
 
     using tuple_type = ::std::tuple<T1, T...>;
 
