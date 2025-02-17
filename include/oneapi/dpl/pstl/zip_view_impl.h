@@ -331,7 +331,7 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         }
 
       public:
-        sentinel() = default;        
+        sentinel() = default;
         constexpr sentinel(sentinel<!Const> i) requires Const &&
             (std::convertible_to<std::ranges::sentinel_t<Views>, std::ranges::sentinel_t<__maybe_const<Const, Views>>> && ...)
             : end_(std::move(i.end_))
