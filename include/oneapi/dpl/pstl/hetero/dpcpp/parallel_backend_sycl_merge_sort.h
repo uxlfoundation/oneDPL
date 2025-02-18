@@ -330,6 +330,11 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         {
         }
     };
+    // Clang 17 and earlier, as well as other compilers based on them, such as DPC++ 2023.2
+    // are prone to https://github.com/llvm/llvm-project/issues/46200,
+    // which prevents automatic template argument deduction of a nested class.
+    template <typename Rng>
+    DropViews(Rng&, const WorkDataArea&) -> DropViews<Rng>;
 
     template <typename _ExecutionPolicy>
     std::size_t
