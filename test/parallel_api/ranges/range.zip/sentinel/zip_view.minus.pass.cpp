@@ -20,6 +20,7 @@
 // friend constexpr common_type_t<range_difference_t<maybe-const<OtherConst, Views>>...>
 //   operator-(const sentinel&, const iterator<OtherConst>&)
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING

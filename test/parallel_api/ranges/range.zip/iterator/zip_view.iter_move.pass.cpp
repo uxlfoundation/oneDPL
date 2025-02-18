@@ -10,6 +10,7 @@
 
 // friend constexpr auto iter_move(const iterator& i) noexcept(see below);
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING

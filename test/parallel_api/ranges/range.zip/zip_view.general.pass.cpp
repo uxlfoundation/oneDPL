@@ -12,6 +12,7 @@
 // collection of sample algorithms and functions that try to mock general usage of
 // this view.
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING

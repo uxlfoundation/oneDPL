@@ -10,6 +10,7 @@
 
 // std::views::zip
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING

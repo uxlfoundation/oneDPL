@@ -22,6 +22,7 @@
 //   requires all-random-access<Const, Views...> &&
 //            (three_way_comparable<iterator_t<maybe-const<Const, Views>>> && ...);
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
