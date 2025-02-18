@@ -11,6 +11,7 @@
 // template <class... Rs>
 // zip_view(Rs&&...) -> zip_view<views::all_t<Rs>...>;
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
