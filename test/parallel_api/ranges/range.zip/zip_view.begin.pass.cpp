@@ -11,6 +11,7 @@
 // constexpr auto begin() requires (!(simple-view<Views> && ...));
 // constexpr auto begin() const requires (range<const Views> && ...);
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
