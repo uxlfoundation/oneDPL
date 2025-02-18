@@ -12,6 +12,7 @@
 //   requires sentinel_for<sentinel_t<Base>, iterator_t<maybe-const<OtherConst, V>>>
 // friend constexpr bool operator==(const iterator<OtherConst>& x, const sentinel& y);
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
