@@ -12,6 +12,7 @@
 // constexpr void operator++(int);
 // constexpr iterator operator++(int) requires all_forward<Const, Views...>;
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING

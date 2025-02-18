@@ -11,6 +11,7 @@
 // friend constexpr void iter_swap(const iterator& l, const iterator& r) noexcept(see below)
 //   requires (indirectly_swappable<iterator_t<maybe-const<Const, Views>>> && ...);
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
