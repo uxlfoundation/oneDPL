@@ -11,6 +11,7 @@
 // constexpr auto operator[](difference_type n) const requires
 //        all_random_access<Const, Views...>
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
