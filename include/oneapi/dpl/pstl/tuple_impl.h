@@ -273,7 +273,8 @@ map_tuplewrapper(F f, TBig<T...> in, RestTuples... rest)
 template <typename _Tp>
 struct __value_holder
 {
-    __value_holder() = default;
+    __value_holder() : value{} {};
+    //__value_holder() = default;
     template <typename _Up>
     __value_holder(_Up&& t) : value(::std::forward<_Up>(t))
     {
@@ -285,7 +286,7 @@ struct __value_holder
 // if it's needed to have user-defined operator=.
 template <typename _Tp, bool = ::std::is_trivially_copy_assignable_v<oneapi::dpl::__internal::__value_holder<_Tp>>>
 struct __copy_assignable_holder : oneapi::dpl::__internal::__value_holder<_Tp>
-{
+{    
     using oneapi::dpl::__internal::__value_holder<_Tp>::__value_holder;
 };
 
@@ -385,8 +386,8 @@ inline constexpr bool __enable_comparison_op_v =
 template <typename T1, typename... T>
 struct tuple<T1, T...>
 {
-    oneapi::dpl::__internal::__copy_assignable_holder<T1> holder{};
-    tuple<T...> next{};
+    oneapi::dpl::__internal::__copy_assignable_holder<T1> holder;
+    tuple<T...> next;
 
     using tuple_type = ::std::tuple<T1, T...>;
 
