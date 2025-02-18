@@ -12,6 +12,7 @@
 // If the invocation of any non-const member function of `iterator` exits via an
 // exception, the iterator acquires a singular value.
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
