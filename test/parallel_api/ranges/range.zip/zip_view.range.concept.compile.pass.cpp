@@ -12,6 +12,7 @@
 //                         random_access_range, contiguous_range, common_range
 //                         sized_range
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
