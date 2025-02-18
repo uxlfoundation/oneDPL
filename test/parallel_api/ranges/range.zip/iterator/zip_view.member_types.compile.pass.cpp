@@ -10,6 +10,7 @@
 
 // Iterator traits and member typedefs in zip_view::<iterator>.
 
+#include "support/test_config.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
