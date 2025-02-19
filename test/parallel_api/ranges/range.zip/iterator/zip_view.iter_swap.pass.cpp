@@ -11,6 +11,10 @@
 // friend constexpr void iter_swap(const iterator& l, const iterator& r) noexcept(see below)
 //   requires (indirectly_swappable<iterator_t<maybe-const<Const, Views>>> && ...);
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <array>
 #include <cassert>
 #include <ranges>
@@ -27,7 +31,7 @@ struct ThrowingMove {
   ThrowingMove& operator=(ThrowingMove&&){return *this;}
 };
 
-int test() {
+void test() {
   {
     std::array a1{1, 2, 3, 4};
     std::array a2{0.1, 0.2, 0.3};
@@ -80,9 +84,12 @@ int test() {
     assert(r1.iter_swap_called_times == 4);
     assert(r2.iter_swap_called_times == 4);
   }
-  return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

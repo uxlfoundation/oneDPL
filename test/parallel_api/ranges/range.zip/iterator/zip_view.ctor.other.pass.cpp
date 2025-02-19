@@ -12,6 +12,10 @@
 //       requires Const && (convertible_to<iterator_t<Views>,
 //                                         iterator_t<maybe-const<Const, Views>>> && ...);
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 
 #include <cassert>
@@ -28,7 +32,7 @@ using ConstIterIncompatibleView = BasicView<forward_iterator<int*>, forward_iter
 static_assert(!std::convertible_to<std::ranges::iterator_t<ConstIterIncompatibleView>,
                                    std::ranges::iterator_t<const ConstIterIncompatibleView>>);
 
-int test() {
+void test() {
   int buffer[3] = {1, 2, 3};
 
   {
@@ -54,10 +58,12 @@ int test() {
     static_assert(!std::constructible_from<decltype(iter1), decltype(iter2)>);
     static_assert(!std::constructible_from<decltype(iter2), decltype(iter1)>);
   }
-
-  return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

@@ -10,6 +10,10 @@
 
 // constexpr explicit zip_view(Views...)
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 #include <tuple>
 
@@ -94,7 +98,11 @@ int test() {
 
   return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();  
+#if _ENABLE_STD_RANGES_TESTING
+    test();  
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

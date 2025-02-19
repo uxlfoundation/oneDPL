@@ -11,6 +11,10 @@
 // constexpr auto end() requires(!(simple-view<Views> && ...))
 // constexpr auto end() const requires(range<const Views>&&...)
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 #include <tuple>
 
@@ -68,7 +72,7 @@ namespace dpl_ranges = oneapi::dpl::ranges;
 // 43 |   N    |   N    |  N   |    N   |   N   |   1    | sentinel<false>| sentinel<true>
 // 44 |   N    |   N    |  N   |    N   |   N   |   >1   | sentinel<false>| sentinel<true>
 
-int test() {
+void test() {
   int buffer1[5] = {1, 2, 3, 4, 5};
   int buffer2[1] = {1};
   int buffer3[3] = {1, 2, 3};
@@ -388,9 +392,12 @@ int test() {
     assert(x == 3);
     assert(y == 3); // y should not go to the end "7"
   }
-  return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

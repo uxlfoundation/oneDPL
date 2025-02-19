@@ -11,6 +11,10 @@
 // constexpr auto operator[](difference_type n) const requires
 //        all_random_access<Const, Views...>
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 #include <cassert>
 
@@ -23,7 +27,7 @@ namespace dpl_ranges = oneapi::dpl::ranges;
 template <typename... Types>
 using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
 
-int test() {
+void test() {
   int buffer[8] = {1, 2, 3, 4, 5, 6, 7, 8};
 
   {
@@ -63,10 +67,12 @@ int test() {
     const auto canSubscript = [](auto&& it) { return requires { it[0]; }; };
     static_assert(!canSubscript(iter));
   }
-
-  return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

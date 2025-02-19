@@ -12,6 +12,10 @@
 //                         random_access_range, contiguous_range, common_range
 //                         sized_range
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <cassert>
 #include <concepts>
 #include <ranges>
@@ -329,3 +333,8 @@ concept zippable = requires {
 static_assert(!zippable<OutputView>);
 static_assert(!zippable<SimpleCommon, OutputView>);
 static_assert(zippable<SimpleCommon>);
+#endif //_ENABLE_STD_RANGES_TESTING
+
+int main() {
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING); //test skipped
+}
