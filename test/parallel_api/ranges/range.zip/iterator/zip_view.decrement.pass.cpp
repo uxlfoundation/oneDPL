@@ -11,6 +11,10 @@
 // constexpr iterator& operator--() requires all-bidirectional<Const, Views...>;
 // constexpr iterator operator--(int) requires all-bidirectional<Const, Views...>;
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <array>
 #include <cassert>
 #include <ranges>
@@ -32,7 +36,7 @@ struct NonBidi : IntBufferView {
   constexpr sentinel_wrapper<iterator> end() const { return sentinel_wrapper<iterator>(iterator(buffer_ + size_)); }
 };
 
-int test() {
+void test() {
   std::array a{1, 2, 3, 4};
   std::array b{4.1, 3.2, 4.3};
   {
@@ -86,10 +90,13 @@ int test() {
     using Iter = std::ranges::iterator_t<decltype(v)>;
     static_assert(!canDecrement<Iter>);
   }
-
-  return 0;
 }
 
+#endif //_ENABLE_STD_RANGES_TESTING
+
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

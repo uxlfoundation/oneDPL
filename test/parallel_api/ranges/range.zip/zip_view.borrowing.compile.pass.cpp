@@ -12,6 +12,9 @@
 // inline constexpr bool enable_borrowed_range<zip_view<Views...>> =
 //      (enable_borrowed_range<Views> && ...);
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
 #include <ranges>
 
 #include <oneapi/dpl/ranges>
@@ -42,3 +45,8 @@ static_assert(std::ranges::borrowed_range<dpl_ranges::zip_view<Borrowed, Borrowe
 static_assert(!std::ranges::borrowed_range<dpl_ranges::zip_view<Borrowed, NonBorrowed>>);
 static_assert(!std::ranges::borrowed_range<dpl_ranges::zip_view<NonBorrowed>>);
 static_assert(!std::ranges::borrowed_range<dpl_ranges::zip_view<NonBorrowed, NonBorrowed>>);
+#endif 
+
+int main() {
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
+}

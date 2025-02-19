@@ -10,6 +10,10 @@
 
 // Iterator traits and member typedefs in zip_view::<iterator>.
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <array>
 #include <ranges>
 #include <tuple>
@@ -201,11 +205,14 @@ void test() {
     static_assert(std::is_same_v<ConstIter::value_type, tuple_type<double>>);
   }
   #endif
-
 }
+
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main()
 {
-  test();
-  return 0;
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

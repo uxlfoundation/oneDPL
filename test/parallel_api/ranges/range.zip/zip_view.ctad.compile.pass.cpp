@@ -11,6 +11,10 @@
 // template <class... Rs>
 // zip_view(Rs&&...) -> zip_view<views::all_t<Rs>...>;
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <cassert>
 #include <utility>
 
@@ -44,9 +48,11 @@ void testCTAD() {
                 decltype(dpl_ranges::zip_view(Container{}, View{}, c)),
                 dpl_ranges::zip_view<std::ranges::owning_view<Container>, View, std::ranges::ref_view<Container>>>);
 }
- #endif
+#endif
 
- int main()
- {
-    return 0;
- }
+#endif //_ENABLE_STD_RANGES_TESTING
+
+int main()
+{
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
+}
