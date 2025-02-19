@@ -10,6 +10,10 @@
 
 // constexpr sentinel(sentinel<!Const> s);
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <cassert>
 #include <ranges>
 
@@ -52,7 +56,7 @@ static_assert(std::convertible_to<std::ranges::sentinel_t<NonSimpleNonCommonConv
                                   std::ranges::sentinel_t<NonSimpleNonCommonConvertibleView const>>);
 static_assert(!simple_view<NonSimpleNonCommonConvertibleView>);
 
-int test() {
+void test() {
   int buffer1[4] = {1, 2, 3, 4};
   int buffer2[5] = {1, 2, 3, 4, 5};
   dpl_ranges::zip_view v{NonSimpleNonCommonConvertibleView(buffer1), NonSimpleNonCommonConvertibleView(buffer2)};
@@ -68,9 +72,12 @@ int test() {
 
   // Cannot create a non-const iterator from a const iterator.
   static_assert(!std::constructible_from<decltype(sent1), decltype(sent2)>);
-  return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

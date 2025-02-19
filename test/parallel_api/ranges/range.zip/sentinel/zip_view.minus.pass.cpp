@@ -20,6 +20,10 @@
 // friend constexpr common_type_t<range_difference_t<maybe-const<OtherConst, Views>>...>
 //   operator-(const sentinel&, const iterator<OtherConst>&)
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <cassert>
 #include <concepts>
 #include <functional>
@@ -117,7 +121,7 @@ template <class T>
 concept SentinelHasMinus = HasMinus<std::ranges::sentinel_t<T>, std::ranges::iterator_t<T>>;
 // clang-format on
 
-int test() {
+void test() {
   int buffer1[5] = {1, 2, 3, 4, 5};
 
   {
@@ -227,9 +231,12 @@ int test() {
     assert(const_it - st == -5);
     assert(st - const_it == 5);
   }
-  return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
