@@ -22,6 +22,10 @@
 //   requires all-random-access<Const, Views...> &&
 //            (three_way_comparable<iterator_t<maybe-const<Const, Views>>> && ...);
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 #include <compare>
 
@@ -137,7 +141,7 @@ constexpr void inequalityOperatorsDoNotExistTest(auto&& iter1, auto&& iter2) {
   static_assert(!std::is_invocable_v<std::greater_equal<>, Iter1, Iter2>);
 }
 
-int test() {
+void test() {
   {
     // Test a new-school iterator with operator<=>; the iterator should also have operator<=>.
     using It = three_way_contiguous_iterator<int*>;
@@ -246,9 +250,12 @@ int test() {
     static_assert(!weakly_equality_comparable_with<Iter, Iter>);
     inequalityOperatorsDoNotExistTest(it, it);
   }
-  return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();  
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

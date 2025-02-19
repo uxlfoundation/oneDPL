@@ -11,6 +11,10 @@
 // constexpr auto begin() requires (!(simple-view<Views> && ...));
 // constexpr auto begin() const requires (range<const Views> && ...);
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 
 #include <cassert>
@@ -50,7 +54,7 @@ struct NoConstBeginView : std::ranges::view_base {
 template <typename... Types>
     using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
 
-int test() {
+void test() {
   int buffer[8] = {1, 2, 3, 4, 5, 6, 7, 8};
   {
     // all underlying iterators should be at the begin position
@@ -96,7 +100,6 @@ int test() {
     static_assert(!HasOnlyConstBegin<View>);
     static_assert(!HasOnlyNonConstBegin<View>);
     static_assert(HasConstAndNonConstBegin<View>);
-    return 0;
   }
 
   {
@@ -107,7 +110,11 @@ int test() {
     static_assert(!HasConstAndNonConstBegin<View>);
   }
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
-int main(int, char**) {
-  return test();
+int main() {
+#if _ENABLE_STD_RANGES_TESTING
+  test();
+#endif
+  return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
