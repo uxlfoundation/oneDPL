@@ -12,6 +12,10 @@
 //   requires sentinel_for<sentinel_t<Base>, iterator_t<maybe-const<OtherConst, V>>>
 // friend constexpr bool operator==(const iterator<OtherConst>& x, const sentinel& y);
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <cassert>
 #include <compare>
 #include <ranges>
@@ -58,7 +62,7 @@ struct ConstIncompatibleView : std::ranges::view_base {
   sentinel_wrapper<forward_iterator<const int*>> end() const;
 };
 
-int test() {
+void test() {
   int buffer1[4] = {1, 2, 3, 4};
   int buffer2[5] = {1, 2, 3, 4, 5};
   int buffer3[8] = {1, 2, 3, 4, 5, 6, 7, 8};
@@ -143,9 +147,12 @@ int test() {
     static_assert(!weakly_equality_comparable_with<Iter, ConstSentinel>);
     static_assert(weakly_equality_comparable_with<ConstIter, ConstSentinel>);
   }
-  return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
