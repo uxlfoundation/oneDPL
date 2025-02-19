@@ -10,6 +10,10 @@
 
 // constexpr auto operator*() const;
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <array>
 #include <cassert>
 #include <ranges>
@@ -24,7 +28,7 @@ namespace dpl_ranges = oneapi::dpl::ranges;
 template <typename... Types>
 using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
 
-int test() {
+void test() {
   std::array a{1, 2, 3, 4};
   std::array b{4.1, 3.2, 4.3};
   {
@@ -83,9 +87,13 @@ int test() {
     static_assert(std::is_same_v<decltype(*it), tuple_type<int&, int const&>>);
 #endif
   }
-  return 0;
 }
 
+#endif //_ENABLE_STD_RANGES_TESTING
+
 int main() {
-  return test();  
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
