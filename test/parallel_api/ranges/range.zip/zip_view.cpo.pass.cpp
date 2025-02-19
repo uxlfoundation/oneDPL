@@ -10,6 +10,10 @@
 
 // std::views::zip
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 
 #include <array>
@@ -38,7 +42,7 @@ static_assert(
     std::is_invocable_v<decltype((dpl::views::zip)), SizedRandomAccessView, std::ranges::iota_view<int, int>>);
 static_assert(!std::is_invocable_v<decltype((dpl::views::zip)), SizedRandomAccessView, int>);
 
-int test() {
+void test() {
   {
     // zip zero arguments
     auto v = dpl::views::zip();
@@ -80,9 +84,12 @@ int test() {
     static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v2)>, tuple_type<tuple_type<int&, int&>>>);
 #endif
   }
-  return 0;
 }
 
+#endif //_ENABLE_STD_RANGES_TESTING
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
