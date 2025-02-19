@@ -10,6 +10,10 @@
 
 // sentinel() = default;
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <cassert>
 #include <ranges>
 #include <tuple>
@@ -32,7 +36,7 @@ struct Range : std::ranges::view_base {
 template<typename>
 struct print_type;
 
-int test() {
+void test() {
   {
     using R = dpl_ranges::zip_view<Range>;
     using Sentinel = std::ranges::sentinel_t<R>;
@@ -46,9 +50,12 @@ int test() {
     Sentinel s2 = {};
     assert(it != s2); // PODSentinel.b is initialised to false
   }
-  return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif //_ENABLE_STD_RANGES_TESTING
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

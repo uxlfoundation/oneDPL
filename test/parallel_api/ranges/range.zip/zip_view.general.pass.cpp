@@ -12,6 +12,10 @@
 // collection of sample algorithms and functions that try to mock general usage of
 // this view.
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 
 #include <array>
@@ -26,7 +30,7 @@
 
 namespace dpl_ranges = oneapi::dpl::ranges;
 
-int main(int, char**) {
+int main() {
   {
     dpl_ranges::zip_view v{
         std::array{1, 2},
@@ -57,5 +61,12 @@ int main(int, char**) {
     assert(it == view.end());
   }
 
-  return 0;
+  return TestUtils::done(1);
 }
+
+#else
+
+int main() {
+    return TestUtils::done(0); //test skipped
+}
+#endif //_ENABLE_STD_RANGES_TESTING

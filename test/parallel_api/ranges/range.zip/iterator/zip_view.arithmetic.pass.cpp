@@ -19,6 +19,10 @@
 //    `requires (sized_sentinel_for<iterator_t<maybe-const<Const, Views>>,
 //                                  iterator_t<maybe-const<Const, Views>>> && ...);`
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 
 #include <array>
@@ -45,7 +49,7 @@ template <typename _R>
         std::ranges::view<_R> && std::ranges::range<const _R> && std::same_as<std::ranges::iterator_t<_R>,
         std::ranges::iterator_t<const _R>> && std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
 
-int test() {
+void test() {
   int buffer1[5] = {1, 2, 3, 4, 5};
   int buffer2[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 
@@ -142,10 +146,12 @@ int test() {
     using Iter = decltype(v.begin());
     static_assert(!std::invocable<std::minus<>, Iter, Iter>);
   }
-
-  return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
