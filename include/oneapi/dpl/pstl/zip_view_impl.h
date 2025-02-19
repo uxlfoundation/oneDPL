@@ -490,6 +490,8 @@ inline constexpr oneapi::dpl::ranges::__internal::zip_fn zip{};
 
 } // namespace ranges
 
+namespace views = ranges::views;
+
 } // namespace dpl
 } // namespace oneapi
 
