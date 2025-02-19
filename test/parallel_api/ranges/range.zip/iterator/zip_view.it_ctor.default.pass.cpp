@@ -10,6 +10,10 @@
 
 // iterator() = default;
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 #include <tuple>
 
@@ -53,7 +57,7 @@ static_assert(!std::default_initializable<zip_iter<IterNoDefaultCtrView, IterNoD
 static_assert(std::default_initializable<zip_iter<IterDefaultCtrView>>);
 static_assert(std::default_initializable<zip_iter<IterDefaultCtrView, IterDefaultCtrView>>);
 
-int test() {
+void test() {
   using ZipIter = zip_iter<IterDefaultCtrView>;
   {
     ZipIter iter;
@@ -66,9 +70,13 @@ int test() {
     auto [x] = *iter;
     assert(x == 0); // PODIter has to be initialised to have value 0
   }
-  return 0;
 }
 
+#endif //_ENABLE_STD_RANGES_TESTING
+
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

@@ -10,6 +10,10 @@
 
 // friend constexpr auto iter_move(const iterator& i) noexcept(see below);
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <array>
 #include <cassert>
 #include <iterator>
@@ -30,7 +34,7 @@ struct ThrowingMove {
   ThrowingMove(ThrowingMove&&) {}
 };
 
-int test() {
+void test() {
   {
     // underlying iter_move noexcept
     std::array a1{1, 2, 3, 4};
@@ -71,10 +75,12 @@ int test() {
       assert(r2.iter_move_called_times == 2);
     }
   }
-
-  return 0;
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

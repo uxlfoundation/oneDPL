@@ -11,6 +11,10 @@
 // constexpr auto size() requires(sized_range<Views>&&...)
 // constexpr auto size() const requires(sized_range<const Views>&&...)
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 
 #include <cassert>
@@ -48,7 +52,7 @@ struct StrangeSizeView : std::ranges::view_base {
   constexpr auto size() const { return 6; }
 };
 
-int test() {
+void test() {
   {
     // single range
     dpl_ranges::zip_view v(View(8));
@@ -91,9 +95,13 @@ int test() {
     static_assert(!std::ranges::sized_range<decltype(v)>);
     static_assert(!std::ranges::sized_range<decltype(std::as_const(v))>);
   }
-  return 0;
 }
 
+#endif //_ENABLE_STD_RANGES_TESTING
+
 int main() {
-  return test();
+#if _ENABLE_STD_RANGES_TESTING
+  test();
+#endif
+  return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

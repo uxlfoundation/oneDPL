@@ -12,6 +12,10 @@
 // If the invocation of any non-const member function of `iterator` exits via an
 // exception, the iterator acquires a singular value.
 
+#include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <ranges>
 
 #include <tuple>
@@ -79,9 +83,11 @@ void test() {
     assert(x == 1);
   }
 }
+#endif //_ENABLE_STD_RANGES_TESTING
 
 int main(int, char**) {
-  test();
-
-  return 0;
+#if _ENABLE_STD_RANGES_TESTING
+    test();
+#endif
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
