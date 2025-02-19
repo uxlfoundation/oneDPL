@@ -273,6 +273,7 @@ map_tuplewrapper(F f, TBig<T...> in, RestTuples... rest)
 template <typename _Tp>
 struct __value_holder
 {
+    //__value_holder() : value{} {};
     __value_holder() = default;
     template <typename _Up>
     __value_holder(_Up&& t) : value(::std::forward<_Up>(t))
@@ -285,7 +286,7 @@ struct __value_holder
 // if it's needed to have user-defined operator=.
 template <typename _Tp, bool = ::std::is_trivially_copy_assignable_v<oneapi::dpl::__internal::__value_holder<_Tp>>>
 struct __copy_assignable_holder : oneapi::dpl::__internal::__value_holder<_Tp>
-{
+{    
     using oneapi::dpl::__internal::__value_holder<_Tp>::__value_holder;
 };
 
@@ -418,7 +419,9 @@ struct tuple<T1, T...>
         return get_impl<I>()(::std::move(*this));
     }
 
-    tuple() = default;
+    template<typename _Tp = T1, std::enable_if_t<std::conjunction_v<std::is_default_constructible<_Tp>, 
+                                                 std::is_default_constructible<T>...>, int> = 0>
+    tuple(): holder{}, next{} { }
     tuple(const tuple& other) = default;
     tuple(tuple&& other) = default;
     template <typename _U1, typename... _U, typename = ::std::enable_if_t<(sizeof...(_U) == sizeof...(T))>>
@@ -495,6 +498,15 @@ struct tuple<T1, T...>
     template <typename U1, typename... U>
     tuple&
     operator=(const tuple<U1, U...>& other)
+    {
+        holder.value = other.holder.value;
+        next = other.next;
+        return *this;
+    }
+
+    template <typename U1, typename... U>
+    tuple&
+    operator=(const tuple<U1, U...>& other) const
     {
         holder.value = other.holder.value;
         next = other.next;
