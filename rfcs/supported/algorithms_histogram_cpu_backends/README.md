@@ -25,8 +25,8 @@ they can select from when using oneDPL. It is important that all combinations of
 `histogram` APIs.
 
 ### Performance
-Histogram algorithms typically involve minimal computation and are likely to be memory-bound. So, the implementation prioritizes
-reducing memory accesses and minimizing temporary memory traffic.
+Histogram algorithms typically involve minimal computation and are likely to be memory-bound. So, the implementation
+prioritizes reducing memory accesses and minimizing temporary memory traffic.
 
 For CPU backends, we will focus on input sizes ranging from 32K to 4M elements and 32 - 4k histogram bins. Smaller sizes
 of input may best be suited for serial histogram implementation, and very large sizes may be better suited for GPU
@@ -138,38 +138,94 @@ percentage of the output histogram may be occupied, even when considering dividi
 This could be explored if we find temporary storage is too large for some cases and the atomic approach does not
 provide a good fallback.
 
-## Proposal
-After exploring the above implementation for `histogram`, the following proposal better represents the use cases which
-are important, and provides reasonable performance for most cases.
+## Supported Implementation
+After exploring the above implementation for `histogram`, the following implementation better represents the use cases
+which are important, and provides reasonable performance for most cases.
+
+### Version Information
+Histogram APIs are supported for host execution policies as of version 2022.8.0 of oneDPL, specification version 1.4.
+```
+ONEDPL_VERSION_MAJOR=2022
+ONEDPL_VERSION_MINOR=8
+ONEDPL_VERSION_PATCH=0
+
+ONEDPL_SPEC_VERSION=104
+```
+
+Histogram APIs are supported for device execution policies as of version 2022.5.0.  It was first specified in oneDPL
+specification version 1.4. However, this was released before `ONEDPL_SPEC_VERSION` was defined within our implementation
+of oneDPL.
+```
+ONEDPL_VERSION_MAJOR=2022
+ONEDPL_VERSION_MINOR=5
+ONEDPL_VERSION_PATCH=0
+```
 
 ### Embarrassingly Parallel Via Temporary Histograms
 This method uses temporary storage and a pair of calls to backend specific `parallel_for` functions to accomplish the
 `histogram`. These calls will use the existing infrastructure to provide properly composable parallelism, without extra
 histogram-specific patterns in the implementation of a backend.
 
-This algorithm does however require that each parallel backend will add a
-`__enumerable_thread_local_storage<_StoredType>` struct which provides the following:
-* constructor which takes a variadic list of args to pass to the constructor of each thread's object
-* `get_for_current_thread()` returns reference to the current thread's stored object
-* `get_with_id(int i)` returns reference to the stored object for an index
-* `size()` returns number of stored objects
 
-In the TBB backend, this will use `enumerable_thread_specific` internally. For OpenMP, we implement our own similar
-thread local storage which will allocate and initialize the thread local storage at the first usage for each active
-thread, similar to TBB. The serial backend will merely create a single copy of the temporary object for use. The serial
-backend does not technically need any thread specific storage, but to avoid special casing for this serial backend, we
-use a single copy of histogram. In practice, our benchmarking reports little difference in performance between this
-implementation and the original, which directly accumulated to the output histogram.
+#### Enumerable Thread Local Storage feature
+This algorithm requires that each parallel backend add a "make" function with the following signature:
+```
+template <typename _ValueType, typename... _Args>
+auto /* or unspecified enumerable thread local storage type */
+oneapi::dpl::__par_backend::__make_enumerable_tls(_Args&&)
+```
+returning an object which represents an enumerable thread local storage where `_ValueType` represents the type of stored
+per-thread objects, and `_Args...` are the types of the arguments to send to the constructor of type `_ValueType` upon
+each creation. The enumerable thread local storage object must provide the following member functions:
 
-With this new structure we will use the following algorithm:
+* `__ValueType& get_for_current_thread()`
 
-1) Run a `parallel_for` pattern which performs a `histogram` on the input sequence where each thread accumulates into
-its own temporary histogram returned by `__enumerable_thread_local_storage`. The parallelism is divided on the input
-element axis, and we rely upon existing `parallel_for` to implement chunksize and thread composability.
-2) Run a second `parallel_for` over the `histogram` output sequence which accumulates all temporary copies of the
-histogram created within `__enumerable_thread_local_storage` into the output histogram sequence. The parallelism is
-divided on the histogram bin axis, and each chunk loops through all temporary histograms to accumulate into the
-output histogram.
+ Returns reference to the current thread's stored object. This function is meant to be used within a parallel context,
+ with each thread exclusively accessing its part of the storage.
+
+* `__ValueType& get_with_id(std::size_t __i)` 
+
+ Returns reference to the stored object at a given index to the list of already created elements, up to `size()`.
+ This function must not be called concurrently with `get_for_current_thread()`, as that may create new
+ elements in the storage.
+
+* `std::size_t size() const`
+
+ Returns the number of already created elements. Similar to `get_with_id()`, this must not be 
+ called concurrently with `get_for_current_thread()`.
+
+A unified implementation of `__enumerable_thread_local_storage_base` is provided with these features in
+`include/oneapi/dpl/pstl/parallel_backend_utils.h` for use as a base implementation in a Curiously Recurring Template
+Pattern (CRTP) for individual parallel backends to derive from. When using this base struct, derived classes
+in specific parallel backends must provide the following methods.
+
+* `static std::size_t get_num_threads()`
+
+ Returns the maximal number of threads possible in the current parallel execution context.
+
+* `static std::size_t get_thread_num()`
+
+ Returns the index of the calling thread in the current parallel execution context.
+
+When these two functions are provided by the derived structure, the base implementation provides the functionality
+specified above. An example of this is found in both `include/oneapi/dpl/pstl/omp/util.h` and
+`include/oneapi/dpl/pstl/parallel_backend_tbb.h`. The serial backend instead defines its own specific
+`__enumerable_thread_local_storage` type in `include/oneapi/dpl/pstl/parallel_backend_serial.h`.
+
+We decided to avoid using the `enumerable_thread_specific` class provided by TBB, because on Windows it includes
+"windows.h".  The baggage associated with "windows.h" is not worth the benefit of using the existing type.
+
+#### Algorithm
+1) Call existing `parallel_for` pattern which performs a `histogram` on the input sequence, each thread accumulating
+into its own temporary histogram provided by `__enumerable_thread_local_storage`. We rely upon `parallel_for` pattern to
+implement chunksize and thread composability.
+1) Call a second `parallel_for` pattern over the `histogram` output sequence which accumulates all temporary copies of
+the histogram created within `__enumerable_thread_local_storage` into the output histogram sequence. Threads divide the
+histogram bin axis, where each chunk loops through all temporary histograms to accumulate into the section of output
+histogram. In this parallel section, the inner loop for each thread iterates over individual histogram bins within the
+same temporary histogram copy, accumulating into the corresponding global output bins. This operates on chunks of
+contiguous elements in memory, and is a better access pattern taking advantage of cachelines, vectorization, and memory
+prefetching.
 
 With the overhead associated with this algorithm, the implementation of each `parallel_for` may fallback to a serial
 implementation. It makes sense to include this as part of a future improvement of `parallel_for`, where a user could
@@ -190,3 +246,9 @@ The proposed algorithm should have `O(N) + O(num_bins)` operations where `N` is 
 #### Custom Range Bin API
 The proposed algorithm should have `O(N * log(num_bins)) + O(num_bins)` operations where `N` is the number of input
 elements, and `num_bins` is the number of histogram bins.
+
+### Future work
+* Improve parallel_for pattern to allow generic implementation level to specify chunksize and serial cutoff thresholds.
+* Explore options for some partial vectorization of the first parallel_for loop
+* Explore improvements to `__enumerable_thread_local_storage` API for enumerating through created elements. Consider
+ switching to a visitor pattern, and better protecting against improper usage.
