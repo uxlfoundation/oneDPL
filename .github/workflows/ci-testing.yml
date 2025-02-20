@@ -198,22 +198,33 @@ jobs:
           if [[ -f "${LINUX_ONEAPI_PATH}/setvars.sh" ]]; then
             source ${LINUX_ONEAPI_PATH}/setvars.sh
           fi
-          echo "::warning::CMake: $(cmake --version)"
-          echo "::warning::Compiler: $(${{ matrix.cxx_compiler }} --version)"
 
           if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
             make_targets="build-onedpl-sycl_iterator-tests build-onedpl-ranges-tests"
             ctest_flags="-R (sycl_iterator_.*)|(std_ranges_.*)\.pass"
-            echo "::warning::dpcpp backend is set. Compile and run only sycl_iterator tests"
           else
             make_targets="build-onedpl-tests"
           fi
           mkdir build && cd build
           lscpu
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} ..
-          make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets}
-          ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags}
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="-Wall" ..
+          make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
+          ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags} |& tee ctest.log
+
+          # Generate a summary
+          os_name=$(uname -a | head -n 1)
+          cmake_version=$(cmake --version | head -n 1)
+          compiler_version=$(${{ matrix.cxx_compiler }} --version | head -n 1)
+          cpu_model=$(lscpu | grep "Model name")
+          python ${GITHUB_WORKSPACE}/.github/scripts/job_summary.py --build-log build.log \
+                                                                    --ctest-log ctest.log \
+                                                                    --output-file summary.md \
+                                                                    --os "${os_name}" \
+                                                                    --cmake-version "${cmake_version}" \
+                                                                    --compiler-version "${compiler_version}" \
+                                                                    --cpu-model "${cpu_model}"
+          cat summary.md > $GITHUB_STEP_SUMMARY
 
   windows-testing:
     name: ${{ matrix.device_type }},bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
@@ -267,25 +278,47 @@ jobs:
           if "${{ matrix.cxx_compiler }}" == "cl" (
             call "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
           )
-          powershell $output = cmake --version; Write-Host ::warning::CMake: $output
-          powershell $output = ${{ matrix.cxx_compiler }} --version; Write-Host ::warning::Compiler: $output
 
           if "${{ matrix.backend }}" == "dpcpp" (
             set ninja_targets="build-onedpl-sycl_iterator-tests"
             set ctest_flags=-R sycl_iterator_.*\.pass
-            echo ::warning::dpcpp backend is set. Compile and run only sycl_iterator tests
           ) else (
             set ninja_targets=build-onedpl-tests
           )
           mkdir build && cd build
 
-          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} .. || goto :short_circuit_fail
-          ninja -j 2 -v %ninja_targets% || goto :short_circuit_fail
-          ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% || goto :short_circuit_fail
-          exit /b 0
-          :: modify the default behaviour of shell:cmd, which exits with the status of a last command, in order not to unintentially miss an error
-          :short_circuit_fail
-          exit /b %errorlevel%
+          :: Preserve the code of an unsuccessful command if any.
+          :: By default, CMD shell only reports the error level of the final command.
+          set exit_code=0
+
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" .. || set exit_code=%errorlevel%
+
+          ninja -j 2 -v %ninja_targets% > build.log 2>&1 || set exit_code=%errorlevel%
+          :: Display the results after executing all tests because "tee" alternative is unavailable in CMD.
+          type build.log
+
+          ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1 || set exit_code=%errorlevel%
+          type ctest.log
+
+          :: Generate a summary
+          powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption" > os_name.txt
+          set /p os_name=<os_name.txt
+          powershell -command "cmake --version | Select-Object -First 1" > cmake_version.txt
+          set /p cmake_version=<cmake_version.txt
+          :: cl writes the version into stderr
+          powershell -command "${{ matrix.cxx_compiler }} --version | Select-Object -First 1" > compiler_version.txt 2>&1
+          set /p compiler_version=<compiler_version.txt
+          powershell -command "(Get-CimInstance -ClassName Win32_Processor).Name" > cpu_model.txt
+          set /p cpu_model=<cpu_model.txt
+          python %GITHUB_WORKSPACE%\.github\scripts\job_summary.py --build-log build.log ^
+                                                                   --ctest-log ctest.log ^
+                                                                   --output-file summary.md ^
+                                                                   --os "%os_name%" ^
+                                                                   --cmake-version "%cmake_version%" ^
+                                                                   --compiler-version "%compiler_version%" ^
+                                                                   --cpu-model "%cpu_model%"
+          type summary.md > %GITHUB_STEP_SUMMARY%
+          exit /b %exit_code%
 
   macos-testing:
     name: HOST,bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
@@ -309,13 +342,26 @@ jobs:
         shell: bash
         run: |
           set -x
-          echo "::warning::CMake: $(cmake --version)"
           sysctl -a | grep machdep.cpu
           # workaround for CMake not being able to find OpenMP: see https://discourse.cmake.org/t/how-to-find-openmp-with-clang-on-macos/8860
           # -DCMAKE_POLICY_DEFAULT_CMP0074=NEW below is forced to make sure CMake uses <PackageName>_ROOT variables.
           export OpenMP_ROOT=$(brew --prefix)/opt/libomp
           mkdir build && cd build
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_POLICY_DEFAULT_CMP0074=NEW ..
-          make VERBOSE=1 build-onedpl-tests -j${MACOS_BUILD_CONCURRENCY}
-          ctest --timeout ${TEST_TIMEOUT} --output-on-failure -E "${EXCLUDE_FROM_TESTING}"
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_CXX_FLAGS="-Wall" ..
+          make VERBOSE=1 build-onedpl-tests -j${MACOS_BUILD_CONCURRENCY} 2>&1 | tee build.log
+          ctest --timeout ${TEST_TIMEOUT} --output-on-failure -E "${EXCLUDE_FROM_TESTING}" 2>&1 | tee ctest.log
+
+          # Generate a summary
+          os_name=$(uname -a | head -n 1)
+          cmake_version=$(cmake --version | head -n 1)
+          compiler_version=$(${{ matrix.cxx_compiler }} --version | head -n 1)
+          cpu_model=$(sysctl -n machdep.cpu.brand_string)
+          python ${GITHUB_WORKSPACE}/.github/scripts/job_summary.py --build-log build.log \
+                                                                    --ctest-log ctest.log \
+                                                                    --output-file summary.md \
+                                                                    --os "${os_name}" \
+                                                                    --cmake-version "${cmake_version}" \
+                                                                    --compiler-version "${compiler_version}" \
+                                                                    --cpu-model "${cpu_model}"
+          cat summary.md > $GITHUB_STEP_SUMMARY
