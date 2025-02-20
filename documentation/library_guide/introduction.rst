@@ -145,6 +145,11 @@ Known Limitations
   (including: ``std::ldexp``, ``std::frexp``), and the following functions when used with ``std::complex<float>``
   as argument(s):  ``std::acosh``, ``std::asin``, ``std::asinh``, ``std::asoc``, ``std::log10``, ``std::log``, ``std::pow``,
   ``std::sqrt`` require device support for double precision.
+* STL algorithm functions (such as ``std::for_each``) used in DPC++ kernels do not compile with the debug version of
+  the Microsoft Visual C++ standard library.
+- ``std::array`` cannot be swapped in DPC++ kernels with ``std::swap`` function or ``swap`` member function
+  in the Microsoft Visual C++ standard library. For a workaround, define the
+  ``_USE_STD_VECTOR_ALGORITHMS`` macro to `` 0`` to the source file before including any headers.
 * ``exclusive_scan``, ``inclusive_scan``, ``exclusive_scan_by_segment``,
   ``inclusive_scan_by_segment``, ``transform_exclusive_scan``, ``transform_inclusive_scan``,
   when used with C++ standard aligned policies, impose limitations on the initial value type if an
@@ -162,5 +167,15 @@ Known Limitations
   the dereferenced value type of the provided iterators should satisfy the ``DefaultConstructible`` requirements.
 * For ``remove``, ``remove_if``, ``unique`` the dereferenced value type of the provided
   iterators should be ``MoveConstructible``.
+* When compiling with ``-O0 -g`` options on Linux with the Intel® oneAPI DPC++/C++ Compiler version 2025.0 or earlier
+  the ``sort``, ``stable_sort``, ``sort_by_key``, ``stable_sort_by_key``, and ``partial_sort_copy`` may work incorrectly
+  or cause a segmentation fault when used with a device execution policy on a CPU device. To avoid this issue, pass the
+  ``-fsycl-device-code-split=per_kernel`` option to the compiler or use Intel® oneAPI DPC++/C++ Compiler version 2025.1
+  or newer.
+* ``esimd::radix_sort`` and ``esimd::radix_sort_by_key`` kernel templates fail to compile when a program
+  is built with ``-g``, ``-O0``, ``-O1`` compiler options and a Linux General Purpose Intel GPUs Driver version older
+  than ``2423.32`` (Rolling) and ``2350.61`` (LTS) is used.
+  See the `Release Types <https://dgpu-docs.intel.com/releases/releases.html>`_
+  to find information about the relevant Rolling and LTS releases.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html

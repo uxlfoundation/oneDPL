@@ -8,6 +8,68 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in 2022.8.0
+===============
+
+New Features
+------------
+- Added support of host policies for ``histogram`` algorithms.
+- Added support for an undersized output range in the range-based ``merge`` algorithm.
+- Improved performance of the ``merge`` and sorting algorithms
+  (``sort``, ``stable_sort``, ``sort_by_key``, ``stable_sort_by_key``) that rely on Merge sort [#fnote1]_,
+  with device policies for large data sizes.
+- Improved performance of ``copy``, ``fill``, ``for_each``, ``replace``, ``reverse``, ``rotate``, ``transform`` and 30+
+  other algorithms with device policies on GPUs.
+- Improved oneDPL use with SYCL implementations other than Intel oneDPI DPC++/C++ compiler.
+
+
+Fixed Issues
+------------
+- Fixed an issue with ``drop_view`` in the experimental range-based API.
+- Fixed compilation errors in ``find_if`` and ``find_if_not`` with device policies where the user provided predicate is
+  device copyable but not trivially copyable.
+- Fixed incorrect results or synchronous SYCL exceptions for several algorithms when compiled with ``-O0`` and executed
+  on a GPU device.
+- Fixed an issue preventing inclusion of the ``<numeric>`` header after ``<execution>`` and ``<algorithm>`` headers.
+- Fixed several issues in the ``sort``, ``stable_sort``, ``sort_by_key`` and ``stable_sort_by_key`` algorithms that:
+
+   * Allows the use of non-trivially-copyable comparators.
+   * Eliminates duplicate kernel names
+   * Resolves incorrect results on devices with sub-group sizes smaller than four.
+   * Resolved synchronization errors that were seen on Intel® Arc™ B-series GPU devices.
+
+Known Issues and Limitations
+----------------------------
+New in This Release
+^^^^^^^^^^^^^^^^^^^
+- Incorrect results may be observed when calling ``sort`` with a device policy on Intel® Arc™ Graphics 140V with data
+  sizes of 4-8 million elements.
+- ``sort``, ``stable_sort``, ``sort_by_key`` and ``stable_sort_by_key`` algorithms fail to compile
+  when using Clang 17 and earlier versions, as well as compilers based on these versions,
+  such as Intel(R) oneAPI DPC++/C++ Compiler 2023.2.0.
+- When compiling code that uses device policies with the open source oneAPI DPC++ Compiler (clang++ driver),
+  synchronous SYCL runtime exceptions regarding unfound kernels may be encountered unless an optimization flag is
+  specified (e.g. ``-O1``) as opposed to relying on the compiler's default optimization level.
+
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with an FPGA policy.
+- ``histogram`` may provide incorrect results with device policies in a program built with ``-O0`` option.
+- Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows. 
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+  ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
+  with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler
+  with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
+  To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
+
 New in 2022.7.0
 ===============
 
