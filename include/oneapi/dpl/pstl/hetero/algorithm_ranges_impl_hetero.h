@@ -32,7 +32,7 @@
 #include <ranges>
 #include <utility>
 #include <cassert>
-#include <cstddef> 
+#include <cstddef>
 #include <functional>
 #include <type_traits>
 #endif
@@ -99,7 +99,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 void
 __pattern_for_each(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _Proj __proj)
 {
-    auto __f_1 = 
+    auto __f_1 =
         [__f, __proj](auto&& __val) { std::invoke(__f, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f_1,
@@ -119,7 +119,7 @@ __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     auto __unary_op = [__op, __proj](auto&& __val)
         { return std::invoke(__op, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
-    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), 
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__transform_functor<decltype(__unary_op)>{std::move(__unary_op)},
             oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
@@ -131,7 +131,7 @@ void
 __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange1&& __in_r1,
                     _InRange2&& __in_r2, _OutRange&& __out_r, _F __binary_op, _Proj1 __proj1, _Proj2 __proj2)
 {
-    auto __f = [__binary_op, __proj1, __proj2](auto&& __val1, auto&& __val2) { 
+    auto __f = [__binary_op, __proj1, __proj2](auto&& __val1, auto&& __val2) {
         return std::invoke(__binary_op, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
             std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
 
@@ -169,7 +169,7 @@ struct __swap2_wrapper;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Function>
 bool
-__pattern_swap(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
+__pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                _Function __f)
 {
     if (__rng1.size() <= __rng2.size())
@@ -499,7 +499,7 @@ auto
 __pattern_adjacent_find_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
                         _Proj __proj)
 {
-    auto __pred_2 = [__pred, __proj](auto&& __val, auto&& __next) 
+    auto __pred_2 = [__pred, __proj](auto&& __val, auto&& __next)
         { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)),
         std::invoke(__proj, std::forward<decltype(__next)>(__next)));};
 
@@ -571,7 +571,7 @@ __pattern_count_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Predicate,
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 oneapi::dpl::__internal::__difference_t<_Range2>
-__pattern_copy_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
+__pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                   _Predicate __pred, _Assign __assign)
 {
     oneapi::dpl::__internal::__difference_t<_Range2> __n = __rng1.size();
@@ -645,7 +645,7 @@ struct __copy_wrapper;
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _BinaryPredicate, typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 oneapi::dpl::__internal::__difference_t<_Range2>
-__pattern_unique_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result,
+__pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result,
                       _BinaryPredicate __pred)
 {
     oneapi::dpl::__internal::__difference_t<_Range2> __n = __rng.size();

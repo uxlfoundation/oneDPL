@@ -319,7 +319,7 @@ __print_device_debug_info(const _Policy& __policy, size_t __wg_size = 0, size_t 
 #else
 template <typename _Policy>
 inline void
-__print_device_debug_info(const _Policy& __policy, size_t = 0, size_t = 0)
+__print_device_debug_info(const _Policy&, size_t = 0, size_t = 0)
 {
 }
 #endif
@@ -501,11 +501,11 @@ struct __usm_or_buffer_accessor
     }
 
     // USM pointer
-    __usm_or_buffer_accessor(sycl::handler& __cgh, _T* __usm_buf, const sycl::property_list&)
+    __usm_or_buffer_accessor(sycl::handler&, _T* __usm_buf, const sycl::property_list&)
         : __ptr(__usm_buf), __usm(true)
     {
     }
-    __usm_or_buffer_accessor(sycl::handler& __cgh, _T* __usm_buf, size_t __ptr_offset, const sycl::property_list&)
+    __usm_or_buffer_accessor(sycl::handler&, _T* __usm_buf, size_t __ptr_offset, const sycl::property_list&)
         : __ptr(__usm_buf), __usm(true), __offset(__ptr_offset)
     {
     }
@@ -620,7 +620,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 
     template <typename _Acc>
     static auto
-    __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, std::size_t __scratch_n = 0)
+    __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n = 0)
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         return __acc.__get_pointer();
@@ -769,7 +769,7 @@ class __future : private std::tuple<_Args...>
     __wait_and_get_value(const std::shared_ptr<__result_and_scratch_storage_base>& __p_storage)
     {
         std::size_t __buf[2] = {0, 0};
-        auto __n = __p_storage->__get_data(__my_event, __buf);
+        [[maybe_unused]] auto __n = __p_storage->__get_data(__my_event, __buf);
         assert(__n == 2);
 
         return {__buf[0], __buf[1]};

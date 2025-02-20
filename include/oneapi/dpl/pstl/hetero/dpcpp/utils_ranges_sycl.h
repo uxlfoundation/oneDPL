@@ -701,7 +701,7 @@ struct __get_sycl_range
     //implementation of operator()(_Iter __first, _Iter __last) for the host iterator types
     template <sycl::access::mode _LocalAccMode, typename _Iter, typename _GetBufferFunc>
     auto
-    __process_host_iter_impl(_Iter __first, _Iter __last, _GetBufferFunc __get_buf)
+    __process_host_iter_impl([[maybe_unused]] _Iter __first, [[maybe_unused]] _Iter __last, _GetBufferFunc __get_buf)
     {
         static_assert(!oneapi::dpl::__internal::is_const_iterator<_Iter>::value ||
                           _LocalAccMode == sycl::access::mode::read,

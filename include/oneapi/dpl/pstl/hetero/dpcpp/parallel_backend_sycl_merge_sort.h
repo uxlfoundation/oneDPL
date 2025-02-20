@@ -211,11 +211,11 @@ struct __merge_sort_leaf_submitter;
 template <typename... _LeafSortName>
 struct __merge_sort_leaf_submitter<__internal::__optional_kernel_name<_LeafSortName...>>
 {
-    template <typename _Range, typename _Compare, typename _LeafSorter>
+    template <typename _Range, typename _LeafSorter>
     sycl::event
-    operator()(sycl::queue& __q, _Range& __rng, _Compare __comp, _LeafSorter& __leaf_sorter) const
+    operator()(sycl::queue& __q, _Range& __rng, _LeafSorter& __leaf_sorter) const
     {
-        return __q.submit([&__rng, __comp, &__leaf_sorter](sycl::handler& __cgh) {
+        return __q.submit([&__rng, &__leaf_sorter](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __storage_acc = __leaf_sorter.create_storage_accessor(__cgh);
             const std::uint32_t __wg_count =
@@ -721,7 +721,7 @@ __merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSo
     sycl::queue __q = __exec.queue();
 
     // 1. Perform sorting of the leaves of the merge sort tree
-    sycl::event __event_leaf_sort = __merge_sort_leaf_submitter<_LeafSortKernel>()(__q, __rng, __comp, __leaf_sorter);
+    sycl::event __event_leaf_sort = __merge_sort_leaf_submitter<_LeafSortKernel>()(__q, __rng, __leaf_sorter);
 
     // 2. Merge sorting
     oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _Tp> __temp(__exec, __rng.size());

@@ -179,7 +179,7 @@ __pattern_walk1(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Brick>
 void
-__pattern_walk_brick(_Tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
+__pattern_walk_brick(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
                      _Brick __brick) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
@@ -241,7 +241,7 @@ __pattern_walk1_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Brick>
 _ForwardIterator
-__pattern_walk_brick_n(_Tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n, _Brick __brick) noexcept
+__pattern_walk_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Size __n, _Brick __brick) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
@@ -384,7 +384,7 @@ __pattern_walk2_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Brick>
 _ForwardIterator2
-__pattern_walk2_brick(_Tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+__pattern_walk2_brick(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                       _ForwardIterator2 __first2, _Brick __brick) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag>);
@@ -461,7 +461,7 @@ __pattern_walk2_brick_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _Size, class _ForwardIterator2,
           class _Brick>
 _ForwardIterator2
-__pattern_walk2_brick_n(_Tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _Size __n,
+__pattern_walk2_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Size __n,
                         _ForwardIterator2 __first2, _Brick __brick) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
@@ -2430,7 +2430,7 @@ __pattern_sort(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcce
 template <typename _Tag, typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
           typename _Compare, typename _LeafSort>
 void
-__pattern_sort_by_key(_Tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first,
+__pattern_sort_by_key(_Tag, _ExecutionPolicy&&, _RandomAccessIterator1 __keys_first,
                       _RandomAccessIterator1 __keys_last, _RandomAccessIterator2 __values_first, _Compare __comp,
                       _LeafSort __leaf_sort) noexcept
 {
@@ -3020,7 +3020,7 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
 template <typename _Tag, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2, typename _Index2,
           typename _OutIt, typename _Index3, typename _Comp>
 std::pair<_It1, _It2>
-___merge_path_out_lim(_Tag, _ExecutionPolicy&& __exec, _It1 __it_1, _Index1 __n_1, _It2 __it_2, _Index2 __n_2,
+___merge_path_out_lim(_Tag, _ExecutionPolicy&&, _It1 __it_1, _Index1 __n_1, _It2 __it_2, _Index2 __n_2,
                       _OutIt __it_out, _Index3 __n_out, _Comp __comp)
 {
     return __serial_merge_out_lim(__it_1, __it_1 + __n_1, __it_2, __it_2 + __n_2, __it_out, __it_out + __n_out, __comp);

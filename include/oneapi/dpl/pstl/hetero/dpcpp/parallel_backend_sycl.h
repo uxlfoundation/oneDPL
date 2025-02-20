@@ -1167,7 +1167,7 @@ template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename
           typename _WriteOp, typename _IsUniquePattern>
 auto
 __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                                 _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _GenMask __generate_mask,
+                                 _InRng&& __in_rng, _OutRng&& __out_rng, _Size, _GenMask __generate_mask,
                                  _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask>;
@@ -1411,8 +1411,7 @@ template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typenam
           typename _IsOpDifference>
 auto
 __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                    _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
-                    _IsOpDifference __is_op_difference)
+                    _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _IsOpDifference)
 {
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
@@ -2402,8 +2401,6 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     //
     //          __out_keys   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 }
     //          __out_values = { 1, 2, 3, 4, 2, 6, 2, 6, 0 }
-
-    const auto __n = __keys.size();
 
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
     // Prior to icpx 2025.0, the reduce-then-scan path performs poorly and should be avoided.
