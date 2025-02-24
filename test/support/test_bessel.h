@@ -1,27 +1,21 @@
+// -*- C++ -*-
 //===----------------------------------------------------------------------===//
+//
+// Copyright (C) Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// This file incorporates work covered by the following copyright and permission
+// notice:
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include "support/test_bessel.h"
+#ifndef _TEST_BESSEL_H
+#define _TEST_BESSEL_H
 
-//  cyl_bessel_jl
-#include <cmath>
+#include "test_complex.h"
 
-void
-test()
-{
-    double nud = 1.0 / 3.0, xd = 0.5;
-
-    std::cyl_bessel_k(nud, xd);
-}
-
-ONEDPL_TEST_NUM_MAIN
-{
-    IF_DOUBLE_SUPPORT(test())
-
-    return 0;
-}
+#endif // _TEST_BESSEL_H
