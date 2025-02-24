@@ -490,10 +490,12 @@ inline constexpr oneapi::dpl::ranges::__internal::zip_fn zip{};
 
 } // namespace ranges
 
-namespace views = ranges::views;
-
 } // namespace dpl
 } // namespace oneapi
+
+template <class... _Ranges>
+inline constexpr bool std::ranges::enable_borrowed_range<oneapi::dpl::ranges::zip_view<_Ranges...>> = 
+    (std::ranges::enable_borrowed_range<_Ranges> && ...);
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
