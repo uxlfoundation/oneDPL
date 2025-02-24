@@ -18,12 +18,12 @@
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
-#    include <ranges>
-#    include <vector>
-#    include <type_traits>
+#include <ranges>
+#include <vector>
+#include <type_traits>
 
-#    include "tuple_impl.h"
-#    include "iterator_impl.h"
+#include "tuple_impl.h"
+#include "iterator_impl.h"
 
 namespace oneapi
 {
@@ -33,8 +33,11 @@ namespace dpl
 namespace ranges
 {
 
+template <bool Const, typename T>
+using __maybe_const = std::conditional_t<Const, const T, T>;
+
 template <bool C, typename... Views>
-concept all_forward = (std::ranges::forward_range<std::conditional_t<C, const Views, Views>> && ...);
+concept all_forward = (std::ranges::forward_range<__maybe_const<C, Views>> && ...);
 
 template <bool C, typename... Views>
 concept all_bidirectional = (std::ranges::bidirectional_range<std::conditional_t<C, const Views, Views>> && ...);
@@ -59,12 +62,9 @@ requires all_forward<Const, Views...> struct declare_iterator_category<Const, Vi
 };
 
 template <typename _R>
-    concept __simple_view_concept =
+    concept __simple_view =
         std::ranges::view<_R> && std::ranges::range<const _R> && std::same_as<std::ranges::iterator_t<_R>,
         std::ranges::iterator_t<const _R>> && std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
-
-template <bool Const, typename T>
-using __maybe_const = std::conditional_t<Const, const T, T>;
 
 template <std::ranges::input_range... Views>
 requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0))
@@ -132,7 +132,7 @@ public:
         iterator() = default;
 
         constexpr iterator(iterator<!Const> i) requires Const &&
-            (std::convertible_to<std::ranges::iterator_t<Views>, std::ranges::iterator_t<const Views>> && ...)
+            (std::convertible_to<std::ranges::iterator_t<Views>, std::ranges::iterator_t<__maybe_const<Const, Views>>> && ...)
             : current_(std::move(i.current_))
         {
         }
@@ -371,7 +371,7 @@ public:
     }; // class sentinel
 
     constexpr auto
-    begin() requires(!(__simple_view_concept<Views> && ...))
+    begin() requires(!(__simple_view<Views> && ...))
     {
         auto __tr = [](auto&&... __args) {
             return iterator<false>(std::forward<decltype(__args)>(__args)...); 
@@ -389,7 +389,7 @@ public:
     }
 
     constexpr auto
-    end() requires(!(__simple_view_concept<Views> && ...))
+    end() requires(!(__simple_view<Views> && ...))
     {
         if constexpr (!zip_is_common<Views...>)
         {
