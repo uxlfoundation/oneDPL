@@ -16,7 +16,7 @@ test()
 {
     float nuf = 1.0F / 3.0F, xf = 0.5F;
 
-    std::cyl_bessel_kf(nuf, xf);
+    [[maybe_unused]] auto t = std::cyl_bessel_kf(nuf, xf);
 }
 
 ONEDPL_TEST_NUM_MAIN
