@@ -39,4 +39,8 @@ namespace std
 #include "test_complex.h"
 #include "specfun_testcase.h"
 
+#include <limits>
+#include <cmath>
+#include <stdexcept>
+
 #endif // _TEST_BESSEL_H
