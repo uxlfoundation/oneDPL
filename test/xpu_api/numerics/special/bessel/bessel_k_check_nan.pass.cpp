@@ -70,11 +70,13 @@ test02<double>()
 
 ONEDPL_TEST_NUM_MAIN
 {
+#if _PSTL_TEST_BESSEL_STD_LIB_IMPL_COMPLIANT
     test01<float>();
     test02<float>();
 
     IF_DOUBLE_SUPPORT(test01<double>())
     IF_DOUBLE_SUPPORT(test02<double>())
+#endif
 
     return 0;
 }

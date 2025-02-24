@@ -21,7 +21,9 @@ test()
 
 ONEDPL_TEST_NUM_MAIN
 {
+#if _PSTL_TEST_BESSEL_STD_LIB_IMPL_COMPLIANT
     IF_DOUBLE_SUPPORT(test())
+#endif
 
     return 0;
 }
