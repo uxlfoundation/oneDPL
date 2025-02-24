@@ -43,14 +43,6 @@ concept canPlusEqual = requires(T& t, U& u) { t += u; };
 template <class T, class U>
 concept canMinusEqual = requires(T& t, U& u) { t -= u; };
 
-template<typename>
-struct print_type;
-
-template <typename _R>
-    concept __simple_view_concept =
-        std::ranges::view<_R> && std::ranges::range<const _R> && std::same_as<std::ranges::iterator_t<_R>,
-        std::ranges::iterator_t<const _R>> && std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
-
 void test() {
   int buffer1[5] = {1, 2, 3, 4, 5};
   int buffer2[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
