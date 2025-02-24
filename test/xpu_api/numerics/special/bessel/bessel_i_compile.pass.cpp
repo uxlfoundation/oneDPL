@@ -14,14 +14,14 @@
 void
 test()
 {
-    float nuf = 1.0F / 3.0F, xf = 0.5F;
+    double nud = 1.0 / 3.0, xd = 0.5;
 
-    std::cyl_bessel_if(nuf, xf);
+    std::cyl_bessel_if(nud, xd);
 }
 
 ONEDPL_TEST_NUM_MAIN
 {
-    test(float{});
+    IF_DOUBLE_SUPPORT(test())
 
     return 0;
 }
