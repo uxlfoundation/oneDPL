@@ -123,15 +123,12 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
                 std::conditional_t<all_forward<Const, Views...>, std::forward_iterator_tag, std::input_iterator_tag>>>;
 
         using value_type = tuple_type<std::ranges::range_value_t<__maybe_const<Const, Views>>...>;
-
+        using difference_type = std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>;
+private:
         using reference_type = tuple_type<std::ranges::range_reference_t<__maybe_const<Const, Views>>...>;        
-
         using rvalue_reference_type = tuple_type<std::ranges::range_rvalue_reference_t<__maybe_const<Const, Views>>...>;
 
-        using difference_type = std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>;
-
-        using current_type = tuple_type<std::ranges::iterator_t<__maybe_const<Const, Views>>...>;
-
+public:
         iterator() = default;
 
         constexpr iterator(iterator<!Const> i) requires Const &&
@@ -141,7 +138,10 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         }
 
       private:        
-        constexpr explicit iterator(current_type __t): current_(std::move(__t)) {}
+        template <typename... Iterators>
+        constexpr explicit iterator(const Iterators&... iterators) : current_(iterators...)
+        {
+        }
 
       public:
         template <typename... Iterators>
@@ -155,8 +155,7 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
         operator*() const
         {
             auto __tr = [](auto&&... __args) -> decltype(auto) {
-                using return_tuple_type = reference_type;
-                return return_tuple_type(std::forward<decltype(__args)>(__args)...);
+                return reference_type(std::forward<decltype(__args)>(__args)...);
             };
             return apply_to_tuple(__tr, [](auto& it) -> decltype(auto) { return *it; }, current_);
         }
@@ -319,7 +318,7 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
 
         friend class zip_view;
 
-        current_type current_;
+        tuple_type<std::ranges::iterator_t<__maybe_const<Const, Views>>...> current_;
     }; // class iterator
 
     template <bool Const>
@@ -368,18 +367,14 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
       private:
         friend class zip_view;
         
-        using end_type = tuple_type<std::ranges::sentinel_t<__maybe_const<Const, Views>>...>;
-public:
-        end_type end_;
+        tuple_type<std::ranges::sentinel_t<__maybe_const<Const, Views>>...> end_;
     }; // class sentinel
 
     constexpr auto
     begin() requires(!(__simple_view_concept<Views> && ...))
     {
-        using current_type = tuple_type<std::ranges::iterator_t<Views>...>;
-
         auto __tr = [](auto&&... __args) {
-            return iterator<false>(current_type(std::forward<decltype(__args)>(__args)...)); 
+            return iterator<false>(std::forward<decltype(__args)>(__args)...); 
         };
         return apply_to_tuple(__tr, std::ranges::begin, views_);
     }
@@ -387,10 +382,8 @@ public:
     constexpr auto
     begin() const requires(std::ranges::range<const Views>&&...)
     {
-        using current_type = tuple_type<std::ranges::iterator_t<const Views>...>;
-
         auto __tr = [](auto&&... __args) { 
-            return iterator<true>(current_type(std::forward<decltype(__args)>(__args)...)); 
+            return iterator<true>(std::forward<decltype(__args)>(__args)...); 
         };
         return apply_to_tuple(__tr, std::ranges::begin, views_);
     }
@@ -432,8 +425,7 @@ public:
         }
         else
         {
-            using current_type = tuple_type<std::ranges::iterator_t<const Views>...>;
-            auto __tr = [](auto&&... __args) { return iterator<true>(current_type(__args...)); };
+            auto __tr = [](auto&&... __args) { return iterator<true>(__args...); };
             return apply_to_tuple(__tr, std::ranges::end, views_);
         }
     }
