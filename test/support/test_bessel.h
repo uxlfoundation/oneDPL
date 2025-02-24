@@ -37,5 +37,6 @@ namespace std
 #endif // __SYCL_DEVICE_ONLY__
 
 #include "test_complex.h"
+#include "specfun_testcase.h"
 
 #endif // _TEST_BESSEL_H
