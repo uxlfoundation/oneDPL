@@ -16,6 +16,26 @@
 #ifndef _TEST_BESSEL_H
 #define _TEST_BESSEL_H
 
+#ifdef __SYCL_DEVICE_ONLY__
+
+// Required to define these before all includes
+namespace std
+{
+    SYCL_EXTERNAL void __throw_domain_error(const char*)
+    {
+    }
+};
+
+// Required to define these before all includes
+namespace std
+{
+    SYCL_EXTERNAL void __throw_runtime_error(const char*)
+    {
+    }
+};
+
+#endif // __SYCL_DEVICE_ONLY__
+
 #include "test_complex.h"
 
 #endif // _TEST_BESSEL_H
