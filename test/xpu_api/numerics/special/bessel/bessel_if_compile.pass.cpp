@@ -21,7 +21,7 @@ test()
 
 ONEDPL_TEST_NUM_MAIN
 {
-    test(float{});
+    test();
 
     return 0;
 }
