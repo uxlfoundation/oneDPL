@@ -54,7 +54,7 @@ struct __binhash_manager_base
 
     template <typename _Handler>
     auto
-    prepare_device_binhash(_Handler& __cgh) const
+    prepare_device_binhash(_Handler&) const
     {
         return __bin_hash;
     }
