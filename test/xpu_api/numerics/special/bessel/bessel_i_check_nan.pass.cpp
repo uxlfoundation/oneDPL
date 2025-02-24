@@ -23,8 +23,8 @@ test01<float>()
     float xf = std::numeric_limits<float>::quiet_NaN();
     float nuf = 0.0F;
 
-    float a = std::cyl_bessel_i(nuf, xf);
-    float b = std::cyl_bessel_if(nuf, xf);
+    [[maybe_unused]] float a = std::cyl_bessel_i(nuf, xf);
+    [[maybe_unused]] float b = std::cyl_bessel_if(nuf, xf);
 
     assert(std::isnan(a));
     assert(std::isnan(b));
@@ -36,7 +36,7 @@ test01<double>()
 {
     double xd = std::numeric_limits<double>::quiet_NaN();
     double nud = 0.0;
-    double c = std::cyl_bessel_i(nud, xd);
+    [[maybe_unused]] double c = std::cyl_bessel_i(nud, xd);
 
     assert(std::isnan(c));
 }
@@ -48,8 +48,8 @@ test02<float>()
     float xf = 1.0F;
     float nuf = std::numeric_limits<float>::quiet_NaN();
 
-    float a = std::cyl_bessel_i(nuf, xf);
-    float b = std::cyl_bessel_if(nuf, xf);
+    [[maybe_unused]] float a = std::cyl_bessel_i(nuf, xf);
+    [[maybe_unused]] float b = std::cyl_bessel_if(nuf, xf);
 
     assert(std::isnan(a));
     assert(std::isnan(b));
@@ -61,7 +61,7 @@ test02<double>()
 {
     double xd = 1.0;
     double nud = std::numeric_limits<double>::quiet_NaN();
-    double c = std::cyl_bessel_i(nud, xd);
+    [[maybe_unused]] double c = std::cyl_bessel_i(nud, xd);
 
     assert(std::isnan(c));
 }
