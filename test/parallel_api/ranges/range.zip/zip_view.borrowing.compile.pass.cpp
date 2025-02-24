@@ -30,8 +30,6 @@ struct Borrowed : std::ranges::view_base {
 template <>
 inline constexpr bool std::ranges::enable_borrowed_range<Borrowed> = true;
 
-static_assert(std::is_lvalue_reference_v<dpl_ranges::zip_view<Borrowed>>);
-
 static_assert(std::ranges::borrowed_range<Borrowed>);
 
 struct NonBorrowed : std::ranges::view_base {
@@ -49,5 +47,5 @@ static_assert(!std::ranges::borrowed_range<dpl_ranges::zip_view<NonBorrowed, Non
 #endif 
 
 int main() {
-    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
+  return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
