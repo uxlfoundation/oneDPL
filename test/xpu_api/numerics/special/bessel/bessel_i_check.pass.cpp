@@ -661,6 +661,7 @@ test(const testcase_cyl_bessel_i<Ret> (&data)[Num], Ret toler)
 
 ONEDPL_TEST_NUM_MAIN
 {
+#if _PSTL_TEST_BESSEL_STD_LIB_IMPL_COMPLIANT
     IF_DOUBLE_SUPPORT(test(data007, toler007))
     IF_DOUBLE_SUPPORT(test(data008, toler008))
     IF_DOUBLE_SUPPORT(test(data009, toler009))
@@ -681,6 +682,7 @@ ONEDPL_TEST_NUM_MAIN
     IF_DOUBLE_SUPPORT(test(data024, toler024))
     IF_DOUBLE_SUPPORT(test(data025, toler025))
     IF_DOUBLE_SUPPORT(test(data026, toler026))
+#endif
 
     return 0;
 }
