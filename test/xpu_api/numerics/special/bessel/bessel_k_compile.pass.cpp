@@ -16,7 +16,7 @@ test()
 {
     double nud = 1.0 / 3.0, xd = 0.5;
 
-    std::cyl_bessel_k(nud, xd);
+    [[maybe_unused]] auto t = std::cyl_bessel_k(nud, xd);
 }
 
 ONEDPL_TEST_NUM_MAIN
