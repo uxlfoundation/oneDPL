@@ -9,7 +9,6 @@
 #include "support/test_bessel.h"
 
 //  cyl_bessel_if
-#include <cmath>
 
 void
 test()
