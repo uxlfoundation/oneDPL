@@ -79,7 +79,7 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
     {
         return __tr(__f(std::get<_Ip>(__t))...);
     }    
-
+public:
     template <typename _ReturnAdapter, typename _F, typename _Tuple>
     static decltype(auto)
     apply_to_tuple(_ReturnAdapter __tr, _F __f, _Tuple& __t)
@@ -128,6 +128,7 @@ private:
         using reference_type = tuple_type<std::ranges::range_reference_t<__maybe_const<Const, Views>>...>;        
         using rvalue_reference_type = tuple_type<std::ranges::range_rvalue_reference_t<__maybe_const<Const, Views>>...>;
 
+        using iterator_type = tuple_type<std::ranges::iterator_t<__maybe_const<Const, Views>>...>;
 public:
         iterator() = default;
 
@@ -138,10 +139,12 @@ public:
         }
 
       private:        
-        template <typename... Iterators>
-        constexpr explicit iterator(const Iterators&... iterators) : current_(iterators...)
-        {
-        }
+        //template <typename... Iterators>
+        //constexpr explicit iterator(const Iterators&... iterators) : current_(iterators...)
+        //{
+        //}
+        constexpr explicit iterator(iterator_type __current)
+        : current_(std::move(__current)) {}
 
       public:
         template <typename... Iterators>
@@ -270,8 +273,7 @@ public:
             (std::is_nothrow_move_constructible_v<std::ranges::range_rvalue_reference_t<__maybe_const<Const, Views>>> && ...))
         {
             auto __tr = [](auto&&... __args) -> decltype(auto) {
-                using return_tuple_type = rvalue_reference_type;
-                return return_tuple_type(std::forward<decltype(__args)>(__args)...);
+                return rvalue_reference_type(std::forward<decltype(__args)>(__args)...);
             };
             return apply_to_tuple(__tr, std::ranges::iter_move, x.current_);
 
@@ -318,7 +320,7 @@ public:
 
         friend class zip_view;
 
-        tuple_type<std::ranges::iterator_t<__maybe_const<Const, Views>>...> current_;
+        iterator_type current_;
     }; // class iterator
 
     template <bool Const>
@@ -373,8 +375,9 @@ public:
     constexpr auto
     begin() requires(!(__simple_view<Views> && ...))
     {
+        using iterator_type = tuple_type<std::ranges::iterator_t<__maybe_const<false, Views>>...>;
         auto __tr = [](auto&&... __args) {
-            return iterator<false>(std::forward<decltype(__args)>(__args)...); 
+            return iterator<false>(iterator_type(std::forward<decltype(__args)>(__args)...)); 
         };
         return apply_to_tuple(__tr, std::ranges::begin, views_);
     }
@@ -382,8 +385,9 @@ public:
     constexpr auto
     begin() const requires(std::ranges::range<const Views>&&...)
     {
+        using iterator_type = tuple_type<std::ranges::iterator_t<__maybe_const<true, Views>>...>;
         auto __tr = [](auto&&... __args) { 
-            return iterator<true>(std::forward<decltype(__args)>(__args)...); 
+            return iterator<true>(iterator_type(std::forward<decltype(__args)>(__args)...)); 
         };
         return apply_to_tuple(__tr, std::ranges::begin, views_);
     }
@@ -404,7 +408,8 @@ public:
         }
         else
         {
-            auto __tr = [](auto&&... __args) { return iterator<false>(std::forward<decltype(__args)>(__args)...); };
+            using iterator_type = tuple_type<std::ranges::iterator_t<__maybe_const<false, Views>>...>;
+            auto __tr = [](auto&&... __args) { return iterator<false>(iterator_type(std::forward<decltype(__args)>(__args)...)); };
             return apply_to_tuple(__tr, std::ranges::end, views_);
         }
     }
@@ -425,7 +430,8 @@ public:
         }
         else
         {
-            auto __tr = [](auto&&... __args) { return iterator<true>(__args...); };
+            using iterator_type = tuple_type<std::ranges::iterator_t<__maybe_const<true, Views>>...>;
+            auto __tr = [](auto&&... __args) { return iterator<true>(iterator_type(__args...)); };
             return apply_to_tuple(__tr, std::ranges::end, views_);
         }
     }
