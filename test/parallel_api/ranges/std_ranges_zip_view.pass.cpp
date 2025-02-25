@@ -27,7 +27,7 @@ void test_zip_view_base_op()
     std::vector<int> vec1(max_n);
     std::vector<int> vec2(max_n/2);
 
-    auto zip_view = dpl_ranges::zip(vec1, vec2);
+    auto zip_view = dpl_ranges::views::zip(vec1, vec2);
 
     static_assert(std::random_access_iterator<decltype(zip_view.begin())>);
     static_assert(std::sentinel_for<decltype(zip_view.end()), decltype(zip_view.begin())>);
@@ -63,7 +63,7 @@ main()
     constexpr int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
-    auto zip_view = dpl_ranges::zip(data, std::views::iota(0, max_n)) | std::views::take(5);
+    auto zip_view = dpl_ranges::views::zip(data, std::views::iota(0, max_n)) | std::views::take(5);
     std::ranges::for_each(zip_view, test_std_ranges::f_mutuable, [](auto&& val) ->decltype(auto) { return std::get<0>(val); });
     for(int i = 0; i < zip_view.size(); ++i)
         EXPECT_TRUE(std::get<0>(zip_view[i]) == i*i && std::get<1>(zip_view[i]) == i, "Wrong effect for std::ranges::for_each with zip_view.");
@@ -78,7 +78,7 @@ main()
 
     {
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    auto zip_view_sort = dpl_ranges::zip(data, data);
+    auto zip_view_sort = dpl_ranges::views::zip(data, data);
 
     oneapi::dpl::zip_iterator<int*, int*> zip_it = zip_view_sort.begin(); //check conversion to oneapi::dpl::zip_iterator
 
