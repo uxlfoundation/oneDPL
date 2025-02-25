@@ -63,8 +63,9 @@ requires all_forward<Const, Views...> struct declare_iterator_category<Const, Vi
 
 template <typename _R>
     concept __simple_view =
-        std::ranges::view<_R> && std::ranges::range<const _R> && std::same_as<std::ranges::iterator_t<_R>,
-        std::ranges::iterator_t<const _R>> && std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
+        std::ranges::view<_R> && std::ranges::range<const _R> &&
+        std::same_as<std::ranges::iterator_t<_R>, std::ranges::iterator_t<const _R>> &&
+        std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
 
 template <std::ranges::input_range... Views>
 requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0))
@@ -220,8 +221,8 @@ public:
         }
         
         friend constexpr bool
-            operator==(const iterator& x, const iterator& y) requires(
-                std::equality_comparable<std::ranges::iterator_t<__maybe_const<Const, Views>>>&&...)
+        operator==(const iterator& x, const iterator& y)
+            requires(std::equality_comparable<std::ranges::iterator_t<__maybe_const<Const, Views>>>&&...)
         {
             if constexpr (all_bidirectional<Const, Views...>)
             {
@@ -244,8 +245,9 @@ public:
         }
         
         friend constexpr auto
-        operator-(const iterator& x, const iterator& y) requires 
-        (std::sized_sentinel_for<std::ranges::iterator_t<__maybe_const<Const, Views>>, std::ranges::iterator_t<__maybe_const<Const, Views>>> && ...)
+        operator-(const iterator& x, const iterator& y)
+            requires(std::sized_sentinel_for<std::ranges::iterator_t<__maybe_const<Const, Views>>,
+                                                               std::ranges::iterator_t<__maybe_const<Const, Views>>> && ...)
         {
             return y.distance_to_it(x, std::make_index_sequence<sizeof...(Views)>());
         }
