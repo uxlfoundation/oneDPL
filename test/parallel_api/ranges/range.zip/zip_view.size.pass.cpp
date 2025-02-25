@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++03, c++11, c++14, c++17, c++20
+
 
 // constexpr auto size() requires(sized_range<Views>&&...)
 // constexpr auto size() const requires(sized_range<const Views>&&...)
