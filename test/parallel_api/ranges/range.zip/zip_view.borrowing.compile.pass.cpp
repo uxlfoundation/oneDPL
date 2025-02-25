@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++03, c++11, c++14, c++17, c++20
+
 
 // template<class... Views>
 // inline constexpr bool enable_borrowed_range<zip_view<Views...>> =
