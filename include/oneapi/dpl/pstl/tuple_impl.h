@@ -271,7 +271,6 @@ map_tuplewrapper(F f, TBig<T...> in, RestTuples... rest)
 template <typename _Tp>
 struct __value_holder
 {
-    //__value_holder() : value{} {};
     __value_holder() = default;
     template <typename _Up>
     __value_holder(_Up&& t) : value(::std::forward<_Up>(t))
@@ -419,7 +418,7 @@ struct tuple<T1, T...>
 
     template<typename _Tp = T1, std::enable_if_t<std::conjunction_v<std::is_default_constructible<_Tp>, 
                                                  std::is_default_constructible<T>...>, int> = 0>
-    tuple(): holder{}, next{} { }
+    tuple(): holder{}, next{} {} //The std::tuple makes value-initialization all elements, so we also follow this.
     tuple(const tuple& other) = default;
     tuple(tuple&& other) = default;
     template <typename _U1, typename... _U, typename = ::std::enable_if_t<(sizeof...(_U) == sizeof...(T))>>
