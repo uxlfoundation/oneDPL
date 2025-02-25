@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++03, c++11, c++14, c++17, c++20
+
 
 // test if zip_view models input_range, forward_range, bidirectional_range,
 //                         random_access_range, contiguous_range, common_range
