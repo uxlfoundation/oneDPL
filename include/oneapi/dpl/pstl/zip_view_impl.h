@@ -63,9 +63,8 @@ requires all_forward<Const, Views...> struct declare_iterator_category<Const, Vi
 
 template <typename _R>
     concept __simple_view =
-        std::ranges::view<_R> && std::ranges::range<const _R> &&
-        std::same_as<std::ranges::iterator_t<_R>, std::ranges::iterator_t<const _R>> &&
-        std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
+        std::ranges::view<_R> && std::ranges::range<const _R> && std::same_as<std::ranges::iterator_t<_R>,
+        std::ranges::iterator_t<const _R>> && std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
 
 template <std::ranges::input_range... Views>
 requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0))
@@ -79,7 +78,8 @@ class zip_view: public std::ranges::view_interface<zip_view<Views...>>
     apply_to_tuple_impl(_ReturnAdapter __tr, _F __f, _Tuple& __t, std::index_sequence<_Ip...>)
     {
         return __tr(__f(std::get<_Ip>(__t))...);
-    }    
+    }
+
 public:
     template <typename _ReturnAdapter, typename _F, typename _Tuple>
     static decltype(auto)
@@ -130,22 +130,17 @@ private:
         using rvalue_reference_type = tuple_type<std::ranges::range_rvalue_reference_t<__maybe_const<Const, Views>>...>;
 
         using iterator_type = tuple_type<std::ranges::iterator_t<__maybe_const<Const, Views>>...>;
+
 public:
         iterator() = default;
-
         constexpr iterator(iterator<!Const> i) requires Const &&
             (std::convertible_to<std::ranges::iterator_t<Views>, std::ranges::iterator_t<__maybe_const<Const, Views>>> && ...)
             : current_(std::move(i.current_))
         {
         }
 
-      private:        
-        //template <typename... Iterators>
-        //constexpr explicit iterator(const Iterators&... iterators) : current_(iterators...)
-        //{
-        //}
-        constexpr explicit iterator(iterator_type __current)
-        : current_(std::move(__current)) {}
+      private:
+        constexpr explicit iterator(iterator_type __current): current_(std::move(__current)) {}
 
       public:
         template <typename... Iterators>
@@ -221,8 +216,8 @@ public:
         }
         
         friend constexpr bool
-        operator==(const iterator& x, const iterator& y)
-            requires(std::equality_comparable<std::ranges::iterator_t<__maybe_const<Const, Views>>>&&...)
+            operator==(const iterator& x, const iterator& y) requires(
+                std::equality_comparable<std::ranges::iterator_t<__maybe_const<Const, Views>>>&&...)
         {
             if constexpr (all_bidirectional<Const, Views...>)
             {
@@ -245,9 +240,8 @@ public:
         }
         
         friend constexpr auto
-        operator-(const iterator& x, const iterator& y)
-            requires(std::sized_sentinel_for<std::ranges::iterator_t<__maybe_const<Const, Views>>,
-                                                               std::ranges::iterator_t<__maybe_const<Const, Views>>> && ...)
+        operator-(const iterator& x, const iterator& y) requires 
+        (std::sized_sentinel_for<std::ranges::iterator_t<__maybe_const<Const, Views>>, std::ranges::iterator_t<__maybe_const<Const, Views>>> && ...)
         {
             return y.distance_to_it(x, std::make_index_sequence<sizeof...(Views)>());
         }
