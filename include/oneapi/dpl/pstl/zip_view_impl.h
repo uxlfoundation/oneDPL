@@ -322,6 +322,8 @@ public:
     template <bool Const>
     class sentinel
     {
+        using difference_type = std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>;
+        
         template <typename... Sentinels>
         constexpr explicit sentinel(Sentinels... sentinels) : end_(std::move(sentinels)...)
         {
@@ -347,7 +349,7 @@ public:
         template <bool OtherConst>
         requires(std::sized_sentinel_for<std::ranges::sentinel_t<__maybe_const<Const, Views>>, 
                                          std::ranges::iterator_t<__maybe_const<OtherConst, Views>>>&&...)
-        friend constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>        
+        friend constexpr difference_type
             operator-(const iterator<OtherConst>& x, const sentinel& y)
         {
             return x.distance_to_sentinels(y.end_, std::make_index_sequence<sizeof...(Views)>());
@@ -356,7 +358,7 @@ public:
         template <bool OtherConst>
         requires(std::sized_sentinel_for<std::ranges::sentinel_t<__maybe_const<Const, Views>>, 
                                          std::ranges::iterator_t<__maybe_const<OtherConst, Views>>>&&...)
-        friend constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>
+        friend constexpr difference_type
             operator-(const sentinel& y, const iterator<OtherConst>& x)
         {
             return -(x - y);
