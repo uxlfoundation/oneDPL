@@ -283,7 +283,7 @@ struct __value_holder
 // if it's needed to have user-defined operator=.
 template <typename _Tp, bool = ::std::is_trivially_copy_assignable_v<oneapi::dpl::__internal::__value_holder<_Tp>>>
 struct __copy_assignable_holder : oneapi::dpl::__internal::__value_holder<_Tp>
-{    
+{
     using oneapi::dpl::__internal::__value_holder<_Tp>::__value_holder;
 };
 
@@ -416,8 +416,9 @@ struct tuple<T1, T...>
         return get_impl<I>()(::std::move(*this));
     }
 
-    template<typename _Tp = T1, std::enable_if_t<std::conjunction_v<std::is_default_constructible<_Tp>, 
-                                                 std::is_default_constructible<T>...>, int> = 0>
+    template<typename _Tp = T1,
+                    std::enable_if_t<std::conjunction_v<std::is_default_constructible<_Tp>, 
+                                                                             std::is_default_constructible<T>...>, int> = 0>
     tuple(): holder{}, next{} {} //The std::tuple makes value-initialization all elements, so we also follow this.
     tuple(const tuple& other) = default;
     tuple(tuple&& other) = default;
