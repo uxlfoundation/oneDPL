@@ -299,7 +299,7 @@ public:
         }
         
         template <typename SentinelsTuple, std::size_t... In>
-        constexpr difference_type
+        constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>        
         distance_to_sentinels(const SentinelsTuple& sentinels, std::index_sequence<In...>) const
         {
             return std::ranges::min({difference_type(std::get<In>(current_) - std::get<In>(sentinels))...}, std::less{},
@@ -307,7 +307,7 @@ public:
         }
         
         template <std::size_t... In>
-        constexpr difference_type
+        constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>
         distance_to_it(const iterator it, std::index_sequence<In...>) const
         {
             return std::ranges::min({difference_type(std::get<In>(it.current_) - std::get<In>(current_))...}, std::less{},
@@ -322,8 +322,6 @@ public:
     template <bool Const>
     class sentinel
     {
-        using difference_type = std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>;
-        
         template <typename... Sentinels>
         constexpr explicit sentinel(Sentinels... sentinels) : end_(std::move(sentinels)...)
         {
@@ -349,7 +347,7 @@ public:
         template <bool OtherConst>
         requires(std::sized_sentinel_for<std::ranges::sentinel_t<__maybe_const<Const, Views>>, 
                                          std::ranges::iterator_t<__maybe_const<OtherConst, Views>>>&&...)
-        friend constexpr difference_type
+        friend constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>        
             operator-(const iterator<OtherConst>& x, const sentinel& y)
         {
             return x.distance_to_sentinels(y.end_, std::make_index_sequence<sizeof...(Views)>());
@@ -358,7 +356,7 @@ public:
         template <bool OtherConst>
         requires(std::sized_sentinel_for<std::ranges::sentinel_t<__maybe_const<Const, Views>>, 
                                          std::ranges::iterator_t<__maybe_const<OtherConst, Views>>>&&...)
-        friend constexpr difference_type
+        friend constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>
             operator-(const sentinel& y, const iterator<OtherConst>& x)
         {
             return -(x - y);
