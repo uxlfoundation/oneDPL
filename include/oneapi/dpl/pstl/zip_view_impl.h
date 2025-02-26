@@ -68,7 +68,7 @@ template <typename _R>
 
 template <std::ranges::input_range... Views>
 requires((std::ranges::view<Views> && ...) && (sizeof...(Views) > 0))
-class zip_view: public std::ranges::view_interface<zip_view<Views...>>
+class zip_view : public std::ranges::view_interface<zip_view<Views...>>
 {
     template <typename... Types>
     using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
@@ -323,7 +323,7 @@ public:
     class sentinel
     {
         template <typename... Sentinels>
-        constexpr explicit sentinel(const Sentinels&... sentinels) : end_(sentinels...)
+        constexpr explicit sentinel(Sentinels... sentinels) : end_(std::move(sentinels)...)
         {
         }
 
