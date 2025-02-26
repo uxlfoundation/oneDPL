@@ -299,7 +299,7 @@ public:
         }
         
         template <typename SentinelsTuple, std::size_t... In>
-        constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>        
+        constexpr difference_type
         distance_to_sentinels(const SentinelsTuple& sentinels, std::index_sequence<In...>) const
         {
             return std::ranges::min({difference_type(std::get<In>(current_) - std::get<In>(sentinels))...}, std::less{},
@@ -307,7 +307,7 @@ public:
         }
         
         template <std::size_t... In>
-        constexpr std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>
+        constexpr difference_type
         distance_to_it(const iterator it, std::index_sequence<In...>) const
         {
             return std::ranges::min({difference_type(std::get<In>(it.current_) - std::get<In>(current_))...}, std::less{},
