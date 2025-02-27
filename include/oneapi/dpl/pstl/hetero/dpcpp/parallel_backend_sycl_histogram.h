@@ -292,7 +292,7 @@ __histogram_general_registers_local_reduction(oneapi::dpl::__internal::__device_
                                               const sycl::event& __init_event, ::std::uint16_t __work_group_size,
                                               _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
-    using _kernel_base_name = typename ::std::decay_t<_ExecutionPolicy>::kernel_name;
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     using _iters_per_work_item_t = ::std::integral_constant<::std::uint16_t, __iters_per_work_item>;
 
@@ -300,7 +300,7 @@ __histogram_general_registers_local_reduction(oneapi::dpl::__internal::__device_
     // them at runtime.  Other compile time arguments aren't required as it is the user's responsibility to provide a
     // unique kernel name to the policy for each call when using no-unamed-lambdas
     using _RegistersLocalReducName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __histo_kernel_register_local_red<_iters_per_work_item_t, _kernel_base_name>>;
+        __histo_kernel_register_local_red<_iters_per_work_item_t, _CustomName>>;
 
     return __histogram_general_registers_local_reduction_submitter<__iters_per_work_item, __bins_per_work_item,
                                                                    _RegistersLocalReducName>()(
@@ -387,7 +387,7 @@ __histogram_general_local_atomics(oneapi::dpl::__internal::__device_backend_tag,
                                   const sycl::event& __init_event, ::std::uint16_t __work_group_size, _Range1&& __input,
                                   _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
-    using _kernel_base_name = typename ::std::decay_t<_ExecutionPolicy>::kernel_name;
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     using _iters_per_work_item_t = ::std::integral_constant<::std::uint16_t, __iters_per_work_item>;
 
@@ -395,7 +395,7 @@ __histogram_general_local_atomics(oneapi::dpl::__internal::__device_backend_tag,
     // them at runtime.  Other compile time arguments aren't required as it is the user's responsibility to provide a
     // unique kernel name to the policy for each call when using no-unamed-lambdas
     using _local_atomics_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __histo_kernel_local_atomics<_iters_per_work_item_t, _kernel_base_name>>;
+        __histo_kernel_local_atomics<_iters_per_work_item_t, _CustomName>>;
 
     return __histogram_general_local_atomics_submitter<__iters_per_work_item, _local_atomics_name>()(
         ::std::forward<_ExecutionPolicy>(__exec), __init_event, __work_group_size, ::std::forward<_Range1>(__input),
@@ -486,10 +486,10 @@ __histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_bac
                                            ::std::uint16_t __work_group_size, _Range1&& __input, _Range2&& __bins,
                                            const _BinHashMgr& __binhash_manager)
 {
-    using _kernel_base_name = typename ::std::decay_t<_ExecutionPolicy>::kernel_name;
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     using _global_atomics_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __histo_kernel_private_glocal_atomics<_kernel_base_name>>;
+        __histo_kernel_private_glocal_atomics<_CustomName>>;
 
     return __histogram_general_private_global_atomics_submitter<_global_atomics_name>()(
         oneapi::dpl::__internal::__device_backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __init_event,
