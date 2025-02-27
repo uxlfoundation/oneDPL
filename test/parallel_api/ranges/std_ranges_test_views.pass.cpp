@@ -22,10 +22,10 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    const int n = 1<<25; //32M
+    const int n = medium_size;
 
     //transform view
-    test_range_algo<0>{n}.test_view(std::views::transform([](const auto a) { return a*2; }), 
+    test_range_algo<0>{n}.test_view(std::views::transform([](const auto a) { return a*2; }),
         dpl_ranges::find_if, std::ranges::find_if, pred, proj);
 
     //reverse view

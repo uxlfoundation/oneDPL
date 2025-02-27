@@ -23,7 +23,7 @@ main()
     namespace dpl_ranges = oneapi::dpl::ranges;
     const char* err_msg = "Wrong effect algo transform with unsized ranges.";
 
-    const int n = 1<<25; //32M
+    const int n = big_size;
     std::ranges::iota_view view1(0, n); //size range
     std::ranges::iota_view view2(0, std::unreachable_sentinel_t{}); //unsized
 
