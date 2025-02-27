@@ -880,19 +880,29 @@ auto
 __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __i_elem, const _Index __n1,
                    const _Index __n2, _Compare __comp)
 {
-    //find merge path start point
+    // find merge path start point
     auto [__start_point_rng1, __start_point_rng2] = __find_merge_path_start_point(__rng1, __rng2, __i_elem, __n1, __n2, __comp);
 
     // back up to balanced path divergence with a biased binary search
     auto __start_point = __start_point_rng1;
     auto __start_point2 = __start_point_rng2;
-    
 
+    // find first element of repeating sequence in the first set
+    _Index __rng1_repeat_start = biased_binary_search(__rng1, __start_point, __n1, __start_point2, __comp);
+    // find first element of repeating sequence in the second set
+    _Index __rng2_repeat_start = biased_binary_search(__rng2, __start_point2, __n2, __start_point, __comp);
 
+    // check if there are an even number of steps to the diagonal
+    _Index __combined_steps_to_diagonal = _i_elem - (__rng1_repeat_start + __rng2_repeat_start);
+    bool __star_offset = __steps_to_diagonal % 2;
+
+    // index within __rng_1 represents the place on the diagonal (in combination with __i_elem)
+    // __star_offset represents an offset by 1 from the diagonal in the __rng2 index
+    return std::make_pair(__rng_1_repeat_start + ((__steps_to_diagonal+1)>>1), __star_offset);
 }
 
 template <typename _SetOp, typename _Compare>
-struct __gen_set_balances_path
+struct __gen_set_balanced_path
 {
     template <typename _InRng>
     std::size_t
@@ -904,17 +914,14 @@ struct __gen_set_balances_path
         auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence
 
         //consider building these into the definition of the building block with a requires function
-        auto __set_temp_output = std::get<2>(__in_rng.tuple()); // temp_output sequence
-        auto __set_temp_count = std::get<3>(__in_rng.tuple()); // temp_count sequence
-
+        auto __set_temp_diag = std::get<2>(__in_rng.tuple()); // temp_diag sequence
 
         //Find balanced path for diagonal start
-        auto [__set_a_pos, __set_b_pos, star_offset]  = __find_balanced_path_start_point(__set_a, __set_b, __id * __diagonal_spacing, __set_a.size(), __set_b.size(), __comp);
-        auto& __set_temp_count_ref = __set_temp_count[_id];
-        __set_temp_count_ref = __set_op(__set_a.begin() + __set_a_pos, __set_b.begin() + __set_b_pos, __diagonal_spacing - star_offset,
-                                          __set_temp_output.begin() + __id * __diagonal_spacing + star_offset, __comp);
+        auto [__diagonal_id, __star_offset]  = __find_balanced_path_start_point(__set_a, __set_b, __id * __diagonal_spacing, __set_a.size(), __set_b.size(), __comp);
+        __set_temp_diag[__id] = __diagonal_id << 1 + __star_offset;
 
-        return __set_temp_count_ref;
+        return __set_op(__set_a.begin() + __set_a_pos, __set_b.begin() + __set_b_pos, __diagonal_spacing - star_offset,
+                                          __set_temp_output.begin() + __id * __diagonal_spacing + star_offset, __comp);
     }
     _Compare __comp;
     std::uint16_t __diagonal_spacing;
