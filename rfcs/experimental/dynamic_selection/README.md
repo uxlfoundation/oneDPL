@@ -88,7 +88,7 @@ required by the Policy.
 
 ## Policies
 
-A Policy is an object is a valid dynamic selection heuristic.
+A Policy is an object with a valid dynamic selection heuristic.
 
 ### Named Requirements
 
