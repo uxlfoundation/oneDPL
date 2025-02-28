@@ -13,7 +13,7 @@ are familiar with the API documentation.
 This document contains the following:
 - An overview of the current architecture and design.
 - Exit criteria for moving from experimental to fully supported or, if these goals are not achieved in
-a timely manner, for justifing removal the this feature.
+a timely manner, for justifying removal the feature.
 
 ## Overview of Architecture and Execution Flow
 
@@ -88,11 +88,12 @@ The Backend `submit` function invokes `f` with the selected resource as an
 argument and is also responsible for collecting and reporting any information
 required by the Policy.
 
-## Policies
+## Named Requirements
+
+### Policy
 
 A Policy is an object with a valid dynamic selection heuristic.
 
-### Named Requirements
 
 The type `T` satisfies *Policy* if given,
 
@@ -102,43 +103,21 @@ The type `T` satisfies *Policy* if given,
 ` `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
 - `r` a container of resources of type `std::vector<resource_t<T>`.
 
-The following *must* be well-formed:
+| *Must* be well-formed | Description |
+| --------------------- | ----------- |
+| `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. calling this function before `initialize` throws a `std::runtime_exception`. |
+| `p.select(args…)` | Returns `selection_t<T>` that satisfies *Selection*. The selected resource must be within the set of resources returned by `p.get_resources()`. |
+| `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies *Submission*. The function invokes `f` but does not wait for the `wait_t<T>` object returned by it. |
 
-`p.get_resources()`
+| Policy Traits* | Description |
+| ------- | ----------- |
+| `selection<T>::type`, `selection_t<T>` | The wrapped select type returned by `T`. Must satisfy *Selection*. |
+| `resource<T>::type`, `resource_t<T>` | The backend defined resource type that is passed to the user function object. Calling `unwrap` an object of type `selection_t<T>` returns an object of type `resource_t<T>`. |
+| `wait_type<T>::type`, `wait_type_t<T>` | The backend type that is returned by the user function object. Calling `unwrap` on an object that satisfies *Submission* returns on object of type `wait_type_t<T>`. |
 
-Returns a `std::vector<resource_t<T>>`. If the policy has deferred initialization,
-calling this function before `initialize` throws a `std::runtime_exception`. 
+*Policy traits are defined in `include/oneapi/dpl/internal/dynamic_selection_impl/policy_traits.h`.
 
-`p.select(args…)`
-
-Returns `selection_t<T>` that satisfies *Selection*. The selected
-resource must be within the set of resources returned by `p.get_resources()`.
-
-`p.submit(s, f, args…)`
-
-Returns `submission_t<T>` that satisfies *Submission*. The function invokes `f` but does not
-wait for the `wait_t<T>` object returned by it.
-
-#### Traits
-
-Policy traits are defined in `include/oneapi/dpl/internal/dynamic_selection_impl/policy_traits.h`.
-
-`selection<T>::type`, `selection_t<T>`
-
-The wrapped select type returned by `T`. Must satisfy *Selection*.
-
-`resource<T>::type`, `resource_t<T>`
-
-The backend defined resource type that is passed to the user function object.
-Calling `unwrap` an object of type `selection_t<T>` returns an object of type
-`resource_t<T>`.
-
-`wait_type<T>::type`, `wait_type_t<T>`
-
-The backend type that is returned by the user function object. Calling `unwrap`
-on an object that satisfies *Submission* returns on object of type `wait_type_t<T>`.
-
-The current implementation of these traits depend on types defined in the Policy:
+The current implementation of these traits depends on types defined in the Policy:
 
 ```cpp
   template <typename Policy>
@@ -149,25 +128,13 @@ The current implementation of these traits depend on types defined in the Policy
       using wait_type = typename std::decay_t<Policy>::wait_type;
   };
 ```
+| *Optional* | Description |
+| --------------------- | ----------- |
+| `p.submit_and_wait(s, f, args…)` | Returns `void`. The function invokes `f` and waits for the `wait_t<T>` it returns to complete. |
+| `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies *Submission*. The function invokes `f` but does not wait for the `wait_t<T>` it returns to complete. |
+| `p.submit_and_wait(f, args…)` | Returns void. The function invokes `f` and waits for the `wait_t<T>` it returns to complete. |
 
-#### The following are *optional*:
-
-`p.submit_and_wait(s, f, args…)`
-
-Returns `void`. The function invokes `f` and waits for the `wait_t<T>`
-it returns to complete.
-
-`p.submit(f, args…)`
-
-Returns `submission_t<T>` that satisfies *Submission*. The function invokes `f`
-but does not wait for the `wait_t<T>` it returns to complete.
-
-`p.submit_and_wait(f, args…)`
-
-Returns void. The function invokes `f` and waits for the `wait_t<T>` it
-returns to complete.
-
-#### Selection
+### Selection
 
 The type `T` satisfies *Selection* if given,
 
@@ -175,52 +142,24 @@ The type `T` satisfies *Selection* if given,
 - `i` an object of type `Info` where `execution_info_v<Info>` is true
 - 'v' an object of type `V` and `is_same_v<Info::value_type, V>`
 
-The following *must* be well-formed:
+| *Must* be well-formed | Description |
+| --------------------- | ----------- |
+| `s.unwrap()` | Returns `resource_t<T>` that should represent one of the resources returned by `p.get_resources()` for the `Policy p` that generated `s`. |
+| `s.policy()` | Returns the policy that was used to make the selection. |
+| `s.report(i)` | Returns void. Notifies policy that an execution info event has occurred. |
+| `report_execution_info<T, Info>::value`, `report_execution_info_v<T,Info>` | True if this selection needs the backend to report the Info. False otherwise. |
 
-`s.unwrap()`
-
-Returns `resource_t<T>` that should represent one of the resources returned by 
-`p.get_resources()` for the `Policy p` that generated `s`.
-
-`s.policy()`
-
-Returns the policy that was used to make the selection.
-
-`s.report(i)`
-
-Returns void. Notifies policy that an execution info event has occurred. 
-
-`s.report(i,v)`
-
-Returns void. Notifies policy of a new value for an execution info event.
-
-Execution info traits are defined in `include/oneapi/dpl/internal/dynamic_selection_traits.h`.
-
-`report_execution_info<T, Info>::value`, `report_execution_info_v<T,Info>`
-
-True if this selection needs the backend to report the Info. False otherwise.
-
-#### Submission
+### Submission
 
 The type `T` satisfies *Submission* if given,
 
 - `s` an arbitrary identifier of type `T`
 
-The following *must* be well-formed:
-
-`s.get_policy()`
-
-Returns an object that satisfies *Policy* and corresponds to the Policy
-that made the selection.
-
-`s.wait()`
-
-Blocks until the submission has completed.
-
-`s.unwrap()`
-
-Returns the underlying backend type value. This type may be void, may represent the
-backend’s synchronization type, or may represent a return value from the submission.
+| *Must* be well-formed | Description |
+| --------------------- | ----------- |
+| `s.get_policy()` | Returns an object that satisfies *Policy* and corresponds to the Policy that made the selection. |
+| `s.wait()` | Blocks until the submission has completed. |
+| `s.unwrap()` | Returns the underlying backend type value. This type may be void, may represent the backend’s synchronization type, or may represent a return value from the submission. |
 
 ## Concrete Policies Already Provided
 
@@ -444,114 +383,38 @@ The type `T` satisfies the *Backend* contract if given,
   `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
 - `r` a container of resources of type `std::vector<resource_t<T>`.
 
-The following *must* be well-formed:
+| *Must* be well-formed | Description |
+| --------------------- | ----------- |
+| `b.submit(s, f, args…)` | Returns an object that satisfies *Submission*. The function invokes `f` but does not wait for the `wait_t<T>` object returned by it. |
+| `b.get_submission_group()` | Returns an object that has a member function `void wait()`. Calling this wait function blocks until all previous submissions to this backend are complete. |
+| `b.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
 
-`b.submit(s, f, args…)`
-
-Returns an object that satisfies *Submission*. The function
-invokes `f` but does not wait for the `wait_t<T>` object returned by it.
-
-`b.get_submission_group()`
-
-Returns an object that has a member function `void wait()`. Calling this
-wait function blocks until all previous submissions to this backend are
-complete.
-
-`b.get_resources()`
-
-Returns a `std::vector<resource_t<T>>`.
-
-*optional: * `void lazy_report()`
-
-If defined by a backend, this function must be called before each new 
-selection. It triggers reporting of the necessary execution info back to
-the policy.
+| *Optional* | Description |
+| --------------------- | ----------- |
+| `void lazy_report()` | If defined by a backend, this function must be called before each new selection. It triggers reporting of the necessary execution info back to the policy. |
 
 ## Free Functions
 
-`vector<typename policy_traits<P>::resource_type> get_resources(P&& p);`
+| Signature | Description |
+| --------- | ----------- |
+| `vector<typename policy_traits<P>::resource_type> get_resources(P&& p);` | Returns the resources associated with the Policy `p`. |
+| `template<typename P, typename... Args> selection_t<P> select(P&& p, Args&&... args);` | Applies the policy `p` and returns a *Selection*. |
+| `template<Selection S, tyepname F, typename... Args> auto submit(Selection s, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource from selection `s` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. May be implemented as `s.get_policy().submit(s, f, args…)`. |
+| `template<Policy P, tyepname F, typename... Args> auto submit(P&& p, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource returned by `select(p, f, args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. May be implemented as `p.submit(p.select(p, f, args…), f, args…)`. |
+| `template<Selection S, tyepname F, typename... Args> auto submit_and_wait(Selection s, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource from selection `s` and `args`. And then waits on object returned by the `f`.  May be implemented as `wait(s.get_policy().submit(s, f, args…))`. |
+| `template<Policy P, tyepname F, typename... Args> auto submit_and_wait(P&& p, F&& f, Args&&... args);` |  Invokes `f` with the unwrapped resource returned by `select(p, f, args…)` and `args`.And then waits on object returned by the `f`. May be implemented as `wait(p.submit(p.select(f, args…),f,args…))`. |
+| `template<typename P> auto get_submission_group(P&& p);` | Returns an object that has a member function `void wait()`. Calling this wait function blocks until all previous submissions to this policy are complete. |
+| `template<typename W> void unwrap(W&& w) noexcept;` | Returns `w.unwrap()` if available, otherwise returns `w`. |
+| `template<typename W> void wait(W&& w);` | Calls `w.wait()` if available. |
+| `template <typename S, typename Info> void report(S&& s, const Info& i);` | Reports that event `i` has occurred. |
+| `template <typename S, typename Info, typename Value> void report(S&& s, const Info& i, const Value& v); ` | Reports a new value `v` for event `i`. |
 
-Returns the resources associated with the Policy `p`.
+### Lazy initialization and Deferred Initialization
 
-May throw `std::bad_alloc` or `std::logic_error`. 
-
-A call to `get_resources` may cause lazy initialization. Initialization may throw `std::bad_alloc`.
-If `p` is a policy constructed with deferred initialization, calling `get_resources` before
-`initialize` will throw std::logic_error.
-
-`template<typename P, typename... Args> selection_t<P> select(P&& p, Args&&... args);`
-
-Applies the policy `p` and returns a *Selection*.
-
-May throw `std::bad_alloc` or `std::logic_error.`
-
-A call to `select` may cause lazy initialization. Initialization may throw `std::bad_alloc`.
-If `p` is a policy constructed with deferred initialization, calling `select` before
-`initialize` will throw std::logic_error.
-
-`template<Selection S, tyepname F, typename... Args> auto submit(Selection s, F&& f, Args&&... args);`
-
-Invokes `f` with the unwrapped resource from selection `s` and `args`.  Implements any 
-instrumentation necessary for the backend to report necessary execution information.
-
-May be implemented as `s.get_policy().submit(s, f, args…)`.
-
-May throw `std::bad_alloc` or `std::logic_error.`
-
-A call to `submit` may cause lazy initialization. Initialization may throw `std::bad_alloc`.
-If `s.policy()` is a policy constructed with deferred initialization, calling `submit` before
-`initialize` will throw std::logic_error.
-
-`template<Policy P, tyepname F, typename... Args> auto submit(P&& p, F&& f, Args&&... args);`
-
-Invokes `f` with the unwrapped resource returned by `select(p, f, args…)` and `args`.
-Implements any instrumentation necessary for the backend to report necessary execution
-information.
-
-May be implemented as `p.submit(p.select(p, f, args…), f, args…)`.
-
-May throw `std::bad_alloc` or `std::logic_error.`
-
-A call to `submit` may cause lazy initialization. Initialization may throw `std::bad_alloc`.
-If `p` is a policy constructed with deferred initialization, calling `submit` before
-`initialize` will throw std::logic_error.
-
-`template<Selection S, tyepname F, typename... Args> auto submit_and_wait(Selection s, F&& f, Args&&... args);`
-
-Invokes `f` with the unwrapped resource from selection `s` and `args`. And then waits on object
-returned by the `f`.
-
-May be implemented as `wait(s.get_policy().submit(s, f, args…))`.
-
-A call to `submit_and_wait` may cause lazy initialization. Initialization may throw `std::bad_alloc`.
-If `s.policy()` is a policy constructed with deferred initialization, calling `submit_and_wait` before
-`initialize` will throw std::logic_error.
-
-`template<Policy P, tyepname F, typename... Args> auto submit_and_wait(P&& p, F&& f, Args&&... args);`
-
-
-Invokes `f` with the unwrapped resource returned by `select(p, f, args…)` and `args`.
-And then waits on object returned by the `f`.
-
-May be implemented as `wait(p.submit(p.select(f, args…),f,args…))`.
-
-A call to `submit_and_wait` may cause lazy initialization. Initialization may throw `std::bad_alloc`.
-If `s.policy()` is a policy constructed with deferred initialization, calling `submit_and_wait` before
-`initialize` will throw std::logic_error.
-
-`template<typename P> auto get_submission_group(P&& p);`
-
-Returns an object that has a member function `void wait()`. Calling this
-wait function blocks until all previous submissions to this policy are
-complete.
-
-`template<typename W> void unwrap(W&& w) noexcept;`
-
-Returns `w.unwrap()` if available, otherwise returns `w`.
-
-`template<typename W> void wait(W&& w);`
-
-Calls `w.wait()` if available. 
+A call to `get_resources`, `select`, `submit` or `submit_and_wait` may cause lazy initialization
+of underlying state variables, including dynamic allocation. Initialization may throw `std::bad_alloc`.
+If `p` is a policy constructed with deferred initialization, calling these functions before 
+calling `initialize` will throw std::logic_error.
 
 ## Execution Info
 
@@ -562,12 +425,68 @@ manage work submission without using the `submit` or `submit_and_wait` functions
 will need to report Execution Info to allow policies to work properly. There
 are currently three kinds of Execution Info that may be required by a Policy:
 
-| Name              | Value Type | Description |
+| Execution Info    | Value Type | Description |
 | ----------------- | ---------- | ----------- |
 | `task_time`       | `uint64_t` | Clock ticks that elapsed between task submission and completion. |
 | `task_submission` | void       | The task has been submitted. |
 | `task_completion` | void       | The task is complete |
 
+| Info Traits* | Description |
+| ------- | ----------- |
+| `report_info<S,Info>::value`, `report_info_v<S,Info>` | 'true' if the *Selection* requires the event type to be reported |
+| `report_value<S,Info,V>::value`, `report_info_v<S,Info,V>` | `true` if the *Selection* requires the event value to be reported |
+
+* These traits are defined in `include/oneapi/dpl/internal/dynamic_selection_traits.h`
+
+Backend traits can be used to determine what events are need by the *Policy* that provided a *Selection*.
+For example, below is code a function the receives a *Selection* and uses traits to determine if the
+`task_submission_t` must be reported. If so, it is reported using the `report` free function.
+
+```cpp
+    template <typename SelectionHandle, typename Function, typename... Args>
+    auto
+    submit(SelectionHandle s, Function&& f, Args&&... args)
+    {
+        constexpr bool report_task_submission = report_info_v<SelectionHandle, execution_info::task_submission_t>;
+        auto q = unwrap(s);
+        if constexpr (report_task_submission)
+            report(s, execution_info::task_submission);
+
+        // ... the remainder of the implementation
+
+    }
+```
+
+### Lazy Reporting 
+
+A backend may choose not to actively report events and instead lazily report them on demand by defining the
+optional `lazy_report` member function. A backend trait is provided to determine if calls to `lazy_report`
+are required.
+
+| Backend Traits* | Description |
+| ------- | ----------- |
+| `lazy_report`<B>::value`, `report_report_v<B>` | 'true' if a *Backend* requires that a *Policy* calls to `lazy_report` before making a selection. |
+
+The example below shows how a `select` function might check this trait and call the function before it 
+applies its selection logic.
+
+```cpp
+    template <typename Function, typename... Args>
+    selection_type
+    select(Function&& f, Args&&... args)
+    {
+        if constexpr (backend_traits::lazy_report_v<Backend>)
+            backend_->lazy_report();
+
+        // rest of selection logic ....
+
+    }
+```
+
 ## Exit Criteria
 
-TBD
+- Demonstrate use cases where dynamic selection provides significant improvements.
+- Address open questions
+  - Is the current API sufficient, performant and user-friendly
+  - Are custom policies needed, and if so, is customization support sufficient and effective.
+  - Are custom backends needed, and if so, is customization support sufficient and effective.
