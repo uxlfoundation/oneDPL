@@ -27,6 +27,8 @@
 #include "parallel_backend_sycl_utils.h"
 #include "../../functional_impl.h" // for oneapi::dpl::identity
 
+#include "../utils_hetero.h"                            // oneapi::dpl::__internal::__depends_on
+
 namespace oneapi
 {
 namespace dpl
@@ -384,7 +386,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
             auto __result_acc = __get_acc(__base_diagonals_sp_global_storage, __cgh);
 
-            __cgh.depends_on(__event);
+            oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __event);
 
             __cgh.parallel_for<_MergeKernelName...>(
                 sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item) {
