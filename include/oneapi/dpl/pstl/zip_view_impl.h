@@ -243,7 +243,11 @@ public:
         operator-(const iterator& x, const iterator& y) requires 
         (std::sized_sentinel_for<std::ranges::iterator_t<__maybe_const<Const, Views>>, std::ranges::iterator_t<__maybe_const<Const, Views>>> && ...)
         {
-            return y.distance_to_it(x, std::make_index_sequence<sizeof...(Views)>());
+            auto calc_val = [&]<std::size_t... In>(std::index_sequence<In...>)
+                { return std::ranges::min({difference_type(std::get<In>(x.current_) - std::get<In>(y.current_))...},
+                                          std::less{}, [](auto a){ return std::abs(a);});};
+
+            return calc_val(std::make_index_sequence<sizeof...(Views)>());
         }
 
         friend constexpr iterator
@@ -297,22 +301,6 @@ public:
         {
             return ((std::get<In>(current_) == std::get<In>(sentinels)) || ...);
         }
-        
-        template <typename SentinelsTuple, std::size_t... In>
-        constexpr difference_type
-        distance_to_sentinels(const SentinelsTuple& sentinels, std::index_sequence<In...>) const
-        {
-            return std::ranges::min({difference_type(std::get<In>(current_) - std::get<In>(sentinels))...}, std::less{},
-                                    [](auto a){ return std::abs(a);});
-        }
-        
-        template <std::size_t... In>
-        constexpr difference_type
-        distance_to_it(const iterator it, std::index_sequence<In...>) const
-        {
-            return std::ranges::min({difference_type(std::get<In>(it.current_) - std::get<In>(current_))...}, std::less{},
-                                    [](auto a){ return std::abs(a);});
-        }
 
         friend class zip_view;
 
@@ -352,7 +340,11 @@ public:
         friend constexpr difference_type
             operator-(const iterator<OtherConst>& x, const sentinel& y)
         {
-            return x.distance_to_sentinels(y.end_, std::make_index_sequence<sizeof...(Views)>());
+            auto calc_val = [&]<std::size_t... In>(std::index_sequence<In...>)
+                { return std::ranges::min({difference_type(std::get<In>(x.current_) - std::get<In>(y.end_))...},
+                                          std::less{}, [](auto a){ return std::abs(a);});};
+
+            return calc_val(std::make_index_sequence<sizeof...(Views)>());
         }
         
         template <bool OtherConst>
