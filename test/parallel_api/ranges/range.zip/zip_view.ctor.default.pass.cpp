@@ -30,12 +30,8 @@
 
 namespace dpl_ranges = oneapi::dpl::ranges;
 
-#if 1
 template <typename... Types>
 using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
-#else
-using tuple_type = std::tuple<Types...>;
-#endif
 
 constexpr int buff[] = {1, 2, 3};
 
