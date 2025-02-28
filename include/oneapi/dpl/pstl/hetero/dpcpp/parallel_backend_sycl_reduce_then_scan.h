@@ -33,6 +33,7 @@
 #include "../../tuple_impl.h"
 #include "../../utils_ranges.h"
 #include "../../utils.h"
+#include "../utils_hetero.h"                            // oneapi::dpl::__internal::__depends_on
 
 namespace oneapi
 {
@@ -1156,7 +1157,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
         using _InitValueType = typename _InitType::__value_type;
         return __q.submit([&, this](sycl::handler& __cgh) {
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
-            __cgh.depends_on(__prior_event);
+            oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
@@ -1321,7 +1322,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
-            __cgh.depends_on(__prior_event);
+            oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
             auto __res_acc =
