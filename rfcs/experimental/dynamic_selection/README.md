@@ -457,7 +457,7 @@ complete.
 
 `b.get_resources()`
 
-Returns a `std::vector<resource_type>`.
+Returns a `std::vector<resource_t<T>>`.
 
 *optional: * `void lazy_report()`
 
