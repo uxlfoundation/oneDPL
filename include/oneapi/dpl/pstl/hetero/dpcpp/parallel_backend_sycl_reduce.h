@@ -29,6 +29,8 @@
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
+#include "../utils_hetero.h"                            // oneapi::dpl::__internal::__depends_on
+
 namespace oneapi
 {
 namespace dpl
@@ -243,7 +245,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
 
         auto __event = __q.submit([&, __n](sycl::handler& __cgh) {
-            __cgh.depends_on(__reduce_event);
+            oneapi::dpl::__internal::__depends_on(__q, __cgh, __reduce_event);
 
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
             auto __res_acc =
@@ -342,8 +344,9 @@ struct __parallel_transform_reduce_impl
         sycl::event __reduce_event;
         do
         {
-            __reduce_event = __q.submit([&, __is_first, __offset_1, __offset_2, __n, __n_groups](sycl::handler& __cgh) {
-                __cgh.depends_on(__reduce_event);
+            __reduce_event = __q.submit([&, __is_first, __offset_1, __offset_2, __n,
+                                                    __n_groups](sycl::handler& __cgh) {
+                oneapi::dpl::__internal::__depends_on(__q, __cgh, __reduce_event);
                 auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(
                     __cgh, __is_first ? sycl::property_list{__dpl_sycl::__no_init{}} : sycl::property_list{});
                 auto __res_acc = __scratch_container.template __get_result_acc<sycl::access_mode::write>(
