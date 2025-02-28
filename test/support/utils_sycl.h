@@ -106,7 +106,8 @@ sycl::queue get_test_queue()
     try
     {
         // create the queue with custom asynchronous exceptions handler
-        static sycl::queue my_queue(default_selector, async_handler);
+        static sycl::property_list __q_prop{sycl::property::queue::in_order()};
+        static sycl::queue my_queue(default_selector, async_handler, __q_prop);
 
 #if _ONEDPL_DEBUG_SYCL
 
