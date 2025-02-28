@@ -77,6 +77,17 @@ struct __create_mask_unique_copy
         return _ValueType{__predicate_result};
     }
 };
+
+template <typename __Queue, typename Handler, typename Event>
+inline void
+__depends_on(const __Queue& __queue, Handler& __cgh, const Event& __event)
+{
+    if (!__queue.is_in_order())
+    {
+        __cgh.depends_on(__event);
+    }
+}
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
