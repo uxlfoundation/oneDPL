@@ -37,26 +37,26 @@ template <bool Const, typename T>
 using __maybe_const = std::conditional_t<Const, const T, T>;
 
 template <bool C, typename... Views>
-concept all_forward = (std::ranges::forward_range<__maybe_const<C, Views>> && ...);
+concept __all_forward = (std::ranges::forward_range<__maybe_const<C, Views>> && ...);
 
 template <bool C, typename... Views>
-concept all_bidirectional = (std::ranges::bidirectional_range<std::conditional_t<C, const Views, Views>> && ...);
+concept __all_bidirectional = (std::ranges::bidirectional_range<std::conditional_t<C, const Views, Views>> && ...);
 
 template <bool C, typename... Views>
-concept all_random_access = (std::ranges::random_access_range<std::conditional_t<C, const Views, Views>> && ...);
+concept __all_random_access = (std::ranges::random_access_range<std::conditional_t<C, const Views, Views>> && ...);
 
 template <typename... Rs>
-concept zip_is_common = (sizeof...(Rs) == 1 && (std::ranges::common_range<Rs> && ...)) ||
+concept __zip_is_common = (sizeof...(Rs) == 1 && (std::ranges::common_range<Rs> && ...)) ||
                         (!(std::ranges::bidirectional_range<Rs> && ...) && (std::ranges::common_range<Rs> && ...)) ||
                         ((std::ranges::random_access_range<Rs> && ...) && (std::ranges::sized_range<Rs> && ...));
 
 template <bool Const, typename... Views>
-struct declare_iterator_category
+struct __declare_iterator_category
 {
 };
 
 template <bool Const, typename... Views>
-requires all_forward<Const, Views...> struct declare_iterator_category<Const, Views...>
+requires __all_forward<Const, Views...> struct __declare_iterator_category<Const, Views...>
 {
     using iterator_category = std::input_iterator_tag;
 };
@@ -75,7 +75,7 @@ class zip_view : public std::ranges::view_interface<zip_view<Views...>>
 
     template <typename _ReturnAdapter, typename _F, typename _Tuple, std::size_t... _Ip>
     static decltype(auto)
-    apply_to_tuple_impl(_ReturnAdapter __tr, _F __f, _Tuple& __t, std::index_sequence<_Ip...>)
+    __apply_to_tuple_impl(_ReturnAdapter __tr, _F __f, _Tuple& __t, std::index_sequence<_Ip...>)
     {
         return __tr(__f(std::get<_Ip>(__t))...);
     }
@@ -83,30 +83,30 @@ class zip_view : public std::ranges::view_interface<zip_view<Views...>>
 public:
     template <typename _ReturnAdapter, typename _F, typename _Tuple>
     static decltype(auto)
-    apply_to_tuple(_ReturnAdapter __tr, _F __f, _Tuple& __t)
+    __apply_to_tuple(_ReturnAdapter __tr, _F __f, _Tuple& __t)
     {
-        return apply_to_tuple_impl(__tr, __f, __t, std::make_index_sequence<sizeof...(Views)>{});
+        return __apply_to_tuple_impl(__tr, __f, __t, std::make_index_sequence<sizeof...(Views)>{});
     }
 
     template <typename _F, typename _Tuple>
     static void
-    apply_to_tuple(_F __f, _Tuple& __t)
+    __apply_to_tuple(_F __f, _Tuple& __t)
     {
-        apply_to_tuple([](auto&&...) {}, __f, __t);
+        __apply_to_tuple([](auto&&...) {}, __f, __t);
     }
 
     template <typename _F, typename _Tuple1, typename _Tuple2, std::size_t... _Ip>
     static void
-    bi_apply_to_tuple_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence<_Ip...>)
+    __bi_apply_to_tuple_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence<_Ip...>)
     {
         (__f(std::get<_Ip>(__t1), std::get<_Ip>(__t2)), ...);
     }
 
     template <typename _F, typename _Tuple1, typename _Tuple2>
     static void
-    bi_apply_to_tuple(_F __f, _Tuple1& __t1, _Tuple2& __t2)
+    __bi_apply_to_tuple(_F __f, _Tuple1& __t1, _Tuple2& __t2)
     {
-        return bi_apply_to_tuple_impl(__f, __t1, __t2, std::make_index_sequence<sizeof...(Views)>{});
+        return __bi_apply_to_tuple_impl(__f, __t1, __t2, std::make_index_sequence<sizeof...(Views)>{});
     }
 
   public:
@@ -114,14 +114,14 @@ public:
     constexpr explicit zip_view(Views... views) : views_(std::move(views)...) {}
 
     template <bool Const>
-    class iterator : public declare_iterator_category<Const, Views...>
+    class iterator : public __declare_iterator_category<Const, Views...>
     {
       public:
         using iterator_concept = std::conditional_t<
-            all_random_access<Const, Views...>, std::random_access_iterator_tag,
+            __all_random_access<Const, Views...>, std::random_access_iterator_tag,
             std::conditional_t<
-                all_bidirectional<Const, Views...>, std::bidirectional_iterator_tag,
-                std::conditional_t<all_forward<Const, Views...>, std::forward_iterator_tag, std::input_iterator_tag>>>;
+                __all_bidirectional<Const, Views...>, std::bidirectional_iterator_tag,
+                std::conditional_t<__all_forward<Const, Views...>, std::forward_iterator_tag, std::input_iterator_tag>>>;
 
         using value_type = tuple_type<std::ranges::range_value_t<__maybe_const<Const, Views>>...>;
         using difference_type = std::common_type_t<std::ranges::range_difference_t<__maybe_const<Const, Views>>...>;
@@ -147,7 +147,7 @@ public:
         operator oneapi::dpl::zip_iterator<Iterators...>() const
         {
             auto __tr = [](auto&&... __args) -> decltype(auto) { return oneapi::dpl::make_zip_iterator(std::forward<decltype(__args)>(__args)...); };
-            return apply_to_tuple(__tr, [](auto it) -> decltype(auto) { return it; }, current_);
+            return __apply_to_tuple(__tr, [](auto it) -> decltype(auto) { return it; }, current_);
         }
 
         constexpr decltype(auto)
@@ -156,11 +156,11 @@ public:
             auto __tr = [](auto&&... __args) -> decltype(auto) {
                 return reference_type(std::forward<decltype(__args)>(__args)...);
             };
-            return apply_to_tuple(__tr, [](auto& it) -> decltype(auto) { return *it; }, current_);
+            return __apply_to_tuple(__tr, [](auto& it) -> decltype(auto) { return *it; }, current_);
         }
 
         constexpr decltype(auto)
-        operator[](difference_type n) const requires all_random_access<Const, Views...>
+        operator[](difference_type n) const requires __all_random_access<Const, Views...>
         {
             return *(*this + n);
         }
@@ -168,7 +168,7 @@ public:
         constexpr iterator&
         operator++()
         {
-            apply_to_tuple([](auto& it) -> decltype(auto) { return ++it; }, current_);
+            __apply_to_tuple([](auto& it) -> decltype(auto) { return ++it; }, current_);
             return *this;
         }
 
@@ -179,7 +179,7 @@ public:
         }
 
         constexpr iterator
-        operator++(int) requires all_forward<Const, Views...>
+        operator++(int) requires __all_forward<Const, Views...>
         {
             auto tmp = *this;
             ++*this;
@@ -187,14 +187,14 @@ public:
         }
 
         constexpr iterator&
-        operator--() requires all_bidirectional<Const, Views...>
+        operator--() requires __all_bidirectional<Const, Views...>
         {
-            apply_to_tuple([](auto& it) { return --it; }, current_);
+            __apply_to_tuple([](auto& it) { return --it; }, current_);
             return *this;
         }
 
         constexpr iterator
-        operator--(int) requires all_bidirectional<Const, Views...>
+        operator--(int) requires __all_bidirectional<Const, Views...>
         {
             auto tmp = *this;
             --*this;
@@ -202,16 +202,16 @@ public:
         }
 
         constexpr iterator&
-        operator+=(difference_type n) requires all_random_access<Const, Views...>
+        operator+=(difference_type n) requires __all_random_access<Const, Views...>
         {
-            apply_to_tuple([n](auto& it) { return it += n; }, current_);
+            __apply_to_tuple([n](auto& it) { return it += n; }, current_);
             return *this;
         }
 
         constexpr iterator&
-        operator-=(difference_type n) requires all_random_access<Const, Views...>
+        operator-=(difference_type n) requires __all_random_access<Const, Views...>
         {
-            apply_to_tuple([n](auto& it) { return it -= n; }, current_);
+            __apply_to_tuple([n](auto& it) { return it -= n; }, current_);
             return *this;
         }
         
@@ -219,7 +219,7 @@ public:
             operator==(const iterator& x, const iterator& y) requires(
                 std::equality_comparable<std::ranges::iterator_t<__maybe_const<Const, Views>>>&&...)
         {
-            if constexpr (all_bidirectional<Const, Views...>)
+            if constexpr (__all_bidirectional<Const, Views...>)
             {
                 return x.current_ == y.current_;
             }
@@ -230,7 +230,7 @@ public:
         }
 
         friend constexpr auto
-        operator<=>(const iterator& x, const iterator& y) requires all_random_access<Const, Views...>
+        operator<=>(const iterator& x, const iterator& y) requires __all_random_access<Const, Views...>
         {
             if (x.current_ < y.current_)
                 return std::weak_ordering::less;
@@ -251,19 +251,19 @@ public:
         }
 
         friend constexpr iterator
-        operator+(iterator it, difference_type n) requires all_random_access<Const, Views...>
+        operator+(iterator it, difference_type n) requires __all_random_access<Const, Views...>
         {
             return it += n;
         }
 
         friend constexpr iterator
-        operator+(difference_type n, iterator it) requires all_random_access<Const, Views...>
+        operator+(difference_type n, iterator it) requires __all_random_access<Const, Views...>
         {
             return it += n;
         }
 
         friend constexpr iterator
-        operator-(iterator it, difference_type n) requires all_random_access<Const, Views...>
+        operator-(iterator it, difference_type n) requires __all_random_access<Const, Views...>
         {
             return it -= n;
         }
@@ -275,7 +275,7 @@ public:
             auto __tr = [](auto&&... __args) -> decltype(auto) {
                 return rvalue_reference_type(std::forward<decltype(__args)>(__args)...);
             };
-            return apply_to_tuple(__tr, std::ranges::iter_move, x.current_);
+            return __apply_to_tuple(__tr, std::ranges::iter_move, x.current_);
 
         }
 
@@ -284,7 +284,7 @@ public:
                                         std::declval<const std::ranges::iterator_t<__maybe_const<Const, Views>>&>())) && ...))
           requires(std::indirectly_swappable<std::ranges::iterator_t<__maybe_const<Const, Views>>> && ...)
         {
-            bi_apply_to_tuple(std::ranges::iter_swap, x.current_, y.current_);
+            __bi_apply_to_tuple(std::ranges::iter_swap, x.current_, y.current_);
         }
 
       private:
@@ -369,7 +369,7 @@ public:
         auto __tr = [](auto&&... __args) {
             return iterator<false>(iterator_type(std::forward<decltype(__args)>(__args)...)); 
         };
-        return apply_to_tuple(__tr, std::ranges::begin, views_);
+        return __apply_to_tuple(__tr, std::ranges::begin, views_);
     }
 
     constexpr auto
@@ -379,16 +379,16 @@ public:
         auto __tr = [](auto&&... __args) { 
             return iterator<true>(iterator_type(std::forward<decltype(__args)>(__args)...)); 
         };
-        return apply_to_tuple(__tr, std::ranges::begin, views_);
+        return __apply_to_tuple(__tr, std::ranges::begin, views_);
     }
 
     constexpr auto
     end() requires(!(__simple_view<Views> && ...))
     {
-        if constexpr (!zip_is_common<Views...>)
+        if constexpr (!__zip_is_common<Views...>)
         {
             auto __tr = [](auto&&... __args) { return sentinel<false>(std::forward<decltype(__args)>(__args)...); };
-            return apply_to_tuple(__tr, std::ranges::end, views_);
+            return __apply_to_tuple(__tr, std::ranges::end, views_);
         }
         else if constexpr ((std::ranges::random_access_range<Views> && ...))
         {
@@ -400,17 +400,17 @@ public:
         {
             using iterator_type = tuple_type<std::ranges::iterator_t<__maybe_const<false, Views>>...>;
             auto __tr = [](auto&&... __args) { return iterator<false>(iterator_type(std::forward<decltype(__args)>(__args)...)); };
-            return apply_to_tuple(__tr, std::ranges::end, views_);
+            return __apply_to_tuple(__tr, std::ranges::end, views_);
         }
     }
 
     constexpr auto
     end() const requires(std::ranges::range<const Views>&&...)
     {
-        if constexpr (!zip_is_common<Views...>)
+        if constexpr (!__zip_is_common<Views...>)
         {
             auto __tr = [](auto&&... __args) { return sentinel<true>(std::forward<decltype(__args)>(__args)...); };
-            return apply_to_tuple(__tr, std::ranges::end, views_);
+            return __apply_to_tuple(__tr, std::ranges::end, views_);
         }
         else if constexpr ((std::ranges::random_access_range<Views> && ...))
         {
@@ -422,7 +422,7 @@ public:
         {
             using iterator_type = tuple_type<std::ranges::iterator_t<__maybe_const<true, Views>>...>;
             auto __tr = [](auto&&... __args) { return iterator<true>(iterator_type(__args...)); };
-            return apply_to_tuple(__tr, std::ranges::end, views_);
+            return __apply_to_tuple(__tr, std::ranges::end, views_);
         }
     }
 
@@ -434,7 +434,7 @@ public:
             return std::ranges::min({CT(__args)...});
         };
 
-        return apply_to_tuple(__tr, std::ranges::size, views_);
+        return __apply_to_tuple(__tr, std::ranges::size, views_);
     }
 
     constexpr auto
@@ -445,7 +445,7 @@ public:
             return std::ranges::min({CT(__args)...});
         };
 
-        return apply_to_tuple(__tr, std::ranges::size, views_);
+        return __apply_to_tuple(__tr, std::ranges::size, views_);
     }
 
   private:
