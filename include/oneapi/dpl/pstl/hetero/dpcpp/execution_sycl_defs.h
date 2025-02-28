@@ -123,7 +123,8 @@ class alignas(sycl::queue) __queue_holder
 inline sycl::queue
 __get_default_queue()
 {
-    static sycl::queue __q;
+    static sycl::property_list __q_prop{sycl::property::queue::in_order()};
+    static sycl::queue __q(__q_prop);
     return __q;
 }
 
@@ -131,13 +132,15 @@ __get_default_queue()
 inline sycl::queue
 __get_fpga_default_queue()
 {
+    static sycl::property_list __q_prop{sycl::property::queue::in_order()};
     static sycl::queue __q(
-#if _ONEDPL_FPGA_EMU
-        __dpl_sycl::__fpga_emulator_selector()
-#else
-        __dpl_sycl::__fpga_selector()
-#endif
-    );
+#    if _ONEDPL_FPGA_EMU
+        __dpl_sycl::__fpga_emulator_selector(),
+#    else
+        __dpl_sycl::__fpga_selector(),
+#    endif
+        __q_prop);
+
     return __q;
 }
 #endif // _ONEDPL_FPGA_DEVICE
