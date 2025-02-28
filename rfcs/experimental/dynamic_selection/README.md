@@ -65,6 +65,7 @@ of command groups can be submitted to the selected queue.
     }
 
     // (5) and/or all submissions can be waited on as a group
+    //     in a typical case one would use (4) or (5) but not both.
     ex::wait(p.get_submission_group());
   }
 ```
@@ -80,7 +81,8 @@ define a `submit` member function. The requirements on Policy and Backend types
 are discussed later in this proposal. In the figure, the Policy's `submit` function
 selects a resource `r` and then passes `r`, an execution info handle `h`, and `f`
 to the Backend. The handle `h` is the mechanism for the Backend to report runtime
-information required by the Policy logic for making future selections.
+information required by the Policy logic for making future selections, such as
+the execution time of a task when run on a specific resource.
 
 The Backend `submit` function invokes `f` with the selected resource as an
 argument and is also responsible for collecting and reporting any information
@@ -302,7 +304,7 @@ class round_robin_policy;
       auto &r = resources_[i];
       return selection_type{*this, r};
     } else {
-      throw std::logic_error(“selected called before initialization”);
+      throw std::logic_error(“select called before initialization”);
     }
   }
 ```
