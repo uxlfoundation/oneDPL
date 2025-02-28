@@ -136,6 +136,16 @@ struct __pattern_min_element_transform_fn
     };
 };
 
+template <typename __Queue, typename Handler, typename Event>
+inline void
+__depends_on(const __Queue& __queue, Handler& __cgh, const Event& __event)
+{
+    if (!__queue.is_in_order())
+    {
+        __cgh.depends_on(__event);
+    }
+}
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
