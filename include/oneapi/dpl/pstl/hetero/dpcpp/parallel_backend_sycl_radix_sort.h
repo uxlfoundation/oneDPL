@@ -28,6 +28,8 @@
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
+#include "../utils_hetero.h"                            // oneapi::dpl::__internal::__depends_on
+
 #define _ONEDPL_RADIX_WORKLOAD_TUNING 1
 //To achieve better performance, number of segments and work-group size are variated depending on a number of elements:
 //1. 32K...512K  - number of segments is increased up to 8 times
@@ -192,7 +194,7 @@ __radix_sort_count_submit(_ExecutionPolicy&& __exec, ::std::size_t __segments, :
 
     // submit to compute arrays with local count values
     sycl::event __count_levent = __exec.queue().submit([&](sycl::handler& __hdl) {
-        __hdl.depends_on(__dependency_event);
+        oneapi::dpl::__internal::__depends_on(__exec.queue(), __hdl, __dependency_event);
 
         // ensure the input data and the space for counters are accessible
         oneapi::dpl::__ranges::__require_access(__hdl, __val_rng, __count_rng);
@@ -296,7 +298,7 @@ __radix_sort_scan_submit(_ExecutionPolicy&& __exec, ::std::size_t __scan_wg_size
     // compilation of the kernel prevents out of resources issue, which may occur due to usage of
     // collective algorithms such as joint_exclusive_scan even if local memory is not explicitly requested
     sycl::event __scan_event = __exec.queue().submit([&](sycl::handler& __hdl) {
-        __hdl.depends_on(__dependency_event);
+        oneapi::dpl::__internal::__depends_on(__exec.queue(), __hdl, __dependency_event);
         // access the counters for all work groups
         oneapi::dpl::__ranges::__require_access(__hdl, __count_rng);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
@@ -536,7 +538,7 @@ __radix_sort_reorder_submit(_ExecutionPolicy&& __exec, ::std::size_t __segments,
 
     // submit to reorder values
     sycl::event __reorder_event = __exec.queue().submit([&](sycl::handler& __hdl) {
-        __hdl.depends_on(__dependency_event);
+        oneapi::dpl::__internal::__depends_on(__exec.queue(), __hdl, __dependency_event);
         // access the offsets for all work groups
         oneapi::dpl::__ranges::__require_access(__hdl, __offset_rng);
         // access the input and output data

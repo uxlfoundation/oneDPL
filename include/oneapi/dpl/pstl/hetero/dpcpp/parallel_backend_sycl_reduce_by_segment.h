@@ -58,6 +58,8 @@
 #include "../../utils.h"
 #include "../../../internal/scan_by_segment_impl.h"
 
+#include "../utils_hetero.h"                            // oneapi::dpl::__internal::__depends_on
+
 namespace oneapi
 {
 namespace dpl
@@ -199,7 +201,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // 1.5 Small single-group kernel
     auto __single_group_scan = __exec.queue().submit([&](sycl::handler& __cgh) {
-        __cgh.depends_on(__seg_end_identification);
+        oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __seg_end_identification);
         auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::read>(__cgh);
         auto __seg_ends_scan_acc = __seg_ends_scanned.template get_access<sycl::access_mode::read_write>(__cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
@@ -219,7 +221,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // 2. Work group reduction
     auto __wg_reduce = __exec.queue().submit([&](sycl::handler& __cgh) {
-        __cgh.depends_on(__single_group_scan);
+        oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __single_group_scan);
         oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_keys, __out_values, __values);
 
         auto __partials_acc = __partials.template get_access<sycl::access_mode::read_write>(__cgh);
@@ -347,7 +349,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
             __dpl_sycl::__local_accessor<__val_type> __loc_partials_acc(__wgroup_size, __cgh);
             __dpl_sycl::__local_accessor<__diff_type> __loc_seg_ends_acc(__wgroup_size, __cgh);
 
-            __cgh.depends_on(__wg_reduce);
+            oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __wg_reduce);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __cgh.use_kernel_bundle(__seg_reduce_prefix_kernel.get_kernel_bundle());
 #endif

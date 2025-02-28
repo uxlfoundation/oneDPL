@@ -46,6 +46,7 @@
 #include "sycl_iterator.h"
 #include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
+#include "../utils_hetero.h"                            // oneapi::dpl::__internal::__depends_on
 
 #define _ONEDPL_USE_RADIX_SORT (_ONEDPL_USE_SUB_GROUPS && _ONEDPL_USE_GROUP_ALGOS)
 
@@ -299,7 +300,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         {
             auto __iters_per_single_wg = oneapi::dpl::__internal::__dpl_ceiling_div(__n_groups, __wgroup_size);
             __submit_event = __exec.queue().submit([&](sycl::handler& __cgh) {
-                __cgh.depends_on(__submit_event);
+                oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __submit_event);
                 auto __temp_acc = __result_and_scratch.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
                 __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
@@ -320,7 +321,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 
         // 3. Final scan for whole range
         auto __final_event = __exec.queue().submit([&](sycl::handler& __cgh) {
-            __cgh.depends_on(__submit_event);
+            oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __submit_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
             auto __temp_acc = __result_and_scratch.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
             auto __res_acc = __result_and_scratch.template __get_result_acc<sycl::access_mode::write>(
@@ -2120,7 +2121,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         do
         {
             __event1 = __exec.queue().submit([&, __data_in_temp, __k](sycl::handler& __cgh) {
-                __cgh.depends_on(__event1);
+                oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __event1);
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
                 auto __temp_acc = __temp.template get_access<access_mode::read_write>(__cgh);
                 __cgh.parallel_for<_GlobalSortName...>(
@@ -2151,7 +2152,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         if (__data_in_temp)
         {
             __event1 = __exec.queue().submit([&](sycl::handler& __cgh) {
-                __cgh.depends_on(__event1);
+                oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __event1);
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
                 auto __temp_acc = __temp.template get_access<access_mode::read>(__cgh);
                 // we cannot use __cgh.copy here because of zip_iterator usage

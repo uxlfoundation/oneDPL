@@ -28,6 +28,7 @@
 #include "../../utils.h"                 // __dpl_bit_floor, __dpl_bit_ceil
 #include "../../utils_ranges.h"          // __difference_t
 #include "parallel_backend_sycl_merge.h" // __find_start_point, __serial_merge
+#include "../utils_hetero.h"             // oneapi::dpl::__internal::__depends_on
 
 namespace oneapi
 {
@@ -390,10 +391,10 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     {
         const _IndexT __n = __rng.size();
 
-        return __exec.queue().submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp,
+        return __exec.queue().submit([&__exec, &__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp,
                                       __nd_range_params, &__base_diagonals_sp_global_storage,
                                       __n](sycl::handler& __cgh) {
-            __cgh.depends_on(__event_chain);
+            oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __event_chain);
 
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __base_diagonals_sp_global_acc =
@@ -482,9 +483,9 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     {
         const _IndexT __n = __rng.size();
 
-        return __exec.queue().submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp,
+        return __exec.queue().submit([&__exec, &__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp,
                                       __nd_range_params, __n](sycl::handler& __cgh) {
-            __cgh.depends_on(__event_chain);
+            oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __event_chain);
 
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             sycl::accessor __dst(__temp_buf, __cgh, sycl::read_write, sycl::no_init);
@@ -524,10 +525,10 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     {
         const _IndexT __n = __rng.size();
 
-        return __exec.queue().submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp,
+        return __exec.queue().submit([&__exec, &__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp,
                                       __nd_range_params, &__base_diagonals_sp_global_storage,
                                       __n](sycl::handler& __cgh) {
-            __cgh.depends_on(__event_chain);
+            oneapi::dpl::__internal::__depends_on(__exec.queue(), __cgh, __event_chain);
 
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             sycl::accessor __dst(__temp_buf, __cgh, sycl::read_write, sycl::no_init);
@@ -667,8 +668,8 @@ struct __merge_sort_copy_back_submitter<__internal::__optional_kernel_name<_Copy
     sycl::event
     operator()(sycl::queue& __q, _Range& __rng, _TempBuf& __temp_buf, sycl::event __event_chain) const
     {
-        return __q.submit([&__rng, &__temp_buf, &__event_chain](sycl::handler& __cgh) {
-            __cgh.depends_on(__event_chain);
+        return __q.submit([&__q, &__rng, &__temp_buf, &__event_chain](sycl::handler& __cgh) {
+            oneapi::dpl::__internal::__depends_on(__q, __cgh, __event_chain);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __temp_acc = __temp_buf.template get_access<access_mode::read>(__cgh);
             // We cannot use __cgh.copy here because of zip_iterator usage

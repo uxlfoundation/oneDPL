@@ -28,6 +28,7 @@
 
 #include "../../histogram_binhash_utils.h"
 #include "../../utils.h"
+#include "../utils_hetero.h"                            // oneapi::dpl::__internal::__depends_on
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
@@ -230,7 +231,7 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
         ::std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
         return __exec.queue().submit([&](auto& __h) {
-            __h.depends_on(__init_event);
+            oneapi::dpl::__internal::__depends_on(__exec.queue(), __h, __init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
             __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(sycl::range(__num_bins), __h);
@@ -331,7 +332,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
         ::std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
         return __exec.queue().submit([&](auto& __h) {
-            __h.depends_on(__init_event);
+            oneapi::dpl::__internal::__depends_on(__exec.queue(), __h, __init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
             // minimum type size for atomics
@@ -433,7 +434,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                 .get_buffer();
 
         return __exec.queue().submit([&](auto& __h) {
-            __h.depends_on(__init_event);
+            oneapi::dpl::__internal::__depends_on(__exec.queue(), __h, __init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
             sycl::accessor __hacc_private{__private_histograms, __h, sycl::read_write, sycl::no_init};
