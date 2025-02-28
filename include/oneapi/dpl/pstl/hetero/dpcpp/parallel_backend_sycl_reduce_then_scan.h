@@ -266,24 +266,37 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     }
 }
 
+// With optimization enabled, reduce-then-scan requires a sub-group size of 32. Without optimization, we must compile
+// to a sub-group size of 16 to workaround a hardware bug on certain Intel integrated graphics architectures.
+constexpr inline std::uint8_t
+__get_reduce_then_scan_sg_sz()
+{
+#if _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED
+    return 32;
+#else
+    return 16;
+#endif
+}
+
 template <typename... _Name>
 class __reduce_then_scan_reduce_kernel;
 
 template <typename... _Name>
 class __reduce_then_scan_scan_kernel;
 
-template <std::uint8_t __sub_group_size, std::uint16_t __max_inputs_per_item, bool __is_inclusive,
+template <std::uint16_t __max_inputs_per_item, bool __is_inclusive,
           bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp, typename _InitType,
           typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
-template <std::uint8_t __sub_group_size, std::uint16_t __max_inputs_per_item, bool __is_inclusive,
+template <std::uint16_t __max_inputs_per_item, bool __is_inclusive,
           bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp, typename _InitType,
           typename... _KernelName>
-struct __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inputs_per_item, __is_inclusive,
+struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_inclusive,
                                                     __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType,
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
+    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz();
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
     template <typename _ExecutionPolicy, typename _InRng, typename _TmpStorageAcc>
@@ -409,19 +422,20 @@ struct __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inpu
     _InitType __init;
 };
 
-template <std::uint8_t __sub_group_size, std::uint16_t __max_inputs_per_item, bool __is_inclusive,
+template <std::uint16_t __max_inputs_per_item, bool __is_inclusive,
           bool __is_unique_pattern_v, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
           typename _WriteOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
-template <std::uint8_t __sub_group_size, std::uint16_t __max_inputs_per_item, bool __is_inclusive,
+template <std::uint16_t __max_inputs_per_item, bool __is_inclusive,
           bool __is_unique_pattern_v, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
           typename _WriteOp, typename _InitType, typename... _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter<
-    __sub_group_size, __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
+    __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
     _ScanInputTransform, _WriteOp, _InitType, __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
+    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz();
 
     _InitValueType
     __get_block_carry_in(const std::size_t __block_num, _InitValueType* __tmp_ptr) const
@@ -726,18 +740,6 @@ struct __parallel_reduce_then_scan_scan_submitter<
     _InitType __init;
 };
 
-// With optimization enabled, reduce-then-scan requires a sub-group size of 32. Without optimization, we must compile
-// to a sub-group size of 16 to workaround a hardware bug on certain Intel integrated graphics architectures.
-constexpr inline std::uint8_t
-__get_reduce_then_scan_sg_sz()
-{
-#if _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED
-    return 32;
-#else
-    return 16;
-#endif
-}
-
 // Enable reduce-then-scan if the device uses the required sub-group size and is ran on a device
 // with fast coordinated subgroup operations. We do not want to run this scan on CPU targets, as they are not
 // performant with this algorithm.
@@ -823,11 +825,11 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =
-        __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inputs_per_item, __inclusive,
+        __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __inclusive,
                                                      __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType,
                                                      _ReduceKernel>;
     using _ScanSubmitter =
-        __parallel_reduce_then_scan_scan_submitter<__sub_group_size, __max_inputs_per_item, __inclusive,
+        __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __inclusive,
                                                    __is_unique_pattern_v, _ReduceOp, _GenScanInput, _ScanInputTransform,
                                                    _WriteOp, _InitType, _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__max_inputs_per_block,
