@@ -78,7 +78,7 @@ and returns an object `w` that can be waited on.
 A valid Policy must define a `submit` member function and a Backend must also
 define a `submit` member function. The requirements on Policy and Backend types
 are discussed later in this proposal. In the figure, the Policy's `submit` function
-selects a resource `r` and then passes `r`, an `execution info handle h`, and `f`
+selects a resource `r` and then passes `r`, an execution info handle `h`, and `f`
 to the Backend. The handle `h` is the mechanism for the Backend to report runtime
 information required by the Policy logic for making future selections.
 
