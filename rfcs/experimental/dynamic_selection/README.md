@@ -24,7 +24,7 @@ The key components of the Dynamic Selection API are shown below, including the *
 and their chosen Policy. The Free Functions have default implementations that depend on a limited set
 of required functions in the Policy. Optional functions may be defined by a Policy to customize 
 some of the Free Functions, such as `submit_and_wait` that would, by default, depend on multiple basis
-functions. Resource specific instrumentation and types are definied in the *Backend*.
+functions. Resource specific instrumentation and types are defined in the *Backend*.
 
 <img src="architecture.png" width=800>
 
