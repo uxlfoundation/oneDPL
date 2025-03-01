@@ -148,19 +148,19 @@ jobs:
           - os: ubuntu-latest
             cxx_compiler: icpx
             std: 20
-            build_type: release
+            build_type: RelWithAsserts
             backend: dpcpp
             device_type: CPU
           - os: ubuntu-latest
             cxx_compiler: icpx
             std: 20
-            build_type: release
+            build_type: RelWithAsserts
             backend: tbb
             device_type: HOST
           - os: ubuntu-latest
             cxx_compiler: icpx
             std: 20
-            build_type: release
+            build_type: RelWithAsserts
             backend: omp
             device_type: HOST
     steps:
