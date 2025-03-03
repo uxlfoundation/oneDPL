@@ -479,8 +479,8 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
         std::uint16_t __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n_short, __work_group_size);
         __iters_per_work_item = __adjust_iters_per_work_item<__vector_size>(__iters_per_work_item);
         return __parallel_transform_reduce_small_impl<_Tp, _Commutative, __vector_size>(
-            __backend_tag, std::forward<_ExecutionPolicy>(__exec), __n_short, __work_group_size_short,
-            __iters_per_work_item, __reduce_op, __transform_op, __init, std::forward<_Ranges>(__rngs)...);
+            __backend_tag, __exec, __n_short, __work_group_size_short, __iters_per_work_item, __reduce_op,
+            __transform_op, __init, std::forward<_Ranges>(__rngs)...);
     }
     // Use two-step tree reduction.
     // First step reduces __work_group_size * __iters_per_work_item_device_kernel elements.
@@ -513,15 +513,15 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
         __iters_per_work_item_work_group_kernel =
             __adjust_iters_per_work_item<__vector_size>(__iters_per_work_item_work_group_kernel);
         return __parallel_transform_reduce_mid_impl<_Tp, _Commutative, __vector_size>(
-            __backend_tag, std::forward<_ExecutionPolicy>(__exec), __n_short, __work_group_size_short,
-            __iters_per_work_item_device_kernel, __iters_per_work_item_work_group_kernel, __reduce_op, __transform_op,
-            __init, std::forward<_Ranges>(__rngs)...);
+            __backend_tag, __exec, __n_short, __work_group_size_short, __iters_per_work_item_device_kernel,
+            __iters_per_work_item_work_group_kernel, __reduce_op, __transform_op, __init,
+            std::forward<_Ranges>(__rngs)...);
     }
     // Otherwise use a recursive tree reduction with __max_iters_per_work_item __iters_per_work_item.
     const auto __work_group_size_long = static_cast<_Size>(__work_group_size);
     return __parallel_transform_reduce_impl<_Tp, _Commutative, __vector_size>::submit(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __n, __work_group_size_long, __max_iters_per_work_item,
-        __reduce_op, __transform_op, __init, std::forward<_Ranges>(__rngs)...);
+        __backend_tag, __exec, __n, __work_group_size_long, __max_iters_per_work_item, __reduce_op, __transform_op,
+        __init, std::forward<_Ranges>(__rngs)...);
 }
 
 } // namespace __par_backend_hetero
