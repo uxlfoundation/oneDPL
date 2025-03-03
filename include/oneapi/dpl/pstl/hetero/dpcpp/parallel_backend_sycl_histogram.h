@@ -215,7 +215,7 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
 {
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinHashMgr>
     auto
-    operator()(_ExecutionPolicy&& __exec, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
+    operator()(const _ExecutionPolicy& __exec, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
                _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
         const ::std::size_t __n = __input.size();
