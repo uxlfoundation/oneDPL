@@ -56,6 +56,10 @@ int main()
     sizes.push_back(8'000'000);
     test_sort<std::int32_t>(SortTestConfig{cfg, "int32_t, device, std::less"}, sizes, Device<2>{},
                             Converter<std::int32_t>{}, std::less{});
+#if __SYCL_UNNAMED_LAMBDA__
+    // Test potentially clashing naming for radix sort descending / ascending with minimal timing impact
+    test_default_name_gen(SortTestConfig{cfg, "default name generation"});
+#endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done();
