@@ -317,7 +317,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 {
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinHashMgr>
     auto
-    operator()(_ExecutionPolicy&& __exec, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
+    operator()(const _ExecutionPolicy& __exec, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
                _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
         using _local_histogram_type = ::std::uint32_t;
