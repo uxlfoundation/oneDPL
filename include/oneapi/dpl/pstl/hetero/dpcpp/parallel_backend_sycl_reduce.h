@@ -126,7 +126,7 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
     template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType,
               typename... _Ranges>
     auto
-    operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, const _Size __n,
+    operator()(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec, const _Size __n,
                const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
                _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs) const
     {
