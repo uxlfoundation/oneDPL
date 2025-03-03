@@ -277,7 +277,7 @@ template <typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
 auto
 __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
-                                     _ExecutionPolicy&& __exec, const _Size __n, const _Size __work_group_size,
+                                     const _ExecutionPolicy& __exec, const _Size __n, const _Size __work_group_size,
                                      const _Size __iters_per_work_item_device_kernel,
                                      const _Size __iters_per_work_item_work_group_kernel, _ReduceOp __reduce_op,
                                      _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
@@ -301,8 +301,8 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
     // __n_groups preliminary results from the device kernel.
     return __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative, _VecSize,
                                                                    _ReduceWorkGroupKernel>()(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __reduce_event, __n_groups, __work_group_size,
-        __iters_per_work_item_work_group_kernel, __reduce_op, __init, __scratch_container);
+        __backend_tag, __exec, __reduce_event, __n_groups, __work_group_size, __iters_per_work_item_work_group_kernel,
+        __reduce_op, __init, __scratch_container);
 }
 
 // General implementation using a tree reduction
