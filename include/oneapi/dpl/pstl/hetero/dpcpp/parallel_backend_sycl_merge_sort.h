@@ -211,11 +211,11 @@ struct __merge_sort_leaf_submitter;
 template <typename... _LeafSortName>
 struct __merge_sort_leaf_submitter<__internal::__optional_kernel_name<_LeafSortName...>>
 {
-    template <typename _Range, typename _LeafSorter>
+    template <typename _ExecutionPolicy, typename _Range, typename _LeafSorter>
     sycl::event
-    operator()(sycl::queue& __q, _Range& __rng, _LeafSorter& __leaf_sorter) const
+    operator()(const _ExecutionPolicy& __exec, _Range& __rng, _LeafSorter& __leaf_sorter) const
     {
-        return __q.submit([&__rng, &__leaf_sorter](sycl::handler& __cgh) {
+        return __exec.queue().submit([&__rng, &__leaf_sorter](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __storage_acc = __leaf_sorter.create_storage_accessor(__cgh);
             const std::uint32_t __wg_count =
@@ -663,11 +663,11 @@ struct __merge_sort_copy_back_submitter;
 template <typename... _CopyBackName>
 struct __merge_sort_copy_back_submitter<__internal::__optional_kernel_name<_CopyBackName...>>
 {
-    template <typename _Range, typename _TempBuf>
+    template <typename _ExecutionPolicy, typename _Range, typename _TempBuf>
     sycl::event
-    operator()(sycl::queue& __q, _Range& __rng, _TempBuf& __temp_buf, sycl::event __event_chain) const
+    operator()(const _ExecutionPolicy& __exec, _Range& __rng, _TempBuf& __temp_buf, sycl::event __event_chain) const
     {
-        return __q.submit([&__rng, &__temp_buf, &__event_chain](sycl::handler& __cgh) {
+        return __exec.queue().submit([&__rng, &__temp_buf, &__event_chain](sycl::handler& __cgh) {
             __cgh.depends_on(__event_chain);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __temp_acc = __temp_buf.template get_access<access_mode::read>(__cgh);
@@ -698,7 +698,7 @@ class __sort_copy_back_kernel;
 
 template <typename _IndexT, typename _ExecutionPolicy, typename _Range, typename _Compare, typename _LeafSorter>
 auto
-__merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
+__merge_sort(const _ExecutionPolicy& __exec, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
 {
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
 
@@ -718,10 +718,8 @@ __merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSo
     assert((__leaf_sorter.__process_size & (__leaf_sorter.__process_size - 1)) == 0 &&
            "Leaf size must be a power of 2");
 
-    sycl::queue __q = __exec.queue();
-
     // 1. Perform sorting of the leaves of the merge sort tree
-    sycl::event __event_leaf_sort = __merge_sort_leaf_submitter<_LeafSortKernel>()(__q, __rng, __leaf_sorter);
+    sycl::event __event_leaf_sort = __merge_sort_leaf_submitter<_LeafSortKernel>()(__exec, __rng, __leaf_sorter);
 
     // 2. Merge sorting
     oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _Tp> __temp(__exec, __rng.size());
@@ -733,7 +731,7 @@ __merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSo
     // 3. If the data remained in the temporary buffer then copy it back
     if (__data_in_temp)
     {
-        __event_sort = __merge_sort_copy_back_submitter<_CopyBackKernel>()(__q, __rng, __temp_buf, __event_sort);
+        __event_sort = __merge_sort_copy_back_submitter<_CopyBackKernel>()(__exec, __rng, __temp_buf, __event_sort);
     }
     return __future(__event_sort, std::move(__temp_sp_storages));
 }
