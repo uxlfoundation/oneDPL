@@ -1129,7 +1129,7 @@ struct __invoke_single_group_copy_if
     template <std::uint16_t _Size, typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Pred,
               typename _Assign = oneapi::dpl::__internal::__pstl_assign>
     auto
-    operator()(_ExecutionPolicy&& __exec, std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng, _Pred __pred,
+    operator()(const _ExecutionPolicy& __exec, std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng, _Pred __pred,
                _Assign __assign)
     {
         constexpr ::std::uint16_t __wg_size = ::std::min(_Size, __targeted_wg_size);
@@ -1148,7 +1148,7 @@ struct __invoke_single_group_copy_if
             using _FullKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<_FullKernel>;
             return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<
                 _SizeType, __num_elems_per_item, __wg_size, true, _FullKernelName>()(
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
+                __exec, std::forward<_InRng>(__in_rng),
                 std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{}, __pred, __assign);
         }
         else
@@ -1161,7 +1161,7 @@ struct __invoke_single_group_copy_if
                 oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<_NonFullKernel>;
             return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<
                 _SizeType, __num_elems_per_item, __wg_size, false, _NonFullKernelName>()(
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
+                __exec, std::forward<_InRng>(__in_rng),
                 std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{}, __pred, __assign);
         }
     }
