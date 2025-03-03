@@ -2215,7 +2215,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_t
                        _Range&& __rng, _Compare, _Proj __proj)
 {
     return __parallel_radix_sort<__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
-        __backend_tag, ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __proj);
+        __backend_tag, __exec, ::std::forward<_Range>(__rng), __proj);
 }
 #endif // _ONEDPL_USE_RADIX_SORT
 
