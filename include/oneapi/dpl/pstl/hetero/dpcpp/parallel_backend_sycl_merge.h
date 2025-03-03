@@ -313,7 +313,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     // Calculation of split points on each base diagonal
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Compare, typename _Storage>
     sycl::event
-    eval_split_points_for_groups(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _IdType __n,
+    eval_split_points_for_groups(const _ExecutionPolicy& __exec, _Range1&& __rng1, _Range2&& __rng2, _IdType __n,
                                  _Compare __comp, const nd_range_params& __nd_range_params,
                                  _Storage& __base_diagonals_sp_global_storage) const
     {
