@@ -89,7 +89,7 @@ using _SegReducePrefixPhase = __seg_reduce_prefix_kernel<_Name...>;
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
-__parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+__parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec,
                                       _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
                                       _Range4&& __out_values, _BinaryPredicate __binary_pred,
                                       _BinaryOperator __binary_op,
@@ -97,18 +97,17 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
+    // We should avoid using _ExecutionPolicy in __kernel_name_generator template params
+    // because we always specialize this __parallel_reduce_by_segment_fallback calls only by _ExecutionPolicy as "const reference".
+    // So, from this template param point of view, only one specialization is possible.
     using _SegReduceCountKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-        _SegReduceCountPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate,
-        _BinaryOperator>;
+        _SegReduceCountPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
     using _SegReduceOffsetKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-        _SegReduceOffsetPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate,
-        _BinaryOperator>;
+        _SegReduceOffsetPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
     using _SegReduceWgKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-        _SegReduceWgPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate,
-        _BinaryOperator>;
+        _SegReduceWgPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
     using _SegReducePrefixKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-        _SegReducePrefixPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate,
-        _BinaryOperator>;
+        _SegReducePrefixPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
 
     using __diff_type = oneapi::dpl::__internal::__difference_t<_Range3>;
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
