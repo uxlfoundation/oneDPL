@@ -120,7 +120,7 @@ __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         { return std::invoke(__op, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__internal::__transform_functor<decltype(__unary_op)>{std::move(__unary_op)},
+            oneapi::dpl::__internal::__transform_functor{__unary_op},
             oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 }
@@ -136,7 +136,7 @@ __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__internal::__transform_functor<decltype(__f)>{std::move(__f)},
+            oneapi::dpl::__internal::__transform_functor{__f},
             oneapi::dpl::__ranges::views::all_read(std::forward<_InRange1>(__in_r1)),
             oneapi::dpl::__ranges::views::all_read(std::forward<_InRange2>(__in_r2)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
