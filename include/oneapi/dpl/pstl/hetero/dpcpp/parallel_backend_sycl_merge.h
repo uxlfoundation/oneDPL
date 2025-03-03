@@ -206,7 +206,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
 {
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare>
     auto
-    operator()(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp) const
+    operator()(const _ExecutionPolicy& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp) const
     {
         const _IdType __n1 = __rng1.size();
         const _IdType __n2 = __rng2.size();
