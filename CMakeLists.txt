@@ -69,6 +69,18 @@ if (FIND_GXX_EXE)
     execute_process(COMMAND ${FIND_GXX_EXE} -dumpfullversion OUTPUT_VARIABLE _onedpl_gxx_version)
 endif()
 
+# RelWithAsserts has the same flags as Release, but removes NDEBUG.
+# This build type can be enabled via CMAKE_BUILD_TYPE=RelWithAsserts.
+# It is useful to fully cover tests relying on asserts, such as those exported from libc++, or Tested Standard C++ API tests.
+foreach(FLAGS CMAKE_CXX_FLAGS CMAKE_EXE_LINKER_FLAGS CMAKE_MODULE_LINKER_FLAGS CMAKE_SHARED_LINKER_FLAGS
+        CMAKE_STATIC_LINKER_FLAGS)
+    if (FLAGS STREQUAL "CMAKE_CXX_FLAGS")
+        string(REGEX REPLACE "(^| )[/-]DNDEBUG( |$)" " " BORROWED_FLAGS "${${FLAGS}_RELEASE}")
+    else()
+        set(BORROWED_FLAGS "${${FLAGS}_RELEASE}")
+    endif()
+    set(${FLAGS}_RELWITHASSERTS "${BORROWED_FLAGS}" CACHE STRING "Flags used during RELWITHASSERTS builds." FORCE)
+endforeach()
 
 include(CMakePackageConfigHelpers)
 include(CheckCXXCompilerFlag)
