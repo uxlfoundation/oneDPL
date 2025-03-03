@@ -2276,7 +2276,7 @@ struct __assign_key2_wrapper;
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
-__parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+__parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec,
                                       _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
                                       _Range4&& __out_values, _BinaryPredicate __binary_pred,
                                       _BinaryOperator __binary_op,
@@ -2379,8 +2379,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     //reduce by segment
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
-        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
-            std::forward<_ExecutionPolicy>(__exec)),
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(__exec),
         unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end), _Range4>(
             __binary_op, __intermediate_result_end),
         __result_end,
@@ -2424,10 +2423,9 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     }
 #endif
     return __parallel_reduce_by_segment_fallback(
-        oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
-        std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
-        std::forward<_Range4>(__out_values), __binary_pred, __binary_op,
-        oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
+        oneapi::dpl::__internal::__device_backend_tag{}, __exec, std::forward<_Range1>(__keys),
+        std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values),
+        __binary_pred, __binary_op, oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
 }
 
 } // namespace __par_backend_hetero
