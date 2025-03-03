@@ -1286,7 +1286,7 @@ __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
     return __parallel_transform_reduce_then_scan(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec),
+        __backend_tag, __exec,
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values)),
         _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{__binary_pred, __n},
