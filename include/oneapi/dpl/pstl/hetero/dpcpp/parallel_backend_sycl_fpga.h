@@ -86,8 +86,8 @@ __parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& _
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using __parallel_for_name = __internal::__kernel_name_provider<_CustomName>;
 
-    return __parallel_for_fpga_submitter<__parallel_for_name>()(std::forward<_ExecutionPolicy>(__exec), __brick,
-                                                                __count, std::forward<_Ranges>(__rngs)...);
+    return __parallel_for_fpga_submitter<__parallel_for_name>()(__exec, __brick, __count,
+                                                                std::forward<_Ranges>(__rngs)...);
 }
 
 //------------------------------------------------------------------------
