@@ -1170,7 +1170,7 @@ struct __invoke_single_group_copy_if
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
 auto
-__parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+__parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const _ExecutionPolicy& __exec,
                                  _InRng&& __in_rng, _OutRng&& __out_rng, _Size, _GenMask __generate_mask,
                                  _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
@@ -1243,9 +1243,9 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
 
-        return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                                std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
-                                                _GenMask{__pred}, _WriteOp{_Assign{}},
+        return __parallel_reduce_then_scan_copy(__backend_tag, __exec, std::forward<_Range1>(__rng),
+                                                std::forward<_Range2>(__result), __n, _GenMask{__pred},
+                                                _WriteOp{_Assign{}},
                                                 /*_IsUniquePattern=*/std::true_type{});
     }
     else
@@ -1308,7 +1308,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
         using _WriteOp =
             oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
 
-        return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
+        return __parallel_reduce_then_scan_copy(__backend_tag, __exec,
                                                 std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
                                                 _GenMask{__pred, {}}, _WriteOp{},
                                                 /*_IsUniquePattern=*/std::false_type{});
@@ -1360,7 +1360,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
 
-        return __parallel_reduce_then_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
+        return __parallel_reduce_then_scan_copy(__backend_tag, __exec,
                                                 std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
                                                 _GenMask{__pred, {}}, _WriteOp{__assign},
                                                 /*_IsUniquePattern=*/std::false_type{});
