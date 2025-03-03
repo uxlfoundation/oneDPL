@@ -29,14 +29,16 @@
 template <typename... _Name>
 class __radix_sort_one_wg_kernel;
 
-template <typename _KernelNameBase, uint16_t __wg_size = 256 /*work group size*/, uint16_t __block_size = 16,
-          std::uint32_t __radix = 4, bool __is_asc = true>
+template <uint16_t __wg_size = 256 /*work group size*/, uint16_t __block_size = 16, std::uint32_t __radix = 4,
+          bool __is_asc = true>
 struct __subgroup_radix_sort
 {
-    template <typename _RangeIn, typename _Proj>
+    template <typename _ExecutionPolicy, typename _RangeIn, typename _Proj>
     auto
-    operator()(sycl::queue __q, _RangeIn&& __src, _Proj __proj)
+    operator()(const _ExecutionPolicy& __exec, _RangeIn&& __src, _Proj __proj)
     {
+        using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
         using __wg_size_t = ::std::integral_constant<::std::uint16_t, __wg_size>;
         using __block_size_t = ::std::integral_constant<::std::uint16_t, __block_size>;
         using __call_0_t = ::std::integral_constant<::std::uint16_t, 0>;
@@ -44,24 +46,24 @@ struct __subgroup_radix_sort
         using __call_2_t = ::std::integral_constant<::std::uint16_t, 2>;
 
         using _SortKernelLoc = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __call_0_t>>;
+            __radix_sort_one_wg_kernel<_CustomName, __wg_size_t, __block_size_t, __call_0_t>>;
         using _SortKernelPartGlob = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __call_1_t>>;
+            __radix_sort_one_wg_kernel<_CustomName, __wg_size_t, __block_size_t, __call_1_t>>;
         using _SortKernelGlob = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __call_2_t>>;
+            __radix_sort_one_wg_kernel<_CustomName, __wg_size_t, __block_size_t, __call_2_t>>;
 
         using _KeyT = oneapi::dpl::__internal::__value_t<_RangeIn>;
         //check SLM size
-        const auto __SLM_available = __check_slm_size<_KeyT>(__q, __src.size());
+        const auto __SLM_available = __check_slm_size<_ExecutionPolicy, _KeyT>(__exec, __src.size());
         if (__SLM_available.first && __SLM_available.second)
-            return __one_group_submitter<_SortKernelLoc>()(__q, ::std::forward<_RangeIn>(__src), __proj,
+            return __one_group_submitter<_SortKernelLoc>()(__exec, ::std::forward<_RangeIn>(__src), __proj,
                                                            ::std::true_type{} /*SLM*/, ::std::true_type{} /*SLM*/);
         if (__SLM_available.second)
-            return __one_group_submitter<_SortKernelPartGlob>()(__q, ::std::forward<_RangeIn>(__src), __proj,
+            return __one_group_submitter<_SortKernelPartGlob>()(__exec, ::std::forward<_RangeIn>(__src), __proj,
                                                                 ::std::false_type{} /*No SLM*/,
                                                                 ::std::true_type{} /*SLM*/);
-        return __one_group_submitter<_SortKernelGlob>()(__q, ::std::forward<_RangeIn>(__src), __proj,
-                                                            ::std::false_type{} /*No SLM*/, ::std::false_type{} /*No SLM*/);
+        return __one_group_submitter<_SortKernelGlob>()(__exec, ::std::forward<_RangeIn>(__src), __proj,
+                                                        ::std::false_type{} /*No SLM*/, ::std::false_type{} /*No SLM*/);
     }
 
   private:
@@ -125,9 +127,9 @@ struct __subgroup_radix_sort
     static constexpr uint16_t __bin_count = 1 << __radix;
     static constexpr uint16_t __counter_buf_sz = __wg_size * __bin_count + 1; //+1(init value) for exclusive scan result
 
-    template <typename _T, typename _Size>
+    template <typename _ExecutionPolicy, typename _T, typename _Size>
     auto
-    __check_slm_size(sycl::queue __q, _Size __n)
+    __check_slm_size(const _ExecutionPolicy& __exec, _Size __n)
     {
         assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
 
@@ -136,7 +138,7 @@ struct __subgroup_radix_sort
         // Pessimistically only use half of the memory to take into account
         // a SYCL group algorithm might use a portion of SLM
         const ::std::size_t __max_slm_size =
-            __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+            __exec.queue().get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
 
         const auto __n_uniform = 1 << (::std::uint32_t(log2(__n - 1)) + 1);
         const auto __req_slm_size_val = sizeof(_T) * __n_uniform;
@@ -154,9 +156,9 @@ struct __subgroup_radix_sort
     template <typename... _Name>
     struct __one_group_submitter<__internal::__optional_kernel_name<_Name...>>
     {
-        template <typename _RangeIn, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
+        template <typename _ExecutionPolicy, typename _RangeIn, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
         auto
-        operator()(sycl::queue __q, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
+        operator()(_ExecutionPolicy&& __exec, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
         {
             uint16_t __n = __src.size();
             assert(__n <= __block_size * __wg_size);
@@ -168,7 +170,7 @@ struct __subgroup_radix_sort
             _TempBuf<uint32_t, _SLM_counter> __buf_count(__counter_buf_sz);
 
             sycl::nd_range __range{sycl::range{__wg_size}, sycl::range{__wg_size}};
-            return __q.submit([&](sycl::handler& __cgh) {
+            return __exec.queue().submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __src);
 
                 auto __exchange_lacc = __buf_val.get_acc(__cgh);
