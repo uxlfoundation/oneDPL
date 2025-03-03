@@ -495,8 +495,8 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
         using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __merge_kernel_name<_CustomName, _WiIndex>>;
         return __parallel_merge_submitter<_OutSizeLimit, _WiIndex, _MergeKernelName>()(
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            std::forward<_Range3>(__rng3), __comp);
+            __exec, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__rng3),
+            __comp);
     }
     else
     {
@@ -508,9 +508,9 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __merge_kernel_name_large<_CustomName, _WiIndex>>;
             return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
-                                                    _MergeKernelName>()(
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                std::forward<_Range3>(__rng3), __comp);
+                                                    _MergeKernelName>()(__exec, std::forward<_Range1>(__rng1),
+                                                                        std::forward<_Range2>(__rng2),
+                                                                        std::forward<_Range3>(__rng3), __comp);
         }
         else
         {
@@ -520,9 +520,9 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __merge_kernel_name_large<_CustomName, _WiIndex>>;
             return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
-                                                    _MergeKernelName>()(
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                std::forward<_Range3>(__rng3), __comp);
+                                                    _MergeKernelName>()(__exec, std::forward<_Range1>(__rng1),
+                                                                        std::forward<_Range2>(__rng2),
+                                                                        std::forward<_Range3>(__rng3), __comp);
         }
     }
 }
