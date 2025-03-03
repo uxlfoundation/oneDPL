@@ -764,7 +764,7 @@ template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
           typename _Inclusive, typename _IsUniquePattern>
 auto
-__parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+__parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec,
                                       _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
                                       _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
                                       _ScanInputTransform __scan_input_transform, _WriteOp __write_op, _InitType __init,
