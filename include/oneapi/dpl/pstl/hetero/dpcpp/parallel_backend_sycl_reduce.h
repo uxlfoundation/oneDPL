@@ -163,7 +163,7 @@ template <typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
 auto
 __parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
-                                       _ExecutionPolicy&& __exec, const _Size __n, const _Size __work_group_size,
+                                       const _ExecutionPolicy& __exec, const _Size __n, const _Size __work_group_size,
                                        const _Size __iters_per_work_item, _ReduceOp __reduce_op,
                                        _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
 {
@@ -172,8 +172,8 @@ __parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__reduce_small_kernel<_CustomName>>;
 
     return __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize, _ReduceKernel>()(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __n, __work_group_size, __iters_per_work_item,
-        __reduce_op, __transform_op, __init, std::forward<_Ranges>(__rngs)...);
+        __backend_tag, __exec, __n, __work_group_size, __iters_per_work_item, __reduce_op, __transform_op, __init,
+        std::forward<_Ranges>(__rngs)...);
 }
 
 // Submits the first kernel of the parallel_transform_reduce for mid-sized arrays.
