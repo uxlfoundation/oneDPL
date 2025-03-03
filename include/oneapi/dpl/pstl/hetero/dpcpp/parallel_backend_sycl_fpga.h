@@ -57,7 +57,7 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
 {
     template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
     auto
-    operator()(_ExecutionPolicy&& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(const _ExecutionPolicy& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
 
