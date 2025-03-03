@@ -1268,7 +1268,7 @@ template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typenam
           typename _BinaryPredicate, typename _BinaryOperator>
 auto
 __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
-                                              _ExecutionPolicy&& __exec, _Range1&& __keys, _Range2&& __values,
+                                              const _ExecutionPolicy& __exec, _Range1&& __keys, _Range2&& __values,
                                               _Range3&& __out_keys, _Range4&& __out_values,
                                               _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
@@ -2413,7 +2413,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec))
         {
             auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan(
-                oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+                oneapi::dpl::__internal::__device_backend_tag{}, __exec,
                 std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
                 std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
             // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
