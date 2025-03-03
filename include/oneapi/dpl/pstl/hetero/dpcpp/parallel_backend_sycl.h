@@ -1180,7 +1180,7 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     return __parallel_transform_reduce_then_scan(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
+        __backend_tag, __exec, std::forward<_InRng>(__in_rng),
         std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask},
         _ScanInputTransform{}, __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
