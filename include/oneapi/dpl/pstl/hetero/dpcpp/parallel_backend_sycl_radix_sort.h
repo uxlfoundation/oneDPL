@@ -507,7 +507,7 @@ template <typename _KernelName, ::std::uint32_t __radix_bits, bool __is_ascendin
 #endif
           >
 sycl::event
-__radix_sort_reorder_submit(_ExecutionPolicy&& __exec, ::std::size_t __segments,
+__radix_sort_reorder_submit(const _ExecutionPolicy& __exec, ::std::size_t __segments,
                             ::std::size_t __sg_size, ::std::uint32_t __radix_offset, _InRange&& __input_rng,
                             _OutRange&& __output_rng, _OffsetBuf& __offset_buf, sycl::event __dependency_event,
                             _Proj __proj
