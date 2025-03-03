@@ -129,7 +129,7 @@ private:
         using __reference_type = __tuple_type<std::ranges::range_reference_t<__internal::__maybe_const<_Const, _Views>>...>;        
         using __rvalue_reference_type = __tuple_type<std::ranges::range_rvalue_reference_t<__internal::__maybe_const<_Const, _Views>>...>;
 
-        using __iterator_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<_Const, _Views>>...>;
+        using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<_Const, _Views>>...>;
 
 public:
         iterator() = default;
@@ -140,7 +140,7 @@ public:
         }
 
       private:
-        constexpr explicit iterator(__iterator_type __current): __current(std::move(__current)) {}
+        constexpr explicit iterator(__iterators_type __current): __current(std::move(__current)) {}
 
       public:
         template <typename... Iterators>
@@ -304,7 +304,7 @@ public:
 
         friend class zip_view;
 
-        __iterator_type __current;
+        __iterators_type __current;
     }; // class iterator
 
     template <bool _Const>
@@ -365,9 +365,9 @@ public:
     constexpr auto
     begin() requires(!(__internal::__simple_view<_Views> && ...))
     {
-        using __iterator_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>...>;
+        using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>...>;
         auto __tr = [](auto&&... __args) {
-            return iterator<false>(__iterator_type(std::forward<decltype(__args)>(__args)...)); 
+            return iterator<false>(__iterators_type(std::forward<decltype(__args)>(__args)...)); 
         };
         return __internal::__apply_to_tuple(std::ranges::begin, __views, __tr);
     }
@@ -375,9 +375,9 @@ public:
     constexpr auto
     begin() const requires(std::ranges::range<const _Views>&&...)
     {
-        using __iterator_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>...>;
+        using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>...>;
         auto __tr = [](auto&&... __args) { 
-            return iterator<true>(__iterator_type(std::forward<decltype(__args)>(__args)...)); 
+            return iterator<true>(__iterators_type(std::forward<decltype(__args)>(__args)...)); 
         };
         return __internal::__apply_to_tuple(std::ranges::begin, __views, __tr);
     }
@@ -398,8 +398,8 @@ public:
         }
         else
         {
-            using __iterator_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>...>;
-            auto __tr = [](auto&&... __args) { return iterator<false>(__iterator_type(std::forward<decltype(__args)>(__args)...)); };
+            using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>...>;
+            auto __tr = [](auto&&... __args) { return iterator<false>(__iterators_type(std::forward<decltype(__args)>(__args)...)); };
             return __internal::__apply_to_tuple(std::ranges::end, __views, __tr);
         }
     }
@@ -420,8 +420,8 @@ public:
         }
         else
         {
-            using __iterator_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>...>;
-            auto __tr = [](auto&&... __args) { return iterator<true>(__iterator_type(__args...)); };
+            using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>...>;
+            auto __tr = [](auto&&... __args) { return iterator<true>(__iterators_type(__args...)); };
             return __internal::__apply_to_tuple(std::ranges::end, __views, __tr);
         }
     }
