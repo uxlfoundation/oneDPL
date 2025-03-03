@@ -272,7 +272,7 @@ template <typename _KernelName, ::std::uint32_t __radix_bits, typename _Executio
 #endif
           >
 sycl::event
-__radix_sort_scan_submit(_ExecutionPolicy&& __exec, ::std::size_t __scan_wg_size, ::std::size_t __segments,
+__radix_sort_scan_submit(const _ExecutionPolicy& __exec, ::std::size_t __scan_wg_size, ::std::size_t __segments,
                          _CountBuf& __count_buf, ::std::size_t __n, sycl::event __dependency_event
 #if _ONEDPL_COMPILE_KERNEL
                          , _Kernel& __kernel
