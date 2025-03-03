@@ -74,7 +74,7 @@ __slm_adjusted_work_group_size(const _ExecutionPolicy& __policy, _Size __local_m
     if (__wg_size == 0)
         __wg_size = __max_work_group_size(__policy);
     auto __local_mem_size = __policy.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
-    return sycl::min<_Size>(__local_mem_size / __local_mem_per_wi, __wg_size);
+    return std::min<_Size>(__local_mem_size / __local_mem_per_wi, __wg_size);
 }
 
 #if _ONEDPL_USE_SUB_GROUPS
