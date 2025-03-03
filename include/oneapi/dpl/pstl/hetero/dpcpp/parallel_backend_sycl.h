@@ -1076,7 +1076,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             if (__group_scan_fits_in_slm<_Type>(__exec.queue(), __n, __n_uniform, __single_group_upper_limit))
             {
                 return __parallel_transform_scan_single_group(
-                    __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
+                    __backend_tag, __exec, std::forward<_Range1>(__in_rng),
                     std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
             }
         }
@@ -1089,7 +1089,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             _GenInput __gen_transform{__unary_op};
 
             return __parallel_transform_reduce_then_scan(
-                __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
+                __backend_tag, __exec, std::forward<_Range1>(__in_rng),
                 std::forward<_Range2>(__out_rng), __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{},
                 _WriteOp{}, __init, _Inclusive{}, /*_IsUniquePattern=*/std::false_type{});
         }
