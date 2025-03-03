@@ -370,7 +370,7 @@ struct __sycl_scan_by_segment_impl
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename T, typename BinaryPredicate, typename Operator, typename Inclusive>
 OutputIterator
-__scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
+__scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, const Policy& policy, InputIterator1 first1,
                               InputIterator1 last1, InputIterator2 first2, OutputIterator result, T init,
                               BinaryPredicate binary_pred, Operator binary_op, Inclusive)
 {
@@ -393,7 +393,7 @@ __scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, Policy&& po
 
     constexpr iter_value_t identity = unseq_backend::__known_identity<Operator, iter_value_t>;
 
-    __sycl_scan_by_segment_impl<Inclusive::value>()(_BackendTag{}, ::std::forward<Policy>(policy), key_buf.all_view(),
+    __sycl_scan_by_segment_impl<Inclusive::value>()(_BackendTag{}, policy, key_buf.all_view(),
                                                     value_buf.all_view(), value_output_buf.all_view(), binary_pred,
                                                     binary_op, init, identity);
     return result + n;
