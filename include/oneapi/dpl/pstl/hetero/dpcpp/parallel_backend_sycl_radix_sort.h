@@ -771,7 +771,7 @@ struct __parallel_radix_sort_iteration
 //-----------------------------------------------------------------------
 template <bool __is_ascending, typename _Range, typename _ExecutionPolicy, typename _Proj>
 auto
-__parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __in_rng,
+__parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec, _Range&& __in_rng,
                       _Proj __proj)
 {
     const ::std::size_t __n = __in_rng.size();
