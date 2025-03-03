@@ -553,14 +553,14 @@ __parallel_histogram(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     if (__input.size() < 1048576) // 2^20
     {
         return __parallel_histogram_select_kernel</*iters_per_workitem = */ 4>(
-            __backend_tag, ::std::forward<_ExecutionPolicy>(__exec), __init_event, ::std::forward<_Range1>(__input),
-            ::std::forward<_Range2>(__bins), __binhash_manager);
+            __backend_tag, __exec, __init_event, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins),
+            __binhash_manager);
     }
     else
     {
         return __parallel_histogram_select_kernel</*iters_per_workitem = */ 32>(
-            __backend_tag, ::std::forward<_ExecutionPolicy>(__exec), __init_event, ::std::forward<_Range1>(__input),
-            ::std::forward<_Range2>(__bins), __binhash_manager);
+            __backend_tag, __exec, __init_event, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins),
+            __binhash_manager);
     }
 }
 
