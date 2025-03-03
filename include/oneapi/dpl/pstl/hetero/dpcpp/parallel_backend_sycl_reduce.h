@@ -312,12 +312,16 @@ struct __parallel_transform_reduce_impl
     template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType,
               typename... _Ranges>
     static auto
-    submit(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Size __n, _Size __work_group_size,
+    submit(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec, _Size __n, _Size __work_group_size,
            const _Size __iters_per_work_item, _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init,
            _Ranges&&... __rngs)
     {
         using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
         using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
+
+        // We should avoid using _ExecutionPolicy in __kernel_name_generator template params
+        // because we always specialize this submit() calls only by _ExecutionPolicy as "const reference".
+        // So, from this template param point of view, only one specialization is possible.
         using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             __reduce_kernel, _CustomName, _ReduceOp, _TransformOp, _NoOpFunctor, _Ranges...>;
 
