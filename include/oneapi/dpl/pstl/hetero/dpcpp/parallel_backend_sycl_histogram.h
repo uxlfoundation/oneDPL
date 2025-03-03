@@ -499,7 +499,7 @@ template <::std::uint16_t __iters_per_work_item, typename _ExecutionPolicy, type
           typename _BinHashMgr>
 auto
 __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
-                                   _ExecutionPolicy&& __exec, const sycl::event& __init_event, _Range1&& __input,
+                                   const _ExecutionPolicy& __exec, const sycl::event& __init_event, _Range1&& __input,
                                    _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
     using _private_histogram_type = ::std::uint16_t;
@@ -518,8 +518,8 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
     {
         return __future(
             __histogram_general_registers_local_reduction<__iters_per_work_item, __max_work_item_private_bins>(
-                __backend_tag, ::std::forward<_ExecutionPolicy>(__exec), __init_event, __work_group_size,
-                ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins), __binhash_manager));
+                __backend_tag, __exec, __init_event, __work_group_size, ::std::forward<_Range1>(__input),
+                ::std::forward<_Range2>(__bins), __binhash_manager));
     }
     // if bins fit into SLM, use local atomics
     else if (__num_bins * sizeof(_local_histogram_type) +
@@ -527,8 +527,8 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
              __local_mem_size)
     {
         return __future(__histogram_general_local_atomics<__iters_per_work_item>(
-            __backend_tag, ::std::forward<_ExecutionPolicy>(__exec), __init_event, __work_group_size,
-            ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins), __binhash_manager));
+            __backend_tag, __exec, __init_event, __work_group_size, ::std::forward<_Range1>(__input),
+            ::std::forward<_Range2>(__bins), __binhash_manager));
     }
     else // otherwise, use global atomics (private copies per workgroup)
     {
@@ -538,8 +538,8 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
         // private copies of the histogram bins in global memory.  No unrolling is taken advantage of here because it
         // is a runtime argument.
         return __future(__histogram_general_private_global_atomics(
-            __backend_tag, ::std::forward<_ExecutionPolicy>(__exec), __init_event, __iters_per_work_item,
-            __work_group_size, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins), __binhash_manager));
+            __backend_tag, __exec, __init_event, __iters_per_work_item, __work_group_size,
+            ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins), __binhash_manager));
     }
 }
 
