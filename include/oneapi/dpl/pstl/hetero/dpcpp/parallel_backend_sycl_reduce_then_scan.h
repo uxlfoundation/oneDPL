@@ -880,8 +880,11 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
     {
-        const std::uint32_t __inputs_per_item = __inputs_remaining >= __max_inputs_per_block ? __max_inputs_per_item :
-            oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_remaining, __num_work_groups * __work_group_size);
+        const std::uint32_t __inputs_per_item = __inputs_remaining >= __max_inputs_per_block
+                                                    ? __max_inputs_per_item
+                                                    : oneapi::dpl::__internal::__dpl_ceiling_div(
+                                                          oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
+                                                          __num_work_groups * __work_group_size);
         std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(
             std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
         std::uint32_t __workitems_in_block_round_up_workgroup =
