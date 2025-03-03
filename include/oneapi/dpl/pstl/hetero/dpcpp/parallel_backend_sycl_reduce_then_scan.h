@@ -439,7 +439,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
 
     template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _TmpStorageAcc>
     sycl::event
-    operator()(_ExecutionPolicy&& __exec, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
+    operator()(const _ExecutionPolicy& __exec, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::uint32_t __inputs_per_sub_group, const std::uint32_t __inputs_per_item,
                const std::size_t __block_num) const
