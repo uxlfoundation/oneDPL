@@ -602,6 +602,48 @@ struct __merge_fn
 
 inline constexpr __internal::__merge_fn merge;
 
+namespace __internal
+{
+
+struct __fill_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _T = std::ranges::range_value_t<_R>>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+             std::ranges::output_range<_R, const _T&> && std::ranges::sized_range<_R>
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(ExecutionPolicy&& exec, _R&& __r, const _T& __value)
+    {
+        return for_each(std::forward<ExecutionPolicy>(exec), std::forward<_R>(__r), [__value](auto& __a) { __a = __value;} );
+    }
+}; //__fill_fn
+
+} //__internal
+
+inline constexpr __internal::__fill_fn fill;
+
+template<class R, copy_constructible F>
+  requires invocable<F&> && output_range<R, invoke_result_t<F&>>
+  constexpr borrowed_iterator_t<R> ranges::generate(R&& r, F gen);
+
+namespace __internal
+{
+
+struct __generate_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, std::copy_constructible _F>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+             std::ranges::output_range<_R, std::invoke_result_t<_F&>> && std::ranges::sized_range<_R>
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(ExecutionPolicy&& exec, _R&& __r, _F __gen)
+    {
+        return for_each(std::forward<ExecutionPolicy>(exec), std::forward<_R>(__r), [__gen](auto& __a) { __a = __gen();} );
+    }
+}; //__generate_fn
+
+} //__internal
+
+inline constexpr __internal::__generate_fn generate;
+
 } //ranges
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
