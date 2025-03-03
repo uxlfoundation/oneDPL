@@ -235,10 +235,14 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _InitType,
               typename _LocalScan, typename _GroupScan, typename _GlobalScan>
     auto
-    operator()(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _InitType __init,
+    operator()(const _ExecutionPolicy& __exec, _Range1&& __rng1, _Range2&& __rng2, _InitType __init,
                _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan) const
     {
         using _Type = typename _InitType::__value_type;
+
+        // We should avoid using _ExecutionPolicy in __kernel_name_generator template params
+        // because we always specialize this operator() calls only by _ExecutionPolicy as "const reference".
+        // So, from this template param point of view, only one specialization is possible.
         using _LocalScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             __scan_local_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
         using _GroupScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
