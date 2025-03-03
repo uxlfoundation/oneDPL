@@ -621,10 +621,6 @@ struct __fill_fn
 
 inline constexpr __internal::__fill_fn fill;
 
-template<class R, copy_constructible F>
-  requires invocable<F&> && output_range<R, invoke_result_t<F&>>
-  constexpr borrowed_iterator_t<R> ranges::generate(R&& r, F gen);
-
 namespace __internal
 {
 
@@ -634,15 +630,38 @@ struct __generate_fn
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
              std::ranges::output_range<_R, std::invoke_result_t<_F&>> && std::ranges::sized_range<_R>
     std::ranges::borrowed_iterator_t<_R>
-    operator()(ExecutionPolicy&& exec, _R&& __r, _F __gen)
+    operator()(ExecutionPolicy&& __exec, _R&& __r, _F __gen)
     {
-        return for_each(std::forward<ExecutionPolicy>(exec), std::forward<_R>(__r), [__gen](auto& __a) { __a = __gen();} );
+        return for_each(std::forward<ExecutionPolicy>(__exec), std::forward<_R>(__r), [__gen](auto& __a) { __a = __gen();} );
     }
 }; //__generate_fn
 
 } //__internal
 
 inline constexpr __internal::__generate_fn generate;
+
+namespace __internal
+{
+
+struct __move_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange, std::ranges::random_access_range _OutRange>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
+        && std::indirectly_movable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
+    std::ranges::move_result<std::ranges::borrowed_iterator_t<_InRange>, borrowed_iterator_t<_OutRange>>
+    operator()(ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r)
+    {
+        auto [__res_in, __res_out] =
+            transform(std::forward<ExecutionPolicy>(__exec), std::forward<_R>(__r), std::forward<_OutRange>(__out_r),
+                      [](auto& ) -> decltype(auto){ return std::move(__val); });
+
+        return {__res_in, __res_out};
+    }
+}; //__move_fn
+} //__internal
+
+inline constexpr __internal::__move_fn move;
 
 } //ranges
 
