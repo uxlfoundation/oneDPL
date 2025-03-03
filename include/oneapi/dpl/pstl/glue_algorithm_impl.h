@@ -327,9 +327,9 @@ transform(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    return oneapi::dpl::__internal::__pattern_walk2(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
-        oneapi::dpl::__internal::__transform_functor{__op});
+    return oneapi::dpl::__internal::__pattern_walk2(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first,
+                                                    __last, __result,
+                                                    oneapi::dpl::__internal::__transform_functor{__op});
 }
 
 // we can't use non-const __op here
@@ -341,9 +341,9 @@ transform(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterato
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2, __result);
 
-    return oneapi::dpl::__internal::__pattern_walk3(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __result,
-        oneapi::dpl::__internal::__transform_functor{__op});
+    return oneapi::dpl::__internal::__pattern_walk3(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1,
+                                                    __last1, __first2, __result,
+                                                    oneapi::dpl::__internal::__transform_functor{__op});
 }
 
 // [alg.transform_if]

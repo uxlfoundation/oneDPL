@@ -103,7 +103,7 @@ __pattern_for_each(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
         [__f, __proj](auto&& __val) { std::invoke(__f, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f_1,
-                                                            oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+                                                        oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -119,10 +119,10 @@ __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     auto __unary_op = [__op, __proj](auto&& __val)
         { return std::invoke(__op, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
-    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__internal::__transform_functor{__unary_op},
-            oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
-            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__internal::__transform_functor{__unary_op},
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 }
 
 template<typename _BackendTag, typename _ExecutionPolicy, typename _InRange1, typename _InRange2, typename _OutRange, typename _F,
@@ -135,11 +135,11 @@ __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         return std::invoke(__binary_op, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
             std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
 
-    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__internal::__transform_functor{__f},
-            oneapi::dpl::__ranges::views::all_read(std::forward<_InRange1>(__in_r1)),
-            oneapi::dpl::__ranges::views::all_read(std::forward<_InRange2>(__in_r2)),
-            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__internal::__transform_functor{__f},
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange1>(__in_r1)),
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange2>(__in_r2)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
