@@ -46,12 +46,12 @@ jobs:
         with:
           python-version: '3.x'
       - name: Get clang-format
-        run: sudo apt-get update -yqq && sudo apt-get install -yqq clang-format-19
+        run: sudo apt-get install -yqq clang-format
       - name: Applying clang-format for changed files
         run: |
           MERGE_BASE=$(git merge-base ${{ github.event.pull_request.head.sha }} ${{ github.event.pull_request.base.sha }})
           FILES=$(git diff --diff-filter=d --name-only $MERGE_BASE | grep ^include | grep -v nanorange\.hpp\$ || true)
-          CLANG_FORMAT_DIFF_PATH=$(which clang-format-diff-19)
+          CLANG_FORMAT_DIFF_PATH=$(which clang-format-diff)
           echo $FILES | xargs -n1 -t -r git diff -U0 --no-color --relative $MERGE_BASE | python3 $CLANG_FORMAT_DIFF_PATH -i -p1 -style file
         if: github.event_name == 'pull_request' || github.event_name == 'push'
       - name: Creating diff
