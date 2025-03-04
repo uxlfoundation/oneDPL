@@ -92,7 +92,7 @@ class __parallel_for_body
 // wrapper over tbb::parallel_for
 template <class _ExecutionPolicy, class _Index, class _Fp>
 void
-__parallel_for(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f,
+__parallel_for(oneapi::dpl::__internal::__tbb_backend_tag, const _ExecutionPolicy&, _Index __first, _Index __last, _Fp __f,
                std::size_t __grainsize = 1 /*matches the default grainsize value of tbb::blocked_range according to
                the specification*/)
 {
@@ -106,7 +106,7 @@ __parallel_for(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _
 // wrapper over tbb::parallel_reduce
 template <class _ExecutionPolicy, class _Value, class _Index, typename _RealBody, typename _Reduction>
 _Value
-__parallel_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last,
+__parallel_reduce(oneapi::dpl::__internal::__tbb_backend_tag, const _ExecutionPolicy&, _Index __first, _Index __last,
                   const _Value& __identity, const _RealBody& __real_body, const _Reduction& __reduction)
 {
     return tbb::this_task_arena::isolate([__first, __last, &__identity, &__real_body, &__reduction]() -> _Value {
@@ -187,7 +187,7 @@ struct __par_trans_red_body
 
 template <class _ExecutionPolicy, class _Index, class _Up, class _Tp, class _Cp, class _Rp>
 _Tp
-__parallel_transform_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first,
+__parallel_transform_reduce(oneapi::dpl::__internal::__tbb_backend_tag, const _ExecutionPolicy&, _Index __first,
                             _Index __last, _Up __u, _Tp __init, _Cp __combine, _Rp __brick_reduce)
 {
     __tbb_backend::__par_trans_red_body<_Index, _Up, _Tp, _Cp, _Rp> __body(__u, __init, __combine, __brick_reduce);
@@ -356,7 +356,7 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 // T must have a trivial constructor and destructor.
 template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
-__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&& __exec, _Index __n, _Tp __initial,
+__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, const _ExecutionPolicy& __exec, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
     tbb::this_task_arena::isolate([=, &__combine]() {
@@ -396,7 +396,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
 
 template <class _ExecutionPolicy, class _Index, class _Up, class _Tp, class _Cp, class _Rp, class _Sp>
 _Tp
-__parallel_transform_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Up __u,
+__parallel_transform_scan(oneapi::dpl::__internal::__tbb_backend_tag, const _ExecutionPolicy&, _Index __n, _Up __u,
                           _Tp __init, _Cp __combine, _Rp __brick_reduce, _Sp __scan)
 {
     __trans_scan_body<_Index, _Up, _Tp, _Cp, _Rp, _Sp> __body(__u, __init, __combine, __brick_reduce, __scan);
@@ -1164,7 +1164,7 @@ __stable_sort_func<_RandomAccessIterator1, _RandomAccessIterator2, _Compare, _Le
 
 template <class _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare, typename _LeafSort>
 void
-__parallel_stable_sort(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&& __exec,
+__parallel_stable_sort(oneapi::dpl::__internal::__tbb_backend_tag, const _ExecutionPolicy& __exec,
                        _RandomAccessIterator __xs, _RandomAccessIterator __xe, _Compare __comp, _LeafSort __leaf_sort,
                        ::std::size_t __nsort)
 {
@@ -1256,7 +1256,7 @@ operator()(__task* __self)
 template <class _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
           typename _RandomAccessIterator3, typename _Compare, typename _LeafMerge>
 void
-__parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _RandomAccessIterator1 __xs,
+__parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, const _ExecutionPolicy&, _RandomAccessIterator1 __xs,
                  _RandomAccessIterator1 __xe, _RandomAccessIterator2 __ys, _RandomAccessIterator2 __ye,
                  _RandomAccessIterator3 __zs, _Compare __comp, _LeafMerge __leaf_merge)
 {
@@ -1287,7 +1287,7 @@ __parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&,
 
 template <class _ExecutionPolicy, typename _F1, typename _F2>
 void
-__parallel_invoke(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _F1&& __f1, _F2&& __f2)
+__parallel_invoke(oneapi::dpl::__internal::__tbb_backend_tag, const _ExecutionPolicy&, _F1&& __f1, _F2&& __f2)
 {
     //TODO: a version of tbb::this_task_arena::isolate with variadic arguments pack should be added in the future
     tbb::this_task_arena::isolate(
@@ -1300,7 +1300,7 @@ __parallel_invoke(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Fp>
 void
-__parallel_for_each(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _ForwardIterator __begin,
+__parallel_for_each(oneapi::dpl::__internal::__tbb_backend_tag, const _ExecutionPolicy&, _ForwardIterator __begin,
                     _ForwardIterator __end, _Fp __f)
 {
     tbb::this_task_arena::isolate([&]() { tbb::parallel_for_each(__begin, __end, __f); });
