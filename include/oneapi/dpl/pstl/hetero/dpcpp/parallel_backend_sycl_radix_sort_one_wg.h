@@ -156,7 +156,8 @@ struct __subgroup_radix_sort
     template <typename... _Name>
     struct __one_group_submitter<__internal::__optional_kernel_name<_Name...>>
     {
-        template <typename _ExecutionPolicy, typename _RangeIn, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
+        template <typename _ExecutionPolicy, typename _RangeIn, typename _Proj, typename _SLM_tag_val,
+                  typename _SLM_counter>
         auto
         operator()(_ExecutionPolicy&& __exec, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
         {
