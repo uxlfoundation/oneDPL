@@ -232,8 +232,8 @@ struct __parallel_scan_submitter;
 template <typename _CustomName, typename... _PropagateScanName>
 struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name<_PropagateScanName...>>
 {
-    template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _InitType,
-              typename _LocalScan, typename _GroupScan, typename _GlobalScan>
+    template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _InitType, typename _LocalScan,
+              typename _GroupScan, typename _GlobalScan>
     auto
     operator()(const _ExecutionPolicy& __exec, _Range1&& __rng1, _Range2&& __rng2, _InitType __init,
                _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan) const
@@ -594,8 +594,8 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
                         ::std::integral_constant<::std::uint16_t, __wg_size>,
                         ::std::integral_constant<::std::uint16_t, __num_elems_per_item>, _BinaryOperation,
                         /* _IsFullGroup= */ std::true_type, _Inclusive, _CustomName>>>()(
-                    __exec, std::forward<_InRng>(__in_rng),
-                    std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op);
+                    __exec, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
+                    __unary_op);
             else
                 __event = __parallel_transform_scan_static_single_group_submitter<
                     _Inclusive::value, __num_elems_per_item, __wg_size,
@@ -604,8 +604,8 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
                         ::std::integral_constant<::std::uint16_t, __wg_size>,
                         ::std::integral_constant<::std::uint16_t, __num_elems_per_item>, _BinaryOperation,
                         /* _IsFullGroup= */ ::std::false_type, _Inclusive, _CustomName>>>()(
-                    __exec, std::forward<_InRng>(__in_rng),
-                    std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op);
+                    __exec, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
+                    __unary_op);
             return __future(__event, __dummy_result_and_scratch);
         };
         if (__n <= 16)
@@ -638,8 +638,8 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
 
         auto __event =
             __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive::value, _DynamicGroupScanKernel>()(
-                __exec, std::forward<_InRng>(__in_rng),
-                std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op, __max_wg_size);
+                __exec, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
+                __unary_op, __max_wg_size);
         return __future(__event, __dummy_result_and_scratch);
     }
 }
@@ -656,9 +656,9 @@ __parallel_transform_scan_base(oneapi::dpl::__internal::__device_backend_tag, co
     using _PropagateKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__scan_propagate_kernel<_CustomName>>;
 
-    return __parallel_scan_submitter<_CustomName, _PropagateKernel>()(
-        __exec, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng),
-                                                __init, __local_scan, __group_scan, __global_scan);
+    return __parallel_scan_submitter<_CustomName, _PropagateKernel>()(__exec, std::forward<_Range1>(__in_rng),
+                                                                      std::forward<_Range2>(__out_rng), __init,
+                                                                      __local_scan, __group_scan, __global_scan);
 }
 
 template <typename _Type>
@@ -1075,9 +1075,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             std::size_t __single_group_upper_limit = __use_reduce_then_scan ? 2048 : 16384;
             if (__group_scan_fits_in_slm<_Type>(__exec.queue(), __n, __n_uniform, __single_group_upper_limit))
             {
-                return __parallel_transform_scan_single_group(
-                    __backend_tag, __exec, std::forward<_Range1>(__in_rng),
-                    std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
+                return __parallel_transform_scan_single_group(__backend_tag, __exec, std::forward<_Range1>(__in_rng),
+                                                              std::forward<_Range2>(__out_rng), __n, __unary_op, __init,
+                                                              __binary_op, _Inclusive{});
             }
         }
         if (__use_reduce_then_scan)
@@ -1088,10 +1088,10 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
 
             _GenInput __gen_transform{__unary_op};
 
-            return __parallel_transform_reduce_then_scan(
-                __backend_tag, __exec, std::forward<_Range1>(__in_rng),
-                std::forward<_Range2>(__out_rng), __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{},
-                _WriteOp{}, __init, _Inclusive{}, /*_IsUniquePattern=*/std::false_type{});
+            return __parallel_transform_reduce_then_scan(__backend_tag, __exec, std::forward<_Range1>(__in_rng),
+                                                         std::forward<_Range2>(__out_rng), __gen_transform, __binary_op,
+                                                         __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init,
+                                                         _Inclusive{}, /*_IsUniquePattern=*/std::false_type{});
         }
     }
 
@@ -1148,8 +1148,8 @@ struct __invoke_single_group_copy_if
             using _FullKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<_FullKernel>;
             return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<
                 _SizeType, __num_elems_per_item, __wg_size, true, _FullKernelName>()(
-                __exec, std::forward<_InRng>(__in_rng),
-                std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{}, __pred, __assign);
+                __exec, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{},
+                __pred, __assign);
         }
         else
         {
@@ -1161,8 +1161,8 @@ struct __invoke_single_group_copy_if
                 oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<_NonFullKernel>;
             return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<
                 _SizeType, __num_elems_per_item, __wg_size, false, _NonFullKernelName>()(
-                __exec, std::forward<_InRng>(__in_rng),
-                std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{}, __pred, __assign);
+                __exec, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{},
+                __pred, __assign);
         }
     }
 };
@@ -1170,9 +1170,9 @@ struct __invoke_single_group_copy_if
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
 auto
-__parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const _ExecutionPolicy& __exec,
-                                 _InRng&& __in_rng, _OutRng&& __out_rng, _Size, _GenMask __generate_mask,
-                                 _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
+__parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
+                                 const _ExecutionPolicy& __exec, _InRng&& __in_rng, _OutRng&& __out_rng, _Size,
+                                 _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask>;
     using _ReduceOp = std::plus<_Size>;
@@ -1381,9 +1381,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _IsOpDifference>
 auto
-__parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const _ExecutionPolicy& __exec,
-                                _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
-                                _IsOpDifference)
+__parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
+                                const _ExecutionPolicy& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
+                                _Compare __comp, _IsOpDifference)
 {
     // fill in reduce then scan impl
     using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_IsOpDifference, _Compare>;
@@ -1471,9 +1471,9 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _
 {
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec))
     {
-        return __parallel_set_reduce_then_scan(__backend_tag, __exec,
-                                               std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                                               std::forward<_Range3>(__result), __comp, __is_op_difference);
+        return __parallel_set_reduce_then_scan(__backend_tag, __exec, std::forward<_Range1>(__rng1),
+                                               std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
+                                               __is_op_difference);
     }
     else
     {
@@ -1909,8 +1909,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, const _Executi
 
         // Single WG implementation
         __result = __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
-            oneapi::dpl::__internal::__device_backend_tag{}, __exec, __brick_tag,
-            __rng_n, __wgroup_size, __init_value, __pred, std::forward<_Ranges>(__rngs)...);
+            oneapi::dpl::__internal::__device_backend_tag{}, __exec, __brick_tag, __rng_n, __wgroup_size, __init_value,
+            __pred, std::forward<_Ranges>(__rngs)...);
     }
     else
     {
@@ -1922,8 +1922,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, const _Executi
 
         // Multiple WG implementation
         __result = __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name>()(
-            oneapi::dpl::__internal::__device_backend_tag{}, __exec, __brick_tag,
-            __rng_n, __n_groups, __wgroup_size, __init_value, __pred, std::forward<_Ranges>(__rngs)...);
+            oneapi::dpl::__internal::__device_backend_tag{}, __exec, __brick_tag, __rng_n, __n_groups, __wgroup_size,
+            __init_value, __pred, std::forward<_Ranges>(__rngs)...);
     }
 
     if constexpr (__or_tag_check)
@@ -2176,8 +2176,8 @@ class __sort_global_kernel;
 
 template <typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare>
 auto
-__parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec, _Range&& __rng,
-                             _Merge __merge, _Compare __comp)
+__parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec,
+                             _Range&& __rng, _Merge __merge, _Compare __comp)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _GlobalSortKernel =
@@ -2186,8 +2186,7 @@ __parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, cons
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_copy_back_kernel<_CustomName>>;
 
     return __parallel_partial_sort_submitter<_GlobalSortKernel, _CopyBackKernel>()(
-        oneapi::dpl::__internal::__device_backend_tag{}, __exec,
-        ::std::forward<_Range>(__rng), __merge, __comp);
+        oneapi::dpl::__internal::__device_backend_tag{}, __exec, ::std::forward<_Range>(__rng), __merge, __comp);
 }
 
 //------------------------------------------------------------------------
@@ -2413,9 +2412,9 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec))
         {
             auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan(
-                oneapi::dpl::__internal::__device_backend_tag{}, __exec,
-                std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
-                std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
+                oneapi::dpl::__internal::__device_backend_tag{}, __exec, std::forward<_Range1>(__keys),
+                std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values),
+                __binary_pred, __binary_op);
             // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
             // past-the-end iterator pair of segmented reduction.
             return std::get<0>(__res.get()) + 1;
