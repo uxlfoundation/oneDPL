@@ -11,7 +11,7 @@ The feature is proposed as the next step of range-based API support for oneDPL.
 
 ### Key Requirements
 - The range-based signatures for the mentioned API should correspond to the proposal for C++ parallel range algorithms, P3179.
-(https://wg21.link/p3179)
+(https://wg21.link/p3179), but the all input and output ranges should be sized and random access ranges.
 - The proposed implementation should support all oneDPL execution policies: `seq`, `unseq`, `par`, `par_unseq`, and `device_policy`.
 
 ### Implementation proposal
