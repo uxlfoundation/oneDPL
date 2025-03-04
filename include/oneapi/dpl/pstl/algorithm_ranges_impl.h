@@ -76,9 +76,8 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _O
         return std::invoke(__op, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
     oneapi::dpl::__internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r),
-                                             std::ranges::begin(__in_r) + std::ranges::size(__in_r),
-                                             std::ranges::begin(__out_r),
-                                             oneapi::dpl::__internal::__transform_functor{__unary_op});
+        std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r),
+        oneapi::dpl::__internal::__transform_functor<decltype(__unary_op)>{std::move(__unary_op)});
 }
 
 template<typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _F, typename _Proj>
@@ -106,9 +105,8 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange1&& __in_r1, 
             std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
 
     oneapi::dpl::__internal::__pattern_walk3(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r1),
-                                             std::ranges::begin(__in_r1) + std::ranges::size(__in_r1),
-                                             std::ranges::begin(__in_r2), std::ranges::begin(__out_r),
-                                             oneapi::dpl::__internal::__transform_functor{__f});
+        std::ranges::begin(__in_r1) + std::ranges::size(__in_r1), std::ranges::begin(__in_r2),
+        std::ranges::begin(__out_r), oneapi::dpl::__internal::__transform_functor<decltype(__f)>{std::move(__f)});
 }
 
 template<typename _ExecutionPolicy, typename _InRange1, typename _InRange2, typename _OutRange, typename _F,
