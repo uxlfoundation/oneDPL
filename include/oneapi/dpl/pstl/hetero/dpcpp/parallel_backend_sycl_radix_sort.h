@@ -658,16 +658,16 @@ struct __parallel_radix_sort_iteration
         // because we always specialize this submit() calls only by _ExecutionPolicy as "const reference".
         // So, from this template param point of view, only one specialization is possible.
         using _RadixCountKernel =
-            __internal::__kernel_name_generator<__count_phase, _CustomName, ::std::decay_t<_InRange>,
-                                                ::std::decay_t<_TmpBuf>, _Proj>;
+            __internal::__kernel_name_generator<__count_phase, _CustomName, std::decay_t<_InRange>,
+                                                std::decay_t<_TmpBuf>, _Proj>;
         using _RadixLocalScanKernel =
-            __internal::__kernel_name_generator<__local_scan_phase, _CustomName, ::std::decay_t<_TmpBuf>>;
+            __internal::__kernel_name_generator<__local_scan_phase, _CustomName, std::decay_t<_TmpBuf>>;
         using _RadixReorderPeerKernel =
             __internal::__kernel_name_generator<__reorder_peer_phase, _CustomName, std::decay_t<_InRange>,
-                                                ::std::decay_t<_OutRange>, _Proj>;
+                                                std::decay_t<_OutRange>, _Proj>;
         using _RadixReorderKernel =
-            __internal::__kernel_name_generator<__reorder_phase, _CustomName, ::std::decay_t<_InRange>,
-                                                ::std::decay_t<_OutRange>, _Proj>;
+            __internal::__kernel_name_generator<__reorder_phase, _CustomName, std::decay_t<_InRange>,
+                                                std::decay_t<_OutRange>, _Proj>;
 
         ::std::size_t __max_sg_size = oneapi::dpl::__internal::__max_sub_group_size(__exec);
         ::std::size_t __reorder_sg_size = __max_sg_size;
