@@ -570,7 +570,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
   public:
     template <typename _ExecutionPolicy, typename _Range, typename _Compare, typename _TempBuf, typename _LeafSizeT>
     std::tuple<sycl::event, bool, std::shared_ptr<__result_and_scratch_storage_base>>
-    operator()(_ExecutionPolicy&& __exec, _Range& __rng, _Compare __comp, _LeafSizeT __leaf_size, _TempBuf& __temp_buf,
+    operator()(const _ExecutionPolicy& __exec, _Range& __rng, _Compare __comp, _LeafSizeT __leaf_size, _TempBuf& __temp_buf,
                sycl::event __event_chain) const
     {
         // 1 final base diagonal for save final sp(0,0)
@@ -738,7 +738,7 @@ __merge_sort(const _ExecutionPolicy& __exec, _Range&& __rng, _Compare __comp, _L
 
 template <typename _IndexT, typename _ExecutionPolicy, typename _Range, typename _Compare>
 auto
-__submit_selecting_leaf(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
+__submit_selecting_leaf(const _ExecutionPolicy& __exec, _Range&& __rng, _Compare __comp)
 {
     using _Leaf = __leaf_sorter<std::decay_t<_Range>, _Compare>;
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
@@ -786,23 +786,21 @@ __submit_selecting_leaf(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __co
     __wg_size = oneapi::dpl::__internal::__dpl_bit_floor(__wg_size);
 
     _Leaf __leaf(__rng, __comp, __data_per_workitem, __wg_size);
-    return __merge_sort<_IndexT>(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __comp, __leaf);
+    return __merge_sort<_IndexT>(__exec, std::forward<_Range>(__rng), __comp, __leaf);
 };
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
 auto
-__parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
+__parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec, _Range&& __rng,
                      _Compare __comp)
 {
     if (__rng.size() <= std::numeric_limits<std::uint32_t>::max())
     {
-        return __submit_selecting_leaf<std::uint32_t>(std::forward<_ExecutionPolicy>(__exec),
-                                                      std::forward<_Range>(__rng), __comp);
+        return __submit_selecting_leaf<std::uint32_t>(__exec, std::forward<_Range>(__rng), __comp);
     }
     else
     {
-        return __submit_selecting_leaf<std::uint64_t>(std::forward<_ExecutionPolicy>(__exec),
-                                                      std::forward<_Range>(__rng), __comp);
+        return __submit_selecting_leaf<std::uint64_t>(__exec, std::forward<_Range>(__rng), __comp);
     }
 }
 

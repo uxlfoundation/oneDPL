@@ -163,21 +163,21 @@ zip(T... args)
 template <template <typename> class _NewKernelName, typename _Policy,
           oneapi::dpl::__internal::__enable_if_device_execution_policy<_Policy, int> = 0>
 auto
-make_wrapped_policy(_Policy&& __policy)
+make_wrapped_policy(const _Policy& __policy)
 {
     return oneapi::dpl::execution::make_device_policy<
-        _NewKernelName<oneapi::dpl::__internal::__policy_kernel_name<_Policy>>>(::std::forward<_Policy>(__policy));
+        _NewKernelName<oneapi::dpl::__internal::__policy_kernel_name<_Policy>>>(__policy);
 }
 
 #if _ONEDPL_FPGA_DEVICE
 template <template <typename> class _NewKernelName, typename _Policy,
           oneapi::dpl::__internal::__enable_if_fpga_execution_policy<_Policy, int> = 0>
 auto
-make_wrapped_policy(_Policy&& __policy)
+make_wrapped_policy(const _Policy& __policy)
 {
     return oneapi::dpl::execution::make_fpga_policy<
         oneapi::dpl::__internal::__policy_unroll_factor<_Policy>,
-        _NewKernelName<oneapi::dpl::__internal::__policy_kernel_name<_Policy>>>(::std::forward<_Policy>(__policy));
+        _NewKernelName<oneapi::dpl::__internal::__policy_kernel_name<_Policy>>>(__policy);
 }
 #endif
 
