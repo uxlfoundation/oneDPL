@@ -34,7 +34,7 @@ namespace __internal
 Each f[i,j) must return a value in [i,j). */
 template <class _IsVector, class _ExecutionPolicy, class _Index, class _Brick, class _IsFirst>
 _Index
-__parallel_find(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Index __first, _Index __last, _Brick __f,
+__parallel_find(__parallel_tag<_IsVector>, const _ExecutionPolicy& __exec, _Index __first, _Index __last, _Brick __f,
                 _IsFirst)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
@@ -75,7 +75,7 @@ __parallel_find(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Index __f
 //! Return true if brick f[i,j) returns true for some subrange [i,j) of [first,last)
 template <class _IsVector, class _ExecutionPolicy, class _Index, class _Brick>
 bool
-__parallel_or(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Index __first, _Index __last, _Brick __f)
+__parallel_or(__parallel_tag<_IsVector>, const _ExecutionPolicy& __exec, _Index __first, _Index __last, _Brick __f)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
