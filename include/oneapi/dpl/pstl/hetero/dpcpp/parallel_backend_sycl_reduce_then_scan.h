@@ -726,27 +726,14 @@ struct __parallel_reduce_then_scan_scan_submitter<
     _InitType __init;
 };
 
-// With optimization enabled, reduce-then-scan requires a sub-group size of 32. Without optimization, we must compile
-// to a sub-group size of 16 to workaround a hardware bug on certain Intel integrated graphics architectures.
-constexpr inline std::uint8_t
-__get_reduce_then_scan_sg_sz()
-{
-#if _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED
-    return 32;
-#else
-    return 16;
-#endif
-}
-
 // Enable reduce-then-scan if the device uses the required sub-group size and is ran on a device
 // with fast coordinated subgroup operations. We do not want to run this scan on CPU targets, as they are not
 // performant with this algorithm.
 template <typename _ExecutionPolicy>
 bool
-__is_gpu_with_reduce_then_scan_sg_sz(const _ExecutionPolicy& __exec)
+__is_gpu_with_sg_32(const _ExecutionPolicy& __exec)
 {
-    const bool __dev_supports_sg_sz =
-        oneapi::dpl::__internal::__supports_sub_group_size(__exec, __get_reduce_then_scan_sg_sz());
+    const bool __dev_supports_sg_sz = oneapi::dpl::__internal::__supports_sub_group_size(__exec, 32);
     return (__exec.queue().get_device().is_gpu() && __dev_supports_sg_sz);
 }
 
@@ -777,7 +764,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
         __reduce_then_scan_scan_kernel<_CustomName>>;
     using _ValueType = typename _InitType::__value_type;
 
-    constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz();
+    constexpr std::uint8_t __sub_group_size = 32;
     constexpr std::uint8_t __block_size_scale = std::max(std::size_t{1}, sizeof(double) / sizeof(_ValueType));
     // Empirically determined maximum. May be less for non-full blocks.
     constexpr std::uint16_t __max_inputs_per_item = 64 * __block_size_scale;
