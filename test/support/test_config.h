@@ -284,4 +284,8 @@
 // Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
 #define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250200)
 
+#if TEST_ONLY_HETERO_POLICIES && !TEST_DPCPP_BACKEND_PRESENT
+#    error "TEST_ONLY_HETERO_POLICIES is passed but device backend is not available"
+#endif
+
 #endif // _TEST_CONFIG_H
