@@ -72,8 +72,8 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
         {
             oneapi::dpl::__par_backend_hetero::__parallel_for(
                 _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _Function, std::decay_t<_Ranges>...>{
-                    __f, static_cast<std::size_t>(__n)},
+                unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _Function>{__f,
+                                                                                     static_cast<std::size_t>(__n)},
                 __n, std::forward<_Ranges>(__rngs)...)
                 .__deferrable_wait();
         }
@@ -81,8 +81,8 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
         {
             oneapi::dpl::__par_backend_hetero::__parallel_for(
                 _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                unseq_backend::walk3_vectors_or_scalars<_ExecutionPolicy, _Function, std::decay_t<_Ranges>...>{
-                    __f, static_cast<std::size_t>(__n)},
+                unseq_backend::walk3_vectors_or_scalars<_ExecutionPolicy, _Function>{__f,
+                                                                                     static_cast<std::size_t>(__n)},
                 __n, std::forward<_Ranges>(__rngs)...)
                 .__deferrable_wait();
         }
@@ -177,10 +177,8 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
         auto __exec1 = oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
             std::forward<_ExecutionPolicy>(__exec));
         oneapi::dpl::__par_backend_hetero::__parallel_for(
-            _BackendTag{}, std::move(__exec1),
-            unseq_backend::__brick_swap<decltype(__exec1), _Function, std::decay_t<_Range1>, std::decay_t<_Range2>>{
-                __f, __n},
-            __n, __rng1, __rng2)
+            _BackendTag{}, std::move(__exec1), unseq_backend::__brick_swap<decltype(__exec1), _Function>{__f, __n}, __n,
+            __rng1, __rng2)
             .__deferrable_wait();
         return __n;
     }
@@ -188,10 +186,8 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
     auto __exec2 =
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec));
     oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::move(__exec2),
-        unseq_backend::__brick_swap<decltype(__exec2), _Function, std::decay_t<_Range2>, std::decay_t<_Range1>>{__f,
-                                                                                                                __n},
-        __n, __rng2, __rng1)
+        _BackendTag{}, std::move(__exec2), unseq_backend::__brick_swap<decltype(__exec2), _Function>{__f, __n}, __n,
+        __rng2, __rng1)
         .__deferrable_wait();
     return __n;
 }
@@ -658,8 +654,8 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _CopyBrick, std::decay_t<_Range1>,
-                                                    std::decay_t<_Range2>>{_CopyBrick{}, static_cast<std::size_t>(__n)},
+            unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _CopyBrick>{_CopyBrick{},
+                                                                                  static_cast<std::size_t>(__n)},
             __n, std::forward<_Range1>(__rng), std::forward<_Range2>(__result))
             .get();
 
