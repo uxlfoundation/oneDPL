@@ -733,8 +733,7 @@ template <typename _ExecutionPolicy>
 bool
 __is_gpu_with_sg_32(const _ExecutionPolicy& __exec)
 {
-    const bool __dev_supports_sg_sz = oneapi::dpl::__internal::__supports_sub_group_size(__exec, 32);
-    return (__exec.queue().get_device().is_gpu() && __dev_supports_sg_sz);
+    return __exec.queue().get_device().is_gpu() && oneapi::dpl::__internal::__supports_sub_group_size(__exec, 32);
 }
 
 // General scan-like algorithm helpers
