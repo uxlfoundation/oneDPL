@@ -80,7 +80,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     if (__first == __last)
         return __init;
 
-    using _Functor = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, _UnaryOperation>;
+    using _Functor = unseq_backend::walk_n<_ExecutionPolicy, _UnaryOperation>;
     using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator>();
