@@ -610,6 +610,7 @@ struct __fill_fn
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _T = std::ranges::range_value_t<_R>>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
              std::ranges::output_range<_R, const _T&> && std::ranges::sized_range<_R>
+
     std::ranges::borrowed_iterator_t<_R>
     operator()(ExecutionPolicy&& exec, _R&& __r, const _T& __value)
     {
@@ -719,6 +720,7 @@ struct __is_sorted_until_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_strict_weak_order<std::ranges::iterator_t<_R>, __Proj>> _Comp = std::ranges::less>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
     operator()(ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
@@ -727,10 +729,39 @@ struct __is_sorted_until_fn
             oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp), __proj);
     }
 }; //__is_sorted_until_fn
-
 } //__internal
 
 inline constexpr __internal::__is_sorted_until_fn is_sorted_until;
+
+namespace __internal
+{
+
+struct __mismatch_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+             typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+    requires std::indirectly_comparable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>, _Pred, _Proj1, _Proj2>
+        && oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R1>
+        && std::ranges::sized_range<_R2>
+
+    std::ranges::mismatch_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>>
+    operator()(ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+    {
+        auto __view = views::zip(__r1, __r2);
+
+        auto __f = [__pred, __proj1, __proj2](const auto& __a) {
+                return !std::invoke(__pred, std::invoke(__proj1, std::get<0>(__a)), std::invoke(__proj2, std::get<1>(__a)));
+            };
+
+        auto __res_n = find_if(std::forward<ExecutionPolicy>(__exec), __view, __f) - __view.begin();
+
+        return {std::ranges::begin(__r1) + __res_n, std::ranges::begin(__r2) + __res_n};
+    }
+
+}; //__is_sorted_until_fn
+} //__internal
+
+inline constexpr __internal::__mismatch_fn mismatch;
 
 } //ranges
 
