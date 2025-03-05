@@ -219,6 +219,16 @@ struct invoke_on_all_hetero_policies
             auto my_policy = make_new_policy<kernel_name>(queue);
             iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
                 my_policy, op, ::std::forward<Args>(rest)...);
+
+#if !__SYCL_UNNAMED_LAMBDA__
+            if (false)
+            {
+                // We just need to compile some Kernel code and we don't need to run this code in run-time
+                // so we can move the rest of params again
+                iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
+                    std::move(my_policy), op, ::std::forward<Args>(rest)...);
+            }
+#endif
         }
         else
         {
