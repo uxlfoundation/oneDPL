@@ -63,6 +63,19 @@ int main() {
     auto red_val = ::std::reduce(policy, buf_begin, buf_end, 1);
     EXPECT_TRUE(red_val == 2001, "wrong return value from reduce");
 #endif // __SYCL_UNNAMED_LAMBDA__
+
+
+    {
+        const auto policy1 = TestUtils::default_dpcpp_policy;
+
+        const auto red_val1 = std::reduce(policy1, buf_begin, buf_end, 1);
+        EXPECT_TRUE(red_val1 == 42001, "wrong return value from reduce #1");
+        const auto red_val11 = std::reduce(policy1, buf_begin, buf_end, 1);
+        EXPECT_TRUE(red_val11 == 42001, "wrong return value from reduce #1");
+        const auto red_val2 = std::reduce(std::move(policy1), buf_begin, buf_end, 1);
+        EXPECT_TRUE(red_val2 == 42001, "wrong return value from reduce #2");
+    }
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return done(TEST_DPCPP_BACKEND_PRESENT);
