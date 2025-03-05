@@ -1046,12 +1046,12 @@ struct __pfor_params</*_IsBrickVectorizable=*/true, _Ranges...>
     constexpr static std::uint8_t __max_vector_size = 4;
 
   public:
-    constexpr static bool __do_vectorize =
+    constexpr static bool __b_vectorize =
         (oneapi::dpl::__ranges::__is_vectorizable_range<std::decay_t<_Ranges>>::value && ...) &&
         (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) && __min_type_size < 4;
     // Vectorize for small types, so we generate 128-byte load / stores in a sub-group
     constexpr static std::uint8_t __vector_size =
-        __do_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1;
+        __b_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1;
     constexpr static std::uint8_t __iters_per_item = __bytes_per_item / (__min_type_size * __vector_size);
 };
 
@@ -1065,7 +1065,7 @@ struct __pfor_params</*_IsBrickVectorizable=*/false, _Ranges...>
     constexpr static std::uint8_t __bytes_per_item = 16;
 
   public:
-    constexpr static bool __do_vectorize = false;
+    constexpr static bool __b_vectorize = false;
     constexpr static std::uint8_t __vector_size = 1;
     constexpr static std::uint8_t __iters_per_item = __bytes_per_item / (__min_type_size * __vector_size);
 };

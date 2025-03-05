@@ -172,7 +172,7 @@ struct walk1_vector_or_scalar
 
     walk1_vector_or_scalar(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
 
-    template <typename _IsFull, typename _Range, typename _Params, std::enable_if_t<_Params::__do_vectorize, int> = 0>
+    template <typename _IsFull, typename _Range, typename _Params, std::enable_if_t<_Params::__b_vectorize, int> = 0>
     void
     operator()(_IsFull __is_full, const std::size_t __idx, _Params __params, _Range&& __rng) const
     {
@@ -181,7 +181,7 @@ struct walk1_vector_or_scalar
     }
 
     // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
-    template <typename _IsFull, typename _Range, typename _Params, std::enable_if_t<!_Params::__do_vectorize, int> = 0>
+    template <typename _IsFull, typename _Range, typename _Params, std::enable_if_t<!_Params::__b_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
