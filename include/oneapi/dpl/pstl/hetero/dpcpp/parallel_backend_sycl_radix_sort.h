@@ -655,7 +655,8 @@ struct __parallel_radix_sort_iteration
 
         // We should avoid using _ExecutionPolicy in __kernel_name_generator template params
         // because we always specialize this submit() calls only by _ExecutionPolicy as "const reference".
-        // So, from this template param point of view, only one specialization is possible.
+        // So, from this template param point of view, only one specialization is possible per concrete _ExecutionPolicy type.
+        // _ExecutionPolicy type information is embedded in _CustomName to distinguish between concrete policy types.
         using _RadixCountKernel =
             __internal::__kernel_name_generator<__count_phase, _CustomName, std::decay_t<_InRange>,
                                                 std::decay_t<_TmpBuf>, _Proj>;
