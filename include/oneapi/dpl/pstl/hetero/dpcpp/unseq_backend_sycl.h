@@ -160,40 +160,32 @@ struct walk_scalar_base
         __bytes_per_item / (__min_type_size * __preferred_vector_size);
 };
 
-template <typename _ExecutionPolicy, typename _F, typename _Range>
-struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
+template <typename _ExecutionPolicy, typename _F>
+struct walk1_vector_or_scalar
 {
   private:
-    using __base_t = walk_vector_or_scalar_base<_Range>;
     _F __f;
     std::size_t __n;
 
   public:
+    constexpr static bool __is_vectorizable = true;
+
     walk1_vector_or_scalar(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
 
-    template <typename _IsFull>
+    template <typename _IsFull, typename _Range, typename _Params, std::enable_if_t<_Params::__do_vectorize, int> = 0>
     void
-    __vector_path_impl(_IsFull __is_full, const std::size_t __idx, _Range __rng) const
+    operator()(_IsFull __is_full, const std::size_t __idx, _Params __params, _Range&& __rng) const
     {
-        typename __base_t::__vec_walk_t{__n}(__is_full, __idx, __f, __rng);
+        typename oneapi::dpl::__par_backend_hetero::__vector_walk<_Params::__vector_size>{__n}(
+            __is_full, __idx, __f, std::forward<_Range>(__rng));
     }
 
     // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
-    template <typename _IsFull>
+    template <typename _IsFull, typename _Range, typename _Params, std::enable_if_t<!_Params::__do_vectorize, int> = 0>
     void
-    __scalar_path_impl(_IsFull, const std::size_t __idx, _Range __rng) const
+    operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
         __f(__rng[__idx]);
-    }
-
-    template <typename _IsFull>
-    void
-    operator()(_IsFull __is_full, const std::size_t __idx, _Range __rng) const
-    {
-        if constexpr (__base_t::__can_vectorize)
-            __vector_path_impl(__is_full, __idx, __rng);
-        else
-            __scalar_path_impl(__is_full, __idx, __rng);
     }
 };
 

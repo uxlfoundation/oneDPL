@@ -368,7 +368,7 @@ namespace oneapi::dpl::unseq_backend
 template <typename _ExecutionPolicy, typename _F>
 struct walk_n;
 
-template <typename _ExecutionPolicy, typename _F, typename _Range>
+template <typename _ExecutionPolicy, typename _F>
 struct walk1_vector_or_scalar;
 
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
@@ -438,9 +438,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _ExecutionPolicy, typename _F, typename _Range>
+template <typename _ExecutionPolicy, typename _F>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk1_vector_or_scalar,
-                                                       _ExecutionPolicy, _F, _Range)>
+                                                       _ExecutionPolicy, _F)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
 };

@@ -67,10 +67,10 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
             __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item_id) {
+                // Override any vectorization properties of the brick to evenly spread work across compute units.
+                __pfor_params</*__is_brick_vectorizable=*/false, _Ranges...> __params;
                 const std::size_t __idx = __item_id.get_linear_id();
-                // For small inputs, do not vectorize or perform multiple iterations per work item. Spread input evenly
-                // across compute units.
-                __brick.__scalar_path_impl(std::true_type{}, __idx, __rngs...);
+                __brick(std::true_type{}, __idx, __params, __rngs...);
             });
         });
 
@@ -127,14 +127,14 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 
     // Once there is enough work to launch a group on each compute unit with our chosen __iters_per_item,
     // then we should start using this code path.
-    template <typename _ExecutionPolicy, typename _Fp>
+    template <typename _ExecutionPolicy, typename _Fp, typename... _Ranges>
     static std::size_t
     __estimate_best_start_size(const _ExecutionPolicy& __exec, _Fp __brick)
     {
         const std::size_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), __max_work_group_size);
         const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec.queue());
-        return __work_group_size * _Fp::__preferred_iters_per_item * __max_cu;
+        return __work_group_size * __pfor_params<_Fp::__is_vectorizable, _Ranges...>::__iters_per_item * __max_cu;
     }
 
     template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
@@ -148,24 +148,26 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
         auto __event = __exec.queue().submit([__rngs..., __brick, __work_group_size, __count](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
-            constexpr std::uint8_t __iters_per_work_item = _Fp::__preferred_iters_per_item;
-            constexpr std::uint8_t __vector_size = _Fp::__preferred_vector_size;
+            constexpr std::uint8_t __iters_per_work_item =
+                __pfor_params<_Fp::__is_vectorizable, _Ranges...>::__iters_per_item;
+            constexpr std::uint8_t __vector_size = __pfor_params<_Fp::__is_vectorizable, _Ranges...>::__vector_size;
             const std::size_t __num_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
                 __count, (__work_group_size * __vector_size * __iters_per_work_item));
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item</*dim=*/1> __item) {
+                    __pfor_params<_Fp::__is_vectorizable, _Ranges...> __params;
                     const auto [__idx, __stride, __is_full] =
                         __stride_recommender(__item, __count, __iters_per_work_item, __vector_size, __work_group_size);
                     __strided_loop<__iters_per_work_item> __execute_loop{static_cast<std::size_t>(__count)};
                     if (__is_full)
                     {
-                        __execute_loop(std::true_type{}, __idx, __stride, __brick, __rngs...);
+                        __execute_loop(std::true_type{}, __idx, __stride, __brick, __params, __rngs...);
                     }
                     // If we are not full, then take this branch only if there is work to process.
                     else if (__idx < __count)
                     {
-                        __execute_loop(std::false_type{}, __idx, __stride, __brick, __rngs...);
+                        __execute_loop(std::false_type{}, __idx, __stride, __brick, __params, __rngs...);
                     }
                 });
         });
@@ -192,9 +194,11 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     // Compile two kernels: one for small-to-medium inputs and a second for large. This avoids runtime checks within a
     // single kernel that worsen performance for small cases. If the number of iterations of the large submitter is 1,
     // then only compile the basic kernel as the two versions are effectively the same.
-    if constexpr (_Fp::__preferred_iters_per_item > 1 || _Fp::__preferred_vector_size > 1)
+    if constexpr (__pfor_params<_Fp::__is_vectorizable, _Ranges...>::__iters_per_item > 1 ||
+                  __pfor_params<_Fp::__is_vectorizable, _Ranges...>::__vector_size > 1)
     {
-        if (__count >= __large_submitter::__estimate_best_start_size(__exec, __brick))
+        if (__count >=
+            __large_submitter::template __estimate_best_start_size<_ExecutionPolicy, _Fp, _Ranges...>(__exec, __brick))
         {
             return __large_submitter{}(std::forward<_ExecutionPolicy>(__exec), __brick, __count,
                                        std::forward<_Ranges>(__rngs)...);

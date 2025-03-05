@@ -1003,32 +1003,71 @@ template <std::uint8_t __num_strides>
 struct __strided_loop
 {
     std::size_t __full_range_size;
-    template <typename _IdxType, typename _LoopBodyOp, typename... _Ranges>
+    template <typename _IdxType, typename _LoopBodyOp, typename... _Args>
     void
     operator()(/*__is_full*/ std::true_type, _IdxType __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
-               _Ranges&&... __rngs) const
+               _Args&&... __args) const
     {
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint8_t __i = 0; __i < __num_strides; ++__i)
         {
-            __loop_body_op(std::true_type{}, __idx, __rngs...);
+            __loop_body_op(std::true_type{}, __idx, __args...);
             __idx += __stride;
         }
     }
-    template <typename _IdxType, typename _LoopBodyOp, typename... _Ranges>
+    template <typename _IdxType, typename _LoopBodyOp, typename... _Args>
     void
     operator()(/*__is_full*/ std::false_type, _IdxType __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
-               _Ranges&&... __rngs) const
+               _Args&&... __args) const
     {
         // Constrain the number of iterations as much as possible and then pass the knowledge that we are not a full loop to the body operation
         const std::uint8_t __adjusted_iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__full_range_size - __idx, __stride);
         for (std::uint8_t __i = 0; __i < __adjusted_iters_per_work_item; ++__i)
         {
-            __loop_body_op(std::false_type{}, __idx, __rngs...);
+            __loop_body_op(std::false_type{}, __idx, __args...);
             __idx += __stride;
         }
     }
+};
+
+template <bool _IsBrickVectorizable, typename... _Ranges>
+struct __pfor_params;
+
+template <typename... _Ranges>
+struct __pfor_params</*_IsBrickVectorizable=*/true, _Ranges...>
+{
+  private:
+    using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<_Ranges>...>;
+    constexpr static std::uint8_t __min_type_size = oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value;
+    // Empirically determined 'bytes-in-flight' to maximize bandwidth utilization
+    constexpr static std::uint8_t __bytes_per_item = 16;
+    // Maximum size supported by compilers to generate vector instructions
+    constexpr static std::uint8_t __max_vector_size = 4;
+
+  public:
+    constexpr static bool __do_vectorize =
+        (oneapi::dpl::__ranges::__is_vectorizable_range<std::decay_t<_Ranges>>::value && ...) &&
+        (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) && __min_type_size < 4;
+    // Vectorize for small types, so we generate 128-byte load / stores in a sub-group
+    constexpr static std::uint8_t __vector_size =
+        __do_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1;
+    constexpr static std::uint8_t __iters_per_item = __bytes_per_item / (__min_type_size * __vector_size);
+};
+
+template <typename... _Ranges>
+struct __pfor_params</*_IsBrickVectorizable=*/false, _Ranges...>
+{
+  private:
+    using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<_Ranges>...>;
+    constexpr static std::uint8_t __min_type_size = oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value;
+    // Empirically determined 'bytes-in-flight' to maximize bandwidth utilization
+    constexpr static std::uint8_t __bytes_per_item = 16;
+
+  public:
+    constexpr static bool __do_vectorize = false;
+    constexpr static std::uint8_t __vector_size = 1;
+    constexpr static std::uint8_t __iters_per_item = __bytes_per_item / (__min_type_size * __vector_size);
 };
 
 } // namespace __par_backend_hetero
