@@ -689,14 +689,6 @@ struct __replace_fn
 
 inline constexpr __internal::__replace_fn replace;
 
-template<execution-policy ExecutionPolicy, random_access_range R, class Proj = identity,
-         class T = projected_value_t<iterator_t<R>, Proj>,
-         indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
-  requires indirectly_writable<iterator_t<R>, const T&> && sized_range<R>
-  borrowed_iterator_t<R>
-    ranges::replace_if(ExecutionPolicy&& exec, R&& r, Pred pred,
-                       const T& new_value, Proj proj = {});
-                       
 namespace __internal
 {
 
@@ -716,10 +708,29 @@ struct __replace_if_fn
             [__pred, __new_value](auto& __a) { if(__pred(a)) __a = __new_value;}, __proj);
     }
 }; //__replace_if_fn
-
 } //__internal
 
 inline constexpr __internal::__replace_if_fn replace_if;
+
+namespace __internal
+{
+
+struct __is_sorted_until_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_strict_weak_order<std::ranges::iterator_t<_R>, __Proj>> _Comp = std::ranges::less>
+
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
+    {
+        return adjacent_find(std::forward<ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp), __proj);
+    }
+}; //__is_sorted_until_fn
+
+} //__internal
+
+inline constexpr __internal::__is_sorted_until_fn is_sorted_until;
 
 } //ranges
 
