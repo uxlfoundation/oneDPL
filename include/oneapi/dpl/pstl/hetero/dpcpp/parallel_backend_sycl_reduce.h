@@ -322,7 +322,8 @@ struct __parallel_transform_reduce_impl
 
         // We should avoid using _ExecutionPolicy in __kernel_name_generator template params
         // because we always specialize this submit() calls only by _ExecutionPolicy as "const reference".
-        // So, from this template param point of view, only one specialization is possible.
+        // So, from this template param point of view, only one specialization is possible per concrete _ExecutionPolicy type.
+        // _ExecutionPolicy type information is embedded in _CustomName to distinguish between concrete policy types.
         using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             __reduce_kernel, _CustomName, _ReduceOp, _TransformOp, _NoOpFunctor, _Ranges...>;
 
