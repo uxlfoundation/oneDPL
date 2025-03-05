@@ -52,8 +52,8 @@ main()
         res1 = find(make_new_policy<new_kernel_name<Policy, 1>>(exec), A, val);    //check passing sycl::buffer directly
         res2 = find_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), view, [val](auto a) { return a == val;});
         res2 = find_if(make_new_policy<new_kernel_name<Policy, 3>>(exec), A, [val](auto a) { return a == val;});
-        res3 = find_if_not(make_new_policy<new_kernel_name<Policy, 4>>(exec), view, [val](auto a) { return a >= 0;});
-        res3 = find_if_not(make_new_policy<new_kernel_name<Policy, 5>>(exec), A, [val](auto a) { return a >= 0;});
+        res3 = find_if_not(make_new_policy<new_kernel_name<Policy, 4>>(exec), view, [](auto a) { return a >= 0;});
+        res3 = find_if_not(make_new_policy<new_kernel_name<Policy, 5>>(exec), A, [](auto a) { return a >= 0;});
     }
 
     //check result
