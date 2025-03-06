@@ -528,6 +528,22 @@ inline constexpr __internal::__max_element_fn max_element;
 
 namespace __internal
 {
+struct __minmax_element_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+         std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
+    std::ranges::minmax_element_result<std::ranges::borrowed_iterator_t<_R>>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
+    {
+        //TODO:
+    }
+}; //__minmax_element_fn
+} //__internal
+
+inline constexpr __internal::__minmax_element_fn minmax_element;
+
+namespace __internal
+{
 struct __copy_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
