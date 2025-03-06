@@ -1,6 +1,6 @@
 breathe==4.9.1
 sphinx==4.4.0
-jinja2==3.1.5
+jinja2==3.1.6
 # https://github.com/sphinx-doc/sphinx/issues/9923
 docutils==0.15
 # Pin versions to avoid a compatibility issue: "The sphinxcontrib.<extension_name> extension used by this project needs at least Sphinx v5.0"
