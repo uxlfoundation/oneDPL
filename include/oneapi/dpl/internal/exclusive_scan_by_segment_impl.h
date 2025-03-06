@@ -142,26 +142,23 @@ exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, const Poli
         temp[0] = init;
     }
 
-    auto policy1 = oneapi::dpl::__par_backend_hetero::make_wrapped_policy<ExclusiveScan1>(policy);
-
     // TODO : add stencil form of replace_copy_if to oneDPL if the
     // transform call here is difficult to understand and maintain.
 #    if 1
-    transform(::std::move(policy1), first2, last2 - 1, _flags.get() + 1, _temp.get() + 1,
+    transform(oneapi::dpl::__par_backend_hetero::make_wrapped_policy<ExclusiveScan1>(policy), first2, last2 - 1,
+              _flags.get() + 1, _temp.get() + 1,
               internal::replace_if_fun<T, ::std::negate<FlagType>>(::std::negate<FlagType>(), init));
 #    else
-    replace_copy_if(::std::move(policy1), first2, last2 - 1, _flags.get() + 1, _temp.get() + 1,
-                    ::std::negate<FlagType>(), init);
+    replace_copy_if(oneapi::dpl::__par_backend_hetero::make_wrapped_policy<ExclusiveScan1>(policy), first2, last2 - 1,
+                    _flags.get() + 1, _temp.get() + 1, ::std::negate<FlagType>(), init);
 #    endif
 
-    auto policy2 = oneapi::dpl::__par_backend_hetero::make_wrapped_policy<ExclusiveScan2>(policy);
-
     // scan key-flag tuples
-    transform_inclusive_scan(policy2, make_zip_iterator(_temp.get(), _flags.get()),
-                             make_zip_iterator(_temp.get(), _flags.get()) + n, make_zip_iterator(result, _flags.get()),
-                             internal::segmented_scan_fun<ValueType, FlagType, Operator>(binary_op),
-                             oneapi::dpl::__internal::__no_op(),
-                             oneapi::dpl::__internal::make_tuple(init, FlagType(1)));
+    transform_inclusive_scan(
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<ExclusiveScan2>(policy),
+        make_zip_iterator(_temp.get(), _flags.get()), make_zip_iterator(_temp.get(), _flags.get()) + n,
+        make_zip_iterator(result, _flags.get()), internal::segmented_scan_fun<ValueType, FlagType, Operator>(binary_op),
+        oneapi::dpl::__internal::__no_op(), oneapi::dpl::__internal::make_tuple(init, FlagType(1)));
     return result + n;
 }
 
