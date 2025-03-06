@@ -53,7 +53,7 @@ main()
     }
 
     //check result
-    int expected1[max_n], expected2[max_n], expected3[max_n];
+    int expected1[max_n], expected2[max_n];
     ::std::exclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected1, 100);
     ::std::exclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected2, 100, ::std::plus<int>());
 
