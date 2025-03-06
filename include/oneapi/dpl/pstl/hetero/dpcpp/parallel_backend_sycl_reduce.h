@@ -446,7 +446,7 @@ struct __parallel_transform_reduce_impl
 template <typename _Tp, typename _Commutative, typename _ExecutionPolicy, typename _ReduceOp, typename _TransformOp,
           typename _InitType, typename... _Ranges>
 auto
-__parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+__parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const _ExecutionPolicy& __exec,
                             _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
 {
     auto __n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);

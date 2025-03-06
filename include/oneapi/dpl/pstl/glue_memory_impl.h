@@ -50,13 +50,13 @@ uninitialized_copy(_ExecutionPolicy&& __exec, _InputIterator __first, _InputIter
     if constexpr (::std::is_trivial_v<_ValueType1> && ::std::is_trivial_v<_ValueType2>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+            __dispatch_tag, __exec, __first, __last, __result,
             oneapi::dpl::__internal::__brick_copy<decltype(__dispatch_tag), _DecayedExecutionPolicy>{});
     }
     else
     {
         return oneapi::dpl::__internal::__pattern_walk2(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+            __dispatch_tag, __exec, __first, __last, __result,
             oneapi::dpl::__internal::__op_uninitialized_copy<_DecayedExecutionPolicy>{});
     }
 }
@@ -74,13 +74,13 @@ uninitialized_copy_n(_ExecutionPolicy&& __exec, _InputIterator __first, _Size __
     if constexpr (::std::is_trivial_v<_ValueType1> && ::std::is_trivial_v<_ValueType2>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick_n(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
+            __dispatch_tag, __exec, __first, __n, __result,
             oneapi::dpl::__internal::__brick_copy_n<decltype(__dispatch_tag), _DecayedExecutionPolicy>{});
     }
     else
     {
         return oneapi::dpl::__internal::__pattern_walk2_n(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
+            __dispatch_tag, __exec, __first, __n, __result,
             oneapi::dpl::__internal::__op_uninitialized_copy<_DecayedExecutionPolicy>{});
     }
 }
@@ -100,13 +100,13 @@ uninitialized_move(_ExecutionPolicy&& __exec, _InputIterator __first, _InputIter
     if constexpr (::std::is_trivial_v<_ValueType1> && ::std::is_trivial_v<_ValueType2>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+            __dispatch_tag, __exec, __first, __last, __result,
             oneapi::dpl::__internal::__brick_copy<decltype(__dispatch_tag), _DecayedExecutionPolicy>{});
     }
     else
     {
         return oneapi::dpl::__internal::__pattern_walk2(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+            __dispatch_tag, __exec, __first, __last, __result,
             oneapi::dpl::__internal::__op_uninitialized_move<_DecayedExecutionPolicy>{});
     }
 }
@@ -124,13 +124,13 @@ uninitialized_move_n(_ExecutionPolicy&& __exec, _InputIterator __first, _Size __
     if constexpr (::std::is_trivial_v<_ValueType1> && ::std::is_trivial_v<_ValueType2>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick_n(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
+            __dispatch_tag, __exec, __first, __n, __result,
             oneapi::dpl::__internal::__brick_copy_n<decltype(__dispatch_tag), _DecayedExecutionPolicy>{});
     }
     else
     {
         return oneapi::dpl::__internal::__pattern_walk2_n(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
+            __dispatch_tag, __exec, __first, __n, __result,
             oneapi::dpl::__internal::__op_uninitialized_move<_DecayedExecutionPolicy>{});
     }
 }
@@ -149,14 +149,14 @@ uninitialized_fill(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Forward
     if constexpr (::std::is_arithmetic_v<_ValueType>)
     {
         oneapi::dpl::__internal::__pattern_walk_brick(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            __dispatch_tag, __exec, __first, __last,
             oneapi::dpl::__internal::__brick_fill<decltype(__dispatch_tag), _DecayedExecutionPolicy, _ValueType>{
                 _ValueType(__value)});
     }
     else
     {
         oneapi::dpl::__internal::__pattern_walk1(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            __dispatch_tag, __exec, __first, __last,
             oneapi::dpl::__internal::__op_uninitialized_fill<_Tp, _DecayedExecutionPolicy>{__value});
     }
 }
@@ -173,14 +173,14 @@ uninitialized_fill_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size 
     if constexpr (::std::is_arithmetic_v<_ValueType>)
     {
         return oneapi::dpl::__internal::__pattern_walk_brick_n(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n,
+            __dispatch_tag, __exec, __first, __n,
             oneapi::dpl::__internal::__brick_fill_n<decltype(__dispatch_tag), _DecayedExecutionPolicy, _ValueType>{
                 _ValueType(__value)});
     }
     else
     {
         return oneapi::dpl::__internal::__pattern_walk1_n(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n,
+            __dispatch_tag, __exec, __first, __n,
             oneapi::dpl::__internal::__op_uninitialized_fill<_Tp, _DecayedExecutionPolicy>{__value});
     }
 }
@@ -226,7 +226,7 @@ destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __
             oneapi::dpl::__internal::__select_backend(__exec, __first);
 #endif
 
-        oneapi::dpl::__internal::__pattern_walk1(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first,
+        oneapi::dpl::__internal::__pattern_walk1(__dispatch_tag, __exec, __first,
                                                  __last, [](_ReferenceType __val) { __val.~_ValueType(); });
     }
 }
@@ -251,7 +251,7 @@ destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
             oneapi::dpl::__internal::__select_backend(__exec, __first);
 #endif
 
-        return oneapi::dpl::__internal::__pattern_walk1_n(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+        return oneapi::dpl::__internal::__pattern_walk1_n(__dispatch_tag, __exec,
                                                           __first, __n,
                                                           [](_ReferenceType __val) { __val.~_ValueType(); });
     }
@@ -271,7 +271,7 @@ uninitialized_default_construct(_ExecutionPolicy&& __exec, _ForwardIterator __fi
         const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
         oneapi::dpl::__internal::__pattern_walk1(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            __dispatch_tag, __exec, __first, __last,
             oneapi::dpl::__internal::__op_uninitialized_default_construct<_DecayedExecutionPolicy>{});
     }
 }
@@ -292,7 +292,7 @@ uninitialized_default_construct_n(_ExecutionPolicy&& __exec, _ForwardIterator __
         const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
         return oneapi::dpl::__internal::__pattern_walk1_n(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n,
+            __dispatch_tag, __exec, __first, __n,
             oneapi::dpl::__internal::__op_uninitialized_default_construct<_DecayedExecutionPolicy>{});
     }
 }
@@ -311,14 +311,14 @@ uninitialized_value_construct(_ExecutionPolicy&& __exec, _ForwardIterator __firs
     if constexpr (::std::is_trivial_v<_ValueType>)
     {
         oneapi::dpl::__internal::__pattern_walk_brick(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            __dispatch_tag, __exec, __first, __last,
             oneapi::dpl::__internal::__brick_fill<decltype(__dispatch_tag), _DecayedExecutionPolicy, _ValueType>{
                 _ValueType()});
     }
     else
     {
         oneapi::dpl::__internal::__pattern_walk1(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            __dispatch_tag, __exec, __first, __last,
             oneapi::dpl::__internal::__op_uninitialized_value_construct<_DecayedExecutionPolicy>{});
     }
 }
@@ -335,14 +335,14 @@ uninitialized_value_construct_n(_ExecutionPolicy&& __exec, _ForwardIterator __fi
     if constexpr (::std::is_trivial_v<_ValueType>)
     {
         return oneapi::dpl::__internal::__pattern_walk_brick_n(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n,
+            __dispatch_tag, __exec, __first, __n,
             oneapi::dpl::__internal::__brick_fill_n<decltype(__dispatch_tag), _DecayedExecutionPolicy, _ValueType>{
                 _ValueType()});
     }
     else
     {
         return oneapi::dpl::__internal::__pattern_walk1_n(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n,
+            __dispatch_tag, __exec, __first, __n,
             oneapi::dpl::__internal::__op_uninitialized_value_construct<_DecayedExecutionPolicy>{});
     }
 }

@@ -42,7 +42,7 @@ namespace __ranges
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Tp,
           typename _BinaryOperation1, typename _BinaryOperation2>
 _Tp
-__pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
+__pattern_transform_reduce(__hetero_tag<_BackendTag>, const _ExecutionPolicy& __exec, _Range1&& __rng1, _Range2&& __rng2,
                            _Tp __init, _BinaryOperation1 __binary_op1, _BinaryOperation2 __binary_op2)
 {
     if (__rng1.empty())
@@ -53,7 +53,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
                                                                           ::std::true_type /*is_commutative*/>(
-               _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op1, _Functor{__binary_op2},
+               _BackendTag{}, __exec, __binary_op1, _Functor{__binary_op2},
                unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
                ::std::forward<_Range1>(__rng1), ::std::forward<_Range2>(__rng2))
         .get();
@@ -66,7 +66,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Tp, typename _BinaryOperation,
           typename _UnaryOperation>
 _Tp
-__pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Tp __init,
+__pattern_transform_reduce(__hetero_tag<_BackendTag>, const _ExecutionPolicy& __exec, _Range&& __rng, _Tp __init,
                            _BinaryOperation __binary_op, _UnaryOperation __unary_op)
 {
     if (__rng.empty())
@@ -77,7 +77,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
                                                                           ::std::true_type /*is_commutative*/>(
-               _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op, _Functor{__unary_op},
+               _BackendTag{}, __exec, __binary_op, _Functor{__unary_op},
                unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
                ::std::forward<_Range>(__rng))
         .get();
@@ -90,7 +90,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation,
           typename _InitType, typename _BinaryOperation, typename _Inclusive>
 oneapi::dpl::__internal::__difference_t<_Range2>
-__pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
+__pattern_transform_scan_base(__hetero_tag<_BackendTag>, const _ExecutionPolicy& __exec, _Range1&& __rng1, _Range2&& __rng2,
                               _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op, _Inclusive)
 {
     oneapi::dpl::__internal::__difference_t<_Range2> __n = __rng1.size();
@@ -98,7 +98,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
         return 0;
 
     oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
+        _BackendTag{}, __exec, std::forward<_Range1>(__rng1),
         std::forward<_Range2>(__rng2), __n, __unary_op, __init, __binary_op, _Inclusive{})
         .__deferrable_wait();
     return __n;
@@ -107,13 +107,13 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation,
           typename _Type, typename _BinaryOperation, typename _Inclusive>
 oneapi::dpl::__internal::__difference_t<_Range2>
-__pattern_transform_scan(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
+__pattern_transform_scan(__hetero_tag<_BackendTag> __tag, const _ExecutionPolicy& __exec, _Range1&& __rng1, _Range2&& __rng2,
                          _UnaryOperation __unary_op, _Type __init, _BinaryOperation __binary_op, _Inclusive)
 {
     using _RepackedType = __par_backend_hetero::__repacked_tuple_t<_Type>;
     using _InitType = unseq_backend::__init_value<_RepackedType>;
 
-    return __pattern_transform_scan_base(__tag, ::std::forward<_ExecutionPolicy>(__exec),
+    return __pattern_transform_scan_base(__tag, __exec,
                                          ::std::forward<_Range1>(__rng1), ::std::forward<_Range2>(__rng2), __unary_op,
                                          _InitType{__init}, __binary_op, _Inclusive{});
 }
@@ -122,14 +122,14 @@ __pattern_transform_scan(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation,
           typename _BinaryOperation, typename _Inclusive>
 oneapi::dpl::__internal::__difference_t<_Range2>
-__pattern_transform_scan(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
+__pattern_transform_scan(__hetero_tag<_BackendTag> __tag, const _ExecutionPolicy& __exec, _Range1&& __rng1, _Range2&& __rng2,
                          _UnaryOperation __unary_op, _BinaryOperation __binary_op, _Inclusive)
 {
     using _Type = oneapi::dpl::__internal::__value_t<_Range1>;
     using _RepackedType = __par_backend_hetero::__repacked_tuple_t<_Type>;
     using _InitType = unseq_backend::__no_init_value<_RepackedType>;
 
-    return __pattern_transform_scan_base(__tag, ::std::forward<_ExecutionPolicy>(__exec),
+    return __pattern_transform_scan_base(__tag, __exec,
                                          ::std::forward<_Range1>(__rng1), ::std::forward<_Range2>(__rng2), __unary_op,
                                          _InitType{}, __binary_op, _Inclusive{});
 }
