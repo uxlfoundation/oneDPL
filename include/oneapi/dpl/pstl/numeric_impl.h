@@ -369,9 +369,9 @@ __brick_adjacent_difference(_RandomAccessIterator1 __first, _RandomAccessIterato
 
     auto __n = __last - __first;
     *__d_first = *__first;
-    return __unseq_backend::__simd_walk_3(
-        __first + 1, __n - 1, __first, __d_first + 1,
-        [&__op](_ReferenceType1 __x, _ReferenceType1 __y, _ReferenceType2 __z) { __z = __op(__x, __y); });
+    return __unseq_backend::__simd_walk_n(__n - 1,
+        [&__op](_ReferenceType1 __x, _ReferenceType1 __y, _ReferenceType2 __z) { __z = __op(__x, __y); },
+        __first + 1, __first, __d_first + 1);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _BinaryOperation>

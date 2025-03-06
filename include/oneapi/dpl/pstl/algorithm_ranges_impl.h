@@ -36,6 +36,35 @@ namespace __internal
 namespace __ranges
 {
 
+template <typename _IsVector, typename _ExecutionPolicy, typename _Function, std::ranges::random_access_range... _Ranges>
+auto
+__pattern_walk_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Function __f, _Ranges&&... __rngs)
+{
+    using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+    const _Size __n = std::min({_Size(std::ranges::size(__rngs))...});
+
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    __internal::__except_handler([&]() {
+        __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), 0, __n,
+            [__f](auto __i, auto __j) {
+                __internal::__brick_walk_n(__j - __i, __f, _IsVector{}, (std::ranges::begin(__rngs) + __i)...);
+            });
+    });
+    
+    return __n;
+}
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _Function, std::ranges::random_access_range... _Ranges>
+auto
+__pattern_walk_n(__serial_tag<_IsVector>, _ExecutionPolicy&& __exec, _Function __f, _Ranges&&... __rngs)
+{
+    using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+    const _Size __n = std::min({_Size(std::ranges::size(__rngs))...});
+
+    return __internal::__brick_walk_n(__n, __f, _IsVector{}, std::ranges::begin(__rngs)...);
+}
+
 //---------------------------------------------------------------------------------------------------------------------
 // pattern_for_each
 //---------------------------------------------------------------------------------------------------------------------
