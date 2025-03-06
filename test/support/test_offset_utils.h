@@ -24,7 +24,6 @@ test_initialization(const std::vector<T>& u)
     using my_policy_t = Policy;
     my_policy_t p{u};
     auto u2 = oneapi::dpl::experimental::get_resources(p);
-    auto u2s = u2.size();
     if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
     {
         std::cout << "ERROR: provided resources and queried resources are not equal\n";
@@ -47,7 +46,6 @@ test_initialization(const std::vector<T>& u)
     }
     p2.initialize(u);
     auto u3 = oneapi::dpl::experimental::get_resources(p);
-    auto u3s = u3.size();
     if (!std::equal(std::begin(u3), std::end(u3), std::begin(u)))
     {
         std::cout << "ERROR: reported resources and queried resources are not equal after deferred initialization\n";

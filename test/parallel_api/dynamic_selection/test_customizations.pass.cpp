@@ -78,8 +78,8 @@ test_all_customizations()
 int
 main()
 {
-    auto actual = test_no_customizations();
-    actual = test_all_customizations();
+    test_no_customizations();
+    test_all_customizations();
 
     return TestUtils::done();
 }
