@@ -117,7 +117,7 @@ struct __subgroup_radix_sort
         {
             const uint16_t __idx = __wi * __block_size + __i;
             if (__idx < __n)
-                new (&__values[__i]) _ValueT(::std::move(__src[__idx]));
+                new (&__values[__i]) _ValueT(__src[__idx]);
         }
     }
 
