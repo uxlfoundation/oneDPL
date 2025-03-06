@@ -51,15 +51,15 @@ main()
         using Policy = decltype(TestUtils::default_dpcpp_policy);
 
         ranges::inclusive_scan(exec, A, view_res1);
-        ranges::inclusive_scan(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, B2, std::plus<int>());
-        ranges::inclusive_scan(make_new_policy<new_kernel_name<Policy, 1>>(exec), view, view_res3, std::plus<int>(), 100);
+        ranges::inclusive_scan(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, B2, ::std::plus<int>());
+        ranges::inclusive_scan(make_new_policy<new_kernel_name<Policy, 1>>(exec), view, view_res3, ::std::plus<int>(), 100);
     }
 
     //check result
     int expected1[max_n], expected2[max_n], expected3[max_n];
-    std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected1);
-    std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected2, std::plus<int>());
-    std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected3, std::plus<int>(), 100);
+    ::std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected1);
+    ::std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected2, ::std::plus<int>());
+    ::std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected3, ::std::plus<int>(), 100);
 
     EXPECT_EQ_N(expected1, data1, max_n, "wrong effect from inclusive_scan with sycl ranges");
     EXPECT_EQ_N(expected2, data2, max_n, "wrong effect from inclusive_scan with binary operation, sycl ranges");
