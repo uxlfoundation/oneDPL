@@ -496,7 +496,7 @@ struct __min_element_fn
              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>>
              _Comp = std::ranges::less>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
-    auto
+    std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
@@ -515,7 +515,7 @@ struct __max_element_fn
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
-    auto
+    std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::min_element(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
@@ -535,7 +535,9 @@ struct __minmax_element_fn
     std::ranges::minmax_element_result<std::ranges::borrowed_iterator_t<_R>>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
     {
-        //TODO:
+        auto [__min, __max] = oneapi::dpl::ranges::minmax_element(std::forward<_ExecutionPolicy>(__exec),
+            std::forward<_R>(__r), __comp, __proj);
+        return {__min, __max};
     }
 }; //__minmax_element_fn
 } //__internal
