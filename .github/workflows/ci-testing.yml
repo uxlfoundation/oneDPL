@@ -110,12 +110,6 @@ jobs:
             backend: tbb
             device_type: HOST
           - os: ubuntu-latest
-            cxx_compiler: g++
-            std: 17
-            build_type: release
-            backend: tbb
-            device_type: HOST
-          - os: ubuntu-latest
             cxx_compiler: clang++
             std: 17
             build_type: release
@@ -126,18 +120,6 @@ jobs:
             std: 17
             build_type: release
             backend: omp
-            device_type: HOST
-          - os: ubuntu-latest
-            cxx_compiler: clang++
-            std: 17
-            build_type: release
-            backend: tbb
-            device_type: HOST
-          - os: ubuntu-latest
-            cxx_compiler: icpx
-            std: 17
-            build_type: release
-            backend: tbb
             device_type: HOST
           - os: ubuntu-latest
             cxx_compiler: g++
