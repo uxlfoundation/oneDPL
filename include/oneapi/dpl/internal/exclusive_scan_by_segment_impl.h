@@ -189,7 +189,7 @@ exclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first1, first2, result);
 
-    return internal::pattern_exclusive_scan_by_segment(__dispatch_tag, ::std::forward<Policy>(policy), first1, last1,
+    return internal::pattern_exclusive_scan_by_segment(__dispatch_tag, policy, first1, last1,
                                                        first2, result, init, binary_pred, binary_op);
 }
 
@@ -200,6 +200,9 @@ exclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1
                           OutputIterator result, T init, BinaryPredicate binary_pred)
 {
     typedef typename ::std::iterator_traits<InputIterator2>::value_type V2;
+
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call exclusive_scan_by_segment function from public oneDPL API
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, init, binary_pred,
                                      ::std::plus<V2>());
 }
@@ -210,6 +213,9 @@ exclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1
                           OutputIterator result, T init)
 {
     typedef typename ::std::iterator_traits<InputIterator1>::value_type V1;
+
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call exclusive_scan_by_segment function from public oneDPL API
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, init,
                                      ::std::equal_to<V1>());
 }
@@ -220,6 +226,9 @@ exclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1
                           OutputIterator result)
 {
     typedef typename ::std::iterator_traits<InputIterator2>::value_type V2;
+
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call exclusive_scan_by_segment function from public oneDPL API
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, V2(0));
 }
 
@@ -229,6 +238,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIterator>
 exclusive_scan_by_key(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                       OutputIterator result, T init, BinaryPredicate binary_pred, Operator binary_op)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call exclusive_scan_by_segment function from public oneDPL API
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, init, binary_pred,
                                      binary_op);
 }
@@ -239,6 +250,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIterator>
 exclusive_scan_by_key(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                       OutputIterator result, T init, BinaryPredicate binary_pred)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call exclusive_scan_by_segment function from public oneDPL API
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, init, binary_pred);
 }
 
@@ -247,6 +260,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIterator>
 exclusive_scan_by_key(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                       OutputIterator result, T init)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call exclusive_scan_by_segment function from public oneDPL API
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, init);
 }
 
@@ -255,6 +270,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIterator>
 exclusive_scan_by_key(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                       OutputIterator result)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call exclusive_scan_by_segment function from public oneDPL API
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result);
 }
 

@@ -38,6 +38,8 @@ template <typename _ExecutionPolicy, typename _Range, typename _Tp, typename _Bi
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Tp>
 reduce(_ExecutionPolicy&& __exec, _Range&& __rng, _Tp __init, _BinaryOperation __binary_op)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call transform_reduce function from public oneDPL API
     return transform_reduce(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __init,
                             __binary_op, oneapi::dpl::__internal::__no_op());
 }
@@ -46,6 +48,8 @@ template <typename _ExecutionPolicy, typename _Range, typename _Tp>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Tp>
 reduce(_ExecutionPolicy&& __exec, _Range&& __rng, _Tp __init)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call transform_reduce function from public oneDPL API
     return transform_reduce(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __init,
                             ::std::plus<_Tp>(), oneapi::dpl::__internal::__no_op());
 }
@@ -55,6 +59,9 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, oneapi::
 reduce(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
+
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call transform_reduce function from public oneDPL API
     return transform_reduce(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), _ValueType{},
                             ::std::plus<_ValueType>(), oneapi::dpl::__internal::__no_op());
 }
@@ -67,7 +74,7 @@ transform_reduce(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, 
 
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
     return oneapi::dpl::__internal::__ranges::__pattern_transform_reduce(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__rng1)),
+        __dispatch_tag, __exec, views::all_read(::std::forward<_Range1>(__rng1)),
         views::all_read(::std::forward<_Range2>(__rng2)), __init, ::std::plus<_ValueType>(),
         ::std::multiplies<_ValueType>());
 }
@@ -81,7 +88,7 @@ transform_reduce(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, 
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2);
 
     return oneapi::dpl::__internal::__ranges::__pattern_transform_reduce(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__rng1)),
+        __dispatch_tag, __exec, views::all_read(::std::forward<_Range1>(__rng1)),
         views::all_read(::std::forward<_Range2>(__rng2)), __init, __binary_op1, __binary_op2);
 }
 
@@ -93,7 +100,7 @@ transform_reduce(_ExecutionPolicy&& __exec, _Range&& __rng, _Tp __init, _BinaryO
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng);
 
     return oneapi::dpl::__internal::__ranges::__pattern_transform_reduce(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range>(__rng)),
+        __dispatch_tag, __exec, views::all_read(::std::forward<_Range>(__rng)),
         __init, __binary_op, __unary_op);
 }
 
@@ -104,6 +111,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       oneapi::dpl::__internal::__difference_t<_Range2>>
 exclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Tp __init)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call transform_exclusive_scan function from public oneDPL API
     return transform_exclusive_scan(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
                                     ::std::forward<_Range2>(__rng2), __init, ::std::plus<_Tp>(),
                                     oneapi::dpl::__internal::__no_op());
@@ -114,6 +123,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       oneapi::dpl::__internal::__difference_t<_Range2>>
 exclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Tp __init, _BinaryOperation __binary_op)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call transform_exclusive_scan function from public oneDPL API
     return transform_exclusive_scan(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
                                     ::std::forward<_Range2>(__rng2), __init, __binary_op,
                                     oneapi::dpl::__internal::__no_op());
@@ -127,6 +138,9 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
 inclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
+
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call transform_inclusive_scan function from public oneDPL API
     return transform_inclusive_scan(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
                                     ::std::forward<_Range2>(__rng2), ::std::plus<_ValueType>(),
                                     oneapi::dpl::__internal::__no_op());
@@ -137,6 +151,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       oneapi::dpl::__internal::__difference_t<_Range2>>
 inclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _BinaryOperation __binary_op)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call transform_inclusive_scan function from public oneDPL API
     return transform_inclusive_scan(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
                                     ::std::forward<_Range2>(__rng2), __binary_op, oneapi::dpl::__internal::__no_op());
 }
@@ -146,6 +162,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       oneapi::dpl::__internal::__difference_t<_Range2>>
 inclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _BinaryOperation __binary_op, _Tp __init)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call transform_inclusive_scan function from public oneDPL API
     return transform_inclusive_scan(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
                                     ::std::forward<_Range2>(__rng2), __binary_op, oneapi::dpl::__internal::__no_op(),
                                     __init);
@@ -163,7 +181,7 @@ transform_exclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& 
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2);
 
     return oneapi::dpl::__internal::__ranges::__pattern_transform_scan(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__rng1)),
+        __dispatch_tag, __exec, views::all_read(::std::forward<_Range1>(__rng1)),
         views::all_write(::std::forward<_Range2>(__rng2)), __unary_op, __init, __binary_op,
         /*inclusive=*/::std::false_type());
 }
@@ -180,7 +198,7 @@ transform_inclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& 
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2);
 
     return oneapi::dpl::__internal::__ranges::__pattern_transform_scan(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__rng1)),
+        __dispatch_tag, __exec, views::all_read(::std::forward<_Range1>(__rng1)),
         views::all_write(::std::forward<_Range2>(__rng2)), __unary_op, __init, __binary_op,
         /*inclusive=*/::std::true_type());
 }
@@ -195,7 +213,7 @@ transform_inclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& 
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2);
 
     return oneapi::dpl::__internal::__ranges::__pattern_transform_scan(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__rng1)),
+        __dispatch_tag, __exec, views::all_read(::std::forward<_Range1>(__rng1)),
         views::all_write(::std::forward<_Range2>(__rng2)), __unary_op, __binary_op, /*inclusive=*/::std::true_type());
 }
 

@@ -1107,7 +1107,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     _NoOpFunctor __get_data_op;
 
     return __parallel_transform_scan_base(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
+        __backend_tag, __exec, std::forward<_Range1>(__in_rng),
         std::forward<_Range2>(__out_rng), __init,
         // local scan
         unseq_backend::__scan<_Inclusive, _ExecutionPolicy, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner,

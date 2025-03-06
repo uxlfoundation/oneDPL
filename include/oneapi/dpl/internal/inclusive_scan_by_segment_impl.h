@@ -155,7 +155,7 @@ inclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first1, first2, result);
 
-    return internal::pattern_inclusive_scan_by_segment(__dispatch_tag, ::std::forward<Policy>(policy), first1, last1,
+    return internal::pattern_inclusive_scan_by_segment(__dispatch_tag, policy, first1, last1,
                                                        first2, result, binary_pred, binary_op);
 }
 
@@ -166,6 +166,8 @@ inclusive_scan_by_segment(Policy&& policy, InputIter1 first1, InputIter1 last1, 
 {
     using T = typename ::std::iterator_traits<InputIter2>::value_type;
 
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call inclusive_scan_by_segment function from public oneDPL API
     return inclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, binary_pred,
                                      ::std::plus<T>());
 }
@@ -176,6 +178,8 @@ inclusive_scan_by_segment(Policy&& policy, InputIter1 first1, InputIter1 last1, 
 {
     using T = typename ::std::iterator_traits<InputIter1>::value_type;
 
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call inclusive_scan_by_segment function from public oneDPL API
     return inclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result,
                                      ::std::equal_to<T>());
 }
@@ -186,6 +190,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIterator>
 inclusive_scan_by_key(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                       OutputIterator result, BinaryPredicate binary_pred, BinaryOperator binary_op)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call inclusive_scan_by_segment function from public oneDPL API
     return inclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, binary_pred,
                                      binary_op);
 }
@@ -195,6 +201,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIter>
 inclusive_scan_by_key(Policy&& policy, InputIter1 first1, InputIter1 last1, InputIter2 first2, OutputIter result,
                       BinaryPredicate binary_pred)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call inclusive_scan_by_segment function from public oneDPL API
     return inclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, binary_pred);
 }
 
@@ -202,6 +210,8 @@ template <typename Policy, typename InputIter1, typename InputIter2, typename Ou
 oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIter>
 inclusive_scan_by_key(Policy&& policy, InputIter1 first1, InputIter1 last1, InputIter2 first2, OutputIter result)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call inclusive_scan_by_segment function from public oneDPL API
     return inclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result);
 }
 } // end namespace dpl

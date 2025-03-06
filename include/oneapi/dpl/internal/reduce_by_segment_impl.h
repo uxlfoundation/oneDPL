@@ -210,7 +210,7 @@ reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, 
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first1, first2, result1, result2);
 
-    return internal::reduce_by_segment_impl(__dispatch_tag, ::std::forward<Policy>(policy), first1, last1, first2,
+    return internal::reduce_by_segment_impl(__dispatch_tag, policy, first1, last1, first2,
                                             result1, result2, binary_pred, binary_op);
 }
 
@@ -222,6 +222,8 @@ reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 fir
 {
     typedef typename ::std::iterator_traits<InputIt2>::value_type T;
 
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call reduce_by_segment function from public oneDPL API
     return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred,
                              ::std::plus<T>());
 }
@@ -233,6 +235,8 @@ reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 fir
 {
     typedef typename ::std::iterator_traits<InputIt1>::value_type T;
 
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call reduce_by_segment function from public oneDPL API
     return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2,
                              ::std::equal_to<T>());
 }
@@ -243,6 +247,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, ::std::pair<Output
 reduce_by_key(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
               OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call reduce_by_segment function from public oneDPL API
     return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred,
                              binary_op);
 }
@@ -253,6 +259,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, ::std::pair<Output
 reduce_by_key(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt1 result1, OutputIt2 result2,
               BinaryPred binary_pred)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call reduce_by_segment function from public oneDPL API
     return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred);
 }
 
@@ -260,6 +268,8 @@ template <typename Policy, typename InputIt1, typename InputIt2, typename Output
 oneapi::dpl::__internal::__enable_if_execution_policy<Policy, ::std::pair<OutputIt1, OutputIt2>>
 reduce_by_key(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt1 result1, OutputIt2 result2)
 {
+    // We should still use here ::std::forward<Policy>(policy) because
+    // we call reduce_by_segment function from public oneDPL API
     return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2);
 }
 } // end namespace dpl

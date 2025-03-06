@@ -251,7 +251,7 @@ lower_bound(Policy&& policy, InputIterator1 start, InputIterator1 end, InputIter
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, start, value_start, result);
 
-    return internal::lower_bound_impl(__dispatch_tag, ::std::forward<Policy>(policy), start, end, value_start,
+    return internal::lower_bound_impl(__dispatch_tag, policy, start, end, value_start,
                                       value_end, result, oneapi::dpl::__internal::__pstl_less());
 }
 
@@ -263,7 +263,7 @@ lower_bound(Policy&& policy, InputIterator1 start, InputIterator1 end, InputIter
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, start, value_start, result);
 
-    return internal::lower_bound_impl(__dispatch_tag, ::std::forward<Policy>(policy), start, end, value_start,
+    return internal::lower_bound_impl(__dispatch_tag, policy, start, end, value_start,
                                       value_end, result, comp);
 }
 //Lower Bound end
@@ -277,7 +277,7 @@ upper_bound(Policy&& policy, InputIterator1 start, InputIterator1 end, InputIter
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, start, value_start, result);
 
-    return internal::upper_bound_impl(__dispatch_tag, ::std::forward<Policy>(policy), start, end, value_start,
+    return internal::upper_bound_impl(__dispatch_tag, policy, start, end, value_start,
                                       value_end, result, oneapi::dpl::__internal::__pstl_less());
 }
 
@@ -289,7 +289,7 @@ upper_bound(Policy&& policy, InputIterator1 start, InputIterator1 end, InputIter
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, start, value_start, result);
 
-    return internal::upper_bound_impl(__dispatch_tag, ::std::forward<Policy>(policy), start, end, value_start,
+    return internal::upper_bound_impl(__dispatch_tag, policy, start, end, value_start,
                                       value_end, result, comp);
 }
 
@@ -304,7 +304,7 @@ binary_search(Policy&& policy, InputIterator1 start, InputIterator1 end, InputIt
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, start, value_start, result);
 
-    return internal::binary_search_impl(__dispatch_tag, ::std::forward<Policy>(policy), start, end, value_start,
+    return internal::binary_search_impl(__dispatch_tag, policy, start, end, value_start,
                                         value_end, result, oneapi::dpl::__internal::__pstl_less());
 }
 
@@ -316,7 +316,7 @@ binary_search(Policy&& policy, InputIterator1 start, InputIterator1 end, InputIt
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, start, value_start, result);
 
-    return internal::binary_search_impl(__dispatch_tag, ::std::forward<Policy>(policy), start, end, value_start,
+    return internal::binary_search_impl(__dispatch_tag, policy, start, end, value_start,
                                         value_end, result, comp);
 }
 
