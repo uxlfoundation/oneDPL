@@ -221,7 +221,8 @@ struct invoke_on_all_hetero_policies
                 my_policy, op, ::std::forward<Args>(rest)...);
 
 #if !__SYCL_UNNAMED_LAMBDA__
-            if (false)
+            volatile bool always_false = false;
+            if (always_false)
             {
                 // We just need to compile some Kernel code and we don't need to run this code in run-time
                 // so we can move the rest of params again
