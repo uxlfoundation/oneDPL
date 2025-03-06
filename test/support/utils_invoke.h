@@ -221,6 +221,8 @@ struct invoke_on_all_hetero_policies
                 my_policy, op, ::std::forward<Args>(rest)...);
 
 #if !__SYCL_UNNAMED_LAMBDA__
+            // The goal of this check is to compile the same Kernel code with different policy type qualifiers.
+            // This gives us ability to check that Kernel names generated inside oneDPL code are unique.
             volatile bool always_false = false;
             if (always_false)
             {
