@@ -954,6 +954,23 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     return ::std::make_pair(get<0>(__ret), get<1>(__ret));
 }
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+std::pair<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_R>>
+__pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
+        std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
+        std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
+
+    auto [__min_idx, __max_idx] = oneapi::dpl::__internal::__ranges::__pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
+
+    return {std::ranges::begin(__r) + __min_idx, std::ranges::begin(__r) + __max_idx);
+}
+
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 //------------------------------------------------------------------------
 // reduce_by_segment
 //------------------------------------------------------------------------
