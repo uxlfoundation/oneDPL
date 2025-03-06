@@ -399,10 +399,8 @@ __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
         std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
 
-    auto __res = oneapi::dpl::__internal::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+    return oneapi::dpl::__internal::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
-
-    return std::ranges::borrowed_iterator_t<_R>(__res);
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
@@ -410,6 +408,30 @@ auto
 __pattern_min_element(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
 {
     return std::ranges::min_element(std::forward<_R>(__r), __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// pattern_minmax_element
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+auto
+__pattern_minmax_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
+        std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
+
+    return oneapi::dpl::__internal::__pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+        std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+auto
+__pattern_minmax_element(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    return std::ranges::minmax_element(std::forward<_R>(__r), __comp, __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
