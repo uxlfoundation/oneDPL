@@ -411,6 +411,18 @@ __pattern_min_element(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolic
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// pattern_min
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+std::ranges::range_value_t<_R>
+__pattern_min(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    return *__pattern_min_element(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+                                  __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // pattern_minmax_element
 //---------------------------------------------------------------------------------------------------------------------
 
