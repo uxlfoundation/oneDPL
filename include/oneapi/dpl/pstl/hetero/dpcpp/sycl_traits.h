@@ -184,6 +184,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
                                                        _Tp, _EnableIfPlaceholder)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <class _Tag, typename _ExecutionPolicy, typename _Tp, typename _EnableIfPlaceholder>
@@ -191,6 +192,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
                                                        _Tp, _EnableIfPlaceholder)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _Tp, typename _Pred>
@@ -347,6 +349,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
                                                        _ExecutionPolicy, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _Range, typename _Compare>
@@ -436,6 +439,7 @@ template <typename _ExecutionPolicy, typename _F>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_n, _ExecutionPolicy, _F)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _F, typename _Range>
@@ -443,6 +447,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _ExecutionPolicy, _F, _Range)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
@@ -450,6 +455,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _ExecutionPolicy, _F, _Range1, _Range2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2, typename _Range3>
@@ -457,6 +463,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _ExecutionPolicy, _F, _Range1, _Range2, _Range3)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
@@ -464,6 +471,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _ExecutionPolicy, _F, _Range1, _Range2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative,
@@ -472,6 +480,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _Operation1, _Operation2, _Tp, _Commutative, _VecSize)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Operation1, _Operation2, _Tp>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _BinaryOperation1, typename _Tp>
@@ -479,6 +488,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _BinaryOperation1, _Tp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOperation1, _Tp>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _Pred>
@@ -486,6 +496,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _ExecutionPolicy, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _Pred>
@@ -493,6 +504,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _Pred>
@@ -500,6 +512,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _ExecutionPolicy, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _Pred, typename _Tp, typename _Size>
@@ -507,6 +520,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _Pred, _Tp, _Size)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred, _Tp, _Size>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _Pred>
@@ -514,6 +528,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _Pred, typename _Tp>
@@ -557,6 +572,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOperation, _UnaryOp, _WgAssigner, _GlobalAssigner,
                                                          _DataAccessor, _InitType>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2>
@@ -564,6 +580,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _Compare, _Size1, _Size2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _Size1, _Size2>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
@@ -571,6 +588,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
                                                        _Compare, _Size1, _Size2, _IsOpDifference)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _Size1, _Size2>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
 };
 
 template <typename _BinaryOperator, typename _Size, typename _Range>
