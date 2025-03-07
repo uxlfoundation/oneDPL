@@ -103,6 +103,8 @@ inline constexpr _Tp __known_identity =
 template <typename _ExecutionPolicy, typename _F>
 struct walk_n
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _F __f;
 
     template <typename _ItemId, typename... _Ranges>
@@ -164,6 +166,8 @@ struct walk_scalar_base
 template <typename _ExecutionPolicy, typename _F, typename _Range>
 struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
   private:
     using __base_t = walk_vector_or_scalar_base<_Range>;
     _F __f;
@@ -201,6 +205,8 @@ struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
 struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     _F __f;
@@ -247,6 +253,8 @@ struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Ra
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2, typename _Range3>
 struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Range2, _Range3>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2, _Range3>;
     _F __f;
@@ -303,6 +311,8 @@ struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Ra
 template <typename _ExecutionPolicy>
 struct walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     oneapi::dpl::__internal::__no_op __f;
 
     template <typename _ItemId, typename _Range>
@@ -320,6 +330,8 @@ struct walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
 struct walk_adjacent_difference : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     _F __f;
@@ -428,6 +440,8 @@ template <typename _ExecutionPolicy, typename _Operation1, typename _Operation2,
           std::uint8_t _VecSize>
 struct transform_reduce
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Operation1 __binary_op;
     _Operation2 __unary_op;
 
@@ -573,6 +587,8 @@ struct transform_reduce
 template <typename _ExecutionPolicy, typename _BinaryOperation1, typename _Tp>
 struct reduce_over_group
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _BinaryOperation1 __bin_op1;
 
     // Reduce on local memory with subgroups
@@ -637,6 +653,8 @@ struct reduce_over_group
 template <typename _ExecutionPolicy, typename _Pred>
 struct single_match_pred_by_idx
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Pred __pred;
 
     template <typename _Idx, typename _Acc>
@@ -651,6 +669,8 @@ template <typename _ExecutionPolicy, typename _Pred>
 struct single_match_pred
     : single_match_pred_by_idx<std::decay_t<_ExecutionPolicy>, walk_n<std::decay_t<_ExecutionPolicy>, _Pred>>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     single_match_pred(_Pred __p)
         : single_match_pred_by_idx<std::decay_t<_ExecutionPolicy>, walk_n<std::decay_t<_ExecutionPolicy>, _Pred>>{__p}
     {
@@ -660,6 +680,8 @@ struct single_match_pred
 template <typename _ExecutionPolicy, typename _Pred>
 struct multiple_match_pred
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Pred __pred;
 
     template <typename _Idx, typename _Acc1, typename _Acc2>
@@ -692,6 +714,8 @@ struct multiple_match_pred
 template <typename _ExecutionPolicy, typename _Pred, typename _Tp, typename _Size>
 struct n_elem_match_pred
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Pred __pred;
     _Tp __value;
     _Size __count;
@@ -714,6 +738,8 @@ struct n_elem_match_pred
 template <typename _ExecutionPolicy, typename _Pred>
 struct first_match_pred
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Pred __pred;
 
     template <typename _Idx, typename _Acc1, typename _Acc2>
@@ -946,6 +972,8 @@ template <typename _Inclusive, typename _ExecutionPolicy, typename _BinaryOperat
           typename _WgAssigner, typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
 struct __scan
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     using _Tp = typename _InitType::__value_type;
     _BinaryOperation __bin_op;
     _UnaryOp __unary_op;
@@ -1099,6 +1127,8 @@ struct __scan
 template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2>
 struct __brick_includes
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Compare __comp;
     _Size1 __na;
     _Size2 __nb;
@@ -1363,6 +1393,8 @@ struct _DifferenceTag : public ::std::true_type
 template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
 class __brick_set_op
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Compare __comp;
     _Size1 __na;
     _Size2 __nb;
@@ -1423,6 +1455,8 @@ class __brick_set_op
 template <typename _ExecutionPolicy, typename _DiffType, typename _Range>
 struct __brick_shift_left
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
   private:
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
     // Maximum size supported by compilers to generate vector instructions
@@ -1565,6 +1599,8 @@ struct __brick_reduce_idx : public walk_scalar_base<_Range>
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
 struct __brick_swap : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     _F __f;
