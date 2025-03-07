@@ -164,7 +164,7 @@ template <typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
 auto
 __parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
-                                       const _ExecutionPolicy& __exec, const _Size __n, const _Size __work_group_size,
+                                       _ExecutionPolicy&& __exec, const _Size __n, const _Size __work_group_size,
                                        const _Size __iters_per_work_item, _ReduceOp __reduce_op,
                                        _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
 {
@@ -280,7 +280,7 @@ template <typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
 auto
 __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
-                                     const _ExecutionPolicy& __exec, const _Size __n, const _Size __work_group_size,
+                                     _ExecutionPolicy&& __exec, const _Size __n, const _Size __work_group_size,
                                      const _Size __iters_per_work_item_device_kernel,
                                      const _Size __iters_per_work_item_work_group_kernel, _ReduceOp __reduce_op,
                                      _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
@@ -444,7 +444,7 @@ struct __parallel_transform_reduce_impl
 template <typename _Tp, typename _Commutative, typename _ExecutionPolicy, typename _ReduceOp, typename _TransformOp,
           typename _InitType, typename... _Ranges>
 auto
-__parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const _ExecutionPolicy& __exec,
+__parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                             _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
 {
     auto __n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
