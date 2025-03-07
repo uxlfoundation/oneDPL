@@ -238,7 +238,7 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                 return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
             };
             auto s = oneapi::dpl::experimental::select(p, f);
-            auto e = oneapi::dpl::experimental::submit(s, f);
+            oneapi::dpl::experimental::submit(s, f);
         }
         else
         {

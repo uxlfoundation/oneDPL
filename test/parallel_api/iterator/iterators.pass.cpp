@@ -272,7 +272,6 @@ struct test_transform_iterator {
         transform_functor new_functor;
         ref_transform_functor ref_functor;
         //check default constructibility of transform_iterator with default constructible components
-        oneapi::dpl::transform_iterator<T1*, transform_functor> _it0;
         oneapi::dpl::transform_iterator<typename ::std::vector<T1>::iterator, transform_functor> _it1(in1.begin());
         oneapi::dpl::transform_iterator<typename ::std::vector<T1>::iterator, transform_functor> _it2(in1.begin(), new_functor);
 
@@ -280,7 +279,7 @@ struct test_transform_iterator {
         auto list_it1 = oneapi::dpl::make_transform_iterator(f_list.begin(), ref_functor);
         auto list_it2 = oneapi::dpl::make_transform_iterator(f_list.end(), ref_functor);
         ::std::fill(list_it1, list_it2, 7);
-        EXPECT_TRUE(::std::all_of(f_list.begin(), f_list.end(), [](int x){ return x == 7; }), 
+        EXPECT_TRUE(::std::all_of(f_list.begin(), f_list.end(), [](int x){ return x == 7; }),
             "wrong result from fill with forward_iterator wrapped with transform_iterator");
 
         auto test_lambda = [](T2& x){ return x + 1; };
