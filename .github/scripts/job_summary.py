@@ -36,7 +36,7 @@ def generate_environment_table(os_info, compiler_version, cmake_version, cpu_mod
 def generate_warning_table(build_log_content):
     warning_regex = re.compile(
         r"""
-            \[(\-W[a-zA-Z0-9\-]+)\] |  # GCC/Clang warnings: "[-W<some-flag>]"
+            \[(\-W[a-zA-Z0-9\-=]+)\] |  # GCC/Clang warnings: "[-W<some-flag>]" or "[-W<some-flag>=<value>]"
             ((?:STL|C|D|LNK)\d{4})     # MSVC warnings: "<STL|C|D|LNK>xxxx"
         """,
         re.VERBOSE
