@@ -535,14 +535,39 @@ struct __minmax_element_fn
     std::ranges::minmax_element_result<std::ranges::borrowed_iterator_t<_R>>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
     {
-        auto [__min, __max] = oneapi::dpl::ranges::minmax_element(std::forward<_ExecutionPolicy>(__exec),
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        auto [__min, __max] = 
+            oneapi::dpl::__internal::__ranges::__pattern_minmax_element(std::forward<_ExecutionPolicy>(__exec),
             std::forward<_R>(__r), __comp, __proj);
+
         return {__min, __max};
     }
 }; //__minmax_element_fn
 } //__internal
 
 inline constexpr __internal::__minmax_element_fn minmax_element;
+
+namespace __internal
+{
+
+struct __min_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, __Proj>> _Comp = std::ranges::less>
+    requires std::indirectly_copyable_storable<std::ranges::iterator_t<_R>, std::ranges::range_value_t<_R>*>
+
+    std::ranges::range_value_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_min(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+    }
+
+}; //__min_fn
+} //__internal
+
+inline constexpr __internal::__min_fn min;
 
 namespace __internal
 {
