@@ -102,14 +102,14 @@ struct __transform_fn
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
              std::ranges::random_access_range _OutRange, std::copy_constructible _F, typename _Proj1 = std::identity,
              typename _Proj2 = std::identity>
-    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && (std::ranges::sized_range<_R1>
-        || std::ranges::sized_range<_R2>) && std::ranges::sized_range<_OutRange>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R1>
+        && std::ranges::sized_range<_R2> && std::ranges::sized_range<_OutRange>
         && std::indirectly_writable<std::ranges::iterator_t<_OutRange>,
-            std::indirect_result_t<_F&, std::projected<std::ranges::iterator_t<_R1>, _Proj1>,
-            std::projected<std::ranges::iterator_t<_R2>, _Proj2>>>
+        std::indirect_result_t<_F&, std::projected<std::ranges::iterator_t<_R1>, _Proj1>,
+        std::projected<std::ranges::iterator_t<_R2>, _Proj2>>>
 
     std::ranges::binary_transform_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-        std::ranges::borrowed_iterator_t<_OutRange>>
+                                         std::ranges::borrowed_iterator_t<_OutRange>>
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _F __binary_op,
                _Proj1 __proj1 = {}, _Proj2 __proj2 = {}) const
     {
@@ -117,17 +117,13 @@ struct __transform_fn
 
         using _Size = std::common_type_t<oneapi::dpl::__internal::__range_size_t<_R1>,
             oneapi::dpl::__internal::__range_size_t<_R2>, std::ranges::range_size_t<_OutRange>>;
-        _Size __size = std::ranges::size(__out_r);
-        if constexpr(std::ranges::sized_range<_R1>)
-            __size = std::ranges::min(__size, (_Size)std::ranges::size(__r1));
-        if constexpr(std::ranges::sized_range<_R2>)
-            __size = std::ranges::min(__size, (_Size)std::ranges::size(__r2));
+        const _Size __size = std::ranges::min({(_Size)std::ranges::size(__r1), (_Size)std::ranges::size(__r2),
+            (_Size)std::ranges::size(__out_r)});
 
-        //take_view doesn't make unsized range sized, so subrange is used below
-        oneapi::dpl::__internal::__ranges::__pattern_transform(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::ranges::subrange(std::ranges::begin(__r1), std::ranges::begin(__r1) + __size),
-            std::ranges::subrange(std::ranges::begin(__r2), std::ranges::begin(__r2) + __size),
-            std::ranges::take_view(__out_r, __size), __binary_op, __proj1, __proj2);
+        oneapi::dpl::__internal::__ranges::__pattern_transform(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::take_view(__r1, __size),
+            std::ranges::take_view(__r2, __size), std::ranges::take_view(__out_r, __size), __binary_op, __proj1,
+            __proj2);
 
         return {std::ranges::begin(__r1) + __size, std::ranges::begin(__r2) + __size, std::ranges::begin(__out_r) + __size};
     }
