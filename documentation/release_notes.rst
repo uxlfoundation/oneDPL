@@ -20,7 +20,7 @@ New Features
   with device policies for large data sizes.
 - Improved performance of ``copy``, ``fill``, ``for_each``, ``replace``, ``reverse``, ``rotate``, ``transform`` and 30+
   other algorithms with device policies on GPUs.
-- Improved oneDPL use with SYCL implementations other than Intel® oneAPI DPC++/C++ Compiler.
+- Improved oneDPL use with SYCL implementations other than Intel oneAPI DPC++/C++ Compiler.
 
 
 Fixed Issues
@@ -36,7 +36,7 @@ Fixed Issues
    * Allows the use of non-trivially-copyable comparators.
    * Eliminates duplicate kernel names.
    * Resolves incorrect results on devices with sub-group sizes smaller than four.
-   * Resolved synchronization errors that were seen on Intel® Arc™ B-series GPU devices.
+   * Resolved synchronization errors that were seen on Intel® Arc™ [#fnote2]_ B-series GPU devices.
 
 Known Issues and Limitations
 ----------------------------
@@ -46,7 +46,7 @@ New in This Release
   sizes of 4-8 million elements.
 - ``sort``, ``stable_sort``, ``sort_by_key`` and ``stable_sort_by_key`` algorithms fail to compile
   when using Clang 17 and earlier versions, as well as compilers based on these versions,
-  such as Intel® oneAPI DPC++/C++ Compiler 2023.2.0.
+  such as Intel oneAPI DPC++/C++ Compiler 2023.2.0.
 - When compiling code that uses device policies with the open source oneAPI DPC++ Compiler (clang++ driver),
   synchronous SYCL runtime exceptions regarding unfound kernels may be encountered unless an optimization flag is
   specified (for example ``-O1``) as opposed to relying on the compiler's default optimization level.
@@ -918,3 +918,4 @@ Known Issues and Limitations
 .. _`2022.0 Changes`: https://uxlfoundation.github.io/oneDPL/oneDPL_2022.0_changes.html
 .. _`sycl device copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
 .. _`oneAPI DPC++ Library Manual Migration Guide`: https://www.intel.com/content/www/us/en/developer/articles/guide/oneapi-dpcpp-library-manual-migration.html 
+.. [#fnote2] Intel, the Intel logo, and Arc are the trademarks of Intel Corporation or its subsidiaries.
