@@ -443,7 +443,7 @@ struct __stable_sort_fn
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Comp = std::ranges::less,
              typename _Proj = std::identity>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
-           && std::sortable<std::ranges::iterator_t<_R>, _Comp, _Proj>
+             && std::sortable<std::ranges::iterator_t<_R>, _Comp, _Proj>
     auto
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
@@ -474,7 +474,7 @@ struct __sort_fn
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Comp = std::ranges::less,
              typename _Proj = std::identity>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
-           && std::sortable<std::ranges::iterator_t<_R>, _Comp, _Proj>
+             && std::sortable<std::ranges::iterator_t<_R>, _Comp, _Proj>
     auto
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
@@ -496,6 +496,7 @@ struct __min_element_fn
              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>>
              _Comp = std::ranges::less>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
@@ -515,6 +516,7 @@ struct __max_element_fn
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
@@ -532,6 +534,8 @@ struct __minmax_element_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
          std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+
     std::ranges::minmax_element_result<std::ranges::borrowed_iterator_t<_R>>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
     {
@@ -554,11 +558,14 @@ struct __min_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, __Proj>> _Comp = std::ranges::less>
-    requires std::indirectly_copyable_storable<std::ranges::iterator_t<_R>, std::ranges::range_value_t<_R>*>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+             && std::indirectly_copyable_storable<std::ranges::iterator_t<_R>, std::ranges::range_value_t<_R>*>
 
     std::ranges::range_value_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
     {
+        assert(std::ranges::size(__r) > 0);
+
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_min(__dispatch_tag,
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
@@ -568,6 +575,30 @@ struct __min_fn
 } //__internal
 
 inline constexpr __internal::__min_fn min;
+
+namespace __internal
+{
+
+struct __max_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, __Proj>> _Comp = std::ranges::less>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+             && std::indirectly_copyable_storable<std::ranges::iterator_t<_R>, std::ranges::range_value_t<_R>*>
+
+    std::ranges::range_value_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
+    {
+        assert(std::ranges::size(__r) > 0);
+
+        return oneapi::dpl::ranges::min(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__reorder_pred(__comp), __proj);
+    }
+
+}; //__max_fn
+} //__internal
+
+inline constexpr __internal::__max_fn max;
 
 namespace __internal
 {
