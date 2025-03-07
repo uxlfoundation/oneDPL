@@ -520,7 +520,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
     {
         return __future(
             __histogram_general_registers_local_reduction<__iters_per_work_item, __max_work_item_private_bins>(
-                __backend_tag, __exec, __init_event, __work_group_size,
+                __backend_tag, std::forward<_ExecutionPolicy>(__exec), __init_event, __work_group_size,
                 ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins), __binhash_manager));
     }
     // if bins fit into SLM, use local atomics
@@ -529,7 +529,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
              __local_mem_size)
     {
         return __future(__histogram_general_local_atomics<__iters_per_work_item>(
-            __backend_tag, __exec, __init_event, __work_group_size,
+            __backend_tag, std::forward<_ExecutionPolicy>(__exec), __init_event, __work_group_size,
             ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins), __binhash_manager));
     }
     else // otherwise, use global atomics (private copies per workgroup)
@@ -540,7 +540,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
         // private copies of the histogram bins in global memory.  No unrolling is taken advantage of here because it
         // is a runtime argument.
         return __future(__histogram_general_private_global_atomics(
-            __backend_tag, __exec, __init_event, __iters_per_work_item,
+            __backend_tag, std::forward<_ExecutionPolicy>(__exec), __init_event, __iters_per_work_item,
             __work_group_size, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins), __binhash_manager));
     }
 }
@@ -554,13 +554,13 @@ __parallel_histogram(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     if (__input.size() < 1048576) // 2^20
     {
         return __parallel_histogram_select_kernel</*iters_per_workitem = */ 4>(
-            __backend_tag, __exec, __init_event, ::std::forward<_Range1>(__input),
+            __backend_tag, std::forward<_ExecutionPolicy>(__exec), __init_event, ::std::forward<_Range1>(__input),
             ::std::forward<_Range2>(__bins), __binhash_manager);
     }
     else
     {
         return __parallel_histogram_select_kernel</*iters_per_workitem = */ 32>(
-            __backend_tag, __exec, __init_event, ::std::forward<_Range1>(__input),
+            __backend_tag, std::forward<_ExecutionPolicy>(__exec), __init_event, ::std::forward<_Range1>(__input),
             ::std::forward<_Range2>(__bins), __binhash_manager);
     }
 }
