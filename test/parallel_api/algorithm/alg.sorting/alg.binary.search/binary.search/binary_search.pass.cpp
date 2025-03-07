@@ -75,6 +75,7 @@ DEFINE_TEST(test_binary_search)
         auto res1 = oneapi::dpl::binary_search(new_policy, first, last, value_first, value_last, result_first);
         exec.queue().wait_and_throw();
 
+        EXPECT_TRUE(std::distance(result_first, res1) == n, "wrong return value, device policy");
         host_res.retrieve_data();
         check_and_clean(host_res.get(), n);
         host_res.update_data();
@@ -85,6 +86,7 @@ DEFINE_TEST(test_binary_search)
                                                [](ValueT first, ValueT second) { return first < second; });
         exec.queue().wait_and_throw();
 
+        EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, device policy");
         host_res.retrieve_data();
         check_and_clean(host_res.get(), n);
     }
@@ -106,11 +108,13 @@ DEFINE_TEST(test_binary_search)
         initialize_data(first, value_first, result_first, n);
 
         auto res1 = oneapi::dpl::binary_search(exec, first, last, value_first, value_last, result_first);
+        EXPECT_TRUE(std::distance(result_first, res1) == n, "wrong return value, host policy");
         check_and_clean(result_first, n);
 
         // call algorithm with comparator
         auto res2 = oneapi::dpl::binary_search(exec, first, last, value_first, value_last, result_first,
                                                [](ValueT first, ValueT second) { return first < second; });
+        EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, host policy");
         check_and_clean(result_first, n);
     }
 

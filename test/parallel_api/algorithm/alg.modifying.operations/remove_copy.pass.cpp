@@ -40,7 +40,7 @@ struct run_remove_copy
         ::std::fill_n(out_first, n, trash);
 
         // Run copy_if
-        auto i = remove_copy(first, last, expected_first, value);
+        [[maybe_unused]] auto i = remove_copy(first, last, expected_first, value);
         auto k = remove_copy(exec, first, last, out_first, value);
 #if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong remove_copy effect");
