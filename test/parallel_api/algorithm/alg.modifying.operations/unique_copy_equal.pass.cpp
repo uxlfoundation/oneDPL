@@ -60,7 +60,7 @@ struct run_unique_copy
         ::std::fill_n(out_first, n, trash);
 
         // Run unique_copy
-        auto i = unique_copy(first, last, expected_first);
+        [[maybe_unused]] auto i = unique_copy(first, last, expected_first);
         auto k = unique_copy(exec, first, last, out_first);
 #if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong unique_copy effect");
@@ -119,7 +119,7 @@ struct run_unique_copy_predicate
         ::std::fill_n(out_first, n, trash);
 
         // Run unique_copy with predicate
-        auto i = unique_copy(first, last, expected_first, pred);
+        [[maybe_unused]] auto i = unique_copy(first, last, expected_first, pred);
         auto k = unique_copy(exec, first, last, out_first, pred);
 #if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong unique_copy with predicate effect");
