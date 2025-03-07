@@ -50,15 +50,12 @@ main()
     {
         using Size = std::common_type_t<range_size_t<decltype(r_1)>, range_size_t<decltype(r_2)>,
             std::ranges::range_size_t<decltype(r_out)>>;
-        Size size = std::ranges::size(r_out);
-        if constexpr(std::ranges::sized_range<decltype(r_1)>)
-            size = std::ranges::min(size, (Size)std::ranges::size(r_1));
-        if constexpr(std::ranges::sized_range<decltype(r_2)>)
-            size = std::ranges::min(size, (Size)std::ranges::size(r_2));
+        Size size = std::ranges::min({(Size)std::ranges::size(r_1), (Size)std::ranges::size(r_2), 
+                                      (Size)std::ranges::size(r_out)});
 
         auto res = std::ranges::transform(std::ranges::subrange(std::ranges::begin(r_1), std::ranges::begin(r_1) + size),
-            std::ranges::subrange(std::ranges::begin(r_2), std::ranges::begin(r_2) + size),
-            std::ranges::take_view(r_out, size).begin(), std::forward<decltype(args)>(args)...);
+            std::ranges::take_view(r_2, size), std::ranges::take_view(r_out, size).begin(),
+            std::forward<decltype(args)>(args)...);
 
         using ret_type = std::ranges::binary_transform_result<std::ranges::borrowed_iterator_t<decltype(r_1)>,
             std::ranges::borrowed_iterator_t<decltype(r_2)>, std::ranges::borrowed_iterator_t<decltype(r_out)>>;
