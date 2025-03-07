@@ -50,8 +50,6 @@ DEFINE_TEST_PERM_IT(test_sort, PermItIndexTag)
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
                 [&](auto permItBegin, auto permItEnd)
                 {
-                    using ValueType = typename ::std::iterator_traits<decltype(permItBegin)>::value_type;
-
                     const auto testing_n = permItEnd - permItBegin;
 
                     // Fill full source data set (not only values iterated by permutation iterator)
