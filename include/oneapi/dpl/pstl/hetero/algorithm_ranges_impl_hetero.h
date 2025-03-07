@@ -877,8 +877,6 @@ std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__intern
 __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     assert(__rng.size() > 0);
-    if (__rng.size() < 2)
-        return 0;
 
     using _IteratorValueType = typename ::std::iterator_traits<decltype(__rng.begin())>::value_type;
     using _IndexValueType = oneapi::dpl::__internal::__difference_t<_Range>;
