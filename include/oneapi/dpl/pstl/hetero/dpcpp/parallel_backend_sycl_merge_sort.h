@@ -793,7 +793,7 @@ __submit_selecting_leaf(const _ExecutionPolicy& __exec, _Range&& __rng, _Compare
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
 auto
-__parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec, _Range&& __rng,
+__parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                      _Compare __comp)
 {
     if (__rng.size() <= std::numeric_limits<std::uint32_t>::max())
