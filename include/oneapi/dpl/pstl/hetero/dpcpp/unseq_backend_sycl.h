@@ -648,9 +648,13 @@ struct single_match_pred_by_idx
 };
 
 template <typename _ExecutionPolicy, typename _Pred>
-struct single_match_pred : single_match_pred_by_idx<_ExecutionPolicy, walk_n<_ExecutionPolicy, _Pred>>
+struct single_match_pred
+    : single_match_pred_by_idx<std::decay_t<_ExecutionPolicy>, walk_n<std::decay_t<_ExecutionPolicy>, _Pred>>
 {
-    single_match_pred(_Pred __p) : single_match_pred_by_idx<_ExecutionPolicy, walk_n<_ExecutionPolicy, _Pred>>{__p} {}
+    single_match_pred(_Pred __p)
+        : single_match_pred_by_idx<std::decay_t<_ExecutionPolicy>, walk_n<std::decay_t<_ExecutionPolicy>, _Pred>>{__p}
+    {
+    }
 };
 
 template <typename _ExecutionPolicy, typename _Pred>
