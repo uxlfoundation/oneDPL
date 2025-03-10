@@ -874,38 +874,75 @@ struct __simple_write_to_id
     }
 };
 
+
+template <bool __forward, typename _Index>
+_Index
+biased_binary_search(typename _Rng, const _Index __start, const _Index __end, const _Compare& __comp)
+{
+    _Index __low = __start;
+    _Index __high = __end;
+    _Index __fraction = 64;
+    _Index __step = 1;
+    if constexpr(!__forward)
+    {
+        __step = -1;
+    }
+    _Index __offset = std::max(std::abs(__end - __start) / __fraction, 1);
+    _Index __mid = __start + __offset * __step;
+
+    // check progressively larger steps away from start point
+    while(__mid < __end && __fraction > 2)
+    {
+        if (comp(__rng[__mid], __rng[__start]) == __forward)
+            __start = __mid;
+        else 
+            __end = __mid;
+        __fraction >>= 1;
+        __offset = std::max(std::abs(__end - __start) / __fraction, 1) * __step;
+        __mid = __start + __offset;
+    }
+    while(__mid < __end)
+    {
+        if (comp(__rng[__mid], __rng[__start]) == __forward)
+            __start = __mid;
+        else 
+            __end = __mid;
+        __start = __mid;
+        __offset = std::max(std::abs(__end - __start) >> 1, 1) * __step;
+        __mid = __start + __offset;
+    }
+    return __start;
+}
+
 __find_balanced_path_start_point
 template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
 auto
-__find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __i_elem, const _Index __n1,
-                   const _Index __n2, _Compare __comp)
+__find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1, const _Index __merge_path_rng2,
+                    const _Index __n1, const _Index __n2, _Compare __comp)
 {
-    // find merge path start point
-    auto [__start_point_rng1, __start_point_rng2] = __find_merge_path_start_point(__rng1, __rng2, __i_elem, __n1, __n2, __comp);
-
     // back up to balanced path divergence with a biased binary search
     auto __start_point = __start_point_rng1;
     auto __start_point2 = __start_point_rng2;
 
     // find first element of repeating sequence in the first set
-    _Index __rng1_repeat_start = biased_binary_search(__rng1, __start_point, __n1, __start_point2, __comp);
+    _Index __rng1_repeat_start = biased_binary_search(__rng1, __merge_path_rng1, __n1, __comp);
     // find first element of repeating sequence in the second set
-    _Index __rng2_repeat_start = biased_binary_search(__rng2, __start_point2, __n2, __start_point, __comp);
+    _Index __rng2_repeat_start = biased_binary_search(__rng2, __merge_path_rng2, __n2, __comp);
 
     // check if there are an even number of steps to the diagonal
-    _Index __combined_steps_to_diagonal = _i_elem - (__rng1_repeat_start + __rng2_repeat_start);
+    _Index __combined_steps_to_diagonal = (__merge_path_rng1 + __merge_path_rng2) - (__rng1_repeat_start + __rng2_repeat_start);
     bool __star_offset = __steps_to_diagonal % 2;
 
     // index within __rng_1 represents the place on the diagonal (in combination with __i_elem)
     // __star_offset represents an offset by 1 from the diagonal in the __rng2 index
-    return std::make_pair(__rng_1_repeat_start + ((__steps_to_diagonal+1)>>1), __star_offset);
+    return std::make_tuple(__rng1_repeat_start + __combined_steps_to_diagonal >> 1, __rng2_repeat_start + __combined_steps_to_diagonal >> 1 + __star_offset, __star_offset);
 }
 
-template <typename _SetOp, typename _Compare>
+template <typename _SetOp, typename TempData, typename _Compare>
 struct __gen_set_balanced_path
 {
     template <typename _InRng>
-    std::size_t
+    auto
     operator()(const _InRng& __in_rng, std::size_t __id) const
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
@@ -914,20 +951,132 @@ struct __gen_set_balanced_path
         auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence
 
         //consider building these into the definition of the building block with a requires function
-        auto __set_temp_diag = std::get<2>(__in_rng.tuple()); // temp_diag sequence
+        auto __set_temp_diag_a = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
+        auto __set_temp_diag_b = std::get<3>(__in_rng.tuple()); // set b temp storage sequence
+
+        //find merge path intersection 
+        auto [__set_a_pos, __set_b_pos] = __find_merge_path_start_point(__set_a, __set_b, __id * __diagonal_spacing,
+                                                                        __set_a.size(), __set_b.size(), __comp);
 
         //Find balanced path for diagonal start
-        auto [__diagonal_id, __star_offset]  = __find_balanced_path_start_point(__set_a, __set_b, __id * __diagonal_spacing, __set_a.size(), __set_b.size(), __comp);
-        __set_temp_diag[__id] = __diagonal_id << 1 + __star_offset;
+        auto [__set_a_balanced_pos, __set_b_balanced_pos, __star_offset] = __find_balanced_path_start_point(
+                                __set_a, __set_b, __set_a_pos, __set_b_pos, __set_a.size(), __set_b.size(), __comp);
+        //TODO: replace seta,setb positions with intra-diagonal index + start offset boolean
 
-        return __set_op(__set_a.begin() + __set_a_pos, __set_b.begin() + __set_b_pos, __diagonal_spacing - star_offset,
-                                          __set_temp_output.begin() + __id * __diagonal_spacing + star_offset, __comp);
+        __set_temp_diag_a[__id] = __set_a_balanced_pos;
+        __set_temp_diag_b[__id] = __set_b_balanced_pos;
+        _TempData __temp_out{__diagonal_spacing - __star_offset+1}
+
+        std::uint16_t __count = __set_op(__set_a.begin() + __set_a_balanced_pos, __set_b.begin() + __set_b_balanced_pos, __diagonal_spacing - __star_offset,
+                              __temp_out, __comp);
+        return {__count, std::move(__temp_out)};
     }
     _Compare __comp;
     std::uint16_t __diagonal_spacing;
-    _SetOp __set_op;
+    _SetOpCount __set_op_count;
 };
 
+
+
+template <typename _ValueT>
+struct __set_temp_data
+{
+    __set_temp_data(std::uint16_t count) : __output(count)
+    {}
+    
+    std::vector<_ValueT>::iterator
+    get_acc() const
+    {
+        return __output.begin();
+    }
+
+    template<typename _ValueAcc>
+    void
+    set(std::uint16_t __idx, _ValueAcc __val) const
+    {
+        __output[__idx] = *__val;
+    }
+    std::vector<_ValueT> __output;
+}
+
+struct __noop_temp_data
+{
+    __noop_temp_data(std::uint16_t count)
+    {}
+
+    template <typename _ValueAcc>
+    void
+    operator()(std::uint16_t __idx, _ValueAcc __val) const
+    {
+    }
+}
+
+template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
+struct __set_generic_operation
+{
+    template <typename _InRng, typename _TempOutput, typename _Compare>
+    std::uint16_t
+    operator()(_InRng1 __in_rng1,  _InRng2 __in_rng2, std::size_t __num_eles_min, const _TempOutput& __temp_out, _Compare __comp) const
+    {
+        std::uint16_t __count = 0;
+        std::uint16_t __idx = 0;
+        while(__idx < __num_eles_min)
+        {
+            if (!__comp(*__in_rng1, *__in_rng2) && !__comp(*__in_rng2, *__in_rng1))
+            {
+                if constexpr (_CopyMatch)
+                {
+                    __temp_out.set(count, __in_rng1);
+                    ++count;
+                }
+                ++__in_rng1;
+                ++__in_rng2;
+                __idx += 2;
+            }
+            else
+            {
+                if (__comp(*__in_rng1, *__in_rng2))
+                {
+                    if constexpr (_CopyDiffSetA)
+                    {
+                        __temp_out.set(count, __in_rng1);
+                        ++count;
+                    }
+                    ++__in_rng1;
+                }
+                else
+                {
+                    if constexpr (_CopyDiffSetB)
+                    {
+                        __temp_out.set(count, __in_rng2);
+                        ++count;
+                    }
+                    ++__in_rng2;
+                }
+                ++__idx;
+            }
+        }
+        return count;
+    }
+};
+
+
+
+struct __set_intersection : __set_generic_operation<true, false, false>
+{
+};
+
+struct __set_difference : __set_generic_operation<false, true, false>
+{
+};
+
+struct __set_union : __set_generic_operation<true, true, true>
+{
+};
+
+struct __set_symmetric_difference : __set_generic_operation<false, true, true>
+{
+};
 
 template <typename _GenMask, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
 struct __gen_expand_count_set
