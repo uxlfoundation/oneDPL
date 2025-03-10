@@ -272,6 +272,7 @@ struct test_transform_iterator {
         transform_functor new_functor;
         ref_transform_functor ref_functor;
         //check default constructibility of transform_iterator with default constructible components
+        [[maybe_unused]] oneapi::dpl::transform_iterator<T1*, transform_functor> _it0;
         oneapi::dpl::transform_iterator<typename ::std::vector<T1>::iterator, transform_functor> _it1(in1.begin());
         oneapi::dpl::transform_iterator<typename ::std::vector<T1>::iterator, transform_functor> _it2(in1.begin(), new_functor);
 
