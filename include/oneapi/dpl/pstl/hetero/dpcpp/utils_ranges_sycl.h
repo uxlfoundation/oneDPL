@@ -216,38 +216,12 @@ struct is_passed_directly<Iter, std::enable_if_t<oneapi::dpl::__internal::__is_k
 {
 };
 
-template <typename Ip>
-struct is_passed_directly<oneapi::dpl::counting_iterator<Ip>> : ::std::true_type
-{
-};
-
-template <>
-struct is_passed_directly<oneapi::dpl::discard_iterator> : ::std::true_type
-{
-};
 
 template <typename Iter>
 struct is_passed_directly<::std::reverse_iterator<Iter>> : is_passed_directly<Iter>
 {
 };
 
-template <typename Iter, typename Unary>
-struct is_passed_directly<oneapi::dpl::transform_iterator<Iter, Unary>> : is_passed_directly<Iter>
-{
-};
-
-template <typename SourceIterator, typename IndexIterator>
-struct is_passed_directly<oneapi::dpl::permutation_iterator<SourceIterator, IndexIterator>>
-    : ::std::conjunction<
-          is_passed_directly<SourceIterator>,
-          is_passed_directly<typename oneapi::dpl::permutation_iterator<SourceIterator, IndexIterator>::IndexMap>>
-{
-};
-
-template <typename... Iters>
-struct is_passed_directly<zip_iterator<Iters...>> : ::std::conjunction<is_passed_directly<Iters>...>
-{
-};
 
 template <typename Iter>
 inline constexpr bool is_passed_directly_v = is_passed_directly<Iter>::value;
@@ -289,6 +263,29 @@ struct is_temp_buff<_Iter, ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && !::s
                                               !is_passed_directly_v<_Iter>>> : ::std::true_type
 {
 };
+
+template <typename T>
+constexpr
+auto
+is_passed_directly_in_onedpl_device_policies(const T&)
+{
+    return is_passed_directly<std::decay_t<T>>{};
+}
+
+struct __is_passed_directly_in_onedpl_device_policies_fn
+{
+    template <typename T>
+    constexpr auto operator()(const T& t) const
+    {
+        return is_passed_directly_in_onedpl_device_policies(t);
+    }
+};
+
+inline constexpr __is_passed_directly_in_onedpl_device_policies_fn __is_passed_directly_in_onedpl_device_policies;
+
+template <typename T>
+inline constexpr bool is_passed_directly_in_onedpl_device_policies_v=decltype(oneapi::dpl::__ranges::__is_passed_directly_in_onedpl_device_policies(std::declval<T>()))::value; 
+
 
 template <typename _Iter>
 using val_t = typename ::std::iterator_traits<_Iter>::value_type;
@@ -547,7 +544,7 @@ struct __get_sycl_range
 
     //specialization for permutation_iterator using USM pointer or direct pass object as source
     template <sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
-              ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && is_passed_directly_v<_Iter>, int> = 0>
+              ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && is_passed_directly_in_onedpl_device_policies_v<_Iter>, int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_Iter, _Map> __first,
                          oneapi::dpl::permutation_iterator<_Iter, _Map> __last)
@@ -565,7 +562,7 @@ struct __get_sycl_range
     // specialization for general case, permutation_iterator with base iterator that is not sycl_iterator or
     // passed directly.
     template <sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
-              ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && !is_passed_directly_v<_Iter>, int> = 0>
+              ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && !is_passed_directly_in_onedpl_device_policies_v<_Iter>, int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_Iter, _Map> __first,
                          oneapi::dpl::permutation_iterator<_Iter, _Map> __last)
@@ -574,8 +571,8 @@ struct __get_sycl_range
         assert(__n > 0);
 
         //TODO: investigate better method of handling this specifically for fancy_iterators which are composed fully
-        //      of a combination of fancy_iterators, sycl_iterators, and is_passed_directly types.
-        //      Currently this relies on UB because the size of the accessor when handling sycl_iterators
+        //      of a combination of fancy_iterators, sycl_iterators, and is_passed_directly_in_onedpl_device_policies
+        //      types. Currently this relies on UB because the size of the accessor when handling sycl_iterators
         //      in recursion below this level is incorrect.
         auto res_src = this->operator()(__first.base(), __first.base() + 1 /*source size*/);
 
