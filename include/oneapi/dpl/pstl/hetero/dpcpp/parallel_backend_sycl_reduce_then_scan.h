@@ -307,7 +307,6 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                const std::size_t __block_num) const
     {
         using _InitValueType = typename _InitType::__value_type;
-        std::size_t __work_group_size = __nd_range.get_local_range()[0];
         return __exec.queue().submit([&, this](sycl::handler& __cgh) {
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
             __cgh.depends_on(__prior_event);
@@ -424,6 +423,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
 
     // Constant parameters throughout all blocks
     const std::uint32_t __max_num_work_groups;
+    const std::uint32_t __work_group_size;
     const std::uint32_t __max_block_size;
     const std::uint32_t __max_num_sub_groups_local;
     const std::uint32_t __max_num_sub_groups_global;
@@ -472,7 +472,6 @@ struct __parallel_reduce_then_scan_scan_submitter<
                const std::size_t __block_num) const
     {
         std::uint32_t __inputs_in_block = std::min(__n - __block_num * __max_block_size, std::size_t{__max_block_size});
-        std::size_t __work_group_size = __nd_range.get_local_range()[0];
         return __exec.queue().submit([&, this](sycl::handler& __cgh) {
             // We need __num_sub_groups_local + 1 temporary SLM locations to store intermediate results:
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
@@ -755,6 +754,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
     }
 
     const std::uint32_t __max_num_work_groups;
+    const std::uint32_t __work_group_size;
     const std::uint32_t __max_block_size;
     const std::uint32_t __max_num_sub_groups_local;
     const std::uint32_t __max_num_sub_groups_global;
@@ -863,6 +863,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
                                                    __is_unique_pattern_v, _ReduceOp, _GenScanInput, _ScanInputTransform,
                                                    _WriteOp, _InitType, _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__num_work_groups,
+                                        __work_group_size,
                                         __max_inputs_per_block,
                                         __max_num_sub_groups_local,
                                         __max_num_sub_groups_global,
@@ -872,6 +873,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
                                         __reduce_op,
                                         __init};
     _ScanSubmitter __scan_submitter{__num_work_groups,
+                                    __work_group_size,
                                     __max_inputs_per_block,
                                     __max_num_sub_groups_local,
                                     __max_num_sub_groups_global,
