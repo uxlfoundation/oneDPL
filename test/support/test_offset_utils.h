@@ -133,7 +133,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, size_t 
                     return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
             };
             auto s = oneapi::dpl::experimental::select(p);
-            auto e = oneapi::dpl::experimental::submit(s, func);
+            oneapi::dpl::experimental::submit(s, func);
         }
         oneapi::dpl::experimental::wait(p.get_submission_group());
     }
