@@ -27,7 +27,7 @@ main()
     {
         const auto size = std::ranges::min(std::ranges::size(r_in), std::ranges::size(r_out));
 
-        auto res = std::ranges::copy(std::ranges::take_view(r_in, size), std::ranges::take_view(r_out, size).begin());
+        std::ranges::copy(std::ranges::take_view(r_in, size), std::ranges::take_view(r_out, size).begin());
 
         using ret_type = std::ranges::copy_result<std::ranges::borrowed_iterator_t<decltype(r_in)>,
             std::ranges::borrowed_iterator_t<decltype(r_out)>>;
