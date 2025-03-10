@@ -57,9 +57,6 @@ struct NoConstBeginView : std::ranges::view_base {
   int* end();
 };
 
-template <typename... Types>
-    using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
-
 void test() {
   int buffer[8] = {1, 2, 3, 4, 5, 6, 7, 8};
   {
