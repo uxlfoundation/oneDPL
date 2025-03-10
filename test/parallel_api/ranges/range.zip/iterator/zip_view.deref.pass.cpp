@@ -31,6 +31,9 @@
 
 namespace dpl_ranges = oneapi::dpl::ranges;
 
+template <typename... Types>
+using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
+
 void test() {
   std::array a{1, 2, 3, 4};
   std::array b{4.1, 3.2, 4.3};
