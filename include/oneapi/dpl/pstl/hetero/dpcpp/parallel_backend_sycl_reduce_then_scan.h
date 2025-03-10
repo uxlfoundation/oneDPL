@@ -266,31 +266,30 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     }
 }
 
-// With optimization enabled, reduce-then-scan requires a sub-group size of 32. Without optimization, we must compile
-// to a sub-group size of 16 to workaround a hardware bug on certain Intel integrated graphics architectures.
-// Since host and device compilation levels may mismatch, this is the behavior in the following cases:
-//  -- Host compiler -O0 and device compiler -O0: A sub-group size of 16 is checked by the host and used by the device.
-//  -- Host compiler -O1+ and device compiler -O1+: A sub-group size of 32 is checked by the host and used by the device.
-//  -- Host compiler -O0 and device compiler -O1+: A sub-group size of 16 is checked by the host but 32 may be used by the device.
-//  This works on Intel GPUs. On NVIDIA and AMD, sub-group sizes of 16 are not supported, so we fallback to scan-then propagate.
-//  -- Host compiler -O1+ and device compiler -O0: If the device is an Intel architecture, then the host checks for a sub-group
-//  size of 32, but may use a size of 16. On other architectures use a sub-group size of 32.
+// With optimization enabled, reduce-then-scan requires a sub-group size of 32. Without optimization, we require sub-group
+// sizes of 16 on Intel GPUs (detected as SPIRV targets) and 32 everywhere else. The return value of this function is
+// only meaningful when __SYCL_DEVICE_ONLY__ is defined.
 constexpr inline std::uint8_t
-__get_reduce_then_scan_sg_sz()
+__get_reduce_then_scan_sg_sz_device()
 {
-    // For the device compiler with non-intel architectures, choose a sub-group size of 32. This prevents a
-    // device / host compiler optimization level mismatch where the host compiler is -O1 or higher and device is -O0
-    // from attempting to compile a sub-group size of 16 on non-Intel GPUs which is never supported.
-#if defined(__SYCL_DEVICE_ONLY__) && !_ONEDPL_DETECT_SPIRV_COMPILATION
-    return 32;
-#endif
-    // Host compiler and Intel GPU checks. Ideally, we would choose a sub-group size based the device optimization level,
-    // but this is not possible from the host compiler.
-#if _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED
+#if _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED || !_ONEDPL_DETECT_SPIRV_COMPILATION
     return 32;
 #else
     return 16;
 #endif
+}
+
+// To workaround a hardware bug on certain Intel integrated graphics, we use sub-group sizes of 16 with -O0
+// compilation on the device and 32 for -O1 and higher. For Intel devices, ensure sub-group sizes of 16 and 32 are present as we cannot
+// determine the device optimization level from the host. For all other devices, ensure a sub-group size of 32 is present.
+template <typename _ExecutionPolicy>
+std::vector<std::uint8_t>
+__get_reduce_then_scan_sg_sz_cands_host(const _ExecutionPolicy& __exec)
+{
+    const sycl::device& device = __exec.queue().get_device();
+    if (device.get_info<sycl::info::device::vendor_id>() == __dpl_sycl::__intel_vendor_id)
+        return {16, 32};
+    return {32};
 }
 
 template <typename... _Name>
@@ -311,7 +310,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                                                     __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType,
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
-    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz();
+    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz_device();
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
     template <typename _ExecutionPolicy, typename _InRng, typename _TmpStorageAcc>
@@ -463,7 +462,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
     _ScanInputTransform, _WriteOp, _InitType, __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
-    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz();
+    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz_device();
 
     _InitValueType
     __get_block_carry_in(const std::size_t __block_num, _InitValueType* __tmp_ptr,
@@ -791,8 +790,11 @@ template <typename _ExecutionPolicy>
 bool
 __is_gpu_with_reduce_then_scan_sg_sz(const _ExecutionPolicy& __exec)
 {
+    const std::vector<std::uint8_t> __sg_sz_cands = __get_reduce_then_scan_sg_sz_cands_host(__exec);
     const bool __dev_supports_sg_sz =
-        oneapi::dpl::__internal::__supports_sub_group_size(__exec, __get_reduce_then_scan_sg_sz());
+        std::all_of(__sg_sz_cands.begin(), __sg_sz_cands.end(), [&__exec](std::uint8_t __sg_sz) {
+            return oneapi::dpl::__internal::__supports_sub_group_size(__exec, __sg_sz);
+        });
     return (__exec.queue().get_device().is_gpu() && __dev_supports_sg_sz);
 }
 
