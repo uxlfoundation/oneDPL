@@ -268,9 +268,24 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
 // With optimization enabled, reduce-then-scan requires a sub-group size of 32. Without optimization, we must compile
 // to a sub-group size of 16 to workaround a hardware bug on certain Intel integrated graphics architectures.
+// Since host and device compilation levels may mismatch, this is the behavior in the following cases:
+//  -- Host compiler -O0 and device compiler -O0: A sub-group size of 16 is checked by the host and used by the device.
+//  -- Host compiler -O1+ and device compiler -O1+: A sub-group size of 32 is checked by the host and used by the device.
+//  -- Host compiler -O0 and device compiler -O1+: A sub-group size of 16 is checked by the host but 32 may be used by the device.
+//  This works on Intel GPUs. On NVIDIA and AMD, sub-group sizes of 16 are not supported, so we fallback to scan-then propagate.
+//  -- Host compiler -O1+ and device compiler -O0: If the device is an Intel architecture, then the host checks for a sub-group
+//  size of 32, but may use a size of 16. On other architectures use a sub-group size of 32.
 constexpr inline std::uint8_t
 __get_reduce_then_scan_sg_sz()
 {
+    // For the device compiler with non-intel architectures, choose a sub-group size of 32. This prevents a
+    // device / host compiler optimization level mismatch where the host compiler is -O1 or higher and device is -O0
+    // from attempting to compile a sub-group size of 16 on non-Intel GPUs which is never supported.
+#if defined(__SYCL_DEVICE_ONLY__) && !_ONEDPL_DETECT_SPIRV_COMPILATION
+    return 32;
+#endif
+    // Host compiler and Intel GPU checks. Ideally, we would choose a sub-group size based the device optimization level,
+    // but this is not possible from the host compiler.
 #if _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED
     return 32;
 #else
