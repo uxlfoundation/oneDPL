@@ -30,6 +30,9 @@
 
 namespace dpl_ranges = oneapi::dpl::ranges;
 
+template <typename... Types>
+using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
+
 constexpr int buff[] = {1, 2, 3};
 
 struct DefaultConstructibleView : std::ranges::view_base {

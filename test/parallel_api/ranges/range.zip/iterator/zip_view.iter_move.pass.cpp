@@ -32,6 +32,9 @@
 
 namespace dpl_ranges = oneapi::dpl::ranges;
 
+template <typename... Types>
+using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
+
 struct ThrowingMove {
   ThrowingMove() = default;
   ThrowingMove(ThrowingMove&&) {}
