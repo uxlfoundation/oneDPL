@@ -27,6 +27,3 @@
 
 .. |fpga_handbook| replace:: Intel® oneAPI FPGA Handbook
 .. _fpga_handbook: https://www.intel.com/content/www/us/en/docs/oneapi-fpga-add-on/developer-guide/2025-0/intel-oneapi-fpga-handbook.html
-
-.. |yocto_layers| replace:: Layers for Yocto* Project
-.. _yocto_layers: https://www.intel.com/content/www/us/en/docs/oneapi-iot-toolkit/get-started-guide-linux/2025-0/adding-oneapi-components-to-yocto-project-builds.html
