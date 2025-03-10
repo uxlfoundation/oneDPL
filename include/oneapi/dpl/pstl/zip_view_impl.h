@@ -43,7 +43,7 @@ template <bool C, typename... _Views>
 concept __all_forward = (std::ranges::forward_range<__maybe_const<C, _Views>> && ...);
 
 template <bool C, typename... _Views>
-concept __all_bidirectional = (std::ranges::bidirectional_range<std::conditional_t<C, const _Views, _Views>> && ...);
+concept __all_bidirectional = (std::ranges::bidirectional_range<__maybe_const<C, _Views>> && ...);
 
 template <bool C, typename... _Views>
 concept __all_random_access = (std::ranges::random_access_range<__maybe_const<C, _Views>> && ...);
