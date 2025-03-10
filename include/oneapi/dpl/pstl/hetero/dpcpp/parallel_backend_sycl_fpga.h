@@ -67,10 +67,12 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
             __cgh.single_task<_Name...>([=]() {
+                // Disable vectorization and multiple iterations per item.
+                __pfor_params<false, false, _Ranges...> __params;
 #pragma unroll(::std::decay <_ExecutionPolicy>::type::unroll_factor)
                 for (auto __idx = 0; __idx < __count; ++__idx)
                 {
-                    __brick.__scalar_path_impl(std::true_type{}, __idx, __rngs...);
+                    __brick(std::true_type{}, __idx, __params, __rngs...);
                 }
             });
         });
