@@ -438,4 +438,7 @@ struct IterMoveSwapRange {
 };
 } // namespace adltest
 
+template <typename... Types>
+using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
+
 #endif // TEST_STD_RANGES_RANGE_ADAPTORS_RANGE_ZIP_TYPES_H
