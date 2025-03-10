@@ -220,7 +220,7 @@ struct walk3_vectors_or_scalars
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2, typename _Range3,
               std::enable_if_t<!_Params::__b_vectorize, int> = 0>
     void
-    operator()(_IsFull, const std::size_t __idx, _Params, _Range1 __rng1, _Range2 __rng2, _Range3 __rng3) const
+    operator()(_IsFull, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3) const
     {
 
         __f(__rng1[__idx], __rng2[__idx], __rng3[__idx]);
@@ -264,7 +264,7 @@ struct walk_adjacent_difference
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
               std::enable_if_t<!_Params::__b_vectorize, int> = 0>
     void
-    operator()(_IsFull, const std::size_t __idx, _Params, const _Range1 __rng1, _Range2 __rng2) const
+    operator()(_IsFull, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
         // just copy an element if it is the first one
         if (__idx == 0)
@@ -275,7 +275,7 @@ struct walk_adjacent_difference
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
               std::enable_if_t<_Params::__b_vectorize, int> = 0>
     void
-    operator()(_IsFull __is_full, const std::size_t __idx, _Params, const _Range1 __rng1, _Range2 __rng2) const
+    operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
         _ValueType __rng1_vector[_Params::__vector_size + 1];
