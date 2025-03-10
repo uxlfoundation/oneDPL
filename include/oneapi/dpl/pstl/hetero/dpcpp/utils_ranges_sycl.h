@@ -196,36 +196,6 @@ struct is_permutation<Iter, ::std::enable_if_t<Iter::is_permutation::value>> : :
 {
 };
 
-//is_passed_directly trait definition; specializations for the oneDPL iterators
-
-template <typename Iter, typename Void = void>
-struct is_passed_directly : ::std::is_pointer<Iter>
-{
-};
-
-//support legacy "is_passed_directly" trait
-template <typename Iter>
-struct is_passed_directly<Iter, ::std::enable_if_t<Iter::is_passed_directly::value>> : ::std::true_type
-{
-};
-
-//support std::vector::iterator with usm host / shared allocator as passed directly
-template <typename Iter>
-struct is_passed_directly<Iter, std::enable_if_t<oneapi::dpl::__internal::__is_known_usm_vector_iter_v<Iter>>>
-    : std::true_type
-{
-};
-
-
-template <typename Iter>
-struct is_passed_directly<::std::reverse_iterator<Iter>> : is_passed_directly<Iter>
-{
-};
-
-
-template <typename Iter>
-inline constexpr bool is_passed_directly_v = is_passed_directly<Iter>::value;
-
 // A trait for checking if iterator is heterogeneous or not
 
 template <typename Iter>
@@ -260,32 +230,9 @@ struct is_temp_buff : ::std::false_type
 
 template <typename _Iter>
 struct is_temp_buff<_Iter, ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && !::std::is_pointer_v<_Iter> &&
-                                              !is_passed_directly_v<_Iter>>> : ::std::true_type
+                                              !oneapi::dpl::__internal::is_passed_directly_in_onedpl_device_policies_v<_Iter>>> : ::std::true_type
 {
 };
-
-template <typename T>
-constexpr
-auto
-is_passed_directly_in_onedpl_device_policies(const T&)
-{
-    return is_passed_directly<std::decay_t<T>>{};
-}
-
-struct __is_passed_directly_in_onedpl_device_policies_fn
-{
-    template <typename T>
-    constexpr auto operator()(const T& t) const
-    {
-        return is_passed_directly_in_onedpl_device_policies(t);
-    }
-};
-
-inline constexpr __is_passed_directly_in_onedpl_device_policies_fn __is_passed_directly_in_onedpl_device_policies;
-
-template <typename T>
-inline constexpr bool is_passed_directly_in_onedpl_device_policies_v=decltype(oneapi::dpl::__ranges::__is_passed_directly_in_onedpl_device_policies(std::declval<T>()))::value; 
-
 
 template <typename _Iter>
 using val_t = typename ::std::iterator_traits<_Iter>::value_type;
@@ -544,7 +491,7 @@ struct __get_sycl_range
 
     //specialization for permutation_iterator using USM pointer or direct pass object as source
     template <sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
-              ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && is_passed_directly_in_onedpl_device_policies_v<_Iter>, int> = 0>
+              ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && oneapi::dpl::__internal::is_passed_directly_in_onedpl_device_policies_v<_Iter>, int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_Iter, _Map> __first,
                          oneapi::dpl::permutation_iterator<_Iter, _Map> __last)
@@ -562,7 +509,7 @@ struct __get_sycl_range
     // specialization for general case, permutation_iterator with base iterator that is not sycl_iterator or
     // passed directly.
     template <sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
-              ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && !is_passed_directly_in_onedpl_device_policies_v<_Iter>, int> = 0>
+              ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && !oneapi::dpl::__internal::is_passed_directly_in_onedpl_device_policies_v<_Iter>, int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_Iter, _Map> __first,
                          oneapi::dpl::permutation_iterator<_Iter, _Map> __last)
@@ -597,7 +544,7 @@ struct __get_sycl_range
 
     // for raw pointers and direct pass objects (for example, counting_iterator, iterator of USM-containers)
     template <sycl::access::mode _LocalAccMode, typename _Iter>
-    ::std::enable_if_t<is_passed_directly_v<_Iter>, __range_holder<oneapi::dpl::__ranges::guard_view<_Iter>>>
+    ::std::enable_if_t<oneapi::dpl::__internal::is_passed_directly_in_onedpl_device_policies_v<_Iter>, __range_holder<oneapi::dpl::__ranges::guard_view<_Iter>>>
     __process_input_iter(_Iter __first, _Iter __last)
     {
         assert(__first < __last);
