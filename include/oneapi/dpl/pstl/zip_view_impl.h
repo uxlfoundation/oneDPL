@@ -46,7 +46,7 @@ template <bool C, typename... _Views>
 concept __all_bidirectional = (std::ranges::bidirectional_range<std::conditional_t<C, const _Views, _Views>> && ...);
 
 template <bool C, typename... _Views>
-concept __all_random_access = (std::ranges::random_access_range<std::conditional_t<C, const _Views, _Views>> && ...);
+concept __all_random_access = (std::ranges::random_access_range<__maybe_const<C, _Views>> && ...);
 
 template <typename... Rs>
 concept __zip_is_common = (sizeof...(Rs) == 1 && (std::ranges::common_range<Rs> && ...)) ||
