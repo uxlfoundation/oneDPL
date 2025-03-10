@@ -146,7 +146,7 @@ uninitialized_fill(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Forward
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (std::is_trivially_default_constructible_v<_ValueType> && std::is_trivially_copyable_v<_ValueType>)
+    if constexpr (std::is_trivially_default_constructible_v<_ValueType> && std::is_trivially_copy_assignable_v<_ValueType>)
     {
         oneapi::dpl::__internal::__pattern_walk_brick(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -170,7 +170,7 @@ uninitialized_fill_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size 
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (std::is_trivially_default_constructible_v<_ValueType> && std::is_trivially_copyable_v<_ValueType>)
+    if constexpr (std::is_trivially_default_constructible_v<_ValueType> && std::is_trivially_copy_assignable_v<_ValueType>)
     {
         return oneapi::dpl::__internal::__pattern_walk_brick_n(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n,
@@ -308,7 +308,7 @@ uninitialized_value_construct(_ExecutionPolicy&& __exec, _ForwardIterator __firs
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (std::is_trivially_default_constructible_v<_ValueType> && std::is_trivially_copyable_v<_ValueType>)
+    if constexpr (std::is_trivially_default_constructible_v<_ValueType> && std::is_trivially_copy_assignable_v<_ValueType>)
     {
         oneapi::dpl::__internal::__pattern_walk_brick(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -332,7 +332,7 @@ uninitialized_value_construct_n(_ExecutionPolicy&& __exec, _ForwardIterator __fi
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (std::is_trivially_default_constructible_v<_ValueType> && std::is_trivially_copyable_v<_ValueType>)
+    if constexpr (std::is_trivially_default_constructible_v<_ValueType> && std::is_trivially_copy_assignable_v<_ValueType>)
     {
         return oneapi::dpl::__internal::__pattern_walk_brick_n(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n,
