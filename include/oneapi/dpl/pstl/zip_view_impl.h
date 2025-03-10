@@ -93,12 +93,12 @@ __apply_to_tuple(_F __f, _Tuple& __t, _ReturnAdapter __tr = {})
 }
 
 template <typename _F, typename _Tuple1, typename _Tuple2>
-decltype(auto)
+void
 __apply_to_tuples(_F __f, _Tuple1& __t1, _Tuple2& __t2)
 {
     static_assert(std::tuple_size_v<_Tuple1> == std::tuple_size_v<_Tuple2>);
 
-    return __apply_to_tuples_impl(__f, __t1, __t2, std::make_index_sequence<std::tuple_size_v<_Tuple1>>{});
+    __apply_to_tuples_impl(__f, __t1, __t2, std::make_index_sequence<std::tuple_size_v<_Tuple1>>{});
 }
 
 } //namespace __internal
