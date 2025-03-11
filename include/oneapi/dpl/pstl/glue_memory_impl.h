@@ -226,6 +226,16 @@ get_unvectorized_policy(const _ExecutionPolicy& __exec)
 
 // [specialized.destroy]
 
+template <typename _ReferenceType, typename _ValueType>
+struct DestroyOp
+{
+    void
+    operator()(_ReferenceType __val) const
+    {
+        __val.~_ValueType();
+    }
+};
+
 template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
@@ -243,7 +253,7 @@ destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __
 #endif
 
         oneapi::dpl::__internal::__pattern_walk1(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first,
-                                                 __last, [](_ReferenceType __val) { __val.~_ValueType(); });
+                                                 __last, DestroyOp<_ReferenceType, _ValueType>{});
     }
 }
 
@@ -269,7 +279,7 @@ destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 
         return oneapi::dpl::__internal::__pattern_walk1_n(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
                                                           __first, __n,
-                                                          [](_ReferenceType __val) { __val.~_ValueType(); });
+                                                          DestroyOp<_ReferenceType, _ValueType>{});
     }
 }
 

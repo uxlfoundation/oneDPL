@@ -965,6 +965,15 @@ DEFINE_TEST(test_move)
     }
 };
 
+template <typename Iterator1ValueType, typename Iterator2ValueType>
+struct test_adjacent_difference_functor
+{
+    Iterator2ValueType operator()(Iterator1ValueType& a, Iterator1ValueType& b) const
+    {
+        return a + b;
+    }
+};
+
 DEFINE_TEST(test_adjacent_difference)
 {
     DEFINE_TEST_CONSTRUCTOR(test_adjacent_difference, 1.0f, 1.0f)
@@ -982,7 +991,7 @@ DEFINE_TEST(test_adjacent_difference)
         Iterator1ValueType fill_value{1};
         Iterator2ValueType blank_value{0};
 
-        auto __f = [](Iterator1ValueType& a, Iterator1ValueType& b) -> Iterator2ValueType { return a + b; };
+        test_adjacent_difference_functor<Iterator1ValueType, Iterator2ValueType> __f;
 
         // init
         ::std::for_each(host_keys.get(), host_keys.get() + n,
