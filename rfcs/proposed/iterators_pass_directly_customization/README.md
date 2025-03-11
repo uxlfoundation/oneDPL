@@ -22,78 +22,73 @@ Without something like this users are forced to only rely upon our provided iter
 details which are not part of oneDPL's specified interface.
 
 ## Proposal
+### High Level Proposal
 
-Create a customization point `is_passed_directly_in_onedpl_device_policies` which allows users to mark
-their types as "passed directly" by returning either `std::true_type{}` or as "non passed directly" by returning
-`std::false_type{}`. Also create also a public trait `oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<T>`
-which is an `inline constexpr bool` indicating the "passed directly" status of the template type `T`.`oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<T>` is very useful in `std::enable_if` and other SFINAE
-contexts, since we only require the typename rather than a named instance of the type to determine if the type is passed
-directly. It is also useful in the context of defining customizations for user types which are conditionally passed
-directly, as shown in an example below.
+We will create an Argument-Dependant Lookup (ADL) customization point which defines if iterators are "passed
+directly" `is_passed_directly_in_onedpl_device_policies`. Users may define if their iterator types should be "passed
+directly" by onedpl by defining a constexpr function in the same namespace where the iterator is defined. 
+`is_passed_directly_in_onedpl_device_policies` must accept a const lvalue reference to the iterator type being
+specialized and return `std::true_type{}` if the iterator type is "passed directly" and `std::false_type{}` otherwise.
 
-The default implementation of the customization point `is_passed_directly_in_onedpl_device_policies` will defer to the
-existing `oneapi::dpl::__ranges::is_passed_directly<T>` structure as shown, which is already used internally to oneDPL.
+Additionaly, oneDPL will provide a public trait,
+`inline constexpr bool oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<T>`, indicating if the iterator type
+`T` is "passed directly". This public trait is intended to be used to help define 
+`is_passed_directly_in_onedpl_device_policies` for wrapper iterator types which depend on the "passed directly" status
+of their base iterator(s) using only the base iterator type(s) rather than a named instance. It may also be used to
+confirm user iterator types "passed directly" traits are as intended to prevent unnecessary overhead in oneDPL calls.
 
-```
-template <typename T>
-constexpr
-auto
-is_passed_directly_in_onedpl_device_policies(const T&)
-{
-	return oneapi::dpl::__ranges::is_passed_directly<T>{};
-}
-```
+### Additional Information
 
-User who want to customize this function for their own type must override it in the same namespace as their defined
-type.
+The default implementation of the customization point `is_passed_directly_in_onedpl_device_policies` will be used to
+explicitly mark the following iterators as "passed directly":
+* pointers (assumes usm pointers)
+* iterators containing the legacy `using is_passed_directly = true` trait defined within the type definition
+* iterators to usm shared allocated `std::vectors` (when knowable)
+* `std::reverse_iterator<Iter>` when `Iter` is also "passed directly"
 
-`oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<T>` will rely upon the customization point
-`is_passed_directly_in_onedpl_device_policies`, as well as `std::declval<T>()` and `decltype` to determine the passed
-directly status of a type. oneDPL will use this customization point internally when determining how to handle incoming
-data, picking up any user defined customizations.
+oneDPL will define the "passed directly" definitions of its custom iterators as follows:
+* `zip_iterator` is "passed directly" when all base iterators are "passed directly"
+* `counting_iterator` and `discard_iterators` are always "passed directly"
+* `transform_iterator` is "passed directly" if its source iterator is "passed directly"
+* `permutation_iterator` is "passed directly" if both its source iterator and its index map are "passed directly"
+
+### Implementation Details
 
 When using device policies, oneDPL will run compile time checks on argument iterator types by calling
 `is_passed_directly_in_onedpl_device_policies`. If `std::true_type{}` is returned, oneDPL will pass the iterator
 directly to sycl kernels rather than copying the data into `sycl::buffers` and using those buffers to transfer data to
-sycl kernels. Users may also use `oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<T>` themselves to check
-how the oneDPL internals will treat any iterator types. This may be useful to ensure that no extra overhead occurs in
-device policy calls of oneDPL APIs.
-
-This option can exist in concert with existing methods, the legacy `is_passed_directly` typedef in types, the internal
-`oneapi::dpl::__ranges::is_passed_directly` trait specializations. It would be possible to simplify the internal
-implementation away from explicit specializations and instead using the customization point, but that is not required
-at first implementation.
-
-`oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v` will be defined in `oneapi/dpl/type_traits`.
+SYCL kernels. 
 
 The specification and implementation will be prepared once this RFC is accepted as "proposed", we do not intend to offer
-this first as experimental. This RFC will target "Supported" once we have implementation solidified its details.
+this first as experimental. This RFC will target "Supported" once specification and implementation are accepted.
 
 ### Examples
 
-Below is a simple example of a type and customization point definition which is always passed directly.
+Below is a simple example of an iterator and ADL customization point definition which is always "passed directly".
 
 ```
 namespace user
 {
 
-    struct my_passed_directly_type
+    struct my_passed_directly_iterator
     {
         /* unspecified user definition */
     };
 
     constexpr
     auto
-    is_passed_directly_in_onedpl_device_policies(const my_passed_directly_type&)
+    is_passed_directly_in_onedpl_device_policies(const my_passed_directly_iterator&)
     {
         return std::true_type{};
     }
 } //namespace user
 ```
 
-Users can use any `constexpr` logic based on their type to determine if the type can be passed directly into a SYCL
-kernel without any processing. Below is an example of a type which contains a pair of iterators, and should be treated
-as passed directly if and only if both base iterators are also passed directly. 
+Users can use any `constexpr` logic based on their iterator to determine if the iterator can be passed directly into a
+SYCL kernel without any processing. Below is an example of a type which contains a pair of iterators, and should be 
+treated as passed directly if and only if both base iterators are also passed directly. Note that the use of the public
+trait enables use of the base iterator type alone without creating a named instance of the base iterator to pass into
+the ADL customization point.
 
 ```
 namespace user
@@ -171,5 +166,5 @@ properly conveys the meaning to the users?
     * `oneapi::dpl::onedpl_is_iterator_device_ready[_v]`
     * `oneapi::dpl::is_passed_directly_to_sycl_backend[_v]`
     * `oneapi::dpl::requires_explicit_data_transfer_onedpl_device_policies[_v]` (inverted)
-* Where should this be located?  
+* Where should this be located?
   * Possible options include `oneapi/dpl/iterator`, `oneapi/dpl/type_traits`.
