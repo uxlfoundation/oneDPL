@@ -99,6 +99,46 @@ main()
         EXPECT_TRUE(std::get<0>(zip_view_sort[i]) == max_n - 1 - i && std::get<1>(zip_view_sort[i]) == max_n - 1 - i,
             "Wrong effect for oneapi::dpl::ranges::sort with zip_view.");
     }
+#if TEST_DPCPP_BACKEND_PRESENT
+    {
+    const char* err_msg = "Wrong effect for oneapi::dpl::ranges::sort with zip_view and a device policy.";
+
+    const int n = test_std_ranges::medium_size;
+    std::vector<int> vals(n), keys(n);
+
+    //test with random number and projection usage
+    std::default_random_engine gen{std::random_device{}()};
+    std::uniform_real_distribution<float> dist(0.0, 100.0);
+
+    std::generate(vals.begin(), vals.end(), [&] { return dist(gen); });
+    std::generate(keys.begin(), keys.end(), [&] { return dist(gen); });
+
+    std::vector<int> vals_exp(vals);
+    std::vector<int> keys_exp(keys);
+
+    auto exec = TestUtils::default_dpcpp_policy;
+    using Policy = decltype(exec);
+    {
+        using namespace test_std_ranges;
+        usm_subrange<int> cont_vals(exec, vals.data(), n);
+        usm_subrange<int> cont_keys(exec, keys.data(), n);
+        auto view_vals = cont_vals();
+        auto view_keys = cont_keys();
+        auto view_s = dpl_ranges::views::zip(view_vals, view_keys);
+
+        //call Range based sort with a device policy
+        dpl_ranges::stable_sort(exec, view_s, std::ranges::greater{}, [](const auto& a) { return std::get<1>(a);});
+
+        //call a reference sort function
+        auto first = oneapi::dpl::make_zip_iterator(vals_exp.begin(), keys_exp.begin());
+        std::stable_sort(first, first + n, [](const auto& a, const auto& b) { return std::get<1>(a) > std::get<1>(b);});
+    }
+
+    //result check
+    EXPECT_EQ_N(vals_exp.begin(), vals.begin(), n, err_msg);
+    EXPECT_EQ_N(keys_exp.begin(), keys.begin(), n, err_msg);
+    }
+#endif //TEST_DPCPP_BACKEND_PRESENT
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
