@@ -84,15 +84,6 @@ template <typename _Iter>
 struct __is_legacy_passed_directly<_Iter, ::std::enable_if_t<_Iter::is_passed_directly::value>> : std::true_type
 {};
 
-
-template <typename _Iter>
-struct __is_reverse_iterator : std::false_type
-{};
-
-template <typename _BaseIter>
-struct __is_reverse_iterator<std::reverse_iterator<_BaseIter>> : std::true_type
-{};
-
 template <typename T>
 constexpr
 auto
@@ -104,8 +95,6 @@ is_passed_directly_in_onedpl_device_policies(const T&)
         return std::true_type{};
     else if constexpr (__is_legacy_passed_directly<std::decay_t<T>>::value)
         return std::true_type{};
-    else if constexpr (__is_reverse_iterator<std::decay_t<T>>::value)
-        return is_passed_directly_in_onedpl_device_policies(std::declval<std::decay_t<T>>());
     else
         return std::false_type{};
 }
@@ -122,7 +111,7 @@ struct __is_passed_directly_in_onedpl_device_policies_fn
 inline constexpr __is_passed_directly_in_onedpl_device_policies_fn __is_passed_directly_in_onedpl_device_policies;
 
 template <typename T>
-inline constexpr bool is_passed_directly_in_onedpl_device_policies_v=decltype(oneapi::dpl::__internal::__is_passed_directly_in_onedpl_device_policies(std::declval<T>()))::value; 
+inline constexpr bool is_passed_directly_in_onedpl_device_policies_v=decltype(oneapi::dpl::__internal::__is_passed_directly_in_onedpl_device_policies(std::declval<T>()))::value;
 
 //zip_iterator version for forward iterator
 //== and != comparison is performed only on the first element of the tuple
@@ -1061,5 +1050,23 @@ map_zip(F f, TBig<T...> in, RestTuples... rest)
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
+
+// inject passed directly ADL customization for reverse_iterator into std namespace
+namespace std
+{
+
+template <typename T>
+constexpr
+auto
+is_passed_directly_in_onedpl_device_policies(const std::reverse_iterator<T>&)
+{
+    if constexpr (oneapi::dpl::__internal::is_passed_directly_in_onedpl_device_policies_v<T>)
+        return std::true_type{};
+    else
+        return std::false_type{};
+}
+
+} // namespace std
+
 
 #endif // _ONEDPL_ITERATOR_IMPL_H
