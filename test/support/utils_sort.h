@@ -118,10 +118,9 @@ static std::atomic<std::int32_t> KeyCount;
 //! One more than highest index in array to be sorted.
 static std::uint32_t LastIndex;
 
-//! Keeping Equal() static and a friend of ParanoidKey class (C++, paragraphs 3.5/7.1.1)
 class ParanoidKey;
 
-static bool
+inline bool
 Equal(const ParanoidKey& x, const ParanoidKey& y, bool);
 
 //! A key to be sorted, with lots of checking.
@@ -226,21 +225,21 @@ class KeyCompare
     }
 };
 
-static bool
+inline bool
 Equal(const ParanoidKey& x, const ParanoidKey& y, bool is_stable)
 {
     return (x.value == y.value && !is_stable) || (x.index == y.index);
 }
 
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-static bool
+bool
 Equal(const T& x, const T& y, bool /*is_stable*/)
 {
     return x == y;
 }
 
 #if TEST_DPCPP_BACKEND_PRESENT
-static bool
+inline bool
 Equal(const sycl::half& x, const sycl::half& y, bool /*is_stable*/)
 {
     return x == y;
