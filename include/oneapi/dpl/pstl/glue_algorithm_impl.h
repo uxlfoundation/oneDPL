@@ -301,6 +301,17 @@ copy_if(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 
 
 // [alg.swap]
 
+template <typename _ReferenceType1, typename _ReferenceType2>
+struct swap_ranges_functor
+{
+    void
+    operator()(_ReferenceType1 __x, _ReferenceType2 __y) const
+    {
+        using ::std::swap;
+        swap(__x, __y);
+    }
+};
+
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator2>
 swap_ranges(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
@@ -312,10 +323,7 @@ swap_ranges(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardItera
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2);
 
     return oneapi::dpl::__internal::__pattern_swap(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                   __last1, __first2, [](_ReferenceType1 __x, _ReferenceType2 __y) {
-                                                       using ::std::swap;
-                                                       swap(__x, __y);
-                                                   });
+                                                   __last1, __first2, swap_ranges_functor<_ReferenceType1, _ReferenceType2>{});
 }
 
 // [alg.transform]
