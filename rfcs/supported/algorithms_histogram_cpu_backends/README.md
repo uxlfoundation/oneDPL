@@ -5,7 +5,7 @@ The oneDPL library added histogram APIs in the oneAPI Specification 1.4. Please 
 [oneAPI Specification](https://github.com/uxlfoundation/oneAPI-spec/blob/main/source/elements/oneDPL/source/parallel_api/algorithms.rst#parallel-algorithms)
 for details. This RFC outlines the now supported host-side backends (serial, TBB, OpenMP).
 
-The commit related containing the implementation proposed here can be found
+The commit containing the implementation proposed here can be found
 [here](https://github.com/uxlfoundation/oneDPL/commit/780705c3bf3eee50b72a37cbc730de28d524efe9).
 
 ### Version Information
