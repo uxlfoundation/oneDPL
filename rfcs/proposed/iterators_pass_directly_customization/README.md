@@ -165,5 +165,11 @@ combinations of iterators, usm pointers etc.
 
 ## Open Questions
 
-* Is there a better, more concise name than `is_passed_directly_in_onedpl_device_policies` that properly conveys the
-meaning to the users?
+* Is there a better, more concise name than `oneapi::dpl::is_passed_directly_in_onedpl_device_policies[_v]` that
+properly conveys the meaning to the users?
+  * Other names proposed:
+    * `oneapi::dpl::onedpl_is_iterator_device_ready[_v]`
+    * `oneapi::dpl::is_passed_directly_to_sycl_backend[_v]`
+    * `oneapi::dpl::requires_explicit_data_transfer_onedpl_device_policies[_v]` (inverted)
+* Where should this be located?  
+  * Possible options include `oneapi/dpl/iterator`, `oneapi/dpl/type_traits`.
