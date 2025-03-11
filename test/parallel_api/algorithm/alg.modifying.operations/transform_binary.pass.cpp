@@ -38,7 +38,6 @@ struct test_one_policy
     void
     check_and_reset(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, OutputIterator out_first)
     {
-        typedef typename ::std::iterator_traits<OutputIterator>::value_type Out;
         typename ::std::iterator_traits<OutputIterator>::difference_type k = 0;
         for (; first1 != last1; ++first1, ++first2, ++out_first, ++k)
         {
@@ -70,7 +69,7 @@ struct test_one_policy
     {
         return Out(1.5) + std::get<0>(t1) - std::get<0>(t2);
     }
-    
+
     template <typename T>
     auto&
     get_actual(oneapi::dpl::__internal::tuple<T&>&& t)

@@ -195,7 +195,6 @@ template <typename _Type>
 void
 test_inplace()
 {
-    const ::std::int64_t init_val = 999;
     for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         {
