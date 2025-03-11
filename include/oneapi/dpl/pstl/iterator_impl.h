@@ -76,40 +76,38 @@ struct __make_references
 };
 
 
-//is_passed_directly internal trait definition
-template <typename Iter, typename Void = void>
-struct is_passed_directly : ::std::is_pointer<Iter>
-{
-};
+template <typename _Iter, typename _Void = void>
+struct __is_legacy_passed_directly : std::false_type
+{};
 
-//support legacy "is_passed_directly" trait
-template <typename Iter>
-struct is_passed_directly<Iter, ::std::enable_if_t<Iter::is_passed_directly::value>> : ::std::true_type
-{
-};
-
-//support std::vector::iterator with usm host / shared allocator as passed directly
-template <typename Iter>
-struct is_passed_directly<Iter, std::enable_if_t<oneapi::dpl::__internal::__is_known_usm_vector_iter_v<Iter>>>
-    : std::true_type
-{
-};
-
-template <typename Iter>
-struct is_passed_directly<::std::reverse_iterator<Iter>> : is_passed_directly<Iter>
-{
-};
+template <typename _Iter>
+struct __is_legacy_passed_directly<_Iter, ::std::enable_if_t<_Iter::is_passed_directly::value>> : std::true_type
+{};
 
 
-template <typename Iter>
-inline constexpr bool is_passed_directly_v = is_passed_directly<Iter>::value;
+template <typename _Iter>
+struct __is_reverse_iterator : std::false_type
+{};
+
+template <typename _BaseIter>
+struct __is_reverse_iterator<std::reverse_iterator<_BaseIter>> : std::true_type
+{};
 
 template <typename T>
 constexpr
 auto
 is_passed_directly_in_onedpl_device_policies(const T&)
 {
-    return is_passed_directly<std::decay_t<T>>{};
+    if constexpr (std::is_pointer<std::decay_t<T>>::value)
+        return std::true_type{};
+    else if constexpr (oneapi::dpl::__internal::__is_known_usm_vector_iter_v<std::decay_t<T>>)
+        return std::true_type{};
+    else if constexpr (__is_legacy_passed_directly<std::decay_t<T>>::value)
+        return std::true_type{};
+    else if constexpr (__is_reverse_iterator<std::decay_t<T>>::value)
+        return is_passed_directly_in_onedpl_device_policies(std::declval<std::decay_t<T>>());
+    else
+        return std::false_type{};
 }
 
 struct __is_passed_directly_in_onedpl_device_policies_fn
