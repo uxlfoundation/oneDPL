@@ -227,9 +227,8 @@ struct adjacent_difference_wrapper
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _BinaryOperation>
 _ForwardIterator2
-__pattern_adjacent_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
-                              _ForwardIterator1 __first, _ForwardIterator1 __last,
-                              _ForwardIterator2 __d_first, _BinaryOperation __op)
+__pattern_adjacent_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first,
+                              _ForwardIterator1 __last, _ForwardIterator2 __d_first, _BinaryOperation __op)
 {
     // Suppresses unused argument warning
     // keeping the argument list aligned with the other patterns with the hetero tag to simplify their search
