@@ -1,13 +1,13 @@
 # Host Backends Support for the Histogram APIs
 
 ## Introduction
-The oneDPL library added histogram APIs, currently implemented only for device policies with the DPC++ backend. These
-APIs are defined in the oneAPI Specification 1.4. Please see the
+The oneDPL library added histogram APIs in the oneAPI Specification 1.4. Please see the
 [oneAPI Specification](https://github.com/uxlfoundation/oneAPI-spec/blob/main/source/elements/oneDPL/source/parallel_api/algorithms.rst#parallel-algorithms)
-for details. The host-side backends (serial, TBB, OpenMP) are not yet supported. This RFC proposes extending histogram
-support to these backends.
+for details. This RFC outlines the now supported host-side backends (serial, TBB, OpenMP).
 
-The pull request for the proposed implementation exists [here](https://github.com/oneapi-src/oneDPL/pull/1974).
+The commit related containing the implementation proposed here can be found
+[here](https://github.com/uxlfoundation/oneDPL/commit/780705c3bf3eee50b72a37cbc730de28d524efe9).
+
 
 ## Motivations
 There are many cases to use a host-side serial or a host-side implementation of histogram. Another motivation for adding
