@@ -161,7 +161,7 @@ include tests with custom types, combinations of iterators, USM pointers, etc.
 ## Open Questions
 
 * Is there a better, more concise name than `oneapi::dpl::is_passed_directly_in_onedpl_device_policies[_v]` that
-* properly conveys the meaning to the users?
+properly conveys the meaning to the users?
     * Other names proposed:
         * `oneapi::dpl::onedpl_is_iterator_device_ready[_v]`
         * `oneapi::dpl::is_passed_directly_to_sycl_backend[_v]`
