@@ -995,7 +995,7 @@ struct __gen_expand_count_mask
         return std::tuple(mask ? _SizeType{1} : _SizeType{0}, mask, ele);
     }
     _GenMask __gen_mask;
-    _RangeTransform __rng_transform;
+    _RangeTransform __rng_transform{};
 };
 
 struct __get_zeroth_element
