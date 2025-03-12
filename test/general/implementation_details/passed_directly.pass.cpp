@@ -202,7 +202,7 @@ main()
     // custom iter type with explicit is_passed_directly trait defined as false
     test_with_base_iterator<false, simple_explicitly_not_passed_directly_iterator>();
 
-    // custom iter type implictly not passed directly
+    // custom iter type implicitly not passed directly
     test_with_base_iterator<false, simple_implicitly_not_passed_directly_iterator>();
 
     // std vector with normal allocator
