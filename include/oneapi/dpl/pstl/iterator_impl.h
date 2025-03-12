@@ -91,9 +91,12 @@ is_passed_directly_in_onedpl_device_policies(const T&)
 {
     if constexpr (std::is_pointer<std::decay_t<T>>::value)
         return std::true_type{};
+#if _ONEDPL_BACKEND_SYCL
+    // TODO: hide this better in sycl backend, either all passed directly functions, or just this
     else if constexpr (oneapi::dpl::__internal::__is_known_usm_vector_iter_v<std::decay_t<T>>)
         return std::true_type{};
-    else if constexpr (__is_legacy_passed_directly<std::decay_t<T>>::value)
+#endif
+        else if constexpr (__is_legacy_passed_directly<std::decay_t<T>>::value)
         return std::true_type{};
     else
         return std::false_type{};
