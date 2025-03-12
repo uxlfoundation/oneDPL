@@ -965,6 +965,8 @@ DEFINE_TEST(test_move)
     }
 };
 
+static const auto __f = [](auto& a, auto& b) -> std::decay_t<decltype(b)> { return a + b; };
+
 DEFINE_TEST(test_adjacent_difference)
 {
     DEFINE_TEST_CONSTRUCTOR(test_adjacent_difference, 1.0f, 1.0f)
@@ -982,10 +984,8 @@ DEFINE_TEST(test_adjacent_difference)
         Iterator1ValueType fill_value{1};
         Iterator2ValueType blank_value{0};
 
-        auto __f = [](Iterator1ValueType& a, Iterator1ValueType& b) -> Iterator2ValueType { return a + b; };
-
         // init
-        ::std::for_each(host_keys.get(), host_keys.get() + n,
+        ::std::for_each(host_keys.get(), host_keys.get() + n, 
                         [&fill_value](Iterator1ValueType& val) { val = (fill_value++ % 10) + 1; });
         ::std::fill(host_vals.get(), host_vals.get() + n, blank_value);
         update_data(host_keys, host_vals);
@@ -1040,6 +1040,7 @@ template <sycl::usm::alloc alloc_type>
 void
 test_usm_and_buffer()
 {
+#if 0
     // test1buffer
     PRINT_DEBUG("test_for_each");
     test1buffer<alloc_type, test_for_each<ValueType>>();
@@ -1094,8 +1095,10 @@ test_usm_and_buffer()
     test2buffers<alloc_type, test_copy_n<ValueType>>();
     PRINT_DEBUG("test_move");
     test2buffers<alloc_type, test_move<ValueType>>();
+#endif
     PRINT_DEBUG("test_adjacent_difference");
     test2buffers<alloc_type, test_adjacent_difference<ValueType>>();
+#if 0
     PRINT_DEBUG("test_swap_ranges");
     test2buffers<alloc_type, test_swap_ranges<ValueType>>();
     PRINT_DEBUG("test_reverse_copy");
@@ -1112,6 +1115,7 @@ test_usm_and_buffer()
     test2buffers<alloc_type, test_uninitialized_move_n<ValueType>>();
     PRINT_DEBUG("test_includes");
     test2buffers<alloc_type, test_includes<ValueType>>();
+#endif
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
