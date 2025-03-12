@@ -1117,10 +1117,10 @@ struct __gen_mask
     bool
     operator()(_InRng&& __in_rng, std::size_t __id) const
     {
-        return __pred((_RangeTransform{}(std::forward<_InRng>(__in_rng)))[__id]);
+        return __pred((__rng_transform(std::forward<_InRng>(__in_rng)))[__id]);
     }
     _Predicate __pred;
-    _RangeTransform __rng_transform;
+    _RangeTransform __rng_transform{};
 };
 
 template <typename _BinaryPredicate>
@@ -1158,7 +1158,7 @@ struct __gen_set_mask
         auto __res = oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a, __comp);
 
         bool bres =
-            _IsOpDifference::value; //initialization in true in case of difference operation; false - intersection.
+            _IsOpDifference::value; //initialization is true in case of difference operation; false - intersection.
         if (__res == __nb || __comp(__val_a, __set_b[__res]))
         {
             // there is no __val_a in __set_b, so __set_b in the difference {__set_a}/{__set_b};
@@ -1168,16 +1168,16 @@ struct __gen_set_mask
             auto __val_b = __set_b[__res];
 
             //Difference operation logic: if number of duplication in __set_a on left side from __id > total number of
-            //duplication in __set_b than a mask is 1
+            //duplication in __set_b then a mask is 1
 
             //Intersection operation logic: if number of duplication in __set_a on left side from __id <= total number of
-            //duplication in __set_b than a mask is 1
+            //duplication in __set_b then a mask is 1
 
             const std::size_t __count_a_left =
                 __id - oneapi::dpl::__internal::__pstl_left_bound(__set_a, std::size_t{0}, __id, __val_a, __comp) + 1;
 
             const std::size_t __count_b =
-                oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __val_b, __comp) - __res + __res -
+                oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __val_b, __comp) -
                 oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __val_b, __comp);
 
             if constexpr (_IsOpDifference::value)
@@ -1191,14 +1191,14 @@ struct __gen_set_mask
     _Compare __comp;
 };
 
-template <std::size_t I>
+template <std::size_t _EleId>
 struct __extract_range_from_zip
 {
     template <typename _InRng>
     auto
     operator()(const _InRng& __in_rng) const
     {
-        return std::get<I>(__in_rng.tuple());
+        return std::get<_EleId>(__in_rng.tuple());
     }
 };
 
@@ -1221,7 +1221,7 @@ struct __gen_expand_count_mask
     auto
     operator()(_InRng&& __in_rng, _SizeType __id) const
     {
-        auto __transformed_input = _RangeTransform{}(__in_rng);
+        auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
         //  zip_iterator which will return a tuple of references when dereferenced. With this explicit type, we copy
         //  the values of zipped input types rather than their references.
@@ -1231,6 +1231,7 @@ struct __gen_expand_count_mask
         return std::tuple(mask ? _SizeType{1} : _SizeType{0}, mask, ele);
     }
     _GenMask __gen_mask;
+    _RangeTransform __rng_transform{};
 };
 
 struct __get_zeroth_element
@@ -1618,16 +1619,16 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
 {
     // fill in reduce then scan impl
     using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_IsOpDifference, _Compare>;
-    using _GenMaskScan =
-        oneapi::dpl::__par_backend_hetero::__gen_mask<oneapi::dpl::__internal::__no_op,
-                                                      oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>>;
+    using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
+    using _MaskPredicate = oneapi::dpl::__internal::__no_op;
+    using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
+    using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
 
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMaskReduce>;
     using _ReduceOp = std::plus<_Size>;
-    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<
-        _GenMaskScan, oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>>;
+    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _ScanRangeTransform>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__rng1.size());
@@ -1636,11 +1637,11 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
         __backend_tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
+            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
                 __mask_buf.get_buffer())),
         std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp}}, _ReduceOp{},
-        _GenScanInput{_GenMaskScan{}}, _ScanInputTransform{}, _WriteOp{},
-        oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+        _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
+        _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
 }
 
