@@ -62,13 +62,6 @@ struct sycl_iterator
         auto old_iter = sycl_iterator<inMode, T, Allocator>{in.get_buffer(), 0};
         idx = in - old_iter;
     }
-    sycl_iterator&
-    operator=(const sycl_iterator& in)
-    {
-        buffer = in.buffer;
-        idx = in.idx;
-        return *this;
-    }
     sycl_iterator
     operator+(difference_type forward) const
     {
