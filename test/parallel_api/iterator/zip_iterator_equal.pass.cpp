@@ -30,6 +30,21 @@ using namespace TestUtils;
 #if TEST_DPCPP_BACKEND_PRESENT
 using namespace oneapi::dpl::execution;
 
+template <typename T>
+struct test_equal_fn1
+{
+    TuplePredicate<std::equal_to<T>, 0> __pred;
+
+    template <typename... Args>
+    bool operator()(Args&&... args) const
+    {
+        return __pred(std::forward<Args>(args)...);
+    }
+};
+
+template <typename T>
+static const test_equal_fn1<T> test_equal_fn1_pred;
+
 DEFINE_TEST(test_equal)
 {
     DEFINE_TEST_CONSTRUCTOR(test_equal, 1.0f, 1.0f)
@@ -59,8 +74,7 @@ DEFINE_TEST(test_equal)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first2)>, "zip_iterator (equal2) not properly copyable");
         }
 
-        bool is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2,
-                                   TuplePredicate<std::equal_to<T>, 0>{std::equal_to<T>{}});
+        bool is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2, test_equal_fn1_pred<T>);
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
 #endif
@@ -70,8 +84,7 @@ DEFINE_TEST(test_equal)
         *(host_vals.get() + n - 1) = T{0};
         host_vals.update_data();
 
-        is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 1>>(exec), tuple_first1, tuple_last1, tuple_first2,
-                              TuplePredicate<std::equal_to<T>, 0>{std::equal_to<T>{}});
+        is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 1>>(exec), tuple_first1, tuple_last1, tuple_first2, test_equal_fn1_pred<T>);
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
 #endif
