@@ -18,22 +18,17 @@ ONEDPL_VERSION_PATCH=0
 ONEDPL_SPEC_VERSION=104
 ```
 
-Histogram APIs are supported for device execution policies as of version 2022.5.0.  It was first specified in oneDPL
-specification version 1.4. However, this was released before `ONEDPL_SPEC_VERSION` was defined within our implementation
-of oneDPL.
+Histogram APIs are supported for device execution policies as of version 2022.5.0. It was released before
+`ONEDPL_SPEC_VERSION` was defined by the implementation.
 ```
 ONEDPL_VERSION_MAJOR=2022
 ONEDPL_VERSION_MINOR=5
 ONEDPL_VERSION_PATCH=0
 ```
 
-## Motivations
-There are many cases to use a host-side serial or a host-side implementation of histogram. Another motivation for adding
-the support is simply to be spec compliant with the oneAPI specification.
-
 ## Supported Implementation
-After exploring the above implementation for `histogram`, the following implementation better represents the use cases
-which are important, and provides reasonable performance for most cases.
+After exploring several alternatives, we think the following implementation better represents the use cases which are
+important, and provides reasonable performance for most cases.
 
 ### Embarrassingly Parallel Via Temporary Histograms
 This method uses temporary storage and a pair of calls to backend specific `parallel_for` functions to accomplish the
@@ -43,9 +38,9 @@ histogram-specific patterns in the implementation of a backend.
 #### Enumerable Thread Local Storage feature
 This algorithm requires that each parallel backend add a "make" function with the following signature:
 ```
-template <typename _ValueType, typename... _Args>
-auto /* or unspecified enumerable thread local storage type */
-oneapi::dpl::__par_backend::__make_enumerable_tls(_Args&&)
+template <typename _ValueType, typename... _Args>  
+auto /* or unspecified enumerable thread local storage type */  
+oneapi::dpl::__par_backend::__make_enumerable_tls(_Args&&...);  
 ```
 returning an object which represents an enumerable thread local storage where `_ValueType` represents the type of stored
 per-thread objects, and `_Args...` are the types of the arguments to send to the constructor of type `_ValueType` upon
@@ -120,7 +115,7 @@ The proposed algorithm should have `O(N) + O(num_bins)` operations where `N` is 
 The proposed algorithm should have `O(N * log(num_bins)) + O(num_bins)` operations where `N` is the number of input
 elements, and `num_bins` is the number of histogram bins.
 
-### Future work
+## Future work
 * Improve parallel_for pattern to allow generic implementation level to specify chunksize and serial cutoff thresholds.
 * Explore options for some partial vectorization of the first parallel_for loop
 * Explore improvements to `__enumerable_thread_local_storage` API for enumerating through created elements. Consider
