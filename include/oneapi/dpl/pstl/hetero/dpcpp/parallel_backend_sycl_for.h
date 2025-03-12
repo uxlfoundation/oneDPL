@@ -77,11 +77,11 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
     }
 };
 
-template <typename _KernelName, typename... _RangeTypes>
+template <typename _KernelName>
 struct __parallel_for_large_submitter;
 
-template <typename... _Name, typename... _RangeTypes>
-struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name...>, _RangeTypes...>
+template <typename... _Name>
+struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name...>>
 {
     // Limit the work-group size to 512 which has empirically yielded the best results across different architectures.
     static constexpr std::uint16_t __max_work_group_size = 512;
@@ -186,7 +186,7 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__parallel_for_large_kernel<_CustomName>>;
 
     using __small_submitter = __parallel_for_small_submitter<_ForKernelSmall>;
-    using __large_submitter = __parallel_for_large_submitter<_ForKernelLarge, _Ranges...>;
+    using __large_submitter = __parallel_for_large_submitter<_ForKernelLarge>;
     // Compile two kernels: one for small-to-medium inputs and a second for large. This avoids runtime checks within a
     // single kernel that worsen performance for small cases. If the number of iterations of the large submitter is 1,
     // then only compile the basic kernel as the two versions are effectively the same.
