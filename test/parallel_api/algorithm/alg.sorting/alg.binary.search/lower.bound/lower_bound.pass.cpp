@@ -68,8 +68,8 @@ DEFINE_TEST(test_lower_bound)
         initialize_data(host_keys.get(), host_vals.get(), host_vals.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy = make_new_policy<new_kernel_name<Policy, 0>>(exec);
-        auto res1 = oneapi::dpl::lower_bound(new_policy, first, last, value_first, value_last, result_first);
+        auto res1 = oneapi::dpl::lower_bound(policy_container<decltype(exec)>(make_new_policy<new_kernel_name<Policy, 0>>(exec)).get(),
+                                             first, last, value_first, value_last, result_first);
         exec.queue().wait_and_throw();
 
         EXPECT_TRUE(std::distance(result_first, res1) == n, "wrong return value, device policy");
@@ -78,8 +78,8 @@ DEFINE_TEST(test_lower_bound)
         update_data(host_vals, host_res);
 
         // call algorithm with comparator
-        auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
-        auto res2 = oneapi::dpl::lower_bound(new_policy2, first, last, value_first, value_last, result_first, test_lower_bound_fn1);
+        auto res2 = oneapi::dpl::lower_bound(policy_container<decltype(exec)>(make_new_policy<new_kernel_name<Policy, 1>>(exec)).get(),
+                                             first, last, value_first, value_last, result_first, test_lower_bound_fn1);
         exec.queue().wait_and_throw();
 
         EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, device policy");
