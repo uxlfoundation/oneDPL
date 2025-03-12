@@ -903,7 +903,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 std::ranges::borrowed_iterator_t<_R>
 __pattern_min_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    if(std::ranges::size() < 2)
+    if(std::ranges::size(__r) < 2)
         return {std::ranges::begin(__r)};
 
     __pattern_transform_binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
@@ -987,7 +987,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     [[maybe_unused]] const auto& [__min_idx, __min] = __res1;
     [[maybe_unused]] const auto& [__max_idx, __max] = __res1;
 
-    return {std::ranges::begin(__r) + __min_idx, std::ranges::begin(__r) + __max_idx);
+    return {std::ranges::begin(__r) + __min_idx, std::ranges::begin(__r) + __max_idx};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
@@ -1005,7 +1005,7 @@ __pattern_minmax(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
     [[maybe_unused]] const auto& [__min_idx, __min] = __res1;
     [[maybe_unused]] const auto& [__max_idx, __max] = __res1;
     
-    return {__min, __max);
+    return {__min, __max};
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
