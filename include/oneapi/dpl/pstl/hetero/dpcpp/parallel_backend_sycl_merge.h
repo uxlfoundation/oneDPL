@@ -47,10 +47,10 @@ using _split_point_t = std::pair<_Index, _Index>;
 // 2 | 0   0  0  0 | 1
 //   |             ---->
 // 3 | 0   0  0  0   0 |
-template <typename _Rng1, typename _Rng2, typename _Index, typename _Index1, typename _Index2, typename _Compare>
-auto
-__find_merge_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __i_elem, const _Index __n1,
-                   const _Index __n2, _Compare __comp)
+template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
+_split_point_t<_Index>
+__find_start_point(const _Rng1& __rng1, const _Index __rng1_from, _Index __rng1_to, const _Rng2& __rng2,
+                   const _Index __rng2_from, _Index __rng2_to, const _Index __i_elem, _Compare __comp)
 {
     // ----------------------- EXAMPLE ------------------------
     // Let's consider the following input data:

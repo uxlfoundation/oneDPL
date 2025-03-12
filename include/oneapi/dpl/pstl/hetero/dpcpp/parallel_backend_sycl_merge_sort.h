@@ -546,11 +546,9 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
                     const WorkDataArea __data_area(__n, __n_sorted, __linear_id, __nd_range_params.chunk);
 
-                            const auto start = __find_merge_path_start_point(__rng1, __rng2, __i_elem_local, __n1, __n2, __comp);
-                            __serial_merge(__rng1, __rng2, __dst /*__rng3*/, start.first, start.second, __i_elem,
-                                           __chunk, __n1, __n2, __comp);
-                        }
-                    }
+                    const auto start = __find_merge_path_start_point(__rng1, __rng2, __i_elem_local, __n1, __n2, __comp);
+                    __serial_merge(__rng1, __rng2, __dst /*__rng3*/, start.first, start.second, __i_elem,
+                                    __chunk, __n1, __n2, __comp);
                 });
         });
     }
