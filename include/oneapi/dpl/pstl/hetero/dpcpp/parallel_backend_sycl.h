@@ -884,7 +884,7 @@ struct __gen_mask
         return __pred((__rng_transform(std::forward<_InRng>(__in_rng)))[__id]);
     }
     _Predicate __pred;
-    _RangeTransform __rng_transform;
+    _RangeTransform __rng_transform{};
 };
 
 template <typename _BinaryPredicate>
