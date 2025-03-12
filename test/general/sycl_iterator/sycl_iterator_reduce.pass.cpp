@@ -259,6 +259,10 @@ DEFINE_TEST(test_count)
     }
 };
 
+static const auto test_count_if_fn1 = [](const auto& value) -> bool { return value % 10 == 0; };
+static const auto test_count_if_fn2 = [](const auto& value) -> bool { return value > 10; };
+static const auto test_count_if_fn3 = [](const auto& value) -> bool { return value < 10; };
+
 DEFINE_TEST(test_count_if)
 {
     DEFINE_TEST_CONSTRUCTOR(test_count_if, 2.0f, 0.80f)
@@ -278,8 +282,7 @@ DEFINE_TEST(test_count_if)
 
         // check when arbitrary should be counted
         ReturnType expected = (n - 1) / 10 + 1;
-        ReturnType result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last,
-                                            [](ValueType const& value) { return value % 10 == 0; });
+        ReturnType result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, test_count_if_fn1);
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #1 arbitrary to count)");
@@ -289,8 +292,7 @@ DEFINE_TEST(test_count_if)
 
         // check when none should be counted
         expected = 0;
-        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first, last,
-                                 [](ValueType const& value) { return value > 10; });
+        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first, last, test_count_if_fn2);
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #2 none to count)");
@@ -300,8 +302,7 @@ DEFINE_TEST(test_count_if)
 
         // check when all should be counted
         expected = n;
-        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), first, last,
-                                 [](ValueType const& value) { return value < 10; });
+        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), first, last, test_count_if_fn3);
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #3 all to count)");
@@ -310,6 +311,9 @@ DEFINE_TEST(test_count_if)
 #endif // _ONEDPL_DEBUG_SYCL
     }
 };
+
+static const auto __test_is_partitioned_less_than = [](const auto& value) -> bool { return value < 10; };
+static const auto __test_is_partitioned_is_odd = [](const auto& value) -> bool { return value % 2; };
 
 DEFINE_TEST(test_is_partitioned)
 {
@@ -326,35 +330,32 @@ DEFINE_TEST(test_is_partitioned)
         if (n < 2)
             return;
 
-        auto less_than = [](const ValueType& value) -> bool { return value < 10; };
-        auto is_odd = [](const ValueType& value) -> bool { return value % 2; };
-
         bool expected_bool_less_then = false;
         bool expected_bool_is_odd = false;
 
         ValueType fill_value{0};
         ::std::for_each(host_keys.get(), host_keys.get() + n, [&fill_value](ValueType& value) { value = ++fill_value; });
-        expected_bool_less_then = ::std::is_partitioned(host_keys.get(), host_keys.get() + n, less_than);
-        expected_bool_is_odd = ::std::is_partitioned(host_keys.get(), host_keys.get() + n, is_odd);
+        expected_bool_less_then = ::std::is_partitioned(host_keys.get(), host_keys.get() + n, __test_is_partitioned_less_than);
+        expected_bool_is_odd = ::std::is_partitioned(host_keys.get(), host_keys.get() + n, __test_is_partitioned_is_odd);
         host_keys.update_data();
 
         // check sorted
-        bool result_bool = ::std::is_partitioned(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, less_than);
+        bool result_bool = ::std::is_partitioned(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, __test_is_partitioned_less_than);
         wait_and_throw(exec);
 
         EXPECT_TRUE(result_bool == expected_bool_less_then, "wrong effect from is_partitioned (Test #1 less than)");
 
-        result_bool = ::std::is_partitioned(make_new_policy<new_kernel_name<Policy, 1>>(exec), first, last, is_odd);
+        result_bool = ::std::is_partitioned(make_new_policy<new_kernel_name<Policy, 1>>(exec), first, last, __test_is_partitioned_is_odd);
         wait_and_throw(exec);
 
         EXPECT_TRUE(result_bool == expected_bool_is_odd, "wrong effect from is_partitioned (Test #2 is odd)");
 
         // The code as below was added to prevent accessor destruction working with host memory
-        ::std::partition(host_keys.get(), host_keys.get() + n, is_odd);
-        expected_bool_is_odd = ::std::is_partitioned(host_keys.get(), host_keys.get() + n, is_odd);
+        ::std::partition(host_keys.get(), host_keys.get() + n, __test_is_partitioned_is_odd);
+        expected_bool_is_odd = ::std::is_partitioned(host_keys.get(), host_keys.get() + n, __test_is_partitioned_is_odd);
         host_keys.update_data();
 
-        result_bool = ::std::is_partitioned(make_new_policy<new_kernel_name<Policy, 2>>(exec), first, last, is_odd);
+        result_bool = ::std::is_partitioned(make_new_policy<new_kernel_name<Policy, 2>>(exec), first, last, __test_is_partitioned_is_odd);
         wait_and_throw(exec);
 
         EXPECT_TRUE(result_bool == expected_bool_is_odd,
@@ -386,6 +387,8 @@ DEFINE_TEST(test_transform_reduce_binary)
     }
 };
 
+static const auto test_lexicographical_compare_comp = [](const auto& first, const auto& second) { return first < second; };
+
 // TODO: move unique cases to test_lexicographical_compare
 DEFINE_TEST(test_lexicographical_compare)
 {
@@ -411,11 +414,9 @@ DEFINE_TEST(test_lexicographical_compare)
             update_data(host_keys, host_vals);
         }
 
-        auto comp = [](ValueType const& first, ValueType const& second) { return first < second; };
-
         // CHECK 1.1: S1 == S2 && len(S1) == len(S2)
         bool is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1,
-                                                          last1, first2, last2, comp);
+                                                          last1, first2, last2, test_lexicographical_compare_comp);
         wait_and_throw(exec);
 
         if (is_less_res != 0)
@@ -423,8 +424,8 @@ DEFINE_TEST(test_lexicographical_compare)
         EXPECT_TRUE(is_less_res == 0, "wrong effect from lex_compare Test 1.1: S1 == S2 && len(S1) == len(S2)");
 
         // CHECK 1.2: S1 == S2 && len(S1) < len(S2)
-        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1 - 1,
-                                                   first2, last2, comp);
+        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1,
+                                                     last1 - 1, first2, last2, test_lexicographical_compare_comp);
         wait_and_throw(exec);
 
         if (is_less_res != 1)
@@ -432,8 +433,8 @@ DEFINE_TEST(test_lexicographical_compare)
         EXPECT_TRUE(is_less_res == 1, "wrong effect from lex_compare Test 1.2: S1 == S2 && len(S1) < len(S2)");
 
         // CHECK 1.3: S1 == S2 && len(S1) > len(S2)
-        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 2>>(exec), first1, last1, first2,
-                                                   last2 - 1, comp);
+        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 2>>(exec), first1, last1,
+                                                     first2, last2 - 1, test_lexicographical_compare_comp);
         wait_and_throw(exec);
 
         if (is_less_res != 0)
@@ -447,8 +448,8 @@ DEFINE_TEST(test_lexicographical_compare)
         }
 
         // CHECK 2.1: S1 < S2 (PRE-LAST ELEMENT) && len(S1) == len(S2)
-        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 3>>(exec), first1, last1, first2,
-                                                   last2, comp);
+        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 3>>(exec), first1, last1,
+                                                     first2, last2, test_lexicographical_compare_comp);
         wait_and_throw(exec);
 
         bool is_less_exp = n > 1 ? 1 : 0;
@@ -458,8 +459,8 @@ DEFINE_TEST(test_lexicographical_compare)
                     "wrong effect from lex_compare Test 2.1: S1 < S2 (PRE-LAST) && len(S1) == len(S2)");
 
         // CHECK 2.2: S1 < S2 (PRE-LAST ELEMENT) && len(S1) > len(S2)
-        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 4>>(exec), first1, last1, first2,
-                                                   last2 - 1, comp);
+        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 4>>(exec), first1, last1,
+                                                     first2, last2 - 1, test_lexicographical_compare_comp);
         wait_and_throw(exec);
 
         if (is_less_res != is_less_exp)
@@ -474,8 +475,8 @@ DEFINE_TEST(test_lexicographical_compare)
         }
 
         // CHECK 3.1: S1 > S2 (PRE-LAST ELEMENT) && len(S1) == len(S2)
-        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 5>>(exec), first1, last1, first2,
-                                                   last2, comp);
+        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 5>>(exec), first1, last1,
+                                                     first2, last2, test_lexicographical_compare_comp);
         wait_and_throw(exec);
 
         if (is_less_res != 0)
@@ -484,8 +485,8 @@ DEFINE_TEST(test_lexicographical_compare)
                     "wrong effect from lex_compare Test 3.1: S1 > S2 (PRE-LAST) && len(S1) == len(S2)");
 
         // CHECK 3.2: S1 > S2 (PRE-LAST ELEMENT) && len(S1) < len(S2)
-        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 6>>(exec), first1, last1 - 1,
-                                                   first2, last2, comp);
+        is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 6>>(exec), first1,
+                                                     last1 - 1, first2, last2, test_lexicographical_compare_comp);
         wait_and_throw(exec);
 
         is_less_exp = n > 1 ? 0 : 1;
@@ -500,7 +501,7 @@ DEFINE_TEST(test_lexicographical_compare)
 
         // CHECK 4.1: S1 < S2 (FIRST ELEMENT) && len(S1) == len(S2)
         is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 7>>(exec), first1, last1, first2,
-                                                   last2, comp);
+                                                     last2, test_lexicographical_compare_comp);
         wait_and_throw(exec);
 
         if (is_less_res != 1)
@@ -509,7 +510,7 @@ DEFINE_TEST(test_lexicographical_compare)
 
         // CHECK 4.2: S1 < S2 (FIRST ELEMENT) && len(S1) > len(S2)
         is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 8>>(exec), first1, last1, first2,
-                                                   last2 - 1, comp);
+                                                     last2 - 1, test_lexicographical_compare_comp);
         wait_and_throw(exec);
 
         is_less_exp = n > 1 ? 1 : 0;
@@ -524,7 +525,7 @@ DEFINE_TEST(test_lexicographical_compare)
 
         // CHECK 5.1: S1 > S2 (FIRST ELEMENT) && len(S1) == len(S2)
         is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 9>>(exec), first1, last1, first2,
-                                                   last2, comp);
+                                                     last2, test_lexicographical_compare_comp);
         wait_and_throw(exec);
 
         if (is_less_res != 0)
@@ -533,7 +534,7 @@ DEFINE_TEST(test_lexicographical_compare)
 
         // CHECK 5.2: S1 > S2 (FIRST ELEMENT) && len(S1) < len(S2)
         is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 10>>(exec), first1, last1 - 1,
-                                                   first2, last2, comp);
+                                                     first2, last2, test_lexicographical_compare_comp);
         wait_and_throw(exec);
 
         is_less_exp = n > 1 ? 0 : 1;
