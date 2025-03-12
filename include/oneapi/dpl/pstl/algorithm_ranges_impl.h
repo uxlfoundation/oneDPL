@@ -47,7 +47,7 @@ __pattern_walk_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Function
 
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), 0, __n,
-            [__f](auto __i, auto __j) {
+            [__f, __rngs...](auto __i, auto __j) {
                 __internal::__brick_walk_n(__j - __i, __f, _IsVector{}, (std::ranges::begin(__rngs) + __i)...);
             });
     });
@@ -454,7 +454,7 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj,
 std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>
 __pattern_minmax(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    return [auto __it_min, __it_max] = 
+    auto [__it_min, __it_max] =
         __pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
 
     return {*__it_min, *__it_max};
