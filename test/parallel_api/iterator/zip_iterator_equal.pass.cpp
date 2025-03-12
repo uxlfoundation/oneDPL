@@ -79,6 +79,19 @@ DEFINE_TEST(test_equal)
     }
 };
 
+static const auto test_equal_structured_binding_fn1 = [](auto tuple_first1, auto tuple_first2) -> bool
+{
+    const auto& [a, b] = tuple_first1;
+    const auto& [c, d] = tuple_first2;
+
+    static_assert(std::is_reference_v<decltype(a)>, "tuple element type is not a reference");
+    static_assert(std::is_reference_v<decltype(b)>, "tuple element type is not a reference");
+    static_assert(std::is_reference_v<decltype(c)>, "tuple element type is not a reference");
+    static_assert(std::is_reference_v<decltype(d)>, "tuple element type is not a reference");
+
+    return (a == c) && (b == d);
+};
+
 DEFINE_TEST(test_equal_structured_binding)
 {
     DEFINE_TEST_CONSTRUCTOR(test_equal_structured_binding, 1.0f, 1.0f)
@@ -110,21 +123,8 @@ DEFINE_TEST(test_equal_structured_binding)
                         "zip_iterator (equal_structured_binding2) not properly copyable");
         }
 
-        auto compare = [](auto tuple_first1, auto tuple_first2)
-        {
-            const auto& [a, b] = tuple_first1;
-            const auto& [c, d] = tuple_first2;
-
-            static_assert(std::is_reference_v<decltype(a)>, "tuple element type is not a reference");
-            static_assert(std::is_reference_v<decltype(b)>, "tuple element type is not a reference");
-            static_assert(std::is_reference_v<decltype(c)>, "tuple element type is not a reference");
-            static_assert(std::is_reference_v<decltype(d)>, "tuple element type is not a reference");
-
-            return (a == c) && (b == d);
-        };
-
         bool is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2,
-                                   compare);
+                                   test_equal_structured_binding_fn1);
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
 #endif
@@ -135,7 +135,7 @@ DEFINE_TEST(test_equal_structured_binding)
         host_vals.update_data();
 
         is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 1>>(exec), tuple_first1, tuple_last1, tuple_first2,
-                              compare);
+                              test_equal_structured_binding_fn1);
         EXPECT_TRUE(!is_equal, "wrong effect from equal(tuple with use of structured binding) 2");
     }
 };
