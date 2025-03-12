@@ -20,6 +20,8 @@
 
 #include "support/utils.h"
 
+#include <type_traits>
+
 /*
   TODO: consider implementing the following tests for a better code coverage
   - correctness
@@ -53,7 +55,9 @@ test(size_t bits)
         Sequence<T> in(n, [n, bits](size_t) { return T(2 * HashBits(n, bits - 1) ^ 1); });
 
         // Even value, or false when T is bool.
-        T spike(2 * HashBits(n, bits - 1));
+        T spike = 0;
+        if constexpr (!std::is_same_v<T, bool>)
+            spike = 2 * HashBits(n, bits - 1);
 
         invoke_on_all_policies<0>()(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike), true);
         invoke_on_all_policies<1>()(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike), true);
