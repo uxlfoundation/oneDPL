@@ -77,7 +77,7 @@ __brick_destroy(_RandomAccessIterator __first, _RandomAccessIterator __last, /*v
     using _ValueType = typename ::std::iterator_traits<_RandomAccessIterator>::value_type;
     using _ReferenceType = typename ::std::iterator_traits<_RandomAccessIterator>::reference;
 
-    __unseq_backend::__simd_walk_1(__last - __first, [](_ReferenceType __x) { __x.~_ValueType(); }, __first);
+    __unseq_backend::__simd_walk_n(__last - __first, [](_ReferenceType __x) { __x.~_ValueType(); }, __first);
 }
 
 //------------------------------------------------------------------------
