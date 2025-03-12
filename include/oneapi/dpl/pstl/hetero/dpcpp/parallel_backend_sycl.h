@@ -875,9 +875,9 @@ struct __simple_write_to_id
 };
 
 
-template <bool __forward, typename _Index>
+template <bool __forward, typename _Rng, typename _Index, typename _Compare>
 _Index
-biased_binary_search(typename _Rng, const _Index __start, const _Index __end, const _Compare& __comp)
+biased_binary_search(_Rng __rng, const _Index __start, const _Index __end, const _Compare& __comp)
 {
     _Index __low = __start;
     _Index __high = __end;
@@ -914,15 +914,14 @@ biased_binary_search(typename _Rng, const _Index __start, const _Index __end, co
     return __start;
 }
 
-__find_balanced_path_start_point
 template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
 auto
 __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1, const _Index __merge_path_rng2,
                     const _Index __n1, const _Index __n2, _Compare __comp)
 {
     // back up to balanced path divergence with a biased binary search
-    auto __start_point = __start_point_rng1;
-    auto __start_point2 = __start_point_rng2;
+    auto __start_point = __merge_path_rng1;
+    auto __start_point2 = __merge_path_rng2;
 
     // find first element of repeating sequence in the first set
     _Index __rng1_repeat_start = biased_binary_search(__rng1, __merge_path_rng1, __n1, __comp);
@@ -931,14 +930,14 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
 
     // check if there are an even number of steps to the diagonal
     _Index __combined_steps_to_diagonal = (__merge_path_rng1 + __merge_path_rng2) - (__rng1_repeat_start + __rng2_repeat_start);
-    bool __star_offset = __steps_to_diagonal % 2;
+    bool __star_offset = __combined_steps_to_diagonal % 2;
 
     // index within __rng_1 represents the place on the diagonal (in combination with __i_elem)
     // __star_offset represents an offset by 1 from the diagonal in the __rng2 index
-    return std::make_tuple(__rng1_repeat_start + __combined_steps_to_diagonal >> 1, __rng2_repeat_start + __combined_steps_to_diagonal >> 1 + __star_offset, __star_offset);
+    return std::make_tuple(__rng1_repeat_start + (__combined_steps_to_diagonal >> 1), __rng2_repeat_start + (__combined_steps_to_diagonal >> 1) + __star_offset, __star_offset);
 }
 
-template <typename _SetOp, typename TempData, typename _Compare>
+template <typename _SetOpCount, typename _TempData, typename _Compare>
 struct __gen_set_balanced_path
 {
     template <typename _InRng>
@@ -947,29 +946,29 @@ struct __gen_set_balanced_path
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __set_a = std::get<0>(__in_rng.tuple());    // first sequence
-        auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence
+        auto __rng1 = std::get<0>(__in_rng.tuple());    // first sequence
+        auto __rng2 = std::get<1>(__in_rng.tuple());    // second sequence
 
         //consider building these into the definition of the building block with a requires function
-        auto __set_temp_diag_a = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
-        auto __set_temp_diag_b = std::get<3>(__in_rng.tuple()); // set b temp storage sequence
+        auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
+        auto __rng2_temp_diag = std::get<3>(__in_rng.tuple()); // set b temp storage sequence
 
         //find merge path intersection 
-        auto [__set_a_pos, __set_b_pos] = __find_merge_path_start_point(__set_a, __set_b, __id * __diagonal_spacing,
-                                                                        __set_a.size(), __set_b.size(), __comp);
+        auto [__rng1_pos, __rng2_pos] = __find_merge_path_start_point(__rng1, __rng2, __id * __diagonal_spacing,
+                                                                        __rng1.size(), __rng2.size(), __comp);
 
         //Find balanced path for diagonal start
-        auto [__set_a_balanced_pos, __set_b_balanced_pos, __star_offset] = __find_balanced_path_start_point(
-                                __set_a, __set_b, __set_a_pos, __set_b_pos, __set_a.size(), __set_b.size(), __comp);
+        auto [__rng1_balanced_pos, __rng2_balanced_pos, __star_offset] = __find_balanced_path_start_point(
+                                __rng1, __rng2, __rng1_pos, __rng2_pos, __rng1.size(), __rng2.size(), __comp);
         //TODO: replace seta,setb positions with intra-diagonal index + start offset boolean
 
-        __set_temp_diag_a[__id] = __set_a_balanced_pos;
-        __set_temp_diag_b[__id] = __set_b_balanced_pos;
-        _TempData __temp_out{__diagonal_spacing - __star_offset+1}
+        __rng1_temp_diag[__id] = __rng1_balanced_pos;
+        __rng2_temp_diag[__id] = __rng2_balanced_pos;
+        _TempData __temp_out{__diagonal_spacing - __star_offset+1};
 
-        std::uint16_t __count = __set_op(__set_a.begin() + __set_a_balanced_pos, __set_b.begin() + __set_b_balanced_pos, __diagonal_spacing - __star_offset,
+        std::uint16_t __count = __set_op_count(__rng1.begin() + __rng1_balanced_pos, __rng2.begin() + __rng2_balanced_pos, __diagonal_spacing - __star_offset,
                               __temp_out, __comp);
-        return {__count, std::move(__temp_out)};
+        return std::make_tuple(__count, std::move(__temp_out));
     }
     _Compare __comp;
     std::uint16_t __diagonal_spacing;
@@ -984,7 +983,7 @@ struct __set_temp_data
     __set_temp_data(std::uint16_t count) : __output(count)
     {}
     
-    std::vector<_ValueT>::iterator
+    typename std::vector<_ValueT>::iterator
     get_acc() const
     {
         return __output.begin();
@@ -997,7 +996,7 @@ struct __set_temp_data
         __output[__idx] = *__val;
     }
     std::vector<_ValueT> __output;
-}
+};
 
 struct __noop_temp_data
 {
@@ -1009,12 +1008,12 @@ struct __noop_temp_data
     operator()(std::uint16_t __idx, _ValueAcc __val) const
     {
     }
-}
+};
 
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
 struct __set_generic_operation
 {
-    template <typename _InRng, typename _TempOutput, typename _Compare>
+    template <typename _InRng1, typename _InRng2, typename _TempOutput, typename _Compare>
     std::uint16_t
     operator()(_InRng1 __in_rng1,  _InRng2 __in_rng2, std::size_t __num_eles_min, const _TempOutput& __temp_out, _Compare __comp) const
     {
@@ -1026,8 +1025,8 @@ struct __set_generic_operation
             {
                 if constexpr (_CopyMatch)
                 {
-                    __temp_out.set(count, __in_rng1);
-                    ++count;
+                    __temp_out.set(__count, __in_rng1);
+                    ++__count;
                 }
                 ++__in_rng1;
                 ++__in_rng2;
@@ -1039,8 +1038,8 @@ struct __set_generic_operation
                 {
                     if constexpr (_CopyDiffSetA)
                     {
-                        __temp_out.set(count, __in_rng1);
-                        ++count;
+                        __temp_out.set(__count, __in_rng1);
+                        ++__count;
                     }
                     ++__in_rng1;
                 }
@@ -1048,15 +1047,15 @@ struct __set_generic_operation
                 {
                     if constexpr (_CopyDiffSetB)
                     {
-                        __temp_out.set(count, __in_rng2);
-                        ++count;
+                        __temp_out.set(__count, __in_rng2);
+                        ++__count;
                     }
                     ++__in_rng2;
                 }
                 ++__idx;
             }
         }
-        return count;
+        return __count;
     }
 };
 
@@ -1094,20 +1093,20 @@ struct __gen_expand_count_set
     _GenMask __gen_mask;
 };
 
-template <typename SetOp, typename _Compare>
-struct __write_compressed_output
-{
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
-    void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
-    {
-        auto __set_temp_output = std::get<2>(__v); // temp_output sequence
-        auto __set_temp_count = std::get<1>(__v); // temp_count
+// template <typename SetOp, typename _Compare>
+// struct __write_compressed_output
+// {
+//     template <typename _OutRng, typename _SizeType, typename _ValueType>
+//     void
+//     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+//     {
+//         auto __set_temp_output = std::get<2>(__v); // temp_output sequence
+//         auto __set_temp_count = std::get<1>(__v); // temp_count
 
-        //Find balanced path for diagonal start
-        std::copy_n(__set_temp_output + __id * __diagonal_spacing, __set_temp_count, __out_rng + std::get<0>(__v));
-    }
-};
+//         //Find balanced path for diagonal start
+//         std::copy_n(__set_temp_output + __id * __diagonal_spacing, __set_temp_count, __out_rng + std::get<0>(__v));
+//     }
+// };
 
 
 template <typename _Predicate, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
