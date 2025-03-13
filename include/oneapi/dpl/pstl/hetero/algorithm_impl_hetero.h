@@ -463,6 +463,55 @@ struct __brick_fill_n<__hetero_tag<_BackendTag>, _ExecutionPolicy, _SourceT>
 // min_element, max_element
 //------------------------------------------------------------------------
 
+#if !LAMBDA_INSIDE_ON_INTERNAL_LEVELS
+template <typename _Compare>
+struct __pattern_min_element_reduce_fn_fo
+{
+    _Compare __comp;
+
+    template <typename _ReduceValueType>
+    auto operator()(_ReduceValueType __a, _ReduceValueType __b)
+    {
+        using ::std::get;
+        // TODO: Consider removing the non-commutative operator for SPIR-V targets when we see improved performance with the
+        // non-sequential load path in transform_reduce.
+        if constexpr (oneapi::dpl::__internal::__is_spirv_target_v)
+        {
+            // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
+            // not commutative.
+            if (__comp(get<1>(__b), get<1>(__a)))
+            {
+                return __b;
+            }
+            return __a;
+        }
+        else
+        {
+            // This operator keeps track of the lowest found index in case of equal min. or max. values. Thus, this operator is
+            // commutative.
+            bool _is_a_lt_b = __comp(get<1>(__a), get<1>(__b));
+            bool _is_b_lt_a = __comp(get<1>(__b), get<1>(__a));
+
+            if (_is_b_lt_a || (!_is_a_lt_b && get<0>(__b) < get<0>(__a)))
+            {
+                return __b;
+            }
+            return __a;
+        }
+    }
+};
+
+template <typename _ReduceValueType>
+struct __pattern_min_element_transform_fn_fo
+{
+    auto
+    operator()(auto __gidx, auto __acc)
+    {
+        return _ReduceValueType{__gidx, __acc[__gidx]};
+    };
+};
+#endif
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare>
 _Iterator
 __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
@@ -479,6 +528,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
     // target can be correctly tested.
     using _Commutative = oneapi::dpl::__internal::__spirv_target_conditional</*_SpirvT*/ ::std::false_type,
                                                                              /*_NonSpirvT*/ ::std::true_type>;
+#if LAMBDA_INSIDE_ON_INTERNAL_LEVELS
     auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
         using ::std::get;
         // TODO: Consider removing the non-commutative operator for SPIR-V targets when we see improved performance with the
@@ -508,6 +558,10 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
         }
     };
     auto __transform_fn = [](auto __gidx, auto __acc) { return _ReduceValueType{__gidx, __acc[__gidx]}; };
+#else
+    __pattern_min_element_reduce_fn_fo<_Compare> __reduce_fn{__comp};
+    __pattern_min_element_transform_fn_fo<__transform_fn_fo> __transform_fn;
+#endif
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
