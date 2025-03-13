@@ -2820,8 +2820,10 @@ __pattern_fill_n(_Tag, _ExecutionPolicy&&, _OutputIterator __first, _Size __coun
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_fill_n<_Tag, _ExecutionPolicy, _Tp>{__value}(__first, __count,
-                                                                            typename _Tag::__is_vector{});
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
+
+    return __internal::__brick_fill_n<_Tag, _DecayedExecutionPolicy, _Tp>{__value}(__first, __count,
+                                                                                   typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Tp>
