@@ -1878,17 +1878,19 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
                                                   __b, __e, __result + (__b - __middle), _IsVector{});
                                           });
 
-            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
-                                          [__last, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
-                                              __internal::__brick_move<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
-                                                  __b, __e, __b + (__last - __middle), _IsVector{});
-                                          });
+            __par_backend::__parallel_for(
+                __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
+                [__last, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
+                    __internal::__brick_move<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
+                        __b, __e, __b + (__last - __middle), _IsVector{});
+                });
 
-            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
-                                          __result + (__n - __m), [__first, __result](_Tp* __b, _Tp* __e) {
-                                              __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
-                                                  __b, __e, __first + (__b - __result), _IsVector{});
-                                          });
+            __par_backend::__parallel_for(
+                __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result, __result + (__n - __m),
+                [__first, __result](_Tp* __b, _Tp* __e) {
+                    __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
+                        __b, __e, __first + (__b - __result), _IsVector{});
+                });
 
             return __first + (__last - __middle);
         });
@@ -1904,17 +1906,19 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
                                                   __b, __e, __result + (__b - __first), _IsVector{});
                                           });
 
-            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
-                                          [__first, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
-                                              __internal::__brick_move<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
-                                                  __b, __e, __first + (__b - __middle), _IsVector{});
-                                          });
+            __par_backend::__parallel_for(
+                __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
+                [__first, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
+                    __internal::__brick_move<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
+                        __b, __e, __first + (__b - __middle), _IsVector{});
+                });
 
-            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
-                                          __result + __m, [__n, __m, __first, __result](_Tp* __b, _Tp* __e) {
-                                              __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
-                                                  __b, __e, __first + ((__n - __m) + (__b - __result)), _IsVector{});
-                                          });
+            __par_backend::__parallel_for(
+                __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result, __result + __m,
+                [__n, __m, __first, __result](_Tp* __b, _Tp* __e) {
+                    __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
+                        __b, __e, __first + ((__n - __m) + (__b - __result)), _IsVector{});
+                });
 
             return __first + (__last - __middle);
         });
@@ -2589,11 +2593,12 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec
                 __n2);
 
             // 3. Move elements from temporary buffer to output
-            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n2,
-                                          [__r, __d_first](_T1* __i, _T1* __j) {
-                                              __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
-                                                  __i, __j, __d_first + (__i - __r), _IsVector{});
-                                          });
+            __par_backend::__parallel_for(
+                __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n2,
+                [__r, __d_first](_T1* __i, _T1* __j) {
+                    __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
+                        __i, __j, __d_first + (__i - __r), _IsVector{});
+                });
 
             if constexpr (!::std::is_trivially_destructible_v<_T1>)
                 __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r + __n2,
@@ -2769,7 +2774,8 @@ __pattern_fill(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardItera
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
     using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
-    __internal::__brick_fill<_Tag, _DecayedExecutionPolicy, _Tp>{__value}(__first, __last, typename _Tag::__is_vector{});
+    __internal::__brick_fill<_Tag, _DecayedExecutionPolicy, _Tp>{__value}(__first, __last,
+                                                                          typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Tp>
@@ -2781,11 +2787,12 @@ __pattern_fill(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcce
     using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     return __internal::__except_handler([&__exec, __first, __last, &__value]() {
-        __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                      [&__value](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
-                                          __internal::__brick_fill<__parallel_tag<_IsVector>, _DecayedExecutionPolicy, _Tp>{
-                                              __value}(__begin, __end, _IsVector{});
-                                      });
+        __par_backend::__parallel_for(
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            [&__value](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
+                __internal::__brick_fill<__parallel_tag<_IsVector>, _DecayedExecutionPolicy, _Tp>{__value}(
+                    __begin, __end, _IsVector{});
+            });
         return __last;
     });
 }
@@ -3745,7 +3752,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, parallel copying just first sequence
     if (__left_bound_seq_2 == __last2)
         return __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                 __result, __brick_copy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{});
+                                                 __result,
+                                                 __brick_copy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{});
 
     if (__n1 + __n2 > __set_algo_cut_off)
         return __parallel_set_op(

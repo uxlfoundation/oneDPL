@@ -632,8 +632,8 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
         __tag, ::std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{}, __copy_rng_truncated,
-        ::std::forward<_Range>(__rng));
+        oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{},
+        __copy_rng_truncated, ::std::forward<_Range>(__rng));
 
     return __copy_last_id;
 }
