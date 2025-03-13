@@ -123,24 +123,21 @@ struct policy_container
     {
     }
 
-    template <typename _PolicySrc = _Policy>
-    std::enable_if_t<std::is_rvalue_reference_v<_PolicySrc>, _DecayedPolicy&&>
-    get()
+    auto get() &&
     {
         // We can move policy only once
         assert(!__moved_out);
-        __moved_out = true;
 
+        if constexpr (std::is_rvalue_reference_v<_Policy>)
+        {
         // Return policy as r-value
         return std::move(__policy);
     }
-
-    template <typename _PolicySrc = _Policy>
-    std::enable_if_t<!std::is_rvalue_reference_v<_PolicySrc>, const _DecayedPolicy&>
-    get()
+        else
     {
         // Return policy as l-value
         return __policy;
+        }
     }
 };
 
