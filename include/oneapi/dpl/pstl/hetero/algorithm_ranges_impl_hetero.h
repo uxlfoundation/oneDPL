@@ -973,7 +973,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 std::pair<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_R>>
 __pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    if(std::ranges::size() < 2)
+    if(std::ranges::size(__r) < 2)
         return {std::ranges::begin(__r), std::ranges::begin(__r)};
 
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
