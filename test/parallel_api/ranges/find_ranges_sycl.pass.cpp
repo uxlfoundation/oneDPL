@@ -48,12 +48,12 @@ main()
         auto exec = TestUtils::default_dpcpp_policy;
         using Policy = decltype(TestUtils::default_dpcpp_policy);
 
-        res1 = find(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, val); //check passing all_view
-        res1 = find(make_new_policy<new_kernel_name<Policy, 1>>(exec), A, val);    //check passing sycl::buffer directly
-        res2 = find_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), view, [val](auto a) { return a == val;});
-        res2 = find_if(make_new_policy<new_kernel_name<Policy, 3>>(exec), A, [val](auto a) { return a == val;});
-        res3 = find_if_not(make_new_policy<new_kernel_name<Policy, 4>>(exec), view, [](auto a) { return a >= 0;});
-        res3 = find_if_not(make_new_policy<new_kernel_name<Policy, 5>>(exec), A, [](auto a) { return a >= 0;});
+        res1 = find(CREATE_NEW_POLICY(exec, 0), view, val); //check passing all_view
+        res1 = find(CREATE_NEW_POLICY(exec, 1), A, val);    //check passing sycl::buffer directly
+        res2 = find_if(CREATE_NEW_POLICY(exec, 2), view, [val](auto a) { return a == val;});
+        res2 = find_if(CREATE_NEW_POLICY(exec, 3), A, [val](auto a) { return a == val;});
+        res3 = find_if_not(CREATE_NEW_POLICY(exec, 4), view, [](auto a) { return a >= 0;});
+        res3 = find_if_not(CREATE_NEW_POLICY(exec, 5), A, [](auto a) { return a >= 0;});
     }
 
     //check result

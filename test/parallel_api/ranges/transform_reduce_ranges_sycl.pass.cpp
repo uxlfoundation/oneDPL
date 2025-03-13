@@ -46,8 +46,8 @@ main()
         using Policy = decltype(TestUtils::default_dpcpp_policy);
 
         res1 = oneapi::dpl::experimental::ranges::transform_reduce(exec, A, view, 0);
-        res2 = oneapi::dpl::experimental::ranges::transform_reduce(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, A, 0, ::std::plus<int>(), ::std::multiplies<int>());
-        res3 = oneapi::dpl::experimental::ranges::transform_reduce(make_new_policy<new_kernel_name<Policy, 1>>(exec), view, 0, ::std::plus<int>(), lambda1);
+        res2 = oneapi::dpl::experimental::ranges::transform_reduce(CREATE_NEW_POLICY(exec, 0), view, A, 0, ::std::plus<int>(), ::std::multiplies<int>());
+        res3 = oneapi::dpl::experimental::ranges::transform_reduce(CREATE_NEW_POLICY(exec, 1), view, 0, ::std::plus<int>(), lambda1);
     }
 
     //check result

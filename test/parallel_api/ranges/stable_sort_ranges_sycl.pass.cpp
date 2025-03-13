@@ -43,7 +43,7 @@ main()
         using Policy = decltype(TestUtils::default_dpcpp_policy);
 
         stable_sort(exec, A); //check passing sycl buffer directly
-        stable_sort(make_new_policy<new_kernel_name<Policy, 0>>(exec), all_view<int, sycl::access::mode::read_write>(B),
+        stable_sort(CREATE_NEW_POLICY(exec, 0), all_view<int, sycl::access::mode::read_write>(B),
             ::std::greater<int>());
     }
 

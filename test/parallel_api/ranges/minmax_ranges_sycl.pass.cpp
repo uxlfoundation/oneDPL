@@ -52,15 +52,15 @@ main()
 
         //min element
         res1 = min_element(exec, A);
-        res2 = min_element(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, ::std::less<int>());
-        res3 = min_element(make_new_policy<new_kernel_name<Policy, 1>>(exec), view | views::take(1));
+        res2 = min_element(CREATE_NEW_POLICY(exec, 0), view, ::std::less<int>());
+        res3 = min_element(CREATE_NEW_POLICY(exec, 1), view | views::take(1));
 
         //max_element
-        res4 = max_element(make_new_policy<new_kernel_name<Policy, 2>>(exec), A);
-        res5 = max_element(make_new_policy<new_kernel_name<Policy, 3>>(exec), view, ::std::less<int>());
+        res4 = max_element(CREATE_NEW_POLICY(exec, 2), A);
+        res5 = max_element(CREATE_NEW_POLICY(exec, 3), view, ::std::less<int>());
 
-        res_minmax1 = minmax_element(make_new_policy<new_kernel_name<Policy, 4>>(exec), A);
-        res_minmax2 = minmax_element(make_new_policy<new_kernel_name<Policy, 5>>(exec), view, ::std::less<int>());
+        res_minmax1 = minmax_element(CREATE_NEW_POLICY(exec, 4), A);
+        res_minmax2 = minmax_element(CREATE_NEW_POLICY(exec, 5), view, ::std::less<int>());
     }
 
     //check result
