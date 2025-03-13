@@ -51,7 +51,7 @@ main()
         using Policy = decltype(TestUtils::default_dpcpp_policy);
 
         ranges::transform_inclusive_scan(exec, A, view_res1, ::std::plus<int>(), lambda);
-        ranges::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, B2, ::std::plus<int>(), lambda, init);
+        ranges::transform_inclusive_scan(CREATE_NEW_POLICY(exec, 0), view, B2, ::std::plus<int>(), lambda, init);
     }
 
     //check result
