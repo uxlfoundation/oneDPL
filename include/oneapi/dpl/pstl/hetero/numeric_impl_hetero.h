@@ -236,6 +236,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
 
     using _It1ValueT = typename ::std::iterator_traits<_ForwardIterator1>::value_type;
     using _It2ValueTRef = typename ::std::iterator_traits<_ForwardIterator2>::reference;
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     _ForwardIterator2 __d_last = __d_first + __n;
 
@@ -247,7 +248,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
             ::std::forward<_ExecutionPolicy>(__exec));
 
         __internal::__pattern_walk2_brick(__hetero_tag<_BackendTag>{}, __wrapped_policy, __first, __last, __d_first,
-                                          __internal::__brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
+                                          __internal::__brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
     }
     else
 #endif
