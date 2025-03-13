@@ -19,15 +19,7 @@
 #include <iostream>
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
-
-namespace TestUtils
-{
-template <typename Op, ::std::size_t CallNumber>
-struct unique_kernel_name;
-
-template <typename Policy, int idx>
-using new_kernel_name = unique_kernel_name<typename std::decay_t<Policy>::kernel_name, idx>;
-} // namespace TestUtils
+#include "utils_sycl_defs.h"
 
 int
 test_dl_initialization(const std::vector<sycl::queue>& u)
