@@ -79,6 +79,44 @@ struct sycl_iterator
     {
         return {buffer, idx - backward};
     }
+    sycl_iterator&
+    operator++()
+    {
+        ++idx;
+        return *this;
+    }
+    sycl_iterator
+    operator++(int)
+    {
+        sycl_iterator it(*this);
+        ++(*this);
+        return it;
+    }
+    sycl_iterator&
+    operator--()
+    {
+        --idx;
+        return *this;
+    }
+    sycl_iterator
+    operator--(int)
+    {
+        sycl_iterator it(*this);
+        --(*this);
+        return it;
+    }
+    sycl_iterator&
+    operator+=(difference_type forward)
+    {
+        idx += forward;
+        return *this;
+    }
+    sycl_iterator&
+    operator-=(difference_type backward)
+    {
+        idx -= backward;
+        return *this;
+    }
     friend sycl_iterator
     operator+(difference_type forward, const sycl_iterator& it)
     {
@@ -112,6 +150,21 @@ struct sycl_iterator
     {
         assert(buffer == it.get_buffer());
         return *this - it < 0;
+    }
+    bool
+    operator>(const sycl_iterator& it) const
+    {
+        return it < *this;
+    }
+    bool
+    operator<=(const sycl_iterator& it) const
+    {
+        return !(it < *this);
+    }
+    bool
+    operator>=(const sycl_iterator& it) const
+    {
+        return !(*this < it);
     }
 
     // This function is required for types for which oneapi::dpl::__ranges::is_sycl_iterator_v = true to ensure proper

@@ -37,7 +37,7 @@ struct __tuple_util
     static void
     __increment(_TupleType& __it, _DifferenceType __forward)
     {
-        ::std::get<_Np - 1>(__it) = ::std::get<_Np - 1>(__it) + __forward;
+        ::std::get<_Np - 1>(__it) += __forward;
         __tuple_util<_Np - 1>::__increment(__it, __forward);
     }
     template <typename _TupleType>
