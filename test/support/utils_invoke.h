@@ -20,22 +20,13 @@
 
 #include "iterator_utils.h"
 
+#if TEST_DPCPP_BACKEND_PRESENT
+#include "utils_sycl_defs.h"
+#endif
+
 namespace TestUtils
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-
-template <sycl::usm::alloc alloc_type>
-constexpr ::std::size_t
-uniq_kernel_index()
-{
-    return static_cast<::std::underlying_type_t<sycl::usm::alloc>>(alloc_type);
-}
-
-template <typename Op, ::std::size_t CallNumber>
-struct unique_kernel_name;
-
-template <typename Policy, int idx>
-using new_kernel_name = unique_kernel_name<typename std::decay_t<Policy>::kernel_name, idx>;
 
 /**
  * make_policy functions test wrappers
