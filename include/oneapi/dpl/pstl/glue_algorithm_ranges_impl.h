@@ -798,7 +798,7 @@ struct __replace_if_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _T,
              typename _Proj = std::identity,
-             std::indirect_unary_predicate<std::projected<iterator_t<_R>, _Proj>> _Pred>
+             std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
         && std::indirectly_writable<std::ranges::iterator_t<_R>, const _T&>
         && std::ranges::sized_range<_R>
