@@ -1450,6 +1450,7 @@ __remove_elements(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
                   _RandomAccessIterator __last, _CalcMask __calc_mask)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _DifferenceType;
     typedef typename ::std::iterator_traits<_RandomAccessIterator>::value_type _Tp;
@@ -1514,7 +1515,7 @@ __remove_elements(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
         // 3. Elements from result are moved to [first, last)
         __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
                                       __result + __m, [__result, __first](_Tp* __i, _Tp* __j) {
-                                          __brick_move_destroy<__parallel_tag<_IsVector>, _ExecutionPolicy>{}(
+                                          __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
                                               __i, __j, __first + (__i - __result), _IsVector{});
                                       });
         return __first + __m;
@@ -1885,7 +1886,7 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
                                           __result + (__n - __m), [__first, __result](_Tp* __b, _Tp* __e) {
-                                              __brick_move_destroy<__parallel_tag<_IsVector>, _ExecutionPolicy>{}(
+                                              __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
                                                   __b, __e, __first + (__b - __result), _IsVector{});
                                           });
 
@@ -1911,7 +1912,7 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
                                           __result + __m, [__n, __m, __first, __result](_Tp* __b, _Tp* __e) {
-                                              __brick_move_destroy<__parallel_tag<_IsVector>, _ExecutionPolicy>{}(
+                                              __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
                                                   __b, __e, __first + ((__n - __m) + (__b - __result)), _IsVector{});
                                           });
 
@@ -2590,7 +2591,7 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec
             // 3. Move elements from temporary buffer to output
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n2,
                                           [__r, __d_first](_T1* __i, _T1* __j) {
-                                              __brick_move_destroy<__parallel_tag<_IsVector>, _ExecutionPolicy>{}(
+                                              __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
                                                   __i, __j, __d_first + (__i - __r), _IsVector{});
                                           });
 
@@ -3169,6 +3170,7 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
                         _RandomAccessIterator __middle, _RandomAccessIterator __last, _Compare __comp)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     if (__first == __last || __first == __middle || __middle == __last)
     {
@@ -3199,7 +3201,7 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
             });
         __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n,
                                       [__r, __first](_Tp* __i, _Tp* __j) {
-                                          __brick_move_destroy<__parallel_tag<_IsVector>, _ExecutionPolicy>{}(
+                                          __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
                                               __i, __j, __first + (__i - __r), _IsVector{});
                                       });
     });
@@ -3294,6 +3296,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
     typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
     typedef typename ::std::iterator_traits<_OutputIterator>::value_type _T;
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     struct _SetRange
     {
@@ -3316,7 +3319,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
         _DifferenceType __m{};
         auto __scan = [=](_DifferenceType, _DifferenceType, const _SetRange& __s) { // Scan
             if (!__s.empty())
-                __brick_move_destroy<__parallel_tag<_IsVector>, _ExecutionPolicy>{}(
+                __brick_move_destroy<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
                     __tmp_memory + __s.__buf_pos, __tmp_memory + (__s.__buf_pos + __s.__len), __result + __s.__pos,
                     _IsVector{});
         };
