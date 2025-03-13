@@ -147,6 +147,8 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
     if (__n == 0)
         return __first2;
 
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
+
     auto __keep1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator1>();
     auto __buf1 = __keep1(__first1, __last1);
@@ -157,7 +159,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
 
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::__brick_swap<_ExecutionPolicy, _Function, decltype(__buf1.all_view()),
+        unseq_backend::__brick_swap<_DecayedExecutionPolicy, _Function, decltype(__buf1.all_view()),
                                     decltype(__buf2.all_view())>{__f, static_cast<std::size_t>(__n)},
         __n, __buf1.all_view(), __buf2.all_view());
     __future.wait(__par_backend_hetero::__deferrable_mode{});
