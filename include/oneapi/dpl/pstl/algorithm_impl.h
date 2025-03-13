@@ -1054,6 +1054,8 @@ template <class _Tag, typename _ExecutionPolicy>
 struct __brick_copy_n<_Tag, _ExecutionPolicy,
                       ::std::enable_if_t<oneapi::dpl::__internal::__is_host_dispatch_tag_v<_Tag>>>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     template <typename _RandomAccessIterator1, typename _Size, typename _RandomAccessIterator2>
     _RandomAccessIterator2
     operator()(_RandomAccessIterator1 __first, _Size __n, _RandomAccessIterator2 __result,
@@ -1079,6 +1081,8 @@ struct __brick_copy_n<_Tag, _ExecutionPolicy,
 template <class _Tag, typename _ExecutionPolicy>
 struct __brick_copy<_Tag, _ExecutionPolicy, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
     operator()(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
@@ -1111,6 +1115,8 @@ struct __brick_copy<_Tag, _ExecutionPolicy, ::std::enable_if_t<__is_host_dispatc
 template <class _Tag, typename _ExecutionPolicy>
 struct __brick_move<_Tag, _ExecutionPolicy, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
     operator()(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
@@ -1139,6 +1145,8 @@ struct __brick_move<_Tag, _ExecutionPolicy, ::std::enable_if_t<__is_host_dispatc
 template <class _Tag, typename _ExecutionPolicy, typename = ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 struct __brick_move_destroy
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
     operator()(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
@@ -2727,6 +2735,8 @@ __pattern_nth_element(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
 template <class _Tag, typename _ExecutionPolicy, typename _Tp>
 struct __brick_fill<_Tag, _ExecutionPolicy, _Tp, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     const _Tp& __value;
 
     template <typename _RandomAccessIterator>
@@ -2775,6 +2785,8 @@ __pattern_fill(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcce
 template <class _Tag, typename _ExecutionPolicy, typename _Tp>
 struct __brick_fill_n<_Tag, _ExecutionPolicy, _Tp, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     const _Tp& __value;
 
     template <typename _RandomAccessIterator, typename _Size>
