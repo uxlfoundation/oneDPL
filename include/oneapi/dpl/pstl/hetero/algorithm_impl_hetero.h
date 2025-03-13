@@ -1464,8 +1464,9 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
 
     typedef typename ::std::iterator_traits<_ForwardIterator1>::difference_type _Size1;
     typedef typename ::std::iterator_traits<_ForwardIterator2>::difference_type _Size2;
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
-    using __brick_include_type = unseq_backend::__brick_includes<_ExecutionPolicy, _Compare, _Size1, _Size2>;
+    using __brick_include_type = unseq_backend::__brick_includes<_DecayedExecutionPolicy, _Compare, _Size1, _Size2>;
     return !__par_backend_hetero::__parallel_or(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first2),
