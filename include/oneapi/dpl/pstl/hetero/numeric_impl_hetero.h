@@ -132,6 +132,8 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
     if (__first == __last)
         return __result;
 
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
+
     const auto __n = __last - __first;
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
@@ -177,7 +179,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         // Move data from temporary buffer into results
         oneapi::dpl::__internal::__pattern_walk2_brick(
             __tag, ::std::move(__policy), __first_tmp, __last_tmp, __result,
-            oneapi::dpl::__internal::__brick_move<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
+            oneapi::dpl::__internal::__brick_move<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
 
         //TODO: optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
     }

@@ -1861,6 +1861,7 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
                  _RandomAccessIterator __middle, _RandomAccessIterator __last)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     typedef typename ::std::iterator_traits<_RandomAccessIterator>::value_type _Tp;
     auto __n = __last - __first;
@@ -1878,7 +1879,7 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
                                           [__last, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
-                                              __internal::__brick_move<__parallel_tag<_IsVector>, _ExecutionPolicy>{}(
+                                              __internal::__brick_move<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
                                                   __b, __e, __b + (__last - __middle), _IsVector{});
                                           });
 
@@ -1904,7 +1905,7 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
                                           [__first, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
-                                              __internal::__brick_move<__parallel_tag<_IsVector>, _ExecutionPolicy>{}(
+                                              __internal::__brick_move<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
                                                   __b, __e, __first + (__b - __middle), _IsVector{});
                                           });
 
@@ -4365,6 +4366,7 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
                      typename ::std::iterator_traits<_RandomAccessIterator>::difference_type __n)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     //If (n > 0 && n < m), returns first + (m - n). Otherwise, if n  > 0, returns first. Otherwise, returns last.
     if (__n <= 0)
@@ -4384,7 +4386,7 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
         {
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __n, __size,
                                           [__first, __n](_DiffType __i, _DiffType __j) {
-                                              __brick_move<__parallel_tag<_IsVector>, _ExecutionPolicy>{}(
+                                              __brick_move<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
                                                   __first + __i, __first + __j, __first + __i - __n, _IsVector{});
                                           });
         }
@@ -4396,7 +4398,7 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
                 auto __end = ::std::min(__k + __n, __size);
                 __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __k, __end,
                                               [__first, __n](_DiffType __i, _DiffType __j) {
-                                                  __brick_move<__parallel_tag<_IsVector>, _ExecutionPolicy>{}(
+                                                  __brick_move<__parallel_tag<_IsVector>, _DecayedExecutionPolicy>{}(
                                                       __first + __i, __first + __j, __first + __i - __n, _IsVector{});
                                               });
             }
