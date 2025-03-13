@@ -44,8 +44,8 @@ main()
         using Policy = decltype(TestUtils::default_dpcpp_policy);
 
         res1 = reduce(exec, A);
-        res2 = reduce(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, 100);
-        res3 = reduce(make_new_policy<new_kernel_name<Policy, 1>>(exec), view, 100, ::std::plus<int>());
+        res2 = reduce(CREATE_NEW_POLICY(exec, 0), view, 100);
+        res3 = reduce(CREATE_NEW_POLICY(exec, 1), view, 100, ::std::plus<int>());
     }
 
     //check result

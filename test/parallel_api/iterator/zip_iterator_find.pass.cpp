@@ -58,19 +58,19 @@ DEFINE_TEST(test_find_if)
         auto f_for_none = [](T1 x) { return x == -1; };
         auto f_for_first = [](T1 x) { return x % 2 == 0; };
 
-        auto tuple_res1 = std::find_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
+        auto tuple_res1 = std::find_if(CREATE_NEW_POLICY(exec, 0), tuple_first1, tuple_last1,
                                        TuplePredicate<decltype(f_for_last), 0>{f_for_last});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
 #endif
         EXPECT_TRUE((tuple_res1 - tuple_first1) == n - 1, "wrong effect from find_if_1 (tuple)");
-        auto tuple_res2 = std::find_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), tuple_first1, tuple_last1,
+        auto tuple_res2 = std::find_if(CREATE_NEW_POLICY(exec, 1), tuple_first1, tuple_last1,
                                        TuplePredicate<decltype(f_for_none), 0>{f_for_none});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
 #endif
         EXPECT_TRUE(tuple_res2 == tuple_last1, "wrong effect from find_if_2 (tuple)");
-        auto tuple_res3 = std::find_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), tuple_first1, tuple_last1,
+        auto tuple_res3 = std::find_if(CREATE_NEW_POLICY(exec, 2), tuple_first1, tuple_last1,
                                        TuplePredicate<decltype(f_for_first), 0>{f_for_first});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -78,7 +78,7 @@ DEFINE_TEST(test_find_if)
         EXPECT_TRUE(tuple_res3 == tuple_first1, "wrong effect from find_if_3 (tuple)");
 
         // current test doesn't work with zip iterators
-        auto tuple_res4 = std::find(make_new_policy<new_kernel_name<Policy, 3>>(exec), tuple_first1, tuple_last1,
+        auto tuple_res4 = std::find(CREATE_NEW_POLICY(exec, 3), tuple_first1, tuple_last1,
                                     std::make_tuple(T1{-1}, T1{-1}));
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();

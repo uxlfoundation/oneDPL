@@ -125,7 +125,7 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy = make_new_policy<new_kernel_name<Policy, 0>>(exec);
+        auto new_policy = CREATE_NEW_POLICY(exec, 0);
         auto res1 =
             oneapi::dpl::inclusive_scan_by_segment(new_policy, keys_first, keys_last, vals_first, val_res_first);
         exec.queue().wait_and_throw();
@@ -138,7 +138,7 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
+        auto new_policy2 = CREATE_NEW_POLICY(exec, 1);
         auto res2 = oneapi::dpl::inclusive_scan_by_segment(new_policy2, keys_first, keys_last, vals_first,
                                                            val_res_first, BinaryPredicate());
         exec.queue().wait_and_throw();
@@ -151,7 +151,7 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy3 = make_new_policy<new_kernel_name<Policy, 2>>(exec);
+        auto new_policy3 = CREATE_NEW_POLICY(exec, 2);
         auto res3 = oneapi::dpl::inclusive_scan_by_segment(new_policy3, keys_first, keys_last, vals_first,
                                                            val_res_first, BinaryPredicate(), BinaryOperation());
         exec.queue().wait_and_throw();

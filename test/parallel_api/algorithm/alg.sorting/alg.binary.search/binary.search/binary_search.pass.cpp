@@ -71,7 +71,7 @@ DEFINE_TEST(test_binary_search)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy = make_new_policy<new_kernel_name<Policy, 0>>(exec);
+        auto new_policy = CREATE_NEW_POLICY(exec, 0);
         auto res1 = oneapi::dpl::binary_search(new_policy, first, last, value_first, value_last, result_first);
         exec.queue().wait_and_throw();
 
@@ -81,7 +81,7 @@ DEFINE_TEST(test_binary_search)
         host_res.update_data();
 
         // call algorithm with comparator
-        auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
+        auto new_policy2 = CREATE_NEW_POLICY(exec, 1);
         auto res2 = oneapi::dpl::binary_search(new_policy2, first, last, value_first, value_last, result_first,
                                                [](ValueT first, ValueT second) { return first < second; });
         exec.queue().wait_and_throw();
