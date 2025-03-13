@@ -1095,6 +1095,8 @@ struct __scan
 template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2>
 struct __brick_includes
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Compare __comp;
     _Size1 __na;
     _Size2 __nb;
@@ -1359,6 +1361,8 @@ struct _DifferenceTag : public ::std::true_type
 template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
 class __brick_set_op
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Compare __comp;
     _Size1 __na;
     _Size2 __nb;
@@ -1419,6 +1423,8 @@ class __brick_set_op
 template <typename _ExecutionPolicy, typename _DiffType, typename _Range>
 struct __brick_shift_left
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
   private:
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
     // Maximum size supported by compilers to generate vector instructions
@@ -1561,6 +1567,8 @@ struct __brick_reduce_idx : public walk_scalar_base<_Range>
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
 struct __brick_swap : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     _F __f;
