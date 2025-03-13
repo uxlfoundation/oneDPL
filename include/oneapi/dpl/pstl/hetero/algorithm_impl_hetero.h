@@ -2033,7 +2033,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
     }
     else //2. n < size/2; 'n' parallel copying
     {
-        auto __brick = unseq_backend::__brick_shift_left<_ExecutionPolicy, _DiffType, decltype(__rng)>{__size, __n};
+        auto __brick = unseq_backend::__brick_shift_left<_DecayedExecutionPolicy, _DiffType, decltype(__rng)>{__size, __n};
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_right>(
