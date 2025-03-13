@@ -74,7 +74,7 @@ DEFINE_TEST(test_equal)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first2)>, "zip_iterator (equal2) not properly copyable");
         }
 
-        bool is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2, test_equal_fn1_pred<T>);
+        bool is_equal = std::equal(CREATE_NEW_POLICY(exec, 0), tuple_first1, tuple_last1, tuple_first2, test_equal_fn1_pred<T>);
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
 #endif
@@ -84,7 +84,7 @@ DEFINE_TEST(test_equal)
         *(host_vals.get() + n - 1) = T{0};
         host_vals.update_data();
 
-        is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 1>>(exec), tuple_first1, tuple_last1, tuple_first2, test_equal_fn1_pred<T>);
+        is_equal = std::equal(CREATE_NEW_POLICY(exec, 1), tuple_first1, tuple_last1, tuple_first2, test_equal_fn1_pred<T>);
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
 #endif
@@ -136,7 +136,7 @@ DEFINE_TEST(test_equal_structured_binding)
                         "zip_iterator (equal_structured_binding2) not properly copyable");
         }
 
-        bool is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2,
+        bool is_equal = std::equal(CREATE_NEW_POLICY(exec, 0), tuple_first1, tuple_last1, tuple_first2,
                                    test_equal_structured_binding_fn1);
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -147,7 +147,7 @@ DEFINE_TEST(test_equal_structured_binding)
         *(host_vals.get() + n - 1) = T{0};
         host_vals.update_data();
 
-        is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 1>>(exec), tuple_first1, tuple_last1, tuple_first2,
+        is_equal = std::equal(CREATE_NEW_POLICY(exec, 1), tuple_first1, tuple_last1, tuple_first2,
                               test_equal_structured_binding_fn1);
         EXPECT_TRUE(!is_equal, "wrong effect from equal(tuple with use of structured binding) 2");
     }

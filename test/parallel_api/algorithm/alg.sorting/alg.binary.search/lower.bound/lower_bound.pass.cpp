@@ -68,7 +68,7 @@ DEFINE_TEST(test_lower_bound)
         initialize_data(host_keys.get(), host_vals.get(), host_vals.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto res1 = oneapi::dpl::lower_bound(policy_container<decltype(exec)>(make_new_policy<new_kernel_name<Policy, 0>>(exec)).get(),
+        auto res1 = oneapi::dpl::lower_bound(CREATE_NEW_POLICY(exec, 0),
                                              first, last, value_first, value_last, result_first);
         exec.queue().wait_and_throw();
 
@@ -78,7 +78,7 @@ DEFINE_TEST(test_lower_bound)
         update_data(host_vals, host_res);
 
         // call algorithm with comparator
-        auto res2 = oneapi::dpl::lower_bound(policy_container<decltype(exec)>(make_new_policy<new_kernel_name<Policy, 1>>(exec)).get(),
+        auto res2 = oneapi::dpl::lower_bound(CREATE_NEW_POLICY(exec, 1),
                                              first, last, value_first, value_last, result_first, test_lower_bound_fn1);
         exec.queue().wait_and_throw();
 
