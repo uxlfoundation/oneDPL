@@ -2767,8 +2767,9 @@ void
 __pattern_fill(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, const _Tp& __value) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
-    __internal::__brick_fill<_Tag, _ExecutionPolicy, _Tp>{__value}(__first, __last, typename _Tag::__is_vector{});
+    __internal::__brick_fill<_Tag, _DecayedExecutionPolicy, _Tp>{__value}(__first, __last, typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Tp>
@@ -2777,11 +2778,12 @@ __pattern_fill(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcce
                _RandomAccessIterator __last, const _Tp& __value)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     return __internal::__except_handler([&__exec, __first, __last, &__value]() {
         __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
                                       [&__value](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
-                                          __internal::__brick_fill<__parallel_tag<_IsVector>, _ExecutionPolicy, _Tp>{
+                                          __internal::__brick_fill<__parallel_tag<_IsVector>, _DecayedExecutionPolicy, _Tp>{
                                               __value}(__begin, __end, _IsVector{});
                                       });
         return __last;
