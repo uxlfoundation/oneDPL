@@ -56,7 +56,7 @@ DEFINE_TEST(test_transform_reduce_unary)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (reduce_unary) not properly copyable");
         }
 
-        std::transform_reduce(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
+        std::transform_reduce(CREATE_NEW_POLICY(exec, 0), tuple_first1, tuple_last1,
                               std::make_tuple(T1{42}, T1{42}), TupleNoOp{}, TupleNoOp{});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -89,7 +89,7 @@ DEFINE_TEST(test_transform_reduce_binary)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (reduce_binary) not properly copyable");
         }
 
-        std::transform_reduce(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1,
+        std::transform_reduce(CREATE_NEW_POLICY(exec, 0), tuple_first1,
                               tuple_last1, tuple_first1, std::make_tuple(T1{42}, T1{42}), TupleNoOp{}, TupleNoOp{});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -132,7 +132,7 @@ DEFINE_TEST(test_min_element)
         }
 
         auto tuple_result =
-            std::min_element(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first, tuple_last,
+            std::min_element(CREATE_NEW_POLICY(exec, 0), tuple_first, tuple_last,
                              TuplePredicate<std::less<IteratorValueType>, 0>{std::less<IteratorValueType>{}});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -174,7 +174,7 @@ DEFINE_TEST(test_count_if)
         auto comp = [](ValueType const& value) { return value % 10 == 0; };
         ReturnType expected = (n - 1) / 10 + 1;
 
-        auto result = std::count_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first, tuple_last,
+        auto result = std::count_if(CREATE_NEW_POLICY(exec, 0), tuple_first, tuple_last,
                                     TuplePredicate<decltype(comp), 0>{comp});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -226,7 +226,7 @@ DEFINE_TEST(test_lexicographical_compare)
 
         bool is_less_exp = n > 1 ? 1 : 0;
         bool is_less_res =
-            std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
+            std::lexicographical_compare(CREATE_NEW_POLICY(exec, 0), tuple_first1, tuple_last1,
                                            tuple_first2, tuple_last2, TuplePredicate<decltype(comp), 0>{comp});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();

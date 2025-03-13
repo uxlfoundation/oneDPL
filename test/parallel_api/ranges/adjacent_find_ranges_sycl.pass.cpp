@@ -22,13 +22,14 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void test(Policy&& exec)
+{
     constexpr int n = 10;
     int data[n] = {5, 6, 7, 3, 4, 5, 6, 7, 8, 9};
 
@@ -40,18 +41,29 @@ main()
     {
         sycl::buffer<int> A(data, sycl::range<1>(n));
 
-        auto exec = TestUtils::default_dpcpp_policy;
-        using Policy = decltype(exec);
-        auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
-
-        res1 = adjacent_find(exec1, views::all_read(A));
-        res2 = adjacent_find(exec2, A, [](auto a, auto b) {return a == b;});
+        res1 = adjacent_find(CREATE_NEW_POLICY(exec, 0), views::all_read(A));
+        res2 = adjacent_find(CREATE_NEW_POLICY(exec, 1), A, [](auto a, auto b) {return a == b;});
     }
 
     //check result
     EXPECT_TRUE(res1 == idx, "wrong effect from 'adjacent_find', sycl ranges");
     EXPECT_TRUE(res2 == idx, "wrong effect from 'adjacent_find' with predicate, sycl ranges");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto q = TestUtils::get_test_queue();
+
+    auto policy = TestUtils::make_new_policy<class Kernel1>(q);
+    test(policy);
+
+    const auto& policy_ref = policy;
+    test(policy_ref);
+
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);
