@@ -126,16 +126,20 @@ struct policy_container
     {
         if constexpr (std::is_rvalue_reference_v<_Policy>)
         {
-        // Return policy as r-value
-        return std::move(__policy);
-    }
+            // Return policy as r-value
+            return std::move(__policy);
+        }
         else
-    {
-        // Return policy as l-value
-        return __policy;
+        {
+            // Return policy as l-value
+            return __policy;
         }
     }
 };
+
+// Create new policy and pass it into called function as l-value / r-value
+// depends on qualifiers of source policy type
+#define CREATE_NEW_POLICY(exec, idx) policy_container<decltype(exec)>(make_new_policy<new_kernel_name<std::decay_t<decltype(exec)>, idx>>(exec)).get()
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
