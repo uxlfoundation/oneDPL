@@ -820,14 +820,15 @@ namespace __internal
 struct __is_sorted_until_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-             std::indirect_strict_weak_order<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
+             std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>>
+             _Comp = std::ranges::less>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
     {
         return adjacent_find(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp), __proj);
+            oneapi::dpl::__internal::__reorder_pred<_Comp>(__comp), __proj);
     }
 }; //__is_sorted_until_fn
 } //__internal
@@ -1566,9 +1567,13 @@ minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng);
 
-    return oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
+    const auto& [__res1, __res2] = oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range>(__rng)),
         __comp);
+
+    [[maybe_unused]] const auto& [__min_idx, __min] = __res1;
+    [[maybe_unused]] const auto& [__max_idx, __max] = __res1;
+    return {__min_idx, __max_idx};
 }
 
 template <typename _ExecutionPolicy, typename _Range>
