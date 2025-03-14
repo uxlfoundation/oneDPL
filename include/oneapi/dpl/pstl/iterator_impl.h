@@ -75,6 +75,49 @@ struct __make_references
     }
 };
 
+template <typename _Iter, typename _Void = void>
+struct __is_legacy_passed_directly : std::false_type
+{
+};
+
+template <typename _Iter>
+struct __is_legacy_passed_directly<_Iter, ::std::enable_if_t<_Iter::is_passed_directly::value>> : std::true_type
+{
+};
+
+template <typename T>
+constexpr auto
+is_passed_directly_in_onedpl_device_policies(const T&)
+{
+    if constexpr (std::is_pointer<std::decay_t<T>>::value)
+        return std::true_type{};
+#if _ONEDPL_BACKEND_SYCL
+    // TODO: hide this better in sycl backend, either all passed directly functions, or just this
+    else if constexpr (oneapi::dpl::__internal::__is_known_usm_vector_iter_v<std::decay_t<T>>)
+        return std::true_type{};
+#endif
+    else if constexpr (__is_legacy_passed_directly<std::decay_t<T>>::value)
+        return std::true_type{};
+    else
+        return std::false_type{};
+}
+
+struct __is_passed_directly_in_onedpl_device_policies_fn
+{
+    template <typename T>
+    constexpr auto
+    operator()(const T& t) const
+    {
+        return is_passed_directly_in_onedpl_device_policies(t);
+    }
+};
+
+inline constexpr __is_passed_directly_in_onedpl_device_policies_fn __is_passed_directly_in_onedpl_device_policies;
+
+template <typename T>
+inline constexpr bool is_passed_directly_in_onedpl_device_policies_v =
+    decltype(oneapi::dpl::__internal::__is_passed_directly_in_onedpl_device_policies(std::declval<T>()))::value;
+
 //zip_iterator version for forward iterator
 //== and != comparison is performed only on the first element of the tuple
 //
@@ -270,6 +313,13 @@ class counting_iterator
     _Ip __my_counter_;
 };
 
+template <typename T>
+constexpr auto
+is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::counting_iterator<T>&)
+{
+    return std::true_type{};
+}
+
 template <typename... _Types>
 class zip_iterator
 {
@@ -414,6 +464,16 @@ zip_iterator<_Tp...>
 make_zip_iterator(std::tuple<_Tp...> __arg)
 {
     return zip_iterator<_Tp...>(__arg);
+}
+
+template <typename... _Tp>
+constexpr auto
+is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::zip_iterator<_Tp...>&)
+{
+    if constexpr ((oneapi::dpl::__internal::is_passed_directly_in_onedpl_device_policies_v<_Tp> && ...))
+        return std::true_type{};
+    else
+        return std::false_type{};
 }
 
 template <typename _Iter, typename _UnaryFunc>
@@ -575,6 +635,16 @@ class transform_iterator
         return __my_unary_func_;
     }
 };
+
+template <typename _It, typename _Unary>
+constexpr auto
+is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::transform_iterator<_It, _Unary>&)
+{
+    if constexpr (__internal::is_passed_directly_in_onedpl_device_policies_v<_It>)
+        return std::true_type{};
+    else
+        return std::false_type{};
+}
 
 template <typename _Iter, typename _UnaryFunc>
 transform_iterator<_Iter, _UnaryFunc>
@@ -770,6 +840,18 @@ class permutation_iterator
     IndexMap my_index;
 };
 
+template <typename _SourceIterator, typename _IndexIterator>
+constexpr auto
+is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::permutation_iterator<_SourceIterator, _IndexIterator>&)
+{
+    if constexpr (__internal::is_passed_directly_in_onedpl_device_policies_v<_SourceIterator> &&
+                  __internal::is_passed_directly_in_onedpl_device_policies_v<
+                      typename oneapi::dpl::permutation_iterator<_SourceIterator, _IndexIterator>::IndexMap>)
+        return std::true_type{};
+    else
+        return std::false_type{};
+}
+
 template <typename SourceIterator, typename IndexMap, typename... StartIndex>
 permutation_iterator<SourceIterator, IndexMap>
 make_permutation_iterator(SourceIterator source, IndexMap map, StartIndex... idx)
@@ -931,6 +1013,12 @@ class discard_iterator
     difference_type __my_position_;
 };
 
+constexpr auto
+is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::discard_iterator&)
+{
+    return std::true_type{};
+}
+
 } // namespace dpl
 } // namespace oneapi
 
@@ -966,5 +1054,21 @@ map_zip(F f, TBig<T...> in, RestTuples... rest)
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
+
+// inject passed directly ADL customization for reverse_iterator into std namespace
+namespace std
+{
+
+template <typename T>
+constexpr auto
+is_passed_directly_in_onedpl_device_policies(const std::reverse_iterator<T>&)
+{
+    if constexpr (oneapi::dpl::__internal::is_passed_directly_in_onedpl_device_policies_v<T>)
+        return std::true_type{};
+    else
+        return std::false_type{};
+}
+
+} // namespace std
 
 #endif // _ONEDPL_ITERATOR_IMPL_H
