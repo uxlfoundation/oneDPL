@@ -937,7 +937,28 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     return std::make_tuple(__rng1_repeat_start + (__combined_steps_to_diagonal >> 1), __rng2_repeat_start + (__combined_steps_to_diagonal >> 1) + __star_offset, __star_offset);
 }
 
-template <typename _SetOpCount, typename _TempData, typename _Compare>
+
+template <std::uint16_t elements, typename _ValueT>
+struct __set_temp_data
+{
+    template<typename _ValueAcc>
+    void
+    set(std::uint16_t __idx, _ValueAcc __val) const
+    {
+        __data[__idx] = *__val;
+    }
+    _ValueT __data[elements];
+};
+
+struct __noop_temp_data
+{
+    template <typename _ValueAcc>
+    void
+    operator()(std::uint16_t __idx, _ValueAcc __val) const
+    {
+    }
+};
+template <typename _SetOpCount, typename _Compare>
 struct __gen_set_balanced_path
 {
     template <typename _InRng>
@@ -952,6 +973,7 @@ struct __gen_set_balanced_path
         //consider building these into the definition of the building block with a requires function
         auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
         auto __rng2_temp_diag = std::get<3>(__in_rng.tuple()); // set b temp storage sequence
+        auto __temp_star_offset = std::get<4>(__in_rng.tuple()); // star offset boolean flags
 
         //find merge path intersection 
         auto [__rng1_pos, __rng2_pos] = __find_merge_path_start_point(__rng1, __rng2, __id * __diagonal_spacing,
@@ -964,51 +986,46 @@ struct __gen_set_balanced_path
 
         __rng1_temp_diag[__id] = __rng1_balanced_pos;
         __rng2_temp_diag[__id] = __rng2_balanced_pos;
-        _TempData __temp_out{__diagonal_spacing - __star_offset+1};
+        __temp_star_offset[__id] = __star_offset;
 
         std::uint16_t __count = __set_op_count(__rng1.begin() + __rng1_balanced_pos, __rng2.begin() + __rng2_balanced_pos, __diagonal_spacing - __star_offset,
-                              __temp_out, __comp);
-        return std::make_tuple(__count, std::move(__temp_out));
+                                               __noop_temp_data{}, __comp);
+        return __count;
     }
-    _Compare __comp;
-    std::uint16_t __diagonal_spacing;
     _SetOpCount __set_op_count;
+    std::uint16_t __diagonal_spacing;
+    _Compare __comp;
 };
 
 
-
-template <typename _ValueT>
-struct __set_temp_data
+template <typename _SetOpCount, typename _TempData, typename _Compare>
+struct __gen_set_op_from_known_balanced_path
 {
-    __set_temp_data(std::uint16_t count) : __output(count)
-    {}
-    
-    typename std::vector<_ValueT>::iterator
-    get_acc() const
+    template <typename _InRng>
+    auto
+    operator()(const _InRng& __in_rng, std::size_t __id) const
     {
-        return __output.begin();
-    }
+        // First we must extract individual sequences from zip iterator because they may not have the same length,
+        // dereferencing is dangerous
+        auto __rng1 = std::get<0>(__in_rng.tuple());    // first sequence
+        auto __rng2 = std::get<1>(__in_rng.tuple());    // second sequence
 
-    template<typename _ValueAcc>
-    void
-    set(std::uint16_t __idx, _ValueAcc __val) const
-    {
-        __output[__idx] = *__val;
+        auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
+        auto __rng2_temp_diag = std::get<3>(__in_rng.tuple()); // set b temp storage sequence
+        auto __temp_star_offset = std::get<4>(__in_rng.tuple()); // star offset boolean flags
+
+        _TempData __output_data{};
+
+        std::uint16_t __count = __set_op_count(__rng1.begin() + __rng1_temp_diag[__id], __rng2.begin() + __rng2_temp_diag[__id], __diagonal_spacing - __temp_star_offset[__id],
+                                               __output_data, __comp);
+        return std::make_tuple(__count, std::move(__output_data));
     }
-    std::vector<_ValueT> __output;
+    _SetOpCount __set_op_count;
+    std::uint16_t __diagonal_spacing;
+    _Compare __comp;
 };
 
-struct __noop_temp_data
-{
-    __noop_temp_data(std::uint16_t count)
-    {}
 
-    template <typename _ValueAcc>
-    void
-    operator()(std::uint16_t __idx, _ValueAcc __val) const
-    {
-    }
-};
 
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
 struct __set_generic_operation
@@ -1278,6 +1295,23 @@ struct __write_to_id_if_else
     }
     _Assign __assign;
 };
+
+template <typename _Assign>
+struct __write_multiple_to_id
+{
+    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    void
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    {
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<1>(__v))>,
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        for (std::size_t __i = 0; __i < std::get<0>(__v); ++__i)
+            __assign(static_cast<_ConvertedTupleType>(std::get<1>(__v)), __out_rng[__id + __i]);
+    }
+    _Assign __assign;
+};
+
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
@@ -1609,38 +1643,79 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
     }
 }
 
+// template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+//           typename _IsOpDifference>
+// auto
+// __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+//                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
+//                                 _IsOpDifference)
+// {
+//     // fill in reduce then scan impl
+//     using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_IsOpDifference, _Compare>;
+//     using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
+//     using _MaskPredicate = oneapi::dpl::__internal::__no_op;
+//     using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
+//     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
+//     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
+//     using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
+
+//     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMaskReduce>;
+//     using _ReduceOp = std::plus<_Size>;
+//     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _ScanRangeTransform>;
+//     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
+
+//     oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, std::int32_t> __mask_buf(__exec, __rng1.size());
+
+//     return __parallel_transform_reduce_then_scan(
+//         __backend_tag, std::forward<_ExecutionPolicy>(__exec),
+//         oneapi::dpl::__ranges::make_zip_view(
+//             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+//             oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
+//                 __mask_buf.get_buffer())),
+//         std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp}}, _ReduceOp{},
+//         _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
+//         _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+//         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
+// }
+
+
+
+// balanced path
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
-          typename _IsOpDifference>
+          typename _SetOperation>
 auto
 __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
-                                _IsOpDifference)
+                                _SetOperation)
 {
-    // fill in reduce then scan impl
-    using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_IsOpDifference, _Compare>;
-    using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
-    using _MaskPredicate = oneapi::dpl::__internal::__no_op;
-    using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
-    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
+    constexpr std::int32_t __diagonal_spacing = 16;
+
+    using _OutValueT = oneapi::dpl::__internal::__value_t<_Range3>;
+    using _TempData = __set_temp_data<__diagonal_spacing + 1, _OutValueT>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
-    using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
-
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMaskReduce>;
     using _ReduceOp = std::plus<_Size>;
-    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _ScanRangeTransform>;
-    using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__rng1.size());
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _Compare>;
+    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_SetOperation, _TempData, _Compare>;
+    using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
+    using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
+    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign>;
+    
+    const std::int32_t __num_diagonals = oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size(), __diagonal_spacing);
+
+    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __temp_diags1(__num_diagonals);
+    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __temp_diags2(__num_diagonals);
+    oneapi::dpl::__par_backend_hetero::__buffer<bool> __temp_star(__num_diagonals);
 
     return __parallel_transform_reduce_then_scan(
         __backend_tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
-                __mask_buf.get_buffer())),
-        std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp}}, _ReduceOp{},
-        _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
-        _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(__temp_diags1.get_buffer()),
+            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(__temp_diags2.get_buffer()),
+            oneapi::dpl::__ranges::all_view<bool, __par_backend_hetero::access_mode::read_write>(__temp_star.get_buffer())),
+        std::forward<_Range3>(__result), _GenReduceInput{}, _ReduceOp{},
+        _GenScanInput{}, _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
 }
 
