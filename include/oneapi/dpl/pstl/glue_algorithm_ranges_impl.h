@@ -849,7 +849,7 @@ struct __mismatch_fn
     std::ranges::mismatch_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>>
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
     {
-        auto __view = views::zip(__r1, __r2);
+        auto __view = std::views::zip(__r1, __r2);
 
         auto __f = [__pred, __proj1, __proj2](const auto& __a) {
                 return !std::invoke(__pred, std::invoke(__proj1, std::get<0>(__a)), std::invoke(__proj2, std::get<1>(__a)));
