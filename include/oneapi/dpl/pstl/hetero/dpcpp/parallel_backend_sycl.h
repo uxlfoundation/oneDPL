@@ -862,7 +862,7 @@ struct __simple_write_to_id
 
 template <bool __forward, typename _Rng, typename _Index, typename _Compare>
 _Index
-biased_binary_search(_Rng __rng, const _Index __start, const _Index __end, const _Compare& __comp)
+__biased_binary_search(const _Rng& __rng, const _Index __start, const _Index __end, const _Compare& __comp)
 {
     _Index __low = __start;
     _Index __high = __end;
@@ -909,9 +909,9 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     auto __start_point2 = __merge_path_rng2;
 
     // find first element of repeating sequence in the first set
-    _Index __rng1_repeat_start = biased_binary_search(__rng1, __merge_path_rng1, __n1, __comp);
+    _Index __rng1_repeat_start = oneapi::dpl::__par_backend_hetero::__biased_binary_search<false>(__rng1, __merge_path_rng1, _Index{0}, __comp);
     // find first element of repeating sequence in the second set
-    _Index __rng2_repeat_start = biased_binary_search(__rng2, __merge_path_rng2, __n2, __comp);
+    _Index __rng2_repeat_start = oneapi::dpl::__par_backend_hetero::__biased_binary_search<false>(__rng2, __merge_path_rng2, _Index{0}, __comp);
 
     // check if there are an even number of steps to the diagonal
     _Index __combined_steps_to_diagonal = (__merge_path_rng1 + __merge_path_rng2) - (__rng1_repeat_start + __rng2_repeat_start);
@@ -960,9 +960,12 @@ struct __gen_set_balanced_path
         auto __rng2_temp_diag = std::get<3>(__in_rng.tuple()); // set b temp storage sequence
         auto __temp_star_offset = std::get<4>(__in_rng.tuple()); // star offset boolean flags
 
+        using _SizeType = decltype(__rng1.size());
+        _SizeType __i_elem = __id * __diagonal_spacing;
         //find merge path intersection 
-        auto [__rng1_pos, __rng2_pos] = __find_merge_path_start_point(__rng1, __rng2, __id * __diagonal_spacing,
-                                                                        __rng1.size(), __rng2.size(), __comp);
+        auto [__rng1_pos, __rng2_pos] = oneapi::dpl::__par_backend_hetero::__find_start_point(__rng1, _SizeType{0}, __rng1.size(),
+                                                                                              __rng2, _SizeType{0}, __rng2.size(),
+                                                                                              __i_elem, __comp);
 
         //Find balanced path for diagonal start
         auto [__rng1_balanced_pos, __rng2_balanced_pos, __star_offset] = __find_balanced_path_start_point(
@@ -1754,24 +1757,29 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
         __copy_by_mask_op);
 }
 
-template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
-          typename _IsOpDifference>
+template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _SetTag>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
 __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Range1&& __rng1,
-                  _Range2&& __rng2, _Range3&& __result, _Compare __comp, _IsOpDifference __is_op_difference)
+                  _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag __set_tag)
 {
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
+    if constexpr(_SetTag::__is_one_shot_v)
     {
-        return __parallel_set_reduce_then_scan<_CustomName>(
-            __backend_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            std::forward<_Range3>(__result), __comp, __is_op_difference);
+        return __parallel_set_reduce_then_scan(__backend_tag, __q, std::forward<_Range1>(__rng1),
+                                               std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
+                                               __set_tag);
     }
     else
     {
-        return __parallel_set_scan<_CustomName>(__backend_tag, __q, std::forward<_Range1>(__rng1),
-                                                std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
-                                                __is_op_difference);
+        return __parallel_set_scan(__backend_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                                   std::forward<_Range3>(__result), __comp, __set_tag);
     }
+}
+
+template <typename _ExecutionPolicy>
+bool
+__can_set_op_write_from_set_b(_ExecutionPolicy&& __exec)
+{
+    return oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec);
 }
 
 //------------------------------------------------------------------------
