@@ -36,4 +36,22 @@
 #    define TEST_LIBSYCL_VERSION 0
 #endif
 
+namespace TestUtils
+{
+
+template <sycl::usm::alloc alloc_type>
+constexpr ::std::size_t
+uniq_kernel_index()
+{
+    return static_cast<::std::underlying_type_t<sycl::usm::alloc>>(alloc_type);
+}
+
+template <typename Op, ::std::size_t CallNumber>
+struct unique_kernel_name;
+
+template <typename Policy, int idx>
+using new_kernel_name = unique_kernel_name<typename std::decay_t<Policy>::kernel_name, idx>;
+
+} /* namespace TestUtils */
+
 #endif //  _UTILS_SYCL_DEFS_H
