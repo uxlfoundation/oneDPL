@@ -148,7 +148,7 @@ The type `T` satisfies *Selection* for a given [Policy](#policy_req_id) `p` if g
 
 - `s` an arbitrary identifier of type `T`
 - `i` an object of type `Info` where `execution_info_v<Info>` is true
-- 'v' an object of type `V` and `is_same_v<Info::value_type, V>`
+- 'v' an object of type `V` and `is_same_v<Info::value_type, V>` is `true`
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
@@ -194,6 +194,8 @@ class fixed_resource_policy;
 4. Always selects index `offset` in the default set of resources.
 5. Uses the provided set of resources and always selects index `offset` from that set.
 
+`initialize` should only be called for policies that are constructed with `deferred_initialization_t`.
+
 #### select heuristic (expository)
 
 ```cpp
@@ -236,6 +238,8 @@ class round_robin_policy;
 3. Uses the provided set of resources and rotates through the default set of resources at each call to `select`.
 4. Rotates through the default set of resources at each call to `select`.
 5. Uses the provided set of resources and rotates through the default set of resources at each call to `select`.
+
+`initialize` should only be called for policies that are constructed with `deferred_initialization_t`.
 
 #### select heuristic (expository)
 
@@ -288,6 +292,8 @@ class round_robin_policy;
 3. Uses the provided set of resources and then selects the least loaded resource at each call to `select`.
 4. Selects the least loaded resource from the default set of resources at each call to `select`.
 5. Uses the provided set of resources and then selects the least loaded resource at each call to `select`.
+
+`initialize` should only be called for policies that are constructed with `deferred_initialization_t`.
 
 #### select heuristic (expository)
 
@@ -343,6 +349,8 @@ class round_robin_policy;
 3. Uses the provided set of resources and profiles each set of unique `f` and `args` for each resource uses the best.
 4. Profiles each set of unique `f` and `args` for each resource in the default set and then uses the best.
 5. Uses the provided set of resources and profiles each set of unique `f` and `args` for each resource uses the best.
+
+`initialize` should only be called for policies that are constructed with `deferred_initialization_t`.
 
 #### select heuristic (expository)
 
