@@ -224,6 +224,18 @@ struct adjacent_difference_wrapper
 {
 };
 
+template <typename _BinaryOperation>
+struct op_caller
+{
+    _BinaryOperation __op;
+
+    template <typename _It1ValueT, typename _It2ValueTRef>
+    void operator()(_It1ValueT __in1, _It1ValueT __in2, _It2ValueTRef __out1) const
+    {
+        __out1 = __op(__in2, __in1); // This move assignment is allowed by the C++ standard draft N4810
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _BinaryOperation>
 _ForwardIterator2
@@ -253,9 +265,10 @@ __pattern_adjacent_difference([[maybe_unused]] __hetero_tag<_BackendTag> __tag, 
     else
 #endif
     {
-        auto __fn = [__op](_It1ValueT __in1, _It1ValueT __in2, _It2ValueTRef __out1) {
-            __out1 = __op(__in2, __in1); // This move assignment is allowed by the C++ standard draft N4810
-        };
+        //auto __fn = [__op](_It1ValueT __in1, _It1ValueT __in2, _It2ValueTRef __out1) {
+        //    __out1 = __op(__in2, __in1); // This move assignment is allowed by the C++ standard draft N4810
+        //};
+        op_caller<_BinaryOperation> __fn{__op};
 
         auto __keep1 =
             oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();
