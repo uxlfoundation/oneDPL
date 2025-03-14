@@ -17,14 +17,18 @@ a timely manner, for justifying removal the feature.
 
 ## Overview of Architecture and Execution Flow
 
-The key components of the Dynamic Selection API are shown below, including the *Free Functions*
-(such as `submit`, `select`, `wait`, etc), a *Policy* object (such as `fixed_resource_policy`,
-`round_robin_policy`, `dynamic_load_policy` and `auto_tune_policy`) and a *Backend* object
-(currently only `sycl_backend`). Users interact with Dynamic Selection through the Free Functions
-and their chosen Policy. The Free Functions have default implementations that depend on a limited set
-of required functions in the Policy. Optional functions may be defined by a Policy to customize 
-some of the Free Functions, such as `submit_and_wait` that would, by default, depend on multiple basis
-functions. Resource specific instrumentation and types are defined in the *Backend*.
+The key components of the Dynamic Selection API are shown below, including the
+[Free Functions](#free_functions_id) (such as `submit`, `select`, `wait`, etc), a
+[Policy](#policy_req_id) object (such as [fixed_resource_policy](#fixed_resource_id),
+[round_robin_policy](#round_robin_id), [dynamic_load_policy](#dynamic_load_id) and
+[auto_tune_policy](#auto_tune_id)) and a [Backend](#backend_req_id) object (currently only
+`sycl_backend`). Users interact with Dynamic Selection through the [Free Functions](#free_functions_id)
+and their chosen [Policy](#policy_req_id). The [Free Functions](#free_functions_id) have
+default implementations that depend on a limited set of required functions in the
+[Policy](#policy_req_id). Optional functions may be defined by a [Policy](#policy_req_id)
+to customize some of the Free Functions, such as `submit_and_wait` that would, by default,
+depend on multiple basis functions. Resource specific instrumentation and types are defined
+in the [Backend](#backend_req_id).
 
 <img src="architecture.png" width=800>
 
@@ -74,46 +78,49 @@ The execution flow of a call to the function ``ex::submit`` is shown below.
 
 <img src="execution_flow.png" width=800>
 
-The free function `submit` receives a Policy object `p` and a function object `f`
-and returns an object `w` that can be waited on.
-A valid Policy must define a `submit` member function and a Backend must also
-define a `submit` member function. The requirements on Policy and Backend types
+The free function `submit` receives a [Policy](#policy_req_id) object `p` and
+a function object `f` and returns an object `w` that can be waited on.
+A valid [Policy](#policy_req_id) must define a `submit` member function and a
+[Backend](#backend_req_id) must also define a `submit` member function. The
+requirements on [Policy](#policy_req_id) and [Backend](#backend_req_id) types
 are discussed later in this proposal. In the figure, the Policy's `submit` function
 selects a resource `r` and then passes `r`, an execution info handle `h`, and `f`
 to the Backend. The handle `h` is the mechanism for the Backend to report runtime
 information required by the Policy logic for making future selections, such as
 the execution time of a task when run on a specific resource.
 
-The Backend `submit` function invokes `f` with the selected resource as an
-argument and is also responsible for collecting and reporting any information
-required by the Policy.
+The [Backend](#backend_req_id) `submit` function invokes `f` with the selected
+resource as an argument and is also responsible for collecting and reporting
+any information required by the [Policy](#policy_req_id). The
+[Execution Info](#execution_info_id) section of this document describes how
+to use traits to determine what information needs to be reported. 
 
 ## Named Requirements
 
+<a id="policy_req_id"></a>
 ### Policy
 
 A Policy is an object with a valid dynamic selection heuristic.
-
 
 The type `T` satisfies *Policy* if given,
 
 - `p` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
-- `s` a selection of a type `selection_t<T>` , which satisfies *Selection*, and was made by `p`.
-` `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+- `s` a selection of a type `selection_t<T>` , which satisfies [Selection](#selection_req_id), and was made by `p`.
+- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
 - `r` a container of resources of type `std::vector<resource_t<T>`.
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. calling this function before `initialize` throws a `std::runtime_exception`. |
-| `p.select(args…)` | Returns `selection_t<T>` that satisfies *Selection*. The selected resource must be within the set of resources returned by `p.get_resources()`. |
-| `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies *Submission*. The function invokes `f` but does not wait for the `wait_t<T>` object returned by it. |
+| `p.select(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
+| `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` but does not wait for the `wait_t<T>` object returned by it. |
 
 | Policy Traits* | Description |
 | ------- | ----------- |
-| `selection<T>::type`, `selection_t<T>` | The wrapped select type returned by `T`. Must satisfy *Selection*. |
+| `selection<T>::type`, `selection_t<T>` | The wrapped select type returned by `T`. Must satisfy [Selection](#selection_req_id). |
 | `resource<T>::type`, `resource_t<T>` | The backend defined resource type that is passed to the user function object. Calling `unwrap` an object of type `selection_t<T>` returns an object of type `resource_t<T>`. |
-| `wait_type<T>::type`, `wait_type_t<T>` | The backend type that is returned by the user function object. Calling `unwrap` on an object that satisfies *Submission* returns on object of type `wait_type_t<T>`. |
+| `wait_type<T>::type`, `wait_type_t<T>` | The backend type that is returned by the user function object. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns on object of type `wait_type_t<T>`. |
 
 *Policy traits are defined in `include/oneapi/dpl/internal/dynamic_selection_impl/policy_traits.h`.
 
@@ -131,12 +138,13 @@ The current implementation of these traits depends on types defined in the Polic
 | *Optional* | Description |
 | --------------------- | ----------- |
 | `p.submit_and_wait(s, f, args…)` | Returns `void`. The function invokes `f` and waits for the `wait_t<T>` it returns to complete. |
-| `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies *Submission*. The function invokes `f` but does not wait for the `wait_t<T>` it returns to complete. |
-| `p.submit_and_wait(f, args…)` | Returns void. The function invokes `f` and waits for the `wait_t<T>` it returns to complete. |
+| `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` but does not wait for the `wait_t<T>` it returns to complete. |
+| `p.submit_and_wait(f, args…)` | Returns `void`. The function invokes `f` and waits for the `wait_t<T>` it returns to complete. |
 
+<a id="selection_req_id"></a>
 ### Selection
 
-The type `T` satisfies *Selection* if given,
+The type `T` satisfies *Selection* for a given [Policy](#policy_req_id) `p` if given,
 
 - `s` an arbitrary identifier of type `T`
 - `i` an object of type `Info` where `execution_info_v<Info>` is true
@@ -146,23 +154,25 @@ The type `T` satisfies *Selection* if given,
 | --------------------- | ----------- |
 | `s.unwrap()` | Returns `resource_t<T>` that should represent one of the resources returned by `p.get_resources()` for the `Policy p` that generated `s`. |
 | `s.policy()` | Returns the policy that was used to make the selection. |
-| `s.report(i)` | Returns void. Notifies policy that an execution info event has occurred. |
-| `report_execution_info<T, Info>::value`, `report_execution_info_v<T,Info>` | True if this selection needs the backend to report the Info. False otherwise. |
+| `s.report(i)` | Returns `void`. Notifies policy that an execution info event has occurred. |
+| `report_execution_info<T, Info>::value`, `report_execution_info_v<T,Info>` | `true` if this selection needs the backend to report the Info. False otherwise. |
 
+<a id="submission_req_id"></a>
 ### Submission
 
-The type `T` satisfies *Submission* if given,
+The type `T` satisfies *Submission* for a given [Policy](#policy_req_id) `p` if given,
 
 - `s` an arbitrary identifier of type `T`
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
-| `s.get_policy()` | Returns an object that satisfies *Policy* and corresponds to the Policy that made the selection. |
+| `s.get_policy()` | Returns an object that satisfies [Policy](#policy_req_id) and corresponds to the Policy that made the selection. |
 | `s.wait()` | Blocks until the submission has completed. |
 | `s.unwrap()` | Returns the underlying backend type value. This type may be void, may represent the backend’s synchronization type, or may represent a return value from the submission. |
 
-## Concrete Policies Already Provided
+## Provided Concrete Policies 
 
+<a id="fixed_resource_id"></a>
 ### `fixed_resource_policy`
 
 ```cpp
@@ -192,7 +202,7 @@ class fixed_resource_policy;
     if (initialized_) {
       return selection_type{*this, resources_[fixed_offset_]};
     } else {
-      throw std::logic_error(“seleced called before initialize”);
+      throw std::logic_error(“select called before initialize”);
     }
   }
 ```
@@ -205,6 +215,7 @@ none
 
 Constructor or initialize may throw `std::bad_alloc` or `std::logic_error`.
 
+<a id="round_robin_id"></a>
 ### `round_robin_policy`
 
 ```cpp
@@ -221,7 +232,7 @@ class round_robin_policy;
 | `void initialize(const std::vector<resource_t<Backend>>& resources); // (5)` |
 
 1. Defers initialization and requires a later call to `initialize`.
-2. Rotates through the default set of resources at each call to `select`.
+2. Rotates through the default set of resources at each call to `select` beginning with `offset`.
 3. Uses the provided set of resources and rotates through the default set of resources at each call to `select`.
 4. Rotates through the default set of resources at each call to `select`.
 5. Uses the provided set of resources and rotates through the default set of resources at each call to `select`.
@@ -256,6 +267,7 @@ none
 
 Constructor or initialize may throw `std::bad_alloc` or `std::logic_error`.
 
+<a id="dynamic_load_id"></a>
 ### `dynamic_load_policy`
 
 ```cpp
@@ -294,7 +306,7 @@ class round_robin_policy;
       }
       return selection_type {*this, resource_ptr};
     } else {
-      throw std::logic_error(“selected called before initialization”);
+      throw std::logic_error(“select called before initialization”);
     }
   }
 ```
@@ -310,7 +322,7 @@ class round_robin_policy;
 
 Constructor or initialize may throw `std::bad_alloc` or `std::logic_error`.
 
-
+<a id="auto_tune_id"></a>
 ### `auto_tune_policy`
 
 ```cpp
@@ -348,7 +360,7 @@ class round_robin_policy;
         return selection{*this, r, tuner}; 
       }
     } else {
-      throw std::logic_error(“selected called before initialization”);
+      throw std::logic_error(“select called before initialization”);
     } 
   }
 ```
@@ -365,6 +377,7 @@ class round_robin_policy;
 
 Constructor or initialize may throw `std::bad_alloc` or `std::logic_error`.
 
+<a id="backend__req_id"></a>
 ## Backends
 
 Backends allow generic policies to be implemented. End-users do not directly interact
@@ -393,6 +406,7 @@ The type `T` satisfies the *Backend* contract if given,
 | --------------------- | ----------- |
 | `void lazy_report()` | If defined by a backend, this function must be called before each new selection. It triggers reporting of the necessary execution info back to the policy. |
 
+<a id="free_functions_id"></a>
 ## Free Functions
 
 | Signature | Description |
@@ -409,13 +423,14 @@ The type `T` satisfies the *Backend* contract if given,
 | `template <typename S, typename Info> void report(S&& s, const Info& i);` | Reports that event `i` has occurred. |
 | `template <typename S, typename Info, typename Value> void report(S&& s, const Info& i, const Value& v); ` | Reports a new value `v` for event `i`. |
 
-### Lazy initialization and Deferred Initialization
+### Deferred Initialization
 
-A call to `get_resources`, `select`, `submit` or `submit_and_wait` may cause lazy initialization
-of underlying state variables, including dynamic allocation. Initialization may throw `std::bad_alloc`.
+A call to `get_resources`, `select`, `submit` or `submit_and_wait` may initialize
+underlying state variables, including dynamic allocation. Initialization may throw `std::bad_alloc`.
 If `p` is a policy constructed with deferred initialization, calling these functions before 
-calling `initialize` will throw std::logic_error.
+calling `initialize` will throw `std::logic_error`.
 
+<a id="execution_info_id"></a>
 ## Execution Info
 
 Policies are informed of key events through the reporting of Execution Info.
@@ -483,6 +498,7 @@ applies its selection logic.
     }
 ```
 
+<a id="exit_criteria_id"></a>
 ## Exit Criteria
 
 - Demonstrate use cases where dynamic selection provides significant improvements.
