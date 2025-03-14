@@ -135,9 +135,12 @@ struct __op_uninitialized_move<_ExecutionPolicy>
     void
     operator()(_SourceT&& __source, _TargetT& __target) const
     {
-        using _TargetValueType = ::std::decay_t<_TargetT>;
+        using _TargetValueType = std::decay_t<_TargetT>;
 
-        ::new (::std::addressof(__target)) _TargetValueType(::std::move(__source));
+        if constexpr (std::is_lvalue_reference_v<_SourceT>)
+            ::new (std::addressof(__target)) _TargetValueType(std::move(__source));
+        else
+            ::new (std::addressof(__target)) _TargetValueType(__source);
     }
 };
 
