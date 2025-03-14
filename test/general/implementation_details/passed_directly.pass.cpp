@@ -133,6 +133,55 @@ private:
     int value;
 };
 
+namespace custom_user
+{
+template <typename BaseIter>
+struct strided_iterator
+{
+    using iterator_category = std::input_iterator_tag;
+    using value_type = typename std::iterator_traits<BaseIter>::value_type;
+
+    strided_iterator(BaseIter base, int stride) : base(base), stride(stride) {}
+
+    int operator*() const { return *base; }
+
+    strided_iterator& operator++() {
+        std::advance(base, stride);
+        return *this;
+    }
+
+    strided_iterator operator++(int) {
+        strided_iterator tmp = *this;
+        ++(*this);
+        return tmp;
+    }
+
+    friend bool operator==(const strided_iterator& a, const strided_iterator& b) {
+        return a.base == b.base;
+    }
+
+    friend bool operator!=(const strided_iterator& a, const strided_iterator& b) {
+        return !(a == b);
+    }
+
+private:
+    BaseIter base;
+    int stride;
+};
+
+template <typename BaseIter>
+auto
+is_passed_directly_in_onedpl_device_policies(const strided_iterator<BaseIter>&)
+{
+    if constexpr (oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<BaseIter>)
+        return std::true_type{};
+    else
+        return std::false_type{};
+}
+
+} // namespace custom_user
+
+
 template <bool base_passed_directly, typename BaseIter>
 void
 test_with_base_iterator()
@@ -175,6 +224,11 @@ test_with_base_iterator()
     using ReverseIter = std::reverse_iterator<BaseIter>;
     static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<ReverseIter> == base_passed_directly,
                     "is_passed_directly_in_onedpl_device_policies is not working correctly for reverse iterator");
+
+    // test custom user strided iterator
+    using StridedIter = custom_user::strided_iterator<BaseIter>;
+    static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<StridedIter> == base_passed_directly,
+                    "is_passed_directly_in_onedpl_device_policies is not working correctly for custom user strided iterator");
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
