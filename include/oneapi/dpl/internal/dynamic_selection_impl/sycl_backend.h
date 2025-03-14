@@ -14,6 +14,7 @@
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"
 
 #include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
+#include "oneapi/dpl/internal/dynamic_selection_impl/default_backend.h"
 
 #include <chrono>
 #include <ratio>
@@ -29,7 +30,8 @@ namespace dpl
 namespace experimental
 {
 
-class sycl_backend
+template< >
+class default_backend<sycl::queue> : public backend_base<sycl::queue, default_backend<sycl::queue>>
 {
   public:
     using resource_type = sycl::queue;
@@ -146,18 +148,18 @@ class sycl_backend
     };
 
   public:
-    sycl_backend(const sycl_backend& v) = delete;
-    sycl_backend&
-    operator=(const sycl_backend&) = delete;
+    default_backend(const default_backend& v) = delete;
+    default_backend&
+    operator=(const default_backend&) = delete;
 
-    sycl_backend()
+    default_backend()
     {
         initialize_default_resources();
         sgroup_ptr_ = std::make_unique<submission_group>(global_rank_);
     }
 
     template <typename NativeUniverseVector>
-    sycl_backend(const NativeUniverseVector& v)
+    default_backend(const NativeUniverseVector& v)
     {
         bool profiling = true;
         global_rank_.reserve(v.size());
@@ -175,7 +177,7 @@ class sycl_backend
 
     template <typename SelectionHandle, typename Function, typename... Args>
     auto
-    submit(SelectionHandle s, Function&& f, Args&&... args)
+    submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
         constexpr bool report_task_completion = report_info_v<SelectionHandle, execution_info::task_completion_t>;
         constexpr bool report_task_submission = report_info_v<SelectionHandle, execution_info::task_submission_t>;
@@ -229,7 +231,7 @@ class sycl_backend
     }
 
     auto
-    get_resources()
+    get_resources_impl()
     {
         return global_rank_;
     }
