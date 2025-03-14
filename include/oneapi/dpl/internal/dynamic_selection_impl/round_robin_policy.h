@@ -30,7 +30,7 @@ namespace dpl
 namespace experimental
 {
 #if _DS_BACKEND_SYCL != 0
-template <typename Backend = sycl_backend>
+template <typename ResourceType = sycl::queue, typename Backend = default_backend<sycl::queue>>
 #else
 template <typename Backend>
 #endif
@@ -46,7 +46,7 @@ struct round_robin_policy
   public:
     //Policy Traits
     using selection_type =
-        oneapi::dpl::experimental::basic_selection_handle_t<round_robin_policy<Backend>, execution_resource_t>;
+        oneapi::dpl::experimental::basic_selection_handle_t<round_robin_policy<ResourceType, Backend>, execution_resource_t>;
     using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
     using wait_type = typename backend_t::wait_type;
 
