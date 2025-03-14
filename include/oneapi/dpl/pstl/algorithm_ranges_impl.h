@@ -36,6 +36,35 @@ namespace __internal
 namespace __ranges
 {
 
+template <typename _IsVector, typename _ExecutionPolicy, typename _Function, std::ranges::random_access_range... _Ranges>
+auto
+__pattern_walk_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Function __f, _Ranges&&... __rngs)
+{
+    using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+    const _Size __n = std::min({_Size(std::ranges::size(__rngs))...});
+
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    __internal::__except_handler([&]() {
+        __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), 0, __n,
+            [__f, __rngs...](auto __i, auto __j) {
+                __internal::__brick_walk_n(__j - __i, __f, _IsVector{}, (std::ranges::begin(__rngs) + __i)...);
+            });
+    });
+    
+    return __n;
+}
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _Function, std::ranges::random_access_range... _Ranges>
+auto
+__pattern_walk_n(__serial_tag<_IsVector>, _ExecutionPolicy&& __exec, _Function __f, _Ranges&&... __rngs)
+{
+    using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+    const _Size __n = std::min({_Size(std::ranges::size(__rngs))...});
+
+    return __internal::__brick_walk_n(__n, __f, _IsVector{}, std::ranges::begin(__rngs)...);
+}
+
 //---------------------------------------------------------------------------------------------------------------------
 // pattern_for_each
 //---------------------------------------------------------------------------------------------------------------------
@@ -370,10 +399,8 @@ __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
         std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
 
-    auto __res = oneapi::dpl::__internal::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+    return oneapi::dpl::__internal::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
-
-    return std::ranges::borrowed_iterator_t<_R>(__res);
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
@@ -381,6 +408,56 @@ auto
 __pattern_min_element(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
 {
     return std::ranges::min_element(std::forward<_R>(__r), __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// pattern_min
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+std::ranges::range_value_t<_R>
+__pattern_min(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    return *__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+                                  __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// pattern_minmax_element
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+auto
+__pattern_minmax_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
+        std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
+
+    return oneapi::dpl::__internal::__pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+        std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+auto
+__pattern_minmax_element(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    return std::ranges::minmax_element(std::forward<_R>(__r), __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_minmax
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>
+__pattern_minmax(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    auto [__it_min, __it_max] =
+        __pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+
+    return {*__it_min, *__it_max};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
