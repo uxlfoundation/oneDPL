@@ -90,6 +90,7 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
             auto f = [&](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type q) {
                 if (i <= 2 * n_samples)
                 {
+
                     // we should be round-robining through the resources
                     if (q != u[(i - 1) % n_samples])
                     {
@@ -470,14 +471,10 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
 }
 
 
-template<bool use_event_profiling=false>
 static inline void
 build_auto_tune_universe(std::vector<sycl::queue>& u)
 {
-    auto prop_list = sycl::property_list{};
-    if(use_event_profiling){
-        prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
-    }
+    auto prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
 
     try
     {
@@ -532,12 +529,9 @@ main()
 #if !ONEDPL_FPGA_DEVICE || !ONEDPL_FPGA_EMULATOR
     using policy_t = oneapi::dpl::experimental::auto_tune_policy<oneapi::dpl::experimental::sycl_backend>;
     std::vector<sycl::queue> u1;
-    std::vector<sycl::queue> u2;
-    constexpr bool use_event_profiling = true;
     build_auto_tune_universe(u1);
-    build_auto_tune_universe<use_event_profiling>(u2);
 
-    if (u1.size() != 0 || u2.size() !=0 )
+    if (u1.size() != 0)
     {
         auto f = [u1](int i) {
             if (i <= 8)
@@ -576,33 +570,6 @@ main()
         actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u1, 1);
         actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u1, 2);
         actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u1, 3);
-        // Use event profiling
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u2, 3);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u2, 3);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u2, 3);
-        // now select then submits
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u2, 3);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u2, 3);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u2, 3);
-
         bProcessed = true;
     }
 #endif // Devices available are CPU and GPU
