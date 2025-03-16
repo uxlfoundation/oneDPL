@@ -279,17 +279,10 @@ __get_reduce_then_scan_sg_sz_device()
 #endif
 }
 
-// To workaround a hardware bug on certain Intel integrated graphics, we use sub-group sizes of 16 with -O0
-// compilation on the device and 32 for -O1 and higher. For Intel devices, ensure sub-group sizes of 16 and 32 are present as we cannot
-// determine the device optimization level from the host. For all other devices, ensure a sub-group size of 32 is present.
-template <typename _ExecutionPolicy>
-std::vector<std::uint8_t>
-__get_reduce_then_scan_sg_sz_cands_host(const _ExecutionPolicy& __exec)
+constexpr inline std::uint8_t
+__get_reduce_then_scan_sg_sz_cands_host()
 {
-    const sycl::device& device = __exec.queue().get_device();
-    if (device.get_info<sycl::info::device::vendor_id>() == __dpl_sycl::__intel_vendor_id)
-        return {16, 32};
-    return {32};
+    return 32;
 }
 
 template <typename... _Name>
@@ -790,12 +783,8 @@ template <typename _ExecutionPolicy>
 bool
 __is_gpu_with_reduce_then_scan_sg_sz(const _ExecutionPolicy& __exec)
 {
-    const std::vector<std::uint8_t> __sg_sz_cands = __get_reduce_then_scan_sg_sz_cands_host(__exec);
-    const bool __dev_supports_sg_sz =
-        std::all_of(__sg_sz_cands.begin(), __sg_sz_cands.end(), [&__exec](std::uint8_t __sg_sz) {
-            return oneapi::dpl::__internal::__supports_sub_group_size(__exec, __sg_sz);
-        });
-    return (__exec.queue().get_device().is_gpu() && __dev_supports_sg_sz);
+    return (__exec.queue().get_device().is_gpu() &&
+             oneapi::dpl::__internal::__supports_sub_group_size(__exec, __get_reduce_then_scan_sg_sz_cands_host()));
 }
 
 // General scan-like algorithm helpers
