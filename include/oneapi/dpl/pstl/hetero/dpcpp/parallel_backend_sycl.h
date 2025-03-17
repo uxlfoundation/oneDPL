@@ -1434,8 +1434,8 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
     _DataAcc __get_data_op;
     unseq_backend::__copy_by_mask<_ReduceOp, oneapi::dpl::__internal::__pstl_assign, /*inclusive*/ std::true_type, 2>
         __copy_by_mask_op;
-    unseq_backend::__brick_set_op<std::decay_t<_ExecutionPolicy>, _Compare, _Size1, _Size2, _IsOpDifference> __create_mask_op{
-        __comp, __n1, __n2};
+    unseq_backend::__brick_set_op<std::decay_t<_ExecutionPolicy>, _Compare, _Size1, _Size2, _IsOpDifference>
+        __create_mask_op{__comp, __n1, __n2};
 
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, int32_t> __mask_buf(__exec, __n1);
