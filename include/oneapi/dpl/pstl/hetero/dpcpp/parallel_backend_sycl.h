@@ -877,7 +877,7 @@ struct __simple_write_to_id
 
 template <bool __forward, typename _Rng, typename _Index, typename _Compare>
 _Index
-__biased_binary_search(const _Rng& __rng, const _Index __start, const _Index __end, const _Compare& __comp)
+__biased_binary_search(const _Rng& __rng, _Index __start, _Index __end, const _Compare& __comp)
 {
     _Index __low = __start;
     _Index __high = __end;
@@ -887,28 +887,28 @@ __biased_binary_search(const _Rng& __rng, const _Index __start, const _Index __e
     {
         __step = -1;
     }
-    _Index __offset = std::max(std::abs(__end - __start) / __fraction, 1);
+    _Index __offset = std::max(std::abs(__end - __start) / __fraction, _Index{1});
     _Index __mid = __start + __offset * __step;
 
     // check progressively larger steps away from start point
     while(__mid < __end && __fraction > 2)
     {
-        if (comp(__rng[__mid], __rng[__start]) == __forward)
+        if (__comp(__rng[__mid], __rng[__start]) == __forward)
             __start = __mid;
         else 
             __end = __mid;
         __fraction >>= 1;
-        __offset = std::max(std::abs(__end - __start) / __fraction, 1) * __step;
+        __offset = std::max(std::abs(__end - __start) / __fraction, _Index{1}) * __step;
         __mid = __start + __offset;
     }
     while(__mid < __end)
     {
-        if (comp(__rng[__mid], __rng[__start]) == __forward)
+        if (__comp(__rng[__mid], __rng[__start]) == __forward)
             __start = __mid;
         else 
             __end = __mid;
         __start = __mid;
-        __offset = std::max(std::abs(__end - __start) >> 1, 1) * __step;
+        __offset = std::max(std::abs(__end - __start) >> 1, _Index{1}) * __step;
         __mid = __start + __offset;
     }
     return __start;
@@ -941,29 +941,29 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
 template <std::uint16_t elements, typename _ValueT>
 struct __set_temp_data
 {
-    template<typename _ValueAcc>
+    template<typename _Rng>
     void
-    set(std::uint16_t __idx, _ValueAcc __val) const
+    set(std::uint16_t __idx, const _Rng& __val, std::size_t __read_idx)
     {
-        __data[__idx] = *__val;
+        __data[__idx] = __val[__read_idx];
     }
     _ValueT __data[elements];
 };
 
 struct __noop_temp_data
 {
-    template <typename _ValueAcc>
+    template<typename _Rng>
     void
-    operator()(std::uint16_t __idx, _ValueAcc __val) const
+    set(std::uint16_t __idx, const _Rng& __val, std::size_t __read_idx) const
     {
     }
 };
 template <typename _SetOpCount, typename _Compare>
 struct __gen_set_balanced_path
 {
-    template <typename _InRng>
+    template <typename _InRng, typename _IndexT>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, _IndexT __id) const
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -991,8 +991,10 @@ struct __gen_set_balanced_path
         __rng2_temp_diag[__id] = __rng2_balanced_pos;
         __temp_star_offset[__id] = __star_offset;
 
-        std::uint16_t __count = __set_op_count(__rng1.begin() + __rng1_balanced_pos, __rng2.begin() + __rng2_balanced_pos, __diagonal_spacing - __star_offset,
-                                               __noop_temp_data{}, __comp);
+        __noop_temp_data __temp_data{};
+
+        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos, __diagonal_spacing - __star_offset,
+                                               __temp_data, __comp);
         return __count;
     }
     _SetOpCount __set_op_count;
@@ -1019,7 +1021,7 @@ struct __gen_set_op_from_known_balanced_path
 
         _TempData __output_data{};
 
-        std::uint16_t __count = __set_op_count(__rng1.begin() + __rng1_temp_diag[__id], __rng2.begin() + __rng2_temp_diag[__id], __diagonal_spacing - __temp_star_offset[__id],
+        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_temp_diag[__id], __rng2_temp_diag[__id], __diagonal_spacing - __temp_star_offset[__id],
                                                __output_data, __comp);
         return std::make_tuple(__count, std::move(__output_data));
     }
@@ -1035,42 +1037,43 @@ struct __set_generic_operation
 {
     template <typename _InRng1, typename _InRng2, typename _TempOutput, typename _Compare>
     std::uint16_t
-    operator()(_InRng1 __in_rng1,  _InRng2 __in_rng2, std::size_t __num_eles_min, const _TempOutput& __temp_out, _Compare __comp) const
+    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
+               std::size_t __num_eles_min, _TempOutput& __temp_out, _Compare __comp) const
     {
         std::uint16_t __count = 0;
         std::uint16_t __idx = 0;
         while(__idx < __num_eles_min)
         {
-            if (!__comp(*__in_rng1, *__in_rng2) && !__comp(*__in_rng2, *__in_rng1))
+            if (!__comp(__in_rng1[__idx1], __in_rng2[__idx2]) && !__comp(__in_rng2[__idx2], __in_rng1[__idx1]))
             {
                 if constexpr (_CopyMatch)
                 {
-                    __temp_out.set(__count, __in_rng1);
+                    __temp_out.set(__count, __in_rng1, __idx1);
                     ++__count;
                 }
-                ++__in_rng1;
-                ++__in_rng2;
+                ++__idx1;
+                ++__idx2;
                 __idx += 2;
             }
             else
             {
-                if (__comp(*__in_rng1, *__in_rng2))
+                if (__comp(__in_rng1[__idx1], __in_rng2[__idx2]))
                 {
                     if constexpr (_CopyDiffSetA)
                     {
-                        __temp_out.set(__count, __in_rng1);
+                        __temp_out.set(__count, __in_rng1, __idx1);
                         ++__count;
                     }
-                    ++__in_rng1;
+                    ++__idx1;
                 }
                 else
                 {
                     if constexpr (_CopyDiffSetB)
                     {
-                        __temp_out.set(__count, __in_rng2);
+                        __temp_out.set(__count, __in_rng2, __idx2);
                         ++__count;
                     }
-                    ++__in_rng2;
+                    ++__idx2;
                 }
                 ++__idx;
             }
@@ -1094,6 +1097,29 @@ struct __set_union : __set_generic_operation<true, true, true>
 };
 
 struct __set_symmetric_difference : __set_generic_operation<false, true, true>
+{
+};
+
+template <typename _SetTag, typename _Void = void>
+struct __get_set_operation : public __set_intersection
+{
+};
+
+template <typename _SetTag>
+struct __get_set_operation<_SetTag, std::enable_if_t<std::is_same<_SetTag, oneapi::dpl::unseq_backend::_UnionTag<std::true_type>>::value>>
+    : public __set_union
+{
+};
+
+template <typename _SetTag>
+struct __get_set_operation<_SetTag, std::enable_if_t<std::is_same<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>>::value>>
+    : public __set_difference
+{
+};
+
+template <typename _SetTag>
+struct __get_set_operation<_SetTag, std::enable_if_t<std::is_same<_SetTag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>>::value>>
+    : public __set_symmetric_difference
 {
 };
 
@@ -1307,10 +1333,10 @@ struct __write_multiple_to_id
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
     {
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<1>(__v))>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<1>(__v).__data[0])>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
         for (std::size_t __i = 0; __i < std::get<0>(__v); ++__i)
-            __assign(static_cast<_ConvertedTupleType>(std::get<1>(__v)), __out_rng[__id + __i]);
+            __assign(static_cast<_ConvertedTupleType>(std::get<1>(__v).__data[__i]), __out_rng[__id + __i]);
     }
     _Assign __assign;
 };
@@ -1685,14 +1711,15 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
 
 // balanced path
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
-          typename _SetOperation>
+          typename _SetTag>
 auto
 __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
-                                _SetOperation)
+                                _SetTag)
 {
     constexpr std::int32_t __diagonal_spacing = 16;
 
+    using _SetOperation = __get_set_operation<_SetTag>;
     using _OutValueT = oneapi::dpl::__internal::__value_t<_Range3>;
     using _TempData = __set_temp_data<__diagonal_spacing + 1, _OutValueT>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
@@ -1717,9 +1744,10 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
             oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(__temp_diags1.get_buffer()),
             oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(__temp_diags2.get_buffer()),
             oneapi::dpl::__ranges::all_view<bool, __par_backend_hetero::access_mode::read_write>(__temp_star.get_buffer())),
-        std::forward<_Range3>(__result), _GenReduceInput{}, _ReduceOp{},
-        _GenScanInput{}, _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-        /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
+        std::forward<_Range3>(__result), _GenReduceInput{_SetOperation{}, __diagonal_spacing, __comp}, _ReduceOp{},
+        _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp}, _ScanInputTransform{}, _WriteOp{},
+        oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{},
+        /*__is_unique_pattern=*/std::false_type{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
