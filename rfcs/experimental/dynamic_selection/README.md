@@ -13,7 +13,7 @@ are familiar with the API documentation.
 This document contains the following:
 - An overview of the current architecture and design.
 - Exit criteria for moving from experimental to fully supported or, if these goals are not achieved in
-a timely manner, for justifying removal the feature.
+a timely manner, for justifying removal of the feature.
 
 ## Overview of Architecture and Execution Flow
 
