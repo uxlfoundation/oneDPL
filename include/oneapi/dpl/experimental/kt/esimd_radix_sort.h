@@ -45,7 +45,7 @@ radix_sort(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __keys_las
     if (__keys_last - __keys_first < 2)
         return {};
 
-    auto __keys_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator>();
+    oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator> __keys_keep;
     auto __keys_rng = __keys_keep(__keys_first, __keys_last).all_view();
     auto __pack = __impl::__rng_pack{::std::move(__keys_rng)};
     return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(__q, __pack, __pack, __param);
@@ -77,10 +77,9 @@ radix_sort_by_key(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __k
     if (__keys_last - __keys_first < 2)
         return {};
 
-    auto __keys_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator>();
+    oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator> __keys_keep;
     auto __keys_rng = __keys_keep(__keys_first, __keys_last).all_view();
-
-    auto __vals_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _ValsIterator>();
+    oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _ValsIterator> __vals_keep;
     auto __vals_rng = __vals_keep(__vals_first, __vals_first + (__keys_last - __keys_first)).all_view();
     auto __pack = __impl::__rng_pack{::std::move(__keys_rng), ::std::move(__vals_rng)};
     return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(__q, __pack, __pack, __param);
@@ -113,10 +112,10 @@ radix_sort(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_l
     if (__n == 0)
         return {};
 
-    auto __keys_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator1>();
+    oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator1> __keys_keep;
     auto __keys_rng = __keys_keep(__keys_first, __keys_last).all_view();
     auto __pack = __impl::__rng_pack{::std::move(__keys_rng)};
-    auto __keys_out_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator2>();
+    oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator2> __keys_out_keep;
     auto __keys_out_rng = __keys_out_keep(__keys_out_first, __keys_out_first + __n).all_view();
     auto __pack_out = __impl::__rng_pack{::std::move(__keys_out_rng)};
     return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/false>(__q, ::std::move(__pack),
@@ -153,17 +152,17 @@ radix_sort_by_key(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 _
     if (__n == 0)
         return {};
 
-    auto __keys_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator1>();
+    oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator1> __keys_keep;
     auto __keys_rng = __keys_keep(__keys_first, __keys_last).all_view();
 
-    auto __vals_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _ValsIterator1>();
+    oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _ValsIterator1> __vals_keep;
     auto __vals_rng = __vals_keep(__vals_first, __vals_first + __n).all_view();
     auto __pack = __impl::__rng_pack{::std::move(__keys_rng), ::std::move(__vals_rng)};
 
-    auto __keys_out_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator2>();
+    oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator2> __keys_out_keep;
     auto __keys_out_rng = __keys_keep(__keys_out_first, __keys_out_first + __n).all_view();
 
-    auto __vals_out_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _ValsIterator2>();
+    oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _ValsIterator2> __vals_out_keep;
     auto __vals_out_rng = __vals_keep(__vals_out_first, __vals_out_first + __n).all_view();
     auto __pack_out = __impl::__rng_pack{::std::move(__keys_out_rng), ::std::move(__vals_out_rng)};
     return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/false>(__q, ::std::move(__pack),

@@ -155,13 +155,13 @@ lower_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
 
     const auto value_size = std::distance(value_start, value_end);
 
-    auto keep_input = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator1>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator1> keep_input;
     auto input_buf = keep_input(start, end);
 
-    auto keep_values = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator2>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator2> keep_values;
     auto value_buf = keep_values(value_start, value_end);
 
-    auto keep_result = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write, OutputIterator>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write, OutputIterator> keep_result;
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
@@ -188,13 +188,13 @@ upper_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
 
     const auto value_size = std::distance(value_start, value_end);
 
-    auto keep_input = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator1>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator1> keep_input;
     auto input_buf = keep_input(start, end);
 
-    auto keep_values = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator2>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator2> keep_values;
     auto value_buf = keep_values(value_start, value_end);
 
-    auto keep_result = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write, OutputIterator>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write, OutputIterator> keep_result;
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
@@ -221,13 +221,13 @@ binary_search_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, Input
 
     const auto value_size = std::distance(value_start, value_end);
 
-    auto keep_input = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator1>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator1> keep_input;
     auto input_buf = keep_input(start, end);
 
-    auto keep_values = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator2>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator2> keep_values;
     auto value_buf = keep_values(value_start, value_end);
 
-    auto keep_result = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write, OutputIterator>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write, OutputIterator> keep_result;
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();

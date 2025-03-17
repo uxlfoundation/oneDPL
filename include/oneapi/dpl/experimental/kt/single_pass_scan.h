@@ -421,9 +421,9 @@ inclusive_scan(sycl::queue __queue, _InIterator __in_begin, _InIterator __in_end
 {
     auto __n = __in_end - __in_begin;
 
-    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _InIterator>();
+    oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _InIterator> __keep1;
     auto __buf1 = __keep1(__in_begin, __in_end);
-    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _OutIterator>();
+    oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _OutIterator> __keep2;
     auto __buf2 = __keep2(__out_begin, __out_begin + __n);
 
     return __impl::__single_pass_scan<true>(__queue, __buf1.all_view(), __buf2.all_view(), __binary_op, __param);

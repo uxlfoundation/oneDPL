@@ -96,7 +96,7 @@ sort_async(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Comp
     wait_for_all(::std::forward<_Events>(__dependencies)...);
     assert(__last - __first >= 2);
 
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
+    oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator> __keep;
     auto __buf = __keep(__first, __last);
 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);

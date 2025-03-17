@@ -383,11 +383,11 @@ __scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, Policy&& po
 
     namespace __bknd = oneapi::dpl::__par_backend_hetero;
 
-    auto keep_keys = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator1>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator1> keep_keys;
     auto key_buf = keep_keys(first1, last1);
-    auto keep_values = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator2>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, InputIterator2> keep_values;
     auto value_buf = keep_values(first2, first2 + n);
-    auto keep_value_outputs = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::write, OutputIterator>();
+    oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::write, OutputIterator> keep_value_outputs;
     auto value_output_buf = keep_value_outputs(result, result + n);
     auto buf_view = key_buf.all_view();
     using iter_value_t = typename ::std::iterator_traits<InputIterator2>::value_type;
