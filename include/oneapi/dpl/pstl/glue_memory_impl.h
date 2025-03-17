@@ -104,9 +104,8 @@ uninitialized_move(_ExecutionPolicy&& __exec, _InputIterator __first, _InputIter
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    if constexpr (std::is_trivially_constructible_v<_OutValueType, std::conditional_t< // required operation is trivial
-                      std::is_lvalue_reference_v<_InRefType>, std::remove_reference_t<_InRefType>&&, _InRefType>> &&
-                  std::is_trivially_default_constructible_v<_OutValueType> &&          // actual operations are trivial
+    if constexpr (std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> &&
+                  std::is_trivially_default_constructible_v<_OutValueType> &&
                   std::is_trivially_assignable_v<_OutRefType, _InRefType>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick(
@@ -132,9 +131,8 @@ uninitialized_move_n(_ExecutionPolicy&& __exec, _InputIterator __first, _Size __
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    if constexpr (std::is_trivially_constructible_v<_OutValueType, std::conditional_t< // required operation is trivial
-                      std::is_lvalue_reference_v<_InRefType>, std::remove_reference_t<_InRefType>&&, _InRefType>> &&
-                  std::is_trivially_default_constructible_v<_OutValueType> &&          // actual operations are trivial
+    if constexpr (std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> &&
+                  std::is_trivially_default_constructible_v<_OutValueType> &&
                   std::is_trivially_assignable_v<_OutRefType, _InRefType>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick_n(
