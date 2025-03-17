@@ -402,10 +402,10 @@ __pattern_generate_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
 // brick_copy, brick_move
 //------------------------------------------------------------------------
 
-template <typename _BackendTag, typename _ExecutionPolicy>
-struct __brick_copy_n<__hetero_tag<_BackendTag>, _ExecutionPolicy>
+template <typename _BackendTag, typename _DecayedExecutionPolicy>
+struct __brick_copy_n<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     template <typename _SourceT, typename _TargetT>
     void
@@ -415,10 +415,10 @@ struct __brick_copy_n<__hetero_tag<_BackendTag>, _ExecutionPolicy>
     }
 };
 
-template <typename _BackendTag, typename _ExecutionPolicy>
-struct __brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>
+template <typename _BackendTag, typename _DecayedExecutionPolicy>
+struct __brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     template <typename _SourceT, typename _TargetT>
     void
@@ -428,10 +428,10 @@ struct __brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>
     }
 };
 
-template <typename _BackendTag, typename _ExecutionPolicy>
-struct __brick_move<__hetero_tag<_BackendTag>, _ExecutionPolicy>
+template <typename _BackendTag, typename _DecayedExecutionPolicy>
+struct __brick_move<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     template <typename _SourceT, typename _TargetT>
     void
@@ -441,10 +441,10 @@ struct __brick_move<__hetero_tag<_BackendTag>, _ExecutionPolicy>
     }
 };
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _SourceT>
-struct __brick_fill<__hetero_tag<_BackendTag>, _ExecutionPolicy, _SourceT>
+template <typename _BackendTag, typename _DecayedExecutionPolicy, typename _SourceT>
+struct __brick_fill<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy, _SourceT>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _SourceT __value;
     template <typename _TargetT>
@@ -455,10 +455,10 @@ struct __brick_fill<__hetero_tag<_BackendTag>, _ExecutionPolicy, _SourceT>
     }
 };
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _SourceT>
-struct __brick_fill_n<__hetero_tag<_BackendTag>, _ExecutionPolicy, _SourceT>
+template <typename _BackendTag, typename _DecayedExecutionPolicy, typename _SourceT>
+struct __brick_fill_n<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy, _SourceT>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _SourceT __value;
     template <typename _TargetT>

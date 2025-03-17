@@ -1050,11 +1050,11 @@ __pattern_search_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 // clear that doing so is worth the trouble and extra layers of call chain.
 // Sometimes a little duplication for sake of regularity is better than the alternative.
 
-template <class _Tag, typename _ExecutionPolicy>
-struct __brick_copy_n<_Tag, _ExecutionPolicy,
+template <class _Tag, typename _DecayedExecutionPolicy>
+struct __brick_copy_n<_Tag, _DecayedExecutionPolicy,
                       ::std::enable_if_t<oneapi::dpl::__internal::__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     template <typename _RandomAccessIterator1, typename _Size, typename _RandomAccessIterator2>
     _RandomAccessIterator2
@@ -1078,10 +1078,10 @@ struct __brick_copy_n<_Tag, _ExecutionPolicy,
 // copy
 //------------------------------------------------------------------------
 
-template <class _Tag, typename _ExecutionPolicy>
-struct __brick_copy<_Tag, _ExecutionPolicy, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
+template <class _Tag, typename _DecayedExecutionPolicy>
+struct __brick_copy<_Tag, _DecayedExecutionPolicy, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
@@ -1112,10 +1112,10 @@ struct __brick_copy<_Tag, _ExecutionPolicy, ::std::enable_if_t<__is_host_dispatc
 // move
 //------------------------------------------------------------------------
 
-template <class _Tag, typename _ExecutionPolicy>
-struct __brick_move<_Tag, _ExecutionPolicy, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
+template <class _Tag, typename _DecayedExecutionPolicy>
+struct __brick_move<_Tag, _DecayedExecutionPolicy, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
@@ -1142,10 +1142,10 @@ struct __brick_move<_Tag, _ExecutionPolicy, ::std::enable_if_t<__is_host_dispatc
     }
 };
 
-template <class _Tag, typename _ExecutionPolicy, typename = ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
+template <class _Tag, typename _DecayedExecutionPolicy, typename = ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 struct __brick_move_destroy
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
@@ -2740,10 +2740,10 @@ __pattern_nth_element(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
 //------------------------------------------------------------------------
 // fill, fill_n
 //------------------------------------------------------------------------
-template <class _Tag, typename _ExecutionPolicy, typename _Tp>
-struct __brick_fill<_Tag, _ExecutionPolicy, _Tp, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
+template <class _Tag, typename _DecayedExecutionPolicy, typename _Tp>
+struct __brick_fill<_Tag, _DecayedExecutionPolicy, _Tp, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     const _Tp& __value;
 
@@ -2792,10 +2792,10 @@ __pattern_fill(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcce
     });
 }
 
-template <class _Tag, typename _ExecutionPolicy, typename _Tp>
-struct __brick_fill_n<_Tag, _ExecutionPolicy, _Tp, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
+template <class _Tag, typename _DecayedExecutionPolicy, typename _Tp>
+struct __brick_fill_n<_Tag, _DecayedExecutionPolicy, _Tp, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     const _Tp& __value;
 
