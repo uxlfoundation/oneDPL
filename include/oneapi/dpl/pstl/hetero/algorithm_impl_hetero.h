@@ -1360,7 +1360,8 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     //TODO: optimize copy back if possible (inplace, decrease number of submits)
     __pattern_walk2(__tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __true_result,
-                    copy_result.first, __first, __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
+                    copy_result.first, __first,
+                    __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
 
     __pattern_walk2(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper2>(::std::forward<_ExecutionPolicy>(__exec)),
@@ -1454,7 +1455,8 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
     typedef typename ::std::iterator_traits<_ForwardIterator1>::difference_type _Size1;
     typedef typename ::std::iterator_traits<_ForwardIterator2>::difference_type _Size2;
 
-    using __brick_include_type = unseq_backend::__brick_includes<std::decay_t<_ExecutionPolicy>, _Compare, _Size1, _Size2>;
+    using __brick_include_type =
+        unseq_backend::__brick_includes<std::decay_t<_ExecutionPolicy>, _Compare, _Size1, _Size2>;
     return !__par_backend_hetero::__parallel_or(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first2),
@@ -1580,7 +1582,8 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         return __pattern_walk2(
             __tag, __par_backend_hetero::make_wrapped_policy<__copy_back>(::std::forward<_ExecutionPolicy>(__exec)),
-            __buf_first, __buf_mid, __out_first, __brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
+            __buf_first, __buf_mid, __out_first,
+            __brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
 
         // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
         // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
