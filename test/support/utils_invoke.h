@@ -109,6 +109,34 @@ make_new_policy(sycl::queue _queue)
 #endif
 }
 
+// struct policy_container - a container for policy which return saved policy
+// as l-value or r-value depends on source policy type qualifiers
+template <typename _Policy>
+struct policy_container
+{
+    using _DecayedPolicy = std::decay_t<_Policy>;
+
+    _DecayedPolicy __policy;
+
+    policy_container(_DecayedPolicy&& __policy) : __policy(std::move(__policy))
+    {
+    }
+
+    auto get() &&
+    {
+        if constexpr (std::is_rvalue_reference_v<_Policy>)
+        {
+        // Return policy as r-value
+        return std::move(__policy);
+    }
+        else
+    {
+        // Return policy as l-value
+        return __policy;
+        }
+    }
+};
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 ////////////////////////////////////////////////////////////////////////////////
