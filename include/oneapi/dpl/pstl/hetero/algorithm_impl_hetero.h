@@ -147,8 +147,6 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
     if (__n == 0)
         return __first2;
 
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
-
     auto __keep1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator1>();
     auto __buf1 = __keep1(__first1, __last1);
@@ -159,7 +157,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
 
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::__brick_swap<_DecayedExecutionPolicy, _Function, decltype(__buf1.all_view()),
+        unseq_backend::__brick_swap<std::decay_t<_ExecutionPolicy>, _Function, decltype(__buf1.all_view()),
                                     decltype(__buf2.all_view())>{__f, static_cast<std::size_t>(__n)},
         __n, __buf1.all_view(), __buf2.all_view());
     __future.wait(__par_backend_hetero::__deferrable_mode{});
@@ -1017,7 +1015,6 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
                       _Iterator2 __result_first, _BinaryPredicate __pred)
 {
     using _It1DifferenceType = typename ::std::iterator_traits<_Iterator1>::difference_type;
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     _It1DifferenceType __n = __last - __first;
 
@@ -1028,7 +1025,7 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
         // For a sequence of size 1, we can just copy the only element to the result.
         oneapi::dpl::__internal::__pattern_walk2_brick(
             __hetero_tag<_BackendTag>{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, __result_first,
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
         return __result_first + 1;
     }
 
@@ -1057,8 +1054,6 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     if (__last == __first)
         return __last;
 
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
-
     using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
 
     oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __buf(__exec, __last - __first);
@@ -1073,7 +1068,7 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
     return __pattern_walk2(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
-        __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+        __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _BinaryPredicate>
@@ -1083,8 +1078,6 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
 {
     if (__last - __first < 2)
         return __last;
-
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
 
@@ -1103,7 +1096,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
                            __par_backend_hetero::access_mode::read_write,
                            __par_backend_hetero::access_mode::read_write>(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
-        __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+        __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
 }
 
 //------------------------------------------------------------------------
@@ -1214,8 +1207,6 @@ _Iterator3
 __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __first1, _Iterator1 __last1,
                 _Iterator2 __first2, _Iterator2 __last2, _Iterator3 __d_first, _Compare __comp)
 {
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
-
     auto __n1 = __last1 - __first1;
     auto __n2 = __last2 - __first2;
     auto __n = __n1 + __n2;
@@ -1229,14 +1220,14 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first2, __last2, __d_first,
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
     else if (__n2 == 0)
         oneapi::dpl::__internal::__pattern_walk2_brick(
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<copy_back_wrapper2>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __d_first,
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
     else
     {
         auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
@@ -1264,7 +1255,6 @@ __pattern_inplace_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __ex
                         _Iterator __middle, _Iterator __last, _Compare __comp)
 {
     using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     if (__first == __middle || __middle == __last || __first == __last)
         return;
@@ -1289,7 +1279,7 @@ __pattern_inplace_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __ex
     // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
     __pattern_walk2(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
-        __copy_first, __copy_last, __first, __brick_move<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+        __copy_first, __copy_last, __first, __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
 }
 
 //------------------------------------------------------------------------
@@ -1357,7 +1347,6 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
                                                                                                           : __first;
 
     using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     auto __n = __last - __first;
 
@@ -1371,12 +1360,12 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     //TODO: optimize copy back if possible (inplace, decrease number of submits)
     __pattern_walk2(__tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __true_result,
-                    copy_result.first, __first, __brick_move<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+                    copy_result.first, __first, __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
 
     __pattern_walk2(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper2>(::std::forward<_ExecutionPolicy>(__exec)),
         __false_result, copy_result.second, __first + true_count,
-        __brick_move<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+        __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
 
     //TODO: A buffer is constructed from a range, the destructor does not need to block.
     // The synchronization between these patterns is not required due to the data are being processed independently.
@@ -1464,9 +1453,8 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
 
     typedef typename ::std::iterator_traits<_ForwardIterator1>::difference_type _Size1;
     typedef typename ::std::iterator_traits<_ForwardIterator2>::difference_type _Size2;
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
-    using __brick_include_type = unseq_backend::__brick_includes<_DecayedExecutionPolicy, _Compare, _Size1, _Size2>;
+    using __brick_include_type = unseq_backend::__brick_includes<std::decay_t<_ExecutionPolicy>, _Compare, _Size1, _Size2>;
     return !__par_backend_hetero::__parallel_or(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first2),
@@ -1532,7 +1520,6 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
                             _InIterator __last, _OutIterator __out_first, _OutIterator __out_last, _Compare __comp)
 {
     using _ValueType = typename ::std::iterator_traits<_InIterator>::value_type;
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     auto __in_size = __last - __first;
     auto __out_size = __out_last - __out_first;
@@ -1549,7 +1536,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         // full sort on them.
         auto __out_end = __pattern_walk2<__par_backend_hetero::__sync_mode>(
             __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_1>(__exec), __first, __last, __out_first,
-            __brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+            __brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
 
         // TODO: __pattern_walk2 is a blocking call here, so there is a synchronization between the patterns.
         // But, when the input iterators are a kind of hetero iterator on top of sycl::buffer, SYCL
@@ -1577,7 +1564,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         auto __buf_last = __pattern_walk2<__par_backend_hetero::__async_mode>(
             __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_2>(__exec), __first, __last, __buf_first,
-            __brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+            __brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
 
         auto __buf_mid = __buf_first + __out_size;
 
@@ -1593,7 +1580,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         return __pattern_walk2(
             __tag, __par_backend_hetero::make_wrapped_policy<__copy_back>(::std::forward<_ExecutionPolicy>(__exec)),
-            __buf_first, __buf_mid, __out_first, __brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+            __buf_first, __buf_mid, __out_first, __brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
 
         // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
         // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
@@ -1692,7 +1679,6 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
         return __first;
 
     using _Tp = typename ::std::iterator_traits<_Iterator>::value_type;
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
@@ -1711,7 +1697,7 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     //An explicit wait isn't required here because we are working with a temporary sycl::buffer and sycl accessors and
     //SYCL runtime makes a dependency graph to prevent the races between two __parallel_for patterns.
 
-    using _Function = __brick_move<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>;
+    using _Function = __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>;
     auto __temp_rng_rw =
         oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::read_write>(__temp_buf.get_buffer());
     auto __brick =
@@ -1820,8 +1806,6 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     if (__first1 == __last1)
         return __result;
 
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
-
     // {1} \ {}: the difference is {1}
     if (__first2 == __last2)
     {
@@ -1830,7 +1814,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_difference_copy_case_1>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result,
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
     }
 
     return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
@@ -1858,8 +1842,6 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     if (__first1 == __last1 && __first2 == __last2)
         return __result;
 
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
-
     //{1} is empty
     if (__first1 == __last1)
     {
@@ -1868,7 +1850,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_1>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first2, __last2, __result,
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
     }
 
     //{2} is empty
@@ -1879,7 +1861,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_2>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result,
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
     }
 
     typedef typename ::std::iterator_traits<_OutputIterator>::value_type _ValueType;
@@ -1941,8 +1923,6 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
     if (__first1 == __last1 && __first2 == __last2)
         return __result;
 
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
-
     //{1} is empty
     if (__first1 == __last1)
     {
@@ -1951,7 +1931,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_copy_case_1>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first2, __last2, __result,
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
     }
 
     //{2} is empty
@@ -1962,7 +1942,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_copy_case_2>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result,
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>{});
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
     }
 
     typedef typename ::std::iterator_traits<_OutputIterator>::value_type _ValueType;
@@ -2003,8 +1983,6 @@ oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range __rng,
                      oneapi::dpl::__internal::__difference_t<_Range> __n)
 {
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
-
     //If (n > 0 && n < m), returns first + (m - n). Otherwise, if n  > 0, returns first. Otherwise, returns last.
     using _DiffType = oneapi::dpl::__internal::__difference_t<_Range>;
     _DiffType __size = __rng.size();
@@ -2017,7 +1995,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
     //1. n >= size/2; 'size - _n' parallel copying
     if (__n >= __mid)
     {
-        using _Function = __brick_move<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>;
+        using _Function = __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>;
 
         //TODO: to consider use just "read" access mode for a source range and just "write" - for a destination range.
         auto __src = oneapi::dpl::__ranges::drop_view_simple<_Range, _DiffType>(__rng, __n);
@@ -2034,7 +2012,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
     else //2. n < size/2; 'n' parallel copying
     {
         auto __brick =
-            unseq_backend::__brick_shift_left<_DecayedExecutionPolicy, _DiffType, decltype(__rng)>{__size, __n};
+            unseq_backend::__brick_shift_left<std::decay_t<_ExecutionPolicy>, _DiffType, decltype(__rng)>{__size, __n};
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_right>(
@@ -2099,8 +2077,6 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
                             _Iterator1 __keys_last, _Iterator2 __values_first, _Iterator3 __out_keys_first,
                             _Iterator4 __out_values_first, _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
-
     std::size_t __n = std::distance(__keys_first, __keys_last);
 
     if (__n == 0)
@@ -2108,7 +2084,7 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
     if (__n == 1)
     {
-        __brick_copy<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy> __copy_op{};
+        __brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>> __copy_op{};
 
         oneapi::dpl::__internal::__pattern_walk2_n(
             __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_keys_values_wrapper>(__exec),
