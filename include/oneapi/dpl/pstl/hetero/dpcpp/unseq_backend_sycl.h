@@ -100,10 +100,10 @@ inline constexpr _Tp __known_identity =
     __known_identity_for_plus<_BinaryOp, _Tp>::value; //for plus only
 #endif
 
-template <typename _ExecutionPolicy, typename _F>
+template <typename _DecayedExecutionPolicy, typename _F>
 struct walk_n
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _F __f;
 
@@ -163,10 +163,10 @@ struct walk_scalar_base
         __bytes_per_item / (__min_type_size * __preferred_vector_size);
 };
 
-template <typename _ExecutionPolicy, typename _F, typename _Range>
+template <typename _DecayedExecutionPolicy, typename _F, typename _Range>
 struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
   private:
     using __base_t = walk_vector_or_scalar_base<_Range>;
@@ -202,10 +202,10 @@ struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
     }
 };
 
-template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
+template <typename _DecayedExecutionPolicy, typename _F, typename _Range1, typename _Range2>
 struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
@@ -250,10 +250,10 @@ struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Ra
     }
 };
 
-template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2, typename _Range3>
+template <typename _DecayedExecutionPolicy, typename _F, typename _Range1, typename _Range2, typename _Range3>
 struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Range2, _Range3>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2, _Range3>;
@@ -308,10 +308,10 @@ struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Ra
 // If read accessor returns temporary value then __no_op returns lvalue reference to it.
 // After temporary value destroying it will be a reference on invalid object.
 // So let's don't call functor in case of __no_op
-template <typename _ExecutionPolicy>
-struct walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>
+template <typename _DecayedExecutionPolicy>
+struct walk_n<_DecayedExecutionPolicy, oneapi::dpl::__internal::__no_op>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     oneapi::dpl::__internal::__no_op __f;
 
@@ -327,10 +327,10 @@ struct walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>
 // walk_adjacent_difference
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
+template <typename _DecayedExecutionPolicy, typename _F, typename _Range1, typename _Range2>
 struct walk_adjacent_difference : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
@@ -436,11 +436,11 @@ struct __init_processing
 
 // Load elements consecutively from global memory, transform them, and apply a local reduction. Each local result is
 // stored in local memory.
-template <typename _ExecutionPolicy, typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative,
+template <typename _DecayedExecutionPolicy, typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative,
           std::uint8_t _VecSize>
 struct transform_reduce
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _Operation1 __binary_op;
     _Operation2 __unary_op;
@@ -584,10 +584,10 @@ struct transform_reduce
 // Reduce local reductions of each work item to a single reduced element per work group. The local reductions are held
 // in local memory. sycl::reduce_over_group is used for supported data types and operations. All other operations are
 // processed in order and without a known identity.
-template <typename _ExecutionPolicy, typename _BinaryOperation1, typename _Tp>
+template <typename _DecayedExecutionPolicy, typename _BinaryOperation1, typename _Tp>
 struct reduce_over_group
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _BinaryOperation1 __bin_op1;
 
@@ -650,10 +650,10 @@ struct reduce_over_group
 
 // Matchers for early_exit_or and early_exit_find
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _DecayedExecutionPolicy, typename _Pred>
 struct single_match_pred_by_idx
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _Pred __pred;
 
@@ -665,18 +665,18 @@ struct single_match_pred_by_idx
     }
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
-struct single_match_pred : single_match_pred_by_idx<_ExecutionPolicy, walk_n<_ExecutionPolicy, _Pred>>
+template <typename _DecayedExecutionPolicy, typename _Pred>
+struct single_match_pred : single_match_pred_by_idx<_DecayedExecutionPolicy, walk_n<_DecayedExecutionPolicy, _Pred>>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
-    single_match_pred(_Pred __p) : single_match_pred_by_idx<_ExecutionPolicy, walk_n<_ExecutionPolicy, _Pred>>{__p} {}
+    single_match_pred(_Pred __p) : single_match_pred_by_idx<_DecayedExecutionPolicy, walk_n<_DecayedExecutionPolicy, _Pred>>{__p} {}
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _DecayedExecutionPolicy, typename _Pred>
 struct multiple_match_pred
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _Pred __pred;
 
@@ -707,10 +707,10 @@ struct multiple_match_pred
     }
 };
 
-template <typename _ExecutionPolicy, typename _Pred, typename _Tp, typename _Size>
+template <typename _DecayedExecutionPolicy, typename _Pred, typename _Tp, typename _Size>
 struct n_elem_match_pred
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _Pred __pred;
     _Tp __value;
@@ -731,10 +731,10 @@ struct n_elem_match_pred
     }
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _DecayedExecutionPolicy, typename _Pred>
 struct first_match_pred
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _Pred __pred;
 
@@ -1118,10 +1118,10 @@ struct __scan
 // __brick_includes
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2>
+template <typename _DecayedExecutionPolicy, typename _Compare, typename _Size1, typename _Size2>
 struct __brick_includes
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _Compare __comp;
     _Size1 __na;
@@ -1384,10 +1384,10 @@ struct _DifferenceTag : public ::std::true_type
 {
 };
 
-template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
+template <typename _DecayedExecutionPolicy, typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
 class __brick_set_op
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _Compare __comp;
     _Size1 __na;
@@ -1446,10 +1446,10 @@ class __brick_set_op
     }
 };
 
-template <typename _ExecutionPolicy, typename _DiffType, typename _Range>
+template <typename _DecayedExecutionPolicy, typename _DiffType, typename _Range>
 struct __brick_shift_left
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
   private:
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
@@ -1590,10 +1590,10 @@ struct __brick_reduce_idx : public walk_scalar_base<_Range>
 
 // std::swap_ranges is unique in that both sets of provided ranges will be modified. Due to this,
 // we define a separate functor from __walk2_vectors_or_scalars with a customized vectorization path.
-template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
+template <typename _DecayedExecutionPolicy, typename _F, typename _Range1, typename _Range2>
 struct __brick_swap : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
