@@ -676,6 +676,8 @@ struct single_match_pred : single_match_pred_by_idx<_ExecutionPolicy, walk_n<_Ex
 template <typename _ExecutionPolicy, typename _Pred>
 struct multiple_match_pred
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Pred __pred;
 
     template <typename _Idx, typename _Acc1, typename _Acc2>
