@@ -208,7 +208,8 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& 
     if (__rng1.empty() || __rng2.empty() || __rng1.size() != __rng2.size())
         return false;
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, equal_predicate<_Pred>>;
+    using _Predicate =
+        oneapi::dpl::unseq_backend::single_match_pred<std::decay_t<_ExecutionPolicy>, equal_predicate<_Pred>>;
 
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
@@ -247,7 +248,7 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&&
     if (__rng.empty())
         return __rng.size();
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, _Pred>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<std::decay_t<_ExecutionPolicy>, _Pred>;
     using _TagType = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range>;
 
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
@@ -336,7 +337,7 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& 
     if (__rng.empty())
         return false;
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, _Pred>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<std::decay_t<_ExecutionPolicy>, _Pred>;
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{},
         __par_backend_hetero::make_wrapped_policy<oneapi::dpl::__par_backend_hetero::__or_policy_wrapper>(
@@ -465,8 +466,8 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     if (__rng.size() < 2)
         return __rng.size();
 
-    using _Predicate =
-        oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, adjacent_find_fn<_BinaryPredicate>>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<std::decay_t<_ExecutionPolicy>,
+                                                                     adjacent_find_fn<_BinaryPredicate>>;
     using _TagType = ::std::conditional_t<__is__or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
                                           oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range>>;
 
