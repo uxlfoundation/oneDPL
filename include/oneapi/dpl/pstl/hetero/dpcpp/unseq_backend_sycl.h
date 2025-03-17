@@ -710,6 +710,8 @@ struct multiple_match_pred
 template <typename _ExecutionPolicy, typename _Pred, typename _Tp, typename _Size>
 struct n_elem_match_pred
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Pred __pred;
     _Tp __value;
     _Size __count;

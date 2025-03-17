@@ -907,7 +907,7 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
                    : __last;
     }
 
-    using _Predicate = unseq_backend::n_elem_match_pred<_ExecutionPolicy, _BinaryPredicate, _Tp, _Size>;
+    using _Predicate = unseq_backend::n_elem_match_pred<std::decay_t<_ExecutionPolicy>, _BinaryPredicate, _Tp, _Size>;
     return __par_backend_hetero::__parallel_find(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first),
