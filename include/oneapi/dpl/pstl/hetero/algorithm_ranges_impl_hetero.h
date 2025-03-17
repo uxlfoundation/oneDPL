@@ -64,7 +64,7 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
         {
             oneapi::dpl::__par_backend_hetero::__parallel_for(
                 _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                unseq_backend::walk1_vector_or_scalar<_ExecutionPolicy, _Function, std::decay_t<_Ranges>...>{
+                unseq_backend::walk1_vector_or_scalar<std::decay_t<_ExecutionPolicy>, _Function, std::decay_t<_Ranges>...>{
                     __f, static_cast<std::size_t>(__n)},
                 __n, std::forward<_Ranges>(__rngs)...)
                 .__deferrable_wait();

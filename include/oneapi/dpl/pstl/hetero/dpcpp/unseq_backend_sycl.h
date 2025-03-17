@@ -166,6 +166,8 @@ struct walk_scalar_base
 template <typename _ExecutionPolicy, typename _F, typename _Range>
 struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
   private:
     using __base_t = walk_vector_or_scalar_base<_Range>;
     _F __f;

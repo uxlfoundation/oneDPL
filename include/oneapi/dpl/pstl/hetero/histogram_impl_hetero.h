@@ -143,7 +143,7 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
 
         auto __init_event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
-            unseq_backend::walk1_vector_or_scalar<_ExecutionPolicy, decltype(__fill_func), decltype(__bins)>{
+            unseq_backend::walk1_vector_or_scalar<std::decay_t<_ExecutionPolicy>, decltype(__fill_func), decltype(__bins)>{
                 __fill_func, static_cast<std::size_t>(__num_bins)},
             __num_bins, __bins);
 
