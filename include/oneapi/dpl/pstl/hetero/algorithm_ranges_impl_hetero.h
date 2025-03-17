@@ -315,7 +315,7 @@ __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     if (__rng1.empty() || __rng2.empty())
         return __rng1.size();
 
-    using _Predicate = unseq_backend::first_match_pred<_ExecutionPolicy, _Pred>;
+    using _Predicate = unseq_backend::first_match_pred<std::decay_t<_ExecutionPolicy>, _Pred>;
     using _TagType = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range1>;
 
     //TODO: To check whether it makes sense to iterate over the second sequence in case of __rng1.size() < __rng2.size()
