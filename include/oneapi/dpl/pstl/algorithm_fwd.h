@@ -48,13 +48,13 @@ template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, 
 bool
 __pattern_any_of(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator, _RandomAccessIterator, _Pred);
 
-template <typename _DifferenceType, typename _F, typename... _Iterators>
+template <typename _ForwardIterator, typename _F, typename... _ForwardIterators>
 auto
-__brick_walk_n(_DifferenceType, _F, /*__is_vector=*/ std::false_type, _Iterators...) noexcept;
+__brick_walk_n(_ForwardIterator, _F, /*__is_vector=*/ std::false_type, _ForwardIterators...) noexcept;
 
-template <typename _DifferenceType, typename _F, typename... _Iterators>
+template <typename _RandomAccessIterator, typename _F, typename... _RandomAccessIterators>
 auto
-__brick_walk_n(_DifferenceType, _F, /*__is_vector=*/ std::true_type, _Iterators...) noexcept;
+__brick_walk_n(_RandomAccessIterator, _F, /*__is_vector=*/ std::true_type, _RandomAccessIterators...) noexcept;
 
 //------------------------------------------------------------------------
 // walk1 (pseudo)
