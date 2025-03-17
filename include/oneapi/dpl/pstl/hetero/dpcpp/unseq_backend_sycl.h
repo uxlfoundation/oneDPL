@@ -311,6 +311,8 @@ struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Ra
 template <typename _ExecutionPolicy>
 struct walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     oneapi::dpl::__internal::__no_op __f;
 
     template <typename _ItemId, typename _Range>
