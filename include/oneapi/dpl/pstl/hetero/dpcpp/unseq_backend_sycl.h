@@ -440,6 +440,8 @@ template <typename _ExecutionPolicy, typename _Operation1, typename _Operation2,
           std::uint8_t _VecSize>
 struct transform_reduce
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _Operation1 __binary_op;
     _Operation2 __unary_op;
 
