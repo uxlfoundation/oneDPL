@@ -32,7 +32,7 @@ namespace experimental
 {
 
 #if _DS_BACKEND_SYCL != 0
-template <typename Backend = sycl_backend>
+template <typename ResourceType = sycl::queue, typename Backend = default_backend<sycl::queue>>
 #else
 template <typename Backend>
 #endif
@@ -92,7 +92,7 @@ struct dynamic_load_policy
 
     std::shared_ptr<backend_t> backend_;
 
-    using selection_type = dl_selection_handle_t<dynamic_load_policy<Backend>>;
+    using selection_type = dl_selection_handle_t<dynamic_load_policy<ResourceType, Backend>>;
 
     struct state_t
     {
@@ -170,7 +170,7 @@ struct dynamic_load_policy
                     least_loaded = ::std::move(r);
                 }
             }
-            return selection_type{dynamic_load_policy<Backend>(*this), least_loaded};
+            return selection_type{dynamic_load_policy<ResourceType, Backend>(*this), least_loaded};
         }
         else
         {
