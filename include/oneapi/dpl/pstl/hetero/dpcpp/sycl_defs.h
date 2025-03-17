@@ -565,9 +565,6 @@ inline constexpr auto __level_zero_backend = sycl::backend::level_zero;
 #    endif
 #endif
 
-// Unique PCI vendor ID for Intel architectures.
-inline std::uint32_t __intel_vendor_id = 0x8086;
-
 } // namespace __dpl_sycl
 
 #endif // _ONEDPL_SYCL_DEFS_H
