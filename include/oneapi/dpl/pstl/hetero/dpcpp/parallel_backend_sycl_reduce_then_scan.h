@@ -266,23 +266,22 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     }
 }
 
-// With optimization enabled, reduce-then-scan requires a sub-group size of 32. Without optimization, we require sub-group
-// sizes of 16 on Intel GPUs (detected as SPIRV targets) and 32 everywhere else. The return value of this function is
-// only meaningful when __SYCL_DEVICE_ONLY__ is defined.
+// With optimization enabled, reduce-then-scan requires a sub-group size of 32. Without optimization, we use a sub-group
+// size of 16 on Intel GPUs (detected as SPIRV targets) and 32 everywhere else. This works around a hardware bug on
+// certain Intel graphics with older drivers.
+//
+// When querying from the host compiler, return a value of 32 always to ensure a generic non-Intel device supports this
+// sub-group size. For the case of Intel GPUs, no additional check for sub-group sizes of 16 is performed on the host as
+// we know this is supported.
 constexpr inline std::uint8_t
-__get_reduce_then_scan_sg_sz_device()
+__get_reduce_then_scan_sg_sz()
 {
-#if _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED || !_ONEDPL_DETECT_SPIRV_COMPILATION
-    return 32;
+    return
+#if !defined(__SYCL_DEVICE_ONLY__) || _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED || !_ONEDPL_DETECT_SPIRV_COMPILATION
+        32;
 #else
-    return 16;
+        16;
 #endif
-}
-
-constexpr inline std::uint8_t
-__get_reduce_then_scan_sg_sz_cands_host()
-{
-    return 32;
 }
 
 template <typename... _Name>
@@ -303,7 +302,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                                                     __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType,
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
-    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz_device();
+    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz();
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
     template <typename _ExecutionPolicy, typename _InRng, typename _TmpStorageAcc>
@@ -455,7 +454,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
     _ScanInputTransform, _WriteOp, _InitType, __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
-    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz_device();
+    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz();
 
     _InitValueType
     __get_block_carry_in(const std::size_t __block_num, _InitValueType* __tmp_ptr,
@@ -784,7 +783,7 @@ bool
 __is_gpu_with_reduce_then_scan_sg_sz(const _ExecutionPolicy& __exec)
 {
     return (__exec.queue().get_device().is_gpu() &&
-             oneapi::dpl::__internal::__supports_sub_group_size(__exec, __get_reduce_then_scan_sg_sz_cands_host()));
+            oneapi::dpl::__internal::__supports_sub_group_size(__exec, __get_reduce_then_scan_sg_sz()));
 }
 
 // General scan-like algorithm helpers
