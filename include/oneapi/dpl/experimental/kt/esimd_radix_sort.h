@@ -180,7 +180,7 @@ namespace
                  "and will be removed in a future release. "
                  "Use oneapi::dpl::experimental::kt::gpu::esimd instead")]]
 #endif
-esimd
+    esimd
 {
 using oneapi::dpl::experimental::kt::gpu::esimd::radix_sort;
 using oneapi::dpl::experimental::kt::gpu::esimd::radix_sort_by_key;
