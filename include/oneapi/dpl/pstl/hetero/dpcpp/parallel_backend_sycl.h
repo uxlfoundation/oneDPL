@@ -874,45 +874,29 @@ struct __simple_write_to_id
     }
 };
 
-
-template <bool __forward, typename _Rng, typename _Index, typename _Compare>
-_Index
-__biased_binary_search(const _Rng& __rng, _Index __start, _Index __end, const _Compare& __comp)
+template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
+_Size1
+__right_biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
 {
-    _Index __low = __start;
-    _Index __high = __end;
-    _Index __fraction = 64;
-    _Index __step = 1;
-    if constexpr(!__forward)
+    //TODO: make this biased
+    auto __n = __last - __first;
+    auto __cur = __n;
+    _Size1 __it;
+    while (__n > 0)
     {
-        __step = -1;
+        __it = __first;
+        __cur = __n / 2;
+        __it += __cur;
+        if (__comp(__acc[__it], __value))
+        {
+            __n -= __cur + 1, __first = ++__it;
+        }
+        else
+            __n = __cur;
     }
-    _Index __offset = std::max(std::abs(__end - __start) / __fraction, _Index{1});
-    _Index __mid = __start + __offset * __step;
-
-    // check progressively larger steps away from start point
-    while(__mid < __end && __fraction > 2)
-    {
-        if (__comp(__rng[__mid], __rng[__start]) == __forward)
-            __start = __mid;
-        else 
-            __end = __mid;
-        __fraction >>= 1;
-        __offset = std::max(std::abs(__end - __start) / __fraction, _Index{1}) * __step;
-        __mid = __start + __offset;
-    }
-    while(__mid < __end)
-    {
-        if (__comp(__rng[__mid], __rng[__start]) == __forward)
-            __start = __mid;
-        else 
-            __end = __mid;
-        __start = __mid;
-        __offset = std::max(std::abs(__end - __start) >> 1, _Index{1}) * __step;
-        __mid = __start + __offset;
-    }
-    return __start;
+    return __first;
 }
+    
 
 template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
 auto
@@ -924,9 +908,9 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     auto __start_point2 = __merge_path_rng2;
 
     // find first element of repeating sequence in the first set
-    _Index __rng1_repeat_start = oneapi::dpl::__par_backend_hetero::__biased_binary_search<false>(__rng1, __merge_path_rng1, _Index{0}, __comp);
+    _Index __rng1_repeat_start = oneapi::dpl::__par_backend_hetero::__right_biased_lower_bound(__rng1, _Index{0}, __merge_path_rng1, __rng1[__merge_path_rng1], __comp);
     // find first element of repeating sequence in the second set
-    _Index __rng2_repeat_start = oneapi::dpl::__par_backend_hetero::__biased_binary_search<false>(__rng2, __merge_path_rng2, _Index{0}, __comp);
+    _Index __rng2_repeat_start = oneapi::dpl::__par_backend_hetero::__right_biased_lower_bound(__rng2, _Index{0}, __merge_path_rng2, __rng2[__merge_path_rng2], __comp);
 
     // check if there are an even number of steps to the diagonal
     _Index __combined_steps_to_diagonal = (__merge_path_rng1 + __merge_path_rng2) - (__rng1_repeat_start + __rng2_repeat_start);
@@ -1066,7 +1050,7 @@ struct __set_generic_operation
                     }
                     ++__idx1;
                 }
-                else
+                else // __comp(__in_rng2[__idx2], __in_rng1[__idx1])
                 {
                     if constexpr (_CopyDiffSetB)
                     {
