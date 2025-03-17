@@ -1094,8 +1094,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     //else use multi pass scan implementation
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
-    using _UnaryFunctor = unseq_backend::walk_n<_ExecutionPolicy, _UnaryOperation>;
-    using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
+    using _UnaryFunctor = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, _UnaryOperation>;
+    using _NoOpFunctor = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, oneapi::dpl::__internal::__no_op>;
 
     _Assigner __assign_op;
     _NoAssign __no_assign_op;
@@ -1194,7 +1194,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
     using _MaskAssigner = unseq_backend::__mask_assigner<1>;
-    using _DataAcc = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
+    using _DataAcc = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, oneapi::dpl::__internal::__no_op>;
     using _InitType = unseq_backend::__no_init_value<_Size>;
 
     _Assigner __assign_op;
@@ -1427,7 +1427,7 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
     using _NoAssign = unseq_backend::__scan_no_assign;
     using _MaskAssigner = unseq_backend::__mask_assigner<2>;
     using _InitType = unseq_backend::__no_init_value<_Size1>;
-    using _DataAcc = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
+    using _DataAcc = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, oneapi::dpl::__internal::__no_op>;
 
     _ReduceOp __reduce_op;
     _Assigner __assign_op;
