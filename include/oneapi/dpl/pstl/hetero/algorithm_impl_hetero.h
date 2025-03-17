@@ -2007,8 +2007,8 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
         auto __dst = oneapi::dpl::__ranges::take_view_simple<_Range, _DiffType>(__rng, __size_res);
 
         auto __brick =
-            unseq_backend::walk2_vectors_or_scalars<std::decay_t<_ExecutionPolicy>, _Function, decltype(__src), decltype(__dst)>{
-                _Function{}, static_cast<std::size_t>(__size_res)};
+            unseq_backend::walk2_vectors_or_scalars<std::decay_t<_ExecutionPolicy>, _Function, decltype(__src),
+                                                    decltype(__dst)>{_Function{}, static_cast<std::size_t>(__size_res)};
 
         oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                           __brick, __size_res, __src, __dst)
