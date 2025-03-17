@@ -825,6 +825,11 @@ struct __swap_ranges_fn
     }
 };
 
+template <typename _FirstIt, typename... _RestIt>
+constexpr auto __get_first_iterator(_FirstIt __first_it, _RestIt...) {
+    return __first_it;
+}
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi

@@ -48,7 +48,8 @@ __pattern_walk_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Function
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), 0, __n,
             [__f, __rngs...](auto __i, auto __j) {
-                oneapi::dpl::__internal::__brick_walk_n(__j - __i, __f, _IsVector{}, (std::ranges::begin(__rngs) + __i)...);
+                auto __last1 = oneapi::dpl::__internal::__get_first_iterator(std::ranges::begin(__rngs)...) + __j;
+                oneapi::dpl::__internal::__brick_walk_n(__last1, __f, _IsVector{}, (std::ranges::begin(__rngs) + __i)...);
             });
     });
     
@@ -62,7 +63,8 @@ __pattern_walk_n(__serial_tag<_IsVector>, _ExecutionPolicy&& __exec, _Function _
     using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
     const _Size __n = std::min({_Size(std::ranges::size(__rngs))...});
 
-    return oneapi::dpl::__internal::__brick_walk_n(__n, __f, _IsVector{}, std::ranges::begin(__rngs)...);
+    auto __last1 = oneapi::dpl::__internal::__get_first_iterator(std::ranges::begin(__rngs)...) + __n;
+    return oneapi::dpl::__internal::__brick_walk_n(__last1, __f, _IsVector{}, std::ranges::begin(__rngs)...);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
