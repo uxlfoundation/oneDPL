@@ -814,11 +814,6 @@ struct __min_nested_type_size<oneapi::dpl::__internal::tuple<_Ts...>>
     constexpr static std::size_t value = std::min({__min_nested_type_size<_Ts>::value...});
 };
 
-template <typename _FirstIt, typename... _RestIt>
-constexpr auto __get_first_iterator(_FirstIt __first_it, _RestIt...) {
-    return __first_it;
-}
-
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
