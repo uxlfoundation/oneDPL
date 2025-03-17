@@ -338,6 +338,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                 __cgh, __dpl_sycl::__no_init{});
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
+                // Compute work distribution fields dependent on sub-group size within the kernel. This is because we
+                // can only rely on the value of __sub_group_size provided in the device compilation phase within the
+                // kernel itself.
                 const auto [__num_sub_groups_local, __num_sub_groups_global, __inputs_per_sub_group,
                             __inputs_per_item] =
                     __get_reduce_then_scan_sub_group_params(__work_group_size, __sub_group_size, __max_num_work_groups,
@@ -907,6 +910,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
         __event = __scan_submitter(__exec, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __event,
                                    __inputs_remaining, __b);
+        __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
         {
             __inputs_per_item = __inputs_remaining >= __max_inputs_per_block
@@ -915,7 +919,6 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
                                                       oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
                                                       __num_work_groups * __work_group_size);
         }
-        __inputs_remaining -= std::min(__inputs_remaining, __block_size);
     }
     return __future(__event, __result_and_scratch);
 }
