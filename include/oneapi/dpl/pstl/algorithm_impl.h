@@ -487,6 +487,29 @@ __pattern_walk2_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _S
     return __brick(__first1, __n, __first2, typename _Tag::__is_vector{});
 }
 
+//------------------------------------------------------------------------
+// walk3 (pseudo)
+//
+// walk3 evaluates f(x,y,z) for (x,y,z) drawn from [first1,last1), [first2,...), [first3,...)
+//------------------------------------------------------------------------
+template <class _ForwardIterator1, class _ForwardIterator2, class _ForwardIterator3, class _Function>
+_ForwardIterator3
+__brick_walk3(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+              _ForwardIterator3 __first3, _Function __f, /*vector=*/::std::false_type) noexcept
+{
+    for (; __first1 != __last1; ++__first1, ++__first2, ++__first3)
+        __f(*__first1, *__first2, *__first3);
+    return __first3;
+}
+
+template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Function>
+_RandomAccessIterator3
+__brick_walk3(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+              _RandomAccessIterator3 __first3, _Function __f, /*vector=*/::std::true_type) noexcept
+{
+    return __unseq_backend::__simd_walk_n(__last1 - __first1, __f, __first1, __first2, __first3);
+}
+
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _ForwardIterator3,
           class _Function>
 _ForwardIterator3
@@ -495,7 +518,7 @@ __pattern_walk3(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
 {
     static_assert(__is_serial_tag_v<_Tag>);
 
-    return __internal::__brick_walk_n(__last1, __f, typename _Tag::__is_vector{}, __first1, __first2, __first3);
+    return __internal::__brick_walk3(__first1, __last1, __first2, __first3, __f, typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
@@ -511,8 +534,8 @@ __pattern_walk3(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
         __par_backend::__parallel_for(
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
             [__f, __first1, __first2, __first3](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
-                __internal::__brick_walk_n(__j, __f, _IsVector{}, __i,
-                                          __first2 + (__i - __first1), __first3 + (__i - __first1));
+                __internal::__brick_walk3(__i, __j, __first2 + (__i - __first1), __first3 + (__i - __first1), __f,
+                                          _IsVector{});
             });
         return __first3 + (__last1 - __first1);
     });
@@ -1523,11 +1546,13 @@ __pattern_unique(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _Ra
         // Trivial sequence - use serial algorithm
         return __internal::__brick_unique(__first, __last, __pred, _IsVector{});
     }
-    return __internal::__remove_elements(__tag, ::std::forward<_ExecutionPolicy>(__exec), ++__first, __last,
-            [&__pred](bool* __b, bool* __e, _RandomAccessIterator __it) {
-            __internal::__brick_walk_n(__e, [&__pred](bool& __x, _ReferenceType __y, _ReferenceType __z) {
-                __x = !__pred(__y, __z); }, _IsVector{}, __b, __it - 1, __it);
-            });
+    return __internal::__remove_elements(
+        __tag, ::std::forward<_ExecutionPolicy>(__exec), ++__first, __last,
+        [&__pred](bool* __b, bool* __e, _RandomAccessIterator __it) {
+            __internal::__brick_walk3(
+                __b, __e, __it - 1, __it,
+                [&__pred](bool& __x, _ReferenceType __y, _ReferenceType __z) { __x = !__pred(__y, __z); }, _IsVector{});
+        });
 }
 
 //------------------------------------------------------------------------
