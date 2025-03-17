@@ -46,6 +46,33 @@ namespace dpl
 namespace __internal
 {
 
+template <typename _IsVector, typename _ExecutionPolicy, typename _ForwardIterator, typename _Function, typename... _ForwardIterators>
+auto
+__pattern_walk_n(__serial_tag<_IsVector>, _ExecutionPolicy&& __exec, _ForwardIterator __last1, _Function __f, _ForwardIterators... __iters)
+{
+    return oneapi::dpl::__internal::__brick_walk_n(__last1, __f, _IsVector{}, __iters...);
+}
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator, typename _Function, typename... _RandomAccessIterators>
+auto
+__pattern_walk_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __last1, _Function __f, _RandomAccessIterators... __iters)
+{
+    auto __first1 = __get_first_iterator(__iters...);
+    const auto __n = __last1 - __first1;
+
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    __internal::__except_handler([&]() {
+        __par_backend::__parallel_for(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), 0, __n,
+            [__f, __iters...](auto __i, auto __j) {
+                auto __last1 = __first1 + __j;
+                oneapi::dpl::__internal::__brick_walk_n(__last1, __f, _IsVector{}, (__iters + __i)...);
+            });
+    });
+
+    return (__iters, ...) + __n;
+}
+
 template <typename _ForwardIterator, typename _F, typename... _ForwardIterators>
 auto
 __brick_walk_n(_ForwardIterator __last1, _F __f, /*__is_vector=*/ std::false_type, _ForwardIterators... __iters) noexcept
