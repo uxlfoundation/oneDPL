@@ -138,6 +138,41 @@ get_dpcpp_test_policy()
     return TestUtils::make_new_policy<_NewKernelName>(__arg);
 }
 
+// struct policy_container - a container for policy which return saved policy
+// as l-value or r-value depends on source policy type qualifiers
+template <typename _Policy>
+struct policy_container
+{
+    using _DecayedPolicy = std::decay_t<_Policy>;
+
+    _DecayedPolicy __policy;
+
+    policy_container(_DecayedPolicy&& __policy) : __policy(std::move(__policy))
+    {
+    }
+
+    // Delete copy constructor to avoid copying of policy_container
+    policy_container(const policy_container&) = delete;
+
+    // Delete assignment operator to avoid copying of policy_container
+    policy_container&
+    operator=(const policy_container&) = delete;
+
+    auto get() &&
+    {
+        if constexpr (std::is_rvalue_reference_v<_Policy>)
+        {
+        // Return policy as r-value
+        return std::move(__policy);
+    }
+        else
+    {
+        // Return policy as l-value
+        return __policy;
+        }
+    }
+};
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 ////////////////////////////////////////////////////////////////////////////////
