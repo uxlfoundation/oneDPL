@@ -849,15 +849,12 @@ struct __mismatch_fn
     std::ranges::mismatch_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>>
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
     {
-        auto __view = std::views::zip(__r1, __r2);
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1,
+            __proj2);
 
-        auto __f = [__pred, __proj1, __proj2](const auto& __a) {
-                return !std::invoke(__pred, std::invoke(__proj1, std::get<0>(__a)), std::invoke(__proj2, std::get<1>(__a)));
-            };
-
-        auto __res_n = find_if(std::forward<_ExecutionPolicy>(__exec), __view, __f) - __view.begin();
-
-        return {std::ranges::begin(__r1) + __res_n, std::ranges::begin(__r2) + __res_n};
+        return {__it_1, __it_2};
     }
 
 }; //__is_sorted_until_fn

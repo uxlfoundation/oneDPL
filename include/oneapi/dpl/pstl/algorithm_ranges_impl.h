@@ -558,6 +558,33 @@ __pattern_merge(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _
     return __return_type{__res.second, __res.first, __it_out + __n_out};
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_mismatch
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
+auto
+__pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __bin_pred = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) {
+        return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
+                           std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
+
+    return oneapi::dpl::__internal::__pattern_mismatch(__tag, std::forward<_ExecutionPolicy>(__exec),
+        std::ranges::begin(__r1), std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
+        std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred);
+}
+
+template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
+auto
+__pattern_mismatch(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2,
+                   _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return std::ranges::mismatch(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+}
+
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl
