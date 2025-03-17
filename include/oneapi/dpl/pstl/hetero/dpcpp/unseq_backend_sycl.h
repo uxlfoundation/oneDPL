@@ -587,6 +587,8 @@ struct transform_reduce
 template <typename _ExecutionPolicy, typename _BinaryOperation1, typename _Tp>
 struct reduce_over_group
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _BinaryOperation1 __bin_op1;
 
     // Reduce on local memory with subgroups
