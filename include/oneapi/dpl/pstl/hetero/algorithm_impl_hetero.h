@@ -114,7 +114,7 @@ __pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
 
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _Function, decltype(__buf1.all_view()),
+        unseq_backend::walk2_vectors_or_scalars<std::decay_t<_ExecutionPolicy>, _Function, decltype(__buf1.all_view()),
                                                 decltype(__buf2.all_view())>{__f, static_cast<std::size_t>(__n)},
         __n, __buf1.all_view(), __buf2.all_view());
 
@@ -1706,7 +1706,7 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     auto __temp_rng_rw =
         oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::read_write>(__temp_buf.get_buffer());
     auto __brick =
-        unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _Function, decltype(__temp_rng_rw),
+        unseq_backend::walk2_vectors_or_scalars<std::decay_t<_ExecutionPolicy>, _Function, decltype(__temp_rng_rw),
                                                 decltype(__buf.all_view())>{_Function{}, static_cast<std::size_t>(__n)};
     oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __brick,
                                                       __n, __temp_rng_rw, __buf.all_view())
@@ -2007,7 +2007,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
         auto __dst = oneapi::dpl::__ranges::take_view_simple<_Range, _DiffType>(__rng, __size_res);
 
         auto __brick =
-            unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _Function, decltype(__src), decltype(__dst)>{
+            unseq_backend::walk2_vectors_or_scalars<std::decay_t<_ExecutionPolicy>, _Function, decltype(__src), decltype(__dst)>{
                 _Function{}, static_cast<std::size_t>(__size_res)};
 
         oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
