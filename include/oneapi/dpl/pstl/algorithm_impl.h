@@ -46,21 +46,22 @@ namespace dpl
 namespace __internal
 {
 
-template <typename _DifferenceType, typename _F, typename... _Iterators>
+template <typename _ForwardIterator, typename _F, typename... _ForwardIterators>
 auto
-__brick_walk_n(_DifferenceType __n, _F __f, /*__is_vector=*/ std::false_type, _Iterators... __it) noexcept
+__brick_walk_n(_ForwardIterator __last1, _F __f, /*__is_vector=*/ std::false_type, _ForwardIterators... __iters) noexcept
 {
-    for (_DifferenceType __i = 0; __i < __n; ++__i)
-        __f(__it[__i]...);
+    for (auto __first1 = __get_first_iterator(__iters...); __first1 != __last1; (__iters++, ...))
+        __f((*__iters)...);
 
-    return (__it, ...) + __n;
+    return (__iters, ...);
 }
 
-template <typename _DifferenceType, typename _F, typename... _Iterators>
+template <typename _RandomAccessIterator, typename _F, typename... _RandomAccessIterators>
 auto
-__brick_walk_n(_DifferenceType __n, _F __f, /*__is_vector=*/ std::true_type, _Iterators... __it) noexcept
+__brick_walk_n(_RandomAccessIterator __last1, _F __f, /*__is_vector=*/ std::true_type, _RandomAccessIterators... __iters) noexcept
 {
-    return __unseq_backend::__simd_walk_n(__n, __f, __it...);
+    const auto __n = __last1 - __get_first_iterator(__iters...);
+    return __unseq_backend::__simd_walk_n(__n, __f, __iters...);
 }
 
 //------------------------------------------------------------------------
