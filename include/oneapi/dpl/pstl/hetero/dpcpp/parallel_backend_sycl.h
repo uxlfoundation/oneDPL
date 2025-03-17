@@ -1417,7 +1417,6 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
 {
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
-    using _DecayedExecutionPolicy = std::decay_t<_ExecutionPolicy>;
 
     _Size1 __n1 = __rng1.size();
     _Size2 __n2 = __rng2.size();
@@ -1435,7 +1434,7 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
     _DataAcc __get_data_op;
     unseq_backend::__copy_by_mask<_ReduceOp, oneapi::dpl::__internal::__pstl_assign, /*inclusive*/ std::true_type, 2>
         __copy_by_mask_op;
-    unseq_backend::__brick_set_op<_DecayedExecutionPolicy, _Compare, _Size1, _Size2, _IsOpDifference> __create_mask_op{
+    unseq_backend::__brick_set_op<std::decay_t<_ExecutionPolicy>, _Compare, _Size1, _Size2, _IsOpDifference> __create_mask_op{
         __comp, __n1, __n2};
 
     // temporary buffer to store boolean mask
