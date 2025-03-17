@@ -27,7 +27,7 @@ namespace experimental
 {
 
 #if _DS_BACKEND_SYCL != 0
-template <typename Backend = sycl_backend>
+template <typename ResourceType = sycl::queue, typename Backend = default_backend<sycl::queue>>
 #else
 template <typename Backend>
 #endif
@@ -43,7 +43,7 @@ struct fixed_resource_policy
     //policy traits
     using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
     using selection_type =
-        oneapi::dpl::experimental::basic_selection_handle_t<fixed_resource_policy<Backend>, execution_resource_t>;
+        oneapi::dpl::experimental::basic_selection_handle_t<fixed_resource_policy<ResourceType, Backend>, execution_resource_t>;
     using wait_type = typename backend_t::wait_type;
 
   private:
