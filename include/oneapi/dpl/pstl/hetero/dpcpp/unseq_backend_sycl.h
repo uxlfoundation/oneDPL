@@ -103,6 +103,8 @@ inline constexpr _Tp __known_identity =
 template <typename _ExecutionPolicy, typename _F>
 struct walk_n
 {
+    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+
     _F __f;
 
     template <typename _ItemId, typename... _Ranges>

@@ -608,8 +608,8 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
     if (__last - __first < 2)
         return __last;
 
-    using _Predicate =
-        oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, adjacent_find_fn<_BinaryPredicate>>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<std::decay_t<_ExecutionPolicy>,
+                                                                     adjacent_find_fn<_BinaryPredicate>>;
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf1 = __keep1(__first, __last - 1);
@@ -636,8 +636,8 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
     if (__last - __first < 2)
         return __last;
 
-    using _Predicate =
-        oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, adjacent_find_fn<_BinaryPredicate>>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<std::decay_t<_ExecutionPolicy>,
+                                                                     adjacent_find_fn<_BinaryPredicate>>;
 
     auto __result = __par_backend_hetero::__parallel_find(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
@@ -700,7 +700,7 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     if (__first == __last)
         return false;
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, _Pred>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<std::decay_t<_ExecutionPolicy>, _Pred>;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
@@ -724,7 +724,8 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1
     if (__last1 == __first1 || __last2 == __first2 || __last1 - __first1 != __last2 - __first2)
         return false;
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, equal_predicate<_Pred>>;
+    using _Predicate =
+        oneapi::dpl::unseq_backend::single_match_pred<std::decay_t<_ExecutionPolicy>, equal_predicate<_Pred>>;
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
     auto __buf1 = __keep1(__first1, __last1);
@@ -764,7 +765,7 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
     if (__first == __last)
         return __last;
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, _Pred>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<std::decay_t<_ExecutionPolicy>, _Pred>;
 
     return __par_backend_hetero::__parallel_find(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
@@ -927,7 +928,8 @@ __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterat
     if (__n <= 0)
         return ::std::make_pair(__first1, __first2);
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, equal_predicate<_Pred>>;
+    using _Predicate =
+        oneapi::dpl::unseq_backend::single_match_pred<std::decay_t<_ExecutionPolicy>, equal_predicate<_Pred>>;
 
     auto __first_zip = __par_backend_hetero::zip(
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first1),
@@ -1171,7 +1173,7 @@ __pattern_is_heap_until(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
         return __last;
 
     using _Predicate =
-        oneapi::dpl::unseq_backend::single_match_pred_by_idx<_ExecutionPolicy, __is_heap_check<_Compare>>;
+        oneapi::dpl::unseq_backend::single_match_pred_by_idx<std::decay_t<_ExecutionPolicy>, __is_heap_check<_Compare>>;
 
     return __par_backend_hetero::__parallel_find(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
@@ -1189,7 +1191,7 @@ __pattern_is_heap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _RandomA
         return true;
 
     using _Predicate =
-        oneapi::dpl::unseq_backend::single_match_pred_by_idx<_ExecutionPolicy, __is_heap_check<_Compare>>;
+        oneapi::dpl::unseq_backend::single_match_pred_by_idx<std::decay_t<_ExecutionPolicy>, __is_heap_check<_Compare>>;
 
     return !__par_backend_hetero::__parallel_or(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
