@@ -44,7 +44,7 @@ __pattern_walk1_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
 
     auto __future_obj = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::walk1_vector_or_scalar<_ExecutionPolicy, _Function, decltype(__buf.all_view())>{
+        unseq_backend::walk1_vector_or_scalar<std::decay_t<_ExecutionPolicy>, _Function, decltype(__buf.all_view())>{
             __f, static_cast<std::size_t>(__n)},
         __n, __buf.all_view());
     return __future_obj;
