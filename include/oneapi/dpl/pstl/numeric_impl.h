@@ -403,10 +403,11 @@ __pattern_adjacent_difference(__parallel_tag<_IsVector>, _ExecutionPolicy&& __ex
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last - 1,
             [&__op, __d_first, __first](_RandomAccessIterator1 __b, _RandomAccessIterator1 __e) {
                 _RandomAccessIterator2 __d_b = __d_first + (__b - __first);
-                __internal::__brick_walk_n(__e,
+                __internal::__brick_walk3(
+                    __b, __e, __b + 1, __d_b + 1,
                     [&__op](_ReferenceType1 __x, _ReferenceType1 __y, _ReferenceType2 __z) { __z = __op(__y, __x); },
-                    _IsVector{}, __b, __b + 1, __d_b + 1);
-        });
+                    _IsVector{});
+            });
         return __d_first + (__last - __first);
     });
 }
