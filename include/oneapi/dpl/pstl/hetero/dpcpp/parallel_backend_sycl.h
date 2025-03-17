@@ -1610,10 +1610,10 @@ __is_backward_tag(_TagType)
 // early_exit (find_or)
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _DecayedExecutionPolicy, typename _Pred>
 struct __early_exit_find_or
 {
-    static_assert(std::is_same_v<_ExecutionPolicy, std::decay_t<_ExecutionPolicy>>);
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
     _Pred __pred;
 
