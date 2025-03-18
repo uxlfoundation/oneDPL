@@ -174,12 +174,13 @@ radix_sort_by_key(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 _
 
 namespace oneapi::dpl::experimental::kt
 {
-namespace esimd
+namespace
 #if !defined(__SYCL_DEVICE_ONLY__)
     [[deprecated("Use of oneapi::dpl::experimental::kt::esimd namespace is deprecated "
                  "and will be removed in a future release. "
                  "Use oneapi::dpl::experimental::kt::gpu::esimd instead")]]
 #endif
+    esimd
 {
 using oneapi::dpl::experimental::kt::gpu::esimd::radix_sort;
 using oneapi::dpl::experimental::kt::gpu::esimd::radix_sort_by_key;
