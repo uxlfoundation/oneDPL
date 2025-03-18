@@ -267,8 +267,8 @@ struct __adjacent_find_fn
     operator()(const _ExecutionPolicy& __exec, _R&& __r, _Pred __pred = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_adjacent_find_ranges(__dispatch_tag,
-            __exec, std::forward<_R>(__r), __pred, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_adjacent_find_ranges(__dispatch_tag, __exec,
+                                                                                 std::forward<_R>(__r), __pred, __proj);
     }
 }; //__adjacent_find_fn
 }  //__internal
@@ -289,9 +289,8 @@ struct __search_fn
         _Proj2 __proj2 = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_search(__dispatch_tag,
-            __exec, std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1,
-            __proj2);
+        return oneapi::dpl::__internal::__ranges::__pattern_search(__dispatch_tag, __exec, std::forward<_R1>(__r1),
+                                                                   std::forward<_R2>(__r2), __pred, __proj1, __proj2);
     }
 }; //__search_fn
 }  //__internal
@@ -311,8 +310,8 @@ struct __search_n_fn
         _Pred __pred = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_search_n(__dispatch_tag,
-            __exec, std::forward<_R>(__r), __count, __value, __pred, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_search_n(__dispatch_tag, __exec, std::forward<_R>(__r),
+                                                                     __count, __value, __pred, __proj);
     }
 }; //__search_n_fn
 }  //__internal
@@ -331,8 +330,8 @@ struct __count_if_fn
     operator()(const _ExecutionPolicy& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_count_if(__dispatch_tag,
-            __exec, std::forward<_R>(__r), __pred, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_count_if(__dispatch_tag, __exec, std::forward<_R>(__r),
+                                                                     __pred, __proj);
     }
 }; //__count_if_fn
 }  //__internal
@@ -351,8 +350,9 @@ struct __count_fn
     std::ranges::range_difference_t<_R>
     operator()(const _ExecutionPolicy& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
-        auto __pred = [__value](auto&& __val) { return std::ranges::equal_to{}(
-            std::forward<decltype(__val)>(__val), __value);};
+        auto __pred = [__value](auto&& __val) {
+            return std::ranges::equal_to{}(std::forward<decltype(__val)>(__val), __value);
+        };
         return oneapi::dpl::ranges::count_if(__exec, std::forward<_R>(__r), __pred, __proj);
     }
 }; //__count_fn
@@ -379,9 +379,8 @@ struct __equal_fn
         else
         {
             const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-            return oneapi::dpl::__internal::__ranges::__pattern_equal(__dispatch_tag,
-                __exec, std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred,
-                __proj1, __proj2);
+            return oneapi::dpl::__internal::__ranges::__pattern_equal(
+                __dispatch_tag, __exec, std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
         }
     }
 }; //__equal_fn
@@ -401,8 +400,8 @@ struct __is_sorted_fn
     operator()(const _ExecutionPolicy& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_is_sorted(__dispatch_tag,
-            __exec, std::forward<_R>(__r), __comp, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_is_sorted(__dispatch_tag, __exec, std::forward<_R>(__r),
+                                                                      __comp, __proj);
     }
 }; //__is_sorted_fn
 }  //__internal
@@ -463,8 +462,8 @@ struct __min_element_fn
     operator()(const _ExecutionPolicy& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_min_element(__dispatch_tag,
-            __exec, std::forward<_R>(__r), __comp, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_min_element(__dispatch_tag, __exec, std::forward<_R>(__r),
+                                                                        __comp, __proj);
     }
 }; //__min_element_fn
 }  //__internal
@@ -482,7 +481,7 @@ struct __max_element_fn
     operator()(const _ExecutionPolicy& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::min_element(__exec, std::forward<_R>(__r),
-            oneapi::dpl::__internal::__reorder_pred(__comp), __proj);
+                                                oneapi::dpl::__internal::__reorder_pred(__comp), __proj);
     }
 }; //__max_element_fn
 }  //__internal
@@ -532,8 +531,8 @@ struct __copy_if_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         // No minimum common size is calculated here, because the size of the output range is unknown
-        return oneapi::dpl::__internal::__ranges::__pattern_copy_if_ranges(__dispatch_tag, __exec,
-            std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r), __pred, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_copy_if_ranges(
+            __dispatch_tag, __exec, std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r), __pred, __proj);
     }
 }; //__copy_if_fn
 }  //__internal
@@ -557,8 +556,9 @@ struct __merge_fn
     {
         // TODO: develop a strategy to get a common minimum size
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_merge(__dispatch_tag, __exec,
-            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
+        return oneapi::dpl::__internal::__ranges::__pattern_merge(
+            __dispatch_tag, __exec, std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+            __comp, __proj1, __proj2);
     }
 }; //__merge_fn
 }  //__internal
