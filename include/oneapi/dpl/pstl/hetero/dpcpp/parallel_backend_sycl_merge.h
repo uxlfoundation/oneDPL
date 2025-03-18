@@ -296,7 +296,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     // Calculate nd-range parameters
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2>
     nd_range_params
-    eval_nd_range_params(_ExecutionPolicy&& __exec, const _Range1& __rng1, const _Range2& __rng2,
+    eval_nd_range_params(const _ExecutionPolicy& __exec, const _Range1& __rng1, const _Range2& __rng2,
                          const std::size_t __n) const
     {
         // Empirical number of values to process per work-item
