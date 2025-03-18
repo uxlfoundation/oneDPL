@@ -113,6 +113,10 @@ struct __sycl_scan_by_segment_impl
     {
         using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
+        // We should avoid using _ExecutionPolicy in __kernel_name_generator template params
+        // because we always specialize this __sycl_scan_by_segment_impl::operator() calls only by _ExecutionPolicy as "const reference".
+        // So, from this template param point of view, only one specialization is possible per concrete _ExecutionPolicy type.
+        // _ExecutionPolicy type information is embedded in _CustomName to distinguish between concrete policy types.
         using _SegScanWgKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             _SegScanWgPhase, _CustomName, _Range1, _Range2, _Range3, _BinaryPredicate, _BinaryOperator>;
         using _SegScanPrefixKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
