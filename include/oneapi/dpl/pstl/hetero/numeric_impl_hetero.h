@@ -244,8 +244,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, const _ExecutionPolicy&
     // if we have the only element, just copy it according to the specification
     if (__n == 1)
     {
-        auto __wrapped_policy = __par_backend_hetero::make_wrapped_policy<adjacent_difference_wrapper>(
-            __exec);
+        auto __wrapped_policy = __par_backend_hetero::make_wrapped_policy<adjacent_difference_wrapper>(__exec);
 
         __internal::__pattern_walk2_brick(__hetero_tag<_BackendTag>{}, __wrapped_policy, __first, __last, __d_first,
                                           __internal::__brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
