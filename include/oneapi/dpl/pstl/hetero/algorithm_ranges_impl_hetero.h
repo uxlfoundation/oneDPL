@@ -103,7 +103,7 @@ __pattern_for_each(__hetero_tag<_BackendTag> __tag, const _ExecutionPolicy& __ex
         [__f, __proj](auto&& __val) { std::invoke(__f, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, __exec, __f_1,
-                                                            oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+                                                        oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -283,8 +283,7 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, const _ExecutionPolicy& __ex
 
     if (__rng1.size() == __rng2.size())
     {
-        const bool __res = __ranges::__pattern_equal(__tag, __exec, __rng1,
-                                                     ::std::forward<_Range2>(__rng2), __pred);
+        const bool __res = __ranges::__pattern_equal(__tag, __exec, __rng1, ::std::forward<_Range2>(__rng2), __pred);
         return __res ? 0 : __rng1.size();
     }
 
@@ -422,8 +421,7 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, const _ExecutionPolicy& __ex
     auto __s_rng = oneapi::dpl::experimental::ranges::views::iota(0, __count) |
                    oneapi::dpl::experimental::ranges::views::transform([__value](auto) { return __value; });
 
-    return __ranges::__pattern_search(__tag, __exec, std::forward<_Range>(__rng), __s_rng,
-                            __pred);
+    return __ranges::__pattern_search(__tag, __exec, std::forward<_Range>(__rng), __s_rng, __pred);
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT

@@ -474,8 +474,7 @@ __pattern_merge(_Tag __tag, const _ExecutionPolicy& __exec, _R1&& __r1, _R2&& __
     // Parallel and serial versions of ___merge_path_out_lim merge the 1st sequence and the 2nd sequence in "reverse order":
     // the identical elements from the 2nd sequence are merged first.
     // So, the call to ___merge_path_out_lim swaps the order of sequences.
-    std::pair __res = ___merge_path_out_lim(__tag, __exec, __it_2, __n_2, __it_1, __n_1,
-                                            __it_out, __n_out, __comp_2);
+    std::pair __res = ___merge_path_out_lim(__tag, __exec, __it_2, __n_2, __it_1, __n_1, __it_out, __n_out, __comp_2);
 
     return __return_type{__res.second, __res.first, __it_out + __n_out};
 }
