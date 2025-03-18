@@ -1028,7 +1028,27 @@ struct __set_generic_operation
         std::uint16_t __idx = 0;
         while(__idx < __num_eles_min)
         {
-            if (!__comp(__in_rng1[__idx1], __in_rng2[__idx2]) && !__comp(__in_rng2[__idx2], __in_rng1[__idx1]))
+            if (__comp(__in_rng1[__idx1], __in_rng2[__idx2]))
+            {
+                if constexpr (_CopyDiffSetA)
+                {
+                    __temp_out.set(__count, __in_rng1, __idx1);
+                    ++__count;
+                }
+                ++__idx1;
+                ++__idx;
+            }
+            else if (__comp(__in_rng2[__idx2], __in_rng1[__idx1]))
+            {
+                if constexpr (_CopyDiffSetB)
+                {
+                    __temp_out.set(__count, __in_rng2, __idx2);
+                    ++__count;
+                }
+                ++__idx2;
+                ++__idx;
+            }
+            else // if neither element is less than the other, they are equal
             {
                 if constexpr (_CopyMatch)
                 {
@@ -1038,28 +1058,6 @@ struct __set_generic_operation
                 ++__idx1;
                 ++__idx2;
                 __idx += 2;
-            }
-            else
-            {
-                if (__comp(__in_rng1[__idx1], __in_rng2[__idx2]))
-                {
-                    if constexpr (_CopyDiffSetA)
-                    {
-                        __temp_out.set(__count, __in_rng1, __idx1);
-                        ++__count;
-                    }
-                    ++__idx1;
-                }
-                else // __comp(__in_rng2[__idx2], __in_rng1[__idx1])
-                {
-                    if constexpr (_CopyDiffSetB)
-                    {
-                        __temp_out.set(__count, __in_rng2, __idx2);
-                        ++__count;
-                    }
-                    ++__idx2;
-                }
-                ++__idx;
             }
         }
         return __count;
