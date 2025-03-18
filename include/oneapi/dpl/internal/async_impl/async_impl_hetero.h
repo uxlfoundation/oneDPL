@@ -130,8 +130,7 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, const _ExecutionPoli
 {
     assert(__first1 < __last1);
 
-    using _Policy = _ExecutionPolicy;
-    using _Functor = unseq_backend::walk_n<_Policy, _BinaryOperation2>;
+    using _Functor = unseq_backend::walk_n<_ExecutionPolicy, _BinaryOperation2>;
     using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
 
     auto __n = __last1 - __first1;
@@ -162,8 +161,7 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, const _ExecutionPoli
 {
     assert(__first < __last);
 
-    using _Policy = _ExecutionPolicy;
-    using _Functor = unseq_backend::walk_n<_Policy, _UnaryOperation>;
+    using _Functor = unseq_backend::walk_n<_ExecutionPolicy, _UnaryOperation>;
     using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator>();
