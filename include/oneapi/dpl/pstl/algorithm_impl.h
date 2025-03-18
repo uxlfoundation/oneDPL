@@ -2888,8 +2888,7 @@ __pattern_generate_n(__parallel_tag<_IsVector> __tag, const _ExecutionPolicy& __
 {
     static_assert(__is_random_access_iterator_v<_RandomAccessIterator>,
                   "Pattern-brick error. Should be a random access iterator.");
-    return __internal::__pattern_generate(__tag, __exec, __first, __first + __count,
-                                          __g);
+    return __internal::__pattern_generate(__tag, __exec, __first, __first + __count, __g);
 }
 
 //------------------------------------------------------------------------
