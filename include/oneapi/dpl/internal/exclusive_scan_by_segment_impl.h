@@ -40,7 +40,7 @@ class ExclusiveScan2;
 template <class _Tag, typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
           typename T, typename BinaryPredicate, typename Operator>
 OutputIterator
-pattern_exclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1, InputIterator1 last1,
+pattern_exclusive_scan_by_segment(_Tag, const Policy& policy, InputIterator1 first1, InputIterator1 last1,
                                   InputIterator2 first2, OutputIterator result, T init, BinaryPredicate binary_pred,
                                   Operator binary_op)
 {
@@ -87,7 +87,7 @@ pattern_exclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1, 
 #endif
 
     // scan key-flag tuples
-    inclusive_scan(::std::forward<Policy>(policy), make_zip_iterator(_temp.get(), _flags.get()),
+    inclusive_scan(policy, make_zip_iterator(_temp.get(), _flags.get()),
                    make_zip_iterator(_temp.get(), _flags.get()) + n, make_zip_iterator(result, _flags.get()),
                    internal::segmented_scan_fun<ValueType, FlagType, Operator>(binary_op));
     return result + n;
@@ -169,12 +169,12 @@ exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& p
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename T, typename BinaryPredicate, typename Operator>
 OutputIterator
-pattern_exclusive_scan_by_segment(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputIterator1 first1,
+pattern_exclusive_scan_by_segment(__internal::__hetero_tag<_BackendTag> __tag, const Policy& policy, InputIterator1 first1,
                                   InputIterator1 last1, InputIterator2 first2, OutputIterator result, T init,
                                   BinaryPredicate binary_pred, Operator binary_op)
 {
     return internal::exclusive_scan_by_segment_impl(
-        __tag, ::std::forward<Policy>(policy), first1, last1, first2, result, init, binary_pred, binary_op,
+        __tag, policy, first1, last1, first2, result, init, binary_pred, binary_op,
         typename unseq_backend::__has_known_identity<
             Operator, typename ::std::iterator_traits<InputIterator2>::value_type>::type{});
 }
