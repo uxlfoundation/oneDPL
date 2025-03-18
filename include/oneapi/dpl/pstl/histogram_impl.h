@@ -52,13 +52,13 @@ __brick_histogram(_ForwardIterator __first, _ForwardIterator __last, _IdxHashFun
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _IdxHashFunc,
           class _RandomAccessIterator>
 void
-__pattern_histogram(_Tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
+__pattern_histogram(_Tag, const _ExecutionPolicy& __exec, _ForwardIterator __first, _ForwardIterator __last,
                     _Size __num_bins, _IdxHashFunc __func, _RandomAccessIterator __histogram_first)
 {
     using _HistogramValueT = typename std::iterator_traits<_RandomAccessIterator>::value_type;
     static_assert(oneapi::dpl::__internal::__is_serial_tag_v<_Tag> ||
                   oneapi::dpl::__internal::__is_parallel_forward_tag_v<_Tag>);
-    __pattern_fill(_Tag{}, std::forward<_ExecutionPolicy>(__exec), __histogram_first, __histogram_first + __num_bins,
+    __pattern_fill(_Tag{}, __exec, __histogram_first, __histogram_first + __num_bins,
                    _HistogramValueT{0});
     __brick_histogram(__first, __last, __func, __histogram_first, typename _Tag::__is_vector{});
 }
@@ -66,7 +66,7 @@ __pattern_histogram(_Tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _Size, class _IdxHashFunc,
           class _RandomAccessIterator2>
 void
-__pattern_histogram(oneapi::dpl::__internal::__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
+__pattern_histogram(oneapi::dpl::__internal::__parallel_tag<_IsVector>, const _ExecutionPolicy& __exec,
                     _RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _Size __num_bins,
                     _IdxHashFunc __func, _RandomAccessIterator2 __histogram_first)
 {
@@ -78,7 +78,7 @@ __pattern_histogram(oneapi::dpl::__internal::__parallel_tag<_IsVector>, _Executi
     if (__n == 0)
     {
         // when n == 0, we must fill the output histogram with zeros
-        __pattern_fill(oneapi::dpl::__internal::__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec),
+        __pattern_fill(oneapi::dpl::__internal::__parallel_tag<_IsVector>{}, __exec,
                        __histogram_first, __histogram_first + __num_bins, _HistogramValueT{0});
     }
     else
@@ -97,7 +97,7 @@ __pattern_histogram(oneapi::dpl::__internal::__parallel_tag<_IsVector>, _Executi
         // now accumulate temporary storage into output histogram
         const std::size_t __num_temporary_copies = __tls.size();
         __par_backend::__parallel_for(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Size{0}, __num_bins,
+            __backend_tag{}, __exec, _Size{0}, __num_bins,
             [__num_temporary_copies, __histogram_first, &__tls](auto __hist_start_id, auto __hist_end_id) {
                 const _DiffType __local_n = __hist_end_id - __hist_start_id;
                 //initialize output histogram with first local histogram via assign
@@ -121,7 +121,7 @@ __pattern_histogram(oneapi::dpl::__internal::__parallel_tag<_IsVector>, _Executi
 template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _Size, typename _ValueType,
           typename _RandomAccessIterator2>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _RandomAccessIterator2>
-histogram(_ExecutionPolicy&& exec, _RandomAccessIterator1 first, _RandomAccessIterator1 last, _Size num_bins,
+histogram(const _ExecutionPolicy& exec, _RandomAccessIterator1 first, _RandomAccessIterator1 last, _Size num_bins,
           _ValueType first_bin_min_val, _ValueType last_bin_max_val, _RandomAccessIterator2 histogram_first)
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(exec, first, histogram_first);
@@ -136,7 +136,7 @@ histogram(_ExecutionPolicy&& exec, _RandomAccessIterator1 first, _RandomAccessIt
 template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
           typename _RandomAccessIterator3>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _RandomAccessIterator3>
-histogram(_ExecutionPolicy&& exec, _RandomAccessIterator1 first, _RandomAccessIterator1 last,
+histogram(const _ExecutionPolicy& exec, _RandomAccessIterator1 first, _RandomAccessIterator1 last,
           _RandomAccessIterator2 boundary_first, _RandomAccessIterator2 boundary_last,
           _RandomAccessIterator3 histogram_first)
 {
