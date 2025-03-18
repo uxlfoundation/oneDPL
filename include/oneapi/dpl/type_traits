@@ -84,7 +84,7 @@ using ::std::is_same;
 using ::std::is_scalar;
 using ::std::is_signed;
 using ::std::is_standard_layout;
-using ::std::is_trivial;
+using ::std::is_trivial; // Deprecated in C++26
 using ::std::is_trivially_assignable;
 using ::std::is_trivially_constructible;
 using ::std::is_trivially_copy_assignable;
@@ -191,7 +191,7 @@ using ::std::is_same_v;
 using ::std::is_scalar_v;
 using ::std::is_signed_v;
 using ::std::is_standard_layout_v;
-using ::std::is_trivial_v;
+using ::std::is_trivial_v; // Deprecated in C++26
 using ::std::is_trivially_assignable_v;
 using ::std::is_trivially_constructible_v;
 using ::std::is_trivially_copy_assignable_v;
