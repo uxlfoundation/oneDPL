@@ -40,7 +40,7 @@ namespace __internal
 template <typename _BackendTag, typename _ExecutionPolicy, typename _RandomAccessIterator1,
           typename _RandomAccessIterator2, typename _Tp, typename _BinaryOperation1, typename _BinaryOperation2>
 _Tp
-__pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+__pattern_transform_reduce(__hetero_tag<_BackendTag>, const _ExecutionPolicy& __exec, _RandomAccessIterator1 __first1,
                            _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _Tp __init,
                            _BinaryOperation1 __binary_op1, _BinaryOperation2 __binary_op2)
 {
@@ -60,7 +60,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
                                                                           ::std::true_type /*is_commutative*/>(
-               _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op1, _Functor{__binary_op2},
+               _BackendTag{}, __exec, __binary_op1, _Functor{__binary_op2},
                unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
                __buf1.all_view(), __buf2.all_view())
         .get();
@@ -73,7 +73,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Tp,
           typename _BinaryOperation, typename _UnaryOperation>
 _Tp
-__pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first,
+__pattern_transform_reduce(__hetero_tag<_BackendTag>, const _ExecutionPolicy& __exec, _ForwardIterator __first,
                            _ForwardIterator __last, _Tp __init, _BinaryOperation __binary_op,
                            _UnaryOperation __unary_op)
 {
@@ -88,7 +88,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
                                                                           ::std::true_type /*is_commutative*/>(
-               _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op, _Functor{__unary_op},
+               _BackendTag{}, __exec, __binary_op, _Functor{__unary_op},
                unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
                __buf.all_view())
         .get();
@@ -125,7 +125,7 @@ __iterators_possibly_equal(const sycl_iterator<_Mode1, _T, _Allocator>& __it1,
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
           typename _UnaryOperation, typename _InitType, typename _BinaryOperation, typename _Inclusive>
 _Iterator2
-__pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __first,
+__pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, const _ExecutionPolicy& __exec, _Iterator1 __first,
                               _Iterator1 __last, _Iterator2 __result, _UnaryOperation __unary_op, _InitType __init,
                               _BinaryOperation __binary_op, _Inclusive)
 {
@@ -145,7 +145,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         auto __buf2 = __keep2(__result, __result + __n);
 
         oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
+            _BackendTag{}, __exec, __buf1.all_view(), __buf2.all_view(), __n,
             __unary_op, __init, __binary_op, _Inclusive{})
             .__deferrable_wait();
     }
@@ -158,7 +158,8 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         using _Type = typename _InitType::__value_type;
 
         auto __policy =
-            __par_backend_hetero::make_wrapped_policy<ExecutionPolicyWrapper>(::std::forward<_ExecutionPolicy>(__exec));
+            __par_backend_hetero::make_wrapped_policy<ExecutionPolicyWrapper>(__exec);
+        using _NewExecutionPolicy = decltype(__policy);
 
         // Create temporary buffer
         oneapi::dpl::__par_backend_hetero::__buffer<_Type> __tmp_buf(__n);
@@ -186,14 +187,14 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
           typename _UnaryOperation, typename _Type, typename _BinaryOperation, typename _Inclusive>
 _Iterator2
-__pattern_transform_scan(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __first,
+__pattern_transform_scan(__hetero_tag<_BackendTag> __tag, const _ExecutionPolicy& __exec, _Iterator1 __first,
                          _Iterator1 __last, _Iterator2 __result, _UnaryOperation __unary_op, _Type __init,
                          _BinaryOperation __binary_op, _Inclusive)
 {
     using _RepackedType = __par_backend_hetero::__repacked_tuple_t<_Type>;
     using _InitType = unseq_backend::__init_value<_RepackedType>;
 
-    return __pattern_transform_scan_base(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+    return __pattern_transform_scan_base(__tag, __exec, __first, __last, __result,
                                          __unary_op, _InitType{__init}, __binary_op, _Inclusive{});
 }
 
@@ -201,7 +202,7 @@ __pattern_transform_scan(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
           typename _UnaryOperation, typename _BinaryOperation, typename _Inclusive>
 _Iterator2
-__pattern_transform_scan(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __first,
+__pattern_transform_scan(__hetero_tag<_BackendTag> __tag, const _ExecutionPolicy& __exec, _Iterator1 __first,
                          _Iterator1 __last, _Iterator2 __result, _UnaryOperation __unary_op,
                          _BinaryOperation __binary_op, _Inclusive)
 {
@@ -209,7 +210,7 @@ __pattern_transform_scan(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     using _RepackedType = __par_backend_hetero::__repacked_tuple_t<_Type>;
     using _InitType = unseq_backend::__no_init_value<_RepackedType>;
 
-    return __pattern_transform_scan_base(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+    return __pattern_transform_scan_base(__tag, __exec, __first, __last, __result,
                                          __unary_op, _InitType{}, __binary_op, _Inclusive{});
 }
 
@@ -226,8 +227,9 @@ struct adjacent_difference_wrapper
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _BinaryOperation>
 _ForwardIterator2
-__pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first,
-                              _ForwardIterator1 __last, _ForwardIterator2 __d_first, _BinaryOperation __op)
+__pattern_adjacent_difference(__hetero_tag<_BackendTag>, const _ExecutionPolicy& __exec,
+                              _ForwardIterator1 __first, _ForwardIterator1 __last,
+                              _ForwardIterator2 __d_first, _BinaryOperation __op)
 {
     auto __n = __last - __first;
     if (__n <= 0)
@@ -243,7 +245,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     if (__n == 1)
     {
         auto __wrapped_policy = __par_backend_hetero::make_wrapped_policy<adjacent_difference_wrapper>(
-            ::std::forward<_ExecutionPolicy>(__exec));
+            __exec);
 
         __internal::__pattern_walk2_brick(__hetero_tag<_BackendTag>{}, __wrapped_policy, __first, __last, __d_first,
                                           __internal::__brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
