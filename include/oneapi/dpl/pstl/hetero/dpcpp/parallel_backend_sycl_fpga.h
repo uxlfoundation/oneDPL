@@ -105,7 +105,7 @@ __parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, const _Executi
 
     // workaround until we implement more performant version for patterns
     return oneapi::dpl::__par_backend_hetero::__parallel_histogram(
-        oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __init_event,
+        oneapi::dpl::__internal::__device_backend_tag{}, __exec, __init_event,
         std::forward<_Range1>(__input), std::forward<_Range2>(__bins), __binhash_manager);
 }
 
