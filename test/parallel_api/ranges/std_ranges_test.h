@@ -158,6 +158,14 @@ template<typename T>
 static constexpr
 bool is_range<T, std::void_t<decltype(std::declval<T&>().begin())>> = true;
 
+void call_with_host_policies(auto algo, auto... args)
+{
+    algo(oneapi::dpl::execution::seq, args...);
+    algo(oneapi::dpl::execution::unseq, args...);
+    algo(oneapi::dpl::execution::par, args...);
+    algo(oneapi::dpl::execution::par_unseq, args...);
+}
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in>
 struct test
 {
