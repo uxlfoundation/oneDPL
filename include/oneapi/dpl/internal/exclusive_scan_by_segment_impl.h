@@ -97,19 +97,19 @@ pattern_exclusive_scan_by_segment(_Tag, const Policy& policy, InputIterator1 fir
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename T, typename BinaryPredicate, typename Operator>
 OutputIterator
-exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputIterator1 first1,
+exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, const Policy& policy, InputIterator1 first1,
                                InputIterator1 last1, InputIterator2 first2, OutputIterator result, T init,
                                BinaryPredicate binary_pred, Operator binary_op,
                                ::std::true_type /* has_known_identity*/)
 {
-    return internal::__scan_by_segment_impl_common(__tag, ::std::forward<Policy>(policy), first1, last1, first2, result,
+    return internal::__scan_by_segment_impl_common(__tag, policy, first1, last1, first2, result,
                                                    init, binary_pred, binary_op, ::std::false_type{});
 }
 
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename T, typename BinaryPredicate, typename Operator>
 OutputIterator
-exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
+exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, const Policy& policy, InputIterator1 first1,
                                InputIterator1 last1, InputIterator2 first2, OutputIterator result, T init,
                                BinaryPredicate binary_pred, Operator binary_op,
                                ::std::false_type /* has_known_identity*/)
@@ -154,8 +154,7 @@ exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& p
                     ::std::negate<FlagType>(), init);
 #    endif
 
-    auto policy2 =
-        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<ExclusiveScan2>(::std::forward<Policy>(policy));
+    auto policy2 = oneapi::dpl::__par_backend_hetero::make_wrapped_policy<ExclusiveScan2>(policy);
 
     // scan key-flag tuples
     transform_inclusive_scan(::std::move(policy2), make_zip_iterator(_temp.get(), _flags.get()),

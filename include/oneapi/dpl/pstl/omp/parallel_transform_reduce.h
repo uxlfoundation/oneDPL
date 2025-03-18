@@ -86,7 +86,7 @@ __transform_reduce_body(_RandomAccessIterator __first, _RandomAccessIterator __l
 template <class _ExecutionPolicy, class _RandomAccessIterator, class _UnaryOp, class _Value, class _Combiner,
           class _Reduction>
 _Value
-__parallel_transform_reduce(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&,
+__parallel_transform_reduce(oneapi::dpl::__internal::__omp_backend_tag, const _ExecutionPolicy&,
                             _RandomAccessIterator __first, _RandomAccessIterator __last, _UnaryOp __unary_op,
                             _Value __init, _Combiner __combiner, _Reduction __reduction)
 {
