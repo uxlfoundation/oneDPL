@@ -81,21 +81,21 @@ pattern_inclusive_scan_by_segment(_Tag, const Policy& policy, InputIterator1 fir
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename BinaryPredicate, typename BinaryOperator>
 OutputIterator
-inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputIterator1 first1,
+inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, const Policy& policy, InputIterator1 first1,
                                InputIterator1 last1, InputIterator2 first2, OutputIterator result,
                                BinaryPredicate binary_pred, BinaryOperator binary_op,
                                ::std::true_type /* has_known_identity */)
 {
     using iter_value_t = typename ::std::iterator_traits<InputIterator2>::value_type;
     iter_value_t identity = unseq_backend::__known_identity<BinaryOperator, iter_value_t>;
-    return internal::__scan_by_segment_impl_common(__tag, ::std::forward<Policy>(policy), first1, last1, first2, result,
+    return internal::__scan_by_segment_impl_common(__tag, policy, first1, last1, first2, result,
                                                    identity, binary_pred, binary_op, ::std::true_type{});
 }
 
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename BinaryPredicate, typename BinaryOperator>
 OutputIterator
-inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
+inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, const Policy& policy, InputIterator1 first1,
                                InputIterator1 last1, InputIterator2 first2, OutputIterator result,
                                BinaryPredicate binary_pred, BinaryOperator binary_op,
                                ::std::false_type /* has_known_identity */)
@@ -120,7 +120,7 @@ inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& p
         mask[0] = initial_mask;
     }
 
-    transform(::std::forward<Policy>(policy), first1, last1 - 1, first1 + 1, _mask.get() + 1,
+    transform(policy, first1, last1 - 1, first1 + 1, _mask.get() + 1,
               oneapi::dpl::__internal::__not_pred<BinaryPredicate>(binary_pred));
 
     auto policy1 = oneapi::dpl::__par_backend_hetero::make_wrapped_policy<InclusiveScan1>(policy);

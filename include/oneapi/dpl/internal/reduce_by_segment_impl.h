@@ -80,7 +80,7 @@ class Reduce4;
 template <class _Tag, typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
 ::std::pair<OutputIterator1, OutputIterator2>
-reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
+reduce_by_segment_impl(_Tag, const Policy& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                        OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred,
                        BinaryOperator binary_op)
 {
@@ -155,7 +155,7 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     CountType N = scanned_tail_flags[n - 1] + 1;
 
     // scatter the keys and accumulated values
-    oneapi::dpl::for_each(::std::forward<Policy>(policy),
+    oneapi::dpl::for_each(policy,
                           make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1),
                           make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1) + n,
                           internal::scatter_and_accumulate_fun<OutputIterator1, OutputIterator2>(result1, result2));
@@ -171,7 +171,7 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator1, typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
 std::pair<OutputIterator1, OutputIterator2>
-reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputIterator1 first1,
+reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, const Policy& policy, InputIterator1 first1,
                        InputIterator1 last1, InputIterator2 first2, OutputIterator1 result1, OutputIterator2 result2,
                        BinaryPred binary_pred, BinaryOperator binary_op)
 {
@@ -195,7 +195,7 @@ reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& pol
 
     // number of unique keys
     _CountType __n = oneapi::dpl::__internal::__pattern_reduce_by_segment(
-        __tag, std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred, binary_op);
+        __tag, policy, first1, last1, first2, result1, result2, binary_pred, binary_op);
 
     return std::make_pair(result1 + __n, result2 + __n);
 }
