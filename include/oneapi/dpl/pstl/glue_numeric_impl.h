@@ -74,7 +74,7 @@ transform_reduce(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _Forward
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2);
 
     return oneapi::dpl::__internal::__pattern_transform_reduce(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __init,
+        __dispatch_tag, __exec, __first1, __last1, __first2, __init,
         ::std::plus<_InputType>(), ::std::multiplies<_InputType>());
 }
 
@@ -86,7 +86,7 @@ transform_reduce(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _Forward
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2);
 
-    return oneapi::dpl::__internal::__pattern_transform_reduce(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+    return oneapi::dpl::__internal::__pattern_transform_reduce(__dispatch_tag, __exec,
                                                                __first1, __last1, __first2, __init, __binary_op1,
                                                                __binary_op2);
 }
@@ -98,7 +98,7 @@ transform_reduce(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIt
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    return oneapi::dpl::__internal::__pattern_transform_reduce(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+    return oneapi::dpl::__internal::__pattern_transform_reduce(__dispatch_tag, __exec,
                                                                __first, __last, __init, __binary_op, __unary_op);
 }
 
@@ -225,7 +225,7 @@ transform_exclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    return oneapi::dpl::__internal::__pattern_transform_scan(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+    return oneapi::dpl::__internal::__pattern_transform_scan(__dispatch_tag, __exec,
                                                              __first, __last, __result, __unary_op, __init, __binary_op,
                                                              /*inclusive=*/::std::false_type());
 }
@@ -241,7 +241,7 @@ transform_inclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    return oneapi::dpl::__internal::__pattern_transform_scan(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+    return oneapi::dpl::__internal::__pattern_transform_scan(__dispatch_tag, __exec,
                                                              __first, __last, __result, __unary_op, __init, __binary_op,
                                                              /*inclusive=*/::std::true_type());
 }
@@ -254,7 +254,7 @@ transform_inclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    return oneapi::dpl::__internal::__pattern_transform_scan(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+    return oneapi::dpl::__internal::__pattern_transform_scan(__dispatch_tag, __exec,
                                                              __first, __last, __result, __unary_op, __binary_op,
                                                              /*inclusive=*/::std::true_type());
 }
@@ -272,7 +272,7 @@ adjacent_difference(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _Forwa
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __d_first);
 
     return oneapi::dpl::__internal::__pattern_adjacent_difference(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __d_first, __op);
+        __dispatch_tag, __exec, __first, __last, __d_first, __op);
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2>

@@ -786,7 +786,7 @@ __submit_selecting_leaf(const _ExecutionPolicy& __exec, _Range&& __rng, _Compare
     __wg_size = oneapi::dpl::__internal::__dpl_bit_floor(__wg_size);
 
     _Leaf __leaf(__rng, __comp, __data_per_workitem, __wg_size);
-    return __merge_sort<_IndexT>(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __comp, __leaf);
+    return __merge_sort<_IndexT>(__exec, std::forward<_Range>(__rng), __comp, __leaf);
 };
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>

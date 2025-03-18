@@ -129,7 +129,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__omp_backend_tag, const _Execut
 
     if (omp_in_parallel())
     {
-        oneapi::dpl::__omp_backend::__parallel_strict_scan_body(::std::forward<_ExecutionPolicy>(__exec), __n,
+        oneapi::dpl::__omp_backend::__parallel_strict_scan_body(__exec, __n,
                                                                 __initial, __reduce, __combine, __scan, __apex);
     }
     else
@@ -137,7 +137,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__omp_backend_tag, const _Execut
         _PSTL_PRAGMA(omp parallel)
         _PSTL_PRAGMA(omp single nowait)
         {
-            oneapi::dpl::__omp_backend::__parallel_strict_scan_body(::std::forward<_ExecutionPolicy>(__exec), __n,
+            oneapi::dpl::__omp_backend::__parallel_strict_scan_body(__exec, __n,
                                                                     __initial, __reduce, __combine, __scan, __apex);
         }
     }

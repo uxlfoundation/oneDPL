@@ -1107,7 +1107,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     _NoOpFunctor __get_data_op;
 
     return __parallel_transform_scan_base(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
+        __backend_tag, __exec, std::forward<_Range1>(__in_rng),
         std::forward<_Range2>(__out_rng), __init,
         // local scan
         unseq_backend::__scan<_Inclusive, _ExecutionPolicy, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner,
@@ -1211,7 +1211,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n);
 
     return __parallel_transform_scan_base(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec),
+        __backend_tag, __exec,
         oneapi::dpl::__ranges::zip_view(
             __in_rng, oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
                           __mask_buf.get_buffer())),
@@ -1258,7 +1258,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
                                                                decltype(__n)>;
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, /*inclusive*/ std::true_type, 1>;
 
-        return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
+        return __parallel_scan_copy(__backend_tag, __exec, std::forward<_Range1>(__rng),
                                     std::forward<_Range2>(__result), __n,
                                     _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}},
                                     _CopyOp{_ReduceOp{}, _Assign{}});
@@ -1320,7 +1320,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
         using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
         using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp, /*inclusive*/ std::true_type>;
 
-        return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
+        return __parallel_scan_copy(__backend_tag, __exec, std::forward<_Range1>(__rng),
                                     std::forward<_Range2>(__result), __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
     }
 }
@@ -1353,7 +1353,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
         using _SizeBreakpoints = std::integer_sequence<std::uint16_t, 16, 32, 64, 128, 256, 512, 1024, 2048>;
 
         return __par_backend_hetero::__static_monotonic_dispatcher<_SizeBreakpoints>::__dispatch(
-            _SingleGroupInvoker{}, __n, std::forward<_ExecutionPolicy>(__exec), __n, std::forward<_InRng>(__in_rng),
+            _SingleGroupInvoker{}, __n, __exec, __n, std::forward<_InRng>(__in_rng),
             std::forward<_OutRng>(__out_rng), __pred, __assign);
     }
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec))
@@ -1373,7 +1373,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,
                                                       /*inclusive*/ std::true_type, 1>;
 
-        return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
+        return __parallel_scan_copy(__backend_tag, __exec,
                                     std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
                                     _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
     }
@@ -1446,7 +1446,7 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);
 
     return __par_backend_hetero::__parallel_transform_scan_base(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec),
+        __backend_tag, __exec,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
@@ -1478,7 +1478,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, c
     }
     else
     {
-        return __parallel_set_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
+        return __parallel_set_scan(__backend_tag, __exec, std::forward<_Range1>(__rng1),
                                    std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
                                    __is_op_difference);
     }
@@ -1953,7 +1953,7 @@ __parallel_or(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const
 
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         __backend_tag,
-        __par_backend_hetero::make_wrapped_policy<__or_policy_wrapper>(::std::forward<_ExecutionPolicy>(__exec)), __f,
+        __par_backend_hetero::make_wrapped_policy<__or_policy_wrapper>(__exec), __f,
         __parallel_or_tag{}, __buf.all_view(), __s_buf.all_view());
 }
 
@@ -1970,7 +1970,7 @@ __parallel_or(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const
 
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         __backend_tag,
-        __par_backend_hetero::make_wrapped_policy<__or_policy_wrapper>(::std::forward<_ExecutionPolicy>(__exec)), __f,
+        __par_backend_hetero::make_wrapped_policy<__or_policy_wrapper>(__exec), __f,
         __parallel_or_tag{}, __buf.all_view());
 }
 
@@ -1997,8 +1997,7 @@ __parallel_find(oneapi::dpl::__internal::__device_backend_tag __backend_tag, con
                                           __parallel_find_backward_tag<decltype(__buf.all_view())>>;
     return __first + oneapi::dpl::__par_backend_hetero::__parallel_find_or(
                          __backend_tag,
-                         __par_backend_hetero::make_wrapped_policy<__find_policy_wrapper>(
-                             ::std::forward<_ExecutionPolicy>(__exec)),
+                         __par_backend_hetero::make_wrapped_policy<__find_policy_wrapper>(__exec),
                          __f, _TagType{}, __buf.all_view(), __s_buf.all_view());
 }
 
@@ -2017,8 +2016,7 @@ __parallel_find(oneapi::dpl::__internal::__device_backend_tag __backend_tag, con
                                           __parallel_find_backward_tag<decltype(__buf.all_view())>>;
     return __first + oneapi::dpl::__par_backend_hetero::__parallel_find_or(
                          __backend_tag,
-                         __par_backend_hetero::make_wrapped_policy<__find_policy_wrapper>(
-                             ::std::forward<_ExecutionPolicy>(__exec)),
+                         __par_backend_hetero::make_wrapped_policy<__find_policy_wrapper>(__exec),
                          __f, _TagType{}, __buf.all_view());
 }
 
@@ -2229,7 +2227,7 @@ auto
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, const _ExecutionPolicy& __exec,
                        _Range&& __rng, _Compare __comp, _Proj __proj)
 {
-    return __parallel_sort_impl(__backend_tag, ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
+    return __parallel_sort_impl(__backend_tag, __exec, ::std::forward<_Range>(__rng),
                                 oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
 }
 
@@ -2250,7 +2248,7 @@ __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag __backend_
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    return __parallel_partial_sort_impl(__backend_tag, ::std::forward<_ExecutionPolicy>(__exec), __buf.all_view(),
+    return __parallel_partial_sort_impl(__backend_tag, __exec, __buf.all_view(),
                                         __partial_merge_kernel<decltype(__mid_idx)>{__mid_idx}, __comp);
 }
 
