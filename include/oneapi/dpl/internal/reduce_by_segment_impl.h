@@ -210,8 +210,8 @@ reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, 
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first1, first2, result1, result2);
 
-    return internal::reduce_by_segment_impl(__dispatch_tag, ::std::forward<Policy>(policy), first1, last1, first2,
-                                            result1, result2, binary_pred, binary_op);
+    return internal::reduce_by_segment_impl(__dispatch_tag, policy, first1, last1, first2, result1, result2,
+                                            binary_pred, binary_op);
 }
 
 template <typename Policy, typename InputIt1, typename InputIt2, typename OutputIt1, typename OutputIt2,
