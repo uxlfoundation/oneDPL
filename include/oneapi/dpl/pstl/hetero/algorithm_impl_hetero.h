@@ -529,6 +529,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
     using _Commutative = oneapi::dpl::__internal::__spirv_target_conditional</*_SpirvT*/ ::std::false_type,
                                                                              /*_NonSpirvT*/ ::std::true_type>;
 #if LAMBDA_INSIDE_ON_INTERNAL_LEVELS
+    // KSATODO move lambda
     auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
         using ::std::get;
         // TODO: Consider removing the non-commutative operator for SPIR-V targets when we see improved performance with the
@@ -557,6 +558,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
             return __a;
         }
     };
+    // KSATODO move lambda
     auto __transform_fn = [](auto __gidx, auto __acc) { return _ReduceValueType{__gidx, __acc[__gidx]}; };
 #else
     __pattern_min_element_reduce_fn_fo<_Compare> __reduce_fn{__comp};
@@ -607,6 +609,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
+    // KSATODO move lambda
     auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
         using ::std::get;
         auto __chosen_for_min = __a;
@@ -623,6 +626,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     // TODO: Doesn't work with `zip_iterator`.
     //       In that case the first and the second arguments of `_ReduceValueType` will be
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
+    // KSATODO move lambda
     auto __transform_fn = [](auto __gidx, auto __acc) {
         return _ReduceValueType{__gidx, __gidx, __acc[__gidx], __acc[__gidx]};
     };
@@ -717,6 +721,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator 
     auto __reduce_fn = ::std::plus<_ReduceValueType>{};
     // int is being implicitly casted to difference_type
     // otherwise we can only pass the difference_type as a functor template parameter
+    // KSATODO move lambda
     auto __transform_fn = [__predicate](auto __gidx, auto __acc) -> int {
         return (__predicate(__acc[__gidx]) ? 1 : 0);
     };
@@ -1166,12 +1171,14 @@ __pattern_is_partitioned(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
         return true;
 
     using _ReduceValueType = _IsPartitionedReduceType;
+    // KSATODO move lambda
     auto __reduce_fn = [](_ReduceValueType __a, _ReduceValueType __b) {
         _ReduceValueType __table[] = {__broken,     __broken,     __broken,     __broken, __broken,    __all_true,
                                       __true_false, __true_false, __broken,     __broken, __all_false, __broken,
                                       __broken,     __broken,     __true_false, __broken};
         return __table[__a * 4 + __b];
     };
+    // KSATODO move lambda
     auto __transform_fn = [__predicate](auto __gidx, auto __acc) {
         return (__predicate(__acc[__gidx]) ? __all_true : __all_false);
     };
@@ -1374,7 +1381,7 @@ __pattern_sort_by_key(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
     auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
     auto __end = __beg + (__keys_last - __keys_first);
     __stable_sort_with_projection(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end, __comp,
-                                  [](const auto& __a) { return std::get<0>(__a); });
+                                  [](const auto& __a) { return std::get<0>(__a); });// KSATODO move lambda
 }
 
 //------------------------------------------------------------------------
@@ -1448,10 +1455,12 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
     using _Iterator1DifferenceType = typename ::std::iterator_traits<_Iterator1>::difference_type;
     using _ReduceValueType = int32_t;
 
+    // KSATODO move lambda
     auto __reduce_fn = [](_ReduceValueType __a, _ReduceValueType __b) {
         bool __is_mismatched = __a != 0;
         return __a * __is_mismatched + __b * !__is_mismatched;
     };
+    // KSATODO move lambda
     auto __transform_fn = [__comp](auto __gidx, auto __acc1, auto __acc2) {
         auto const& __s1_val = __acc1[__gidx];
         auto const& __s2_val = __acc2[__gidx];
