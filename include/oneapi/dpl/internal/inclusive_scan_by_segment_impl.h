@@ -155,8 +155,8 @@ inclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first1, first2, result);
 
-    return internal::pattern_inclusive_scan_by_segment(__dispatch_tag, ::std::forward<Policy>(policy), first1, last1,
-                                                       first2, result, binary_pred, binary_op);
+    return internal::pattern_inclusive_scan_by_segment(__dispatch_tag, policy, first1, last1, first2, result,
+                                                       binary_pred, binary_op);
 }
 
 template <typename Policy, typename InputIter1, typename InputIter2, typename OutputIter, typename BinaryPredicate>
