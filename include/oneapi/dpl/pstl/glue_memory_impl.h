@@ -267,8 +267,7 @@ destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
             oneapi::dpl::__internal::__select_backend(__exec, __first);
 #endif
 
-        return oneapi::dpl::__internal::__pattern_walk1_n(__dispatch_tag, __exec,
-                                                          __first, __n,
+        return oneapi::dpl::__internal::__pattern_walk1_n(__dispatch_tag, __exec, __first, __n,
                                                           [](_ReferenceType __val) { __val.~_ValueType(); });
     }
 }

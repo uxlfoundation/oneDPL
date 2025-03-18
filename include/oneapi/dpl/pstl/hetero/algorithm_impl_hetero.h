@@ -1321,8 +1321,7 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, const _ExecutionPoli
     if (__last == __first)
         return __last;
     else if (__last - __first < 2)
-        return __pattern_any_of(__tag, __exec, __first, __last, __pred) ? __last
-                                                                                                          : __first;
+        return __pattern_any_of(__tag, __exec, __first, __last, __pred) ? __last : __first;
 
     using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
 

@@ -378,8 +378,7 @@ _RandomAccessIterator2
 __pattern_walk2_n(__parallel_tag<_IsVector> __tag, const _ExecutionPolicy& __exec, _RandomAccessIterator1 __first1,
                   _Size __n, _RandomAccessIterator2 __first2, _Function __f)
 {
-    return __internal::__pattern_walk2(__tag, __exec, __first1, __first1 + __n,
-                                       __first2, __f);
+    return __internal::__pattern_walk2(__tag, __exec, __first1, __first1 + __n, __first2, __f);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Brick>
@@ -578,8 +577,7 @@ __pattern_walk3_transform_if(_Tag __tag, const _ExecutionPolicy& __exec, _Forwar
 {
     static_assert(__is_host_dispatch_tag_v<_Tag>);
 
-    return __pattern_walk3(__tag, __exec, __first1, __last1, __first2, __first3,
-                           __func);
+    return __pattern_walk3(__tag, __exec, __first1, __last1, __first2, __first3, __func);
 }
 
 //------------------------------------------------------------------------
@@ -867,8 +865,7 @@ __pattern_find_end(__parallel_tag<_IsVector> __tag, const _ExecutionPolicy& __ex
 {
     if (__last - __first == __s_last - __s_first)
     {
-        const bool __res = __internal::__pattern_equal(__tag, __exec, __first, __last,
-                                                       __s_first, __pred);
+        const bool __res = __internal::__pattern_equal(__tag, __exec, __first, __last, __s_first, __pred);
         return __res ? __first : __last;
     }
     else
@@ -970,8 +967,7 @@ __pattern_search(__parallel_tag<_IsVector> __tag, const _ExecutionPolicy& __exec
 {
     if (__last - __first == __s_last - __s_first)
     {
-        const bool __res = __internal::__pattern_equal(__tag, __exec, __first, __last,
-                                                       __s_first, __pred);
+        const bool __res = __internal::__pattern_equal(__tag, __exec, __first, __last, __s_first, __pred);
         return __res ? __first : __last;
     }
     else
@@ -1943,8 +1939,7 @@ __pattern_rotate_copy(_Tag __tag, const _ExecutionPolicy& __exec, _ForwardIterat
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_rotate_copy(__tag, __exec, __first, __middle, __last,
-                                           __result);
+    return __internal::__brick_rotate_copy(__tag, __exec, __first, __middle, __last, __result);
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
@@ -2582,8 +2577,7 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, const _ExecutionPolicy& _
                                           });
 
             if constexpr (!::std::is_trivially_destructible_v<_T1>)
-                __par_backend::__parallel_for(__backend_tag{}, __exec, __r + __n2,
-                                              __r + __n1,
+                __par_backend::__parallel_for(__backend_tag{}, __exec, __r + __n2, __r + __n1,
                                               [](_T1* __i, _T1* __j) { __brick_destroy(__i, __j, _IsVector{}); });
 
             return __d_first + __n2;
@@ -2809,8 +2803,7 @@ _RandomAccessIterator
 __pattern_fill_n(__parallel_tag<_IsVector> __tag, const _ExecutionPolicy& __exec, _RandomAccessIterator __first,
                  _Size __count, const _Tp& __value)
 {
-    return __internal::__pattern_fill(__tag, __exec, __first, __first + __count,
-                                      __value);
+    return __internal::__pattern_fill(__tag, __exec, __first, __first + __count, __value);
 }
 
 //------------------------------------------------------------------------
@@ -3376,13 +3369,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, const _ExecutionPolicy&
 
     // {1} {}: parallel copying just first sequence
     if (__n2 == 0)
-        return __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1,
-                                                 __result, __copy_range);
+        return __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1, __result, __copy_range);
 
     // {} {2}: parallel copying justmake  second sequence
     if (__n1 == 0)
-        return __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2,
-                                                 __result, __copy_range);
+        return __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2, __result, __copy_range);
 
     // testing  whether the sequences are intersected
     _RandomAccessIterator1 __left_bound_seq_1 = ::std::lower_bound(__first1, __last1, *__first2, __comp);
@@ -3392,13 +3383,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, const _ExecutionPolicy&
         //{1} < {2}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
+            [=] { __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1, __result, __copy_range); },
             [=] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1,
-                                                  __result, __copy_range);
-            },
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2,
-                                                  __result + __n1, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2, __result + __n1, __copy_range);
             });
         return __result + __n1 + __n2;
     }
@@ -3411,13 +3398,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, const _ExecutionPolicy&
         //{2} < {1}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
+            [=] { __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2, __result, __copy_range); },
             [=] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2,
-                                                  __result, __copy_range);
-            },
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1,
-                                                  __result + __n2, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1, __result + __n2, __copy_range);
             });
         return __result + __n1 + __n2;
     }
