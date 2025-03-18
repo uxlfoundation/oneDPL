@@ -321,6 +321,11 @@ struct __parallel_transform_reduce_impl
     {
         using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
         using _NoOpFunctor = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, oneapi::dpl::__internal::__no_op>;
+
+        // We should avoid using _ExecutionPolicy in __kernel_name_generator template params
+        // because we always specialize this __parallel_transform_reduce_impl::submit() calls only by _ExecutionPolicy as "const reference".
+        // So, from this template param point of view, only one specialization is possible per concrete _ExecutionPolicy type.
+        // _ExecutionPolicy type information is embedded in _CustomName to distinguish between concrete policy types.
         using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             __reduce_kernel, _CustomName, _ReduceOp, _TransformOp, _NoOpFunctor, _Ranges...>;
 
