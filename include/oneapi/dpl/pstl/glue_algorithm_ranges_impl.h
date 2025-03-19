@@ -819,31 +819,6 @@ inline constexpr __internal::__move_fn move;
 namespace __internal
 {
 
-struct __replace_fn
-{
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-             typename _T1, typename _T2>
-    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
-        && std::indirectly_writable<std::ranges::iterator_t<_R>, const _T2&>
-        && std::indirect_binary_predicate<std::ranges::equal_to, std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T1*>
-        && std::ranges::sized_range<_R>
-
-    std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T1& __old_value, const _T2& __new_value, _Proj __proj = {})
-    {
-        //TODO: re-write, it is not correct because projection
-        return for_each(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            [__old_value, __new_value](auto& __a) { if(__a == __old_value) __a = __new_value;}, __proj);
-    }
-}; //__replace_fn
-
-} //__internal
-
-inline constexpr __internal::__replace_fn replace;
-
-namespace __internal
-{
-
 struct __replace_if_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _T,
@@ -864,6 +839,30 @@ struct __replace_if_fn
 } //__internal
 
 inline constexpr __internal::__replace_if_fn replace_if;
+
+namespace __internal
+{
+
+struct __replace_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             typename _T1, typename _T2>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::indirectly_writable<std::ranges::iterator_t<_R>, const _T2&>
+        && std::indirect_binary_predicate<std::ranges::equal_to, std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T1*>
+        && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T1& __old_value, const _T2& __new_value, _Proj __proj = {})
+    {
+        return replace_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            [__old_value](auto& __a) { return std::ranges::equal_to{}(__a, __old_value);}, __new_value, __proj);
+    }
+}; //__replace_fn
+
+} //__internal
+
+inline constexpr __internal::__replace_fn replace;
 
 namespace __internal
 {
