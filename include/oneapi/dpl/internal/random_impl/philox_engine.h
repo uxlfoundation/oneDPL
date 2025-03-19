@@ -134,6 +134,7 @@ class philox_engine
             // all counters are set in reverse order
             state_.X[word_count - __i - 1] = __counter[__i] & in_mask;
         }
+        state_.idx = word_count - 1;
     }
 
     /* Generating functions */
@@ -460,18 +461,15 @@ operator<<(std::basic_ostream<__CharT, __Traits>& __os,
     __CharT __sp = __os.widen(' ');
     __os.fill(__sp);
 
-    for (auto x_elm : __engine.state_.X)
-    {
-        __os << x_elm << __sp;
-    }
     for (auto k_elm : __engine.state_.K)
     {
         __os << k_elm << __sp;
     }
-    for (auto y_elm : __engine.state_.Y)
+    for (auto x_elm : __engine.state_.X)
     {
-        __os << y_elm << __sp;
+        __os << x_elm << __sp;
     }
+
     __os << __engine.state_.idx;
 
     return __os;
@@ -482,18 +480,15 @@ template <typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r
 const sycl::stream&
 operator<<(const sycl::stream& __os, const philox_engine<__UIntType, __w, __n, __r, __consts...>& __engine)
 {
-    for (auto __x_elm : __engine.state_.X)
-    {
-        __os << __x_elm << ' ';
-    }
     for (auto __k_elm : __engine.state_.K)
     {
         __os << __k_elm << ' ';
     }
-    for (auto __y_elm : __engine.state_.Y)
+    for (auto __x_elm : __engine.state_.X)
     {
-        __os << __y_elm << ' ';
+        __os << __x_elm << ' ';
     }
+
     __os << __engine.state_.idx;
 
     return __os;
@@ -519,13 +514,15 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
     if (!__is.fail())
     {
         int __inp_itr = 0;
+        for (std::size_t __i = 0; __i < __n / 2; ++__i, ++__inp_itr)
+        __engine.state_.K[__i] = __tmp_inp[__inp_itr];
         for (std::size_t __i = 0; __i < __n; ++__i, ++__inp_itr)
             __engine.state_.X[__i] = __tmp_inp[__inp_itr];
-        for (std::size_t __i = 0; __i < __n / 2; ++__i, ++__inp_itr)
-            __engine.state_.K[__i] = __tmp_inp[__inp_itr];
-        for (std::size_t __i = 0; __i < __n; ++__i, ++__inp_itr)
-            __engine.state_.Y[__i] = __tmp_inp[__inp_itr];
+
         __engine.state_.idx = __tmp_inp[__inp_itr];
+
+        /* setup Yi */
+        philox_kernel();
     }
 
     return __is;
