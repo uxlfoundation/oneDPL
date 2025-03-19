@@ -21,6 +21,7 @@
 #include "binary_search_extension_defs.h"
 #include "../pstl/iterator_impl.h"
 #include "../pstl/utils.h"
+#include "../pstl/get_impl.h"  // oneapi::dpl::__internal::__get
 
 namespace oneapi
 {
@@ -56,22 +57,27 @@ struct __custom_brick : oneapi::dpl::unseq_backend::walk_scalar_base<_Range>
     {
         _Size start_orig = 0;
         _Size end_orig = size;
-        using std::get;
+
         if constexpr (func == search_algorithm::lower_bound)
         {
-            get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_lower_bound(get<0>(acc.tuple()), start_orig, end_orig, // KSATODO fix get
-                                                                            get<1>(acc[idx]), comp); // KSATODO fix get
+            oneapi::dpl::__internal::__get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_lower_bound(
+                oneapi::dpl::__internal::__get<0>(acc.tuple()), start_orig, end_orig, // KSATODO fix get - done
+                oneapi::dpl::__internal::__get<1>(acc[idx]), comp);                   // KSATODO fix get - done
         }
         else if constexpr (func == search_algorithm::upper_bound)
         {
-            get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_upper_bound(get<0>(acc.tuple()), start_orig, end_orig, // KSATODO fix get
-                                                                            get<1>(acc[idx]), comp); // KSATODO fix get
+            oneapi::dpl::__internal::__get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_upper_bound(
+                oneapi::dpl::__internal::__get<0>(acc.tuple()), start_orig, end_orig, // KSATODO fix get - done
+                oneapi::dpl::__internal::__get<1>(acc[idx]), comp);                   // KSATODO fix get - done
         }
         else
         {
-            auto value = oneapi::dpl::__internal::__shars_lower_bound(get<0>(acc.tuple()), start_orig, end_orig, // KSATODO fix get
-                                                                      get<1>(acc[idx]), comp); // KSATODO fix get
-            get<2>(acc[idx]) = (value != end_orig) && (get<1>(acc[idx]) == get<0>(acc[value])); // KSATODO fix get
+            auto value = oneapi::dpl::__internal::__shars_lower_bound(
+                oneapi::dpl::__internal::__get<0>(acc.tuple()), start_orig, end_orig, // KSATODO fix get - done
+                oneapi::dpl::__internal::__get<1>(acc[idx]), comp);                   // KSATODO fix get - done
+            oneapi::dpl::__internal::__get<2>(acc[idx]) =
+                (value != end_orig) && (oneapi::dpl::__internal::__get<1>(acc[idx]) ==
+                                        oneapi::dpl::__internal::__get<0>(acc[value])); // KSATODO fix get - done
         }
     }
     template <typename _IsFull, typename _ItemId, typename _Acc>
