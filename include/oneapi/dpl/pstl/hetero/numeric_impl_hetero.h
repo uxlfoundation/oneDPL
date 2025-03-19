@@ -224,19 +224,16 @@ struct adjacent_difference_wrapper
 {
 };
 
-#if !LAMBDA_INSIDE_ON_INTERNAL_LEVELS
-template <typename _Op>
-struct DiffOp
+template <typename _Op, typename _It1ValueT, typename _It2ValueTRef>
+struct __pattern_adjacent_difference_op_caller
 {
     _Op __op;
 
-    template <typename _It1ValueT, typename _It2ValueTRef>
-    auto operator()(_It1ValueT __in1, _It1ValueT __in2, _It2ValueTRef __out1) const
+    void operator()(_It1ValueT __in1, _It1ValueT __in2, _It2ValueTRef __out1)
     {
         __out1 = __op(__in2, __in1); // This move assignment is allowed by the C++ standard draft N4810
     }
 };
-#endif
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _BinaryOperation>
@@ -267,14 +264,7 @@ __pattern_adjacent_difference([[maybe_unused]] __hetero_tag<_BackendTag> __tag, 
     else
 #endif
     {
-#if LAMBDA_INSIDE_ON_INTERNAL_LEVELS
-        // KSATODO move lambda
-        auto __fn = [__op](_It1ValueT __in1, _It1ValueT __in2, _It2ValueTRef __out1) {
-            __out1 = __op(__in2, __in1); // This move assignment is allowed by the C++ standard draft N4810
-        };
-#else
-        DiffOp<_BinaryOperation> __fn{__op};
-#endif
+        __pattern_adjacent_difference_op_caller<_BinaryOperation, _It1ValueT, _It2ValueTRef> __fn{__op}; // KSATODO moved out
 
         auto __keep1 =
             oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();
