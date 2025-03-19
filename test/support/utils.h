@@ -922,8 +922,6 @@ constexpr bool __vector_impl_distinguishes_usm_allocator_from_default_v =
 
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
-////////////////////////////////////////////////////////////////////////////////
-// Implementation of create_new_policy for all policies (host + hetero)
 template <typename Policy>
 using __is_able_to_create_new_policy =
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -931,22 +929,6 @@ using __is_able_to_create_new_policy =
 #else
     ::std::false_type;
 #endif // TEST_DPCPP_BACKEND_PRESENT
-
-#if TEST_DPCPP_BACKEND_PRESENT
-template <typename _NewKernelName, typename Policy, ::std::enable_if_t<__is_able_to_create_new_policy<Policy>::value, int> = 0>
-auto
-create_new_policy(Policy&& policy)
-{
-    return TestUtils::make_new_policy<_NewKernelName>(::std::forward<Policy>(policy));
-}
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-template <typename _NewKernelName, typename Policy, ::std::enable_if_t<!__is_able_to_create_new_policy<Policy>::value, int> = 0>
-auto
-create_new_policy(Policy&& policy)
-{
-    return ::std::forward<Policy>(policy);
-}
 
 #if TEST_DPCPP_BACKEND_PRESENT
 template <typename KernelName, int idx>
