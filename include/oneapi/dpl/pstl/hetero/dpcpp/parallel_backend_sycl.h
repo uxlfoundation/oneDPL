@@ -995,9 +995,9 @@ struct __gen_set_balanced_path
 template <typename _SetOpCount, typename _TempData, typename _Compare>
 struct __gen_set_op_from_known_balanced_path
 {
-    template <typename _InRng>
+    template <typename _InRng, typename _IndexT>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, _IndexT __id) const
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -1008,13 +1008,15 @@ struct __gen_set_op_from_known_balanced_path
         auto __rng2_temp_diag = std::get<3>(__in_rng.tuple()); // set b temp storage sequence
         auto __temp_star_offset = std::get<4>(__in_rng.tuple()); // star offset boolean flags
 
+        using _SizeType = decltype(__rng1.size());
+        _SizeType __i_elem = __id * __diagonal_spacing;
         _TempData __output_data{};
-        _SizeType __eles_to_process = std::min(__diagonal_spacing - _SizeType{__star_offset},
+        _SizeType __eles_to_process = std::min(_SizeType{__diagonal_spacing} - _SizeType{__temp_star_offset[__id]},
             __rng1.size() + __rng2.size() - (__i_elem - 1));
         
-        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_temp_diag[__id], __rng2_temp_diag[__id], __diagonal_spacing - __temp_star_offset[__id],
+        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_temp_diag[__id], __rng2_temp_diag[__id], __eles_to_process,
                                                __output_data, __comp);
-        return std::make_tuple(__count, std::move(__output_data));
+        return std::make_tuple(__count, __count, std::move(__output_data));
     }
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
@@ -1112,21 +1114,6 @@ struct __get_set_operation<_SetTag, std::enable_if_t<std::is_same<_SetTag, oneap
 {
 };
 
-template <typename _GenMask, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
-struct __gen_expand_count_set
-{
-    template <typename _InRng, typename _SizeType>
-    auto
-    operator()(_InRng&& __in_rng, _SizeType __id) const
-    {
-        auto __transformed_input = _RangeTransform{}(__in_rng);
-        auto __set_temp_output = std::get<2>(__in_rng.tuple()); // temp_output sequence
-        auto __set_temp_count = std::get<3>(__in_rng.tuple()); // temp_count sequence
-
-        return std::tuple(__set_temp_count, __set_temp_count, __set_temp_output);
-    }
-    _GenMask __gen_mask;
-};
 
 // template <typename SetOp, typename _Compare>
 // struct __write_compressed_output
@@ -1277,6 +1264,7 @@ struct __get_zeroth_element
         return std::get<0>(std::forward<_Tp>(__a));
     }
 };
+
 template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
@@ -1322,10 +1310,10 @@ struct __write_multiple_to_id
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
     {
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<1>(__v).__data[0])>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v).__data[0])>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
-        for (std::size_t __i = 0; __i < std::get<0>(__v); ++__i)
-            __assign(static_cast<_ConvertedTupleType>(std::get<1>(__v).__data[__i]), __out_rng[__id + __i]);
+        for (std::size_t __i = 0; __i < std::get<1>(__v); ++__i)
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v).__data[__i]), __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
     }
     _Assign __assign;
 };
