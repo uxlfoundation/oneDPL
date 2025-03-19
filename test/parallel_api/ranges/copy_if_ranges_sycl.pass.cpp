@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // for CREATE_NEW_POLICY macro
 
 #include <iostream>
 
@@ -41,14 +42,11 @@ main()
 
     auto src = views::iota(0, max_n);
 
-    auto exec1 = TestUtils::get_dpcpp_test_policy();
-    using Policy = decltype(exec1);
-    auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec1);
-    auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec1);
+    auto exec = TestUtils::get_dpcpp_test_policy();
 
-    auto res1 = copy_if(exec1, src, A, pred);
-    auto res2 = remove_copy_if(exec2, src, views::all_write(B), pred);
-    auto res3 = remove_copy(exec3, src, views::all_write(C), 0);
+    auto res1 = copy_if(exec, src, A, pred);
+    auto res2 = remove_copy_if(CREATE_NEW_POLICY(exec, 0), src, views::all_write(B), pred);
+    auto res3 = remove_copy(CREATE_NEW_POLICY(exec, 1), src, views::all_write(C), 0);
 
     EXPECT_TRUE(res1 == 5, "wrong return result from copy_if with sycl buffer");
     EXPECT_TRUE(res2 == 5, "wrong return result from remove_copy_if with sycl ranges");

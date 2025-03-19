@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // for CREATE_NEW_POLICY macro
 
 #include <iostream>
 
@@ -41,14 +42,11 @@ main()
         sycl::buffer<int> A(data1, sycl::range<1>(max_n));
         sycl::buffer<int> B(data2, sycl::range<1>(max_n));
 
-        auto exec1 = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec1);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec1);
-        auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec1);
-                                       
-        res1 = any_of(exec1, views::all(A), lambda);
-        res2 = all_of(exec2, B, lambda);
-        res3 = none_of(exec3, B, [](auto i) { return i == -1;});
+        auto exec = TestUtils::get_dpcpp_test_policy();
+
+        res1 = any_of(CREATE_NEW_POLICY(exec, 1), views::all(A), lambda);
+        res2 = all_of(CREATE_NEW_POLICY(exec, 2), B, lambda);
+        res3 = none_of(CREATE_NEW_POLICY(exec, 3), B, [](auto i) { return i == -1;});
     }
 
     EXPECT_TRUE(res1, "wrong result from any_of with sycl ranges");

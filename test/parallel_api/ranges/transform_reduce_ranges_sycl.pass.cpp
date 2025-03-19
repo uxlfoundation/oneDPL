@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <iostream>
 
@@ -41,13 +42,10 @@ main()
         auto view = oneapi::dpl::experimental::ranges::all_view<int, sycl::access::mode::read>(A);
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
-        auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 3>>(exec);
 
         res1 = oneapi::dpl::experimental::ranges::transform_reduce(exec, A, view, 0);
-        res2 = oneapi::dpl::experimental::ranges::transform_reduce(exec2, view, A, 0, ::std::plus<int>(), ::std::multiplies<int>());
-        res3 = oneapi::dpl::experimental::ranges::transform_reduce(exec3, view, 0, ::std::plus<int>(), lambda1);
+        res2 = oneapi::dpl::experimental::ranges::transform_reduce(CREATE_NEW_POLICY(exec, 2), view, A, 0, ::std::plus<int>(), ::std::multiplies<int>());
+        res3 = oneapi::dpl::experimental::ranges::transform_reduce(CREATE_NEW_POLICY(exec, 3), view, 0, ::std::plus<int>(), lambda1);
     }
 
     //check result

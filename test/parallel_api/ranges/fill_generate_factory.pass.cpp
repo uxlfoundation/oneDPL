@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // for CREATE_NEW_POLICY macro
 
 #include <iostream>
 
@@ -53,12 +54,9 @@ main()
         sycl::buffer<int> B(expected2, sycl::range<1>(max_n));
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
 
-        ranges::copy(exec1, view1, A);
-        ranges::copy(exec2, view2, B);
+        ranges::copy(CREATE_NEW_POLICY(exec, 0), view1, A);
+        ranges::copy(CREATE_NEW_POLICY(exec, 1), view2, B);
     }
 
     auto res3 = std::all_of(expected1, expected1 + max_n, [](auto i) { return i == 1;});

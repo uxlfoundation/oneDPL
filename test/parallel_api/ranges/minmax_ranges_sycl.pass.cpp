@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <iostream>
 
@@ -48,26 +49,18 @@ main()
         auto view = all_view(A);
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
-        auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 3>>(exec);
-        auto exec4 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 4>>(exec);
-        auto exec5 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 5>>(exec);
-        auto exec6 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 6>>(exec);
-        auto exec7 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 7>>(exec);
 
         //min element
         res1 = min_element(exec, A);
-        res2 = min_element(exec2, view, ::std::less<int>());
-        res3 = min_element(exec3, view | views::take(1));
+        res2 = min_element(CREATE_NEW_POLICY(exec, 2), view, ::std::less<int>());
+        res3 = min_element(CREATE_NEW_POLICY(exec, 3), view | views::take(1));
 
         //max_element
-        res4 = max_element(exec4, A);
-        res5 = max_element(exec5, view, ::std::less<int>());
+        res4 = max_element(CREATE_NEW_POLICY(exec, 4), A);
+        res5 = max_element(CREATE_NEW_POLICY(exec, 5), view, ::std::less<int>());
 
-        //minmax_element
-        res_minmax1 = minmax_element(exec6, A);
-        res_minmax2 = minmax_element(exec7, view, ::std::less<int>());
+        res_minmax1 = minmax_element(CREATE_NEW_POLICY(exec, 6), A);
+        res_minmax2 = minmax_element(CREATE_NEW_POLICY(exec, 7), view, ::std::less<int>());
     }
 
     //check result

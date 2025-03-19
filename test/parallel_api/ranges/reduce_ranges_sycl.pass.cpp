@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <iostream>
 
@@ -40,13 +41,10 @@ main()
         auto view = all_view<int, sycl::access::mode::read>(A);
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
-        auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 3>>(exec);
 
         res1 = reduce(exec, A);
-        res2 = reduce(exec2, view, 100);
-        res3 = reduce(exec3, view, 100, ::std::plus<int>());
+        res2 = reduce(CREATE_NEW_POLICY(exec, 2), view, 100);
+        res3 = reduce(CREATE_NEW_POLICY(exec, 3), view, 100, ::std::plus<int>());
     }
 
     //check result
