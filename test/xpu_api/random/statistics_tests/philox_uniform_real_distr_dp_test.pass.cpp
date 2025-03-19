@@ -19,8 +19,8 @@
 
 /* ------   Tested the statistics of different engines   ------ */
 // n = 2
-using philox2x32 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 32, 2, 10, 0xd256d193, 0x0>;
-using philox2x64 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 64, 2, 10, 0xD2B74407B1CE6E93, 0x0>;
+using philox2x32 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 32, 2, 10, 0xD2511F53, 0x9E3779B9>;
+using philox2x64 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 64, 2, 10, 0xD2B74407B1CE6E93,0x9E3779B97F4A7C15>;
 
 template<typename RealType>
 using Distr = oneapi::dpl::uniform_real_distribution<RealType>;

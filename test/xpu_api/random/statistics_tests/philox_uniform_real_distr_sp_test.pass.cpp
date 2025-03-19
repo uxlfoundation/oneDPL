@@ -19,20 +19,20 @@
 
 /* ------   Tested the statistics of different engines   ------ */
 // n = 2
-using philox2x32 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 32, 2, 10, 0xd256d193, 0x0>;
-using philox2x64 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 64, 2, 10, 0xD2B74407B1CE6E93, 0x0>;
+using philox2x32 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 32, 2, 10, 0xD2511F53, 0x9E3779B9>;
+using philox2x64 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 64, 2, 10, 0xD2B74407B1CE6E93,0x9E3779B97F4A7C15>;
 
 // bitsize(result_type) != word_size, test only scalar output
-using philox2x32_w5 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 5, 2, 10, 0xd256d193, 0x0>;
-using philox2x32_w15 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 15, 2, 10, 0xd256d193, 0x0>;
-using philox2x32_w18 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 18, 2, 10, 0xd256d193, 0x0>;
-using philox2x32_w30 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 30, 2, 10, 0xd256d193, 0x0>;
+using philox2x32_w5 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 5, 2, 10, 0xD2511F53, 0x9E3779B9>;
+using philox2x32_w15 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 15, 2, 10, 0xD2511F53, 0x9E3779B9>;
+using philox2x32_w18 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 18, 2, 10, 0xD2511F53, 0x9E3779B9>;
+using philox2x32_w30 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 30, 2, 10, 0xD2511F53, 0x9E3779B9>;
 
-using philox2x64_w5 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 5, 2, 10, 0xD2B74407B1CE6E93, 0x0>;
-using philox2x64_w15 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 15, 2, 10, 0xD2B74407B1CE6E93, 0x0>;
-using philox2x64_w18 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 18, 2, 10, 0xD2B74407B1CE6E93, 0x0>;
-using philox2x64_w25 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 25, 2, 10, 0xD2B74407B1CE6E93, 0x0>;
-using philox2x64_w49 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 49, 2, 10, 0xD2B74407B1CE6E93, 0x0>;
+using philox2x64_w5 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 5, 2, 10, 0xD2B74407B1CE6E93,0x9E3779B97F4A7C15>;
+using philox2x64_w15 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 15, 2, 10, 0xD2B74407B1CE6E93,0x9E3779B97F4A7C15>;
+using philox2x64_w18 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 18, 2, 10, 0xD2B74407B1CE6E93,0x9E3779B97F4A7C15>;
+using philox2x64_w25 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 25, 2, 10, 0xD2B74407B1CE6E93,0x9E3779B97F4A7C15>;
+using philox2x64_w49 = oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 49, 2, 10, 0xD2B74407B1CE6E93,0x9E3779B97F4A7C15>;
 
 using philox4x32_w5 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 5, 4, 10, 0xCD9E8D57, 0x9E3779B9, 0xD2511F53, 0xBB67AE85>;
 using philox4x32_w15 = oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 15, 4, 10, 0xCD9E8D57, 0x9E3779B9, 0xD2511F53, 0xBB67AE85>;
