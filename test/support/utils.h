@@ -956,17 +956,6 @@ create_new_policy(Policy&& policy)
     return ::std::forward<Policy>(policy);
 }
 
-template <int idx, typename Policy>
-auto
-create_new_policy_idx(Policy&& policy)
-{
-#if TEST_DPCPP_BACKEND_PRESENT
-    return create_new_policy<TestUtils::new_kernel_name<Policy, idx>>(::std::forward<Policy>(policy));
-#else
-    return ::std::forward<Policy>(policy);
-#endif
-}
-
 #if TEST_DPCPP_BACKEND_PRESENT
 template <typename KernelName, int idx>
 struct kernel_name_with_idx
