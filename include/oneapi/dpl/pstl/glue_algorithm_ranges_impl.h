@@ -824,7 +824,7 @@ swap_ranges(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 
     return oneapi::dpl::__internal::__ranges::__pattern_swap(
         __dispatch_tag, __exec, views::all(::std::forward<_Range1>(__rng1)),
-        views::all(::std::forward<_Range2>(__rng2)), [](_ReferenceType1 __x, _ReferenceType2 __y) {
+        views::all(::std::forward<_Range2>(__rng2)), [](_ReferenceType1 __x, _ReferenceType2 __y) { // KSATODO need to move out
             using ::std::swap;
             swap(__x, __y);
         });
@@ -839,7 +839,7 @@ transform(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result, _Unary
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng, __result);
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
-        __dispatch_tag, __exec, [__op](auto x, auto& z) { z = __op(x); },
+        __dispatch_tag, __exec, [__op](auto x, auto& z) { z = __op(x); }, // KSATODO need to move out
         views::all_read(::std::forward<_Range1>(__rng)), views::all_write(::std::forward<_Range2>(__result)));
 }
 
@@ -850,7 +850,7 @@ transform(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2, __result);
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
-        __dispatch_tag, __exec, [__op](auto x, auto y, auto& z) { z = __op(x, y); },
+        __dispatch_tag, __exec, [__op](auto x, auto y, auto& z) { z = __op(x, y); }, // KSATODO need to move out
         views::all_read(::std::forward<_Range1>(__rng1)), views::all_read(::std::forward<_Range2>(__rng2)),
         views::all_write(::std::forward<_Range3>(__result)));
 }
