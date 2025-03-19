@@ -168,7 +168,7 @@ template <typename _KernelName, ::std::uint32_t __radix_bits, bool __is_ascendin
 #endif
           >
 sycl::event
-__radix_sort_count_submit(_ExecutionPolicy&& __exec, ::std::size_t __segments, ::std::size_t __wg_size,
+__radix_sort_count_submit(const _ExecutionPolicy& __exec, ::std::size_t __segments, ::std::size_t __wg_size,
                           ::std::uint32_t __radix_offset, _ValRange&& __val_rng, _CountBuf& __count_buf,
                           sycl::event __dependency_event, _Proj __proj
 #if _ONEDPL_COMPILE_KERNEL
@@ -272,7 +272,7 @@ template <typename _KernelName, ::std::uint32_t __radix_bits, typename _Executio
 #endif
           >
 sycl::event
-__radix_sort_scan_submit(_ExecutionPolicy&& __exec, ::std::size_t __scan_wg_size, ::std::size_t __segments,
+__radix_sort_scan_submit(const _ExecutionPolicy& __exec, ::std::size_t __scan_wg_size, ::std::size_t __segments,
                          _CountBuf& __count_buf, ::std::size_t __n, sycl::event __dependency_event
 #if _ONEDPL_COMPILE_KERNEL
                          , _Kernel& __kernel
@@ -507,10 +507,9 @@ template <typename _KernelName, ::std::uint32_t __radix_bits, bool __is_ascendin
 #endif
           >
 sycl::event
-__radix_sort_reorder_submit(_ExecutionPolicy&& __exec, ::std::size_t __segments,
-                            ::std::size_t __sg_size, ::std::uint32_t __radix_offset, _InRange&& __input_rng,
-                            _OutRange&& __output_rng, _OffsetBuf& __offset_buf, sycl::event __dependency_event,
-                            _Proj __proj
+__radix_sort_reorder_submit(const _ExecutionPolicy& __exec, ::std::size_t __segments, ::std::size_t __sg_size,
+                            ::std::uint32_t __radix_offset, _InRange&& __input_rng, _OutRange&& __output_rng,
+                            _OffsetBuf& __offset_buf, sycl::event __dependency_event, _Proj __proj
 #if _ONEDPL_COMPILE_KERNEL
                             , _Kernel& __kernel
 #endif
@@ -649,21 +648,26 @@ struct __parallel_radix_sort_iteration
 
     template <typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _TmpBuf, typename _Proj>
     static sycl::event
-    submit(_ExecutionPolicy&& __exec, ::std::size_t __segments, ::std::uint32_t __radix_iter, _InRange&& __in_rng,
+    submit(const _ExecutionPolicy& __exec, ::std::size_t __segments, ::std::uint32_t __radix_iter, _InRange&& __in_rng,
            _OutRange&& __out_rng, _TmpBuf& __tmp_buf, sycl::event __dependency_event, _Proj __proj)
     {
         using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+        // We should avoid using _ExecutionPolicy in __kernel_name_generator template params
+        // because we always specialize this submit() calls only by _ExecutionPolicy as "const reference".
+        // So, from this template param point of view, only one specialization is possible per concrete _ExecutionPolicy type.
+        // _ExecutionPolicy type information is embedded in _CustomName to distinguish between concrete policy types.
         using _RadixCountKernel =
-            __internal::__kernel_name_generator<__count_phase, _CustomName, _ExecutionPolicy, ::std::decay_t<_InRange>,
-                                                ::std::decay_t<_TmpBuf>, _Proj>;
-        using _RadixLocalScanKernel = __internal::__kernel_name_generator<__local_scan_phase, _CustomName,
-                                                                          _ExecutionPolicy, ::std::decay_t<_TmpBuf>>;
+            __internal::__kernel_name_generator<__count_phase, _CustomName, std::decay_t<_InRange>,
+                                                std::decay_t<_TmpBuf>, _Proj>;
+        using _RadixLocalScanKernel =
+            __internal::__kernel_name_generator<__local_scan_phase, _CustomName, std::decay_t<_TmpBuf>>;
         using _RadixReorderPeerKernel =
-            __internal::__kernel_name_generator<__reorder_peer_phase, _CustomName, _ExecutionPolicy,
-                                                ::std::decay_t<_InRange>, ::std::decay_t<_OutRange>, _Proj>;
+            __internal::__kernel_name_generator<__reorder_peer_phase, _CustomName, std::decay_t<_InRange>,
+                                                std::decay_t<_OutRange>, _Proj>;
         using _RadixReorderKernel =
-            __internal::__kernel_name_generator<__reorder_phase, _CustomName, _ExecutionPolicy,
-                                                ::std::decay_t<_InRange>, ::std::decay_t<_OutRange>, _Proj>;
+            __internal::__kernel_name_generator<__reorder_phase, _CustomName, std::decay_t<_InRange>,
+                                                std::decay_t<_OutRange>, _Proj>;
 
         ::std::size_t __max_sg_size = oneapi::dpl::__internal::__max_sub_group_size(__exec);
         ::std::size_t __reorder_sg_size = __max_sg_size;
@@ -767,7 +771,7 @@ struct __parallel_radix_sort_iteration
 //-----------------------------------------------------------------------
 template <bool __is_ascending, typename _Range, typename _ExecutionPolicy, typename _Proj>
 auto
-__parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __in_rng,
+__parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, const _ExecutionPolicy& __exec, _Range&& __in_rng,
                       _Proj __proj)
 {
     const ::std::size_t __n = __in_rng.size();
@@ -788,45 +792,40 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
 
     //TODO: 1.to reduce number of the kernels; 2.to define work group size in runtime, depending on number of elements
     constexpr std::size_t __wg_size = 64;
-    const auto __subgroup_sizes = __exec.queue().get_device().template get_info<sycl::info::device::sub_group_sizes>();
-    const bool __dev_has_sg16 = std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(),
-                                          static_cast<std::size_t>(16)) != __subgroup_sizes.end();
-
-    //TODO: with _RadixSortKernel also the following a couple of compile time constants is used for unique kernel name
-    using _RadixSortKernel = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    const bool __dev_has_sg16 = oneapi::dpl::__internal::__supports_sub_group_size(__exec, 16);
 
     if (__n <= 64 && __wg_size <= __max_wg_size)
-        __event = __subgroup_radix_sort<_RadixSortKernel, __wg_size, 1, __radix_bits, __is_ascending>{}(
-            __exec.queue(), ::std::forward<_Range>(__in_rng), __proj);
+        __event = __subgroup_radix_sort<__wg_size, 1, __radix_bits, __is_ascending>{}(
+            __exec, ::std::forward<_Range>(__in_rng), __proj);
     else if (__n <= 128 && __wg_size * 2 <= __max_wg_size)
-        __event = __subgroup_radix_sort<_RadixSortKernel, __wg_size * 2, 1, __radix_bits, __is_ascending>{}(
-            __exec.queue(), ::std::forward<_Range>(__in_rng), __proj);
+        __event = __subgroup_radix_sort<__wg_size * 2, 1, __radix_bits, __is_ascending>{}(
+            __exec, ::std::forward<_Range>(__in_rng), __proj);
     else if (__n <= 256 && __wg_size * 2 <= __max_wg_size)
-        __event = __subgroup_radix_sort<_RadixSortKernel, __wg_size * 2, 2, __radix_bits, __is_ascending>{}(
-            __exec.queue(), ::std::forward<_Range>(__in_rng), __proj);
+        __event = __subgroup_radix_sort<__wg_size * 2, 2, __radix_bits, __is_ascending>{}(
+            __exec, ::std::forward<_Range>(__in_rng), __proj);
     else if (__n <= 512 && __wg_size * 2 <= __max_wg_size)
-        __event = __subgroup_radix_sort<_RadixSortKernel, __wg_size * 2, 4, __radix_bits, __is_ascending>{}(
-            __exec.queue(), ::std::forward<_Range>(__in_rng), __proj);
+        __event = __subgroup_radix_sort<__wg_size * 2, 4, __radix_bits, __is_ascending>{}(
+            __exec, ::std::forward<_Range>(__in_rng), __proj);
     else if (__n <= 1024 && __wg_size * 2 <= __max_wg_size)
-        __event = __subgroup_radix_sort<_RadixSortKernel, __wg_size * 2, 8, __radix_bits, __is_ascending>{}(
-            __exec.queue(), ::std::forward<_Range>(__in_rng), __proj);
+        __event = __subgroup_radix_sort<__wg_size * 2, 8, __radix_bits, __is_ascending>{}(
+            __exec, ::std::forward<_Range>(__in_rng), __proj);
     else if (__n <= 2048 && __wg_size * 4 <= __max_wg_size)
-        __event = __subgroup_radix_sort<_RadixSortKernel, __wg_size * 4, 8, __radix_bits, __is_ascending>{}(
-            __exec.queue(), ::std::forward<_Range>(__in_rng), __proj);
+        __event = __subgroup_radix_sort<__wg_size * 4, 8, __radix_bits, __is_ascending>{}(
+            __exec, ::std::forward<_Range>(__in_rng), __proj);
     else if (__n <= 4096 && __wg_size * 4 <= __max_wg_size)
-        __event = __subgroup_radix_sort<_RadixSortKernel, __wg_size * 4, 16, __radix_bits, __is_ascending>{}(
-            __exec.queue(), ::std::forward<_Range>(__in_rng), __proj);
+        __event = __subgroup_radix_sort<__wg_size * 4, 16, __radix_bits, __is_ascending>{}(
+            __exec, ::std::forward<_Range>(__in_rng), __proj);
     // In __subgroup_radix_sort, we request a sub-group size of 16 via _ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED
     // for compilation targets that support this option. For the below cases, register spills that result in
     // runtime exceptions have been observed on accelerators that do not support the requested sub-group size of 16.
     // For the above cases that request but may not receive a sub-group size of 16, inputs are small enough to avoid
     // register spills on assessed hardware.
     else if (__n <= 8192 && __wg_size * 8 <= __max_wg_size && __dev_has_sg16)
-        __event = __subgroup_radix_sort<_RadixSortKernel, __wg_size * 8, 16, __radix_bits, __is_ascending>{}(
-            __exec.queue(), ::std::forward<_Range>(__in_rng), __proj);
+        __event = __subgroup_radix_sort<__wg_size * 8, 16, __radix_bits, __is_ascending>{}(
+            __exec, ::std::forward<_Range>(__in_rng), __proj);
     else if (__n <= 16384 && __wg_size * 8 <= __max_wg_size && __dev_has_sg16)
-        __event = __subgroup_radix_sort<_RadixSortKernel, __wg_size * 8, 32, __radix_bits, __is_ascending>{}(
-            __exec.queue(), ::std::forward<_Range>(__in_rng), __proj);
+        __event = __subgroup_radix_sort<__wg_size * 8, 32, __radix_bits, __is_ascending>{}(
+            __exec, ::std::forward<_Range>(__in_rng), __proj);
     else
     {
         constexpr ::std::uint32_t __radix_iters = __get_buckets_in_type<_KeyT>(__radix_bits);
