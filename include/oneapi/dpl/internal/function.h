@@ -76,7 +76,7 @@ struct scan_by_key_fun
     operator()(_T1&& x, _T2&& y) const
     {
         using ::std::get;
-        return ::std::make_tuple(get<1>(y) ? get<0>(y) : binary_op(get<0>(x), get<0>(y)), get<1>(x) | get<1>(y));
+        return ::std::make_tuple(get<1>(y) ? get<0>(y) : binary_op(get<0>(x), get<0>(y)), get<1>(x) | get<1>(y)); // KSATODO fix get
     }
 
   private:
@@ -95,8 +95,8 @@ struct segmented_scan_fun
     {
         using ::std::get;
         using x_t = ::std::tuple_element_t<0, _T1>;
-        auto new_x = get<1>(y) ? x_t(get<0>(y)) : x_t(binary_op(get<0>(x), get<0>(y)));
-        auto new_y = get<1>(x) | get<1>(y);
+        auto new_x = get<1>(y) ? x_t(get<0>(y)) : x_t(binary_op(get<0>(x), get<0>(y))); // KSATODO fix get
+        auto new_y = get<1>(x) | get<1>(y); // KSATODO fix get
         return _T1(new_x, new_y);
     }
 
@@ -116,13 +116,13 @@ class scatter_and_accumulate_fun
     operator()(_T&& x) const
     {
         using ::std::get;
-        if (::std::get<2>(x))
+        if (::std::get<2>(x)) // KSATODO fix get
         {
-            result1[::std::get<1>(x)] = ::std::get<0>(x);
+            result1[::std::get<1>(x)] = ::std::get<0>(x); // KSATODO fix get
         }
-        if (::std::get<4>(x))
+        if (::std::get<4>(x)) // KSATODO fix get
         {
-            result2[::std::get<1>(x)] = ::std::get<3>(x);
+            result2[::std::get<1>(x)] = ::std::get<3>(x); // KSATODO fix get
         }
     }
 
@@ -145,8 +145,8 @@ class transform_if_stencil_fun
     operator()(_T&& t) const
     {
         using ::std::get;
-        if (pred(get<1>(t)))
-            get<2>(t) = op(get<0>(t));
+        if (pred(get<1>(t))) // KSATODO fix get
+            get<2>(t) = op(get<0>(t)); // KSATODO fix get
     }
 
   private:

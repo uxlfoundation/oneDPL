@@ -487,7 +487,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
         {
             // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
             // not commutative.
-            if (__comp(get<1>(__b), get<1>(__a)))
+            if (__comp(get<1>(__b), get<1>(__a))) // KSATODO fix get
             {
                 return __b;
             }
@@ -497,10 +497,10 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
         {
             // This operator keeps track of the lowest found index in case of equal min. or max. values. Thus, this operator is
             // commutative.
-            bool _is_a_lt_b = __comp(get<1>(__a), get<1>(__b));
-            bool _is_b_lt_a = __comp(get<1>(__b), get<1>(__a));
+            bool _is_a_lt_b = __comp(get<1>(__a), get<1>(__b)); // KSATODO fix get
+            bool _is_b_lt_a = __comp(get<1>(__b), get<1>(__a)); // KSATODO fix get
 
-            if (_is_b_lt_a || (!_is_a_lt_b && get<0>(__b) < get<0>(__a)))
+            if (_is_b_lt_a || (!_is_a_lt_b && get<0>(__b) < get<0>(__a))) // KSATODO fix get
             {
                 return __b;
             }
@@ -518,7 +518,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
                          __buf.all_view())
                          .get();
 
-    return __first + ::std::get<0>(__ret_idx);
+    return __first + ::std::get<0>(__ret_idx); // KSATODO fix get
 }
 
 // TODO:
@@ -558,12 +558,12 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
         auto __chosen_for_min = __a;
         auto __chosen_for_max = __b;
 
-        if (__comp(get<2>(__b), get<2>(__a)))
+        if (__comp(get<2>(__b), get<2>(__a))) // KSATODO fix get
             __chosen_for_min = ::std::move(__b);
-        if (__comp(get<3>(__b), get<3>(__a)))
+        if (__comp(get<3>(__b), get<3>(__a))) // KSATODO fix get
             __chosen_for_max = ::std::move(__a);
-        return _ReduceValueType{get<0>(__chosen_for_min), get<1>(__chosen_for_max), get<2>(__chosen_for_min),
-                                get<3>(__chosen_for_max)};
+        return _ReduceValueType{get<0>(__chosen_for_min), get<1>(__chosen_for_max), get<2>(__chosen_for_min), // KSATODO fix get
+                                get<3>(__chosen_for_max)}; // KSATODO fix get
     };
 
     // TODO: Doesn't work with `zip_iterator`.
@@ -583,7 +583,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
                      __buf.all_view())
                      .get();
 
-    return ::std::make_pair<_Iterator, _Iterator>(__first + ::std::get<0>(__ret), __first + ::std::get<1>(__ret));
+    return ::std::make_pair<_Iterator, _Iterator>(__first + ::std::get<0>(__ret), __first + ::std::get<1>(__ret)); // KSATODO fix get
 }
 
 //------------------------------------------------------------------------
@@ -1318,7 +1318,7 @@ __pattern_sort_by_key(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
     auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
     auto __end = __beg + (__keys_last - __keys_first);
     __stable_sort_with_projection(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end, __comp,
-                                  [](const auto& __a) { return std::get<0>(__a); });
+                                  [](const auto& __a) { return std::get<0>(__a); }); // KSATODO fix get
 }
 
 //------------------------------------------------------------------------
