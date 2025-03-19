@@ -841,7 +841,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
     // not commutative.
     auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
-        using ::std::get;
+        using std::get;
         if (__comp(get<1>(__b), get<1>(__a))) // KSATODO fix get
         {
             return __b;
@@ -858,7 +858,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
             ::std::forward<_Range>(__rng))
             .get();
 
-    using ::std::get;
+    using std::get;
     return get<0>(__ret_idx); // KSATODO fix get
 }
 
@@ -899,7 +899,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
     auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
-        using ::std::get;
+        using std::get;
         auto __chosen_for_min = __a;
         auto __chosen_for_max = __b;
 
@@ -926,7 +926,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
             ::std::forward<_Range>(__rng))
             .get();
 
-    using ::std::get;
+    using std::get;
     return ::std::make_pair(get<0>(__ret), get<1>(__ret)); // KSATODO fix get
 }
 

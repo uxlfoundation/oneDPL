@@ -350,14 +350,14 @@ __pattern_walk2(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
 
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                                            [&__f](::std::tuple<_ReferenceType1, _ReferenceType2> __val) {
-                                               __f(::std::get<0>(__val), ::std::get<1>(__val)); // KSATODO fix get
+                                               __f(std::get<0>(__val), std::get<1>(__val)); // KSATODO fix get
                                            });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
         // implementation. Therefore, iterator value is calculated separately.
         for (; __begin != __end; ++__begin)
             ;
-        return ::std::get<1>(__begin.base()); // KSATODO fix get
+        return std::get<1>(__begin.base()); // KSATODO fix get
     });
 }
 
@@ -428,15 +428,15 @@ __pattern_walk2_brick(__parallel_forward_tag, _ExecutionPolicy&& __exec, _Forwar
     return __except_handler([&]() {
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                                            [__brick](::std::tuple<_ReferenceType1, _ReferenceType2> __val) {
-                                               __brick(::std::get<0>(__val), // KSATODO fix get
-                                                       ::std::forward<_ReferenceType2>(::std::get<1>(__val))); // KSATODO fix get
+                                               __brick(std::get<0>(__val), // KSATODO fix get
+                                                       ::std::forward<_ReferenceType2>(std::get<1>(__val))); // KSATODO fix get
                                            });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
         // implementation. Therefore, iterator value is calculated separately.
         for (; __begin != __end; ++__begin)
             ;
-        return ::std::get<1>(__begin.base()); // KSATODO fix get
+        return std::get<1>(__begin.base()); // KSATODO fix get
     });
 }
 
@@ -543,14 +543,14 @@ __pattern_walk3(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
 
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                                            [&](::std::tuple<_ReferenceType1, _ReferenceType2, _ReferenceType3> __val) {
-                                               __f(::std::get<0>(__val), ::std::get<1>(__val), ::std::get<2>(__val)); // KSATODO fix get
+                                               __f(std::get<0>(__val), std::get<1>(__val), std::get<2>(__val)); // KSATODO fix get
                                            });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
         // implementation. Therefore, iterator value is calculated separately.
         for (; __begin != __end; ++__begin)
             ;
-        return ::std::get<2>(__begin.base()); // KSATODO fix get
+        return std::get<2>(__begin.base()); // KSATODO fix get
     });
 }
 

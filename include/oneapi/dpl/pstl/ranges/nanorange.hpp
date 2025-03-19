@@ -5933,8 +5933,8 @@ struct pair_like_concept
         -> decltype(requires_expr<derived_from<::std::tuple_size<T>, ::std::integral_constant<::std::size_t, 2>>>{},
                     ::std::declval<::std::tuple_element_t<0, ::std::remove_const_t<T>>>(),
                     ::std::declval<::std::tuple_element_t<1, ::std::remove_const_t<T>>>(),
-                    requires_expr<convertible_to<decltype(::std::get<0>(t)), const ::std::tuple_element<0, T>&>>{},
-                    requires_expr<convertible_to<decltype(::std::get<1>(t)), const ::std::tuple_element<1, T>&>>{});
+                    requires_expr<convertible_to<decltype(std::get<0>(t)), const ::std::tuple_element<0, T>&>>{},
+                    requires_expr<convertible_to<decltype(std::get<1>(t)), const ::std::tuple_element<1, T>&>>{});
 };
 
 template <typename T>
@@ -16072,7 +16072,7 @@ struct has_tuple_element_concept
     auto
     requires_(T t)
         -> decltype(requires_expr<(N < ::std::tuple_size_v<T>)>{}, ::std::declval<::std::tuple_element_t<N, T>>(),
-                    requires_expr<convertible_to<decltype(::std::get<N>(t)), ::std::tuple_element_t<N, T>>>{});
+                    requires_expr<convertible_to<decltype(std::get<N>(t)), ::std::tuple_element_t<N, T>>>{});
 };
 
 template <typename T, ::std::size_t N>
@@ -16167,7 +16167,7 @@ struct elements_view : view_interface<elements_view<R, N>>
             return current_;
         }
 
-        constexpr decltype(auto) operator*() const { return ::std::get<N>(*current_); }
+        constexpr decltype(auto) operator*() const { return std::get<N>(*current_); }
 
         constexpr iterator&
         operator++()
@@ -16227,7 +16227,7 @@ struct elements_view : view_interface<elements_view<R, N>>
         template <typename B = base_t, ::std::enable_if_t<random_access_range<B>, int> = 0>
         constexpr decltype(auto) operator[](difference_type n) const
         {
-            return ::std::get<N>(*(current_ + n));
+            return std::get<N>(*(current_ + n));
         }
 
         template <typename B = base_t>
