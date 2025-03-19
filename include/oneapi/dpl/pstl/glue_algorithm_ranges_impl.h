@@ -230,6 +230,29 @@ inline constexpr __internal::__find_first_of_fn find_first_of;
 
 namespace __internal
 {
+struct __find_end_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+             typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::indirectly_comparable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>, _Pred, _Proj1, _Proj2>
+        && std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2>
+
+    std::ranges::borrowed_iterator_t<_R1>
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
+               _Proj2 __proj2 = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_find_end(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+    }
+}; //__find_end_fn
+}  //__internal
+
+inline constexpr __internal::__find_end_fn find_end;
+
+namespace __internal
+{
 struct __any_of_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
