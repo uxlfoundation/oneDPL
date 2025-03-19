@@ -831,6 +831,7 @@ struct __replace_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T1& __old_value, const _T2& __new_value, _Proj __proj = {})
     {
+        //TODO: re-write, it is not correct because projection
         return for_each(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             [__old_value, __new_value](auto& __a) { if(__a == __old_value) __a = __new_value;}, __proj);
     }
@@ -855,6 +856,7 @@ struct __replace_if_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, const _T& __new_value, _Proj __proj = {})
     {
+        //TODO: re-write, it is not correct because projection
         return for_each(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             [__pred, __new_value](auto&& __a) { if(__pred(__a)) __a = __new_value;}, __proj);
     }
@@ -918,7 +920,8 @@ struct __remove_if_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
          std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
-    requires std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {})
@@ -932,6 +935,30 @@ struct __remove_if_fn
 } //__internal
 
 inline constexpr __internal::__remove_if_fn remove_if;
+
+namespace __internal
+{
+
+struct __remove_fn
+{
+
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             typename _T>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::permutable<std::ranges::iterator_t<_R>> && std::indirect_binary_predicate<std::ranges::equal_to,
+            std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T*> && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {})
+    {
+        return remove_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            [__value](auto&& __a) { return std::ranges::equal_to{}(__a, __value);}, __proj);
+    }
+  
+}; //__remove_fn
+} //__internal
+
+inline constexpr __internal::__remove_fn remove;
 
 } //ranges
 
