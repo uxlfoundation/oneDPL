@@ -897,7 +897,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
             ::std::forward<_Range>(__rng))
             .get();
 
-    using ::std::get;
+    using std::get;
     return get<0>(__ret_idx); // KSATODO fix get
 }
 
@@ -950,7 +950,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
             ::std::forward<_Range>(__rng))
             .get();
 
-    using ::std::get;
+    using std::get;
     return ::std::make_pair(get<0>(__ret), get<1>(__ret)); // KSATODO fix get
 }
 

@@ -37,7 +37,7 @@ struct equal_predicate
     bool
     operator()(const _Value& __val) const
     {
-        using ::std::get;
+        using std::get;
         return !__pred(get<0>(__val), get<1>(__val)); // KSATODO fix get
     }
 };
@@ -53,7 +53,7 @@ struct adjacent_find_fn
     bool
     operator()(const _Pack& __packed_neighbor_values) const
     {
-        using ::std::get;
+        using std::get;
         return __predicate(get<0>(__packed_neighbor_values), get<1>(__packed_neighbor_values)); // KSATODO fix get
     }
 };
@@ -67,7 +67,7 @@ struct __create_mask_unique_copy
     _ValueType
     operator()(_Idx __idx, _Acc& __acc) const
     {
-        using ::std::get;
+        using std::get;
 
         auto __predicate_result = 1;
         if (__idx != 0)

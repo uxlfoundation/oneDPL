@@ -527,7 +527,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
                          __buf.all_view())
                          .get();
 
-    return __first + ::std::get<0>(__ret_idx); // KSATODO fix get
+    return __first + std::get<0>(__ret_idx); // KSATODO fix get
 }
 
 // TODO:
@@ -579,7 +579,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
                      __buf.all_view())
                      .get();
 
-    return ::std::make_pair<_Iterator, _Iterator>(__first + ::std::get<0>(__ret), __first + ::std::get<1>(__ret)); // KSATODO fix get
+    return ::std::make_pair<_Iterator, _Iterator>(__first + std::get<0>(__ret), __first + std::get<1>(__ret)); // KSATODO fix get
 }
 
 //------------------------------------------------------------------------

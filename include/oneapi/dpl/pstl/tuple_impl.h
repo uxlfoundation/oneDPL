@@ -86,7 +86,7 @@ template <typename T1, typename... T, ::std::size_t... indices>
 ::std::tuple<T...>
 get_tuple_tail_impl(const ::std::tuple<T1, T...>& t, const ::std::index_sequence<indices...>&)
 {
-    return ::std::tuple<T...>(::std::get<indices + 1>(t)...); // KSATODO fix get
+    return ::std::tuple<T...>(std::get<indices + 1>(t)...); // KSATODO fix get
 }
 
 template <typename T1, typename... T>
@@ -441,7 +441,7 @@ struct tuple<T1, T...>
 
     // required to convert ::std::tuple to inner tuple in user-provided functor
     tuple(const ::std::tuple<T1, T...>& other)
-        : holder(::std::get<0>(other)), next(oneapi::dpl::__internal::get_tuple_tail(other)) // KSATODO fix get
+        : holder(std::get<0>(other)), next(oneapi::dpl::__internal::get_tuple_tail(other)) // KSATODO fix get
     {
     }
 
@@ -512,7 +512,7 @@ struct tuple<T1, T...>
     tuple&
     operator=(const ::std::tuple<U1, U...>& other)
     {
-        holder.value = ::std::get<0>(other); // KSATODO fix get
+        holder.value = std::get<0>(other); // KSATODO fix get
         next = oneapi::dpl::__internal::get_tuple_tail(other);
         return *this;
     }

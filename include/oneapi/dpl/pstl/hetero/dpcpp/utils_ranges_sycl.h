@@ -455,8 +455,8 @@ struct __get_sycl_range
     gen_zip_view(_TupleType __t, _DiffType __n, ::std::index_sequence<_Ip...>)
     {
         // Send each zipped iterator to `gen_view` which recursively calls __get_sycl_range() to process them.
-        auto tmp = oneapi::dpl::__internal::make_tuple(__gen_view(*this, ::std::get<_Ip>(__t), __n)...); // KSATODO fix get
-        return oneapi::dpl::__ranges::make_zip_view(::std::get<_Ip>(tmp).all_view()...); // KSATODO fix get
+        auto tmp = oneapi::dpl::__internal::make_tuple(__gen_view(*this, std::get<_Ip>(__t), __n)...); // KSATODO fix get
+        return oneapi::dpl::__ranges::make_zip_view(std::get<_Ip>(tmp).all_view()...); // KSATODO fix get
     }
 
     //zip iterators
