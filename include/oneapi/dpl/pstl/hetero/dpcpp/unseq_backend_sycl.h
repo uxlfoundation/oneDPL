@@ -742,7 +742,7 @@ struct __mask_assigner
     operator()(_Acc& __acc, _OutAcc&, const _OutIdx __out_idx, const _InAcc& __in_acc, const _InIdx __in_idx) const
     {
         using ::std::get;
-        get<N>(__acc[__out_idx]) = __in_acc[__in_idx];
+        get<N>(__acc[__out_idx]) = __in_acc[__in_idx]; // KSATODO fix get
     }
 };
 
@@ -792,9 +792,9 @@ struct __create_mask
     {
         using ::std::get;
         // 1. apply __pred
-        auto __temp = __pred(get<0>(__input[__idx]));
+        auto __temp = __pred(get<0>(__input[__idx])); // KSATODO fix get
         // 2. initialize mask
-        get<1>(__input[__idx]) = __temp;
+        get<1>(__input[__idx]) = __temp; // KSATODO fix get
         return _Tp(__temp);
     }
 };
@@ -814,12 +814,12 @@ struct __copy_by_mask
     {
         using ::std::get;
         auto __item_idx = __item.get_linear_id();
-        if (__item_idx < __n && get<N>(__in_acc[__item_idx]))
+        if (__item_idx < __n && get<N>(__in_acc[__item_idx])) // KSATODO fix get
         {
-            auto __out_idx = get<N>(__in_acc[__item_idx]) - 1;
+            auto __out_idx = get<N>(__in_acc[__item_idx]) - 1; // KSATODO fix get
 
             using __tuple_type =
-                typename __internal::__get_tuple_type<::std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>,
+                typename __internal::__get_tuple_type<::std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>, // KSATODO fix get
                                                       ::std::decay_t<decltype(__out_acc[__out_idx])>>::__type;
 
             // calculation of position for copy
@@ -828,7 +828,7 @@ struct __copy_by_mask
                 auto __wg_sums_idx = __item_idx / __size_per_wg - 1;
                 __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx]);
             }
-            if (__item_idx % __size_per_wg == 0 || (get<N>(__in_acc[__item_idx]) != get<N>(__in_acc[__item_idx - 1])))
+            if (__item_idx % __size_per_wg == 0 || (get<N>(__in_acc[__item_idx]) != get<N>(__in_acc[__item_idx - 1]))) // KSATODO fix get
                 // If we work with tuples we might have a situation when internal tuple is assigned to ::std::tuple
                 // (e.g. returned by user-provided lambda).
                 // For internal::tuple<T...> we have a conversion operator to ::std::tuple<T..>. The problem here
@@ -843,7 +843,7 @@ struct __copy_by_mask
                 // NOTE: we only need this explicit conversion when we have internal::tuple and
                 // ::std::tuple as operands, in all the other cases this is not necessary and no conversion
                 // is performed(i.e. __typle_type is the same type as its operand).
-                __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
+                __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]); // KSATODO fix get
         }
         if (__item_idx == 0)
         {
@@ -868,29 +868,29 @@ struct __partition_by_mask
         if (__item_idx < __n)
         {
             using ::std::get;
-            using __in_type = ::std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>;
+            using __in_type = ::std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>; // KSATODO fix get
             auto __wg_sums_idx = __item_idx / __size_per_wg;
             bool __not_first_wg = __item_idx >= __size_per_wg;
-            if (get<1>(__in_acc[__item_idx]) &&
-                (__item_idx % __size_per_wg == 0 || get<1>(__in_acc[__item_idx]) != get<1>(__in_acc[__item_idx - 1])))
+            if (get<1>(__in_acc[__item_idx]) && // KSATODO fix get
+                (__item_idx % __size_per_wg == 0 || get<1>(__in_acc[__item_idx]) != get<1>(__in_acc[__item_idx - 1]))) // KSATODO fix get
             {
-                auto __out_idx = get<1>(__in_acc[__item_idx]) - 1;
+                auto __out_idx = get<1>(__in_acc[__item_idx]) - 1; // KSATODO fix get
                 using __tuple_type = typename __internal::__get_tuple_type<
-                    __in_type, ::std::decay_t<decltype(get<0>(__out_acc[__out_idx]))>>::__type;
+                    __in_type, ::std::decay_t<decltype(get<0>(__out_acc[__out_idx]))>>::__type; // KSATODO fix get
 
                 if (__not_first_wg)
                     __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx - 1]);
-                get<0>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx]));
+                get<0>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])); // KSATODO fix get
             }
             else
             {
-                auto __out_idx = __item_idx - get<1>(__in_acc[__item_idx]);
+                auto __out_idx = __item_idx - get<1>(__in_acc[__item_idx]); // KSATODO fix get
                 using __tuple_type = typename __internal::__get_tuple_type<
-                    __in_type, ::std::decay_t<decltype(get<1>(__out_acc[__out_idx]))>>::__type;
+                    __in_type, ::std::decay_t<decltype(get<1>(__out_acc[__out_idx]))>>::__type; // KSATODO fix get
 
                 if (__not_first_wg)
                     __out_idx -= __wg_sums_ptr[__wg_sums_idx - 1];
-                get<1>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx]));
+                get<1>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])); // KSATODO fix get
             }
         }
         if (__item_idx == 0)
@@ -1371,9 +1371,9 @@ class __brick_set_op
     operator()(_ItemId __idx, const _Acc& __inout_acc) const
     {
         using ::std::get;
-        auto __a = get<0>(__inout_acc.tuple()); // first sequence
-        auto __b = get<1>(__inout_acc.tuple()); // second sequence
-        auto __c = get<2>(__inout_acc.tuple()); // mask buffer
+        auto __a = get<0>(__inout_acc.tuple()); // first sequence // KSATODO fix get
+        auto __b = get<1>(__inout_acc.tuple()); // second sequence // KSATODO fix get
+        auto __c = get<2>(__inout_acc.tuple()); // mask buffer // KSATODO fix get
 
         auto __a_beg = _Size1(0);
         auto __b_beg = _Size2(0);
@@ -1511,8 +1511,8 @@ struct __brick_assign_key_position
     void
     operator()(const _T1& __a, _T2&& __b) const
     {
-        ::std::get<0>(::std::forward<_T2>(__b)) = ::std::get<2>(__a); // store new key value
-        ::std::get<1>(::std::forward<_T2>(__b)) = ::std::get<0>(__a); // store index of new key
+        ::std::get<0>(::std::forward<_T2>(__b)) = ::std::get<2>(__a); // store new key value // KSATODO fix get
+        ::std::get<1>(::std::forward<_T2>(__b)) = ::std::get<0>(__a); // store index of new key // KSATODO fix get
     }
 };
 

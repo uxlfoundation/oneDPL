@@ -696,8 +696,8 @@ struct __gen_red_by_seg_reduce_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id) const
     {
-        const auto __in_keys = std::get<0>(__in_rng.tuple());
-        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        const auto __in_keys = std::get<0>(__in_rng.tuple()); // KSATODO fix get
+        const auto __in_vals = std::get<1>(__in_rng.tuple()); // KSATODO fix get
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         // The first segment start (index 0) is not marked with a 1. This is because we need the first
         // segment's key and value output index to be 0. We begin marking new segments only after the
@@ -722,8 +722,8 @@ struct __gen_red_by_seg_scan_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id) const
     {
-        const auto __in_keys = std::get<0>(__in_rng.tuple());
-        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        const auto __in_keys = std::get<0>(__in_rng.tuple()); // KSATODO fix get?
+        const auto __in_vals = std::get<1>(__in_rng.tuple()); // KSATODO fix get?
         using _KeyType = oneapi::dpl::__internal::__value_t<decltype(__in_keys)>;
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         const _KeyType& __current_key = __in_keys[__id];
@@ -813,13 +813,13 @@ struct __red_by_seg_op
     {
         using std::get;
         // The left-hand side has processed elements from the same segment, so update the reduction value.
-        if (get<0>(__rhs_tup) == 0)
+        if (get<0>(__rhs_tup) == 0) // KSATODO fix get
         {
-            return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup),
-                                                       __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
+            return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup), // KSATODO fix get
+                                                       __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup))); // KSATODO fix get
         }
         // We are looking at elements from a previous segment so just update the output index.
-        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup), get<1>(__rhs_tup));
+        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup), get<1>(__rhs_tup)); // KSATODO fix get
     }
     _BinaryOp __binary_op;
 };
@@ -832,14 +832,14 @@ struct __write_red_by_seg
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup) const
     {
         using std::get;
-        auto __out_keys = get<0>(__out_rng.tuple());
-        auto __out_values = get<1>(__out_rng.tuple());
+        auto __out_keys = get<0>(__out_rng.tuple()); // KSATODO fix get
+        auto __out_values = get<1>(__out_rng.tuple()); // KSATODO fix get
 
-        const auto& __next_key = get<2>(__tup);
-        const auto& __current_key = get<3>(__tup);
-        const auto& __current_value = get<1>(get<0>(__tup));
-        const bool __is_seg_end = get<1>(__tup);
-        const std::size_t __out_idx = get<0>(get<0>(__tup));
+        const auto& __next_key = get<2>(__tup); // KSATODO fix get
+        const auto& __current_key = get<3>(__tup); // KSATODO fix get
+        const auto& __current_value = get<1>(get<0>(__tup)); // KSATODO fix get
+        const bool __is_seg_end = get<1>(__tup); // KSATODO fix get
+        const std::size_t __out_idx = get<0>(get<0>(__tup)); // KSATODO fix get
 
         // With the exception of the first key which is output by index 0, the first key in each segment is written
         // by the work item that outputs the previous segment's reduction value. This is because the reduce_by_segment
@@ -911,9 +911,9 @@ struct __gen_set_mask
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __set_a = std::get<0>(__in_rng.tuple());    // first sequence
-        auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence
-        auto __set_mask = std::get<2>(__in_rng.tuple()); // mask sequence
+        auto __set_a = std::get<0>(__in_rng.tuple());    // first sequence  // KSATODO fix get?
+        auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence // KSATODO fix get?
+        auto __set_mask = std::get<2>(__in_rng.tuple()); // mask sequence // KSATODO fix get?
 
         std::size_t __nb = __set_b.size();
 
@@ -962,7 +962,7 @@ struct __extract_range_from_zip
     auto
     operator()(const _InRng& __in_rng) const
     {
-        return std::get<_EleId>(__in_rng.tuple());
+        return std::get<_EleId>(__in_rng.tuple()); // KSATODO fix get?
     }
 };
 
@@ -1004,7 +1004,7 @@ struct __get_zeroth_element
     auto&
     operator()(_Tp&& __a) const
     {
-        return std::get<0>(std::forward<_Tp>(__a));
+        return std::get<0>(std::forward<_Tp>(__a)); // KSATODO fix get
     }
 };
 template <std::int32_t __offset, typename _Assign>
@@ -1017,10 +1017,10 @@ struct __write_to_id_if
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed through.
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>, // KSATODO fix get
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
-        if (std::get<1>(__v))
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
+        if (std::get<1>(__v)) // KSATODO fix get
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]); // KSATODO fix get
     }
     _Assign __assign;
 };
@@ -1033,13 +1033,13 @@ struct __write_to_id_if_else
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
     {
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>, // KSATODO fix get
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
-        if (std::get<1>(__v))
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1]));
+        if (std::get<1>(__v)) // KSATODO fix get
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1])); // KSATODO fix get
         else
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
-                     std::get<1>(__out_rng[__id - std::get<0>(__v)]));
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), // KSATODO fix get
+                     std::get<1>(__out_rng[__id - std::get<0>(__v)])); // KSATODO fix get
     }
     _Assign __assign;
 };
@@ -2317,11 +2317,11 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
             [__binary_pred, __wgroup_size](const auto& __a) {
                 // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
                 // for (i-1), but we still need to get its key value as it is the start of a segment
-                const auto index = std::get<0>(__a);
+                const auto index = std::get<0>(__a); // KSATODO fix get
                 if (index == 0)
                     return true;
                 return index % __wgroup_size == 0                             // segment size
-                       || !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // key comparison
+                       || !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // key comparison // KSATODO fix get
             },
             unseq_backend::__brick_assign_key_position{})
             .get();
@@ -2365,9 +2365,9 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                             [__binary_pred](const auto& __a) {
                                 // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
                                 // for (i-1), but we still need to get its key value as it is the start of a segment
-                                if (std::get<0>(__a) == 0)
+                                if (std::get<0>(__a) == 0) // KSATODO fix get
                                     return true;
-                                return !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // keys comparison
+                                return !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // keys comparison // KSATODO fix get
                             },
                             unseq_backend::__brick_assign_key_position{})
                             .get();
@@ -2415,7 +2415,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
                 std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
             // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
             // past-the-end iterator pair of segmented reduction.
-            return std::get<0>(__res.get()) + 1;
+            return std::get<0>(__res.get()) + 1; // KSATODO fix get
         }
     }
 #endif

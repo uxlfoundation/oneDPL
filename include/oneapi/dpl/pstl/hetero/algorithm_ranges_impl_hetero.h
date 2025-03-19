@@ -842,7 +842,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     // not commutative.
     auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
         using ::std::get;
-        if (__comp(get<1>(__b), get<1>(__a)))
+        if (__comp(get<1>(__b), get<1>(__a))) // KSATODO fix get
         {
             return __b;
         }
@@ -859,7 +859,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
             .get();
 
     using ::std::get;
-    return get<0>(__ret_idx);
+    return get<0>(__ret_idx); // KSATODO fix get
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -903,12 +903,12 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
         auto __chosen_for_min = __a;
         auto __chosen_for_max = __b;
 
-        if (__comp(get<2>(__b), get<2>(__a)))
+        if (__comp(get<2>(__b), get<2>(__a))) // KSATODO fix get
             __chosen_for_min = ::std::move(__b);
-        if (__comp(get<3>(__b), get<3>(__a)))
+        if (__comp(get<3>(__b), get<3>(__a))) // KSATODO fix get
             __chosen_for_max = ::std::move(__a);
-        return _ReduceValueType{get<0>(__chosen_for_min), get<1>(__chosen_for_max), get<2>(__chosen_for_min),
-                                get<3>(__chosen_for_max)};
+        return _ReduceValueType{get<0>(__chosen_for_min), get<1>(__chosen_for_max), get<2>(__chosen_for_min), // KSATODO fix get
+                                get<3>(__chosen_for_max)}; // KSATODO fix get
     };
 
     // TODO: Doesn't work with `zip_iterator`.
@@ -927,7 +927,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
             .get();
 
     using ::std::get;
-    return ::std::make_pair(get<0>(__ret), get<1>(__ret));
+    return ::std::make_pair(get<0>(__ret), get<1>(__ret)); // KSATODO fix get
 }
 
 //------------------------------------------------------------------------
