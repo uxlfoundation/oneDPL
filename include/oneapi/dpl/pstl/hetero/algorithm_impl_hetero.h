@@ -480,7 +480,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
     using _Commutative = oneapi::dpl::__internal::__spirv_target_conditional</*_SpirvT*/ ::std::false_type,
                                                                              /*_NonSpirvT*/ ::std::true_type>;
     auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
-        using ::std::get;
+        using std::get;
         // TODO: Consider removing the non-commutative operator for SPIR-V targets when we see improved performance with the
         // non-sequential load path in transform_reduce.
         if constexpr (oneapi::dpl::__internal::__is_spirv_target_v)
@@ -518,7 +518,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
                          __buf.all_view())
                          .get();
 
-    return __first + ::std::get<0>(__ret_idx); // KSATODO fix get
+    return __first + std::get<0>(__ret_idx); // KSATODO fix get
 }
 
 // TODO:
@@ -554,7 +554,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
     auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
-        using ::std::get;
+        using std::get;
         auto __chosen_for_min = __a;
         auto __chosen_for_max = __b;
 
@@ -583,7 +583,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
                      __buf.all_view())
                      .get();
 
-    return ::std::make_pair<_Iterator, _Iterator>(__first + ::std::get<0>(__ret), __first + ::std::get<1>(__ret)); // KSATODO fix get
+    return ::std::make_pair<_Iterator, _Iterator>(__first + std::get<0>(__ret), __first + std::get<1>(__ret)); // KSATODO fix get
 }
 
 //------------------------------------------------------------------------
