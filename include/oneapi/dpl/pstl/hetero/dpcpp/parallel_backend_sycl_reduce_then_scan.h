@@ -764,7 +764,7 @@ template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
           typename _Inclusive, typename _IsUniquePattern>
 auto
-__parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+__parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, const std::size_t __n,
                                       _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
                                       _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
                                       _ScanInputTransform __scan_input_transform, _WriteOp __write_op, _InitType __init,
@@ -794,7 +794,6 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     const std::uint32_t __num_work_items = __num_work_groups * __work_group_size;
     const std::uint32_t __num_sub_groups_local = __work_group_size / __sub_group_size;
     const std::uint32_t __num_sub_groups_global = __num_sub_groups_local * __num_work_groups;
-    const std::size_t __n = __in_rng.size();
     const std::uint32_t __max_inputs_per_block = __work_group_size * __max_inputs_per_item * __num_work_groups;
     std::size_t __inputs_remaining = __n;
     if constexpr (__is_unique_pattern_v)
