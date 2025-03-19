@@ -86,7 +86,7 @@ template <typename T1, typename... T, ::std::size_t... indices>
 ::std::tuple<T...>
 get_tuple_tail_impl(const ::std::tuple<T1, T...>& t, const ::std::index_sequence<indices...>&)
 {
-    return ::std::tuple<T...>(::std::get<indices + 1>(t)...);
+    return ::std::tuple<T...>(::std::get<indices + 1>(t)...); // KSATODO fix get
 }
 
 template <typename T1, typename... T>
@@ -314,7 +314,7 @@ __equal(_Tuple1&& __lhs, _Tuple2&& __rhs)
                   "Tuples must have the same size to be equality compared");
     if constexpr (I < std::tuple_size_v<std::decay_t<_Tuple1>>)
     {
-        return std::get<I>(__lhs) == std::get<I>(__rhs) &&
+        return std::get<I>(__lhs) == std::get<I>(__rhs) && // KSATODO fix get
                oneapi::dpl::__internal::__equal<_Tuple1, _Tuple2, I + 1>(std::forward<_Tuple1>(__lhs),
                                                                          std::forward<_Tuple2>(__rhs));
     }
@@ -331,8 +331,8 @@ __less(_Tuple1&& __lhs, _Tuple2&& __rhs)
                   "Tuples must have the same size to be compared");
     if constexpr (I < std::tuple_size_v<std::decay_t<_Tuple1>>)
     {
-        return std::get<I>(__lhs) < std::get<I>(__rhs) ||
-               (!(std::get<I>(__rhs) < std::get<I>(__lhs)) &&
+        return std::get<I>(__lhs) < std::get<I>(__rhs) || // KSATODO fix get
+               (!(std::get<I>(__rhs) < std::get<I>(__lhs)) && // KSATODO fix get
                 oneapi::dpl::__internal::__less<_Tuple1, _Tuple2, I + 1>(std::forward<_Tuple1>(__lhs),
                                                                          std::forward<_Tuple2>(__rhs)));
     }
@@ -422,12 +422,12 @@ struct tuple<T1, T...>
     tuple(const tuple& other) = default;
     tuple(tuple&& other) = default;
     template <typename _U1, typename... _U, typename = ::std::enable_if_t<(sizeof...(_U) == sizeof...(T))>>
-    tuple(const tuple<_U1, _U...>& other) : holder(other.template get<0>()), next(other.next)
+    tuple(const tuple<_U1, _U...>& other) : holder(other.template get<0>()), next(other.next) // KSATODO fix get
     {
     }
 
     template <typename _U1, typename... _U, typename = ::std::enable_if_t<(sizeof...(_U) == sizeof...(T))>>
-    tuple(tuple<_U1, _U...>&& other) : holder(std::move(other).template get<0>()), next(std::move(other.next))
+    tuple(tuple<_U1, _U...>&& other) : holder(std::move(other).template get<0>()), next(std::move(other.next)) // KSATODO fix get
     {
     }
 
@@ -441,7 +441,7 @@ struct tuple<T1, T...>
 
     // required to convert ::std::tuple to inner tuple in user-provided functor
     tuple(const ::std::tuple<T1, T...>& other)
-        : holder(::std::get<0>(other)), next(oneapi::dpl::__internal::get_tuple_tail(other))
+        : holder(::std::get<0>(other)), next(oneapi::dpl::__internal::get_tuple_tail(other)) // KSATODO fix get
     {
     }
 
@@ -512,7 +512,7 @@ struct tuple<T1, T...>
     tuple&
     operator=(const ::std::tuple<U1, U...>& other)
     {
-        holder.value = ::std::get<0>(other);
+        holder.value = ::std::get<0>(other); // KSATODO fix get
         next = oneapi::dpl::__internal::get_tuple_tail(other);
         return *this;
     }
@@ -803,27 +803,27 @@ template <size_t _Idx, typename... _Tp>
 constexpr ::std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>>&
 get(oneapi::dpl::__internal::tuple<_Tp...>& __a)
 {
-    return __a.template get<_Idx>();
+    return __a.template get<_Idx>(); // KSATODO fix get
 }
 
 template <size_t _Idx, typename... _Tp>
 constexpr ::std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>> const&
 get(const oneapi::dpl::__internal::tuple<_Tp...>& __a)
 {
-    return __a.template get<_Idx>();
+    return __a.template get<_Idx>(); // KSATODO fix get
 }
 template <size_t _Idx, typename... _Tp>
 constexpr ::std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>>&&
 get(oneapi::dpl::__internal::tuple<_Tp...>&& __a)
 {
-    return ::std::move(__a).template get<_Idx>();
+    return ::std::move(__a).template get<_Idx>(); // KSATODO fix get
 }
 
 template <size_t _Idx, typename... _Tp>
 constexpr ::std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>> const&&
 get(const oneapi::dpl::__internal::tuple<_Tp...>&& __a)
 {
-    return ::std::move(__a).template get<_Idx>();
+    return ::std::move(__a).template get<_Idx>(); // KSATODO fix get
 }
 
 // To enable oneapi::dpl::zip_iterator to satisfy the requirements for the std::input_iterator concept in C++20,

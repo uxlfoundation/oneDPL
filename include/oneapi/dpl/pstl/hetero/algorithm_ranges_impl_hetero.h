@@ -864,7 +864,7 @@ struct __pattern_min_element_reduce_fn
     operator()(_ReduceValueType __a, _ReduceValueType __b) const
     {
         using ::std::get;
-        if (__comp(get<1>(__b), get<1>(__a)))
+        if (__comp(get<1>(__b), get<1>(__a))) // KSATODO fix get
         {
             return __b;
         }
@@ -898,7 +898,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
             .get();
 
     using ::std::get;
-    return get<0>(__ret_idx);
+    return get<0>(__ret_idx); // KSATODO fix get
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -951,7 +951,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
             .get();
 
     using ::std::get;
-    return ::std::make_pair(get<0>(__ret), get<1>(__ret));
+    return ::std::make_pair(get<0>(__ret), get<1>(__ret)); // KSATODO fix get
 }
 
 //------------------------------------------------------------------------

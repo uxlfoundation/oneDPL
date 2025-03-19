@@ -179,7 +179,7 @@ template <typename _TupleType, typename _F, ::std::size_t... _Ip>
 void
 invoke(const _TupleType& __t, _F __f, ::std::index_sequence<_Ip...>)
 {
-    __f(::std::get<_Ip>(__t)...);
+    __f(::std::get<_Ip>(__t)...); // KSATODO fix get
 }
 
 template <typename... _Ranges>
@@ -193,10 +193,10 @@ class zip_view
     auto
     make_reference(_tuple_ranges_t __t, Idx __i, ::std::index_sequence<_Ip...>) const
         -> decltype(oneapi::dpl::__internal::tuple<decltype(::std::declval<_Ranges&>().operator[](__i))...>(
-            ::std::get<_Ip>(__t).operator[](__i)...))
+            ::std::get<_Ip>(__t).operator[](__i)...)) // KSATODO fix get
     {
         return oneapi::dpl::__internal::tuple<decltype(::std::declval<_Ranges&>().operator[](__i))...>(
-            ::std::get<_Ip>(__t).operator[](__i)...);
+            ::std::get<_Ip>(__t).operator[](__i)...); // KSATODO fix get
     }
 
   public:
@@ -206,9 +206,9 @@ class zip_view
     explicit zip_view(_Ranges... __args) : __m_ranges(oneapi::dpl::__internal::make_tuple(__args...)) {}
 
     auto
-    size() const -> decltype(::std::get<0>(::std::declval<_tuple_ranges_t>()).size())
+    size() const -> decltype(::std::get<0>(::std::declval<_tuple_ranges_t>()).size()) // KSATODO fix get
     {
-        return ::std::get<0>(__m_ranges).size();
+        return ::std::get<0>(__m_ranges).size(); // KSATODO fix get
     }
 
     //TODO: C++ Standard states that the operator[] index should be the diff_type of the underlying range.

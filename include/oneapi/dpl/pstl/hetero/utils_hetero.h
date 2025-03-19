@@ -38,7 +38,7 @@ struct equal_predicate
     operator()(const _Value& __val) const
     {
         using ::std::get;
-        return !__pred(get<0>(__val), get<1>(__val));
+        return !__pred(get<0>(__val), get<1>(__val)); // KSATODO fix get
     }
 };
 
@@ -54,7 +54,7 @@ struct adjacent_find_fn
     operator()(const _Pack& __packed_neighbor_values) const
     {
         using ::std::get;
-        return __predicate(get<0>(__packed_neighbor_values), get<1>(__packed_neighbor_values));
+        return __predicate(get<0>(__packed_neighbor_values), get<1>(__packed_neighbor_values)); // KSATODO fix get
     }
 };
 
@@ -71,9 +71,9 @@ struct __create_mask_unique_copy
 
         auto __predicate_result = 1;
         if (__idx != 0)
-            __predicate_result = __predicate(get<0>(__acc[__idx]), get<0>(__acc[__idx + (-1)]));
+            __predicate_result = __predicate(get<0>(__acc[__idx]), get<0>(__acc[__idx + (-1)])); // KSATODO fix get
 
-        get<1>(__acc[__idx]) = __predicate_result;
+        get<1>(__acc[__idx]) = __predicate_result; // KSATODO fix get
         return _ValueType{__predicate_result};
     }
 };

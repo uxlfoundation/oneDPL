@@ -350,14 +350,14 @@ __pattern_walk2(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
 
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                                            [&__f](::std::tuple<_ReferenceType1, _ReferenceType2> __val) {
-                                               __f(::std::get<0>(__val), ::std::get<1>(__val));
+                                               __f(::std::get<0>(__val), ::std::get<1>(__val)); // KSATODO fix get
                                            });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
         // implementation. Therefore, iterator value is calculated separately.
         for (; __begin != __end; ++__begin)
             ;
-        return ::std::get<1>(__begin.base());
+        return ::std::get<1>(__begin.base()); // KSATODO fix get
     });
 }
 
@@ -428,15 +428,15 @@ __pattern_walk2_brick(__parallel_forward_tag, _ExecutionPolicy&& __exec, _Forwar
     return __except_handler([&]() {
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                                            [__brick](::std::tuple<_ReferenceType1, _ReferenceType2> __val) {
-                                               __brick(::std::get<0>(__val),
-                                                       ::std::forward<_ReferenceType2>(::std::get<1>(__val)));
+                                               __brick(::std::get<0>(__val), // KSATODO fix get
+                                                       ::std::forward<_ReferenceType2>(::std::get<1>(__val))); // KSATODO fix get
                                            });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
         // implementation. Therefore, iterator value is calculated separately.
         for (; __begin != __end; ++__begin)
             ;
-        return ::std::get<1>(__begin.base());
+        return ::std::get<1>(__begin.base()); // KSATODO fix get
     });
 }
 
@@ -543,14 +543,14 @@ __pattern_walk3(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
 
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                                            [&](::std::tuple<_ReferenceType1, _ReferenceType2, _ReferenceType3> __val) {
-                                               __f(::std::get<0>(__val), ::std::get<1>(__val), ::std::get<2>(__val));
+                                               __f(::std::get<0>(__val), ::std::get<1>(__val), ::std::get<2>(__val)); // KSATODO fix get
                                            });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
         // implementation. Therefore, iterator value is calculated separately.
         for (; __begin != __end; ++__begin)
             ;
-        return ::std::get<2>(__begin.base());
+        return ::std::get<2>(__begin.base()); // KSATODO fix get
     });
 }
 
@@ -2436,7 +2436,7 @@ __pattern_sort_by_key(_Tag, _ExecutionPolicy&&, _RandomAccessIterator1 __keys_fi
 
     auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
     auto __end = __beg + (__keys_last - __keys_first);
-    auto __cmp_f = [__comp](const auto& __a, const auto& __b) { return __comp(std::get<0>(__a), std::get<0>(__b)); };
+    auto __cmp_f = [__comp](const auto& __a, const auto& __b) { return __comp(std::get<0>(__a), std::get<0>(__b)); }; // KSATODO fix get
 
     __leaf_sort(__beg, __end, __cmp_f);
 }
@@ -2450,7 +2450,7 @@ __pattern_sort_by_key(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
 {
     auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
     auto __end = __beg + (__keys_last - __keys_first);
-    auto __cmp_f = [__comp](const auto& __a, const auto& __b) { return __comp(std::get<0>(__a), std::get<0>(__b)); };
+    auto __cmp_f = [__comp](const auto& __a, const auto& __b) { return __comp(std::get<0>(__a), std::get<0>(__b)); }; // KSATODO fix get
 
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
