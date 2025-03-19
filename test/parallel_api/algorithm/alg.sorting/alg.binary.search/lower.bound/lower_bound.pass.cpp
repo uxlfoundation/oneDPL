@@ -20,6 +20,7 @@
 #include <oneapi/dpl/iterator>
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 #include "support/binary_search_utils.h"
 
 #include <cmath>

@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "support/test_config.h"
+#include "support/utils_invoke.h"
 
 #include "permutation_iterator_common.h"
 
