@@ -279,7 +279,7 @@ DEFINE_TEST(test_count_if)
         // check when arbitrary should be counted
         ReturnType expected = (n - 1) / 10 + 1;
         ReturnType result = ::std::count_if(CREATE_NEW_POLICY(exec, 0), first, last,
-                                            [](ValueType const& value) { return value % 10 == 0; });
+                                            [](ValueType const& value) { return value % 10 == 0; }); // KSATODO need move out
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #1 arbitrary to count)");
@@ -290,7 +290,7 @@ DEFINE_TEST(test_count_if)
         // check when none should be counted
         expected = 0;
         result = ::std::count_if(CREATE_NEW_POLICY(exec, 1), first, last,
-                                 [](ValueType const& value) { return value > 10; });
+                                 [](ValueType const& value) { return value > 10; }); // KSATODO need move out
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #2 none to count)");
@@ -301,7 +301,7 @@ DEFINE_TEST(test_count_if)
         // check when all should be counted
         expected = n;
         result = ::std::count_if(CREATE_NEW_POLICY(exec, 2), first, last,
-                                 [](ValueType const& value) { return value < 10; });
+                                 [](ValueType const& value) { return value < 10; }); // KSATODO need move out
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #3 all to count)");

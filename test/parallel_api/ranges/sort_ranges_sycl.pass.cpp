@@ -77,7 +77,7 @@ main()
         B.set_write_back(true);
 
         sort(CREATE_NEW_POLICY(exec, 1), zip_view(views::all(A), views::all(B)), ::std::less{},
-             [](const auto& a) { return ::std::get<1>(a); });
+             [](const auto& a) { return ::std::get<1>(a); }); // KSATODO need move out
     }
     bool res3 = ::std::is_sorted(values.begin(), values.end(), ::std::less{});
     EXPECT_TRUE(res3, "wrong effect from 'sort by key'");

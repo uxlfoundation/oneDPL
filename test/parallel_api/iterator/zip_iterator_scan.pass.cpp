@@ -210,7 +210,7 @@ DEFINE_TEST(test_counting_zip_transform)
         auto res =
             std::copy_if(CREATE_NEW_POLICY(exec, 0), start, start + n,
                          oneapi::dpl::make_transform_iterator(first2,
-                                                              [](ValueType& x1)
+                                                              [](ValueType& x1) // KSATODO need move out
                                                               {
                                                                   // It's required to use forward_as_tuple instead of make_tuple
                                                                   // as the latter do not propagate references.
