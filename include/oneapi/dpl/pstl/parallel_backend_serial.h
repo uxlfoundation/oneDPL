@@ -76,8 +76,8 @@ __make_enumerable_tls(Args&&... __args)
     return __detail::__enumerable_thread_local_storage<_ValueType>(std::forward<Args>(__args)...);
 }
 
-template <typename _ExecutionPolicy, typename _Tp>
-using __buffer = oneapi::dpl::__utils::__buffer_impl<std::decay_t<_ExecutionPolicy>, _Tp, std::allocator>;
+template <typename _Tp>
+using __buffer = oneapi::dpl::__utils::__buffer_impl<_Tp, std::allocator>;
 
 inline void
 __cancel_execution(oneapi::dpl::__internal::__serial_backend_tag)
