@@ -831,9 +831,9 @@ struct __replace_if_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, const _T& __new_value, _Proj __proj = {})
     {
-        //TODO: re-write, it is not correct because projection
         return for_each(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            [__pred, __new_value](auto&& __a) { if(__pred(__a)) __a = __new_value;}, __proj);
+            [__pred, __proj, __new_value](auto&& __a) {
+                if(std::invoke(__pred, std::invoke(__proj, __a))) __a = __new_value;}, std::identity{});
     }
 }; //__replace_if_fn
 } //__internal
