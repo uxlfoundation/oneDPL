@@ -616,6 +616,28 @@ __pattern_mismatch(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&
     return std::ranges::mismatch(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_remove_if
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
+auto
+__pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
+{
+    auto __pred_1 = [__pred, __proj](auto&& __val)
+        { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
+        
+    return oneapi::dpl::__internal::__pattern_remove_if(__tag, std::forward<_ExecutionPolicy>(__exec),
+        std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r), __pred_1);
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
+auto
+__pattern_remove_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
+{
+    return std::ranges::remove_if(std::forward<_R>(__r), __pred, __proj);
+}
+
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl
