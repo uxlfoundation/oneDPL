@@ -170,5 +170,7 @@ properly conveys the meaning to the users?
         * `oneapi::dpl::onedpl_is_iterator_device_ready[_v]`
         * `oneapi::dpl::is_passed_directly_to_sycl_backend[_v]`
         * `oneapi::dpl::requires_explicit_data_transfer_onedpl_device_policies[_v]` (inverted)
+        * `oneapi::dpl::is_passed_directly_to_device[_v]`
+        * `oneapi::dpl::is_passed_directly[_v]`
 * Where should this be located?
     * Possible options include `oneapi/dpl/iterator`, `oneapi/dpl/type_traits`.
