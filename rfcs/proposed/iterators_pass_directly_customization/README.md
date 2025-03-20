@@ -172,5 +172,8 @@ properly conveys the meaning to the users?
         * `oneapi::dpl::requires_explicit_data_transfer_onedpl_device_policies[_v]` (inverted)
         * `oneapi::dpl::is_passed_directly_to_device[_v]`
         * `oneapi::dpl::is_passed_directly[_v]`
+    * We could consider also not using the same name for the public trait as the ADL customization point.  The
+      customization point function will be used in the user's namespace, so it has need to "identify" onedpl with its
+      name, but in the public trait, adding a similar identifier will be redundant with `oneapi::dpl`.
 * Where should this be located?
     * Possible options include `oneapi/dpl/iterator`, `oneapi/dpl/type_traits`.
