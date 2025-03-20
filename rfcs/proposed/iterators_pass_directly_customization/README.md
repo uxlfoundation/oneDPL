@@ -2,16 +2,21 @@
 
 ## Introduction
 
-oneDPL handles some types of input data automatically as input to its device backend (SYCL-based) as described
-[here](https://uxlfoundation.github.io/oneDPL/parallel_api/pass_data_algorithms.html). Unified Shared Memory (USM)
-pointers refer to data that is inherently device accessible, so no processing is required to pass this type of input
-data to SYCL kernels. We refer to this trait as "passed directly". oneDPL also defines some rules for its provided
-[iterator types](https://uxlfoundation.github.io/oneDPL/parallel_api/iterators.html) to be passed directly to SYCL
-under some circumstances (usually based on their base types).
+oneDPL processes data from some `std::vector::iterator` types automatically as input to its device backend (SYCL-based)
+by implicitly copying data between host and device as described
+[here](https://uxlfoundation.github.io/oneDPL/parallel_api/pass_data_algorithms.html). Other iterator types, like
+Unified Shared Memory (USM) pointers, refer to data that is inherently device accessible, so no data transfers are
+required from oneDPL to pass this data into oneDPL APIs with a device policy. When iterator types do not require oneDPL
+to copy data between host and device as preparation for being passed into SYCL kernels, we refer to these iterator types
+as having the trait "passed directly". oneDPL also defines some rules for its provided
+[iterator types](https://uxlfoundation.github.io/oneDPL/parallel_api/iterators.html) to be "passed directly" to SYCL
+under some circumstances (usually based on their base types). When iterators which are not "passed directly" are passed
+in to oneDPL APIs with a device policy, there is an overhead involved to transfer data to and from the device.
+Accurately marking iterator types which are "passed directly" is necessary to avoid this overhead.
 
-Internally, these rules are defined with a trait `oneapi::dpl::__ranges::is_passed_directly<T>` which evaluates to
-`std::true_type` or `std::false_type` to indicate whether the iterator type `T` should be passed directly to SYCL
-kernels. There exists an unofficial legacy `is_passed_directly` trait which types can define like this:
+Internally, these rules are currently defined with a trait `oneapi::dpl::__ranges::is_passed_directly<T>` which
+evaluates to `std::true_type` or `std::false_type` to indicate whether the iterator type `T` should be passed directly
+to SYCL kernels. There exists an unofficial legacy `is_passed_directly` trait which types can define like this:
 `using is_passed_directly = std::true_type;` which is supported within oneDPL. This method is currently used for a
 number of helper types within the SYCLomatic compatibility headers (`device_pointer`, `device_iterator`,
 `tagged_pointer`, `constant_iterator`, `iterator_adaptor`). There is no official public API for users who want to
