@@ -477,7 +477,7 @@ struct __pattern_min_element_reduce_fn
         {
             // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
             // not commutative.
-            if (__comp(get<1>(__b), get<1>(__a))) // KSATODO fix get
+            if (__comp(oneapi::dpl::__internal::__get<1>(__b), oneapi::dpl::__internal::__get<1>(__a)))
             {
                 return __b;
             }
@@ -487,10 +487,10 @@ struct __pattern_min_element_reduce_fn
         {
             // This operator keeps track of the lowest found index in case of equal min. or max. values. Thus, this operator is
             // commutative.
-            bool _is_a_lt_b = __comp(get<1>(__a), get<1>(__b)); // KSATODO fix get
-            bool _is_b_lt_a = __comp(get<1>(__b), get<1>(__a)); // KSATODO fix get
+            bool _is_a_lt_b = __comp(oneapi::dpl::__internal::__get<1>(__a), oneapi::dpl::__internal::__get<1>(__b));
+            bool _is_b_lt_a = __comp(oneapi::dpl::__internal::__get<1>(__b), oneapi::dpl::__internal::__get<1>(__a));
 
-            if (_is_b_lt_a || (!_is_a_lt_b && get<0>(__b) < get<0>(__a))) // KSATODO fix get
+            if (_is_b_lt_a || (!_is_a_lt_b && oneapi::dpl::__internal::__get<0>(__b) < oneapi::dpl::__internal::__get<0>(__a)))
             {
                 return __b;
             }
@@ -527,7 +527,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
                          __buf.all_view())
                          .get();
 
-    return __first + std::get<0>(__ret_idx); // KSATODO fix get
+    return __first + oneapi::dpl::__internal::__get<0>(__ret_idx);
 }
 
 // TODO:
@@ -579,7 +579,8 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
                      __buf.all_view())
                      .get();
 
-    return ::std::make_pair<_Iterator, _Iterator>(__first + std::get<0>(__ret), __first + std::get<1>(__ret)); // KSATODO fix get
+    return std::make_pair<_Iterator, _Iterator>(__first + oneapi::dpl::__internal::__get<0>(__ret),
+                                                __first + oneapi::dpl::__internal::__get<1>(__ret));
 }
 
 //------------------------------------------------------------------------

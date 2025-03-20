@@ -422,12 +422,12 @@ struct tuple<T1, T...>
     tuple(const tuple& other) = default;
     tuple(tuple&& other) = default;
     template <typename _U1, typename... _U, typename = ::std::enable_if_t<(sizeof...(_U) == sizeof...(T))>>
-    tuple(const tuple<_U1, _U...>& other) : holder(other.template get<0>()), next(other.next) // KSATODO fix get
+    tuple(const tuple<_U1, _U...>& other) : holder(other.template get<0>()), next(other.next)
     {
     }
 
     template <typename _U1, typename... _U, typename = ::std::enable_if_t<(sizeof...(_U) == sizeof...(T))>>
-    tuple(tuple<_U1, _U...>&& other) : holder(std::move(other).template get<0>()), next(std::move(other.next)) // KSATODO fix get
+    tuple(tuple<_U1, _U...>&& other) : holder(std::move(other).template get<0>()), next(std::move(other.next))
     {
     }
 
@@ -803,27 +803,27 @@ template <size_t _Idx, typename... _Tp>
 constexpr ::std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>>&
 get(oneapi::dpl::__internal::tuple<_Tp...>& __a)
 {
-    return __a.template get<_Idx>(); // KSATODO fix get
+    return __a.template get<_Idx>();
 }
 
 template <size_t _Idx, typename... _Tp>
 constexpr ::std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>> const&
 get(const oneapi::dpl::__internal::tuple<_Tp...>& __a)
 {
-    return __a.template get<_Idx>(); // KSATODO fix get
+    return __a.template get<_Idx>();
 }
 template <size_t _Idx, typename... _Tp>
 constexpr ::std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>>&&
 get(oneapi::dpl::__internal::tuple<_Tp...>&& __a)
 {
-    return ::std::move(__a).template get<_Idx>(); // KSATODO fix get
+    return ::std::move(__a).template get<_Idx>();
 }
 
 template <size_t _Idx, typename... _Tp>
 constexpr ::std::tuple_element_t<_Idx, oneapi::dpl::__internal::tuple<_Tp...>> const&&
 get(const oneapi::dpl::__internal::tuple<_Tp...>&& __a)
 {
-    return ::std::move(__a).template get<_Idx>(); // KSATODO fix get
+    return ::std::move(__a).template get<_Idx>();
 }
 
 // To enable oneapi::dpl::zip_iterator to satisfy the requirements for the std::input_iterator concept in C++20,

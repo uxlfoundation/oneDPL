@@ -37,8 +37,8 @@ struct equal_predicate
     bool
     operator()(const _Value& __val) const
     {
-        using std::get;
-        return !__pred(get<0>(__val), get<1>(__val)); // KSATODO fix get
+        return !__pred(oneapi::dpl::__internal::__get<0>(__val),
+                       oneapi::dpl::__internal::__get<1>(__val));
     }
 };
 
@@ -53,8 +53,8 @@ struct adjacent_find_fn
     bool
     operator()(const _Pack& __packed_neighbor_values) const
     {
-        using std::get;
-        return __predicate(get<0>(__packed_neighbor_values), get<1>(__packed_neighbor_values)); // KSATODO fix get
+        return __predicate(oneapi::dpl::__internal::__get<0>(__packed_neighbor_values),
+                           oneapi::dpl::__internal::__get<1>(__packed_neighbor_values));
     }
 };
 
@@ -67,13 +67,12 @@ struct __create_mask_unique_copy
     _ValueType
     operator()(_Idx __idx, _Acc& __acc) const
     {
-        using std::get;
-
         auto __predicate_result = 1;
         if (__idx != 0)
-            __predicate_result = __predicate(get<0>(__acc[__idx]), get<0>(__acc[__idx + (-1)])); // KSATODO fix get
+            __predicate_result = __predicate(oneapi::dpl::__internal::__get<0>(__acc[__idx]),
+                                             oneapi::dpl::__internal::__get<0>(__acc[__idx + (-1)]));
 
-        get<1>(__acc[__idx]) = __predicate_result; // KSATODO fix get
+        oneapi::dpl::__internal::__get<1>(__acc[__idx]) = __predicate_result;
         return _ValueType{__predicate_result};
     }
 };
