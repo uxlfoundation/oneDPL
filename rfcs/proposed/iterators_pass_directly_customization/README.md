@@ -1,30 +1,29 @@
 # Passed Directly Customization Point for User Defined Types
 
 ## Introduction
-
-oneDPL processes data from some `std::vector::iterator` types automatically as input to its device backend (SYCL-based)
-by implicitly copying data between host and device as described
+oneDPL processes data from some `std::vector::iterator` types automatically as input to its SYCL-based device backend by
+copying data between host and device, as described
 [here](https://uxlfoundation.github.io/oneDPL/parallel_api/pass_data_algorithms.html). Other iterator types, like
-Unified Shared Memory (USM) pointers, refer to data that is inherently device accessible, so no data transfers are
-required from oneDPL to pass this data into oneDPL APIs with a device policy. When iterator types do not require oneDPL
-to copy data between host and device as preparation for being passed into SYCL kernels, we refer to these iterator types
-as having the trait "passed directly". oneDPL also defines some rules for its provided
-[iterator types](https://uxlfoundation.github.io/oneDPL/parallel_api/iterators.html) to be "passed directly" to SYCL
-under some circumstances (usually based on their base types). When iterators which are not "passed directly" are passed
-in to oneDPL APIs with a device policy, there is an overhead involved to transfer data to and from the device.
-Accurately marking iterator types which are "passed directly" is necessary to avoid this overhead.
+Unified Shared Memory (USM) pointers, refer to data inherently accessible by the device, so no data transfers are
+required when passed into oneDPL APIs with a device policy. Iterators that do not require such data transfers are said
+to have the "passed directly" trait.
 
-Internally, these rules are currently defined with a trait `oneapi::dpl::__ranges::is_passed_directly<T>` which
-evaluates to `std::true_type` or `std::false_type` to indicate whether the iterator type `T` should be passed directly
-to SYCL kernels. There exists an unofficial legacy `is_passed_directly` trait which types can define like this:
-`using is_passed_directly = std::true_type;` which is supported within oneDPL. This method is currently used for a
-number of helper types within the SYCLomatic compatibility headers (`device_pointer`, `device_iterator`,
-`tagged_pointer`, `constant_iterator`, `iterator_adaptor`). There is no official public API for users who want to
-create their own iterator types that could be passed directly to SYCL kernels. This is a gap that should be filled 
-with an official public API.
+oneDPL also defines rules for its provided
+[iterator types](https://uxlfoundation.github.io/oneDPL/parallel_api/iterators.html) to be "passed directly" under
+certain conditions, often based on their base types. When iterators lacking the "passed directly" trait are passed into
+oneDPL APIs with a device policy, additional overhead is incurred to transfer data to and from the device. Properly
+marking iterator types as "passed directly" is essential to avoid this overhead.
 
-Without something like this, users are forced to rely only upon our provided iterator types or reach into implementation
-details that are not part of oneDPL's specified interface.
+Internally, these rules are defined using the trait `oneapi::dpl::__ranges::is_passed_directly<T>`, which evaluates to
+`std::true_type` or `std::false_type` to indicate whether the iterator type `T` should be passed directly to SYCL
+kernels, rather than copied to a SYCL buffer first to enable a transfer to and from the device. A legacy
+`is_passed_directly` trait exists, allowing types to define `using is_passed_directly = std::true_type;`. This legacy
+method is used for helper types in SYCLomatic compatibility headers (`device_pointer`, `device_iterator`,
+`tagged_pointer`, `constant_iterator`, `iterator_adaptor`). However, there is no official public API for users to define
+custom iterator types that can be passed directly to SYCL kernels.
+
+This gap should be addressed with an official public API. Without it, users must rely on oneDPL's provided iterator
+types or access implementation details outside the specified interface.
 
 ## Proposal
 ### High Level Proposal
