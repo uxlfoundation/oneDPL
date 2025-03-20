@@ -82,7 +82,7 @@ DEFINE_TEST(test_binary_search)
 
         // call algorithm with comparator
         auto res2 = oneapi::dpl::binary_search(CREATE_NEW_POLICY(exec, 1), first, last, value_first, value_last, result_first,
-                                               [](ValueT first, ValueT second) { return first < second; });
+                                               [](ValueT first, ValueT second) { return first < second; }); // KSATODO need move out
         exec.queue().wait_and_throw();
 
         EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, device policy");

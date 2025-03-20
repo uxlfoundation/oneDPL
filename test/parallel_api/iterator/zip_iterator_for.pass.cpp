@@ -44,7 +44,7 @@ DEFINE_TEST(test_for_each)
         typedef typename std::iterator_traits<Iterator1>::value_type T1;
 
         auto value = T1(6);
-        auto f = [](T1& val) { ++val; };
+        auto f = [](T1& val) { ++val; }; // KSATODO need move out
         std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
@@ -95,7 +95,7 @@ DEFINE_TEST(test_for_each_structured_binding)
         }
 
         std::for_each(CREATE_NEW_POLICY(exec, 0), tuple_first1, tuple_last1,
-                      [f](auto value)
+                      [f](auto value) // KSATODO need move out
                       {
                           auto [x, y] = value;
                           f(x);
