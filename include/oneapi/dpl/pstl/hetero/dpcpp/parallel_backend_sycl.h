@@ -896,7 +896,6 @@ __right_biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Val
     }
     return __first;
 }
-    
 
 template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
 auto
