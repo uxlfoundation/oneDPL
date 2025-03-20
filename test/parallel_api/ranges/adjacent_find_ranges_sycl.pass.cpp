@@ -42,7 +42,7 @@ void test(Policy&& exec)
         sycl::buffer<int> A(data, sycl::range<1>(n));
 
         res1 = adjacent_find(CREATE_NEW_POLICY(exec, 0), views::all_read(A));
-        res2 = adjacent_find(CREATE_NEW_POLICY(exec, 1), A, [](auto a, auto b) {return a == b;});
+        res2 = adjacent_find(CREATE_NEW_POLICY(exec, 1), A, [](auto a, auto b) {return a == b;}); // KSATODO need move out
     }
 
     //check result
