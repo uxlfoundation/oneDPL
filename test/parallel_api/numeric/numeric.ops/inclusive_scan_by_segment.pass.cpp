@@ -20,6 +20,7 @@
 #include "oneapi/dpl/iterator"
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 #include "support/scan_serial_impl.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -125,9 +126,8 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy = make_new_policy<new_kernel_name<Policy, 0>>(exec);
         auto res1 =
-            oneapi::dpl::inclusive_scan_by_segment(new_policy, keys_first, keys_last, vals_first, val_res_first);
+            oneapi::dpl::inclusive_scan_by_segment(CREATE_NEW_POLICY(exec, 0), keys_first, keys_last, vals_first, val_res_first);
         exec.queue().wait_and_throw();
 
         EXPECT_TRUE(std::distance(val_res_first, res1) == n, "wrong return value, device policy");
@@ -138,8 +138,7 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
-        auto res2 = oneapi::dpl::inclusive_scan_by_segment(new_policy2, keys_first, keys_last, vals_first,
+        auto res2 = oneapi::dpl::inclusive_scan_by_segment(CREATE_NEW_POLICY(exec, 1), keys_first, keys_last, vals_first,
                                                            val_res_first, BinaryPredicate());
         exec.queue().wait_and_throw();
 
@@ -151,8 +150,7 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy3 = make_new_policy<new_kernel_name<Policy, 2>>(exec);
-        auto res3 = oneapi::dpl::inclusive_scan_by_segment(new_policy3, keys_first, keys_last, vals_first,
+        auto res3 = oneapi::dpl::inclusive_scan_by_segment(CREATE_NEW_POLICY(exec, 2), keys_first, keys_last, vals_first,
                                                            val_res_first, BinaryPredicate(), BinaryOperation());
         exec.queue().wait_and_throw();
 

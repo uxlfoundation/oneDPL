@@ -33,7 +33,6 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
 {
     if (TestUtils::has_types_support<T>(policy.queue().get_device()))
     {
-
         TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(policy.queue(), n);
         auto copy_from = oneapi::dpl::counting_iterator<int>(0);
         // host iterator
@@ -50,6 +49,21 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
     }
 }
 
+template <typename Policy>
+void
+test(Policy&& policy)
+{
+    constexpr size_t n = 10;
+
+    // baseline with no wrapping
+    test<float, 0>(CREATE_NEW_POLICY(policy, 0), -666.0f, n, "float");
+    test<double, 0>(CREATE_NEW_POLICY(policy, 1), -666.0, n, "double");
+    test<std::uint64_t, 0>(CREATE_NEW_POLICY(policy, 2), 999, n, "uint64_t");
+
+    // big recursion step: 1 and 2 layers of wrapping
+    test<std::int32_t, 2>(CREATE_NEW_POLICY(policy, 3), -666, n, "int32_t");
+}
+
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 int
@@ -57,24 +71,13 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
 
-    constexpr size_t n = 10;
-
     auto q = TestUtils::get_test_queue();
 
     auto policy = TestUtils::make_new_policy<class Kernel1>(q);
+    test(policy);
 
-    auto policy1 = TestUtils::create_new_policy_idx<0>(policy);
-    auto policy2 = TestUtils::create_new_policy_idx<1>(policy);
-    auto policy3 = TestUtils::create_new_policy_idx<2>(policy);
-    auto policy4 = TestUtils::create_new_policy_idx<3>(policy);
-
-    // baseline with no wrapping
-    test<float, 0>(policy1, -666.0f, n, "float");
-    test<double, 0>(policy2, -666.0, n, "double");
-    test<std::uint64_t, 0>(policy3, 999, n, "uint64_t");
-
-    // big recursion step: 1 and 2 layers of wrapping
-    test<std::int32_t, 2>(policy4, -666, n, "int32_t");
+    const auto& policy_ref = policy;
+    test(policy_ref);
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 

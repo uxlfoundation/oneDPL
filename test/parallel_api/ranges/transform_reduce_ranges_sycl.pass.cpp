@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <iostream>
 
@@ -32,7 +33,7 @@ main()
     constexpr int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
-    auto lambda1 = [](auto val) { return val = val * val; };
+    auto lambda1 = [](auto val) { return val = val * val; }; // KSATODO need move out
 
     auto res1 = -1, res2 = -1, res3 = -1;
     {
@@ -46,8 +47,8 @@ main()
         using Policy = decltype(TestUtils::default_dpcpp_policy);
 
         res1 = oneapi::dpl::experimental::ranges::transform_reduce(exec, A, view, 0);
-        res2 = oneapi::dpl::experimental::ranges::transform_reduce(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, A, 0, ::std::plus<int>(), ::std::multiplies<int>());
-        res3 = oneapi::dpl::experimental::ranges::transform_reduce(make_new_policy<new_kernel_name<Policy, 1>>(exec), view, 0, ::std::plus<int>(), lambda1);
+        res2 = oneapi::dpl::experimental::ranges::transform_reduce(CREATE_NEW_POLICY(exec, 0), view, A, 0, ::std::plus<int>(), ::std::multiplies<int>());
+        res3 = oneapi::dpl::experimental::ranges::transform_reduce(CREATE_NEW_POLICY(exec, 1), view, 0, ::std::plus<int>(), lambda1); // KSATODO need move out
     }
 
     //check result
