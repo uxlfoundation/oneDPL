@@ -55,9 +55,9 @@ DEFINE_TEST(test_find_if)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (find_if) not properly copyable");
         }
 
-        auto f_for_last = [n](T1 x) { return x == n - 1; };
-        auto f_for_none = [](T1 x) { return x == -1; };
-        auto f_for_first = [](T1 x) { return x % 2 == 0; };
+        auto f_for_last = [n](T1 x) { return x == n - 1; }; // KSATODO need move out
+        auto f_for_none = [](T1 x) { return x == -1; }; // KSATODO need move out
+        auto f_for_first = [](T1 x) { return x % 2 == 0; }; // KSATODO need move out
 
         auto tuple_res1 = std::find_if(CREATE_NEW_POLICY(exec, 0), tuple_first1, tuple_last1,
                                        TuplePredicate<decltype(f_for_last), 0>{f_for_last});
