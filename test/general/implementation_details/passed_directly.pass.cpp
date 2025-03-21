@@ -136,31 +136,31 @@ private:
 namespace custom_user
 {
 template <typename BaseIter>
-struct strided_iterator
+struct base_strided_iterator
 {
     using iterator_category = std::input_iterator_tag;
     using value_type = typename std::iterator_traits<BaseIter>::value_type;
 
-    strided_iterator(BaseIter base, int stride) : base(base), stride(stride) {}
+    base_strided_iterator(BaseIter base, int stride) : base(base), stride(stride) {}
 
     int operator*() const { return *base; }
 
-    strided_iterator& operator++() {
+    base_strided_iterator& operator++() {
         std::advance(base, stride);
         return *this;
     }
 
-    strided_iterator operator++(int) {
-        strided_iterator tmp = *this;
+    base_strided_iterator operator++(int) {
+        base_strided_iterator tmp = *this;
         ++(*this);
         return tmp;
     }
 
-    friend bool operator==(const strided_iterator& a, const strided_iterator& b) {
+    friend bool operator==(const base_strided_iterator& a, const base_strided_iterator& b) {
         return a.base == b.base;
     }
 
-    friend bool operator!=(const strided_iterator& a, const strided_iterator& b) {
+    friend bool operator!=(const base_strided_iterator& a, const base_strided_iterator& b) {
         return !(a == b);
     }
 
@@ -170,21 +170,38 @@ private:
 };
 
 template <typename BaseIter>
+struct first_strided_iterator : public base_strided_iterator<BaseIter>
+{
+    first_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
+};
+
+
+template <typename BaseIter>
 auto
-is_passed_directly_in_onedpl_device_policies(const strided_iterator<BaseIter>&)
+is_passed_directly_in_onedpl_device_policies(const first_strided_iterator<BaseIter>&)
 {
     return oneapi::dpl::is_passed_directly_to_device<BaseIter>{};
 }
 
 template <typename BaseIter>
-struct second_strided_iterator : public strided_iterator<BaseIter>
+struct second_strided_iterator : public base_strided_iterator<BaseIter>
 {
-    second_strided_iterator(BaseIter base, int stride) : strided_iterator<BaseIter>(base, stride) {}
+    second_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
 };
 
 template <typename BaseIter>
 auto
 is_passed_directly_in_onedpl_device_policies(const second_strided_iterator<BaseIter>&) -> decltype(oneapi::dpl::is_passed_directly_to_device<BaseIter>{});
+
+template <typename BaseIter>
+struct third_strided_iterator : public base_strided_iterator<BaseIter>
+{
+    third_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
+    friend auto is_passed_directly_in_onedpl_device_policies(const third_strided_iterator<BaseIter>&)
+    {
+        return oneapi::dpl::is_passed_directly_to_device<BaseIter>{};
+    }
+};
 
 } // namespace custom_user
 
@@ -232,15 +249,21 @@ test_with_base_iterator()
     static_assert(oneapi::dpl::is_passed_directly_to_device_v<ReverseIter> == base_passed_directly,
                     "is_passed_directly_in_onedpl_device_policies is not working correctly for reverse iterator");
 
-    // test custom user strided iterator
-    using StridedIter = custom_user::strided_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_passed_directly_to_device_v<StridedIter> == base_passed_directly,
+    // test custom user first strided iterator with normal ADL function
+    using FirstStridedIter = custom_user::first_strided_iterator<BaseIter>;
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<FirstStridedIter> == base_passed_directly,
                     "is_passed_directly_in_onedpl_device_policies is not working correctly for custom user strided iterator");
 
     // test custom user second strided iterator (no body for is_passed_directly_in_onedpl_device_policies)
-    using StridedIter = custom_user::strided_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_passed_directly_to_device_v<StridedIter> == base_passed_directly,
-                    "is_passed_directly_in_onedpl_device_policies is not working correctly for custom user strided iterator with no body in specialization");
+    using SecondStridedIter = custom_user::second_strided_iterator<BaseIter>;
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<SecondStridedIter> == base_passed_directly,
+                    "is_passed_directly_in_onedpl_device_policies is not working correctly for custom user strided iterator with no body in ADL function definiton");
+
+    // test custom user first strided iterator with hidden friend ADL function
+    using ThirdStridedIter = custom_user::third_strided_iterator<BaseIter>;
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<ThirdStridedIter> == base_passed_directly,
+                    "is_passed_directly_in_onedpl_device_policies is not working correctly for custom user strided iterator with hidden friend ADL function");
+
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
