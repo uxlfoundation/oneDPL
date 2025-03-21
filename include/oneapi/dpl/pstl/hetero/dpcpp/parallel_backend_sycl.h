@@ -368,10 +368,10 @@ template <bool _Inclusive, typename... _ScanKernelName>
 struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
                                                                 __internal::__optional_kernel_name<_ScanKernelName...>>
 {
-    template <typename _Policy, typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation,
+    template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation,
               typename _UnaryOp>
     auto
-    operator()(const _Policy& __policy, _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n, _InitType __init,
+    operator()(sycl::queue __q, _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op, ::std::uint16_t __wg_size)
     {
         using _ValueType = typename _InitType::__value_type;
@@ -379,7 +379,7 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
         const ::std::uint16_t __elems_per_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size);
         const ::std::uint16_t __elems_per_wg = __elems_per_item * __wg_size;
 
-        return __policy.queue().submit([&](sycl::handler& __hdl) {
+        return __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
@@ -634,7 +634,7 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
 
         auto __event =
             __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive::value, _DynamicGroupScanKernel>()(
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
+                __exec.queue(), std::forward<_InRng>(__in_rng),
                 std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op, __max_wg_size);
         return __future(__event, __dummy_result_and_scratch);
     }
