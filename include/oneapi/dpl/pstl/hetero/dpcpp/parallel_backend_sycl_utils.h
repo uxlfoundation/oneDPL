@@ -763,7 +763,7 @@ class __future : private std::tuple<_Args...>
     // it would cause issues in type deduction due to decay of the policy in that using statement.
     template <typename _T>
     constexpr auto
-    __wait_and_get_value(const __result_and_scratch_storage_impl<_T>& __storage)
+    __wait_and_get_value(__result_and_scratch_storage_impl<_T>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
     }
