@@ -408,9 +408,9 @@ struct __histogram_general_private_global_atomics_submitter;
 template <typename... _KernelName>
 struct __histogram_general_private_global_atomics_submitter<__internal::__optional_kernel_name<_KernelName...>>
 {
-    template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinHashMgr>
+    template <typename _BackendTag, typename _Range1, typename _Range2, typename _BinHashMgr>
     auto
-    operator()(_BackendTag, _ExecutionPolicy&& __exec, const sycl::event& __init_event,
+    operator()(_BackendTag, sycl::queue __q, const sycl::event& __init_event,
                ::std::uint16_t __min_iters_per_work_item, ::std::uint16_t __work_group_size, _Range1&& __input,
                _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
@@ -419,7 +419,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
         using _histogram_index_type = ::std::int32_t;
 
-        auto __global_mem_size = __exec.queue().get_device().template get_info<sycl::info::device::global_mem_size>();
+        auto __global_mem_size = __q.get_device().template get_info<sycl::info::device::global_mem_size>();
         const ::std::size_t __max_segments =
             ::std::min(__global_mem_size / (__num_bins * sizeof(_bin_type)),
                        oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __min_iters_per_work_item));
@@ -429,10 +429,9 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
 
         auto __private_histograms =
-            oneapi::dpl::__par_backend_hetero::__buffer<_bin_type>(__exec.queue(), __segments * __num_bins)
-                .get_buffer();
+            oneapi::dpl::__par_backend_hetero::__buffer<_bin_type>(__q, __segments * __num_bins).get_buffer();
 
-        return __exec.queue().submit([&](auto& __h) {
+        return __q.submit([&](auto& __h) {
             __h.depends_on(__init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
@@ -492,7 +491,7 @@ __histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_bac
         __histo_kernel_private_glocal_atomics<_CustomName>>;
 
     return __histogram_general_private_global_atomics_submitter<_global_atomics_name>()(
-        oneapi::dpl::__internal::__device_backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __init_event,
+        oneapi::dpl::__internal::__device_backend_tag{}, __exec.queue(), __init_event,
         __min_iters_per_work_item, __work_group_size, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins),
         __binhash_manager);
 }
