@@ -1801,10 +1801,9 @@ struct __parallel_find_or_impl_multiple_wgs;
 template <bool __or_tag_check, typename... KernelName>
 struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__optional_kernel_name<KernelName...>>
 {
-    template <typename _ExecutionPolicy, typename _BrickTag, typename _AtomicType, typename _Predicate,
-              typename... _Ranges>
+    template <typename _BrickTag, typename _AtomicType, typename _Predicate, typename... _Ranges>
     _AtomicType
-    operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _BrickTag __brick_tag,
+    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q, _BrickTag __brick_tag,
                const std::size_t __rng_n, const std::size_t __n_groups, const std::size_t __wgroup_size,
                const _AtomicType __init_value, _Predicate __pred, _Ranges&&... __rngs)
     {
@@ -1819,7 +1818,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
             sycl::buffer<_AtomicType, 1> __result_sycl_buf(&__result, 1); // temporary storage for global atomic
 
             // main parallel_for
-            __exec.queue().submit([&](sycl::handler& __cgh) {
+            __q.submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
                 auto __result_sycl_buf_acc = __result_sycl_buf.template get_access<access_mode::read_write>(__cgh);
 
@@ -1916,7 +1915,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         // Multiple WG implementation
         __result = __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name>()(
-            oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __brick_tag,
+            oneapi::dpl::__internal::__device_backend_tag{}, __exec.queue(), __brick_tag,
             __rng_n, __n_groups, __wgroup_size, __init_value, __pred, std::forward<_Ranges>(__rngs)...);
     }
 
