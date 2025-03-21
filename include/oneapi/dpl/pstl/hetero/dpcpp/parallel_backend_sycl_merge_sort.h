@@ -384,7 +384,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     template <typename _Range, typename _TempBuf, typename _Compare, typename _Storage>
     sycl::event
     eval_split_points_for_groups(const sycl::event& __event_chain, const _IndexT __n_sorted, const bool __data_in_temp,
-                                 secl::queue __q, const _Range& __rng, _TempBuf& __temp_buf,
+                                 sycl::queue __q, const _Range& __rng, _TempBuf& __temp_buf,
                                  _Compare __comp, const nd_range_params& __nd_range_params,
                                  _Storage& __base_diagonals_sp_global_storage) const
     {
@@ -584,7 +584,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         // Calculate nd-range params
         const nd_range_params __nd_range_params = eval_nd_range_params(__q, __n, __n_sorted);
 
-        using __base_diagonals_sp_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _merge_split_point_t>;
+        using __base_diagonals_sp_storage_t = __result_and_scratch_storage<_merge_split_point_t>;
 
         const std::size_t __n_power2 = oneapi::dpl::__internal::__dpl_bit_ceil(__n);
         // ctz precisely calculates log2 of an integral value which is a power of 2, while

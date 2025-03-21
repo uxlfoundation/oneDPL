@@ -791,7 +791,6 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, sycl::queue
                                           static_cast<std::size_t>(16)) != __subgroup_sizes.end();
 
     //TODO: with _RadixSortKernel also the following a couple of compile time constants is used for unique kernel name
-    using _RadixSortKernel = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     if (__n <= 64 && __wg_size <= __max_wg_size)
         __event = __subgroup_radix_sort<_RadixSortKernel, __wg_size, 1, __radix_bits, __is_ascending>{}(
