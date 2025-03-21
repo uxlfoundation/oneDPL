@@ -256,6 +256,15 @@ struct third_strided_iterator : public base_strided_iterator<BaseIter>
     }
 };
 
+template <typename BaseIter>
+struct fourth_strided_iterator : public base_strided_iterator<BaseIter>
+{
+    fourth_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
+    friend auto
+    is_passed_directly_in_onedpl_device_policies(const fourth_strided_iterator<BaseIter>&)
+        -> oneapi::dpl::is_passed_directly_to_device<BaseIter>;
+};
+
 } // namespace custom_user
 
 template <bool base_passed_directly, typename BaseIter>
@@ -321,6 +330,12 @@ test_with_base_iterator()
     static_assert(oneapi::dpl::is_passed_directly_to_device_v<ThirdStridedIter> == base_passed_directly,
                   "is_passed_directly_in_onedpl_device_policies is not working correctly for custom user strided "
                   "iterator with hidden friend ADL function");
+
+    // test custom user first strided iterator with hidden friend ADL function without body
+    using FourthStridedIter = custom_user::fourth_strided_iterator<BaseIter>;
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<FourthStridedIter> == base_passed_directly,
+                  "is_passed_directly_in_onedpl_device_policies is not working correctly for custom user strided "
+                  "iterator with hidden friend ADL function without a body");
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
