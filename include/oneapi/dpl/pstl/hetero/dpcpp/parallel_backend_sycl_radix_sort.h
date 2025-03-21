@@ -635,7 +635,7 @@ __radix_sort_reorder_submit(sycl::queue __q, ::std::size_t __segments,
 // radix sort: one iteration
 //-----------------------------------------------------------------------
 
-template <using _CustomName, ::std::uint32_t __radix_bits, bool __is_ascending, bool __even>
+template <typename _CustomName, ::std::uint32_t __radix_bits, bool __is_ascending, bool __even>
 struct __parallel_radix_sort_iteration
 {
     template <typename... _Name>
