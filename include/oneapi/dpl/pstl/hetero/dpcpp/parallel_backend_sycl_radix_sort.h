@@ -784,7 +784,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
 
     // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
     // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-    const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec, (std::size_t)4096);
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), (std::size_t)4096);
 
     //TODO: 1.to reduce number of the kernels; 2.to define work group size in runtime, depending on number of elements
     constexpr std::size_t __wg_size = 64;
