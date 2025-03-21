@@ -2209,8 +2209,10 @@ auto
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                        _Range&& __rng, _Compare, _Proj __proj)
 {
-    return __parallel_radix_sort<__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
-        __backend_tag, ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __proj);
+    using _RadixSortKernel = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    return __parallel_radix_sort<_RadixSortKernel, __internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
+        __backend_tag, __exec.queue(), ::std::forward<_Range>(__rng), __proj);
 }
 #endif // _ONEDPL_USE_RADIX_SORT
 
@@ -2222,8 +2224,10 @@ auto
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                        _Range&& __rng, _Compare __comp, _Proj __proj)
 {
-    return __parallel_sort_impl(__backend_tag, ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
-                                oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    return __parallel_sort_impl<_CustomName>(__backend_tag, __exec.queue(), ::std::forward<_Range>(__rng),
+                                             oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
 }
 
 //------------------------------------------------------------------------
