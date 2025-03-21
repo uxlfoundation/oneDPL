@@ -140,11 +140,105 @@ test_right_biased_lower_bound()
     return ret;
 }
 
+template <typename _Rng1, typename _Rng2, typename _Comp>
+auto
+get_serial_merge_path_for_diag(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag_idx, _Comp __comp)
+{
+    std::size_t idx1=0;
+    std::size_t idx2=0;
 
-// template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
-// std::uint16_t
-// operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-//            _SizeType __num_eles_min, _TempOutput& __temp_out, _Compare __comp) const
+    //take __diag_idx steps
+    for (std::size_t i = 0; i < __diag_idx; ++i)
+    {
+        if (__comp(__rng2[idx2], __rng1[idx1]))
+            ++idx2;
+        else
+            ++idx1;
+    }
+    return std::make_tuple(idx1, idx2);
+}
+
+template <typename _Rng1, typename _Rng2, typename _Comp>
+auto
+get_serial_balanced_path_for_diag(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag_idx, _Comp __comp)
+{
+    std::size_t idx1=0;
+    std::size_t idx2=0;
+    bool star = false;
+
+    bool next_matched_ele_from_rng1 = true;
+    //take __diag_idx steps
+    for (std::size_t i = 0; i < __diag_idx; ++i)
+    {
+        if (__comp(__rng2[idx2], __rng1[idx1]))
+        {
+            next_matched_ele_from_rng1 = true;
+            ++idx2;
+        }
+        else if (__comp(__rng1[idx1], __rng2[idx2]))
+        {
+            next_matched_ele_from_rng1 = true;
+            ++idx1;
+        }
+        else // they match
+        {
+            if (next_matched_ele_from_rng1)
+            {
+                ++idx1;
+            }
+            else
+            {
+                ++idx2;
+            }
+            next_matched_ele_from_rng1 = !next_matched_ele_from_rng1;
+        }
+    }
+    if (!next_matched_ele_from_rng1)
+    {
+        idx2++;
+        star = true;
+    }
+    return std::make_tuple(idx1, idx2, star);
+}
+
+template <typename _Rng1, typename _Rng2, typename _Comp>
+bool
+test_find_balanced_path_impl(_Rng1 __rng1, _Rng2 __rng2, _Comp __comp)
+{
+    for (std::size_t diag_idx = 0; diag_idx < __rng1.size() + __rng2.size(); ++diag_idx)
+    {
+        auto [merge_path_idx1, merge_path_idx2] = get_serial_merge_path_for_diag(__rng1, __rng2, diag_idx, __comp);
+        auto [expected_balanced_path_idx1, expected_balanced_path_idx2, expected_star] = get_serial_balanced_path_for_diag(__rng1, __rng2, diag_idx, __comp);
+        auto [balanced_path_idx1, balanced_path_idx2, star] = oneapi::dpl::__par_backend_hetero::__find_balanced_path_start_point(__rng1, __rng2, merge_path_idx1, merge_path_idx2, __comp);
+        if (balanced_path_idx1 != expected_balanced_path_idx1 || balanced_path_idx2 != expected_balanced_path_idx2 || star != expected_star)
+        {
+            std::cout << "Failed: balanced path mismatch on diagonal " << diag_idx << " of "<<__rng1.size() + __rng2.size() << std::endl;
+            std::cout <<" Merge Path: "<<merge_path_idx1<<" "<<merge_path_idx2<<std::endl;
+            std::cout << "Expected: " << expected_balanced_path_idx1 << " " << expected_balanced_path_idx2 << " " << expected_star << std::endl;
+            std::cout << "Actual: " << balanced_path_idx1 << " " << balanced_path_idx2 << " " << star << std::endl;
+            return false;
+        }
+    }
+    return true;
+}
+
+
+bool
+test_find_balanced_path()
+{
+    std::cout<<"Test for find balanced path"<<std::endl;
+    std::vector<int> v1 = {1, 2, 3, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 7, 8, 9};
+    std::vector<int> v2 = {3, 4, 4, 4, 5, 5, 5, 6, 7};
+    bool ret = test_find_balanced_path_impl(v1, v2, std::less<int>());
+    ret += test_find_balanced_path_impl(v2, v1, std::less<int>());
+
+    std::vector<int> v3 = {1, 1, 1, 1, 1, 1, 1, 1, 1,2, 3, 4};
+    std::vector<int> v4 = {5, 7, 7, 8, 9, 9, 9, 9, 9};
+    ret += test_find_balanced_path_impl(v3, v4, std::less<int>());
+    ret += test_find_balanced_path_impl(v4, v3, std::less<int>());
+
+    return ret;
+}
 
 
 
@@ -156,5 +250,6 @@ main()
     EXPECT_TRUE(test_serial_set_intersection_op_count_and_write(), "test for serial set_intersection operation");
     EXPECT_TRUE(test_serial_set_intersection_op_count_and_write_limited(), "test for serial set_intersection operation limited");
     EXPECT_TRUE(test_right_biased_lower_bound(), "test for right biased lower bound");
+    EXPECT_TRUE(test_find_balanced_path(), "test for find balanced path");
     return TestUtils::done();
 }

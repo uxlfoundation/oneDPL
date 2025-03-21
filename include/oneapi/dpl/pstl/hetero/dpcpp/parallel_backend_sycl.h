@@ -897,27 +897,83 @@ __right_biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Val
     return __first;
 }
 
+template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
+_Size1
+__left_biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+{
+    //TODO: make this biased
+    return oneapi::dpl::__internal::__pstl_upper_bound(__acc, __first, __last, __value, __comp);
+}
+
 template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
 auto
 __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1, const _Index __merge_path_rng2,
-                    const _Index __n1, const _Index __n2, _Compare __comp)
+                    _Compare __comp)
 {
+    //std::cout <<std::endl<<std::endl;
     // back up to balanced path divergence with a biased binary search
     auto __start_point = __merge_path_rng1;
     auto __start_point2 = __merge_path_rng2;
+    bool __star = false;
+    if (__merge_path_rng1 == 0)
+    {
+  //      std::cout<<"merge path is on rng1 idx 0\n";
+        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+    }
 
-    // find first element of repeating sequence in the first set
-    _Index __rng1_repeat_start = oneapi::dpl::__par_backend_hetero::__right_biased_lower_bound(__rng1, _Index{0}, __merge_path_rng1, __rng1[__merge_path_rng1], __comp);
-    // find first element of repeating sequence in the second set
-    _Index __rng2_repeat_start = oneapi::dpl::__par_backend_hetero::__right_biased_lower_bound(__rng2, _Index{0}, __merge_path_rng2, __rng2[__merge_path_rng2], __comp);
+ //   std::cout<<"elementA: "<< __rng1[__merge_path_rng1 - 1]<<" elementB: "<<__rng2[__merge_path_rng2]<<"\n";
+    
+    auto __ele_val = __rng1[__merge_path_rng1 - 1];
 
-    // check if there are an even number of steps to the diagonal
-    _Index __combined_steps_to_diagonal = (__merge_path_rng1 + __merge_path_rng2) - (__rng1_repeat_start + __rng2_repeat_start);
-    bool __star_offset = __combined_steps_to_diagonal % 2;
+    if (__comp(__ele_val, __rng2[__merge_path_rng2]))
+    {
+ ///       std::cout<<"last rng1 element doesnt match next rng2 element, return merge path\n";
 
-    // index within __rng_1 represents the place on the diagonal (in combination with __i_elem)
-    // __star_offset represents an offset by 1 from the diagonal in the __rng2 index
-    return std::make_tuple(__rng1_repeat_start + (__combined_steps_to_diagonal >> 1), __rng2_repeat_start + (__combined_steps_to_diagonal >> 1) + __star_offset, __star_offset);
+        // There is no chance that the balanced path differs from the merge path here, because the previous element of
+        // rng1 does not match the next element of rng2. We can just return the merge path.
+        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+    }
+
+//    std::cout<<"must do binary searches\n";
+    
+    // find first element of repeating sequence in the first set of the previous element
+    _Index __rng1_repeat_start = oneapi::dpl::__par_backend_hetero::__right_biased_lower_bound(__rng1, _Index{0}, __merge_path_rng1, __ele_val, __comp);
+    // find first element of repeating sequence in the second set of the next element
+    _Index __rng2_repeat_start = oneapi::dpl::__par_backend_hetero::__right_biased_lower_bound(__rng2, _Index{0}, __merge_path_rng2, __ele_val, __comp);
+
+    _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
+    _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
+
+  //  std::cout<<"rng1 repeats: "<<__rng1_repeats<<" rng2 repeats: "<<__rng2_repeats_bck<<"\n";
+    if (__rng2_repeats_bck >= __rng1_repeats)
+    {
+  //      std::cout<<"at least as many repeats in rng2 back as rng1, so we are on merge path\n";
+
+        // If we have at least as many repeated elements in rng2, we end up back on merge path
+        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+    }
+//    std::cout<<"have to do forward binary search\n";
+
+    _Index __total_repeats = __rng1_repeats + __rng2_repeats_bck;
+
+    _Index __fwd_search_count = std::max(__total_repeats / 2, __rng2_repeats_bck);
+    _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count + 1, __rng2.size());
+
+    _Index __rng2_repeat_end = oneapi::dpl::__par_backend_hetero::__left_biased_upper_bound(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
+    
+    _Index __rng2_eligible_repeats = __rng2_repeat_end - __rng2_repeat_start;
+//    std::cout<<"rng2 eligible repeats: "<<__rng2_eligible_repeats<<"\n";
+    _Index __balanced_path_rng2_diff = std::min(__rng2_eligible_repeats, __fwd_search_count);
+    _Index __balanced_path_rng1_diff = __total_repeats - __balanced_path_rng2_diff;
+
+    if (__balanced_path_rng1_diff - 1 == __balanced_path_rng2_diff && (__balanced_path_rng2_diff + 1 <= __rng2_eligible_repeats))
+    {   
+    //    std::cout<<"balanced path is one element ahead of merge path\n";
+        __star = true;
+        ++__balanced_path_rng2_diff;
+    }
+
+    return std::make_tuple(__rng1_repeat_start + __balanced_path_rng1_diff, __rng2_repeat_start + __balanced_path_rng2_diff, __star);
 }
 
 
@@ -970,7 +1026,7 @@ struct __gen_set_balanced_path
        
         //Find balanced path for diagonal start
         auto [__rng1_balanced_pos, __rng2_balanced_pos, __star_offset] = __find_balanced_path_start_point(
-                                __rng1, __rng2, __rng1_pos, __rng2_pos, __rng1.size(), __rng2.size(), __comp);
+                                __rng1, __rng2, __rng1_pos, __rng2_pos, __comp);
         //TODO: replace seta,setb positions with intra-diagonal index + start offset boolean
 
         __rng1_temp_diag[__id] = __rng1_balanced_pos;
