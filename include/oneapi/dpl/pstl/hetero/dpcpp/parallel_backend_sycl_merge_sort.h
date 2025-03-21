@@ -336,7 +336,6 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     template <typename Rng>
     DropViews(Rng&, const WorkDataArea&) -> DropViews<Rng>;
 
-    template <typename _ExecutionPolicy>
     std::size_t
     get_max_base_diags_count(const sycl::queue& __q, const _IndexT __chunk, std::size_t __n) const
     {
@@ -345,7 +344,6 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     }
 
     // Calculate nd-range params
-    template <typename _ExecutionPolicy>
     nd_range_params
     eval_nd_range_params(const sycl::queue& __q, const std::size_t __rng_size, const _IndexT __n_sorted) const
     {
