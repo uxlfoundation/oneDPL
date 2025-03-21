@@ -478,10 +478,10 @@ template <typename _Size, ::std::uint16_t _ElemsPerItem, ::std::uint16_t _WGSize
 struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _WGSize, _IsFullGroup,
                                                         __internal::__optional_kernel_name<_ScanKernelName...>>
 {
-    template <typename _Policy, typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation,
-              typename _UnaryOp, typename _Assign>
+    template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp,
+              typename _Assign>
     auto
-    operator()(_Policy&& __policy, _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n, _InitType __init,
+    operator()(sycl::queue __q, _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op, _Assign __assign)
     {
         using _ValueType = ::std::uint16_t;
@@ -493,10 +493,10 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
                                                                  std::decay_t<decltype(__out_rng[0])>>::__type;
 
         constexpr ::std::uint32_t __elems_per_wg = _ElemsPerItem * _WGSize;
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Policy, _Size>;
-        __result_and_scratch_storage_t __result{__policy, 1, 0};
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Size>;
+        __result_and_scratch_storage_t __result{__q, 1, 0};
 
-        auto __event = __policy.queue().submit([&](sycl::handler& __hdl) {
+        auto __event = __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
             // Local memory is split into two parts. The first half stores the result of applying the
@@ -1143,8 +1143,8 @@ struct __invoke_single_group_copy_if
             using _FullKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<_FullKernel>;
             return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<
                 _SizeType, __num_elems_per_item, __wg_size, true, _FullKernelName>()(
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
-                std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{}, __pred, __assign);
+                __exec.queue(), std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _InitType{},
+                _ReduceOp{}, __pred, __assign);
         }
         else
         {
@@ -1156,8 +1156,8 @@ struct __invoke_single_group_copy_if
                 oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<_NonFullKernel>;
             return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<
                 _SizeType, __num_elems_per_item, __wg_size, false, _NonFullKernelName>()(
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
-                std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{}, __pred, __assign);
+                __exec.queue(), std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _InitType{},
+                _ReduceOp{}, __pred, __assign);
         }
     }
 };
