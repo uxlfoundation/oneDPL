@@ -397,7 +397,7 @@ class __buffer_impl
     __container_t __container;
 
   public:
-    __buffer_impl(sycl::queue, std::size_t __n_elements) : __container{sycl::range<1>(__n_elements)}
+    __buffer_impl(std::size_t __n_elements) : __container{sycl::range<1>(__n_elements)}
     {
     }
 
