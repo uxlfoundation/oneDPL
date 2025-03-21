@@ -216,30 +216,24 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, __internal::__op
 // Submits the second kernel of the parallel_transform_reduce for mid-sized arrays.
 // Uses a single work groups to reduce __n preliminary results stored in __temp and returns a future object with the
 // result buffer.
-template <typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _KernelName>
+template <typename _Tp, typename _KernelName>
 struct __parallel_transform_reduce_work_group_kernel_submitter;
 
-template <typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename... _KernelName>
-struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative, _VecSize,
-                                                               __internal::__optional_kernel_name<_KernelName...>>
+template <typename _Tp, typename... _KernelName>
+struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, __internal::__optional_kernel_name<_KernelName...>>
 {
-    template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _InitType>
+    template <typename _Size, typename _TransformPattern, typename _ReducePattern, typename _InitType>
     auto
-    operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, sycl::event& __reduce_event,
-               const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
-               _InitType __init, const __result_and_scratch_storage<_ExecutionPolicy, _Tp>& __scratch_container) const
+    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q, sycl::event& __reduce_event,
+               const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item,
+               _TransformPattern __transform_pattern, _ReducePattern __reduce_pattern, _InitType __init,
+               const __result_and_scratch_storage<_Tp>& __scratch_container) const
     {
-        using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
-        auto __transform_pattern =
-            unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{
-                __reduce_op, _NoOpFunctor{}};
-        auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
-
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
 
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Tp>;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
 
-        __reduce_event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
+        __reduce_event = __q.submit([&, __n](sycl::handler& __cgh) {
             __cgh.depends_on(__reduce_event);
 
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
@@ -289,11 +283,16 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
             unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op},
             __scratch_container, std::forward<_Ranges>(__rngs)...);
 
+    using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
+
     // __n_groups preliminary results from the device kernel.
-    return __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative, _VecSize,
-                                                                   _ReduceWorkGroupKernel>()(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __reduce_event, __n_groups, __work_group_size,
-        __iters_per_work_item_work_group_kernel, __reduce_op, __init, __scratch_container);
+    return __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _ReduceWorkGroupKernel>()(
+        __backend_tag, __exec.queue(), __reduce_event, __n_groups, __work_group_size,
+        __iters_per_work_item_work_group_kernel,
+        unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{
+            __reduce_op, _NoOpFunctor{}},
+        unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op},
+        __init, __scratch_container);
 }
 
 // General implementation using a tree reduction
