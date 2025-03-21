@@ -529,7 +529,7 @@ struct __result_and_scratch_storage_base
 {
     virtual ~__result_and_scratch_storage_base() = default;
     virtual std::size_t
-    __get_data(sycl::event, std::size_t* __p_buf) const = 0;
+    __get_data(sycl::event, std::size_t* __p_buf) /*const*/ = 0;
 };
 
 template <typename _T>
@@ -662,7 +662,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 
     _T
-    __wait_and_get_value(sycl::event __event) const
+    __wait_and_get_value(sycl::event __event) /*const*/
     {
         if (is_USM())
             __event.wait_and_throw();
@@ -673,7 +673,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     // Note: this member function assumes the result is *ready*, since the __future has already
     // waited on the relevant event.
     _T
-    __get_value(size_t idx = 0) const
+    __get_value(size_t idx = 0) /*const*/
     {
         assert(idx < __result_n);
         if (__use_USM_host && __supports_USM_device)
@@ -717,7 +717,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 
     virtual std::size_t
-    __get_data(sycl::event __event, std::size_t* __p_buf) const override
+    __get_data(sycl::event __event, std::size_t* __p_buf) /*const*/ override
     {
         if (is_USM())
             __event.wait_and_throw();
