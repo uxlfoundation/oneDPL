@@ -328,16 +328,12 @@ class counting_iterator
         return !(*this < __it);
     }
 
+    friend std::true_type
+    is_passed_directly_in_onedpl_device_policies(const counting_iterator&);
+
   private:
     _Ip __my_counter_;
 };
-
-template <typename T>
-constexpr auto
-is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::counting_iterator<T>&)
-{
-    return std::true_type{};
-}
 
 template <typename... _Types>
 class zip_iterator
@@ -467,6 +463,10 @@ class zip_iterator
         return !(*this < __it);
     }
 
+    friend auto
+    is_passed_directly_in_onedpl_device_policies(const zip_iterator&)
+        -> std::conjunction<oneapi::dpl::__internal::is_passed_directly_to_device<_Types> ...>;
+
   private:
     __it_types __my_it_;
 };
@@ -483,16 +483,6 @@ zip_iterator<_Tp...>
 make_zip_iterator(std::tuple<_Tp...> __arg)
 {
     return zip_iterator<_Tp...>(__arg);
-}
-
-template <typename... _Tp>
-constexpr auto
-is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::zip_iterator<_Tp...>&)
-{
-    if constexpr ((oneapi::dpl::__internal::is_passed_directly_to_device_v<_Tp> && ...))
-        return std::true_type{};
-    else
-        return std::false_type{};
 }
 
 template <typename _Iter, typename _UnaryFunc>
@@ -653,14 +643,10 @@ class transform_iterator
     {
         return __my_unary_func_;
     }
+    friend auto
+    is_passed_directly_in_onedpl_device_policies(const transform_iterator&)
+        -> oneapi::dpl::__internal::is_passed_directly_to_device<_Iter>;
 };
-
-template <typename _It, typename _Unary>
-constexpr auto
-is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::transform_iterator<_It, _Unary>&)
-{
-    return __internal::is_passed_directly_to_device<_It>{};
-}
 
 template <typename _Iter, typename _UnaryFunc>
 transform_iterator<_Iter, _UnaryFunc>
@@ -851,22 +837,15 @@ class permutation_iterator
         return !(*this < it);
     }
 
+    friend auto is_passed_directly_in_onedpl_device_policies(const permutation_iterator&) -> std::conjunction<oneapi::dpl::__internal::is_passed_directly_to_device<SourceIterator>, 
+        oneapi::dpl::__internal::is_passed_directly_to_device<
+        typename oneapi::dpl::permutation_iterator<SourceIterator, _Permutation>::IndexMap>>;
+
   private:
     SourceIterator my_source_it;
     IndexMap my_index;
 };
 
-template <typename _SourceIterator, typename _IndexIterator>
-constexpr auto
-is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::permutation_iterator<_SourceIterator, _IndexIterator>&)
-{
-    if constexpr (__internal::is_passed_directly_to_device_v<_SourceIterator> &&
-                  __internal::is_passed_directly_to_device_v<
-                      typename oneapi::dpl::permutation_iterator<_SourceIterator, _IndexIterator>::IndexMap>)
-        return std::true_type{};
-    else
-        return std::false_type{};
-}
 
 template <typename SourceIterator, typename IndexMap, typename... StartIndex>
 permutation_iterator<SourceIterator, IndexMap>
@@ -1025,15 +1004,14 @@ class discard_iterator
         return !(*this < __it);
     }
 
-  private:
+    friend std::true_type
+    is_passed_directly_in_onedpl_device_policies(const discard_iterator&);
+
+    private:
     difference_type __my_position_;
 };
 
-constexpr auto
-is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::discard_iterator&)
-{
-    return std::true_type{};
-}
+
 
 } // namespace dpl
 } // namespace oneapi
