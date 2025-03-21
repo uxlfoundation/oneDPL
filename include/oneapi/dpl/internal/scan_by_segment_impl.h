@@ -387,7 +387,7 @@ __scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, Policy&& po
 
     constexpr iter_value_t identity = unseq_backend::__known_identity<Operator, iter_value_t>;
 
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<Policy>;
 
     __sycl_scan_by_segment_impl<_CustomName, Inclusive::value>{}(
         _BackendTag{}, policy.queue(), key_buf.all_view(), value_buf.all_view(), value_output_buf.all_view(),

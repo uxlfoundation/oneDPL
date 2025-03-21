@@ -578,9 +578,11 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&
     if (__n == 0)
         return 0;
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
-        std::forward<_Range2>(__rng2), __n, __pred, __assign);
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_copy_if<_CustomName, _ExecutionPolicy>(
+        _BackendTag{}, __exec.queue(), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), __n, __pred,
+        __assign);
 
     return __res.get(); //is a blocking call
 }
