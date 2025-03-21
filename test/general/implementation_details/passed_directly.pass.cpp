@@ -173,11 +173,18 @@ template <typename BaseIter>
 auto
 is_passed_directly_in_onedpl_device_policies(const strided_iterator<BaseIter>&)
 {
-    if constexpr (oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<BaseIter>)
-        return std::true_type{};
-    else
-        return std::false_type{};
+    return oneapi::dpl::is_passed_directly_to_device<BaseIter>{};
 }
+
+template <typename BaseIter>
+struct second_strided_iterator : public strided_iterator<BaseIter>
+{
+    second_strided_iterator(BaseIter base, int stride) : strided_iterator<BaseIter>(base, stride) {}
+};
+
+template <typename BaseIter>
+auto
+is_passed_directly_in_onedpl_device_policies(const second_strided_iterator<BaseIter>&) -> decltype(oneapi::dpl::is_passed_directly_to_device<BaseIter>{});
 
 } // namespace custom_user
 
@@ -187,48 +194,53 @@ void
 test_with_base_iterator()
 {
     //test assumption about base iterator passed directly
-    static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<BaseIter> == base_passed_directly,
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<BaseIter> == base_passed_directly,
                     "is_passed_directly_in_onedpl_device_policies is not working correctly for base iterator");
 
     // test wrapping base in transform_iterator
     using TransformIter = oneapi::dpl::transform_iterator<BaseIter, TestUtils::noop_device_copyable>;
-    static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<TransformIter> == base_passed_directly,
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<TransformIter> == base_passed_directly,
         "is_passed_directly_in_onedpl_device_policies is not working correctly for transform iterator");
     
     // test wrapping base in permutation_iterator with counting iter
     using PermutationIter = oneapi::dpl::permutation_iterator<BaseIter, oneapi::dpl::counting_iterator<std::int32_t>>;
-    static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<PermutationIter> == base_passed_directly,
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<PermutationIter> == base_passed_directly,
                     "is_passed_directly_in_onedpl_device_policies is not working correctly for permutation iterator");
 
     // test wrapping base in permutation_iter with functor
     using PermutationIterFunctor = oneapi::dpl::permutation_iterator<BaseIter, TestUtils::noop_device_copyable>;
-    static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<PermutationIterFunctor> == base_passed_directly,
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<PermutationIterFunctor> == base_passed_directly,
         "is_passed_directly_in_onedpl_device_policies is not working correctly for permutation iterator with functor");
                         
     // test wrapping base in zip_iterator
     using ZipIter = oneapi::dpl::zip_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<ZipIter> == base_passed_directly,
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<ZipIter> == base_passed_directly,
                     "is_passed_directly_in_onedpl_device_policies is not working correctly for zip iterator");
 
                     // test wrapping base in zip_iterator with counting_iterator first
     using ZipIterCounting = oneapi::dpl::zip_iterator<oneapi::dpl::counting_iterator<std::int32_t>, BaseIter>;
-    static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<ZipIterCounting> == base_passed_directly,
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<ZipIterCounting> == base_passed_directly,
                     "is_passed_directly_in_onedpl_device_policies is not working correctly for zip iterator with counting iterator first");
 
     // test wrapping base in zip_iterator with counting_iterator second
     using ZipIterCounting2 = oneapi::dpl::zip_iterator<BaseIter, oneapi::dpl::counting_iterator<std::int32_t>>;
-    static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<ZipIterCounting2> == base_passed_directly,
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<ZipIterCounting2> == base_passed_directly,
                     "is_passed_directly_in_onedpl_device_policies is not working correctly for zip iterator with counting iterator first");
 
     // test wrapping base in reverse_iterator
     using ReverseIter = std::reverse_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<ReverseIter> == base_passed_directly,
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<ReverseIter> == base_passed_directly,
                     "is_passed_directly_in_onedpl_device_policies is not working correctly for reverse iterator");
 
     // test custom user strided iterator
     using StridedIter = custom_user::strided_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<StridedIter> == base_passed_directly,
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<StridedIter> == base_passed_directly,
                     "is_passed_directly_in_onedpl_device_policies is not working correctly for custom user strided iterator");
+
+    // test custom user second strided iterator (no body for is_passed_directly_in_onedpl_device_policies)
+    using StridedIter = custom_user::strided_iterator<BaseIter>;
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<StridedIter> == base_passed_directly,
+                    "is_passed_directly_in_onedpl_device_policies is not working correctly for custom user strided iterator with no body in specialization");
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -264,7 +276,7 @@ main()
     test_with_base_iterator<false, decltype(vec2.begin())>();
 
     // test discard_iterator
-    static_assert(oneapi::dpl::is_passed_directly_in_onedpl_device_policies_v<oneapi::dpl::discard_iterator> == true,
+    static_assert(oneapi::dpl::is_passed_directly_to_device_v<oneapi::dpl::discard_iterator> == true,
                     "is_passed_directly_in_onedpl_device_policies is not working correctly for discard iterator");
 
 #endif // TEST_DPCPP_BACKEND_PRESENT

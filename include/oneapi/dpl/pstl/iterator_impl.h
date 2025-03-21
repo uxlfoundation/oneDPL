@@ -115,8 +115,12 @@ struct __is_passed_directly_in_onedpl_device_policies_fn
 inline constexpr __is_passed_directly_in_onedpl_device_policies_fn __is_passed_directly_in_onedpl_device_policies;
 
 template <typename T>
-inline constexpr bool is_passed_directly_in_onedpl_device_policies_v =
-    decltype(oneapi::dpl::__internal::__is_passed_directly_in_onedpl_device_policies(std::declval<T>()))::value;
+struct is_passed_directly_to_device : decltype(oneapi::dpl::__internal::__is_passed_directly_in_onedpl_device_policies(std::declval<T>()))
+{
+};
+
+template <typename T>
+inline constexpr bool is_passed_directly_to_device_v = is_passed_directly_to_device<T>::value;
 
 //zip_iterator version for forward iterator
 //== and != comparison is performed only on the first element of the tuple
@@ -470,7 +474,7 @@ template <typename... _Tp>
 constexpr auto
 is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::zip_iterator<_Tp...>&)
 {
-    if constexpr ((oneapi::dpl::__internal::is_passed_directly_in_onedpl_device_policies_v<_Tp> && ...))
+    if constexpr ((oneapi::dpl::__internal::is_passed_directly_to_device_v<_Tp> && ...))
         return std::true_type{};
     else
         return std::false_type{};
@@ -640,10 +644,7 @@ template <typename _It, typename _Unary>
 constexpr auto
 is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::transform_iterator<_It, _Unary>&)
 {
-    if constexpr (__internal::is_passed_directly_in_onedpl_device_policies_v<_It>)
-        return std::true_type{};
-    else
-        return std::false_type{};
+    return __internal::is_passed_directly_to_device<_It>{};
 }
 
 template <typename _Iter, typename _UnaryFunc>
@@ -844,8 +845,8 @@ template <typename _SourceIterator, typename _IndexIterator>
 constexpr auto
 is_passed_directly_in_onedpl_device_policies(const oneapi::dpl::permutation_iterator<_SourceIterator, _IndexIterator>&)
 {
-    if constexpr (__internal::is_passed_directly_in_onedpl_device_policies_v<_SourceIterator> &&
-                  __internal::is_passed_directly_in_onedpl_device_policies_v<
+    if constexpr (__internal::is_passed_directly_to_device_v<_SourceIterator> &&
+                  __internal::is_passed_directly_to_device_v<
                       typename oneapi::dpl::permutation_iterator<_SourceIterator, _IndexIterator>::IndexMap>)
         return std::true_type{};
     else
@@ -1063,10 +1064,7 @@ template <typename T>
 constexpr auto
 is_passed_directly_in_onedpl_device_policies(const std::reverse_iterator<T>&)
 {
-    if constexpr (oneapi::dpl::__internal::is_passed_directly_in_onedpl_device_policies_v<T>)
-        return std::true_type{};
-    else
-        return std::false_type{};
+    return oneapi::dpl::__internal::is_passed_directly_to_device<T>{};
 }
 
 } // namespace std
