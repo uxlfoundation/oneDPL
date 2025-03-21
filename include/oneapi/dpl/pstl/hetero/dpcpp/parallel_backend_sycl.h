@@ -2226,8 +2226,18 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_t
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    return __parallel_sort_impl<_CustomName>(__backend_tag, __exec.queue(), ::std::forward<_Range>(__rng),
-                                             oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
+    if (__rng.size() <= std::numeric_limits<std::uint32_t>::max())
+    {
+        return __submit_selecting_leaf<_CustomName, std::uint32_t>(
+            __exec.queue(), std::forward<_Range>(__rng),
+            oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
+    }
+    else
+    {
+        return __submit_selecting_leaf<_CustomName, std::uint64_t>(
+            __exec.queue(), std::forward<_Range>(__rng),
+            oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
+    }
 }
 
 //------------------------------------------------------------------------
