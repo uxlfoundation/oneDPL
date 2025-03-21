@@ -762,7 +762,7 @@ struct __fill_fn
              std::ranges::output_range<_R, const _T&> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& exec, _R&& __r, const _T& __value)
+    operator()(_ExecutionPolicy&& exec, _R&& __r, const _T& __value) const
     {
         return for_each(std::forward<_ExecutionPolicy>(exec), std::forward<_R>(__r), [__value](auto& __a) { __a = __value;} );
     }
@@ -782,7 +782,7 @@ struct __generate_fn
              std::ranges::output_range<_R, std::invoke_result_t<_F&>> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _F __gen)
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _F __gen) const
     {
         return for_each(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), [__gen](auto& __a) { __a = __gen();} );
     }
@@ -803,7 +803,7 @@ struct __move_fn
         && std::indirectly_movable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
 
     std::ranges::move_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
-    operator()(_ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r)
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r) const
     {
         auto [__res_in, __res_out] =
             transform(std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__r), std::forward<_OutRange>(__out_r),
@@ -829,7 +829,7 @@ struct __replace_if_fn
         && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, const _T& __new_value, _Proj __proj = {})
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, const _T& __new_value, _Proj __proj = {}) const
     {
         return for_each(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             [__pred, __proj, __new_value](auto&& __a) {
@@ -853,10 +853,10 @@ struct __replace_fn
         && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T1& __old_value, const _T2& __new_value, _Proj __proj = {})
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T1& __old_value, const _T2& __new_value, _Proj __proj = {}) const
     {
         return replace_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            [__old_value](auto& __a) { return std::ranges::equal_to{}(__a, __old_value);}, __new_value, __proj);
+            [__old_value](auto&& __a) { return std::ranges::equal_to{}(__a, __old_value);}, __new_value, __proj);
     }
 }; //__replace_fn
 
@@ -875,7 +875,7 @@ struct __is_sorted_until_fn
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         return adjacent_find(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             oneapi::dpl::__internal::__reorder_pred<_Comp>(__comp), __proj);
@@ -897,7 +897,7 @@ struct __mismatch_fn
         && std::ranges::sized_range<_R2>
 
     std::ranges::mismatch_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>>
-    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {}, _Proj2 __proj2 = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(__dispatch_tag,
@@ -923,7 +923,7 @@ struct __remove_if_fn
         && std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {})
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_remove_if(__dispatch_tag,
@@ -948,7 +948,7 @@ struct __remove_fn
             std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T*> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {})
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
         return remove_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             [__value](auto&& __a) { return std::ranges::equal_to{}(__a, __value);}, __proj);
