@@ -214,7 +214,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
 
         assert(__n1 > 0 || __n2 > 0);
 
-        _PRINT_INFO_IN_DEBUG_MODE(__exec);
+        _PRINT_INFO_IN_DEBUG_MODE(__q);
 
         // Empirical number of values to process per work-item
         const _IdType __chunk = __q.get_device().is_cpu() ? 128 : 4;
