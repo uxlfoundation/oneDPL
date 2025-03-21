@@ -296,43 +296,34 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
 }
 
 // General implementation using a tree reduction
-template <typename _Tp, typename _Commutative, std::uint8_t _VecSize>
+template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize>
 struct __parallel_transform_reduce_impl
 {
-    template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType,
-              typename... _Ranges>
+    template <typename _ExecutionPolicy, typename _Size, typename _TransformPattern1, typename _TransformPattern2,
+              typename _ReducePattern, typename _InitType, typename... _Ranges>
     static auto
-    submit(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Size __n, _Size __work_group_size,
-           const _Size __iters_per_work_item, _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init,
+    submit(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q, _Size __n, _Size __work_group_size,
+           const _Size __iters_per_work_item, _TransformPattern1 __transform_pattern1,
+           _TransformPattern2 __transform_pattern2, _ReducePattern __reduce_pattern, _InitType __init,
            _Ranges&&... __rngs)
     {
-        using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-        using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
         using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-            __reduce_kernel, _CustomName, _ReduceOp, _TransformOp, _NoOpFunctor, _Ranges...>;
-
-        auto __transform_pattern1 =
-            unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{
-                __reduce_op, __transform_op};
-        auto __transform_pattern2 =
-            unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{
-                __reduce_op, _NoOpFunctor{}};
-        auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
+            __reduce_kernel, _CustomName, _TransformPattern1, _TransformPattern2, _ReducePattern, _Ranges...>;
 
 #if _ONEDPL_COMPILE_KERNEL
-        auto __kernel = __internal::__kernel_compiler<_ReduceKernel>::__compile(__exec);
-        _Size __adjusted_work_group_size = oneapi::dpl::__internal::__kernel_work_group_size(__exec, __kernel);
+        auto __kernel = __internal::__kernel_compiler<_ReduceKernel>::__compile(__q);
+        _Size __adjusted_work_group_size = oneapi::dpl::__internal::__kernel_work_group_size(__q, __kernel);
         __work_group_size = std::min(__work_group_size, __adjusted_work_group_size);
 #endif
 
-        const _Size __size_per_work_group =
-            __iters_per_work_item * __work_group_size; // number of buffer elements processed within workgroup
+        // number of buffer elements processed within workgroup
+        const _Size __size_per_work_group = __iters_per_work_item * __work_group_size;
         _Size __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
 
         // Create temporary global buffers to store temporary values
         const std::size_t __n_scratch = 2 * __n_groups;
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Tp>;
-        __result_and_scratch_storage_t __scratch_container{__exec, 1, __n_scratch};
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
+        __result_and_scratch_storage_t __scratch_container{__q, 1, __n_scratch};
 
         // __is_first == true. Reduce over each work_group
         // __is_first == false. Reduce between work groups
@@ -346,8 +337,7 @@ struct __parallel_transform_reduce_impl
         sycl::event __reduce_event;
         do
         {
-            __reduce_event = __exec.queue().submit([&, __is_first, __offset_1, __offset_2, __n,
-                                                    __n_groups](sycl::handler& __cgh) {
+            __reduce_event = __q.submit([&, __is_first, __offset_1, __offset_2, __n, __n_groups](sycl::handler& __cgh) {
                 __cgh.depends_on(__reduce_event);
                 auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(
                     __cgh, __is_first ? sycl::property_list{__dpl_sycl::__no_init{}} : sycl::property_list{});
@@ -503,11 +493,23 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
             __iters_per_work_item_device_kernel, __iters_per_work_item_work_group_kernel, __reduce_op, __transform_op,
             __init, std::forward<_Ranges>(__rngs)...);
     }
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
+    auto __transform_pattern1 =
+        unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{
+            __reduce_op, __transform_op};
+    auto __transform_pattern2 =
+        unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{
+            __reduce_op, _NoOpFunctor{}};
+    auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
+
     // Otherwise use a recursive tree reduction with __max_iters_per_work_item __iters_per_work_item.
     const auto __work_group_size_long = static_cast<_Size>(__work_group_size);
-    return __parallel_transform_reduce_impl<_Tp, _Commutative, __vector_size>::submit(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __n, __work_group_size_long, __max_iters_per_work_item,
-        __reduce_op, __transform_op, __init, std::forward<_Ranges>(__rngs)...);
+    return __parallel_transform_reduce_impl<_CustomName, _Tp, _Commutative, __vector_size>::submit(
+        __backend_tag, __exec.queue(), __n, __work_group_size_long, __max_iters_per_work_item, __transform_pattern1,
+        __transform_pattern2, __reduce_pattern, __init, std::forward<_Ranges>(__rngs)...);
 }
 
 } // namespace __par_backend_hetero
