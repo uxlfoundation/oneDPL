@@ -626,9 +626,13 @@ __pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pre
 {
     auto __pred_1 = [__pred, __proj](auto&& __val)
         { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
-        
-    return oneapi::dpl::__internal::__pattern_remove_if(__tag, std::forward<_ExecutionPolicy>(__exec),
-        std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r), __pred_1);
+
+    auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
+
+    auto __it = oneapi::dpl::__internal::__pattern_remove_if(__tag, std::forward<_ExecutionPolicy>(__exec),
+        std::ranges::begin(__r), __end, __pred_1);
+
+    return std::ranges::borrowed_subrange_t<_R>(__it, __end);
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>

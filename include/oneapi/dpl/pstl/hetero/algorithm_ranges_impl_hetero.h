@@ -713,10 +713,11 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     auto __pred_1 = [__pred, __proj](auto&& __val)
         { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
+    auto __n = std::ranges::size(__r);
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_remove_if(__tag, std::forward<_ExecutionPolicy>(__exec),
                 oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)), __pred_1);
 
-    return std::ranges::borrowed_iterator_t<_R>(std::ranges::begin(__r) + __idx);
+    return std::ranges::borrowed_subrange_t<_R>(std::ranges::begin(__r) + __idx, std::ranges::begin(__r) + __n);
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
