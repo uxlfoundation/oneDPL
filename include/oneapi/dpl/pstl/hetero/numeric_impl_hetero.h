@@ -227,9 +227,8 @@ struct adjacent_difference_wrapper
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _BinaryOperation>
 _ForwardIterator2
-__pattern_adjacent_difference([[maybe_unused]] __hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
-                              _ForwardIterator1 __first, _ForwardIterator1 __last,
-                              _ForwardIterator2 __d_first, _BinaryOperation __op)
+__pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first,
+                              _ForwardIterator1 __last, _ForwardIterator2 __d_first, _BinaryOperation __op)
 {
     auto __n = __last - __first;
     if (__n <= 0)
@@ -247,7 +246,7 @@ __pattern_adjacent_difference([[maybe_unused]] __hetero_tag<_BackendTag> __tag, 
         auto __wrapped_policy = __par_backend_hetero::make_wrapped_policy<adjacent_difference_wrapper>(
             ::std::forward<_ExecutionPolicy>(__exec));
 
-        __internal::__pattern_walk2_brick(__tag, __wrapped_policy, __first, __last, __d_first,
+        __internal::__pattern_walk2_brick(__hetero_tag<_BackendTag>{}, __wrapped_policy, __first, __last, __d_first,
                                           __internal::__brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
     }
     else
