@@ -85,6 +85,10 @@ struct __is_legacy_passed_directly<_Iter, ::std::enable_if_t<_Iter::is_passed_di
 {
 };
 
+template <typename _T>
+struct __is_reverse_iterator_passed_directly;
+
+
 template <typename T>
 constexpr auto
 is_passed_directly_in_onedpl_device_policies(const T&)
@@ -98,9 +102,12 @@ is_passed_directly_in_onedpl_device_policies(const T&)
 #endif
     else if constexpr (__is_legacy_passed_directly<std::decay_t<T>>::value)
         return std::true_type{};
+    else if constexpr (__is_reverse_iterator_passed_directly<std::decay_t<T>>::value)
+        return std::true_type{};
     else
         return std::false_type{};
 }
+
 
 struct __is_passed_directly_in_onedpl_device_policies_fn
 {
@@ -121,6 +128,16 @@ struct is_passed_directly_to_device : decltype(oneapi::dpl::__internal::__is_pas
 
 template <typename T>
 inline constexpr bool is_passed_directly_to_device_v = is_passed_directly_to_device<T>::value;
+
+template <typename _T>
+struct __is_reverse_iterator_passed_directly : std::false_type
+{
+};
+
+template <typename _BaseIter>
+struct __is_reverse_iterator_passed_directly<std::reverse_iterator<_BaseIter>> : oneapi::dpl::__internal::is_passed_directly_to_device<_BaseIter>
+{
+};
 
 //zip_iterator version for forward iterator
 //== and != comparison is performed only on the first element of the tuple
@@ -1055,18 +1072,5 @@ map_zip(F f, TBig<T...> in, RestTuples... rest)
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
-
-// inject passed directly ADL customization for reverse_iterator into std namespace
-namespace std
-{
-
-template <typename T>
-constexpr auto
-is_passed_directly_in_onedpl_device_policies(const std::reverse_iterator<T>&)
-{
-    return oneapi::dpl::__internal::is_passed_directly_to_device<T>{};
-}
-
-} // namespace std
 
 #endif // _ONEDPL_ITERATOR_IMPL_H
