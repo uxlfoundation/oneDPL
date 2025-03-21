@@ -2266,10 +2266,10 @@ struct __assign_key1_wrapper;
 template <typename _Name>
 struct __assign_key2_wrapper;
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
-__parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+__parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q,
                                       _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
                                       _Range4&& __out_values, _BinaryPredicate __binary_pred,
                                       _BinaryOperator __binary_op,
@@ -2283,9 +2283,9 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     // Round 1: reduce with extra indices added to avoid long segments
     // TODO: At threshold points check if the key is equal to the key at the previous threshold point, indicating a long sequence.
     // Skip a round of copy_if and reduces if there are none.
-    auto __idx = oneapi::dpl::__par_backend_hetero::__buffer<__diff_type>(__exec.queue(), __n).get_buffer();
-    auto __tmp_out_keys = oneapi::dpl::__par_backend_hetero::__buffer<__key_type>(__exec.queue(), __n).get_buffer();
-    auto __tmp_out_values = oneapi::dpl::__par_backend_hetero::__buffer<__val_type>(__exec.queue(), __n).get_buffer();
+    auto __idx = oneapi::dpl::__par_backend_hetero::__buffer<__diff_type>(__q, __n).get_buffer();
+    auto __tmp_out_keys = oneapi::dpl::__par_backend_hetero::__buffer<__key_type>(__q, __n).get_buffer();
+    auto __tmp_out_values = oneapi::dpl::__par_backend_hetero::__buffer<__val_type>(__q, __n).get_buffer();
 
     // Replicating first element of keys view to be able to compare (i-1)-th and (i)-th key with aligned sequences,
     //  dropping the last key for the i-1 sequence.
@@ -2300,7 +2300,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // use work group size adjusted to shared local memory as the maximum segment size.
     std::size_t __wgroup_size =
-        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec.queue(), sizeof(__key_type) + sizeof(__val_type));
+        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, sizeof(__key_type) + sizeof(__val_type));
 
     // element is copied if it is the 0th element (marks beginning of first segment), is in an index
     // evenly divisible by wg size (ensures segments are not long), or has a key not equal to the
@@ -2416,8 +2416,11 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
         }
     }
 #endif
-    return __parallel_reduce_by_segment_fallback(
-        oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    return __parallel_reduce_by_segment_fallback<_CustomName>(
+        oneapi::dpl::__internal::__device_backend_tag{}, __exec.queue(),
         std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
         std::forward<_Range4>(__out_values), __binary_pred, __binary_op,
         oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
