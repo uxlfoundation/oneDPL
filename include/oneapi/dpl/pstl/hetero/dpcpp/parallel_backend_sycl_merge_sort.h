@@ -786,20 +786,6 @@ __submit_selecting_leaf(sycl::queue __q, _Range&& __rng, _Compare __comp)
     return __merge_sort<_CustomName, _IndexT>(__q, std::forward<_Range>(__rng), __comp, __leaf);
 };
 
-template <typename _CustomName, typename _Range, typename _Compare>
-auto
-__parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q, _Range&& __rng, _Compare __comp)
-{
-    if (__rng.size() <= std::numeric_limits<std::uint32_t>::max())
-    {
-        return __submit_selecting_leaf<_CustomName, std::uint32_t>(__q, std::forward<_Range>(__rng), __comp);
-    }
-    else
-    {
-        return __submit_selecting_leaf<_CustomName, std::uint64_t>(__q, std::forward<_Range>(__rng), __comp);
-    }
-}
-
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi
