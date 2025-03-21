@@ -299,8 +299,8 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
 template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize>
 struct __parallel_transform_reduce_impl
 {
-    template <typename _ExecutionPolicy, typename _Size, typename _TransformPattern1, typename _TransformPattern2,
-              typename _ReducePattern, typename _InitType, typename... _Ranges>
+    template <typename _Size, typename _TransformPattern1, typename _TransformPattern2, typename _ReducePattern,
+              typename _InitType, typename... _Ranges>
     static auto
     submit(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q, _Size __n, _Size __work_group_size,
            const _Size __iters_per_work_item, _TransformPattern1 __transform_pattern1,
