@@ -561,7 +561,7 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    ::std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec);
+    ::std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue());
 
     // Specialization for devices that have a max work-group size of 1024
     constexpr ::std::uint16_t __targeted_wg_size = 1024;
@@ -1057,7 +1057,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     // work-group implementation requires a fundamental type which must also be trivially copyable.
     if constexpr (std::is_trivially_copyable_v<_Type>)
     {
-        bool __use_reduce_then_scan = oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec);
+        bool __use_reduce_then_scan = oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec.queue());
 
         // TODO: Consider re-implementing single group scan to support types without known identities. This could also
         // allow us to use single wg scan for the last block of reduce-then-scan if it is sufficiently small.
@@ -1234,7 +1234,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
     // can simply copy the input range to the output.
     assert(__n > 1);
 
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec))
+    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec.queue()))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
@@ -1298,7 +1298,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
                           _Range1&& __rng, _Range2&& __result, _UnaryPredicate __pred)
 {
     oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng.size();
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec))
+    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec.queue()))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
         using _WriteOp =
@@ -1340,7 +1340,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
 
     constexpr std::uint16_t __single_group_upper_limit = 2048;
 
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec);
+    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue());
 
     if (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size &&
         __max_wg_size >= _SingleGroupInvoker::__targeted_wg_size)
@@ -1351,7 +1351,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
             _SingleGroupInvoker{}, __n, std::forward<_ExecutionPolicy>(__exec), __n, std::forward<_InRng>(__in_rng),
             std::forward<_OutRng>(__out_rng), __pred, __assign);
     }
-    else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec))
+    else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec.queue()))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
@@ -1465,7 +1465,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _
                   _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                   _IsOpDifference __is_op_difference)
 {
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec))
+    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec.queue()))
     {
         return __parallel_set_reduce_then_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
                                                std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
@@ -1673,14 +1673,14 @@ struct __parallel_find_or_nd_range_tuner
         // TODO: find a way to generalize getting of reliable work-group size
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-        const std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec, (std::size_t)4096);
+        const std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), (std::size_t)4096);
         std::size_t __n_groups = 1;
         // If no more than 32 data elements per work item, a single work group will be used
         if (__rng_n > __wgroup_size * 32)
         {
             // Compute the number of groups and limit by the number of compute units
             __n_groups = std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size),
-                                               oneapi::dpl::__internal::__max_compute_units(__exec));
+                                               oneapi::dpl::__internal::__max_compute_units(__exec.queue()));
         }
 
         return {__n_groups, __wgroup_size};
@@ -2303,7 +2303,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // use work group size adjusted to shared local memory as the maximum segment size.
     std::size_t __wgroup_size =
-        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec, sizeof(__key_type) + sizeof(__val_type));
+        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec.queue(), sizeof(__key_type) + sizeof(__val_type));
 
     // element is copied if it is the 0th element (marks beginning of first segment), is in an index
     // evenly divisible by wg size (ensures segments are not long), or has a key not equal to the
@@ -2407,7 +2407,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 #if !defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000
     if constexpr (std::is_trivially_copyable_v<__val_type>)
     {
-        if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec))
+        if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec.queue()))
         {
             auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan(
                 oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
