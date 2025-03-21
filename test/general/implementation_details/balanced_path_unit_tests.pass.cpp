@@ -150,10 +150,21 @@ get_serial_merge_path_for_diag(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag_id
     //take __diag_idx steps
     for (std::size_t i = 0; i < __diag_idx; ++i)
     {
-        if (__comp(__rng2[idx2], __rng1[idx1]))
-            ++idx2;
-        else
+        if (idx1 < __rng1.size() && idx2 < __rng2.size())
+        {
+            if (__comp(__rng2[idx2], __rng1[idx1]))
+                ++idx2;
+            else
+                ++idx1;
+        }
+        else if (idx1 < __rng1.size())
+        {
             ++idx1;
+        }
+        else
+        {
+            ++idx2;
+        }
     }
     return std::make_tuple(idx1, idx2);
 }
@@ -170,27 +181,40 @@ get_serial_balanced_path_for_diag(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag
     //take __diag_idx steps
     for (std::size_t i = 0; i < __diag_idx; ++i)
     {
-        if (__comp(__rng2[idx2], __rng1[idx1]))
+        if (idx1 < __rng1.size() && idx2 < __rng2.size())
         {
-            next_matched_ele_from_rng1 = true;
-            ++idx2;
+            if (__comp(__rng2[idx2], __rng1[idx1]))
+            {
+                next_matched_ele_from_rng1 = true;
+                ++idx2;
+            }
+            else if (__comp(__rng1[idx1], __rng2[idx2]))
+            {
+                next_matched_ele_from_rng1 = true;
+                ++idx1;
+            }
+            else // they match
+            {
+                if (next_matched_ele_from_rng1)
+                {
+                    ++idx1;
+                }
+                else
+                {
+                    ++idx2;
+                }
+                next_matched_ele_from_rng1 = !next_matched_ele_from_rng1;
+            }
         }
-        else if (__comp(__rng1[idx1], __rng2[idx2]))
+        else if (idx1 < __rng1.size())
         {
             next_matched_ele_from_rng1 = true;
             ++idx1;
         }
-        else // they match
+        else
         {
-            if (next_matched_ele_from_rng1)
-            {
-                ++idx1;
-            }
-            else
-            {
-                ++idx2;
-            }
-            next_matched_ele_from_rng1 = !next_matched_ele_from_rng1;
+            next_matched_ele_from_rng1 = true;
+            ++idx2;
         }
     }
     if (!next_matched_ele_from_rng1)
@@ -212,6 +236,15 @@ test_find_balanced_path_impl(_Rng1 __rng1, _Rng2 __rng2, _Comp __comp)
         auto [balanced_path_idx1, balanced_path_idx2, star] = oneapi::dpl::__par_backend_hetero::__find_balanced_path_start_point(__rng1, __rng2, merge_path_idx1, merge_path_idx2, __comp);
         if (balanced_path_idx1 != expected_balanced_path_idx1 || balanced_path_idx2 != expected_balanced_path_idx2 || star != expected_star)
         {
+            std::cout << "rng1["<<__rng1.size()<<"]: ";
+            for (auto i : __rng1)
+                std::cout << i << " ";
+            std::cout << std::endl;
+            std::cout << "rng2["<<__rng2.size()<<"]: ";
+            for (auto i : __rng2)
+                std::cout << i << " ";
+            std::cout << std::endl;
+             
             std::cout << "Failed: balanced path mismatch on diagonal " << diag_idx << " of "<<__rng1.size() + __rng2.size() << std::endl;
             std::cout <<" Merge Path: "<<merge_path_idx1<<" "<<merge_path_idx2<<std::endl;
             std::cout << "Expected: " << expected_balanced_path_idx1 << " " << expected_balanced_path_idx2 << " " << expected_star << std::endl;
@@ -227,15 +260,26 @@ bool
 test_find_balanced_path()
 {
     std::cout<<"Test for find balanced path"<<std::endl;
+    //                     0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
     std::vector<int> v1 = {1, 2, 3, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 7, 8, 9};
+    //                     0  1  2  3  4  5  6  7  8
     std::vector<int> v2 = {3, 4, 4, 4, 5, 5, 5, 6, 7};
+    //                     0  1  2  3  4  5  6  7  8  9 10 11
+    std::vector<int> v3 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4};
+    //                     0  1  2  3  4  5  6  7  8
+    std::vector<int> v4 = {5, 7, 7, 8, 9, 9, 9, 9, 9};
     bool ret = test_find_balanced_path_impl(v1, v2, std::less<int>());
     ret += test_find_balanced_path_impl(v2, v1, std::less<int>());
-
-    std::vector<int> v3 = {1, 1, 1, 1, 1, 1, 1, 1, 1,2, 3, 4};
-    std::vector<int> v4 = {5, 7, 7, 8, 9, 9, 9, 9, 9};
     ret += test_find_balanced_path_impl(v3, v4, std::less<int>());
     ret += test_find_balanced_path_impl(v4, v3, std::less<int>());
+    ret += test_find_balanced_path_impl(v1, v4, std::less<int>());
+    ret += test_find_balanced_path_impl(v4, v1, std::less<int>());
+    ret += test_find_balanced_path_impl(v1, v3, std::less<int>());
+    ret += test_find_balanced_path_impl(v3, v1, std::less<int>());
+    ret += test_find_balanced_path_impl(v2, v4, std::less<int>());
+    ret += test_find_balanced_path_impl(v4, v2, std::less<int>());
+    ret += test_find_balanced_path_impl(v2, v3, std::less<int>());
+    ret += test_find_balanced_path_impl(v3, v2, std::less<int>());
 
     return ret;
 }
