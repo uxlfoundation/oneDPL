@@ -694,13 +694,12 @@ class __sort_global_kernel2;
 template <typename... _Name>
 class __sort_copy_back_kernel;
 
-template <typename _IndexT, typename _ExecutionPolicy, typename _Range, typename _Compare, typename _LeafSorter>
+template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare, typename _LeafSorter>
 auto
-__merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
+__merge_sort(sycl::queue __q, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
 {
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
 
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _LeafSortKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_leaf_kernel<_CustomName>>;
     using _DiagonalsKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -715,8 +714,6 @@ __merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSo
     assert(__rng.size() > 1);
     assert((__leaf_sorter.__process_size & (__leaf_sorter.__process_size - 1)) == 0 &&
            "Leaf size must be a power of 2");
-
-    sycl::queue __q = __exec.queue();
 
     // 1. Perform sorting of the leaves of the merge sort tree
     sycl::event __event_leaf_sort = __merge_sort_leaf_submitter<_LeafSortKernel>()(__q, __rng, __leaf_sorter);
@@ -736,15 +733,15 @@ __merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSo
     return __future(__event_sort, std::move(__temp_sp_storages));
 }
 
-template <typename _IndexT, typename _ExecutionPolicy, typename _Range, typename _Compare>
+template <typename _CustomName, typename _IndexT, typename _ExecutionPolicy, typename _Range, typename _Compare>
 auto
-__submit_selecting_leaf(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
+__submit_selecting_leaf(sycl::queue __q, _Range&& __rng, _Compare __comp)
 {
     using _Leaf = __leaf_sorter<std::decay_t<_Range>, _Compare>;
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
 
     const std::size_t __n = __rng.size();
-    sycl::device __device = __exec.queue().get_device();
+    sycl::device __device = __q.get_device();
 
     const std::size_t __max_wg_size = __device.template get_info<sycl::info::device::max_work_group_size>();
 
@@ -786,7 +783,7 @@ __submit_selecting_leaf(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __co
     __wg_size = oneapi::dpl::__internal::__dpl_bit_floor(__wg_size);
 
     _Leaf __leaf(__rng, __comp, __data_per_workitem, __wg_size);
-    return __merge_sort<_IndexT>(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __comp, __leaf);
+    return __merge_sort<_CustomName, _IndexT>(__q, std::forward<_Range>(__rng), __comp, __leaf);
 };
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
@@ -794,15 +791,15 @@ auto
 __parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                      _Compare __comp)
 {
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
     if (__rng.size() <= std::numeric_limits<std::uint32_t>::max())
     {
-        return __submit_selecting_leaf<std::uint32_t>(std::forward<_ExecutionPolicy>(__exec),
-                                                      std::forward<_Range>(__rng), __comp);
+        return __submit_selecting_leaf<_CustomName, std::uint32_t>(__exec.queue(), std::forward<_Range>(__rng), __comp);
     }
     else
     {
-        return __submit_selecting_leaf<std::uint64_t>(std::forward<_ExecutionPolicy>(__exec),
-                                                      std::forward<_Range>(__rng), __comp);
+        return __submit_selecting_leaf<_CustomName, std::uint64_t>(__exec.queue(), std::forward<_Range>(__rng), __comp);
     }
 }
 
