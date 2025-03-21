@@ -213,9 +213,9 @@ template <::std::uint16_t __iters_per_work_item, ::std::uint8_t __bins_per_work_
 struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_item, __bins_per_work_item,
                                                                __internal::__optional_kernel_name<_KernelName...>>
 {
-    template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinHashMgr>
+    template <typename _Range1, typename _Range2, typename _BinHashMgr>
     auto
-    operator()(_ExecutionPolicy&& __exec, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
+    operator()(sycl::queue __q, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
                _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
         const ::std::size_t __n = __input.size();
@@ -229,7 +229,7 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
         ::std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
         ::std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
-        return __exec.queue().submit([&](auto& __h) {
+        return __q.submit([&](auto& __h) {
             __h.depends_on(__init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
@@ -304,7 +304,7 @@ __histogram_general_registers_local_reduction(oneapi::dpl::__internal::__device_
 
     return __histogram_general_registers_local_reduction_submitter<__iters_per_work_item, __bins_per_work_item,
                                                                    _RegistersLocalReducName>()(
-        ::std::forward<_ExecutionPolicy>(__exec), __init_event, __work_group_size, ::std::forward<_Range1>(__input),
+        __exec.queue(), __init_event, __work_group_size, ::std::forward<_Range1>(__input),
         ::std::forward<_Range2>(__bins), __binhash_manager);
 }
 
