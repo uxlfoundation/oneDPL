@@ -731,7 +731,7 @@ __merge_sort(sycl::queue __q, _Range&& __rng, _Compare __comp, _LeafSorter& __le
     return __future(__event_sort, std::move(__temp_sp_storages));
 }
 
-template <typename _CustomName, typename _IndexT, typename _ExecutionPolicy, typename _Range, typename _Compare>
+template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare>
 auto
 __submit_selecting_leaf(sycl::queue __q, _Range&& __rng, _Compare __comp)
 {
