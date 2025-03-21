@@ -126,25 +126,25 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 
     // Once there is enough work to launch a group on each compute unit with our chosen __iters_per_item,
     // then we should start using this code path.
-    template <typename _ExecutionPolicy, typename _Fp>
+    template <typename _Fp>
     static std::size_t
-    __estimate_best_start_size(const _ExecutionPolicy& __exec, _Fp __brick)
+    __estimate_best_start_size(const sycl::queue& __q, _Fp __brick)
     {
         const std::size_t __work_group_size =
-            oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), __max_work_group_size);
-        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec);
+            oneapi::dpl::__internal::__max_work_group_size(__q, __max_work_group_size);
+        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__q);
         return __work_group_size * _Fp::__preferred_iters_per_item * __max_cu;
     }
 
-    template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
+    template <typename _Fp, typename _Index, typename... _Ranges>
     auto
-    operator()(_ExecutionPolicy&& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(sycl::queue __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
         const std::size_t __work_group_size =
-            oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), __max_work_group_size);
-        _PRINT_INFO_IN_DEBUG_MODE(__exec);
-        auto __event = __exec.queue().submit([__rngs..., __brick, __work_group_size, __count](sycl::handler& __cgh) {
+            oneapi::dpl::__internal::__max_work_group_size(__q, __max_work_group_size);
+        _PRINT_INFO_IN_DEBUG_MODE(__q);
+        auto __event = __q.submit([__rngs..., __brick, __work_group_size, __count](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             constexpr std::uint8_t __iters_per_work_item = _Fp::__preferred_iters_per_item;
@@ -192,10 +192,9 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     // then only compile the basic kernel as the two versions are effectively the same.
     if constexpr (_Fp::__preferred_iters_per_item > 1 || _Fp::__preferred_vector_size > 1)
     {
-        if (__count >= __large_submitter::__estimate_best_start_size(__exec, __brick))
+        if (__count >= __large_submitter::__estimate_best_start_size(__exec.queue(), __brick))
         {
-            return __large_submitter{}(std::forward<_ExecutionPolicy>(__exec), __brick, __count,
-                                       std::forward<_Ranges>(__rngs)...);
+            return __large_submitter{}(__exec.queue(), __brick, __count, std::forward<_Ranges>(__rngs)...);
         }
     }
     return __small_submitter{}(__exec.queue(), __brick, __count, std::forward<_Ranges>(__rngs)...);
