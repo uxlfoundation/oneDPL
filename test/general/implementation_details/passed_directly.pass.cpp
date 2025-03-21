@@ -323,7 +323,7 @@ test_with_base_iterator()
     using SecondStridedIter = custom_user::second_strided_iterator<BaseIter>;
     static_assert(oneapi::dpl::is_passed_directly_to_device_v<SecondStridedIter> == base_passed_directly,
                   "is_passed_directly_in_onedpl_device_policies is not working correctly for custom user strided "
-                  "iterator with no body in ADL function definiton");
+                  "iterator with no body in ADL function definition");
 
     // test custom user first strided iterator with hidden friend ADL function
     using ThirdStridedIter = custom_user::third_strided_iterator<BaseIter>;
