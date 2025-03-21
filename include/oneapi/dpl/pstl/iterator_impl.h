@@ -88,7 +88,6 @@ struct __is_legacy_passed_directly<_Iter, ::std::enable_if_t<_Iter::is_passed_di
 template <typename _T>
 struct __is_reverse_iterator_passed_directly;
 
-
 template <typename T>
 constexpr auto
 is_passed_directly_in_onedpl_device_policies(const T&)
@@ -108,7 +107,6 @@ is_passed_directly_in_onedpl_device_policies(const T&)
         return std::false_type{};
 }
 
-
 struct __is_passed_directly_in_onedpl_device_policies_fn
 {
     template <typename T>
@@ -122,9 +120,8 @@ struct __is_passed_directly_in_onedpl_device_policies_fn
 inline constexpr __is_passed_directly_in_onedpl_device_policies_fn __is_passed_directly_in_onedpl_device_policies;
 
 template <typename T>
-struct is_passed_directly_to_device : decltype(oneapi::dpl::__internal::__is_passed_directly_in_onedpl_device_policies(std::declval<T>()))
-{
-};
+struct is_passed_directly_to_device
+    : decltype(oneapi::dpl::__internal::__is_passed_directly_in_onedpl_device_policies(std::declval<T>())){};
 
 template <typename T>
 inline constexpr bool is_passed_directly_to_device_v = is_passed_directly_to_device<T>::value;
@@ -135,7 +132,8 @@ struct __is_reverse_iterator_passed_directly : std::false_type
 };
 
 template <typename _BaseIter>
-struct __is_reverse_iterator_passed_directly<std::reverse_iterator<_BaseIter>> : oneapi::dpl::__internal::is_passed_directly_to_device<_BaseIter>
+struct __is_reverse_iterator_passed_directly<std::reverse_iterator<_BaseIter>>
+    : oneapi::dpl::__internal::is_passed_directly_to_device<_BaseIter>
 {
 };
 
