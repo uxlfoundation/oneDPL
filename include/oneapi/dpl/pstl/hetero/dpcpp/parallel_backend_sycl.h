@@ -1737,21 +1737,20 @@ struct __parallel_find_or_impl_one_wg;
 template <bool __or_tag_check, typename... KernelName>
 struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_kernel_name<KernelName...>>
 {
-    template <typename _ExecutionPolicy, typename _BrickTag, typename __FoundStateType, typename _Predicate,
-              typename... _Ranges>
+    template <typename _BrickTag, typename __FoundStateType, typename _Predicate, typename... _Ranges>
     __FoundStateType
-    operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _BrickTag __brick_tag,
+    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q, _BrickTag __brick_tag,
                const std::size_t __rng_n, const std::size_t __wgroup_size, const __FoundStateType __init_value,
                _Predicate __pred, _Ranges&&... __rngs)
     {
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, __FoundStateType>;
-        __result_and_scratch_storage_t __result_storage{__exec, 1, 0};
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<__FoundStateType>;
+        __result_and_scratch_storage_t __result_storage{__q, 1, 0};
 
         // Calculate the number of elements to be processed by each work-item.
         const auto __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size);
 
         // main parallel_for
-        auto __event = __exec.queue().submit([&](sycl::handler& __cgh) {
+        auto __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             auto __result_acc =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
@@ -1904,8 +1903,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         // Single WG implementation
         __result = __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
-            oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __brick_tag,
-            __rng_n, __wgroup_size, __init_value, __pred, std::forward<_Ranges>(__rngs)...);
+            oneapi::dpl::__internal::__device_backend_tag{}, __exec.queue(), __brick_tag, __rng_n, __wgroup_size,
+            __init_value, __pred, std::forward<_Ranges>(__rngs)...);
     }
     else
     {
