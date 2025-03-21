@@ -1199,7 +1199,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     _MaskAssigner __add_mask_op;
 
     // temporary buffer to store boolean mask
-    oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__q, __n);
+    oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n);
 
     return __parallel_transform_scan_base<_CustomName>(
         __backend_tag, __q,
@@ -1400,7 +1400,7 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _ScanRangeTransform>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__exec.queue(), __rng1.size());
+    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__rng1.size());
 
     return __parallel_transform_reduce_then_scan<_CustomName>(
         __backend_tag, __exec.queue(),
@@ -1443,7 +1443,7 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
         __comp, __n1, __n2};
 
     // temporary buffer to store boolean mask
-    oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__exec.queue(), __n1);
+    oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -2117,7 +2117,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         _Size __n = __rng.size();
         assert(__n > 1);
 
-        oneapi::dpl::__par_backend_hetero::__buffer<_Tp> __temp_buf(__q, __n);
+        oneapi::dpl::__par_backend_hetero::__buffer<_Tp> __temp_buf(__n);
         auto __temp = __temp_buf.get_buffer();
         _PRINT_INFO_IN_DEBUG_MODE(__q);
 
@@ -2306,9 +2306,9 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     // Round 1: reduce with extra indices added to avoid long segments
     // TODO: At threshold points check if the key is equal to the key at the previous threshold point, indicating a long sequence.
     // Skip a round of copy_if and reduces if there are none.
-    auto __idx = oneapi::dpl::__par_backend_hetero::__buffer<__diff_type>(__q, __n).get_buffer();
-    auto __tmp_out_keys = oneapi::dpl::__par_backend_hetero::__buffer<__key_type>(__q, __n).get_buffer();
-    auto __tmp_out_values = oneapi::dpl::__par_backend_hetero::__buffer<__val_type>(__q, __n).get_buffer();
+    auto __idx = oneapi::dpl::__par_backend_hetero::__buffer<__diff_type>(__n).get_buffer();
+    auto __tmp_out_keys = oneapi::dpl::__par_backend_hetero::__buffer<__key_type>(__n).get_buffer();
+    auto __tmp_out_values = oneapi::dpl::__par_backend_hetero::__buffer<__val_type>(__n).get_buffer();
 
     // Replicating first element of keys view to be able to compare (i-1)-th and (i)-th key with aligned sequences,
     //  dropping the last key for the i-1 sequence.
