@@ -125,7 +125,7 @@ std::uint32_t
 __kernel_sub_group_size(const sycl::queue& __q, const sycl::kernel& __kernel)
 {
     const sycl::device& __device = __q.get_device();
-    [[maybe_unused]] const ::std::size_t __wg_size = __kernel_work_group_size(__policy, __kernel);
+    [[maybe_unused]] const ::std::size_t __wg_size = __kernel_work_group_size(__q, __kernel);
     const ::std::uint32_t __sg_size =
 #if _ONEDPL_SYCL2020_KERNEL_DEVICE_API_PRESENT
         __kernel.template get_info<sycl::info::kernel_device_specific::max_sub_group_size>(
