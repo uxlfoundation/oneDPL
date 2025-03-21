@@ -459,7 +459,7 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
     // Pessimistically double the memory requirement to take into account memory used by compiled kernel.
     // TODO: find a way to generalize getting of reliable work-group size.
     std::size_t __work_group_size =
-        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec, static_cast<std::size_t>(sizeof(_Tp) * 2));
+        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec.queue(), static_cast<std::size_t>(sizeof(_Tp) * 2));
 
     // Limit work-group size to __max_work_group_size for performance on GPUs. Empirically tested.
     __work_group_size = std::min(__work_group_size, __max_work_group_size);
@@ -490,7 +490,7 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
         const auto __work_group_size_short = static_cast<std::uint32_t>(__work_group_size);
         // Fully-utilize the device by running a work-group per compute unit.
         // Add a factor more work-groups than compute units to fully utilizes the device and hide latencies.
-        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec);
+        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec.queue());
         std::uint32_t __n_groups = __max_cu * __oversubscription;
         std::uint32_t __iters_per_work_item_device_kernel =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n_short, __n_groups * __work_group_size_short);
