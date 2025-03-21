@@ -741,13 +741,13 @@ __get_reduce_then_scan_sg_sz()
 // Enable reduce-then-scan if the device uses the required sub-group size and is ran on a device
 // with fast coordinated subgroup operations. We do not want to run this scan on CPU targets, as they are not
 // performant with this algorithm.
-template <typename _ExecutionPolicy>
+inline
 bool
-__is_gpu_with_reduce_then_scan_sg_sz(const _ExecutionPolicy& __exec)
+__is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 {
     const bool __dev_supports_sg_sz =
-        oneapi::dpl::__internal::__supports_sub_group_size(__exec, __get_reduce_then_scan_sg_sz());
-    return (__exec.queue().get_device().is_gpu() && __dev_supports_sg_sz);
+        oneapi::dpl::__internal::__supports_sub_group_size(__q, __get_reduce_then_scan_sg_sz());
+    return (__q.get_device().is_gpu() && __dev_supports_sg_sz);
 }
 
 // General scan-like algorithm helpers
@@ -784,7 +784,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
 
-    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__exec, 8192);
+    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), 8192);
     // Round down to nearest multiple of the subgroup size
     const std::uint32_t __work_group_size = (__max_work_group_size / __sub_group_size) * __sub_group_size;
 
