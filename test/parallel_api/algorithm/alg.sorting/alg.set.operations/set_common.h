@@ -190,17 +190,17 @@ struct test_set_intersection
         if (size < n + m)
         {
             for (int i = 0; i < size; ++i)
-                std::cout << first1[i] << " ";
+                std::cout << first[i] << " ";
             std::cout << std::endl;
         }
         else
         {
             for (int i = 0; i < n; ++i)
-                std::cout << first1[i] << " ";
+                std::cout << first[i] << " ";
             std::cout << " ... ";
 
             for (int i = size - m - 1; i < size; ++i)
-                std::cout << first1[i] << " ";
+                std::cout << first[i] << " ";
             std::cout << std::endl;
         }
         return true;
@@ -223,10 +223,8 @@ struct test_set_intersection
         write_first_n_last_m(5, 5, first2, last2);
 
         std::cout<<"\nExpected "<<std::distance(expect.begin(), expect_res)<<" elements:\n";
-        write_first_n_last_m(5, 5, expect.begin, expect_res);
+        write_first_n_last_m(5, 5, expect.begin(), expect_res);
 
-        
-        ele_written = 0;
         std::cout<<"\nOut "<<std::distance(out.begin(), res)<<" elements:\n";
         write_first_n_last_m(5, 5, out.begin(), res);
 
