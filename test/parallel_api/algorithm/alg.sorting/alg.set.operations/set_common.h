@@ -191,7 +191,33 @@ struct test_set_intersection
         auto out = sequences.second;
         auto expect_res = ::std::set_intersection(first1, last1, first2, last2, expect.begin());
         auto res = ::std::set_intersection(exec, first1, last1, first2, last2, out.begin());
-
+        std::cout<<"exected num "<<expect_res - expect.begin()<<", actual num"<<res - out.begin()<<std::endl;
+        std::cout<<"\nSetA "<<std::distance(first1,last1)<<" elements:\n";
+        int max_elements = 10;
+        int ele_written = 0;
+        for (auto first_i = first1; first_i != last1 && ele_written < max_elements; ++ele_written, ++first_i)
+        {
+            std::cout<<*first_i<<" ";
+        }
+        ele_written = 0;
+        std::cout<<"\nSetB "<<std::distance(first2,last2)<<" elements:\n";
+        for (auto first_j = first2; first_j != last2 && ele_written < max_elements; ++ele_written, ++first_j)
+        {
+            std::cout<<*first_j<<" ";
+        }
+        ele_written = 0;
+        std::cout<<"\nExpected "<<std::distance(expect.begin(), expect_res)<<" elements:\n";
+        for (auto expect_i = expect.begin(); expect_i != expect_res && ele_written < max_elements; ++ele_written, ++expect_i)
+        {
+            std::cout<<*expect_i<<" ";
+        }
+        ele_written = 0;
+        std::cout<<"\nOut "<<std::distance(out.begin(), res)<<" elements:\n";
+        for (auto out_i = out.begin(); out_i != res && ele_written < max_elements; ++ele_written, ++out_i)
+        {
+            std::cout<<*out_i<<" ";
+        }
+        std::cout<<std::endl;
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_intersection without comparator");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_intersection effect without comparator");
     }
