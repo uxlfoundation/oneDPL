@@ -1092,7 +1092,31 @@ struct __set_generic_operation
         _SizeType __idx = 0;
         while(__idx < __num_eles_min)
         {
-            if (__comp(__in_rng1[__idx1], __in_rng2[__idx2]))
+            if (__idx1 == __in_rng1.size())
+            {
+                if constexpr (_CopyDiffSetB)
+                {
+                    for (; __idx2 < __in_rng2.size(); ++__idx2)
+                    {
+                        __temp_out.set(__count, __in_rng2, __idx2);
+                        ++__count;
+                    }
+                }
+                return __count;
+            }
+            else if (__idx2 == __in_rng2.size())
+            {
+                if constexpr (_CopyDiffSetA)
+                {
+                    for (; __idx1 < __in_rng1.size(); ++__idx1)
+                    {
+                        __temp_out.set(__count, __in_rng1, __idx1);
+                        ++__count;
+                    }
+                }
+                return __count;
+            }
+           else if (__comp(__in_rng1[__idx1], __in_rng2[__idx2]))
             {
                 if constexpr (_CopyDiffSetA)
                 {
