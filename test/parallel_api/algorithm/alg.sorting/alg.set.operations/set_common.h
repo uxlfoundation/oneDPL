@@ -350,9 +350,9 @@ test_set(Compare compare, bool comp_flag)
     // The rand()%(2*n+1) encourages generation of some duplicates.
     ::std::srand(4200);
 
-    for (::std::size_t n = 100; n < n_max; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (::std::size_t n = 0; n < n_max; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
-        for (::std::size_t m = 100; m < n_max; m = m <= 16 ? m + 1 : size_t(2.71828 * m))
+        for (::std::size_t m = 0; m < n_max; m = m <= 16 ? m + 1 : size_t(2.71828 * m))
         {
             //prepare the input ranges
             Sequence<T1> in1(n, [](::std::size_t k) { return rand() % (2 * k + 1); });
