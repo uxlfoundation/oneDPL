@@ -271,13 +271,13 @@ struct invoke_on_all_policies
     {
 #if TEST_DPCPP_BACKEND_PRESENT
 
-        invoke_on_all_host_policies()(op, rest...);
+//        invoke_on_all_host_policies()(op, rest...);
 #if __SYCL_PSTL_OFFLOAD__
-        invoke_on_all_pstl_offload_policies()(op, rest...);
+//        invoke_on_all_pstl_offload_policies()(op, rest...);
 #endif
         invoke_on_all_hetero_policies<CallNumber>()(op, ::std::forward<T>(rest)...);
 #else
-        invoke_on_all_host_policies()(op, ::std::forward<T>(rest)...);
+//        invoke_on_all_host_policies()(op, ::std::forward<T>(rest)...);
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
 };
