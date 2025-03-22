@@ -1846,7 +1846,6 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, s
 {
     if constexpr(_SetTag::__is_one_shot_v)
     {
-        std::cout<<"parallel_set_reduce_then_scan\n";
         return __parallel_set_reduce_then_scan(__backend_tag, __q, std::forward<_Range1>(__rng1),
                                                std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
                                                __set_tag);
@@ -1854,8 +1853,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, s
     }
     else
     {
-        std::cout<<"parallel_set_scan\n";
-        return __parallel_set_scan(__backend_tag, __q , std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+        return __parallel_set_scan(__backend_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
                                    std::forward<_Range3>(__result), __comp, __set_tag);
     }
 }
