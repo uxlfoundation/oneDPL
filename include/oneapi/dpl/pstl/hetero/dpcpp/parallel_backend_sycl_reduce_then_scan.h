@@ -853,6 +853,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
     {
+        std::cout <<"block "<<__b<<std::endl;
         std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(
             std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
         std::uint32_t __workitems_in_block_round_up_workgroup =
@@ -861,13 +862,16 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
         auto __local_range = sycl::range<1>(__work_group_size);
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
+        std::cout <<"reduce "<<__b<<std::endl;
         __event = __reduce_submitter(__exec, __kernel_nd_range, __in_rng, __result_and_scratch, __event,
                                      __inputs_per_sub_group, __inputs_per_item, __b);
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
+        std::cout <<"scan "<<__b<<std::endl;
         __event = __scan_submitter(__exec, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __event,
                                    __inputs_per_sub_group, __inputs_per_item, __b);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         // We only need to resize these parameters prior to the last block as it is the only non-full case.
+        std::cout <<"done "<<__b<<std::endl;
         if (__b + 2 == __num_blocks)
         {
             __evenly_divided_remaining_inputs =
