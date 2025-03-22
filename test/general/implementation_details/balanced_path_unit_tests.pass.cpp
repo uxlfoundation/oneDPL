@@ -75,6 +75,36 @@ bool test_serial_set_intersection_op_count_and_write()
     return true;
 }
 
+bool test_serial_set_intersection_op_count_and_write2()
+{
+    // Test for set_intersection operation with serial policy
+    std::cout << "Test for set_intersection operation with count and write" << std::endl;
+    std::vector<int> v1 = {1};
+    std::vector<int> v2 = {1, 1};
+    std::vector<int> v3(v1.size() + v2.size());
+
+    oneapi::dpl::__par_backend_hetero::__set_temp_data<10, int> __temp_data{};
+    oneapi::dpl::__par_backend_hetero::__set_intersection __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
+
+    auto res = std::set_intersection(v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
+
+    if (count != res - v3.begin())
+    {
+        std::cout << "Failed: count mismatch" << std::endl;
+        return false;
+    }
+
+    for (std::size_t i = 0; i < count; ++i)
+    {
+        if (__temp_data.__data[i] != v3[i])
+        {
+            std::cout << "Failed: data mismatch" << std::endl;
+            return false;
+        }
+    }
+    return true;
+}
 
 bool test_serial_set_intersection_op_count_and_write_limited()
 {
@@ -292,6 +322,7 @@ main()
 
     EXPECT_TRUE(test_serial_set_intersection_op_count(), "test for serial set_intersection operation returning count only");
     EXPECT_TRUE(test_serial_set_intersection_op_count_and_write(), "test for serial set_intersection operation");
+    EXPECT_TRUE(test_serial_set_intersection_op_count_and_write2(), "test for serial set_intersection operation2");
     EXPECT_TRUE(test_serial_set_intersection_op_count_and_write_limited(), "test for serial set_intersection operation limited");
     EXPECT_TRUE(test_right_biased_lower_bound(), "test for right biased lower bound");
     EXPECT_TRUE(test_find_balanced_path(), "test for find balanced path");
