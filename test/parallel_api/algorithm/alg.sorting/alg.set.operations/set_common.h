@@ -355,8 +355,8 @@ test_set(Compare compare, bool comp_flag)
         for (::std::size_t m = 0; m < n_max; m = m <= 16 ? m + 1 : size_t(2.71828 * m))
         {
             //prepare the input ranges
-            Sequence<T1> in1(n, [](::std::size_t k) { return rand() % (std::max(1,k>>2)); });
-            Sequence<T2> in2(m, [m](::std::size_t k) { return ((m % 2) * rand() + rand()) % (std::max(1,k>>2)); });
+            Sequence<T1> in1(n, [](::std::size_t k) { return rand() % (std::max(std::size_t{1},k>>2)); });
+            Sequence<T2> in2(m, [m](::std::size_t k) { return ((m % 2) * rand() + rand()) % (std::max(std::size_t{1},k>>2)); });
 
             ::std::sort(in1.begin(), in1.end(), compare);
             ::std::sort(in2.begin(), in2.end(), compare);
