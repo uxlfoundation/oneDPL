@@ -218,15 +218,15 @@ struct test_set_intersection
         auto res = ::std::set_intersection(exec, first1, last1, first2, last2, out.begin());
         std::cout<<"exected num "<<expect_res - expect.begin()<<", actual num"<<res - out.begin()<<std::endl;
         std::cout<<"\nSetA "<<std::distance(first1,last1)<<" elements:\n";
-        write_first_n_last_m(5, 5, first1, last1);
+        write_first_n_last_m(10, 10, first1, last1);
         std::cout<<"\nSetB "<<std::distance(first2,last2)<<" elements:\n";
-        write_first_n_last_m(5, 5, first2, last2);
+        write_first_n_last_m(10, 10, first2, last2);
 
         std::cout<<"\nExpected "<<std::distance(expect.begin(), expect_res)<<" elements:\n";
-        write_first_n_last_m(5, 5, expect.begin(), expect_res);
+        write_first_n_last_m(10, 10, expect.begin(), expect_res);
 
         std::cout<<"\nOut "<<std::distance(out.begin(), res)<<" elements:\n";
-        write_first_n_last_m(5, 5, out.begin(), res);
+        write_first_n_last_m(10, 10, out.begin(), res);
 
         std::cout<<std::endl;
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_intersection without comparator");
