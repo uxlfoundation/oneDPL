@@ -345,7 +345,7 @@ template <template <typename T> typename TestType, typename T1, typename T2, typ
 void
 test_set(Compare compare, bool comp_flag)
 {
-    const ::std::size_t n_max = 100000;
+    const ::std::size_t n_max = 300000000;
 
     // The rand()%(2*n+1) encourages generation of some duplicates.
     ::std::srand(4200);
