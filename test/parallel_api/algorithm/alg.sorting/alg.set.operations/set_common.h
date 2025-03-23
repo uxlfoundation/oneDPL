@@ -361,7 +361,7 @@ test_set(Compare compare, bool comp_flag)
             ::std::sort(in1.begin(), in1.end(), compare);
             ::std::sort(in2.begin(), in2.end(), compare);
 
-            std::cout<<"Test Case:"<<n<" "<<m<<std::endl;
+            std::cout<<"Test Case:"<<n<<" "<<m<<std::endl;
 
             if (comp_flag)
                 invoke_on_all_policies<0>()(TestType<T1>(), in1.begin(), in1.end(), in2.cbegin(), in2.cend(), compare);
