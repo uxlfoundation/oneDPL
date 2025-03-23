@@ -778,6 +778,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     using _ValueType = typename _InitType::__value_type;
 
     constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz();
+    //TODO: add scaling factor for element size to adjust block
     constexpr std::uint8_t __block_size_scale = std::max(std::size_t{1}, sizeof(double) / sizeof(_ValueType));
     // Empirically determined maximum. May be less for non-full blocks.
     constexpr std::uint16_t __max_inputs_per_item = 64 * __block_size_scale;
@@ -814,6 +815,8 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     const std::size_t __block_size = std::min(__inputs_remaining, std::size_t{__max_inputs_per_block});
     const std::size_t __num_blocks = __inputs_remaining / __block_size + (__inputs_remaining % __block_size != 0);
 
+
+    std::cout<<"blocks: "<<__num_blocks<<std::endl;
     // We need temporary storage for reductions of each sub-group (__num_sub_groups_global).
     // Additionally, we need two elements for the block carry-out to prevent a race condition
     // between reading and writing the block carry-out within a single kernel.
