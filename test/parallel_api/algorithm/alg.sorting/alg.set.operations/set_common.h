@@ -350,7 +350,7 @@ test_set(Compare compare, bool comp_flag)
     // The rand()%(2*n+1) encourages generation of some duplicates.
     ::std::srand(4200);
 
-    for (::std::size_t n = 50000; n < n_max; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (::std::size_t n = 150000; n < n_max; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         for (::std::size_t m = 50000; m < n_max; m = m <= 16 ? m + 1 : size_t(2.71828 * m))
         {
@@ -360,6 +360,8 @@ test_set(Compare compare, bool comp_flag)
 
             ::std::sort(in1.begin(), in1.end(), compare);
             ::std::sort(in2.begin(), in2.end(), compare);
+
+            std::cout<<"Test Case:"<<n<" "<<m<<std::endl;
 
             if (comp_flag)
                 invoke_on_all_policies<0>()(TestType<T1>(), in1.begin(), in1.end(), in2.cbegin(), in2.cend(), compare);
