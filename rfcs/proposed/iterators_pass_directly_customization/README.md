@@ -71,10 +71,13 @@ oneDPL will define the "passed directly" definitions of its custom iterators as 
 * `permutation_iterator` is "passed directly" if both its source iterator and its index map are "passed directly"
 
 If a "passed directly" customization point is defined for a type, any derived type will also match the existing
-ADL customization point function if a more specific one is not defined. This can be a feature, as multiple derived types
-can inherit "passed directly" traits from their parent. However, users must be aware that this is the case. A user could
-incorrectly assume that the lack of a customization point for the derived class would mean the new type will use the
-default overload of `is_passed_directly_in_onedpl_device_policies` (and return `std::false_type`).
+customization point function unless explicitly overridden. Users can override this behavior by implementing a more
+specific ADL customization point function for the derived class. This is particularly useful in cases of multiple
+inheritance or ambiguous ADL matches, where the default behavior may not align with the intended design.
+
+Users must be aware of this behavior. A user might incorrectly assume that the absence of a customization point
+specifically for the derived class would cause the derived iterator type to use the default overload of
+`is_passed_directly_in_onedpl_device_policies` (and return `std::false_type`).
 
 ### Implementation Details
 
