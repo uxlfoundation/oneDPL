@@ -267,22 +267,14 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 }
 
 template <typename... _Name>
-class __reduce_then_scan_reduce_kernel;
+class __parallel_reduce_then_scan_reduce_kernel;
 
 template <typename... _Name>
-class __reduce_then_scan_scan_kernel;
+class __parallel_reduce_then_scan_scan_kernel;
 
 template <std::uint8_t __sub_group_size, std::uint16_t __max_inputs_per_item, bool __is_inclusive,
-          bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp, typename _InitType,
-          typename _KernelName>
-struct __parallel_reduce_then_scan_reduce_submitter;
-
-template <std::uint8_t __sub_group_size, std::uint16_t __max_inputs_per_item, bool __is_inclusive,
-          bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp, typename _InitType,
-          typename... _KernelName>
-struct __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inputs_per_item, __is_inclusive,
-                                                    __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType,
-                                                    __internal::__optional_kernel_name<_KernelName...>>
+          bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp, typename _InitType>
+struct __parallel_reduce_then_scan_reduce_submitter
 {
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
@@ -293,6 +285,20 @@ struct __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inpu
                const std::uint32_t __inputs_per_sub_group, const std::uint32_t __inputs_per_item,
                const std::size_t __block_num) const
     {
+        using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
+            __parallel_reduce_then_scan_reduce_kernel,
+            _CustomName,
+            std::integral_constant<decltype(__sub_group_size),      __sub_group_size>,
+            std::integral_constant<decltype(__max_inputs_per_item), __max_inputs_per_item>,
+            std::integral_constant<decltype(__is_inclusive),        __is_inclusive>,
+            std::integral_constant<decltype(__is_unique_pattern_v), __is_unique_pattern_v>,
+            _GenReduceInput,
+            _ReduceOp,
+            _InitType,
+            _InRng, _TmpStorageAcc>;
+
         using _InitValueType = typename _InitType::__value_type;
         return __exec.queue().submit([&, this](sycl::handler& __cgh) {
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__num_sub_groups_local, __cgh);
@@ -300,7 +306,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inpu
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
-            __cgh.parallel_for<_KernelName...>(
+            __cgh.parallel_for<_KernelName>(
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 std::size_t __group_id = __ndi.get_group(0);
@@ -819,19 +825,9 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
                                                                                     __num_sub_groups_global + 2};
 
     // Reduce and scan step implementations
-    using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<
-        __sub_group_size, __max_inputs_per_item, __inclusive, __is_unique_pattern_v, _GenReduceInput, _ReduceOp,
-        _InitType,
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __reduce_then_scan_reduce_kernel<
-                std::integral_constant<decltype(__sub_group_size), __sub_group_size>,
-                std::integral_constant<decltype(__max_inputs_per_item), __max_inputs_per_item>,
-                _Inclusive,         // for __inclusive state
-                _IsUniquePattern,   // for __is_unique_pattern_v state
-                _GenReduceInput,
-                _ReduceOp,
-                _InitType,
-                _CustomName>>>;
+    using _ReduceSubmitter =
+        __parallel_reduce_then_scan_reduce_submitter<__sub_group_size, __max_inputs_per_item, __inclusive,
+                                                     __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType>;
     using _ScanSubmitter = __parallel_reduce_then_scan_scan_submitter<
         __sub_group_size, __max_inputs_per_item, __inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
         _ScanInputTransform, _WriteOp, _InitType,
