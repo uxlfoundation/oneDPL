@@ -105,7 +105,7 @@ lower_bound_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterator1
     return oneapi::dpl::__internal::__pattern_walk2(
         tag, std::forward<Policy>(policy), value_start, value_end, result,
         oneapi::dpl::__internal::__transform_functor{
-            [start, end, comp](const _ValueType& val) { return std::lower_bound(start, end, val, comp) - start; }});
+            [start, end, comp](const _ValueType& val) { return std::lower_bound(start, end, val, comp) - start; }}); // KSATODO move lambda
 }
 
 template <class _Tag, typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
@@ -121,7 +121,7 @@ upper_bound_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterator1
     return oneapi::dpl::__internal::__pattern_walk2(
         tag, std::forward<Policy>(policy), value_start, value_end, result,
         oneapi::dpl::__internal::__transform_functor{
-            [start, end, comp](const _ValueType& val) { return std::upper_bound(start, end, val, comp) - start; }});
+            [start, end, comp](const _ValueType& val) { return std::upper_bound(start, end, val, comp) - start; }}); // KSATODO move lambda
 }
 
 template <class _Tag, typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
@@ -137,7 +137,7 @@ binary_search_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterato
     return oneapi::dpl::__internal::__pattern_walk2(
         tag, std::forward<Policy>(policy), value_start, value_end, result,
         oneapi::dpl::__internal::__transform_functor{
-            [start, end, comp](const _ValueType& val) { return std::binary_search(start, end, val, comp); }});
+            [start, end, comp](const _ValueType& val) { return std::binary_search(start, end, val, comp); }});  // KSATODO move lambda
 }
 
 #if _ONEDPL_BACKEND_SYCL
