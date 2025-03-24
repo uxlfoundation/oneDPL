@@ -2314,7 +2314,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
             oneapi::dpl::__internal::__device_backend_tag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2,
             __n,
-            [__binary_pred, __wgroup_size](const auto& __a) {
+            [__binary_pred, __wgroup_size](const auto& __a) { // KSATODO move lambda
                 // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
                 // for (i-1), but we still need to get its key value as it is the start of a segment
                 const auto index = std::get<0>(__a);
@@ -2362,7 +2362,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                             oneapi::dpl::__internal::__device_backend_tag{},
                             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec),
                             __view3, __view4, __view3.size(),
-                            [__binary_pred](const auto& __a) {
+                            [__binary_pred](const auto& __a) { // KSATODO move lambda
                                 // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
                                 // for (i-1), but we still need to get its key value as it is the start of a segment
                                 if (std::get<0>(__a) == 0)
