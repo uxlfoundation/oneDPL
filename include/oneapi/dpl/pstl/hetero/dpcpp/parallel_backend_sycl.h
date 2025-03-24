@@ -1071,7 +1071,7 @@ struct __gen_set_op_from_known_balanced_path
         
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_temp_diag[__id], __rng2_temp_diag[__id], __eles_to_process,
                                                __output_data, __comp);
-        return std::make_tuple(__count, std::uint32_t{__count}, std::move(__output_data));
+        return std::make_tuple(std::uint32_t{__count}, __count, std::move(__output_data));
     }
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
