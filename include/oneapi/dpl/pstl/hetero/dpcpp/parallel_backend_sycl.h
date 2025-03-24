@@ -1783,7 +1783,6 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _Compare>;
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_SetOperation, _TempData, _Compare>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
-    using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign>;
     
     const std::int32_t __num_diagonals = oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size() + __rng2.size(), __diagonal_spacing);
