@@ -771,8 +771,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
                                       _Inclusive, _IsUniquePattern)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-    using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __reduce_then_scan_scan_kernel<_CustomName>>;
+
     using _ValueType = typename _InitType::__value_type;
 
     constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz();
@@ -825,10 +824,11 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
         _InitType,
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __reduce_then_scan_reduce_kernel<_CustomName>>>;
-    using _ScanSubmitter =
-        __parallel_reduce_then_scan_scan_submitter<__sub_group_size, __max_inputs_per_item, __inclusive,
-                                                   __is_unique_pattern_v, _ReduceOp, _GenScanInput, _ScanInputTransform,
-                                                   _WriteOp, _InitType, _ScanKernel>;
+    using _ScanSubmitter = __parallel_reduce_then_scan_scan_submitter<
+        __sub_group_size, __max_inputs_per_item, __inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
+        _ScanInputTransform, _WriteOp, _InitType,
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __reduce_then_scan_scan_kernel<_CustomName>>>;
     _ReduceSubmitter __reduce_submitter{__max_inputs_per_block,
                                         __num_sub_groups_local,
                                         __num_sub_groups_global,
