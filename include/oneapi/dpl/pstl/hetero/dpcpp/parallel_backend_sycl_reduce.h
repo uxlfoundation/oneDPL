@@ -503,7 +503,7 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
     auto __transform_pattern2 =
         unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _NoOpFunctor, _Tp, _Commutative, __vector_size>{
             __reduce_op, _NoOpFunctor{}};
-    auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
+    auto __reduce_pattern = unseq_backend::reduce_over_group<std::decay_t<_ExecutionPolicy>, _ReduceOp, _Tp>{__reduce_op};
 
     // Otherwise use a recursive tree reduction with __max_iters_per_work_item __iters_per_work_item.
     const auto __work_group_size_long = static_cast<_Size>(__work_group_size);
