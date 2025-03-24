@@ -823,7 +823,15 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
         __sub_group_size, __max_inputs_per_item, __inclusive, __is_unique_pattern_v, _GenReduceInput, _ReduceOp,
         _InitType,
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __reduce_then_scan_reduce_kernel<_CustomName>>>;
+            __reduce_then_scan_reduce_kernel<
+                std::integral_constant<decltype(__sub_group_size), __sub_group_size>,
+                std::integral_constant<decltype(__max_inputs_per_item), __max_inputs_per_item>,
+                _Inclusive,         // for __inclusive state
+                _IsUniquePattern,   // for __is_unique_pattern_v state
+                _GenReduceInput,
+                _ReduceOp,
+                _InitType,
+                _CustomName>>>;
     using _ScanSubmitter = __parallel_reduce_then_scan_scan_submitter<
         __sub_group_size, __max_inputs_per_item, __inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
         _ScanInputTransform, _WriteOp, _InitType,
