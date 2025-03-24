@@ -183,16 +183,16 @@ class fixed_resource_policy;
 | Constructors and Initialization |
 | -----------------------------------------------------------|
 | `fixed_resource_policy(deferred_initialization_t); // (1)` |
-| `fixed_resource_policy(size_t offset=0); // (2)` |
-| `fixed_resource_policy(const std::vector<resource_t<Backend>>& resources, size_t offset=0); // (3)` |
-| `void initialize(size_t offset=0); // (4)` |
-| `void initialize(const std::vector<resource_t<Backend>>& resources, size_t offset=0); // (5)` |
+| `fixed_resource_policy(size_t index=0); // (2)` |
+| `fixed_resource_policy(const std::vector<resource_t<Backend>>& resources, size_t index=0); // (3)` |
+| `void initialize(size_t index=0); // (4)` |
+| `void initialize(const std::vector<resource_t<Backend>>& resources, size_t index=0); // (5)` |
 
 1. Defers initialization and requires a later call to `initialize`.
-2. Always selects index `offset` in the default set of resources.
-3. Uses the provided set of resources and always selects index `offset` from that set.
-4. Always selects index `offset` in the default set of resources.
-5. Uses the provided set of resources and always selects index `offset` from that set.
+2. Always selects index `index` in the default set of resources.
+3. Uses the provided set of resources and always selects index `index` from that set.
+4. Always selects index `index` in the default set of resources.
+5. Uses the provided set of resources and always selects index `index` from that set.
 
 `initialize` should only be called for policies that are constructed with `deferred_initialization_t`.
 
@@ -202,7 +202,7 @@ class fixed_resource_policy;
   template<typename ...Args>
   selection_type fixed_resource_policy::select(Args&&...) {
     if (initialized_) {
-      return selection_type{*this, resources_[fixed_offset_]};
+      return selection_type{*this, resources_[index_]};
     } else {
       throw std::logic_error(“select called before initialize”);
     }
