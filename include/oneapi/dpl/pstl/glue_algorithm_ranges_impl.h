@@ -586,7 +586,7 @@ struct __minmax_element_fn
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
 
     std::ranges::minmax_element_result<std::ranges::borrowed_iterator_t<_R>>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         const auto& [__min, __max] = 
@@ -611,7 +611,7 @@ struct __min_fn
              && std::indirectly_copyable_storable<std::ranges::iterator_t<_R>, std::ranges::range_value_t<_R>*>
 
     std::ranges::range_value_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         assert(std::ranges::size(__r) > 0);
 
@@ -636,7 +636,7 @@ struct __max_fn
              && std::indirectly_copyable_storable<std::ranges::iterator_t<_R>, std::ranges::range_value_t<_R>*>
 
     std::ranges::range_value_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         assert(std::ranges::size(__r) > 0);
 
@@ -660,7 +660,7 @@ struct __minmax_fn
              && std::indirectly_copyable_storable<std::ranges::iterator_t<_R>, std::ranges::range_value_t<_R>*>
 
     std::ranges::minmax_result<std::ranges::range_value_t<_R>>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {})
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         assert(std::ranges::size(__r) > 0);
 
