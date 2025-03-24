@@ -158,6 +158,14 @@ template<typename T>
 static constexpr
 bool is_range<T, std::void_t<decltype(std::declval<T&>().begin())>> = true;
 
+template<typename, typename = void>
+static constexpr bool check_minmax{};
+
+template<typename T>
+static constexpr
+bool check_minmax<T, std::void_t<decltype(std::declval<T>().min, std::declval<T>().max)>> = true;
+
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in>
 struct test
 {
@@ -353,6 +361,11 @@ private:
             return std::distance(begin, ret);
         else if constexpr(is_range<Ret>)
             return std::pair{std::distance(begin, ret.begin()), std::ranges::distance(ret.begin(), ret.end())};
+        else if constexpr(check_minmax<Ret>)
+        {
+            const auto& [first, second] = ret;
+            return std::pair{first, second};
+        }
         else
             return ret;
     }
