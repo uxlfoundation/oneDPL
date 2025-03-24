@@ -190,10 +190,12 @@ __pattern_find_end(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
                            std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));
     };
 
-    return std::ranges::borrowed_iterator_t<_R1>(oneapi::dpl::__internal::__pattern_find_end(__tag,
-        std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1), std::ranges::begin(__r1) +
-        std::ranges::size(__r1), std::ranges::begin(__r2), std::ranges::begin(__r2) +
-        std::ranges::size(__r2), __bin_pred));
+    auto __last1 = std::ranges::begin(__r1) + std::ranges::size(__r1);
+    auto __it = oneapi::dpl::__internal::__pattern_find_end(__tag,
+        std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1), __last1, std::ranges::begin(__r2),
+        std::ranges::begin(__r2) +std::ranges::size(__r2), __bin_pred);
+
+    return std::ranges::borrowed_subrange_t<_R1>(__it, __last1);
 }
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>

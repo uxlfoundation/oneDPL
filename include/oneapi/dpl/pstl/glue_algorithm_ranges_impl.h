@@ -238,7 +238,7 @@ struct __find_end_fn
         && std::indirectly_comparable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>, _Pred, _Proj1, _Proj2>
         && std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2>
 
-    std::ranges::borrowed_iterator_t<_R1>
+    std::ranges::borrowed_subrange_t<_R1>
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
                _Proj2 __proj2 = {}) const
     {
