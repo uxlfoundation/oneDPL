@@ -251,6 +251,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     else
 #endif
     {
+        // KSATODO move lambda
         auto __fn = [__op](_It1ValueT __in1, _It1ValueT __in2, _It2ValueTRef __out1) {
             __out1 = __op(__in2, __in1); // This move assignment is allowed by the C++ standard draft N4810
         };
