@@ -288,16 +288,12 @@ struct __parallel_reduce_then_scan_reduce_submitter
         using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-            __parallel_reduce_then_scan_reduce_kernel,
-            _CustomName,
-            std::integral_constant<decltype(__sub_group_size),      __sub_group_size>,
+            __parallel_reduce_then_scan_reduce_kernel, _CustomName,
+            std::integral_constant<decltype(__sub_group_size), __sub_group_size>,
             std::integral_constant<decltype(__max_inputs_per_item), __max_inputs_per_item>,
-            std::integral_constant<decltype(__is_inclusive),        __is_inclusive>,
-            std::integral_constant<decltype(__is_unique_pattern_v), __is_unique_pattern_v>,
-            _GenReduceInput,
-            _ReduceOp,
-            _InitType,
-            _InRng, _TmpStorageAcc>;
+            std::integral_constant<decltype(__is_inclusive), __is_inclusive>,
+            std::integral_constant<decltype(__is_unique_pattern_v), __is_unique_pattern_v>, _GenReduceInput, _ReduceOp,
+            _InitType, _InRng, _TmpStorageAcc>;
 
         using _InitValueType = typename _InitType::__value_type;
         return __exec.queue().submit([&, this](sycl::handler& __cgh) {
@@ -306,8 +302,8 @@ struct __parallel_reduce_then_scan_reduce_submitter
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
-            __cgh.parallel_for<_KernelName>(
-                    __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
+            __cgh.parallel_for<_KernelName>(__nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(
+                                                            __sub_group_size)]] {
                 _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 std::size_t __group_id = __ndi.get_group(0);
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
@@ -446,17 +442,12 @@ struct __parallel_reduce_then_scan_scan_submitter
         using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-            __parallel_reduce_then_scan_scan_kernel,
-            _CustomName,
-            std::integral_constant<decltype(__sub_group_size),      __sub_group_size>,
+            __parallel_reduce_then_scan_scan_kernel, _CustomName,
+            std::integral_constant<decltype(__sub_group_size), __sub_group_size>,
             std::integral_constant<decltype(__max_inputs_per_item), __max_inputs_per_item>,
-            std::integral_constant<decltype(__is_inclusive),        __is_inclusive>,
-            std::integral_constant<decltype(__is_unique_pattern_v), __is_unique_pattern_v>,
-            _ReduceOp,
-            _GenScanInput,
-            _ScanInputTransform,
-            _WriteOp, _InitType,
-            _InRng, _OutRng, _TmpStorageAcc>;
+            std::integral_constant<decltype(__is_inclusive), __is_inclusive>,
+            std::integral_constant<decltype(__is_unique_pattern_v), __is_unique_pattern_v>, _ReduceOp, _GenScanInput,
+            _ScanInputTransform, _WriteOp, _InitType, _InRng, _OutRng, _TmpStorageAcc>;
 
         std::uint32_t __inputs_in_block = std::min(__n - __block_num * __max_block_size, std::size_t{__max_block_size});
         std::uint32_t __active_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
@@ -472,8 +463,8 @@ struct __parallel_reduce_then_scan_scan_submitter
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
-            __cgh.parallel_for<_KernelName>(
-                    __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
+            __cgh.parallel_for<_KernelName>(__nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(
+                                                            __sub_group_size)]] {
                 _InitValueType* __tmp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 _InitValueType* __res_ptr =
                     _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__res_acc, __num_sub_groups_global + 2);
