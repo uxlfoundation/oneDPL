@@ -345,14 +345,14 @@ template <template <typename T> typename TestType, typename T1, typename T2, typ
 void
 test_set(Compare compare, bool comp_flag)
 {
-    const ::std::size_t n_max = 30000000;
+    const ::std::size_t n_max = 300000000;
 
     // The rand()%(2*n+1) encourages generation of some duplicates.
     ::std::srand(4200);
     
     for (::std::size_t m = 0; m < n_max; m = m <= 16 ? m + 1 : size_t(2.71828 * m))
     {
-        for (::std::size_t n = 50000; n < n_max; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+        for (::std::size_t n = 0; n < n_max; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
         {
             //prepare the input ranges
             Sequence<T1> in1(n, [](::std::size_t k) { return rand() % (std::max(std::size_t{1},k>>6)); });
