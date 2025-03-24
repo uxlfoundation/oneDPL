@@ -44,7 +44,7 @@ struct __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_wo
     operator()(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, ::std::size_t __n) const
     {
         sycl::nd_range<1> __nd_range{__work_group_size, __work_group_size};
-        return __q.submit([&](sycl::handler& __cgh) {
+        return __q_ref.queue().submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __pack_in.__keys_rng());
             oneapi::dpl::__ranges::__require_access(__cgh, __pack_out.__keys_rng());
             __cgh.parallel_for<_Name...>(__nd_range, [=](sycl::nd_item<1> __nd_item) [[intel::sycl_explicit_simd]] {
@@ -66,11 +66,11 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
 {
     template <typename _KeysRng, typename _GlobalOffsetData>
     sycl::event
-    operator()(sycl::queue& __q, const _KeysRng& __keys_rng, const _GlobalOffsetData& __global_offset_data,
+    operator()(oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, const _KeysRng& __keys_rng, const _GlobalOffsetData& __global_offset_data,
                ::std::size_t __n, const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__hist_work_group_count * __hist_work_group_size, __hist_work_group_size);
-        return __q.submit([&](sycl::handler& __cgh) {
+        return __q_ref.queue().submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __keys_rng);
             __cgh.depends_on(__e);
             __cgh.parallel_for<_Name...>(__nd_range, [=](sycl::nd_item<1> __nd_item) [[intel::sycl_explicit_simd]] {
@@ -94,7 +94,7 @@ struct __radix_sort_onesweep_scan_submitter<
                const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__stage_count * __bin_count, __bin_count);
-        return __q.submit([&](sycl::handler& __cgh) {
+        return __q_ref.queue().submit([&](sycl::handler& __cgh) {
             __cgh.depends_on(__e);
             __cgh.parallel_for<_Name...>(__nd_range, [=](sycl::nd_item<1> __nd_item) {
                 ::std::uint32_t __offset = __nd_item.get_global_id(0);
@@ -124,7 +124,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
                ::std::uint32_t __stage, const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__sweep_work_group_count * __work_group_size, __work_group_size);
-        return __q.submit([&](sycl::handler& __cgh) {
+        return __q_ref.queue().submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__keys_rng(), __out_pack.__keys_rng());
             if constexpr (::std::decay_t<_InRngPack>::__has_values)
             {
@@ -151,7 +151,7 @@ struct __radix_sort_copyback_submitter<oneapi::dpl::__par_backend_hetero::__inte
     operator()(sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, ::std::uint32_t __n,
                const sycl::event& __e) const
     {
-        return __q.submit([&](sycl::handler& __cgh) {
+        return __q_ref.queue().submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__keys_rng(), __out_pack.__keys_rng());
             if constexpr (::std::decay_t<_InRngPack>::__has_values)
             {

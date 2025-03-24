@@ -125,16 +125,16 @@ struct __parallel_transform_reduce_small_submitter<_Tp, __internal::__optional_k
     template <typename _Size, typename _TransformPattern, typename _ReducePattern, typename _InitType,
               typename... _Ranges>
     auto
-    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q, const _Size __n,
+    operator()(oneapi::dpl::__internal::__device_backend_tag, oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, const _Size __n,
                const _Size __work_group_size, const _Size __iters_per_work_item, _TransformPattern __transform_pattern,
                _ReducePattern __reduce_pattern, _InitType __init, _Ranges&&... __rngs) const
     {
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
 
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
-        __result_and_scratch_storage_t __scratch_container{__q, 1, 0};
+        __result_and_scratch_storage_t __scratch_container{__q_ref.queue(), 1, 0};
 
-        sycl::event __reduce_event = __q.submit([&, __n](sycl::handler& __cgh) {
+        sycl::event __reduce_event = __q_ref.queue().submit([&, __n](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...); // get an access to data under SYCL buffer
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
@@ -185,7 +185,7 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, __internal::__op
 {
     template <typename _Size, typename _TransformPattern, typename _ReducePattern, typename... _Ranges>
     auto
-    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q, const _Size __n,
+    operator()(oneapi::dpl::__internal::__device_backend_tag, oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, const _Size __n,
                const _Size __work_group_size, const _Size __iters_per_work_item, _TransformPattern __transform_pattern,
                _ReducePattern __reduce_pattern, const __result_and_scratch_storage<_Tp>& __scratch_container,
                _Ranges&&... __rngs) const
@@ -195,7 +195,7 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, __internal::__op
         const _Size __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
         const bool __is_full = __n == __size_per_work_group * __n_groups;
 
-        return __q.submit([&, __n](sycl::handler& __cgh) {
+        return __q_ref.queue().submit([&, __n](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...); // get an access to data under SYCL buffer
             std::size_t __local_mem_size = __reduce_pattern.local_mem_req(__work_group_size);
             __dpl_sycl::__local_accessor<_Tp> __temp_local(sycl::range<1>(__local_mem_size), __cgh);
@@ -224,7 +224,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, __internal::
 {
     template <typename _Size, typename _TransformPattern, typename _ReducePattern, typename _InitType>
     auto
-    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q, sycl::event& __reduce_event,
+    operator()(oneapi::dpl::__internal::__device_backend_tag, oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, sycl::event& __reduce_event,
                const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item,
                _TransformPattern __transform_pattern, _ReducePattern __reduce_pattern, _InitType __init,
                const __result_and_scratch_storage<_Tp>& __scratch_container) const
@@ -233,7 +233,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, __internal::
 
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
 
-        __reduce_event = __q.submit([&, __n](sycl::handler& __cgh) {
+        __reduce_event = __q_ref.queue().submit([&, __n](sycl::handler& __cgh) {
             __cgh.depends_on(__reduce_event);
 
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
@@ -302,7 +302,7 @@ struct __parallel_transform_reduce_impl
     template <typename _Size, typename _TransformPattern1, typename _TransformPattern2, typename _ReducePattern,
               typename _InitType, typename... _Ranges>
     static auto
-    submit(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q, _Size __n, _Size __work_group_size,
+    submit(oneapi::dpl::__internal::__device_backend_tag, oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, _Size __n, _Size __work_group_size,
            const _Size __iters_per_work_item, _TransformPattern1 __transform_pattern1,
            _TransformPattern2 __transform_pattern2, _ReducePattern __reduce_pattern, _InitType __init,
            _Ranges&&... __rngs)
@@ -311,8 +311,8 @@ struct __parallel_transform_reduce_impl
             __reduce_kernel, _CustomName, _TransformPattern1, _TransformPattern2, _ReducePattern, _Ranges...>;
 
 #if _ONEDPL_COMPILE_KERNEL
-        auto __kernel = __internal::__kernel_compiler<_ReduceKernel>::__compile(__q);
-        _Size __adjusted_work_group_size = oneapi::dpl::__internal::__kernel_work_group_size(__q, __kernel);
+        auto __kernel = __internal::__kernel_compiler<_ReduceKernel>::__compile(__q_ref.queue());
+        _Size __adjusted_work_group_size = oneapi::dpl::__internal::__kernel_work_group_size(__q_ref.queue(), __kernel);
         __work_group_size = std::min(__work_group_size, __adjusted_work_group_size);
 #endif
 
@@ -323,7 +323,7 @@ struct __parallel_transform_reduce_impl
         // Create temporary global buffers to store temporary values
         const std::size_t __n_scratch = 2 * __n_groups;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
-        __result_and_scratch_storage_t __scratch_container{__q, 1, __n_scratch};
+        __result_and_scratch_storage_t __scratch_container{__q_ref.queue(), 1, __n_scratch};
 
         // __is_first == true. Reduce over each work_group
         // __is_first == false. Reduce between work groups
@@ -337,7 +337,7 @@ struct __parallel_transform_reduce_impl
         sycl::event __reduce_event;
         do
         {
-            __reduce_event = __q.submit([&, __is_first, __offset_1, __offset_2, __n, __n_groups](sycl::handler& __cgh) {
+            __reduce_event = __q_ref.queue().submit([&, __is_first, __offset_1, __offset_2, __n, __n_groups](sycl::handler& __cgh) {
                 __cgh.depends_on(__reduce_event);
                 auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(
                     __cgh, __is_first ? sycl::property_list{__dpl_sycl::__no_init{}} : sycl::property_list{});

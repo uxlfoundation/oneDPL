@@ -35,7 +35,7 @@ struct __subgroup_radix_sort
 {
     template <typename _RangeIn, typename _Proj>
     auto
-    operator()(sycl::queue __q, _RangeIn&& __src, _Proj __proj)
+    operator()(oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, _RangeIn&& __src, _Proj __proj)
     {
         using __wg_size_t = ::std::integral_constant<::std::uint16_t, __wg_size>;
         using __block_size_t = ::std::integral_constant<::std::uint16_t, __block_size>;
@@ -52,15 +52,15 @@ struct __subgroup_radix_sort
 
         using _KeyT = oneapi::dpl::__internal::__value_t<_RangeIn>;
         //check SLM size
-        const auto __SLM_available = __check_slm_size<_KeyT>(__q, __src.size());
+        const auto __SLM_available = __check_slm_size<_KeyT>(__q_ref.queue(), __src.size());
         if (__SLM_available.first && __SLM_available.second)
-            return __one_group_submitter<_SortKernelLoc>()(__q, ::std::forward<_RangeIn>(__src), __proj,
+            return __one_group_submitter<_SortKernelLoc>()(__q_ref.queue(), ::std::forward<_RangeIn>(__src), __proj,
                                                            ::std::true_type{} /*SLM*/, ::std::true_type{} /*SLM*/);
         if (__SLM_available.second)
-            return __one_group_submitter<_SortKernelPartGlob>()(__q, ::std::forward<_RangeIn>(__src), __proj,
+            return __one_group_submitter<_SortKernelPartGlob>()(__q_ref.queue(), ::std::forward<_RangeIn>(__src), __proj,
                                                                 ::std::false_type{} /*No SLM*/,
                                                                 ::std::true_type{} /*SLM*/);
-        return __one_group_submitter<_SortKernelGlob>()(__q, ::std::forward<_RangeIn>(__src), __proj,
+        return __one_group_submitter<_SortKernelGlob>()(__q_ref.queue(), ::std::forward<_RangeIn>(__src), __proj,
                                                             ::std::false_type{} /*No SLM*/, ::std::false_type{} /*No SLM*/);
     }
 
@@ -127,7 +127,7 @@ struct __subgroup_radix_sort
 
     template <typename _T, typename _Size>
     auto
-    __check_slm_size(sycl::queue __q, _Size __n)
+    __check_slm_size(oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, _Size __n)
     {
         assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
 
@@ -136,7 +136,7 @@ struct __subgroup_radix_sort
         // Pessimistically only use half of the memory to take into account
         // a SYCL group algorithm might use a portion of SLM
         const ::std::size_t __max_slm_size =
-            __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+            __q_ref.queue().get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
 
         const auto __n_uniform = 1 << (::std::uint32_t(log2(__n - 1)) + 1);
         const auto __req_slm_size_val = sizeof(_T) * __n_uniform;
@@ -156,7 +156,7 @@ struct __subgroup_radix_sort
     {
         template <typename _RangeIn, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
         auto
-        operator()(sycl::queue __q, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
+        operator()(oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
         {
             uint16_t __n = __src.size();
             assert(__n <= __block_size * __wg_size);
@@ -168,7 +168,7 @@ struct __subgroup_radix_sort
             _TempBuf<uint32_t, _SLM_counter> __buf_count(__counter_buf_sz);
 
             sycl::nd_range __range{sycl::range{__wg_size}, sycl::range{__wg_size}};
-            return __q.submit([&](sycl::handler& __cgh) {
+            return __q_ref.queue().submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __src);
 
                 auto __exchange_lacc = __buf_val.get_acc(__cgh);

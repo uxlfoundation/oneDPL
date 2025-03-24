@@ -108,7 +108,7 @@ struct __sycl_scan_by_segment_impl
     template <typename _BackendTag, typename _Range1, typename _Range2, typename _Range3,
               typename _BinaryPredicate, typename _BinaryOperator, typename _T>
     void
-    operator()(_BackendTag, sycl::queue __q, _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
+    operator()(_BackendTag, oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
                _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init, _T __identity)
     {
         using _SegScanWgKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
@@ -125,21 +125,21 @@ struct __sycl_scan_by_segment_impl
 
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-        std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)2048);
+        std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__q_ref.queue(), (std::size_t)2048);
 
         // We require 2 * sizeof(__val_type) * __wgroup_size of SLM for the work group segmented scan. We add
         // an additional sizeof(__val_type) * __wgroup_size requirement to ensure sufficient SLM for the group algorithms.
         __wgroup_size =
-            oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, 3 * sizeof(__val_type), __wgroup_size);
+            oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q_ref.queue(), 3 * sizeof(__val_type), __wgroup_size);
 
 #if _ONEDPL_COMPILE_KERNEL
         auto __seg_scan_wg_kernel =
-            __par_backend_hetero::__internal::__kernel_compiler<_SegScanWgKernel>::__compile(__q);
+            __par_backend_hetero::__internal::__kernel_compiler<_SegScanWgKernel>::__compile(__q_ref.queue());
         auto __seg_scan_prefix_kernel =
-            __par_backend_hetero::__internal::__kernel_compiler<_SegScanPrefixKernel>::__compile(__q);
+            __par_backend_hetero::__internal::__kernel_compiler<_SegScanPrefixKernel>::__compile(__q_ref.queue());
         __wgroup_size =
-            ::std::min({__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_scan_wg_kernel),
-                        oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_scan_prefix_kernel)});
+            ::std::min({__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q_ref.queue(), __seg_scan_wg_kernel),
+                        oneapi::dpl::__internal::__kernel_work_group_size(__q_ref.queue(), __seg_scan_prefix_kernel)});
 #endif
 
         ::std::size_t __n_groups = __internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);
@@ -150,7 +150,7 @@ struct __sycl_scan_by_segment_impl
         auto __seg_ends = oneapi::dpl::__par_backend_hetero::__buffer<bool>(__n_groups).get_buffer();
 
         // 1. Work group reduction
-        auto __wg_scan = __q.submit([&](sycl::handler& __cgh) {
+        auto __wg_scan = __q_ref.queue().submit([&](sycl::handler& __cgh) {
             auto __partials_acc = __partials.template get_access<sycl::access_mode::write>(__cgh);
             auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::write>(__cgh);
 
@@ -250,7 +250,7 @@ struct __sycl_scan_by_segment_impl
         });
 
         // 2. Apply work group carry outs, calculate output indices, and load results into correct indices.
-        __q.submit([&](sycl::handler& __cgh) {
+        __q_ref.queue().submit.submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_values);
 
                 auto __partials_acc = __partials.template get_access<sycl::access_mode::read>(__cgh);

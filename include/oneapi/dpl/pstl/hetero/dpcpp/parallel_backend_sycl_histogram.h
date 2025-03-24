@@ -215,7 +215,7 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
 {
     template <typename _Range1, typename _Range2, typename _BinHashMgr>
     auto
-    operator()(sycl::queue __q, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
+    operator()(oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
                _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
         const ::std::size_t __n = __input.size();
@@ -229,7 +229,7 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
         ::std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
         ::std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
-        return __q.submit([&](auto& __h) {
+        return __q_ref.queue().submit([&](auto& __h) {
             __h.depends_on(__init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
@@ -288,7 +288,7 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
 template <typename _CustomName, ::std::uint16_t __iters_per_work_item, ::std::uint8_t __bins_per_work_item,
           typename _Range1, typename _Range2, typename _BinHashMgr>
 auto
-__histogram_general_registers_local_reduction(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q,
+__histogram_general_registers_local_reduction(oneapi::dpl::__internal::__device_backend_tag, oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref,
                                               const sycl::event& __init_event, ::std::uint16_t __work_group_size,
                                               _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
@@ -302,7 +302,7 @@ __histogram_general_registers_local_reduction(oneapi::dpl::__internal::__device_
 
     return __histogram_general_registers_local_reduction_submitter<__iters_per_work_item, __bins_per_work_item,
                                                                    _RegistersLocalReducName>()(
-        __q, __init_event, __work_group_size, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins),
+        __q_ref.queue(), __init_event, __work_group_size, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins),
         __binhash_manager);
 }
 
@@ -315,7 +315,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 {
     template <typename _Range1, typename _Range2, typename _BinHashMgr>
     auto
-    operator()(sycl::queue __q, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
+    operator()(oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
                _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
         using _local_histogram_type = ::std::uint32_t;
@@ -328,7 +328,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
         const ::std::size_t __num_bins = __bins.size();
         ::std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
-        return __q.submit([&](auto& __h) {
+        return __q_ref.queue().submit([&](auto& __h) {
             __h.depends_on(__init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
@@ -381,7 +381,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 template <typename _CustomName, ::std::uint16_t __iters_per_work_item, typename _Range1, typename _Range2,
           typename _BinHashMgr>
 auto
-__histogram_general_local_atomics(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q,
+__histogram_general_local_atomics(oneapi::dpl::__internal::__device_backend_tag, oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref,
                                   const sycl::event& __init_event, ::std::uint16_t __work_group_size, _Range1&& __input,
                                   _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
@@ -394,7 +394,7 @@ __histogram_general_local_atomics(oneapi::dpl::__internal::__device_backend_tag,
         __histo_kernel_local_atomics<_iters_per_work_item_t, _CustomName>>;
 
     return __histogram_general_local_atomics_submitter<__iters_per_work_item, _local_atomics_name>()(
-        __q, __init_event, __work_group_size, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins),
+        __q_ref.queue(), __init_event, __work_group_size, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins),
         __binhash_manager);
 }
 
@@ -406,7 +406,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
 {
     template <typename _BackendTag, typename _Range1, typename _Range2, typename _BinHashMgr>
     auto
-    operator()(_BackendTag, sycl::queue __q, const sycl::event& __init_event,
+    operator()(_BackendTag, oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, const sycl::event& __init_event,
                ::std::uint16_t __min_iters_per_work_item, ::std::uint16_t __work_group_size, _Range1&& __input,
                _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
@@ -415,7 +415,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
         using _histogram_index_type = ::std::int32_t;
 
-        auto __global_mem_size = __q.get_device().template get_info<sycl::info::device::global_mem_size>();
+        auto __global_mem_size = __q_ref.queue().get_device().template get_info<sycl::info::device::global_mem_size>();
         const ::std::size_t __max_segments =
             ::std::min(__global_mem_size / (__num_bins * sizeof(_bin_type)),
                        oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __min_iters_per_work_item));
@@ -427,7 +427,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
         auto __private_histograms =
             oneapi::dpl::__par_backend_hetero::__buffer<_bin_type>(__segments * __num_bins).get_buffer();
 
-        return __q.submit([&](auto& __h) {
+        return __q_ref.queue().submit([&](auto& __h) {
             __h.depends_on(__init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
@@ -476,7 +476,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
 };
 template <typename _CustomName, typename _Range1, typename _Range2, typename _BinHashMgr>
 auto
-__histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q,
+__histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_backend_tag, oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref,
                                            const sycl::event& __init_event, ::std::uint16_t __min_iters_per_work_item,
                                            ::std::uint16_t __work_group_size, _Range1&& __input, _Range2&& __bins,
                                            const _BinHashMgr& __binhash_manager)
@@ -485,7 +485,7 @@ __histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_bac
         __histo_kernel_private_glocal_atomics<_CustomName>>;
 
     return __histogram_general_private_global_atomics_submitter<_global_atomics_name>()(
-        oneapi::dpl::__internal::__device_backend_tag{}, __q, __init_event, __min_iters_per_work_item,
+        oneapi::dpl::__internal::__device_backend_tag{}, __q_ref.queue(), __init_event, __min_iters_per_work_item,
         __work_group_size, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins), __binhash_manager);
 }
 
@@ -493,7 +493,7 @@ template <typename _CustomName, ::std::uint16_t __iters_per_work_item, typename 
           typename _BinHashMgr>
 auto
 __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
-                                   sycl::queue __q, const sycl::event& __init_event, _Range1&& __input,
+                                   oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, const sycl::event& __init_event, _Range1&& __input,
                                    _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
     using _private_histogram_type = ::std::uint16_t;
@@ -502,9 +502,9 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
 
     const auto __num_bins = __bins.size();
     // Limit the maximum work-group size for better performance. Empirically found value.
-    std::uint16_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::uint16_t(1024));
+    std::uint16_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q_ref.queue(), std::uint16_t(1024));
 
-    auto __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
+    auto __local_mem_size = __q_ref.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
     constexpr ::std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
 
     // if bins fit into registers, use register private accumulation
@@ -512,7 +512,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
     {
         return __future(__histogram_general_registers_local_reduction<_CustomName, __iters_per_work_item,
                                                                       __max_work_item_private_bins>(
-            __backend_tag, __q, __init_event, __work_group_size, ::std::forward<_Range1>(__input),
+            __backend_tag, __q_ref.queue(), __init_event, __work_group_size, ::std::forward<_Range1>(__input),
             ::std::forward<_Range2>(__bins), __binhash_manager));
     }
     // if bins fit into SLM, use local atomics
@@ -521,7 +521,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
              __local_mem_size)
     {
         return __future(__histogram_general_local_atomics<_CustomName, __iters_per_work_item>(
-            __backend_tag, __q, __init_event, __work_group_size, ::std::forward<_Range1>(__input),
+            __backend_tag, __q_ref.queue(), __init_event, __work_group_size, ::std::forward<_Range1>(__input),
             ::std::forward<_Range2>(__bins), __binhash_manager));
     }
     else // otherwise, use global atomics (private copies per workgroup)
@@ -532,7 +532,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
         // private copies of the histogram bins in global memory.  No unrolling is taken advantage of here because it
         // is a runtime argument.
         return __future(__histogram_general_private_global_atomics<_CustomName>(
-            __backend_tag, __q, __init_event, __iters_per_work_item, __work_group_size,
+            __backend_tag, __q_ref.queue(), __init_event, __iters_per_work_item, __work_group_size,
             ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins), __binhash_manager));
     }
 }
