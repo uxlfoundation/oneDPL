@@ -99,6 +99,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 void
 __pattern_for_each(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _Proj __proj)
 {
+    // KSATODO move lambda
     auto __f_1 =
         [__f, __proj](auto&& __val) { std::invoke(__f, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
@@ -116,6 +117,7 @@ __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
                     _F __op, _Proj __proj)
 {
     assert(std::ranges::size(__in_r) <= std::ranges::size(__out_r)); // for debug purposes only
+    // KSATODO move lambda
     auto __unary_op = [__op, __proj](auto&& __val)
         { return std::invoke(__op, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
@@ -131,6 +133,7 @@ void
 __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange1&& __in_r1,
                     _InRange2&& __in_r2, _OutRange&& __out_r, _F __binary_op, _Proj1 __proj1, _Proj2 __proj2)
 {
+    // KSATODO move lambda
     auto __f = [__binary_op, __proj1, __proj2](auto&& __val1, auto&& __val2) {
         return std::invoke(__binary_op, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
             std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
@@ -225,6 +228,7 @@ bool
 __pattern_equal(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
                  _Proj1 __proj1, _Proj2 __proj2)
 {
+    // KSATODO move lambda
     auto __pred_2 = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2)
         { return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
                              std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
@@ -262,6 +266,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 auto
 __pattern_find_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
+    // KSATODO move lambda
     auto __pred_1 = [__pred, __proj](auto&& __val)
         { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_find_if(__tag, std::forward<_ExecutionPolicy>(__exec),
@@ -349,6 +354,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 bool
 __pattern_any_of(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
+    // KSATODO move lambda
     auto __pred_1 = [__pred, __proj](auto&& __val)
         { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
     return oneapi::dpl::__internal::__ranges::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec),
@@ -401,6 +407,7 @@ auto
 __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
                  _Proj1 __proj1, _Proj2 __proj2)
 {
+    // KSATODO move lambda
     auto __pred_2 =  [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2)
         { return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
                         std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
@@ -428,7 +435,7 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     //TODO: To consider definition a kind of special factory "multiple_view" (addition to standard "single_view").
     //The factory "multiple_view" would generate a range of N identical values.
     auto __s_rng = oneapi::dpl::experimental::ranges::views::iota(0, __count) |
-                   oneapi::dpl::experimental::ranges::views::transform([__value](auto) { return __value; });
+                   oneapi::dpl::experimental::ranges::views::transform([__value](auto) { return __value; });// KSATODO move lambda
 
     return __ranges::__pattern_search(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __s_rng,
                             __pred);
@@ -440,6 +447,7 @@ auto
 __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r,
                    std::ranges::range_difference_t<_R> __count, const _T& __value, _Pred __pred, _Proj __proj)
 {
+    // KSATODO move lambda
     auto __pred_2 = [__pred, __proj](auto&& __val1, auto&& __val2)
         { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
         std::forward<decltype(__val2)>(__val2));};
@@ -499,6 +507,7 @@ auto
 __pattern_adjacent_find_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
                         _Proj __proj)
 {
+    // KSATODO move lambda
     auto __pred_2 = [__pred, __proj](auto&& __val, auto&& __next)
         { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)),
         std::invoke(__proj, std::forward<decltype(__next)>(__next)));};
@@ -515,6 +524,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 bool
 __pattern_is_sorted(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
+    // KSATODO move lambda
     auto __pred_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
         std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
         std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
@@ -539,6 +549,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
     auto __reduce_fn = ::std::plus<_ReduceValueType>{};
     // int is being implicitly casted to difference_type
     // otherwise we can only pass the difference_type as a functor template parameter
+    // KSATODO move lambda
     auto __transform_fn = [__predicate](auto __gidx, auto __acc) -> int {
         return (__predicate(__acc[__gidx]) ? 1 : 0);
     };
@@ -556,6 +567,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 std::ranges::range_difference_t<_R>
 __pattern_count_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
+    // KSATODO move lambda
     auto __pred_1 = [__pred, __proj](auto&& __val) { return std::invoke(__pred, std::invoke(__proj,
         std::forward<decltype(__val)>(__val)));};
 
@@ -592,6 +604,7 @@ auto
 __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r,
     _Pred __pred, _Proj __proj)
 {
+    // KSATODO move lambda
     auto __pred_1 = [__pred, __proj](auto&& __val) { return std::invoke(__pred, std::invoke(__proj,
         std::forward<decltype(__val)>(__val)));};
 
@@ -767,6 +780,7 @@ auto
 __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+    // KSATODO move lambda
     auto __comp_2 = [__comp, __proj1, __proj2](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
         std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
         std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
@@ -840,6 +854,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
 
     // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
     // not commutative.
+    // KSATODO move lambda
     auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
         using ::std::get;
         if (__comp(get<1>(__b), get<1>(__a)))
@@ -848,6 +863,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
         }
         return __a;
     };
+    // KSATODO move lambda
     auto __transform_fn = [](auto __gidx, auto __acc) { return _ReduceValueType{__gidx, __acc[__gidx]}; };
 
     auto __ret_idx =
@@ -867,6 +883,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 auto
 __pattern_min_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
+    // KSATODO move lambda
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
         std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
         std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
@@ -898,6 +915,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
+    // KSATODO move lambda
     auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
         using ::std::get;
         auto __chosen_for_min = __a;
@@ -914,6 +932,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     // TODO: Doesn't work with `zip_iterator`.
     //       In that case the first and the second arguments of `_ReduceValueType` will be
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
+    // KSATODO move lambda
     auto __transform_fn = [](auto __gidx, auto __acc) {
         return _ReduceValueType{__gidx, __gidx, __acc[__gidx], __acc[__gidx]};
     };
