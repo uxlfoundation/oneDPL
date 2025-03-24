@@ -1050,6 +1050,35 @@ struct __strided_loop
     }
 };
 
+class __sycl_queue_ref
+{
+  public:
+
+    __sycl_queue_ref(const __sycl_queue_ref&) = delete;
+
+    __sycl_queue_ref(sycl::queue& __q) : __p_queue(&__q) {}
+    __sycl_queue_ref(sycl::queue&& __q) : __p_queue(&__q) {}
+
+    __sycl_queue_ref& operator=(const __sycl_queue_ref&) = delete;
+
+    sycl::queue&
+    queue()
+    {
+        assert(__p_queue);
+        return *__p_queue;
+    }
+
+    const sycl::queue&
+    queue() const
+    {
+        assert(__p_queue);
+        return *__p_queue;
+    }
+
+  private:
+    sycl::queue* __p_queue = nullptr;
+};
+
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi
