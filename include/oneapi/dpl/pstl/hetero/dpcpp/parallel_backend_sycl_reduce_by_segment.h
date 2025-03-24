@@ -90,7 +90,7 @@ using _SegReducePrefixPhase = __seg_reduce_prefix_kernel<_Name...>;
 template <typename _CustomName, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
           typename _Range4, typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
-__parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref,
+__parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q,
                                       _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
                                       _Range4&& __out_values, _BinaryPredicate __binary_pred,
                                       _BinaryOperator __binary_op,
@@ -116,27 +116,27 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
     // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-    std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__q_ref.queue(), (std::size_t)2048);
+    std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)2048);
 
     // adjust __wgroup_size according to local memory limit. Double the requirement on __val_type due to sycl group algorithm's use
     // of SLM.
     __wgroup_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(
-        __q_ref.queue(), sizeof(__key_type) + 2 * sizeof(__val_type), __wgroup_size);
+        __q, sizeof(__key_type) + 2 * sizeof(__val_type), __wgroup_size);
 
 #if _ONEDPL_COMPILE_KERNEL
     auto __seg_reduce_count_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceCountKernel>::__compile(__q_ref.queue());
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceCountKernel>::__compile(__q);
     auto __seg_reduce_offset_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceOffsetKernel>::__compile(__q_ref.queue());
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceOffsetKernel>::__compile(__q);
     auto __seg_reduce_wg_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceWgKernel>::__compile(__q_ref.queue());
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceWgKernel>::__compile(__q);
     auto __seg_reduce_prefix_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReducePrefixKernel>::__compile(__q_ref.queue());
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReducePrefixKernel>::__compile(__q);
     __wgroup_size =
-        std::min({__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q_ref.queue(), __seg_reduce_count_kernel),
-                  oneapi::dpl::__internal::__kernel_work_group_size(__q_ref.queue(), __seg_reduce_offset_kernel),
-                  oneapi::dpl::__internal::__kernel_work_group_size(__q_ref.queue(), __seg_reduce_wg_kernel),
-                  oneapi::dpl::__internal::__kernel_work_group_size(__q_ref.queue(), __seg_reduce_prefix_kernel)});
+        std::min({__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_count_kernel),
+                  oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_offset_kernel),
+                  oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_wg_kernel),
+                  oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_prefix_kernel)});
 #endif
 
     std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);
@@ -153,7 +153,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     auto __seg_ends_scanned = oneapi::dpl::__par_backend_hetero::__buffer<__diff_type>(__n_groups).get_buffer();
 
     // 1. Count the segment ends in each workgroup
-    auto __seg_end_identification = __q_ref.queue().submit([&](sycl::handler& __cgh) {
+    auto __seg_end_identification = __q.submit([&](sycl::handler& __cgh) {
         oneapi::dpl::__ranges::__require_access(__cgh, __keys);
         auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::write>(__cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
@@ -190,7 +190,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     });
 
     // 1.5 Small single-group kernel
-    auto __single_group_scan = __q_ref.queue().submit([&](sycl::handler& __cgh) {
+    auto __single_group_scan = __q.submit([&](sycl::handler& __cgh) {
         __cgh.depends_on(__seg_end_identification);
         auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::read>(__cgh);
         auto __seg_ends_scan_acc = __seg_ends_scanned.template get_access<sycl::access_mode::read_write>(__cgh);
@@ -210,7 +210,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     });
 
     // 2. Work group reduction
-    auto __wg_reduce = __q_ref.queue().submit([&](sycl::handler& __cgh) {
+    auto __wg_reduce = __q.submit([&](sycl::handler& __cgh) {
         __cgh.depends_on(__single_group_scan);
         oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_keys, __out_values, __values);
 
@@ -327,7 +327,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     });
 
     // 3. Apply inter work-group aggregates
-    __q_ref.queue().submit([&](sycl::handler& __cgh) {
+    __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_keys, __out_values);
 
             auto __partials_acc = __partials.template get_access<sycl::access_mode::read>(__cgh);

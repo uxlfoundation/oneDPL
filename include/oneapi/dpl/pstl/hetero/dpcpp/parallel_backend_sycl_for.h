@@ -58,11 +58,11 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
 {
     template <typename _Fp, typename _Index, typename... _Ranges>
     auto
-    operator()(oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(sycl::queue __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
-        _PRINT_INFO_IN_DEBUG_MODE(__q_ref.queue());
-        auto __event = __q_ref.queue().submit([__rngs..., __brick, __count](sycl::handler& __cgh) {
+        _PRINT_INFO_IN_DEBUG_MODE(__q);
+        auto __event = __q.submit([__rngs..., __brick, __count](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
@@ -138,13 +138,13 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 
     template <typename _Fp, typename _Index, typename... _Ranges>
     auto
-    operator()(oneapi::dpl::__par_backend_hetero::__sycl_queue_ref __q_ref, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(sycl::queue __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
         const std::size_t __work_group_size =
-            oneapi::dpl::__internal::__max_work_group_size(__q_ref.queue(), __max_work_group_size);
-        _PRINT_INFO_IN_DEBUG_MODE(__q_ref.queue());
-        auto __event = __q_ref.queue().submit([__rngs..., __brick, __work_group_size, __count](sycl::handler& __cgh) {
+            oneapi::dpl::__internal::__max_work_group_size(__q, __max_work_group_size);
+        _PRINT_INFO_IN_DEBUG_MODE(__q);
+        auto __event = __q.submit([__rngs..., __brick, __work_group_size, __count](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             constexpr std::uint8_t __iters_per_work_item = _Fp::__preferred_iters_per_item;
