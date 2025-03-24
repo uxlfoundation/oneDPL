@@ -333,7 +333,7 @@ Constructor or initialize may throw `std::bad_alloc` or `std::logic_error`.
 
 ```cpp
 template<typename Backend=sycl_backend> 
-class round_robin_policy;
+class auto_tune_policy;
 ```
 
 | Constructors and Initialization |
