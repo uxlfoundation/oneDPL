@@ -157,7 +157,7 @@ explicitly instantiated in the code already.
     {
         It1 first;
         It2 second;
-        auto is_passed_directly_in_onedpl_device_policies(const iterator_pair&) ->
+        friend auto is_passed_directly_in_onedpl_device_policies(const iterator_pair&) ->
             std::conjunction<oneapi::dpl::is_passed_directly_to_device<It1>,
                              oneapi::dpl::is_passed_directly_to_device<It2>>;
     };
