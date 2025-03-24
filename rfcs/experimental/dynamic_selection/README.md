@@ -385,7 +385,7 @@ class round_robin_policy;
 
 Constructor or initialize may throw `std::bad_alloc` or `std::logic_error`.
 
-<a id="backend__req_id"></a>
+<a id="backend_req_id"></a>
 ## Backends
 
 Backends allow generic policies to be implemented. End-users do not directly interact
