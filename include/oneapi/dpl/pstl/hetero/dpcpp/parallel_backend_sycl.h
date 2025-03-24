@@ -669,12 +669,35 @@ __group_scan_fits_in_slm(const sycl::queue& __queue, std::size_t __n, std::size_
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
 }
 
+template <std::uint16_t elements, typename _ValueT>
+struct __set_temp_data
+{
+    template<typename _Rng>
+    void
+    set(std::uint16_t __idx, const _Rng& __val, std::size_t __read_idx)
+    {
+        __data[__idx] = __val[__read_idx];
+    }
+    _ValueT __data[elements];
+};
+
+struct __noop_temp_data
+{
+    template<typename _Rng>
+    void
+    set(std::uint16_t __idx, const _Rng& __val, std::size_t __read_idx) const
+    {
+    }
+};
+
+
 template <typename _UnaryOp>
 struct __gen_transform_input
 {
+    using TempData = __noop_temp_data;
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
@@ -688,13 +711,14 @@ struct __gen_transform_input
 template <typename _BinaryPred>
 struct __gen_red_by_seg_reduce_input
 {
+    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // (new_seg_mask, value)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
     // ValueType value     : Current element's value for reduction
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         const auto __in_keys = std::get<0>(__in_rng.tuple());
         const auto __in_vals = std::get<1>(__in_rng.tuple());
@@ -711,6 +735,7 @@ struct __gen_red_by_seg_reduce_input
 template <typename _BinaryPred>
 struct __gen_red_by_seg_scan_input
 {
+    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // ((new_seg_mask, value), output_value, next_key, current_key)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
@@ -720,7 +745,7 @@ struct __gen_red_by_seg_scan_input
     // KeyType current_key : The current element's key. This is only ever used by work-item 0 to write the first key
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         const auto __in_keys = std::get<0>(__in_rng.tuple());
         const auto __in_vals = std::get<1>(__in_rng.tuple());
@@ -827,9 +852,9 @@ struct __red_by_seg_op
 template <typename _BinaryPred>
 struct __write_red_by_seg
 {
-    template <typename _OutRng, typename _Tup>
+    template <typename _OutRng, typename _Tup, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
     {
         using std::get;
         auto __out_keys = get<0>(__out_rng.tuple());
@@ -977,32 +1002,14 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
 }
 
 
-template <std::uint16_t elements, typename _ValueT>
-struct __set_temp_data
-{
-    template<typename _Rng>
-    void
-    set(std::uint16_t __idx, const _Rng& __val, std::size_t __read_idx)
-    {
-        __data[__idx] = __val[__read_idx];
-    }
-    _ValueT __data[elements];
-};
 
-struct __noop_temp_data
-{
-    template<typename _Rng>
-    void
-    set(std::uint16_t __idx, const _Rng& __val, std::size_t __read_idx) const
-    {
-    }
-};
 template <typename _SetOpCount, typename _Compare>
 struct __gen_set_balanced_path
 {
+    using TempData = __noop_temp_data;
     template <typename _InRng, typename _IndexT>
     std::uint16_t
-    operator()(const _InRng& __in_rng, _IndexT __id) const
+    operator()(const _InRng& __in_rng, _IndexT __id, __noop_temp_data& __temp_data) const
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -1033,7 +1040,6 @@ struct __gen_set_balanced_path
         __rng2_temp_diag[__id] = __rng2_balanced_pos;
         __temp_star_offset[__id] = __star_offset;
 
-        __noop_temp_data __temp_data{};
         _SizeType __eles_to_process = std::min(__diagonal_spacing - _SizeType{__star_offset},
                                                __rng1.size() + __rng2.size() - (__i_elem - 1));
 
@@ -1050,9 +1056,10 @@ struct __gen_set_balanced_path
 template <typename _SetOpCount, typename _TempData, typename _Compare>
 struct __gen_set_op_from_known_balanced_path
 {
+    using TempData = _TempData;
     template <typename _InRng, typename _IndexT>
     auto
-    operator()(const _InRng& __in_rng, _IndexT __id) const
+    operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -1065,13 +1072,12 @@ struct __gen_set_op_from_known_balanced_path
 
         using _SizeType = decltype(__rng1.size());
         _SizeType __i_elem = __id * __diagonal_spacing;
-        _TempData __output_data{};
         _SizeType __eles_to_process = std::min(_SizeType{__diagonal_spacing} - _SizeType{__temp_star_offset[__id]},
             __rng1.size() + __rng2.size() - (__i_elem - 1));
         
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_temp_diag[__id], __rng2_temp_diag[__id], __eles_to_process,
                                                __output_data, __comp);
-        return std::make_tuple(std::uint32_t{__count}, __count, std::move(__output_data));
+        return std::make_tuple(std::uint32_t{__count}, __count);
     }
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
@@ -1347,9 +1353,9 @@ struct __get_zeroth_element
 template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed through.
@@ -1365,9 +1371,9 @@ struct __write_to_id_if
 template <typename _Assign>
 struct __write_to_id_if_else
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
@@ -1384,15 +1390,15 @@ struct __write_to_id_if_else
 template <typename _Assign>
 struct __write_multiple_to_id
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData& __temp_data) const
     {
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v).__data[0])>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.__data[0])>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
         for (std::size_t __i = 0; __i < std::get<1>(__v); ++__i)
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v).__data[__i]), __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
+            __assign(static_cast<_ConvertedTupleType>(__temp_data.__data[__i]), __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
     }
     _Assign __assign;
 };
