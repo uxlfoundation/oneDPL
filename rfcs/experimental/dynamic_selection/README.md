@@ -488,7 +488,7 @@ are required.
 
 | Backend Traits* | Description |
 | ------- | ----------- |
-| `lazy_report`<B>::value`, `report_report_v<B>` | 'true' if a *Backend* requires that a *Policy* calls to `lazy_report` before making a selection. |
+| `lazy_report`<B>::value`, `report_report_v<B>` | `true` if a *Backend* requires that a *Policy* calls to `lazy_report` before making a selection. |
 
 The example below shows how a `select` function might check this trait and call the function before it 
 applies its selection logic.
