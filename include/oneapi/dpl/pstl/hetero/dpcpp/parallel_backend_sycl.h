@@ -1494,14 +1494,14 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _
 //------------------------------------------------------------------------
 
 // Tag for __parallel_find_or to find the first element that satisfies predicate
-template <typename _RangeType>
+template <typename... _Ranges>
 struct __parallel_find_forward_tag
 {
 // FPGA devices don't support 64-bit atomics
 #if _ONEDPL_FPGA_DEVICE
     using _AtomicType = uint32_t;
 #else
-    using _AtomicType = oneapi::dpl::__internal::__difference_t<_RangeType>;
+    using _AtomicType = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
 #endif
 
     using _LocalResultsReduceOp = __dpl_sycl::__minimum<_AtomicType>;
@@ -1533,14 +1533,14 @@ struct __parallel_find_forward_tag
 };
 
 // Tag for __parallel_find_or to find the last element that satisfies predicate
-template <typename _RangeType>
+template <typename... _Ranges>
 struct __parallel_find_backward_tag
 {
 // FPGA devices don't support 64-bit atomics
 #if _ONEDPL_FPGA_DEVICE
     using _AtomicType = int32_t;
 #else
-    using _AtomicType = oneapi::dpl::__internal::__difference_t<_RangeType>;
+    using _AtomicType = std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>;
 #endif
 
     using _LocalResultsReduceOp = __dpl_sycl::__maximum<_AtomicType>;
@@ -1886,8 +1886,10 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
+    
+    using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+    const _Size __rng_n = std::min({_Size(__rngs.size())...});
 
-    auto __rng_n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
     assert(__rng_n > 0);
 
     // Evaluate the amount of work-groups and work-group size
