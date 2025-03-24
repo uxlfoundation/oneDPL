@@ -155,7 +155,7 @@ The type `T` satisfies *Selection* for a given [Policy](#policy_req_id) `p` if g
 | `s.unwrap()` | Returns `resource_t<T>` that should represent one of the resources returned by `p.get_resources()` for the Policy `p` that generated `s`. |
 | `s.policy()` | Returns the Policy `p` that was used to make the selection. |
 | `s.report(i)` | Returns `void`. Notifies policy that an execution info event has occurred. |
-| `report_execution_info<T, Info>::value`, `report_execution_info_v<T,Info>` | `true` if this selection needs the backend to report the Info. False otherwise. |
+| `report_execution_info<T, Info>::value`, `report_execution_info_v<T,Info>` | `true` if this selection needs the backend to report the Info. `false` otherwise. |
 
 <a id="submission_req_id"></a>
 ### Submission
