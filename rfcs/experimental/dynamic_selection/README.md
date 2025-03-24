@@ -147,7 +147,7 @@ The current implementation of these traits depends on types defined in the Polic
 The type `T` satisfies *Selection* for a given [Policy](#policy_req_id) `p` if given,
 
 - `s` an arbitrary identifier of type `T`
-- `i` an object of type `Info` where `execution_info_v<Info>` is true
+- `i` an object of type `Info` where `execution_info_v<Info>` is `true`
 - 'v' an object of type `V` and `is_same_v<Info::value_type, V>` is `true`
 
 | *Must* be well-formed | Description |
