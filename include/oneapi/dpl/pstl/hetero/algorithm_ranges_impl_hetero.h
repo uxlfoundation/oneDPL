@@ -1072,11 +1072,12 @@ __pattern_mismatch(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
         return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
                            std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
 
+    using __bin_pred_type = decltype(__bin_pred);
     using _TagType = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_R1, _R2>;
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, oneapi::dpl::__internal::__not_pred<_Pred>>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, oneapi::dpl::__internal::__not_pred<__bin_pred_type>>;
 
-    auto __idx = oneapi::dpl::__par_backend_hetero::__parallel_find_or(__tag, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{oneapi::dpl::__internal::__not_pred<_Pred>(__pred)}, _TagType{}, oneapi::dpl::__ranges::views::all_read(__r1),
+    auto __idx = oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        _Predicate{oneapi::dpl::__internal::__not_pred<__bin_pred_type>(__bin_pred)}, _TagType{}, oneapi::dpl::__ranges::views::all_read(__r1),
         oneapi::dpl::__ranges::views::all_read(__r2));
 
     return {std::ranges::begin(__r1) + __idx, std::ranges::begin(__r2)+ __idx};
