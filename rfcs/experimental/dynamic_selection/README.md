@@ -118,9 +118,9 @@ The type `T` satisfies *Policy* if given,
 
 | Policy Traits* | Description |
 | ------- | ----------- |
-| `selection<T>::type`, `selection_t<T>` | The wrapped select type returned by `T`. Must satisfy [Selection](#selection_req_id). |
-| `resource<T>::type`, `resource_t<T>` | The backend defined resource type that is passed to the user function object. Calling `unwrap` an object of type `selection_t<T>` returns an object of type `resource_t<T>`. |
-| `wait_type<T>::type`, `wait_type_t<T>` | The backend type that is returned by the user function object. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns on object of type `wait_type_t<T>`. |
+| `policy_traits<T>::selection_type`, `selection_t<T>` | The wrapped select type returned by `T`. Must satisfy [Selection](#selection_req_id). |
+| `policy_traits<T>::resource_type`, `resource_t<T>` | The backend defined resource type that is passed to the user function object. Calling `unwrap` an object of type `selection_t<T>` returns an object of type `resource_t<T>`. |
+| `policy_traits<T>::wait_type`, `wait_type_t<T>` | The backend type that is returned by the user function object. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns on object of type `wait_type_t<T>`. |
 
 *Policy traits are defined in `include/oneapi/dpl/internal/dynamic_selection_impl/policy_traits.h`.
 
@@ -155,7 +155,7 @@ The type `T` satisfies *Selection* for a given [Policy](#policy_req_id) `p` if g
 | `s.unwrap()` | Returns `resource_t<T>` that should represent one of the resources returned by `p.get_resources()` for the Policy `p` that generated `s`. |
 | `s.policy()` | Returns the Policy `p` that was used to make the selection. |
 | `s.report(i)` | Returns `void`. Notifies policy that an execution info event has occurred. |
-| `report_execution_info<T, Info>::value`, `report_execution_info_v<T,Info>` | `true` if this selection needs the backend to report the Info. False otherwise. |
+| `report_execution_info<T, Info>::value`, `report_execution_info_v<T,Info>` | `true` if this selection needs the backend to report the Info. `false` otherwise. |
 
 <a id="submission_req_id"></a>
 ### Submission
@@ -227,14 +227,14 @@ class round_robin_policy;
 
 | Constructors and Initialization |
 | -----------------------------------------------------------|
-| `round_robin_policy(deferred_initialization_t); // (1)` |
-| `round_robin_policy(size_t offset=0); // (2)` |
+| `round_robin_policy(); // (1)` |
+| `round_robin_policy(deferred_initialization_t); // (2)` |
 | `round_robin_policy(const std::vector<resource_t<Backend>>& resources); // (3)` |
-| `void initialize(size_t offset=0); // (4)` |
+| `void initialize(); // (4)` |
 | `void initialize(const std::vector<resource_t<Backend>>& resources); // (5)` |
 
-1. Defers initialization and requires a later call to `initialize`.
-2. Rotates through the default set of resources at each call to `select` beginning with `offset`.
+1. Rotates through the default set of resources at each call to `select`.
+2. Defers initialization and requires a later call to `initialize`.
 3. Uses the provided set of resources and rotates through the default set of resources at each call to `select`.
 4. Rotates through the default set of resources at each call to `select`.
 5. Uses the provided set of resources and rotates through the default set of resources at each call to `select`.
@@ -281,14 +281,14 @@ class round_robin_policy;
 
 | Constructors and Initialization |
 | -----------------------------------------------------------|
-| `dynamic_load_policy(deferred_initialization_t); // (1)` |
-| `dynamic_load_policy(size_t offset=0); // (2)` |
+| `dynamic_load_policy(); // (1)` |
+| `dynamic_load_policy(deferred_initialization_t); // (2)` |
 | `dynamic_load_policy(const std::vector<resource_t<Backend>>& resources); // (3)` |
-| `void initialize(size_t offset=0); // (4)` |
+| `void initialize(); // (4)` |
 | `void initialize(const std::vector<resource_t<Backend>>& resources); // (5)` |
 
-1. Defers initialization and requires a later call to `initialize`.
-2. Selects the least loaded resource from the default set of resources at each call to `select`.
+1. Selects the least loaded resource from the default set of resources at each call to `select`.
+2. Defers initialization and requires a later call to `initialize`.
 3. Uses the provided set of resources and then selects the least loaded resource at each call to `select`.
 4. Selects the least loaded resource from the default set of resources at each call to `select`.
 5. Uses the provided set of resources and then selects the least loaded resource at each call to `select`.
@@ -427,9 +427,9 @@ The type `T` satisfies the *Backend* contract if given,
 | `template<Policy P, tyepname F, typename... Args> auto submit_and_wait(P&& p, F&& f, Args&&... args);` |  Invokes `f` with the unwrapped resource returned by `select(p, f, args…)` and `args`.And then waits on object returned by the `f`. May be implemented as `wait(p.submit(p.select(f, args…),f,args…))`. |
 | `template<typename P> auto get_submission_group(P&& p);` | Returns an object that has a member function `void wait()`. Calling this wait function blocks until all previous submissions to this policy are complete. |
 | `template<typename W> void unwrap(W&& w) noexcept;` | Returns `w.unwrap()` if available, otherwise returns `w`. |
-| `template<typename W> void wait(W&& w);` | Calls `w.wait()` if available. |
-| `template <typename S, typename Info> void report(S&& s, const Info& i);` | Reports that event `i` has occurred. |
-| `template <typename S, typename Info, typename Value> void report(S&& s, const Info& i, const Value& v); ` | Reports a new value `v` for event `i`. |
+| `template<typename W> void wait(W&& w);` | Calls `w.wait()`. |
+| `template <typename S, typename Info> void report(S&& s, const Info& i);` | `S` is a *Selection*. Reports that event `i` has occurred if `s.report(i)` is available. |
+| `template <typename S, typename Info, typename Value> void report(S&& s, const Info& i, const Value& v); ` | `S` is a *Selection*. Reports a new value `v` for event `i` if `s.report(i, v)` is available. |
 
 ### Deferred Initialization
 
