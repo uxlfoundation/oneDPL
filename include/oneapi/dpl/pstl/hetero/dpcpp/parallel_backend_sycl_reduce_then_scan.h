@@ -775,8 +775,6 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
                                       _ScanInputTransform __scan_input_transform, _WriteOp __write_op, _InitType __init,
                                       _Inclusive, _IsUniquePattern)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
     using _ValueType = typename _InitType::__value_type;
 
     constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz();
