@@ -30,21 +30,23 @@ types or access implementation details outside the specified interface.
 
 We will create an Argument-Dependent Lookup (ADL) customization point which defines if iterators are "passed directly"
 `is_passed_directly_in_onedpl_device_policies`. Users may define if their iterator types should be "passed directly" by
-oneDPL by defining a `constexpr` function in the same namespace where the iterator is defined.
+oneDPL by defining a function in the same namespace where the iterator is defined.
 `is_passed_directly_in_onedpl_device_policies` must accept a const lvalue reference to the iterator type being
 specialized and return `std::true_type{}` if the iterator type is "passed directly" and `std::false_type{}` otherwise.
+oneDPL will not call the `is_passed_directly_in_onedpl_device_policies` function at runtime. It will merely capture its
+return type based upon the argument iterator type passed.
 
-Additionally, oneDPL will provide a public trait,
+Additionally, oneDPL will provide a public trait, `is_passed_directly_to_device[_v]` as follows:
 ```cpp
 namespace oneapi
 {
 namespace dpl
 {
 template <typename T>
-struct is_passed_directly_to_device; // std::true_type or std::false_type
+struct is_passed_directly_to_device; // must have the characteristics of std::true_type or of std::false_type
 
 template <typename T>
-inline constexpr bool is_passed_directly_to_device_v<T> = oneapi::dpl::is_passed_directly_to_device::value;
+inline constexpr bool is_passed_directly_to_device_v = oneapi::dpl::is_passed_directly_to_device::value;
 } // dpl
 } // oneapi
 ```
@@ -67,6 +69,12 @@ oneDPL will define the "passed directly" definitions of its custom iterators as 
 * `counting_iterator` and `discard_iterator` are always "passed directly"
 * `transform_iterator` is "passed directly" if its source iterator is "passed directly"
 * `permutation_iterator` is "passed directly" if both its source iterator and its index map are "passed directly"
+
+If a "passed directly" customization point is defined for a type, any derived type will also match the existing
+ADL customization point function if a more specific one is not defined. This can be a feature, as multiple derived types
+can inherit "passed directly" traits from their parent. However, users must be aware that this is the case. A user could
+incorrectly assume that the lack of a customization point for the derived class would mean the new type will use the
+default overload of `is_passed_directly_in_onedpl_device_policies` (and return `std::false_type`).
 
 ### Implementation Details
 
@@ -91,8 +99,7 @@ namespace user
         /* unspecified user definition */
     };
 
-    constexpr
-    auto
+    std::true_type
     is_passed_directly_in_onedpl_device_policies(const my_passed_directly_iterator&)
     {
         return std::true_type{};
@@ -100,11 +107,11 @@ namespace user
 } //namespace user
 ```
 
-Users can use any logic based on their iterator type to determine if it can be "passed directly", but the logic must be
-`constexpr`. Commonly, this will involve some check of base template types and their iterator type's "passed directly"
-status. Below is an example of a type that contains a pair of iterators and should be treated as "passed directly" if
-and only if both base iterators are also "passed directly". Note that the use of the public trait enables the use of the
-base iterator type alone without creating a named instance of the base iterator to pass into the ADL.
+Users can use any compile-time logic based on their iterator type to determine if it can be "passed directly" to define
+the ADL function's return type. Commonly, this will involve some check of base template types and their "passed
+directly" trait status. Below is an example of a type that contains a pair of iterators and should be treated as "passed
+directly" if and only if both base iterators are also "passed directly". Note that the use of the public trait enables
+the use of the base iterator type alone without creating a named instance of the base iterator to pass into the ADL.
 
 ```cpp
 namespace user
@@ -117,25 +124,40 @@ namespace user
     };
 
     template <typename It1, typename It2>
-    constexpr 
     auto is_passed_directly_in_onedpl_device_policies(const iterator_pair<It1, It2>&)
     {
-        if constexpr (oneapi::dpl::is_passed_directly_to_device_v<It1> &&
-                      oneapi::dpl::is_passed_directly_to_device_v<It2>)
-            return std::true_type{};
-        else 
-            return std::false_type{}; 
+        return std::conjunction<oneapi::dpl::is_passed_directly_to_device<It1>,
+                                oneapi::dpl::is_passed_directly_to_device<It2>>{};
     }
 } //namespace user
 ```
+
 It is also possible to write overloads without a body using an `auto` trailing return type. The following is an
 alternative written in this way for the previous example:
+
 ```cpp
     template <typename It1, typename It2>
-    constexpr 
+
     auto is_passed_directly_in_onedpl_device_policies(const iterator_pair<It1, It2>&) ->
-        std::bool_constant<(oneapi::dpl::is_passed_directly_to_device_v<It1> &&
-                            oneapi::dpl::is_passed_directly_to_device_v<It2>)>;
+        std::conjunction<oneapi::dpl::is_passed_directly_to_device<It1>,
+                         oneapi::dpl::is_passed_directly_to_device<It2>>>;
+```
+Finally, it is possible to write overloads using the "hidden friend" idiom as functions with or without a body inside
+the scope of the iterator definition itself. This option may be preferred when a user wants to ensure that this "passed
+directly" trait of their iterator is coupled tightly with the definition itself for maintenance. It also has the
+advantage of only being making available for ADL the combinations of template arguments for this iterator which are
+explicitly instantiated in the code already.
+
+```cpp
+    template <typename It1, typename It2>
+    struct iterator_pair
+    {
+        It1 first;
+        It2 second;
+        auto is_passed_directly_in_onedpl_device_policies(const iterator_pair&) ->
+            std::conjunction<oneapi::dpl::is_passed_directly_to_device<It1>,
+                             oneapi::dpl::is_passed_directly_to_device<It2>>;
+    };
 ```
 
 ## Alternatives Considered
@@ -143,14 +165,14 @@ alternative written in this way for the previous example:
 oneDPL could make public our internal structure `oneapi::dpl::__ranges::is_passed_directly` as
 `oneapi::dpl::is_passed_directly` for users to specialize to define rules for their types. This would be a similar
 mechanism to `sycl::is_device_copyable`. The implementation details of this option should avoid some complexity required
- to properly implement the customization point.
+to properly implement the customization point.
 
 However, as we have learned from experience within oneDPL, explicit specialization of a structure in another library's
 namespace creates maintenance problems. It either requires lots of closing of nested namespaces, opening of the external
- library's namespace for the specialization, or it requires separating these specializations to a separate location
- removed from the types they are specializing for. oneDPL has chosen to use the latter, which can be seen in
- `include/oneapi/dpl/pstl/hetero/dpcpp/sycl_traits.h`. This has led to several errors where changes to structures should
-  have included changes to sycl_traits but did not, and needed to be fixed later.
+library's namespace for the specialization, or it requires separating these specializations to a separate location
+removed from the types they are specializing for. oneDPL has chosen to use the latter, which can be seen in
+`include/oneapi/dpl/pstl/hetero/dpcpp/sycl_traits.h`. This has led to several errors where changes to structures should
+have included changes to sycl_traits but did not, and needed to be fixed later.
 
 In an effort to avoid this same issue for our users, we propose a similar method but instead with a constexpr
 customization point, allowing the user to override that customization point within their own namespace as a free
@@ -172,11 +194,11 @@ the iterator should be "passed directly". It would need to pass through all oper
 make sure no overhead is added in its usage.
 
 There is some complexity in adding such a wrapper iterator, and it would need to be considered carefully to make sure no
- problems would be introduced. This wrapper class may obfuscate users' types and make them more unwieldy to use. It is
- also less expressive than the other options in that it only has the ability to unilaterally mark a type as "passed
- directly". There is no logic that can be used to express some iterator type which may be conditionally "passed
- directly", other than to have logic to conditionally apply the wrapper in the first place. This option seems less clear
- and has more opportunity to cause problems.
+problems would be introduced. This wrapper class may obfuscate users' types and make them more unwieldy to use. It is
+also less expressive than the other options in that it only has the ability to unilaterally mark a type as "passed
+directly". There is no logic that can be used to express some iterator type which may be conditionally "passed
+directly", other than to have logic to conditionally apply the wrapper in the first place. This option seems less clear
+and has more opportunity to cause problems.
 
 ## Testing
 We will need a detailed test checking both positive and negative responses to
@@ -199,3 +221,6 @@ properly conveys the meaning to the users?
       of the public trait, which is the norm. These decisions could be reconsidered in the specification PR.
 * Where should this be located?
     * Possible options include `oneapi/dpl/iterator`, `oneapi/dpl/type_traits`.
+* What possibilities for problems / advantages exist for ADL matching for derived-from types, etc.?
+  * This can lead to ambiguity when deriving from multiple classes, but that can then be differentiated by implementing
+    a more specific ADL customization point function for the derived class.
