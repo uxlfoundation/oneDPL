@@ -2283,9 +2283,8 @@ struct __assign_key1_wrapper;
 template <typename _Name>
 struct __assign_key2_wrapper;
 
-// KSATODO avoid _CustomName + _ExecutionPolicy or return to _ExecutionPolicy&&
-template <typename _CustomName, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
-          typename _Range4, typename _BinaryPredicate, typename _BinaryOperator>
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
+          typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
 __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q,
                                       _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
@@ -2432,11 +2431,10 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    return __parallel_reduce_by_segment_fallback<_CustomName, _ExecutionPolicy>(
-        oneapi::dpl::__internal::__device_backend_tag{}, __exec.queue(),
-        std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
-        std::forward<_Range4>(__out_values), __binary_pred, __binary_op,
-        oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
+    return __parallel_reduce_by_segment_fallback<_CustomName>(
+        oneapi::dpl::__internal::__device_backend_tag{}, __exec.queue(), std::forward<_Range1>(__keys),
+        std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values),
+        __binary_pred, __binary_op, oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
 }
 
 } // namespace __par_backend_hetero
