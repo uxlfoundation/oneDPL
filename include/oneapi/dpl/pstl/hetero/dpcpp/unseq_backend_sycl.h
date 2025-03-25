@@ -1355,11 +1355,9 @@ struct _DifferenceTag : public ::std::true_type
 {
 };
 
-template <typename _DecayedExecutionPolicy, typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
+template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
 class __brick_set_op
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     _Compare __comp;
     _Size1 __na;
     _Size2 __nb;
