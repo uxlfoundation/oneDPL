@@ -157,8 +157,8 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize, 
     }
 }; // struct __parallel_transform_reduce_small_submitter
 
-template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _ExecutionPolicy,
-          typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
+template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _Size,
+          typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
 auto
 __parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue __q,
                                        const _Size __n, const _Size __work_group_size,
@@ -173,9 +173,6 @@ __parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend
         std::forward<_Ranges>(__rngs)...);
 }
 
-// Submits the first kernel of the parallel_transform_reduce for mid-sized arrays.
-// Uses multiple work groups that each reduce __work_group_size * __iters_per_work_item items and store the preliminary
-// results in __temp.
 // Submits the first kernel of the parallel_transform_reduce for mid-sized arrays.
 // Uses multiple work groups that each reduce __work_group_size * __iters_per_work_item items and store the preliminary
 // results in __temp.
@@ -270,8 +267,8 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
     }
 }; // struct __parallel_transform_reduce_work_group_kernel_submitter
 
-template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _ExecutionPolicy,
-          typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
+template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _Size,
+          typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
 auto
 __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
                                      sycl::queue __q, const _Size __n, const _Size __work_group_size,
