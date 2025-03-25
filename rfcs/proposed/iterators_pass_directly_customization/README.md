@@ -148,8 +148,8 @@ alternative written in this way for the previous example:
 Finally, it is possible to write overloads using the "hidden friend" idiom as functions with or without a body inside
 the scope of the iterator definition itself. This option may be preferred when a user wants to ensure that this "passed
 directly" trait of their iterator is coupled tightly with the definition itself for maintenance. It also has the
-advantage of only being making available for ADL the combinations of template arguments for this iterator which are
-explicitly instantiated in the code already.
+advantage of only making available for ADL the combinations of template arguments for this iterator which are explicitly
+instantiated in the code already.
 
 ```cpp
     template <typename It1, typename It2>
