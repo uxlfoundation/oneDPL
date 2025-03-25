@@ -1602,7 +1602,7 @@ minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
         __comp);
 
     [[maybe_unused]] const auto& [__min_idx, __min] = __res1;
-    [[maybe_unused]] const auto& [__max_idx, __max] = __res1;
+    [[maybe_unused]] const auto& [__max_idx, __max] = __res2;
     return {__min_idx, __max_idx};
 }
 
