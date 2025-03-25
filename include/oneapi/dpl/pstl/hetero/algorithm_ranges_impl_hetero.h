@@ -1041,7 +1041,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
 
     [[maybe_unused]] const auto& [__min_idx, __min] = __res1;
-    [[maybe_unused]] const auto& [__max_idx, __max] = __res1;
+    [[maybe_unused]] const auto& [__max_idx, __max] = __res2;
 
     return {std::ranges::begin(__r) + __min_idx, std::ranges::begin(__r) + __max_idx};
 }
