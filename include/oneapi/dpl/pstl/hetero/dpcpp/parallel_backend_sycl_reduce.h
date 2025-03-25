@@ -170,8 +170,7 @@ __parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend
         __backend_tag, __exec.queue(), __n, __work_group_size, __iters_per_work_item,
         unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{__reduce_op,
                                                                                               __transform_op},
-        unseq_backend::reduce_over_group<std::decay_t<_ExecutionPolicy>, _ReduceOp, _Tp>{__reduce_op}, __init,
-        std::forward<_Ranges>(__rngs)...);
+        unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op}, __init, std::forward<_Ranges>(__rngs)...);
 }
 
 // Submits the first kernel of the parallel_transform_reduce for mid-sized arrays.
@@ -280,8 +279,8 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
         __backend_tag, __exec.queue(), __n, __work_group_size, __iters_per_work_item_device_kernel,
         unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{__reduce_op,
                                                                                               __transform_op},
-        unseq_backend::reduce_over_group<std::decay_t<_ExecutionPolicy>, _ReduceOp, _Tp>{__reduce_op},
-        __scratch_container, std::forward<_Ranges>(__rngs)...);
+        unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op}, __scratch_container,
+        std::forward<_Ranges>(__rngs)...);
 
     using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
 
@@ -291,8 +290,7 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
         __iters_per_work_item_work_group_kernel,
         unseq_backend::transform_reduce<_ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{__reduce_op,
                                                                                               _NoOpFunctor{}},
-        unseq_backend::reduce_over_group<std::decay_t<_ExecutionPolicy>, _ReduceOp, _Tp>{__reduce_op}, __init,
-        __scratch_container);
+        unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op}, __init, __scratch_container);
 }
 
 // General implementation using a tree reduction
@@ -503,8 +501,7 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
     auto __transform_pattern2 =
         unseq_backend::transform_reduce<_ReduceOp, _NoOpFunctor, _Tp, _Commutative, __vector_size>{__reduce_op,
                                                                                                    _NoOpFunctor{}};
-    auto __reduce_pattern =
-        unseq_backend::reduce_over_group<std::decay_t<_ExecutionPolicy>, _ReduceOp, _Tp>{__reduce_op};
+    auto __reduce_pattern = unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op};
 
     // Otherwise use a recursive tree reduction with __max_iters_per_work_item __iters_per_work_item.
     const auto __work_group_size_long = static_cast<_Size>(__work_group_size);
