@@ -100,11 +100,9 @@ inline constexpr _Tp __known_identity =
     __known_identity_for_plus<_BinaryOp, _Tp>::value; //for plus only
 #endif
 
-template <typename _DecayedExecutionPolicy, typename _F>
+template <typename _F>
 struct walk_n
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     _F __f;
 
     template <typename _ItemId, typename... _Ranges>
@@ -308,11 +306,9 @@ struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Ra
 // If read accessor returns temporary value then __no_op returns lvalue reference to it.
 // After temporary value destroying it will be a reference on invalid object.
 // So let's don't call functor in case of __no_op
-template <typename _DecayedExecutionPolicy>
-struct walk_n<_DecayedExecutionPolicy, oneapi::dpl::__internal::__no_op>
+template <>
+struct walk_n<oneapi::dpl::__internal::__no_op>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     oneapi::dpl::__internal::__no_op __f;
 
     template <typename _ItemId, typename _Range>
@@ -666,11 +662,11 @@ struct single_match_pred_by_idx
 };
 
 template <typename _DecayedExecutionPolicy, typename _Pred>
-struct single_match_pred : single_match_pred_by_idx<_DecayedExecutionPolicy, walk_n<_DecayedExecutionPolicy, _Pred>>
+struct single_match_pred : single_match_pred_by_idx<_DecayedExecutionPolicy, walk_n<_Pred>>
 {
     static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
-    single_match_pred(_Pred __p) : single_match_pred_by_idx<_DecayedExecutionPolicy, walk_n<_DecayedExecutionPolicy, _Pred>>{__p} {}
+    single_match_pred(_Pred __p) : single_match_pred_by_idx<_DecayedExecutionPolicy, walk_n<_Pred>>{__p} {}
 };
 
 template <typename _DecayedExecutionPolicy, typename _Pred>
