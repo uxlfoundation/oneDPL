@@ -898,36 +898,52 @@ struct __simple_write_to_id
         __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
     }
 };
-
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
 _Size1
-__right_biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
 {
-    //TODO: make this biased
     auto __n = __last - __first;
-    auto __cur = __n;
-    _Size1 __it;
-    while (__n > 0)
+    _Size1 __div = 64;
+    _Size1 __it = 0;
+    _Size1 __cur_idx = 0;
+
+    while (__n > 0 && __div > 2)
     {
-        __it = __first;
-        __cur = __n / 2;
-        __it += __cur;
+        if constexpr (__bias_last)
+            __cur_idx = __n - __n / __div - 1;
+        else 
+            __cur_idx = __n / __div;
+        __it = __first + __cur_idx;
+
         if (__comp(__acc[__it], __value))
         {
-            __n -= __cur + 1, __first = ++__it;
+            __first = __it + 1;
+            __n = __last - __first;
         }
         else
-            __n = __cur;
+        {
+            __last = __it;
+            __n = __last - __first;
+        }
+        // get closer and closer to binary search with more iterations
+        __div >>= 1;
     }
-    return __first;
+    if (__n > 0)
+    {
+        //end up fully at binary search
+        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, __value, __comp);
+    }
+    else
+    {
+        return __first;
+    }
 }
 
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
 _Size1
-__left_biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
 {
-    //TODO: make this biased
-    return oneapi::dpl::__internal::__pstl_upper_bound(__acc, __first, __last, __value, __comp);
+    return __biased_lower_bound<__bias_last>(__acc, __first, __last, __value, oneapi::dpl::__internal::__not_pred{oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
 template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
@@ -962,9 +978,9 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
 //    std::cout<<"must do binary searches\n";
     
     // find first element of repeating sequence in the first set of the previous element
-    _Index __rng1_repeat_start = oneapi::dpl::__par_backend_hetero::__right_biased_lower_bound(__rng1, _Index{0}, __merge_path_rng1, __ele_val, __comp);
+    _Index __rng1_repeat_start = oneapi::dpl::__par_backend_hetero::__biased_lower_bound</*__last_bias=*/true>(__rng1, _Index{0}, __merge_path_rng1, __ele_val, __comp);
     // find first element of repeating sequence in the second set of the next element
-    _Index __rng2_repeat_start = oneapi::dpl::__par_backend_hetero::__right_biased_lower_bound(__rng2, _Index{0}, __merge_path_rng2, __ele_val, __comp);
+    _Index __rng2_repeat_start = oneapi::dpl::__par_backend_hetero::__biased_lower_bound</*__last_bias=*/true>(__rng2, _Index{0}, __merge_path_rng2, __ele_val, __comp);
 
     _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
     _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
@@ -984,7 +1000,7 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     _Index __fwd_search_count = std::max(__total_repeats / 2, __rng2_repeats_bck);
     _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count + 1, __rng2.size());
 
-    _Index __rng2_repeat_end = oneapi::dpl::__par_backend_hetero::__left_biased_upper_bound(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
+    _Index __rng2_repeat_end = oneapi::dpl::__par_backend_hetero::__biased_upper_bound</*__last_bias=*/false>(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
     
     _Index __rng2_eligible_repeats = __rng2_repeat_end - __rng2_repeat_start;
 //    std::cout<<"rng2 eligible repeats: "<<__rng2_eligible_repeats<<"\n";
