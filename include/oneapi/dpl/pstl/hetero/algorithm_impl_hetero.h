@@ -58,7 +58,7 @@ __pattern_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::walk1_vector_or_scalar<_ExecutionPolicy, _Function>{__f, static_cast<std::size_t>(__n)}, __n,
+        unseq_backend::walk_n_vectors_or_scalars<_ExecutionPolicy, _Function>{__f, static_cast<std::size_t>(__n)}, __n,
         __buf.all_view())
         .__deferrable_wait();
 }
@@ -85,7 +85,7 @@ __pattern_walk1_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _F
 // Probably it should be re-designed by a pipeline approach, when a pattern returns some sync objects
 // and ones are combined into a "pipeline" (probably like Range pipeline)
 //
-// A note on access mode types below: the __vector_path_impl in unseq_backend::walk2_vectors_or_scalars only respects
+// A note on access mode types below: the __vector_path_impl in unseq_backend::walk_n_vectors_or_scalars only respects
 // the default template arguments:
 // __acc_mode1 = __par_backend_hetero::access_mode::read
 // __acc_mode2 = __par_backend_hetero::access_mode::write
@@ -113,7 +113,7 @@ __pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
 
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _Function>{__f, static_cast<std::size_t>(__n)}, __n,
+        unseq_backend::walk_n_vectors_or_scalars<_ExecutionPolicy, _Function>{__f, static_cast<std::size_t>(__n)}, __n,
         __buf1.all_view(), __buf2.all_view());
 
     // Call no wait, wait or deferrable wait depending on _WaitMode
@@ -165,7 +165,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
 // walk3
 //------------------------------------------------------------------------
 
-// A note on access mode types below: the __vector_path_impl in unseq_backend::walk3_vectors_or_scalars only respects
+// A note on access mode types below: the __vector_path_impl in unseq_backend::walk_n_vectors_or_scalars only respects
 // the default template arguments:
 // __acc_mode1 = __par_backend_hetero::access_mode::read
 // __acc_mode2 = __par_backend_hetero::access_mode::read
@@ -195,7 +195,7 @@ __pattern_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::walk3_vectors_or_scalars<_ExecutionPolicy, _Function>{__f, static_cast<std::size_t>(__n)}, __n,
+        unseq_backend::walk_n_vectors_or_scalars<_ExecutionPolicy, _Function>{__f, static_cast<std::size_t>(__n)}, __n,
         __buf1.all_view(), __buf2.all_view(), __buf3.all_view())
         .__deferrable_wait();
 
@@ -1682,8 +1682,8 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     using _Function = __brick_move<__hetero_tag<_BackendTag>, _ExecutionPolicy>;
     auto __temp_rng_rw =
         oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::read_write>(__temp_buf.get_buffer());
-    auto __brick = unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _Function>{_Function{},
-                                                                                        static_cast<std::size_t>(__n)};
+    auto __brick = unseq_backend::walk_n_vectors_or_scalars<_ExecutionPolicy, _Function>{_Function{},
+                                                                                         static_cast<std::size_t>(__n)};
     oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __brick,
                                                       __n, __temp_rng_rw, __buf.all_view())
         .__deferrable_wait();
@@ -1982,7 +1982,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
         auto __src = oneapi::dpl::__ranges::drop_view_simple<_Range, _DiffType>(__rng, __n);
         auto __dst = oneapi::dpl::__ranges::take_view_simple<_Range, _DiffType>(__rng, __size_res);
 
-        auto __brick = unseq_backend::walk2_vectors_or_scalars<_ExecutionPolicy, _Function>{
+        auto __brick = unseq_backend::walk_n_vectors_or_scalars<_ExecutionPolicy, _Function>{
             _Function{}, static_cast<std::size_t>(__size_res)};
 
         oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
