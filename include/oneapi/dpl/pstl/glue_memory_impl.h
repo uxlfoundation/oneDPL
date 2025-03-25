@@ -235,7 +235,7 @@ destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __
 #endif
 
         oneapi::dpl::__internal::__pattern_walk1(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first,
-                                                 __last, [](_ReferenceType __val) { __val.~_ValueType(); });// KSATODO move lambda
+                                                 __last, [](_ReferenceType __val) { __val.~_ValueType(); });
     }
 }
 
@@ -261,7 +261,7 @@ destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 
         return oneapi::dpl::__internal::__pattern_walk1_n(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
                                                           __first, __n,
-                                                          [](_ReferenceType __val) { __val.~_ValueType(); });// KSATODO move lambda
+                                                          [](_ReferenceType __val) { __val.~_ValueType(); });
     }
 }
 
