@@ -86,8 +86,7 @@ template <typename... _Name>
 using _SegReducePrefixPhase = __seg_reduce_prefix_kernel<_Name...>;
 } // namespace
 
-// KSATODO avoid _CustomName + _ExecutionPolicy or return to _ExecutionPolicy&&
-template <typename _CustomName, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3,
           typename _Range4, typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
 __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q,

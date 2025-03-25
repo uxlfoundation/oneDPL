@@ -272,7 +272,7 @@ copy(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __l
 
     return oneapi::dpl::__internal::__pattern_walk2_brick(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
-        oneapi::dpl::__internal::__brick_copy<decltype(__dispatch_tag), std::decay_t<_ExecutionPolicy>>{});
+        oneapi::dpl::__internal::__brick_copy<decltype(__dispatch_tag)>{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _Size, class _ForwardIterator2>
@@ -283,7 +283,7 @@ copy_n(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _Size __n, _Forward
 
     return oneapi::dpl::__internal::__pattern_walk2_brick_n(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
-        oneapi::dpl::__internal::__brick_copy_n<decltype(__dispatch_tag), std::decay_t<_ExecutionPolicy>>{});
+        oneapi::dpl::__internal::__brick_copy_n<decltype(__dispatch_tag)>{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Predicate>
@@ -838,7 +838,7 @@ move(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __l
 
     return oneapi::dpl::__internal::__pattern_walk2_brick(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __d_first,
-        oneapi::dpl::__internal::__brick_move<decltype(__dispatch_tag), std::decay_t<_ExecutionPolicy>>{});
+        oneapi::dpl::__internal::__brick_move<decltype(__dispatch_tag)>{});
 }
 
 // [partial.sort]

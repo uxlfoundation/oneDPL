@@ -1093,23 +1093,22 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     //else use multi pass scan implementation
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
-    using _UnaryFunctor = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, _UnaryOperation>;
-    using _NoOpFunctor = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, oneapi::dpl::__internal::__no_op>;
+    using _UnaryFunctor = unseq_backend::walk_n<_UnaryOperation>;
+    using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
 
     _Assigner __assign_op;
     _NoAssign __no_assign_op;
     _NoOpFunctor __get_data_op;
 
     return __parallel_transform_scan_base<_CustomName>(
-        __backend_tag, __exec.queue(), std::forward<_Range1>(__in_rng),
-        std::forward<_Range2>(__out_rng), __init,
+        __backend_tag, __exec.queue(), std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
         // local scan
-        unseq_backend::__scan<_Inclusive, _ExecutionPolicy, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner,
-                              _NoOpFunctor, _InitType>{__binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op,
-                                                       __get_data_op},
+        unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _NoOpFunctor,
+                              _InitType>{__binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op,
+                                         __get_data_op},
         // scan between groups
-        unseq_backend::__scan</*inclusive=*/std::true_type, _ExecutionPolicy, _BinaryOperation, _NoOpFunctor, _NoAssign,
-                              _Assigner, _NoOpFunctor, unseq_backend::__no_init_value<_Type>>{
+        unseq_backend::__scan</*inclusive=*/std::true_type, _BinaryOperation, _NoOpFunctor, _NoAssign, _Assigner,
+                              _NoOpFunctor, unseq_backend::__no_init_value<_Type>>{
             __binary_op, _NoOpFunctor{}, __no_assign_op, __assign_op, __get_data_op},
         // global scan
         unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init});
@@ -1179,9 +1178,8 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
 
-// KSATODO avoid _CustomName + _ExecutionPolicy or return to _ExecutionPolicy&&
-template <typename _CustomName, typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size,
-          typename _CreateMaskOp, typename _CopyByMaskOp>
+template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _CreateMaskOp,
+          typename _CopyByMaskOp>
 auto
 __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue __q, _InRng&& __in_rng,
                      _OutRng&& __out_rng, _Size __n, _CreateMaskOp __create_mask_op, _CopyByMaskOp __copy_by_mask_op)
@@ -1190,7 +1188,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
     using _MaskAssigner = unseq_backend::__mask_assigner<1>;
-    using _DataAcc = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, oneapi::dpl::__internal::__no_op>;
+    using _DataAcc = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
     using _InitType = unseq_backend::__no_init_value<_Size>;
 
     _Assigner __assign_op;
@@ -1208,12 +1206,12 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
                           __mask_buf.get_buffer())),
         std::forward<_OutRng>(__out_rng), _InitType{},
         // local scan
-        unseq_backend::__scan</*inclusive*/ std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _Assigner,
-                              _MaskAssigner, _CreateMaskOp, _InitType>{__reduce_op, __get_data_op, __assign_op,
-                                                                       __add_mask_op, __create_mask_op},
+        unseq_backend::__scan</*inclusive*/ std::true_type, _ReduceOp, _DataAcc, _Assigner, _MaskAssigner,
+                              _CreateMaskOp, _InitType>{__reduce_op, __get_data_op, __assign_op, __add_mask_op,
+                                                        __create_mask_op},
         // scan between groups
-        unseq_backend::__scan</*inclusive*/ std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _NoAssign, _Assigner,
-                              _DataAcc, _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
+        unseq_backend::__scan</*inclusive*/ std::true_type, _ReduceOp, _DataAcc, _NoAssign, _Assigner, _DataAcc,
+                              _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
         // global scan
         __copy_by_mask_op);
 }
@@ -1251,9 +1249,8 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
                                                                decltype(__n)>;
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, /*inclusive*/ std::true_type, 1>;
 
-        return __parallel_scan_copy<_CustomName, _ExecutionPolicy>(
-            __backend_tag, __exec.queue(), std::forward<_Range1>(__rng),
-            std::forward<_Range2>(__result), __n,
+        return __parallel_scan_copy<_CustomName>(
+            __backend_tag, __exec.queue(), std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
             _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}}, _CopyOp{_ReduceOp{}, _Assign{}});
     }
 }
@@ -1317,14 +1314,13 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
         using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
         using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp, /*inclusive*/ std::true_type>;
 
-        return __parallel_scan_copy<_CustomName, _ExecutionPolicy>(
-            __backend_tag, __exec.queue(), std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
-            _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
+        return __parallel_scan_copy<_CustomName>(__backend_tag, __exec.queue(), std::forward<_Range1>(__rng),
+                                                 std::forward<_Range2>(__result), __n, _CreateOp{__pred},
+                                                 _CopyOp{_ReduceOp{}});
     }
 }
 
-// KSATODO avoid _CustomName + _ExecutionPolicy or return to _ExecutionPolicy&&
-template <typename _CustomName, typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
+template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 auto
 __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue __q, _InRng&& __in_rng,
@@ -1371,9 +1367,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,
                                                       /*inclusive*/ std::true_type, 1>;
 
-        return __parallel_scan_copy<_CustomName, _ExecutionPolicy>(__backend_tag, __q, std::forward<_InRng>(__in_rng),
-                                                                   std::forward<_OutRng>(__out_rng), __n,
-                                                                   _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
+        return __parallel_scan_copy<_CustomName>(__backend_tag, __q, std::forward<_InRng>(__in_rng),
+                                                 std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
+                                                 _CopyOp{_ReduceOp{}, __assign});
     }
 }
 
@@ -1432,15 +1428,14 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
     using _NoAssign = unseq_backend::__scan_no_assign;
     using _MaskAssigner = unseq_backend::__mask_assigner<2>;
     using _InitType = unseq_backend::__no_init_value<_Size1>;
-    using _DataAcc = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, oneapi::dpl::__internal::__no_op>;
+    using _DataAcc = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
 
     _ReduceOp __reduce_op;
     _Assigner __assign_op;
     _DataAcc __get_data_op;
     unseq_backend::__copy_by_mask<_ReduceOp, oneapi::dpl::__internal::__pstl_assign, /*inclusive*/ std::true_type, 2>
         __copy_by_mask_op;
-    unseq_backend::__brick_set_op<std::decay_t<_ExecutionPolicy>, _Compare, _Size1, _Size2, _IsOpDifference>
-        __create_mask_op{__comp, __n1, __n2};
+    unseq_backend::__brick_set_op<_Compare, _Size1, _Size2, _IsOpDifference> __create_mask_op{__comp, __n1, __n2};
 
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);
@@ -1455,12 +1450,12 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
                 __mask_buf.get_buffer())),
         std::forward<_Range3>(__result), _InitType{},
         // local scan
-        unseq_backend::__scan</*inclusive*/ std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _Assigner,
-                              _MaskAssigner, decltype(__create_mask_op), _InitType>{
-            __reduce_op, __get_data_op, __assign_op, _MaskAssigner{}, __create_mask_op},
+        unseq_backend::__scan</*inclusive*/ std::true_type, _ReduceOp, _DataAcc, _Assigner, _MaskAssigner,
+                              decltype(__create_mask_op), _InitType>{__reduce_op, __get_data_op, __assign_op,
+                                                                     _MaskAssigner{}, __create_mask_op},
         // scan between groups
-        unseq_backend::__scan</*inclusive=*/std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _NoAssign, _Assigner,
-                              _DataAcc, _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _DataAcc, _NoAssign, _Assigner, _DataAcc,
+                              _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
         // global scan
         __copy_by_mask_op);
 }
@@ -1617,11 +1612,9 @@ __is_backward_tag(_TagType)
 // early_exit (find_or)
 //------------------------------------------------------------------------
 
-template <typename _DecayedExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct __early_exit_find_or
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     _Pred __pred;
 
     template <typename _NDItemId, typename _SrcDataSize, typename _IterationDataSize, typename _LocalFoundState,
@@ -1897,8 +1890,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     using _AtomicType = typename _BrickTag::_AtomicType;
     const _AtomicType __init_value = _BrickTag::__init_value(__rng_n);
-    const auto __pred =
-        oneapi::dpl::__par_backend_hetero::__early_exit_find_or<std::decay_t<_ExecutionPolicy>, _Brick>{__f};
+    const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick>{__f};
 
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
@@ -2291,9 +2283,8 @@ struct __assign_key1_wrapper;
 template <typename _Name>
 struct __assign_key2_wrapper;
 
-// KSATODO avoid _CustomName + _ExecutionPolicy or return to _ExecutionPolicy&&
-template <typename _CustomName, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
-          typename _Range4, typename _BinaryPredicate, typename _BinaryOperator>
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
+          typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
 __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, sycl::queue __q,
                                       _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
@@ -2333,10 +2324,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     // adjacent element (marks end of real segments)
     // TODO: replace wgroup size with segment size based on platform specifics.
     auto __intermediate_result_end =
-        oneapi::dpl::__par_backend_hetero::__parallel_copy_if<_CustomName, _ExecutionPolicy>(
-            oneapi::dpl::__internal::__device_backend_tag{},
-            __q, __view1, __view2,
-            __n,
+        oneapi::dpl::__par_backend_hetero::__parallel_copy_if<_CustomName>(
+            oneapi::dpl::__internal::__device_backend_tag{}, __q, __view1, __view2, __n,
             [__binary_pred, __wgroup_size](const auto& __a) { // KSATODO move lambda
                 // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
                 // for (i-1), but we still need to get its key value as it is the start of a segment
@@ -2381,10 +2370,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // element is copied if it is the 0th element (marks beginning of first segment), or has a key not equal to
     // the adjacent element (end of a segment). Artificial segments based on wg size are not created.
-    auto __result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if<_CustomName, _ExecutionPolicy>(
-                            oneapi::dpl::__internal::__device_backend_tag{},
-                            __q,
-                            __view3, __view4, __view3.size(),
+    auto __result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if<_CustomName>(
+                            oneapi::dpl::__internal::__device_backend_tag{}, __q, __view3, __view4, __view3.size(),
                             [__binary_pred](const auto& __a) { // KSATODO move lambda
                                 // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
                                 // for (i-1), but we still need to get its key value as it is the start of a segment
@@ -2444,11 +2431,10 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    return __parallel_reduce_by_segment_fallback<_CustomName, _ExecutionPolicy>(
-        oneapi::dpl::__internal::__device_backend_tag{}, __exec.queue(),
-        std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
-        std::forward<_Range4>(__out_values), __binary_pred, __binary_op,
-        oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
+    return __parallel_reduce_by_segment_fallback<_CustomName>(
+        oneapi::dpl::__internal::__device_backend_tag{}, __exec.queue(), std::forward<_Range1>(__keys),
+        std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values),
+        __binary_pred, __binary_op, oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
 }
 
 } // namespace __par_backend_hetero
