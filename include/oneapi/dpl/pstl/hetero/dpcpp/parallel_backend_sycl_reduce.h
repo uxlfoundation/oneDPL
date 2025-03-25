@@ -168,8 +168,8 @@ __parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend
 
     return __parallel_transform_reduce_small_submitter<_Tp, _ReduceKernel>()(
         __backend_tag, __exec.queue(), __n, __work_group_size, __iters_per_work_item,
-        unseq_backend::transform_reduce<std::decay_t<_ExecutionPolicy>, _ReduceOp, _TransformOp, _Tp, _Commutative,
-                                        _VecSize>{__reduce_op, __transform_op},
+        unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{__reduce_op,
+                                                                                              __transform_op},
         unseq_backend::reduce_over_group<std::decay_t<_ExecutionPolicy>, _ReduceOp, _Tp>{__reduce_op}, __init,
         std::forward<_Ranges>(__rngs)...);
 }
@@ -278,8 +278,8 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
 
     sycl::event __reduce_event = __parallel_transform_reduce_device_kernel_submitter<_Tp, _ReduceDeviceKernel>()(
         __backend_tag, __exec.queue(), __n, __work_group_size, __iters_per_work_item_device_kernel,
-        unseq_backend::transform_reduce<std::decay_t<_ExecutionPolicy>, _ReduceOp, _TransformOp, _Tp, _Commutative,
-                                        _VecSize>{__reduce_op, __transform_op},
+        unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{__reduce_op,
+                                                                                              __transform_op},
         unseq_backend::reduce_over_group<std::decay_t<_ExecutionPolicy>, _ReduceOp, _Tp>{__reduce_op},
         __scratch_container, std::forward<_Ranges>(__rngs)...);
 
@@ -289,8 +289,8 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
     return __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _ReduceWorkGroupKernel>()(
         __backend_tag, __exec.queue(), __reduce_event, __n_groups, __work_group_size,
         __iters_per_work_item_work_group_kernel,
-        unseq_backend::transform_reduce<std::decay_t<_ExecutionPolicy>, _ReduceOp, _NoOpFunctor, _Tp, _Commutative,
-                                        _VecSize>{__reduce_op, _NoOpFunctor{}},
+        unseq_backend::transform_reduce<_ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{__reduce_op,
+                                                                                              _NoOpFunctor{}},
         unseq_backend::reduce_over_group<std::decay_t<_ExecutionPolicy>, _ReduceOp, _Tp>{__reduce_op}, __init,
         __scratch_container);
 }
@@ -498,11 +498,11 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
 
     using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
     auto __transform_pattern1 =
-        unseq_backend::transform_reduce<std::decay_t<_ExecutionPolicy>, _ReduceOp, _TransformOp, _Tp, _Commutative,
-                                        __vector_size>{__reduce_op, __transform_op};
+        unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, __vector_size>{__reduce_op,
+                                                                                                   __transform_op};
     auto __transform_pattern2 =
-        unseq_backend::transform_reduce<std::decay_t<_ExecutionPolicy>, _ReduceOp, _NoOpFunctor, _Tp, _Commutative,
-                                        __vector_size>{__reduce_op, _NoOpFunctor{}};
+        unseq_backend::transform_reduce<_ReduceOp, _NoOpFunctor, _Tp, _Commutative, __vector_size>{__reduce_op,
+                                                                                                   _NoOpFunctor{}};
     auto __reduce_pattern =
         unseq_backend::reduce_over_group<std::decay_t<_ExecutionPolicy>, _ReduceOp, _Tp>{__reduce_op};
 
