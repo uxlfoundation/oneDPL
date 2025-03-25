@@ -1059,7 +1059,7 @@ __pattern_minmax(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
         oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
 
     [[maybe_unused]] const auto& [__min_idx, __min] = __res1;
-    [[maybe_unused]] const auto& [__max_idx, __max] = __res1;
+    [[maybe_unused]] const auto& [__max_idx, __max] = __res2;
     
     return {__min, __max};
 }
