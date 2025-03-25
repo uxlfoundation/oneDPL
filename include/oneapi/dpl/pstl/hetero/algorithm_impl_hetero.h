@@ -402,11 +402,9 @@ __pattern_generate_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
 // brick_copy, brick_move
 //------------------------------------------------------------------------
 
-template <typename _BackendTag, typename _DecayedExecutionPolicy>
-struct __brick_copy_n<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>
+template <typename _BackendTag>
+struct __brick_copy_n<__hetero_tag<_BackendTag>>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     template <typename _SourceT, typename _TargetT>
     void
     operator()(_SourceT&& __source, _TargetT&& __target) const
