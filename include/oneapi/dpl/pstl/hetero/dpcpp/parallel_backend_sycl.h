@@ -1778,8 +1778,7 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                                 _SetTag)
 {
-    constexpr std::int32_t __diagonal_spacing = 4;
-    std::cout<<"__parallel_set_reduce_then_scan"<<std::endl;
+    constexpr std::int32_t __diagonal_spacing = 16;
 
     using _SetOperation = __get_set_operation<_SetTag>;
     using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
