@@ -1557,11 +1557,9 @@ struct __brick_reduce_idx : public walk_scalar_base<_Range>
 
 // std::swap_ranges is unique in that both sets of provided ranges will be modified. Due to this,
 // we define a separate functor from __walk2_vectors_or_scalars with a customized vectorization path.
-template <typename _DecayedExecutionPolicy, typename _F, typename _Range1, typename _Range2>
+template <typename _F, typename _Range1, typename _Range2>
 struct __brick_swap : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     _F __f;
