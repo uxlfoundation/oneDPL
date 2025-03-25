@@ -2770,11 +2770,9 @@ __pattern_fill(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcce
     });
 }
 
-template <class _Tag, typename _DecayedExecutionPolicy, typename _Tp>
-struct __brick_fill_n<_Tag, _DecayedExecutionPolicy, _Tp, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
+template <class _Tag, typename _Tp>
+struct __brick_fill_n<_Tag, _Tp, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     const _Tp& __value;
 
     template <typename _RandomAccessIterator, typename _Size>
@@ -2800,8 +2798,7 @@ __pattern_fill_n(_Tag, _ExecutionPolicy&&, _OutputIterator __first, _Size __coun
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_fill_n<_Tag, std::decay_t<_ExecutionPolicy>, _Tp>{__value}(__first, __count,
-                                                                                          typename _Tag::__is_vector{});
+    return __internal::__brick_fill_n<_Tag, _Tp>{__value}(__first, __count, typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Tp>
