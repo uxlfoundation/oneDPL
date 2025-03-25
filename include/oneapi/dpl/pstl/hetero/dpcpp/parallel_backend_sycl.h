@@ -1033,8 +1033,6 @@ struct __gen_set_balanced_path
         auto __rng2 = std::get<1>(__in_rng.tuple());    // second sequence
 
         auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
-        auto __rng2_temp_diag = std::get<3>(__in_rng.tuple()); // set b temp storage sequence
-        auto __temp_star_offset = std::get<4>(__in_rng.tuple()); // star offset boolean flags
 
         using _SizeType = decltype(__rng1.size());
         _SizeType __i_elem = __id * __diagonal_spacing;
@@ -1050,11 +1048,9 @@ struct __gen_set_balanced_path
         //Find balanced path for diagonal start
         auto [__rng1_balanced_pos, __rng2_balanced_pos, __star_offset] = __find_balanced_path_start_point(
                                 __rng1, __rng2, __rng1_pos, __rng2_pos, __comp);
-        //TODO: replace seta,setb positions with intra-diagonal index + start offset boolean
 
-        __rng1_temp_diag[__id] = __rng1_balanced_pos;
-        __rng2_temp_diag[__id] = __rng2_balanced_pos;
-        __temp_star_offset[__id] = __star_offset;
+        //use sign bit to represent star offset
+        __rng1_temp_diag[__id] = __rng1_balanced_pos * (__star_offset ? -1 : 1);
 
         _SizeType __eles_to_process = std::min(__diagonal_spacing - _SizeType{__star_offset},
                                                __rng1.size() + __rng2.size() - (__i_elem - 1));
@@ -1082,12 +1078,11 @@ struct __gen_set_op_from_known_balanced_path
         auto __rng1 = std::get<0>(__in_rng.tuple());    // first sequence
         auto __rng2 = std::get<1>(__in_rng.tuple());    // second sequence
 
-        auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
-        auto __rng2_temp_diag = std::get<3>(__in_rng.tuple()); // set b temp storage sequence
-        auto __temp_star_offset = std::get<4>(__in_rng.tuple()); // star offset boolean flags
-
+        auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
         using _SizeType = decltype(__rng1.size());
         _SizeType __i_elem = __id * __diagonal_spacing;
+        bool __star_offset = std::signbit(__rng1_temp_diag[__id]);
+        auto __rng2_temp_diag = __i_elem - std::abs(__rng1_temp_diag[__id]) + __star_offset;
         _SizeType __eles_to_process = std::min(_SizeType{__diagonal_spacing} - _SizeType{__temp_star_offset[__id]},
             __rng1.size() + __rng2.size() - (__i_elem - 1));
         
@@ -1777,7 +1772,7 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                                 _SetTag)
 {
-    constexpr std::int32_t __diagonal_spacing = 4;
+    constexpr std::int32_t __diagonal_spacing = 16;
 
     using _SetOperation = __get_set_operation<_SetTag>;
     using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
@@ -1794,19 +1789,17 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     
     const std::int32_t __num_diagonals = oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size() + __rng2.size(), __diagonal_spacing);
 
-    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __temp_diags1(__num_diagonals);
-    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __temp_diags2(__num_diagonals);
-    oneapi::dpl::__par_backend_hetero::__buffer<bool> __temp_star(__num_diagonals);
+    //should be safe to use the type of the range size as the temporary type. Use sign bit as a flag for the star
+    using _TemporaryType = std::decltype(__rng1.size());
+    //TODO: limit to diagonals per block, and only write to a block based index of temporary data
+    oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
 
     constexpr std::uint32_t __bytes_per_work_item_iter = ((sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2) *
-                                                         (__diagonal_spacing + 1) + 2 * sizeof(std::int32_t) +
-                                                         sizeof(bool);
+                                                         (__diagonal_spacing + 1) + sizeof(_TemporaryType);
     return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter>(
         __backend_tag, std::forward<_ExecutionPolicy>(__exec), __num_diagonals,
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(__temp_diags1.get_buffer()),
-            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(__temp_diags2.get_buffer()),
-            oneapi::dpl::__ranges::all_view<bool, __par_backend_hetero::access_mode::read_write>(__temp_star.get_buffer())),
+            oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(__temp_diags.get_buffer())),
         std::forward<_Range3>(__result), _GenReduceInput{_SetOperation{}, __diagonal_spacing, __comp}, _ReduceOp{},
         _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp}, _ScanInputTransform{}, _WriteOp{},
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{},
