@@ -114,51 +114,33 @@ struct walk_n
     }
 };
 
-template <typename _ExecutionPolicy, typename _F>
-struct walk1_vector_or_scalar
+// If read accessor returns temporary value then __no_op returns lvalue reference to it.
+// After temporary value destroying it will be a reference on invalid object.
+// So let's don't call functor in case of __no_op
+template <typename _ExecutionPolicy>
+struct walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>
 {
-  private:
-    _F __f;
-    std::size_t __n;
+    oneapi::dpl::__internal::__no_op __f;
 
-  public:
-    constexpr static bool __can_vectorize = true;
-    constexpr static bool __can_process_multiple_iters = true;
-    walk1_vector_or_scalar(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
-
-    template <typename _IsFull, typename _Range, typename _Params, std::enable_if_t<_Params::__b_vectorize, int> = 0>
-    void
-    operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range&& __rng) const
+    template <typename _ItemId, typename _Range>
+    auto
+    operator()(const _ItemId __idx, _Range&& __rng) const -> decltype(__rng[__idx])
     {
-        oneapi::dpl::__par_backend_hetero::__vector_walk<_Params::__vector_size> __vec_walk{__n};
-        __vec_walk(__is_full, __idx, __f, std::forward<_Range>(__rng));
-    }
-
-    // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
-    template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<!_Params::__b_vectorize, int> = 0>
-    void
-    operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
-    {
-        __f(__rng[__idx]);
+        return __rng[__idx];
     }
 };
 
+// walk_n_vectors_or_scalars
 template <typename _ExecutionPolicy, typename _F>
-struct walk2_vectors_or_scalars
+struct walk_n_vectors_or_scalars
 {
   private:
     _F __f;
     std::size_t __n;
-
-  public:
-    constexpr static bool __can_vectorize = true;
-    constexpr static bool __can_process_multiple_iters = true;
-    walk2_vectors_or_scalars(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
-
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
               std::enable_if_t<_Params::__b_vectorize, int> = 0>
     void
-    operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
+    __vector_impl(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
         using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
         _ValueType1 __rng1_vector[_Params::__vector_size];
@@ -171,35 +153,11 @@ struct walk2_vectors_or_scalars
         // 2. Apply functor to vector and store into global memory
         __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2);
     }
-
-    // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
-    template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
-              std::enable_if_t<!_Params::__b_vectorize, int> = 0>
-    void
-    operator()(_IsFull, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
-    {
-        __f(__rng1[__idx], __rng2[__idx]);
-    }
-};
-
-template <typename _ExecutionPolicy, typename _F>
-struct walk3_vectors_or_scalars
-{
-  private:
-    _F __f;
-    std::size_t __n;
-
-  public:
-    constexpr static bool __can_vectorize = true;
-    constexpr static bool __can_process_multiple_iters = true;
-
-    walk3_vectors_or_scalars(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
-
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2, typename _Range3,
               std::enable_if_t<_Params::__b_vectorize, int> = 0>
     void
-    operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2,
-               _Range3&& __rng3) const
+    __vector_impl(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2,
+                  _Range3&& __rng3) const
     {
         using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
         using _ValueType2 = oneapi::dpl::__internal::__value_t<_Range2>;
@@ -219,30 +177,36 @@ struct walk3_vectors_or_scalars
         __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2_vector, __rng3);
     }
 
+  public:
+    constexpr static bool __can_vectorize = true;
+    constexpr static bool __can_process_multiple_iters = true;
+    walk_n_vectors_or_scalars(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
+
+    template <typename _IsFull, typename _Params, typename... _Ranges,
+              std::enable_if_t<_Params::__b_vectorize, int> = 0>
+    void
+    operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Ranges&&... __rngs) const
+    {
+        constexpr std::size_t __num_ranges = sizeof...(__rngs);
+        static_assert(__num_ranges <= 3, "walk_n_vectors_or_scalars only supports up to 3 vectorized impls");
+        if constexpr (__num_ranges == 1)
+        {
+            using oneapi::dpl::__par_backend_hetero::__vector_walk;
+            __vector_walk<_Params::__vector_size>{__n}(__is_full, __idx, __f, std::forward<_Ranges>(__rngs)...);
+        }
+        else //if constexpr (__num_ranges == 3)
+        {
+            __vector_impl(__is_full, __idx, _Params{}, std::forward<_Ranges>(__rngs)...);
+        }
+    }
+
     // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
-    template <typename _IsFull, typename _Params, typename _Range1, typename _Range2, typename _Range3,
+    template <typename _IsFull, typename _Params, typename... _Ranges,
               std::enable_if_t<!_Params::__b_vectorize, int> = 0>
     void
-    operator()(_IsFull, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3) const
+    operator()(_IsFull, const std::size_t __idx, _Params, _Ranges&&... __rngs) const
     {
-
-        __f(__rng1[__idx], __rng2[__idx], __rng3[__idx]);
-    }
-};
-
-// If read accessor returns temporary value then __no_op returns lvalue reference to it.
-// After temporary value destroying it will be a reference on invalid object.
-// So let's don't call functor in case of __no_op
-template <typename _ExecutionPolicy>
-struct walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>
-{
-    oneapi::dpl::__internal::__no_op __f;
-
-    template <typename _ItemId, typename _Range>
-    auto
-    operator()(const _ItemId __idx, _Range&& __rng) const -> decltype(__rng[__idx])
-    {
-        return __rng[__idx];
+        __f(__rngs[__idx]...);
     }
 };
 
