@@ -1444,7 +1444,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
 
             _GenInput __gen_transform{__unary_op};
 
-            return __parallel_transform_reduce_then_scan(
+            return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type)>(
                 __backend_tag, std::forward<_ExecutionPolicy>(__exec), __in_rng.size(), std::forward<_Range1>(__in_rng),
                 std::forward<_Range2>(__out_rng), __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{},
                 _WriteOp{}, __init, _Inclusive{}, /*_IsUniquePattern=*/std::false_type{});
@@ -1535,7 +1535,7 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    return __parallel_transform_reduce_then_scan(
+    return __parallel_transform_reduce_then_scan<sizeof(_Size)>(
         __backend_tag, std::forward<_ExecutionPolicy>(__exec), __in_rng.size(), std::forward<_InRng>(__in_rng),
         std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask, {}},
         _ScanInputTransform{}, __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
@@ -1641,7 +1641,7 @@ __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_
     std::size_t __n = __keys.size();
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
-    return __parallel_transform_reduce_then_scan(
+    return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>)>(
         __backend_tag, std::forward<_ExecutionPolicy>(__exec), __keys.size(),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values)),
@@ -1778,9 +1778,12 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                                 _SetTag)
 {
-    constexpr std::int32_t __diagonal_spacing = 16;
+    constexpr std::int32_t __diagonal_spacing = 4;
+    std::cout<<"__parallel_set_reduce_then_scan"<<std::endl;
 
     using _SetOperation = __get_set_operation<_SetTag>;
+    using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
+    using _In2ValueT = oneapi::dpl::__internal::__value_t<_Range2>;
     using _OutValueT = oneapi::dpl::__internal::__value_t<_Range3>;
     using _TempData = __set_temp_data<__diagonal_spacing + 1, _OutValueT>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
@@ -1797,7 +1800,10 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __temp_diags2(__num_diagonals);
     oneapi::dpl::__par_backend_hetero::__buffer<bool> __temp_star(__num_diagonals);
 
-    return __parallel_transform_reduce_then_scan(
+    constexpr std::uint32_t __bytes_per_work_item_iter = ((sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2) *
+                                                         (__diagonal_spacing + 1) + 2 * sizeof(std::int32_t) +
+                                                         sizeof(bool);
+    return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter>(
         __backend_tag, std::forward<_ExecutionPolicy>(__exec), __num_diagonals,
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(__temp_diags1.get_buffer()),
