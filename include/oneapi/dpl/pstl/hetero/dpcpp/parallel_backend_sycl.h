@@ -1083,10 +1083,10 @@ struct __gen_set_op_from_known_balanced_path
         _SizeType __i_elem = __id * __diagonal_spacing;
         bool __star_offset = std::signbit(__rng1_temp_diag[__id]);
         auto __rng2_temp_diag = __i_elem - std::abs(__rng1_temp_diag[__id]) + __star_offset;
-        _SizeType __eles_to_process = std::min(_SizeType{__diagonal_spacing} - _SizeType{__temp_star_offset[__id]},
+        _SizeType __eles_to_process = std::min(_SizeType{__diagonal_spacing} - _SizeType{__star_offset},
             __rng1.size() + __rng2.size() - (__i_elem - 1));
         
-        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_temp_diag[__id], __rng2_temp_diag[__id], __eles_to_process,
+        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_temp_diag[__id], __rng2_temp_diag, __eles_to_process,
                                                __output_data, __comp);
         return std::make_tuple(std::uint32_t{__count}, __count);
     }
