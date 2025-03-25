@@ -1668,21 +1668,21 @@ template <typename Tag>
 struct __parallel_find_or_nd_range_tuner
 {
     // Tune the amount of work-groups and work-group size
-    template <typename _ExecutionPolicy>
+    inline
     std::tuple<std::size_t, std::size_t>
-    operator()(const _ExecutionPolicy& __exec, const std::size_t __rng_n) const
+    operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
         // TODO: find a way to generalize getting of reliable work-group size
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-        const std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), (std::size_t)4096);
+        const std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
         std::size_t __n_groups = 1;
         // If no more than 32 data elements per work item, a single work group will be used
         if (__rng_n > __wgroup_size * 32)
         {
             // Compute the number of groups and limit by the number of compute units
             __n_groups = std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size),
-                                               oneapi::dpl::__internal::__max_compute_units(__exec.queue()));
+                                               oneapi::dpl::__internal::__max_compute_units(__q));
         }
 
         return {__n_groups, __wgroup_size};
@@ -1695,12 +1695,12 @@ template <>
 struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>
 {
     // Tune the amount of work-groups and work-group size
-    template <typename _ExecutionPolicy>
+    inline
     std::tuple<std::size_t, std::size_t>
-    operator()(const _ExecutionPolicy& __exec, const std::size_t __rng_n) const
+    operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
         // Call common tuning function to get the work-group size
-        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int>{}(__exec, __rng_n);
+        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int>{}(__q, __rng_n);
 
         if (__n_groups > 1)
         {
@@ -1884,7 +1884,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     // Evaluate the amount of work-groups and work-group size
     const auto [__n_groups, __wgroup_size] =
-        __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__exec, __rng_n);
+        __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__exec.queue(), __rng_n);
 
     _PRINT_INFO_IN_DEBUG_MODE(__exec, __wgroup_size);
 
