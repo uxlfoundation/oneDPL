@@ -1178,9 +1178,8 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
 
-// KSATODO avoid _CustomName + _ExecutionPolicy or return to _ExecutionPolicy&&
-template <typename _CustomName, typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size,
-          typename _CreateMaskOp, typename _CopyByMaskOp>
+template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _CreateMaskOp,
+          typename _CopyByMaskOp>
 auto
 __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue __q, _InRng&& __in_rng,
                      _OutRng&& __out_rng, _Size __n, _CreateMaskOp __create_mask_op, _CopyByMaskOp __copy_by_mask_op)
@@ -1250,9 +1249,8 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
                                                                decltype(__n)>;
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, /*inclusive*/ std::true_type, 1>;
 
-        return __parallel_scan_copy<_CustomName, _ExecutionPolicy>(
-            __backend_tag, __exec.queue(), std::forward<_Range1>(__rng),
-            std::forward<_Range2>(__result), __n,
+        return __parallel_scan_copy<_CustomName>(
+            __backend_tag, __exec.queue(), std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
             _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}}, _CopyOp{_ReduceOp{}, _Assign{}});
     }
 }
@@ -1316,9 +1314,9 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
         using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
         using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp, /*inclusive*/ std::true_type>;
 
-        return __parallel_scan_copy<_CustomName, _ExecutionPolicy>(
-            __backend_tag, __exec.queue(), std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
-            _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
+        return __parallel_scan_copy<_CustomName>(__backend_tag, __exec.queue(), std::forward<_Range1>(__rng),
+                                                 std::forward<_Range2>(__result), __n, _CreateOp{__pred},
+                                                 _CopyOp{_ReduceOp{}});
     }
 }
 
@@ -1370,9 +1368,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,
                                                       /*inclusive*/ std::true_type, 1>;
 
-        return __parallel_scan_copy<_CustomName, _ExecutionPolicy>(__backend_tag, __q, std::forward<_InRng>(__in_rng),
-                                                                   std::forward<_OutRng>(__out_rng), __n,
-                                                                   _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
+        return __parallel_scan_copy<_CustomName>(__backend_tag, __q, std::forward<_InRng>(__in_rng),
+                                                 std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
+                                                 _CopyOp{_ReduceOp{}, __assign});
     }
 }
 
