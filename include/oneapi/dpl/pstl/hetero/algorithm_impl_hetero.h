@@ -809,7 +809,7 @@ __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
     if (__first == __last || __s_last == __s_first)
         return __last;
 
-    using _Predicate = unseq_backend::first_match_pred<std::decay_t<_ExecutionPolicy>, _Pred>;
+    using _Predicate = unseq_backend::first_match_pred<_Pred>;
 
     // TODO: To check whether it makes sense to iterate over the second sequence in case of
     // distance(__first, __last) < distance(__s_first, __s_last).
@@ -898,7 +898,7 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
                    : __last;
     }
 
-    using _Predicate = unseq_backend::n_elem_match_pred<std::decay_t<_ExecutionPolicy>, _BinaryPredicate, _Tp, _Size>;
+    using _Predicate = unseq_backend::n_elem_match_pred<_BinaryPredicate, _Tp, _Size>;
     return __par_backend_hetero::__parallel_find(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first),
