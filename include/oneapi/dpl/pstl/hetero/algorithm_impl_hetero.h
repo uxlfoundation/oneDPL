@@ -1170,8 +1170,7 @@ __pattern_is_heap_until(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     if (__last - __first < 2)
         return __last;
 
-    using _Predicate =
-        oneapi::dpl::unseq_backend::single_match_pred_by_idx<std::decay_t<_ExecutionPolicy>, __is_heap_check<_Compare>>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred_by_idx<__is_heap_check<_Compare>>;
 
     return __par_backend_hetero::__parallel_find(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
@@ -1188,8 +1187,7 @@ __pattern_is_heap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _RandomA
     if (__last - __first < 2)
         return true;
 
-    using _Predicate =
-        oneapi::dpl::unseq_backend::single_match_pred_by_idx<std::decay_t<_ExecutionPolicy>, __is_heap_check<_Compare>>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred_by_idx<__is_heap_check<_Compare>>;
 
     return !__par_backend_hetero::__parallel_or(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
