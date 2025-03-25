@@ -1790,7 +1790,7 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     const std::int32_t __num_diagonals = oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size() + __rng2.size(), __diagonal_spacing);
 
     //should be safe to use the type of the range size as the temporary type. Use sign bit as a flag for the star
-    using _TemporaryType = std::decltype(__rng1.size());
+    using _TemporaryType = decltype(__rng1.size());
     //TODO: limit to diagonals per block, and only write to a block based index of temporary data
     oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
 
