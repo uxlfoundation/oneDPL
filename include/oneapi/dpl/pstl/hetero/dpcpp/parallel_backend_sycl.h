@@ -1082,7 +1082,7 @@ struct __gen_set_op_from_known_balanced_path
         using _SizeType = decltype(__rng1.size());
         _SizeType __i_elem = __id * __diagonal_spacing;
         bool __star_offset = std::signbit(__rng1_temp_diag[__id]);
-        auto __rng2_temp_diag = __i_elem + 1 - std::abs(__rng1_temp_diag[__id]) + __star_offset;
+        auto __rng2_temp_diag = __i_elem - 1 - std::abs(__rng1_temp_diag[__id]) + __star_offset;
 
         _SizeType __eles_to_process = std::min(_SizeType{__diagonal_spacing} - _SizeType{__star_offset},
             __rng1.size() + __rng2.size() - (__i_elem - 1));
