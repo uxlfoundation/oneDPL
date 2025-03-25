@@ -1320,8 +1320,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
     }
 }
 
-// KSATODO avoid _CustomName + _ExecutionPolicy or return to _ExecutionPolicy&&
-template <typename _CustomName, typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
+template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 auto
 __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue __q, _InRng&& __in_rng,
@@ -2326,10 +2325,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     // adjacent element (marks end of real segments)
     // TODO: replace wgroup size with segment size based on platform specifics.
     auto __intermediate_result_end =
-        oneapi::dpl::__par_backend_hetero::__parallel_copy_if<_CustomName, _ExecutionPolicy>(
-            oneapi::dpl::__internal::__device_backend_tag{},
-            __q, __view1, __view2,
-            __n,
+        oneapi::dpl::__par_backend_hetero::__parallel_copy_if<_CustomName>(
+            oneapi::dpl::__internal::__device_backend_tag{}, __q, __view1, __view2, __n,
             [__binary_pred, __wgroup_size](const auto& __a) { // KSATODO move lambda
                 // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
                 // for (i-1), but we still need to get its key value as it is the start of a segment
@@ -2374,10 +2371,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // element is copied if it is the 0th element (marks beginning of first segment), or has a key not equal to
     // the adjacent element (end of a segment). Artificial segments based on wg size are not created.
-    auto __result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if<_CustomName, _ExecutionPolicy>(
-                            oneapi::dpl::__internal::__device_backend_tag{},
-                            __q,
-                            __view3, __view4, __view3.size(),
+    auto __result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if<_CustomName>(
+                            oneapi::dpl::__internal::__device_backend_tag{}, __q, __view3, __view4, __view3.size(),
                             [__binary_pred](const auto& __a) { // KSATODO move lambda
                                 // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
                                 // for (i-1), but we still need to get its key value as it is the start of a segment
