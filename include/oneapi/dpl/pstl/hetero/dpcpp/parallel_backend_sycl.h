@@ -1215,23 +1215,6 @@ struct __get_set_operation<_SetTag, std::enable_if_t<std::is_same<_SetTag, oneap
 {
 };
 
-
-// template <typename SetOp, typename _Compare>
-// struct __write_compressed_output
-// {
-//     template <typename _OutRng, typename _SizeType, typename _ValueType>
-//     void
-//     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
-//     {
-//         auto __set_temp_output = std::get<2>(__v); // temp_output sequence
-//         auto __set_temp_count = std::get<1>(__v); // temp_count
-
-//         //Find balanced path for diagonal start
-//         std::copy_n(__set_temp_output + __id * __diagonal_spacing, __set_temp_count, __out_rng + std::get<0>(__v));
-//     }
-// };
-
-
 template <typename _Predicate, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
 struct __gen_mask
 {
