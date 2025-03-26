@@ -1046,7 +1046,7 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __buf(__exec, __last - __first);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__last - __first);
     auto __copy_first = __buf.get();
 
     auto __copy_last = __pattern_copy_if(__tag, __exec, __first, __last, __copy_first, __not_pred<_Predicate>{__pred});
@@ -1071,7 +1071,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
 
     using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __buf(__exec, __last - __first);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__last - __first);
     auto __copy_first = __buf.get();
     auto __copy_last = __pattern_unique_copy(__tag, __exec, __first, __last, __copy_first, __pred);
 
@@ -1252,7 +1252,7 @@ __pattern_inplace_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __ex
     assert(__first < __middle && __middle < __last);
 
     auto __n = __last - __first;
-    oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __buf(__exec, __n);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__n);
     auto __copy_first = __buf.get();
     auto __copy_last = __copy_first + __n;
 
@@ -1340,8 +1340,8 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     auto __n = __last - __first;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __true_buf(__exec, __n);
-    oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __false_buf(__exec, __n);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __true_buf(__n);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __false_buf(__n);
     auto __true_result = __true_buf.get();
     auto __false_result = __false_buf.get();
 
@@ -1548,7 +1548,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         // - create a temporary buffer and copy all the elements from the input buffer there
         // - run partial sort on the temporary buffer
         // - copy k elements from the temporary buffer to the output buffer.
-        oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __buf(__exec, __in_size);
+        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__in_size);
 
         auto __buf_first = __buf.get();
 
@@ -1672,7 +1672,7 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
-    auto __temp_buf = oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _Tp>(__exec, __n);
+    auto __temp_buf = oneapi::dpl::__par_backend_hetero::__buffer<_Tp>(__n);
 
     auto __temp_rng_w =
         oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::write>(__temp_buf.get_buffer());
@@ -1858,7 +1858,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     // temporary buffer to store intermediate result
     const auto __n2 = __last2 - __first2;
-    oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __diff(__exec, __n2);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
     auto __buf = __diff.get();
 
     //1. Calc difference {2} \ {1}
@@ -1939,10 +1939,10 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
 
     // temporary buffers to store intermediate result
     const auto __n1 = __last1 - __first1;
-    oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __diff_1(__exec, __n1);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_1(__n1);
     auto __buf_1 = __diff_1.get();
     const auto __n2 = __last2 - __first2;
-    oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __diff_2(__exec, __n2);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_2(__n2);
     auto __buf_2 = __diff_2.get();
 
     //1. Calc difference {1} \ {2}

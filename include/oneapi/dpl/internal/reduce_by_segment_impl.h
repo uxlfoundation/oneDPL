@@ -113,7 +113,7 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
 
     // buffer that is used to store a flag indicating if the associated key is not equal to
     // the next key, and thus its associated sum should be part of the final result
-    oneapi::dpl::__par_backend::__buffer<Policy, FlagType> _mask(policy, n + 1);
+    oneapi::dpl::__par_backend::__buffer<FlagType> _mask(n + 1);
     auto mask = _mask.get();
     mask[0] = 1;
 
@@ -129,11 +129,11 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     // buffer stores the sums of values associated with a given key. Sums are copied with
     // a shift into result2, and the shift is computed at the same time as the sums, so the
     // sums can't be written to result2 directly.
-    oneapi::dpl::__par_backend::__buffer<Policy, ValueType> _scanned_values(policy, n);
+    oneapi::dpl::__par_backend::__buffer<ValueType> _scanned_values(n);
 
     // Buffer is used to store results of the scan of the mask. Values indicate which position
     // in result2 needs to be written with the scanned_values element.
-    oneapi::dpl::__par_backend::__buffer<Policy, FlagType> _scanned_tail_flags(policy, n);
+    oneapi::dpl::__par_backend::__buffer<FlagType> _scanned_tail_flags(n);
 
     // Compute the sum of the segments. scanned_tail_flags values are not used.
     inclusive_scan(policy, make_zip_iterator(first2, _mask.get()), make_zip_iterator(first2, _mask.get()) + n,
