@@ -1116,7 +1116,7 @@ struct __set_generic_operation
             {
                 if constexpr (_CopyDiffSetB)
                 {
-                    for (; __idx2 < __in_rng2.size(); ++__idx2)
+                    for (; __idx2 < __in_rng2.size() && __idx < __num_eles_min; ++__idx2, ++__idx)
                     {
                         __temp_out.set(__count, __in_rng2, __idx2);
                         ++__count;
@@ -1128,7 +1128,7 @@ struct __set_generic_operation
             {
                 if constexpr (_CopyDiffSetA)
                 {
-                    for (; __idx1 < __in_rng1.size(); ++__idx1)
+                    for (; __idx1 < __in_rng1.size() && __idx < __num_eles_min;; ++__idx1, ++idx)
                     {
                         __temp_out.set(__count, __in_rng1, __idx1);
                         ++__count;
