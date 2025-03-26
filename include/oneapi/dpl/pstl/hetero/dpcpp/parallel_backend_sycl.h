@@ -1052,7 +1052,7 @@ struct __gen_set_balanced_path
         //use sign bit to represent star offset
         __rng1_temp_diag[__id] = __rng1_balanced_pos * (__star_offset ? -1 : 1);
 
-        _SizeType __eles_to_process = std::min(__diagonal_spacing - _SizeType{__star_offset},
+        _SizeType __eles_to_process = std::min(__diagonal_spacing - (__star_offset ? _SizeType{1} : _SizeType{0}),
                                                __rng1.size() + __rng2.size() - (__i_elem - 1));
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
@@ -1083,7 +1083,7 @@ struct __gen_set_op_from_known_balanced_path
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
-        _SizeType __star_offset = std::signbit(__rng1_temp_diag[__id])? 1 : 0;
+        _SizeType __star_offset = std::signbit(__rng1_temp_diag[__id]) ? 1 : 0;
         _SizeType __rng2_temp_diag = __i_elem - std::abs(__rng1_temp_diag[__id]) + __star_offset;
 
         _SizeType __eles_to_process = std::min(_SizeType{__diagonal_spacing} - __star_offset,
@@ -1798,7 +1798,8 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
 
     constexpr std::uint32_t __bytes_per_work_item_iter = ((sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2) *
-                                                         (__diagonal_spacing + 1) + sizeof(_TemporaryType);
+                                                         (__diagonal_spacing + 1) + 2 * sizeof(std::int32_t) +
+                                                         sizeof(bool);
     return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter>(
         __backend_tag, std::forward<_ExecutionPolicy>(__exec), __num_diagonals,
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
