@@ -49,28 +49,6 @@ DEFINE_TEST(test_copy)
     }
 }; // struct test_copy
 
-template <typename Iterator>
-struct test_copy_if
-{
-    size_t expected_buffer_size;
-    Iterator result_begin;
-public:
-    test_copy_if(size_t buf_size, Iterator res_begin)
-        : expected_buffer_size(buf_size), result_begin(res_begin) {}
-
-    template <typename ExecutionPolicy, typename Iterator1, typename Iterator2>
-    void operator()(ExecutionPolicy&& /* exec */, Iterator1 /* first1 */, Iterator1 /* last1 */, Iterator2 /* first2 */) {
-
-        Iterator res_begin = result_begin;
-        for(int i = 0; i != expected_buffer_size; ++i) {
-            if ((i + 1) <= 10 ) {
-                EXPECT_EQ(i + 1, *res_begin, "Wrong result from copy_if with transform_iterator");
-                ++res_begin;
-            }
-        }
-    }
-}; // struct test_copy_if
-
 void test_simple_copy(size_t buffer_size)
 {
     // 1. create buffers
