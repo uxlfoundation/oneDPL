@@ -48,7 +48,7 @@ DEFINE_TEST_PERM_IT(test_sort, PermItIndexTag)
             const auto host_keys_ptr = host_keys.get();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin, auto permItEnd)
+                [&](auto permItBegin, auto permItEnd) // KSATODO move lambda out?
                 {
                     const auto testing_n = permItEnd - permItBegin;
 

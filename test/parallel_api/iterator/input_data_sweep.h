@@ -140,7 +140,7 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
 #    endif // _ONEDPL_DEBUG_SYCL
         oneapi::dpl::discard_iterator discard{};
         // iterate through all wrappers and recurse - 1
-        auto noop = [](auto i) { return i; };
+        auto noop = [](auto i) { return i; }; // KSATODO move lambda out
 
         if constexpr (__is_reversible)
         { // std::reverse_iterator(it)

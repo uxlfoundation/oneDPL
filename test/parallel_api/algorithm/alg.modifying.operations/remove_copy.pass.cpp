@@ -100,14 +100,14 @@ int
 main()
 {
 #if !ONEDPL_FPGA_DEVICE
-    test<float64_t>(-666.0, 8.5, [](size_t j) { return ((j + 1) % 7 & 2) != 0 ? 8.5 : float64_t(j % 32 + j); });
+    test<float64_t>(-666.0, 8.5, [](size_t j) { return ((j + 1) % 7 & 2) != 0 ? 8.5 : float64_t(j % 32 + j); }); // KSATODO move lambda out
 #endif
 
-    test<std::int32_t>(-666, 42, [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 42 : -1 - std::int32_t(j); });
+    test<std::int32_t>(-666, 42, [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 42 : -1 - std::int32_t(j); }); // KSATODO move lambda out
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<Number>(Number(42, OddTag()), Number(2001, OddTag()),
-                 [](std::int32_t j) { return ((j + 1) % 3 & 2) != 0 ? Number(2001, OddTag()) : Number(j, OddTag()); });
+                 [](std::int32_t j) { return ((j + 1) % 3 & 2) != 0 ? Number(2001, OddTag()) : Number(j, OddTag()); }); // KSATODO move lambda out
 #endif
 
     return done();

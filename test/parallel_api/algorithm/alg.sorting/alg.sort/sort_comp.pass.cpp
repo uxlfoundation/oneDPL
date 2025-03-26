@@ -40,7 +40,7 @@ int main()
                                      Converter<std::uint16_t>{}, NonConstLess{});
 
     test_sort<ParanoidKey>(SortTestConfig{cfg, "ParanoidKey, host"}, sizes, Host{},
-                           [](size_t k, size_t val) { return ParanoidKey(k, val, TestUtils::OddTag()); },
+                           [](size_t k, size_t val) { return ParanoidKey(k, val, TestUtils::OddTag()); }, // KSATODO move lambda out
                            KeyCompare(TestUtils::OddTag()));
 
     TestUtils::test_algo_basic_single<std::int32_t>(TestUtils::run_for_rnd<test_non_const<std::int32_t>>());

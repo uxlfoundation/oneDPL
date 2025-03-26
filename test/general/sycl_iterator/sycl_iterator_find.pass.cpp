@@ -327,48 +327,48 @@ DEFINE_TEST(test_any_all_none_of)
         if (n == 1)
         {
             auto res0 = ::std::any_of(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, first1,
-                                      [n](T1 x) { return x == n - 1; });
+                                      [n](T1 x) { return x == n - 1; }); // KSATODO move lambda out
             wait_and_throw(exec);
 
             EXPECT_TRUE(!res0, "wrong effect from any_of_0");
             res0 = ::std::none_of(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, first1,
-                                  [](T1 x) { return x == -1; });
+                                  [](T1 x) { return x == -1; }); // KSATODO move lambda out
             wait_and_throw(exec);
 
             EXPECT_TRUE(res0, "wrong effect from none_of_0");
             res0 = ::std::all_of(make_new_policy<new_kernel_name<Policy, 2>>(exec), first1, first1,
-                                 [](T1 x) { return x % 2 == 0; });
+                                 [](T1 x) { return x % 2 == 0; }); // KSATODO move lambda out
             wait_and_throw(exec);
 
             EXPECT_TRUE(res0, "wrong effect from all_of_0");
         }
         // any_of
         auto res1 = ::std::any_of(make_new_policy<new_kernel_name<Policy, 3>>(exec), first1, last1,
-                                  [n](T1 x) { return x == n - 1; });
+                                  [n](T1 x) { return x == n - 1; }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1, "wrong effect from any_of_1");
         auto res2 = ::std::any_of(make_new_policy<new_kernel_name<Policy, 4>>(exec), first1, last1,
-                                  [](T1 x) { return x == -1; });
+                                  [](T1 x) { return x == -1; }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(!res2, "wrong effect from any_of_2");
         auto res3 = ::std::any_of(make_new_policy<new_kernel_name<Policy, 5>>(exec), first1, last1,
-                                  [](T1 x) { return x % 2 == 0; });
+                                  [](T1 x) { return x % 2 == 0; }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(res3, "wrong effect from any_of_3");
 
         //none_of
         auto res4 = ::std::none_of(make_new_policy<new_kernel_name<Policy, 6>>(exec), first1, last1,
-                                   [](T1 x) { return x == -1; });
+                                   [](T1 x) { return x == -1; }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(res4, "wrong effect from none_of");
 
         //all_of
         auto res5 = ::std::all_of(make_new_policy<new_kernel_name<Policy, 7>>(exec), first1, last1,
-                                  [](T1 x) { return x % 2 == 0; });
+                                  [](T1 x) { return x % 2 == 0; }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(n == 1 || !res5, "wrong effect from all_of");
@@ -394,7 +394,7 @@ DEFINE_TEST(test_find_if)
         if (n == 1)
         {
             auto res0 = ::std::find_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, first1,
-                                       [n](T1 x) { return x == n - 1; });
+                                       [n](T1 x) { return x == n - 1; }); // KSATODO move lambda out
             wait_and_throw(exec);
 
             EXPECT_TRUE(res0 == first1, "wrong effect from find_if_0");
@@ -405,19 +405,19 @@ DEFINE_TEST(test_find_if)
         }
         // find_if
         auto res1 = ::std::find_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), first1, last1,
-                                   [n](T1 x) { return x == n - 1; });
+                                   [n](T1 x) { return x == n - 1; }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE((res1 - first1) == n - 1, "wrong effect from find_if_1");
 
         auto res2 = ::std::find_if(make_new_policy<new_kernel_name<Policy, 3>>(exec), first1, last1,
-                                   [](T1 x) { return x == -1; });
+                                   [](T1 x) { return x == -1; }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(res2 == last1, "wrong effect from find_if_2");
 
         auto res3 = ::std::find_if(make_new_policy<new_kernel_name<Policy, 4>>(exec), first1, last1,
-                                   [](T1 x) { return x % 2 == 0; });
+                                   [](T1 x) { return x % 2 == 0; }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(res3 == first1, "wrong effect from find_if_3");

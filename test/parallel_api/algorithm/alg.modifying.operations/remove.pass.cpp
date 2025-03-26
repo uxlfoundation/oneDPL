@@ -100,7 +100,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
+        auto is_even = [&](float64_t v) { // KSATODO move lambda out
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
@@ -113,17 +113,17 @@ int
 main()
 {
 #if !_PSTL_ICC_18_TEST_EARLY_EXIT_MONOTONIC_RELEASE_BROKEN
-    test<std::uint32_t>(666, 42, [](std::uint32_t) { return true; }, [](size_t j) { return j; });
+    test<std::uint32_t>(666, 42, [](std::uint32_t) { return true; }, [](size_t j) { return j; }); // KSATODO move lambda out
 #endif
 
-    test<std::int32_t>(666, 2001, [](const std::int32_t& val) { return val != 2001; },
-                  [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 2001 : -1 - std::int32_t(j); });
-    test<float64_t>(-666.0, 8.5, [](const float64_t& val) { return val != 8.5; },
-                    [](size_t j) { return ((j + 1) % 7 & 2) != 0 ? 8.5 : float64_t(j % 32 + j); });
+    test<std::int32_t>(666, 2001, [](const std::int32_t& val) { return val != 2001; }, // KSATODO move lambda out
+                  [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 2001 : -1 - std::int32_t(j); }); // KSATODO move lambda out
+    test<float64_t>(-666.0, 8.5, [](const float64_t& val) { return val != 8.5; }, // KSATODO move lambda out
+                    [](size_t j) { return ((j + 1) % 7 & 2) != 0 ? 8.5 : float64_t(j % 32 + j); }); // KSATODO move lambda out
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<Number>(Number(-666, OddTag()), Number(42, OddTag()), IsMultiple(3, OddTag()),
-                 [](std::int32_t j) { return Number(j, OddTag()); });
+                 [](std::int32_t j) { return Number(j, OddTag()); }); // KSATODO move lambda out
 #endif
 
 #ifdef _PSTL_TEST_REMOVE_IF

@@ -59,7 +59,7 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
             assert(::std::distance(first3, last3) >= ::std::distance(first1, last1) + ::std::distance(first2, last2));
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin1, auto permItEnd1)
+                [&](auto permItBegin1, auto permItEnd1) // KSATODO move lambda out?
                 {
                     const auto testing_n1 = permItEnd1 - permItBegin1;
 
@@ -73,7 +73,7 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
                     wait_and_throw(exec1);
 
                     test_through_permutation_iterator<Iterator2, Size, PermItIndexTag>{first2, n}(
-                        [&](auto permItBegin2, auto permItEnd2)
+                        [&](auto permItBegin2, auto permItEnd2) // KSATODO move lambda out?
                         {
                             const auto testing_n2 = permItEnd2 - permItBegin2;
 

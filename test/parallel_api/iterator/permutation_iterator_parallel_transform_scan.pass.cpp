@@ -41,7 +41,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
             const auto host_keys_ptr = host_keys.get();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin, auto permItEnd)
+                [&](auto permItBegin, auto permItEnd) // KSATODO move lambda out?
                 {
                     const auto testing_n = permItEnd - permItBegin;
 
@@ -54,7 +54,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
                     dpl::copy(exec, permItBegin, permItEnd, sourceData.begin());
                     wait_and_throw(exec);
 
-                    const auto op = [](TestValueType val) { return val > 0; };
+                    const auto op = [](TestValueType val) { return val > 0; }; // KSATODO move lambda out
 
                     auto itEndNewRes = dpl::remove_if(exec, permItBegin, permItEnd, op);
                     wait_and_throw(exec);

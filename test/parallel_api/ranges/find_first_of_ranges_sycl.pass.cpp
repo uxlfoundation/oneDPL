@@ -54,7 +54,7 @@ main()
         auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
 
         res1 = find_first_of(exec1, view_a, view_b);
-        res2 = find_first_of(exec2, A, B, [](auto a, auto b) { return a != b; }); //check passing sycl buffer directly
+        res2 = find_first_of(exec2, A, B, [](auto a, auto b) { return a != b; }); //check passing sycl buffer directly // KSATODO move lambda out?
     }
 
     //check result

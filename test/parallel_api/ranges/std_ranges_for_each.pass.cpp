@@ -23,7 +23,7 @@ main()
     namespace dpl_ranges = oneapi::dpl::ranges;
 
     //A checker below modifies a return type; a range based version with policy has another return type.
-    auto for_each_checker = [](auto&&... args) {
+    auto for_each_checker = [](auto&&... args) { // KSATODO move lambda out?
         auto res = std::ranges::for_each(std::forward<decltype(args)>(args)...);
         return res.in;
     };

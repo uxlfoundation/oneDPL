@@ -26,7 +26,7 @@ int
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
-    auto test = [](){
+    auto test = [](){ // KSATODO move lambda out?
         auto res = std::ranges::views::iota(0, 4) | std::ranges::views::reverse;
         return res.size() == 4 && res[0] == 3 && res[1] == 2 && res[2] == 1 && res[3] == 0 &&
               *(res.begin() + 2) == 1 && res.end() - res.begin() == 4;

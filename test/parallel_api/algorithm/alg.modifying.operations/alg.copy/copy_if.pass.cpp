@@ -123,7 +123,7 @@ template <typename InputIterator, typename OutputIterator, typename OutputIterat
 
         // Run remove_copy_if
         [[maybe_unused]] auto i = remove_copy_if(first, last, expected_first, [=](const T& x) { return !pred(x); });
-        auto k = remove_copy_if(exec, first, last, out_first, [=](const T& x) { return !pred(x); });
+        auto k = remove_copy_if(exec, first, last, out_first, [=](const T& x) { return !pred(x); }); // KSATODO move lambda out
 #if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong remove_copy_if effect");
         for (size_t j = 0; j < GuardSize; ++j)
@@ -191,7 +191,7 @@ struct test_non_const_copy_if
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = [&](float64_t v) {
+        auto is_even = [&](float64_t v) { // KSATODO move lambda out
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
@@ -205,7 +205,7 @@ struct test_non_const_remove_copy_if
     void
         operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = [&](float64_t v) {
+        auto is_even = [&](float64_t v) { // KSATODO move lambda out
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
@@ -216,17 +216,21 @@ struct test_non_const_remove_copy_if
 int
 main()
 {
+     // KSATODO move lambda out
     test<float64_t>(-666.0, [](const float64_t& x) { return x * x <= 1024; },
                     [](size_t j) { return ((j + 1) % 7 & 2) != 0 ? float64_t(j % 32) : float64_t(j % 33 + 34); });
 
 #if !ONEDPL_FPGA_DEVICE
+     // KSATODO move lambda out
     test<std::int16_t>(-666, [](const std::int16_t& x) { return x != 42; },
                   [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? std::int16_t(j + 1) : 42; });
 #endif // ONEDPL_FPGA_DEVICE
 
 #if !TEST_DPCPP_BACKEND_PRESENT
+     // KSATODO move lambda out
     test<Number>(Number(42, OddTag()), IsMultiple(3, OddTag()), [](std::int32_t j) { return Number(j, OddTag()); });
 #endif
+     // KSATODO move lambda out
     test<std::int32_t>(-666, [](const std::int32_t&) { return true; }, [](size_t j) { return j; }, false);
 
 #if defined(_PSTL_TEST_REMOVE_COPY_IF)

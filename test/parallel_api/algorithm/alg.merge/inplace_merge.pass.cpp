@@ -163,16 +163,20 @@ int
 main()
 {
 #if !ONEDPL_FPGA_DEVICE
+     // KSATODO move lambda out
     test_by_type<float64_t>([](std::int32_t i) { return -2 * i; }, [](std::int32_t i) { return -(2 * i + 1); }, true,
                             [](const float64_t x, const float64_t y) { return x > y; });
 #endif
 
+     // KSATODO move lambda out
     test_by_type<std::int32_t>([](std::int32_t i) { return 10 * i; }, [](std::int32_t i) { return i + 1; }, false, ::std::less<std::int32_t>());
 
 #if !TEST_DPCPP_BACKEND_PRESENT
+     // KSATODO move lambda out
     test_by_type<LocalWrapper<float32_t>>([](std::int32_t i) { return LocalWrapper<float32_t>(2 * i + 1); },
                                           [](std::int32_t i) { return LocalWrapper<float32_t>(2 * i); }, true,
                                           ::std::less<LocalWrapper<float32_t>>());
+     // KSATODO move lambda out
     test_by_type<MemoryChecker>(
         [](::std::size_t idx){ return MemoryChecker{::std::int32_t(idx * 2)}; },
         [](::std::size_t idx){ return MemoryChecker{::std::int32_t(idx * 2 + 1)}; }, true,

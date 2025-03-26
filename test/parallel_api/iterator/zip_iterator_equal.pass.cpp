@@ -110,7 +110,7 @@ DEFINE_TEST(test_equal_structured_binding)
                         "zip_iterator (equal_structured_binding2) not properly copyable");
         }
 
-        auto compare = [](auto tuple_first1, auto tuple_first2)
+        auto compare = [](auto tuple_first1, auto tuple_first2) // KSATODO move lambda out
         {
             const auto& [a, b] = tuple_first1;
             const auto& [c, d] = tuple_first2;

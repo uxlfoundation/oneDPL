@@ -174,13 +174,13 @@ main()
 #if !ONEDPL_FPGA_DEVICE
     test<float32_t, std::int32_t>(::std::greater<float32_t>());
 #if !_PSTL_ICC_18_TEST_EARLY_EXIT_AVX_RELEASE_BROKEN
-    test<float64_t, std::int32_t>([](const float64_t x, const std::int32_t y) { return x * x < y * y; });
+    test<float64_t, std::int32_t>([](const float64_t x, const std::int32_t y) { return x * x < y * y; }); // KSATODO move lambda out
 #endif
 #endif
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<LocalWrapper<std::int32_t>, LocalWrapper<std::int32_t>>(
-        [](const LocalWrapper<std::int32_t>& x, const LocalWrapper<std::int32_t>& y) { return x < y; });
+        [](const LocalWrapper<std::int32_t>& x, const LocalWrapper<std::int32_t>& y) { return x < y; }); // KSATODO move lambda out
 
     test_string([](const char x, const char y) { return x < y; });
 #endif

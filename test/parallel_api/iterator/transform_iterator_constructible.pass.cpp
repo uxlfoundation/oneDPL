@@ -71,7 +71,7 @@ struct stateful_functor_no_copy_assign
 void
 test_copy_assignment()
 {
-    auto transformation = [](int) { return 0; };
+    auto transformation = [](int) { return 0; }; // KSATODO move lambda out?
 
     oneapi::dpl::counting_iterator<int> count(0);
     oneapi::dpl::transform_iterator<oneapi::dpl::counting_iterator<int>, decltype(transformation)> trans1{
@@ -120,7 +120,7 @@ test_copy_assignment()
 void
 test_default_constructible()
 {
-    auto transformation = [](int) { return 0; };
+    auto transformation = [](int) { return 0; }; // KSATODO move lambda out?
 
     int* ptr = nullptr;
     oneapi::dpl::transform_iterator<int*, decltype(transformation)> trans1{ptr, transformation};

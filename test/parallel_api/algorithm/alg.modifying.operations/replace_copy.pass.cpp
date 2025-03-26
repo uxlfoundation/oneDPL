@@ -104,7 +104,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = [&](float64_t v) {
+        auto is_even = [&](float64_t v) { // KSATODO move lambda out
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
@@ -117,19 +117,19 @@ int
 main()
 {
 
-    test<float64_t>(-666.0, 8.5, 0.33, [](const float64_t& x) { return x * x <= 1024; },
-                    [](size_t j) { return ((j + 1) % 7 & 2) != 0 ? 8.5 : float64_t(j % 32 + j); });
+    test<float64_t>(-666.0, 8.5, 0.33, [](const float64_t& x) { return x * x <= 1024; }, // KSATODO move lambda out
+                    [](size_t j) { return ((j + 1) % 7 & 2) != 0 ? 8.5 : float64_t(j % 32 + j); }); // KSATODO move lambda out
 
-    test<std::int32_t>(-666, 42, 99, [](const std::int32_t& x) { return x != 42; },
-                  [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 42 : -1 - std::int32_t(j); });
+    test<std::int32_t>(-666, 42, 99, [](const std::int32_t& x) { return x != 42; }, // KSATODO move lambda out
+                  [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 42 : -1 - std::int32_t(j); }); // KSATODO move lambda out
 
-    test<std::uint8_t>(123, 42, 99, [](const std::uint8_t& x) { return x != 42; },
-                  [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 42 : 255; });
+    test<std::uint8_t>(123, 42, 99, [](const std::uint8_t& x) { return x != 42; }, // KSATODO move lambda out
+                  [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 42 : 255; }); // KSATODO move lambda out
 
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<Number>(Number(42, OddTag()), Number(2001, OddTag()), Number(2017, OddTag()), IsMultiple(3, OddTag()),
-                 [](std::int32_t j) { return ((j + 1) % 3 & 2) != 0 ? Number(2001, OddTag()) : Number(j, OddTag()); });
+                 [](std::int32_t j) { return ((j + 1) % 3 & 2) != 0 ? Number(2001, OddTag()) : Number(j, OddTag()); }); // KSATODO move lambda out
 #endif
 
 #ifdef _PSTL_TEST_REPLACE_COPY_IF

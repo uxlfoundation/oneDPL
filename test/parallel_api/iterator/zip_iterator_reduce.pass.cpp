@@ -171,7 +171,7 @@ DEFINE_TEST(test_count_if)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first)>, "zip_iterator (count_if) not properly copyable");
         }
 
-        auto comp = [](ValueType const& value) { return value % 10 == 0; };
+        auto comp = [](ValueType const& value) { return value % 10 == 0; }; // KSATODO move lambda out
         ReturnType expected = (n - 1) / 10 + 1;
 
         auto result = std::count_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first, tuple_last,
@@ -222,7 +222,7 @@ DEFINE_TEST(test_lexicographical_compare)
                         "zip_iterator (lexicographical_compare2) not properly copyable");
         }
 
-        auto comp = [](ValueType const& first, ValueType const& second) { return first < second; };
+        auto comp = [](ValueType const& first, ValueType const& second) { return first < second; }; // KSATODO move lambda out
 
         bool is_less_exp = n > 1 ? 1 : 0;
         bool is_less_res =
