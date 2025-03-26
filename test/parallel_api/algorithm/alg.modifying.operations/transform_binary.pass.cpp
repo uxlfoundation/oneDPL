@@ -132,10 +132,8 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        invoke_if(exec, [&]() {
-            InputIterator input_iter2 = input_iter;
-            transform(exec, input_iter, input_iter, input_iter2, out_iter, non_const(::std::plus<T>()));
-        });
+        InputIterator input_iter2 = input_iter;
+        transform(exec, input_iter, input_iter, input_iter2, out_iter, non_const(::std::plus<T>()));
     }
 };
 

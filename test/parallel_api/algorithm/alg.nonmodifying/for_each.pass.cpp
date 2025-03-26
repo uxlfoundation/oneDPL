@@ -106,11 +106,9 @@ struct test_non_const_for_each
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        invoke_if(exec, [&]() {
-            auto f = [](typename ::std::iterator_traits<Iterator>::reference x) { x = x + 1; };
+        auto f = [](typename ::std::iterator_traits<Iterator>::reference x) { x = x + 1; };
 
-            for_each(exec, iter, iter, non_const(f));
-        });
+        for_each(exec, iter, iter, non_const(f));
     }
 };
 
@@ -120,11 +118,9 @@ struct test_non_const_for_each_n
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        invoke_if(exec, [&]() {
-            auto f = [](typename ::std::iterator_traits<Iterator>::reference x) { x = x + 1; };
+        auto f = [](typename ::std::iterator_traits<Iterator>::reference x) { x = x + 1; };
 
-            for_each_n(exec, iter, 0, non_const(f));
-        });
+        for_each_n(exec, iter, 0, non_const(f));
     }
 };
 
