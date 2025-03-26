@@ -26,7 +26,7 @@ namespace TestUtils
 {
 
 // Device copyable noop functor used in testing as surrogate for predicates, binary ops, unary functors
-// Intentionally non-trivially copyable to test that device_copyable speciailzation works and we are not
+// Intentionally non-trivially copyable to test that device_copyable specialization works and we are not
 // relying on trivial copyability
 struct noop_device_copyable
 {
@@ -49,7 +49,7 @@ struct noop_non_device_copyable
 };
 
 // Device copyable assignment callable.
-// Intentionally non-trivially copyable to test that device_copyable speciailzation works and we are not
+// Intentionally non-trivially copyable to test that device_copyable specialization works and we are not
 // relying on trivial copyability
 struct assign_non_device_copyable
 {
@@ -74,7 +74,7 @@ struct assign_device_copyable
 };
 
 // Device copyable binary operator binary operators.
-// Intentionally non-trivially copyable to test that device_copyable speciailzation works and we are not
+// Intentionally non-trivially copyable to test that device_copyable specialization works and we are not
 // relying on trivial copyability
 struct binary_op_non_device_copyable
 {
@@ -100,7 +100,7 @@ struct binary_op_device_copyable
 };
 
 // Device copyable int wrapper struct used in testing as surrogate for values, value types, etc.
-// Intentionally non-trivially copyable to test that device_copyable speciailzation works and we are not
+// Intentionally non-trivially copyable to test that device_copyable specialization works and we are not
 // relying on trivial copyability
 struct int_device_copyable
 {
@@ -118,7 +118,7 @@ struct int_non_device_copyable
 };
 
 // Device copyable iterator used in testing as surrogate for iterators.
-// Intentionally non-trivially copyable to test that device_copyable speciailzation works and we are not
+// Intentionally non-trivially copyable to test that device_copyable specialization works and we are not
 // relying on trivial copyability
 struct constant_iterator_device_copyable
 {
@@ -205,7 +205,7 @@ struct constant_iterator_non_device_copyable
 };
 
 // Non-trivially copyable ranges used in testing as surrogate for ranges.
-// Intentionally non-trivially copyable to test that device_copyable speciailzation (range_device_copyable) works
+// Intentionally non-trivially copyable to test that device_copyable specialization (range_device_copyable) works
 // and we are not relying on trivial copyability
 class range_non_device_copyable
 {
