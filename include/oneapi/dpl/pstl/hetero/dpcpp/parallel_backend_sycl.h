@@ -1795,7 +1795,7 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     //should be safe to use the type of the range size as the temporary type. Use sign bit as a flag for the star
     using _TemporaryType = decltype(__rng1.size());
     //TODO: limit to diagonals per block, and only write to a block based index of temporary data
-    oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
+    oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals + 1);
 
     constexpr std::uint32_t __bytes_per_work_item_iter = ((sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2) *
                                                          (__diagonal_spacing + 1) + sizeof(_TemporaryType);
