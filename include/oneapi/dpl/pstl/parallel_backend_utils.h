@@ -38,7 +38,7 @@ namespace __utils
 // raw buffer (with specified _TAllocator)
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _Tp, template <typename _T> typename _TAllocator>
+template <typename _Tp, template <typename _T> typename _TAllocator>
 class __buffer_impl
 {
     _TAllocator<_Tp> _M_allocator;
@@ -51,7 +51,7 @@ class __buffer_impl
 
   public:
     //! Try to obtain buffer of given size to store objects of _Tp type
-    __buffer_impl(_ExecutionPolicy /*__exec*/, const ::std::size_t __n)
+    __buffer_impl(const std::size_t __n)
         : _M_allocator(), _M_ptr(_M_allocator.allocate(__n)), _M_buf_size(__n)
     {
     }
