@@ -750,7 +750,8 @@ __is_gpu_with_reduce_then_scan_sg_sz(const _ExecutionPolicy& __exec)
 {
     const bool __dev_supports_sg_sz =
         oneapi::dpl::__internal::__supports_sub_group_size(__exec, __get_reduce_then_scan_sg_sz());
-    return (__exec.queue().get_device().is_gpu() && __dev_supports_sg_sz);
+    return true;
+//    return (__exec.queue().get_device().is_gpu() && __dev_supports_sg_sz);
 }
 
 // General scan-like algorithm helpers
@@ -774,7 +775,6 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
                                       _ScanInputTransform __scan_input_transform, _WriteOp __write_op, _InitType __init,
                                       _Inclusive, _IsUniquePattern)
 {
-    std::cout << "reduce then scan\n";
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<_CustomName>>;
