@@ -1052,7 +1052,7 @@ struct __gen_set_balanced_path
         //use sign bit to represent star offset
         __rng1_temp_diag[__id] = __rng1_balanced_pos * (__star_offset ? -1 : 1);
 
-        _SizeType __eles_to_process = std::min(__diagonal_spacing - _SizeType{__star_offset},
+        _SizeType __eles_to_process = std::min(__diagonal_spacing - (__star_offset ? _SizeType{1} : _SizeType{0}),
                                                __rng1.size() + __rng2.size() - (__i_elem - 1));
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
@@ -1083,11 +1083,11 @@ struct __gen_set_op_from_known_balanced_path
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
-        bool __star_offset = std::signbit(__rng1_temp_diag[__id]);
+        _SizeType __star_offset = std::signbit(__rng1_temp_diag[__id])? 1 : 0;
         auto __rng1_temp_diag_abs = std::abs(__rng1_temp_diag[__id]);
         auto __rng2_temp_diag = __i_elem - __rng1_temp_diag_abs + __star_offset;
 
-        _SizeType __eles_to_process = std::min(_SizeType{__diagonal_spacing} - _SizeType{__star_offset},
+        _SizeType __eles_to_process = std::min(_SizeType{__diagonal_spacing} - __star_offset,
             __rng1.size() + __rng2.size() - (__i_elem - 1));
         
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_temp_diag_abs, __rng2_temp_diag, __eles_to_process,
