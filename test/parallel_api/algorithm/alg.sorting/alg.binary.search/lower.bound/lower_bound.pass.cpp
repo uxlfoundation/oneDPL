@@ -78,7 +78,7 @@ DEFINE_TEST(test_lower_bound)
         // call algorithm with comparator
         auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
         auto res2 = oneapi::dpl::lower_bound(new_policy2, first, last, value_first, value_last, result_first,
-                                             [](ValueT first, ValueT second) { return first < second; });
+                                             [](ValueT first, ValueT second) { return first < second; }); // KSATODO move lambda out
         exec.queue().wait_and_throw();
 
         EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, device policy");

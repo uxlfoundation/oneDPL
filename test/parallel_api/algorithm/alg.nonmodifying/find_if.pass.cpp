@@ -58,7 +58,7 @@ template <typename T, typename Predicate, typename Hit, typename Miss>
 void
 test(Predicate pred, Hit hit, Miss miss)
 {
-    auto not_pred = [pred](T x) { return !pred(x); };
+    auto not_pred = [pred](T x) { return !pred(x); }; // KSATODO move lambda out
     // Try sequences of various lengths.
     for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
@@ -88,7 +88,7 @@ struct test_non_const_find_if
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
+        auto is_even = [&](float64_t v) { // KSATODO move lambda out
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
@@ -103,7 +103,7 @@ struct test_non_const_find_if_not
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
+        auto is_even = [&](float64_t v) { // KSATODO move lambda out
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
@@ -117,13 +117,13 @@ main()
 {
 #if !TEST_DPCPP_BACKEND_PRESENT
     // Note that the "hit" and "miss" functions here avoid overflow issues.
-    test<Number>(IsMultiple(5, OddTag()), [](std::int32_t j) { return Number(j - j % 5, OddTag()); }, // hit
-                 [](std::int32_t j) { return Number(j % 5 == 0 ? j ^ 1 : j, OddTag()); });            // miss
+    test<Number>(IsMultiple(5, OddTag()), [](std::int32_t j) { return Number(j - j % 5, OddTag()); }, // hit // KSATODO move lambda out
+                 [](std::int32_t j) { return Number(j % 5 == 0 ? j ^ 1 : j, OddTag()); });            // miss // KSATODO move lambda out
 #endif
 
     // Try type for which algorithm can really be vectorized.
-    test<float32_t>([](float32_t x) { return x >= 0; }, [](float32_t j) { return j * j; },
-                    [](float32_t j) { return -1 - j * j; });
+    test<float32_t>([](float32_t x) { return x >= 0; }, [](float32_t j) { return j * j; }, // KSATODO move lambda out
+                    [](float32_t j) { return -1 - j * j; }); // KSATODO move lambda out
 
 #ifdef _PSTL_TEST_FIND_IF
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const_find_if>());

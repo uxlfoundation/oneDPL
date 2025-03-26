@@ -84,7 +84,7 @@ DEFINE_TEST(test_remove_if)
 
         auto pos = (last - first) / 2;
         auto res1 = ::std::remove_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last,
-                                   [=](T1 x) { return x == T1(222 + pos); });
+                                   [=](T1 x) { return x == T1(222 + pos); }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last - 1, "wrong result from remove_if");
@@ -123,7 +123,7 @@ DEFINE_TEST(test_unique)
         host_keys.update_data();
 
         // invoke
-        auto f = [](IteratorValueType a, IteratorValueType b) { return a == b; };
+        auto f = [](IteratorValueType a, IteratorValueType b) { return a == b; }; // KSATODO move lambda out
         auto result_last = ::std::unique(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, f);
         wait_and_throw(exec);
 
@@ -172,7 +172,7 @@ DEFINE_TEST(test_partition)
         host_keys.update_data();
 
         // invoke partition
-        auto unary_op = [](IteratorValueType value) { return (value % 3 == 0) && (value % 2 == 0); };
+        auto unary_op = [](IteratorValueType value) { return (value % 3 == 0) && (value % 2 == 0); }; // KSATODO move lambda out
         auto res = ::std::partition(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, unary_op);
         wait_and_throw(exec);
 
@@ -217,7 +217,7 @@ DEFINE_TEST(test_transform_inclusive_scan)
 
         auto res1 = ::std::transform_inclusive_scan(
             make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, ::std::plus<T1>(),
-            [](T1 x) { return x * 2; }, value);
+            [](T1 x) { return x * 2; }, value); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from transform_inclusive_scan_1");
@@ -238,7 +238,7 @@ DEFINE_TEST(test_transform_inclusive_scan)
 
         // without initial value
         auto res2 = ::std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1,
-                                                    first2, ::std::plus<T1>(), [](T1 x) { return x * 2; });
+                                                    first2, ::std::plus<T1>(), [](T1 x) { return x * 2; }); // KSATODO move lambda out
         EXPECT_TRUE(res2 == last2, "wrong result from transform_inclusive_scan_2");
 
         retrieve_data(host_keys, host_vals);
@@ -275,7 +275,7 @@ DEFINE_TEST(test_transform_exclusive_scan)
 
         auto res1 =
             ::std::transform_exclusive_scan(make_new_policy<new_kernel_name<Policy, 2>>(exec), first1, last1, first2,
-                                          T1{}, ::std::plus<T1>(), [](T1 x) { return x * 2; });
+                                          T1{}, ::std::plus<T1>(), [](T1 x) { return x * 2; }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from transform_exclusive_scan");
@@ -312,7 +312,7 @@ DEFINE_TEST(test_copy_if)
         host_keys.update_data();
 
         auto res1 = ::std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2,
-                                   [](T1 x) { return x > -1; });
+                                   [](T1 x) { return x > -1; }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from copy_if_1");
@@ -330,7 +330,7 @@ DEFINE_TEST(test_copy_if)
         }
 
         auto res2 = ::std::copy_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2,
-                                 [](T1 x) { return x % 2 == 1; });
+                                 [](T1 x) { return x % 2 == 1; }); // KSATODO move lambda out
         wait_and_throw(exec);
 
         EXPECT_TRUE(res2 == first2 + (last2 - first2) / 2, "wrong result from copy_if_2");
@@ -369,7 +369,7 @@ DEFINE_TEST(test_unique_copy)
         update_data(host_keys, host_vals);
 
         // invoke
-        auto f = [](Iterator1ValueType a, Iterator1ValueType b) { return a == b; };
+        auto f = [](Iterator1ValueType a, Iterator1ValueType b) { return a == b; }; // KSATODO move lambda out
         auto result_first = first2;
         auto result_last =
             ::std::unique_copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, result_first, f);
@@ -418,7 +418,7 @@ DEFINE_TEST(test_partition_copy)
         using Iterator1ValueType = typename ::std::iterator_traits<Iterator1>::value_type;
         using Iterator2ValueType = typename ::std::iterator_traits<Iterator2>::value_type;
         using Iterator3ValueType = typename ::std::iterator_traits<Iterator3>::value_type;
-        auto f = [](Iterator1ValueType value) { return (value % 3 == 0) && (value % 2 == 0); };
+        auto f = [](Iterator1ValueType value) { return (value % 3 == 0) && (value % 2 == 0); }; // KSATODO move lambda out
 
         // init
         ::std::iota(host_keys.get(), host_keys.get() + n, Iterator1ValueType{0});

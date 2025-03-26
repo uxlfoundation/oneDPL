@@ -32,7 +32,7 @@ main()
     constexpr int max_n = 10;
     int data[max_n]     = {0, 1, -1, 3, 4, 5, 6, -1, 8, 9};
 
-    auto lambda = [](auto i) { return i % 2 == 0; };
+    auto lambda = [](auto i) { return i % 2 == 0; }; // KSATODO move lambda out?
 
     auto res1 = 0, res2 = 0;
     using namespace oneapi::dpl::experimental::ranges;

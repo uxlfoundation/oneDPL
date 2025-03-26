@@ -52,7 +52,7 @@ DEFINE_TEST_PERM_IT(test_partial_sort, PermItIndexTag)
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin, auto permItEnd)
+                [&](auto permItBegin, auto permItEnd) // KSATODO move lambda out?
                 {
                     const auto testing_n = permItEnd - permItBegin;
                     // run at most 3 iters per n, 0 elements should be noop / cheap

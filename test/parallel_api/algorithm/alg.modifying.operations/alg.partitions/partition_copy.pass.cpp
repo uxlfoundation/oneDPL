@@ -93,7 +93,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = [&](float64_t v) {
+        auto is_even = [&](float64_t v) { // KSATODO move lambda out
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
@@ -105,15 +105,15 @@ struct test_non_const
 int
 main()
 {
-    test<std::int16_t>([](const std::int32_t value) { return value % 2 == 0; });
-    test<std::int32_t>([](const std::int32_t) { return true; });
+    test<std::int16_t>([](const std::int32_t value) { return value % 2 == 0; }); // KSATODO move lambda out
+    test<std::int32_t>([](const std::int32_t) { return true; }); // KSATODO move lambda out
 
 #if !ONEDPL_FPGA_DEVICE
-    test<float64_t>([](const float64_t value) { return value > 2 << 6; });
+    test<float64_t>([](const float64_t value) { return value > 2 << 6; }); // KSATODO move lambda out
 #endif
 
 #if !TEST_DPCPP_BACKEND_PRESENT
-    test<Wrapper<float64_t>>([](const Wrapper<float64_t>& value) -> bool { return value.get_my_field() != nullptr; });
+    test<Wrapper<float64_t>>([](const Wrapper<float64_t>& value) -> bool { return value.get_my_field() != nullptr; }); // KSATODO move lambda out
 #endif
 
     test_algo_basic_double<std::int32_t>(run_for_rnd_bi<test_non_const>());

@@ -172,14 +172,14 @@ int
 main()
 {
 #if !ONEDPL_FPGA_DEVICE
-    test_partial_sort_copy<Num<float32_t>>([](Num<float32_t> x, Num<float32_t> y) { return x < y; });
+    test_partial_sort_copy<Num<float32_t>>([](Num<float32_t> x, Num<float32_t> y) { return x < y; }); // KSATODO move lambda out
     test_algo_basic_double<std::int32_t>(run_for_rnd<test_non_const<std::int32_t>>());
 #endif
-    test_partial_sort_copy<std::int32_t>([](std::int32_t x, std::int32_t y) { return x > y; });
+    test_partial_sort_copy<std::int32_t>([](std::int32_t x, std::int32_t y) { return x > y; }); // KSATODO move lambda out
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     test_partial_sort_copy<MemoryChecker>(
-        [](const MemoryChecker& val1, const MemoryChecker& val2){ return val1.value() < val2.value(); });
+        [](const MemoryChecker& val1, const MemoryChecker& val2){ return val1.value() < val2.value(); }); // KSATODO move lambda out
     EXPECT_TRUE(MemoryChecker::alive_objects() == 0, "wrong effect from partial_sort_copy: number of ctor and dtor calls is not equal");
 #endif
 

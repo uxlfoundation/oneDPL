@@ -187,14 +187,14 @@ main()
 {
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<Number>(Number(42, OddTag()), ::std::equal_to<Number>(),
-                 [](std::int32_t j) { return Number(3 * j / 13 ^ (j & 8), OddTag()); });
+                 [](std::int32_t j) { return Number(3 * j / 13 ^ (j & 8), OddTag()); }); // KSATODO move lambda out
 #endif
 
     test<float64_t>(float64_t(42), ::std::equal_to<float64_t>(),
-                    [](std::int32_t j) { return float64_t(5 * j / 23 ^ (j / 7)); });
+                    [](std::int32_t j) { return float64_t(5 * j / 23 ^ (j / 7)); }); // KSATODO move lambda out
 #if !ONEDPL_FPGA_DEVICE
     test<float32_t>(float32_t(42), [](float32_t, float32_t) { return false; },
-                    [](std::int32_t j) { return float32_t(j); }, false);
+                    [](std::int32_t j) { return float32_t(j); }, false); // KSATODO move lambda out
 #endif
 
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());

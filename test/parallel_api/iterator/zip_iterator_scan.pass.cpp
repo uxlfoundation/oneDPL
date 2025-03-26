@@ -209,7 +209,7 @@ DEFINE_TEST(test_counting_zip_transform)
         auto res =
             std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), start, start + n,
                          oneapi::dpl::make_transform_iterator(first2,
-                                                              [](ValueType& x1)
+                                                              [](ValueType& x1) // KSATODO move lambda out
                                                               {
                                                                   // It's required to use forward_as_tuple instead of make_tuple
                                                                   // as the latter do not propagate references.

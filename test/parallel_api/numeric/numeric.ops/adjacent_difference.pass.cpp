@@ -165,10 +165,10 @@ test(Pred pred)
 int
 main()
 {
-    test<std::uint8_t, std::uint32_t>([](std::uint32_t a, std::uint32_t b) { return a - b; });
-    test<std::uint16_t, std::uint16_t>([](std::uint16_t a, std::uint16_t b) { return a > b ? a - b : b - a; });
-    test<std::int32_t, std::int64_t>([](std::int64_t a, std::int64_t b) { return a / (b + 1); });
-    test<std::int64_t, float32_t>([](float32_t a, float32_t b) { return (a + b) / 2; });
+    test<std::uint8_t, std::uint32_t>([](std::uint32_t a, std::uint32_t b) { return a - b; }); // KSATODO move lambda out
+    test<std::uint16_t, std::uint16_t>([](std::uint16_t a, std::uint16_t b) { return a > b ? a - b : b - a; }); // KSATODO move lambda out
+    test<std::int32_t, std::int64_t>([](std::int64_t a, std::int64_t b) { return a / (b + 1); }); // KSATODO move lambda out
+    test<std::int64_t, float32_t>([](float32_t a, float32_t b) { return (a + b) / 2; }); // KSATODO move lambda out
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<wrapper<std::int32_t>, wrapper<std::int64_t>>(
         [](const wrapper<std::int64_t>& a, const wrapper<std::int64_t>& b) { return a - b; });

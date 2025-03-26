@@ -48,7 +48,7 @@ main()
         auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
         auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
 
-        res1 = search_n(exec1, view_a, n_val, val, [](auto a, auto b) { return a == b; });
+        res1 = search_n(exec1, view_a, n_val, val, [](auto a, auto b) { return a == b; }); // KSATODO move lambda out?
         res2 = search_n(exec2, A, n_val, val);
     }
 

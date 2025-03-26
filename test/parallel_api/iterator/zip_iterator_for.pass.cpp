@@ -94,7 +94,7 @@ DEFINE_TEST(test_for_each_structured_binding)
         }
 
         std::for_each(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
-                      [f](auto value)
+                      [f](auto value) // KSATODO move lambda out
                       {
                           auto [x, y] = value;
                           f(x);

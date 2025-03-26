@@ -22,7 +22,7 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    auto copy_if_checker = [](std::ranges::random_access_range auto&& r_in,
+    auto copy_if_checker = [](std::ranges::random_access_range auto&& r_in, // KSATODO move lambda out?
                            std::ranges::random_access_range auto&& r_out, auto&&... args)
     {
         auto res = std::ranges::copy_if(std::forward<decltype(r_in)>(r_in), std::ranges::begin(r_out),

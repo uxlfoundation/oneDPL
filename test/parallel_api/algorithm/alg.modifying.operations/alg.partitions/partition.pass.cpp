@@ -112,7 +112,7 @@ struct test_non_const_partition
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
+        auto is_even = [&](float64_t v) { // KSATODO move lambda out
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
@@ -124,13 +124,14 @@ struct test_non_const_partition
 int
 main()
 {
-    test_by_type<std::int32_t>([](std::int32_t i) { return i; }, [](std::int32_t) { return true; });
-    test_by_type<float64_t>([](std::int32_t i) { return -i; }, [](const float64_t x) { return x < 0; });
+    test_by_type<std::int32_t>([](std::int32_t i) { return i; }, [](std::int32_t) { return true; }); // KSATODO move lambda out
+    test_by_type<float64_t>([](std::int32_t i) { return -i; }, [](const float64_t x) { return x < 0; }); // KSATODO move lambda out
 #if !ONEDPL_FPGA_DEVICE
-    test_by_type<std::int64_t>([](std::int32_t i) { return i + 1; }, [](std::int64_t x) { return x % 3 == 0; });
+    test_by_type<std::int64_t>([](std::int32_t i) { return i + 1; }, [](std::int64_t x) { return x % 3 == 0; }); // KSATODO move lambda out
 #endif
 
 #if !TEST_DPCPP_BACKEND_PRESENT
+     // KSATODO move lambda out
     test_by_type<DataType<float32_t>>([](std::int32_t i) { return DataType<float32_t>(2 * i + 1); },
                                       [](const DataType<float32_t>& x) { return x.get_val() < 0; });
 #endif

@@ -155,7 +155,7 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_val_res.get(), n);
         update_data(host_keys, host_vals, host_val_res);
 
-        auto binary_op = [](ValT first, ValT second) { return first + second; };
+        auto binary_op = [](ValT first, ValT second) { return first + second; }; // KSATODO move lambda out
         auto new_policy3 = make_new_policy<new_kernel_name<Policy, 2>>(exec);
         auto res3 = oneapi::dpl::exclusive_scan_by_segment(new_policy3, keys_first, keys_last, vals_first,
                                                            val_res_first, init, BinaryPredicate());

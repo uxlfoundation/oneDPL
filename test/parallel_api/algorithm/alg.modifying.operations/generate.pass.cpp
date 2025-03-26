@@ -103,7 +103,7 @@ struct test_non_const_generate
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto gen = []() { return T(0); };
+        auto gen = []() { return T(0); }; // KSATODO move lambda out
         generate(exec, iter, iter, non_const(gen));
     }
 };
@@ -115,7 +115,7 @@ struct test_non_const_generate_n
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto gen = []() { return T(0); };
+        auto gen = []() { return T(0); }; // KSATODO move lambda out
         generate_n(exec, iter, 0, non_const(gen));
     }
 };

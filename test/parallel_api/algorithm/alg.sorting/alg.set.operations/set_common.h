@@ -350,10 +350,10 @@ run_test_set()
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     test_set<TestType, Num<std::int64_t>, Num<std::int32_t>>(
-        [](const Num<std::int64_t>& x, const Num<std::int32_t>& y) { return x < y; }, true);
+        [](const Num<std::int64_t>& x, const Num<std::int32_t>& y) { return x < y; }, true); // KSATODO move lambda out
 
     test_set<TestType, MemoryChecker, MemoryChecker>(
-        [](const MemoryChecker& val1, const MemoryChecker& val2) -> bool { return val1.value() < val2.value(); }, true);
+        [](const MemoryChecker& val1, const MemoryChecker& val2) -> bool { return val1.value() < val2.value(); }, true); // KSATODO move lambda out
     EXPECT_TRUE(MemoryChecker::alive_objects() == 0,
                 "wrong effect from set algorithms: number of ctor and dtor calls is not equal");
 #endif // !TEST_DPCPP_BACKEND_PRESENT

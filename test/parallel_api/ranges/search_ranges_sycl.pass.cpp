@@ -51,7 +51,7 @@ main()
         using Policy = decltype(TestUtils::default_dpcpp_policy);
 
         res1 = search(exec, A, view_b);
-        res2 = search(make_new_policy<new_kernel_name<Policy, 0>>(exec), view_a, B, [](auto a, auto b) { return a == b; });
+        res2 = search(make_new_policy<new_kernel_name<Policy, 0>>(exec), view_a, B, [](auto a, auto b) { return a == b; }); // KSATODO move lambda out?
     }
 
     //check result

@@ -56,7 +56,7 @@ template <typename T>
 void
 test_adjacent_find_by_type()
 {
-    auto custom_pred = [](T x, T y){return (x - y)*(x - y) == 4; };
+    auto custom_pred = [](T x, T y){return (x - y)*(x - y) == 4; }; // KSATODO move lambda out
     size_t counts[] = {2, 3, 500};
     for (std::int32_t c = 0; c < const_size(counts); ++c)
     {

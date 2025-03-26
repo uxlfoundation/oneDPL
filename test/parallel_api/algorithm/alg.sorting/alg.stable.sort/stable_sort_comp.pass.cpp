@@ -41,7 +41,7 @@ int main()
     test_sort<std::uint32_t>(SortTestConfig{cfg, "uint32_t, host, std::greater"}, sizes, Host{},
                              Converter<std::uint32_t>{}, std::greater{});
 
-    auto paranoid_key_converter = [](size_t k, size_t val) { return ParanoidKey(k, val, TestUtils::OddTag()); };
+    auto paranoid_key_converter = [](size_t k, size_t val) { return ParanoidKey(k, val, TestUtils::OddTag()); }; // KSATODO move lambda out
     test_sort<ParanoidKey>(SortTestConfig{cfg, "ParanoidKey, host"}, sizes, Host{},
                            paranoid_key_converter, KeyCompare(TestUtils::OddTag()));
 

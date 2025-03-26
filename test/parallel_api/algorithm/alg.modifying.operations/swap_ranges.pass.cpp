@@ -96,8 +96,8 @@ struct test_one_policy
         if (check_return)
         {
             ::std::size_t i = 0;
-            bool check = all_of(actual_b, actual_e, [&i](T_ref a) { return a == T(i++); }) &&
-                         all_of(data_b, data_e, [&i](T_ref a) { return a == T(i++); });
+            bool check = all_of(actual_b, actual_e, [&i](T_ref a) { return a == T(i++); }) && // KSATODO move lambda out
+                         all_of(data_b, data_e, [&i](T_ref a) { return a == T(i++); }); // KSATODO move lambda out
 
             EXPECT_TRUE(check, "wrong effect of swap_ranges");
 

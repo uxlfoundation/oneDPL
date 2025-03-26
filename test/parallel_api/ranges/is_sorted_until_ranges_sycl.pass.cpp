@@ -47,7 +47,7 @@ main()
         using Policy = decltype(TestUtils::default_dpcpp_policy);
 
         res1 = is_sorted_until(exec, view);
-        res2 = is_sorted_until(make_new_policy<new_kernel_name<Policy, 0>>(exec), A, [](auto a, auto b) { return a < b; });
+        res2 = is_sorted_until(make_new_policy<new_kernel_name<Policy, 0>>(exec), A, [](auto a, auto b) { return a < b; }); // KSATODO move lambda out?
     }
 
     //check result

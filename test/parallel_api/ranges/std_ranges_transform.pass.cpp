@@ -23,7 +23,7 @@ main()
     namespace dpl_ranges = oneapi::dpl::ranges;
 
     //A checker below modifies a return type; a range based version with policy has another return type.
-    auto transform_unary_checker = [](std::ranges::random_access_range auto&& r_in,
+    auto transform_unary_checker = [](std::ranges::random_access_range auto&& r_in, // KSATODO move lambda out?
                                       std::ranges::random_access_range auto&& r_out, auto&&... args)
     {
         using Size = std::common_type_t<std::ranges::range_size_t<decltype(r_in)>,
@@ -44,7 +44,7 @@ main()
     test_range_algo<3, P2, data_in_out_lim>{}(dpl_ranges::transform, transform_unary_checker, f, &P2::proj);
 
     //A checker below modifies a return type; a range based version with policy has another return type.
-    auto transform_binary_checker = [](std::ranges::random_access_range auto&& r_1,
+    auto transform_binary_checker = [](std::ranges::random_access_range auto&& r_1, // KSATODO move lambda out?
                                        std::ranges::random_access_range auto&& r_2,
                                        std::ranges::random_access_range auto&& r_out, auto&&... args)
     {

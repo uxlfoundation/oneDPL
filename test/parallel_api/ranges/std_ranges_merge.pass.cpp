@@ -23,7 +23,7 @@ main()
     namespace dpl_ranges = oneapi::dpl::ranges;
 
     //A checker below modifies a return type; a range based version with policy has another return type.
-    auto merge_checker = [](std::ranges::random_access_range auto&& r_1,
+    auto merge_checker = [](std::ranges::random_access_range auto&& r_1, // KSATODO move lambda out?
                                        std::ranges::random_access_range auto&& r_2,
                                        std::ranges::random_access_range auto&& r_out, auto comp, auto proj1,
                                        auto proj2)
