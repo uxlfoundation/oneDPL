@@ -2287,10 +2287,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     // TODO: At threshold points check if the key is equal to the key at the previous threshold point, indicating a long sequence.
     // Skip a round of copy_if and reduces if there are none.
     auto __idx = oneapi::dpl::__par_backend_hetero::__buffer<__diff_type>(__n).get_buffer();
-    auto __tmp_out_keys =
-        oneapi::dpl::__par_backend_hetero::__buffer<__key_type>(__n).get_buffer();
-    auto __tmp_out_values =
-        oneapi::dpl::__par_backend_hetero::__buffer<__val_type>(__n).get_buffer();
+    auto __tmp_out_keys = oneapi::dpl::__par_backend_hetero::__buffer<__key_type>(__n).get_buffer();
+    auto __tmp_out_values = oneapi::dpl::__par_backend_hetero::__buffer<__val_type>(__n).get_buffer();
 
     // Replicating first element of keys view to be able to compare (i-1)-th and (i)-th key with aligned sequences,
     //  dropping the last key for the i-1 sequence.
