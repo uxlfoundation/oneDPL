@@ -5,12 +5,13 @@
 where each element is represented as a tuple containing corresponding elements from each input range.
 
 ## Motivations
-  `std::ranges::zip_view` is a convenient way to combine multiple ranges into a single view, where each element of
+`std::ranges::zip_view` is a convenient way to combine multiple ranges into a single view, where each element of
 the resulting range is a tuple containing one element from each of the input ranges. This can be particularly
 useful for iterating over multiple collections in parallel. `std::ranges::zip_view` was introduced in C++23,
 but many developers are still using C++20 standard. So, oneDPL introduces `oneapi::dpl::ranges::zip_view`,
 with the same API and functionality as `std::ranges::zip_view`.
-  In case of C++23 usage of `oneapi::dpl::ranges::zip_view` also makes sense for the device policies, at least, because
+
+In case of C++23 `oneapi::dpl::ranges::zip_view` using also makes sense at least for the device policies, because
 `std::ranges::zip_view` C++23 still is not device copyable. Any wrapper over `std::tuple` C++23 is not device copyable. (https://godbolt.org/z/brfvcMeM6)
 
 
