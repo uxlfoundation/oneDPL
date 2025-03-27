@@ -610,7 +610,7 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
     {
         if constexpr (__bias_last)
             __cur_idx = __n - __n / __div - 1;
-        else 
+        else
             __cur_idx = __n / __div;
         __it = __first + __cur_idx;
 
@@ -642,7 +642,9 @@ template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Val
 _Size1
 __biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
 {
-    return __biased_lower_bound<__bias_last>(__acc, __first, __last, __value, oneapi::dpl::__internal::__not_pred{oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
+    return __biased_lower_bound<__bias_last>(
+        __acc, __first, __last, __value,
+        oneapi::dpl::__internal::__not_pred{oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
 template <typename _IntType, typename _Acc>
