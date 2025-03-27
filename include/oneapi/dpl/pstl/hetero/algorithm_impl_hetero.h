@@ -780,7 +780,7 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     }
     else
     {
-        using _Predicate = unseq_backend::multiple_match_pred<std::decay_t<_ExecutionPolicy>, _Pred>;
+        using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
 
         return __par_backend_hetero::__parallel_find(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
@@ -845,7 +845,7 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
         return __res ? __first : __last;
     }
 
-    using _Predicate = unseq_backend::multiple_match_pred<std::decay_t<_ExecutionPolicy>, _Pred>;
+    using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
     return __par_backend_hetero::__parallel_find(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first),
