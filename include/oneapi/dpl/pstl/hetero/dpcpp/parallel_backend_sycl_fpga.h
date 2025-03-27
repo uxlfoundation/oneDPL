@@ -57,7 +57,7 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
 {
     template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
     auto
-    operator()(_ExecutionPolicy&& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(const _ExecutionPolicy& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
 
@@ -80,14 +80,14 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
 
 template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
 auto
-__parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& __exec, _Fp __brick, _Index __count,
+__parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, const _ExecutionPolicy& __exec, _Fp __brick, _Index __count,
                _Ranges&&... __rngs)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using __parallel_for_name = __internal::__kernel_name_provider<_CustomName>;
 
-    return __parallel_for_fpga_submitter<__parallel_for_name>()(std::forward<_ExecutionPolicy>(__exec), __brick,
-                                                                __count, std::forward<_Ranges>(__rngs)...);
+    return __parallel_for_fpga_submitter<__parallel_for_name>()(__exec, __brick, __count,
+                                                                std::forward<_Ranges>(__rngs)...);
 }
 
 //------------------------------------------------------------------------
@@ -97,7 +97,7 @@ __parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& _
 // TODO: check if it makes sense to move these wrappers out of backend to a common place
 template <typename _ExecutionPolicy, typename _Event, typename _Range1, typename _Range2, typename _BinHashMgr>
 auto
-__parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& __exec, const _Event& __init_event,
+__parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, const _ExecutionPolicy& __exec, const _Event& __init_event,
                      _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
     static_assert(sizeof(oneapi::dpl::__internal::__value_t<_Range2>) <= sizeof(::std::uint32_t),
@@ -105,7 +105,7 @@ __parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPoli
 
     // workaround until we implement more performant version for patterns
     return oneapi::dpl::__par_backend_hetero::__parallel_histogram(
-        oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __init_event,
+        oneapi::dpl::__internal::__device_backend_tag{}, __exec, __init_event,
         std::forward<_Range1>(__input), std::forward<_Range2>(__bins), __binhash_manager);
 }
 

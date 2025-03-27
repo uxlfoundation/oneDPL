@@ -38,7 +38,7 @@ __parallel_invoke_body(_F1&& __f1, _F2&& __f2)
 
 template <class _ExecutionPolicy, typename _F1, typename _F2>
 void
-__parallel_invoke(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _F1&& __f1, _F2&& __f2)
+__parallel_invoke(oneapi::dpl::__internal::__omp_backend_tag, const _ExecutionPolicy&, _F1&& __f1, _F2&& __f2)
 {
     if (omp_in_parallel())
     {

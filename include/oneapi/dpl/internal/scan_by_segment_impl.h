@@ -108,17 +108,20 @@ struct __sycl_scan_by_segment_impl
     template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
               typename _BinaryPredicate, typename _BinaryOperator, typename _T>
     void
-    operator()(_BackendTag, _ExecutionPolicy&& __exec, _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
-               _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init, _T __identity)
+    operator()(_BackendTag, const _ExecutionPolicy& __exec, _Range1&& __keys, _Range2&& __values,
+               _Range3&& __out_values, _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init,
+               _T __identity)
     {
         using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
+        // We should avoid using _ExecutionPolicy in __kernel_name_generator template params
+        // because we always specialize this operator() calls only by _ExecutionPolicy as "const reference".
+        // So, from this template param point of view, only one specialization is possible per concrete _ExecutionPolicy type.
+        // _ExecutionPolicy type information is embedded in _CustomName to distinguish between concrete policy types.
         using _SegScanWgKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-            _SegScanWgPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _BinaryPredicate,
-            _BinaryOperator>;
+            _SegScanWgPhase, _CustomName, _Range1, _Range2, _Range3, _BinaryPredicate, _BinaryOperator>;
         using _SegScanPrefixKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-            _SegScanPrefixPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _BinaryPredicate,
-            _BinaryOperator>;
+            _SegScanPrefixPhase, _CustomName, _Range1, _Range2, _Range3, _BinaryPredicate, _BinaryOperator>;
 
         using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
 
@@ -369,7 +372,7 @@ struct __sycl_scan_by_segment_impl
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename T, typename BinaryPredicate, typename Operator, typename Inclusive>
 OutputIterator
-__scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
+__scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, const Policy& policy, InputIterator1 first1,
                               InputIterator1 last1, InputIterator2 first2, OutputIterator result, T init,
                               BinaryPredicate binary_pred, Operator binary_op, Inclusive)
 {
@@ -392,9 +395,9 @@ __scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, Policy&& po
 
     constexpr iter_value_t identity = unseq_backend::__known_identity<Operator, iter_value_t>;
 
-    __sycl_scan_by_segment_impl<Inclusive::value>()(_BackendTag{}, ::std::forward<Policy>(policy), key_buf.all_view(),
-                                                    value_buf.all_view(), value_output_buf.all_view(), binary_pred,
-                                                    binary_op, init, identity);
+    __sycl_scan_by_segment_impl<Inclusive::value>()(_BackendTag{}, policy, key_buf.all_view(), value_buf.all_view(),
+                                                    value_output_buf.all_view(), binary_pred, binary_op, init,
+                                                    identity);
     return result + n;
 }
 
