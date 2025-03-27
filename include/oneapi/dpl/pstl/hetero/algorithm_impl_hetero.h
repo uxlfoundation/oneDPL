@@ -447,11 +447,9 @@ struct __brick_fill<__hetero_tag<_BackendTag>, _SourceT>
     }
 };
 
-template <typename _BackendTag, typename _DecayedExecutionPolicy, typename _SourceT>
-struct __brick_fill_n<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy, _SourceT>
+template <typename _BackendTag, typename _SourceT>
+struct __brick_fill_n<__hetero_tag<_BackendTag>, _SourceT>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     _SourceT __value;
     template <typename _TargetT>
     void

@@ -97,7 +97,7 @@ struct __create_mask_unique_copy;
 template <class _Tag, typename _Tp, typename>
 struct __brick_fill;
 
-template <class _Tag, typename _ExecutionPolicy, typename _Tp, typename>
+template <class _Tag, typename _Tp, typename>
 struct __brick_fill_n;
 
 template <typename... T>
@@ -186,9 +186,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 {
 };
 
-template <class _Tag, typename _ExecutionPolicy, typename _Tp, typename _EnableIfPlaceholder>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__brick_fill_n, _Tag, _ExecutionPolicy,
-                                                       _Tp, _EnableIfPlaceholder)>
+template <class _Tag, typename _Tp, typename _EnableIfPlaceholder>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__brick_fill_n, _Tag, _Tp,
+                                                       _EnableIfPlaceholder)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
 {
 };
