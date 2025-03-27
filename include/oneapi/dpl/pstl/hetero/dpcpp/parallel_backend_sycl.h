@@ -1094,8 +1094,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     //else use multi pass scan implementation
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
-    using _UnaryFunctor = unseq_backend::walk_n<_ExecutionPolicy, _UnaryOperation>;
-    using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
+    using _UnaryFunctor = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, _UnaryOperation>;
+    using _NoOpFunctor = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, oneapi::dpl::__internal::__no_op>;
 
     _Assigner __assign_op;
     _NoAssign __no_assign_op;
@@ -1194,7 +1194,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
     using _MaskAssigner = unseq_backend::__mask_assigner<1>;
-    using _DataAcc = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
+    using _DataAcc = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, oneapi::dpl::__internal::__no_op>;
     using _InitType = unseq_backend::__no_init_value<_Size>;
 
     _Assigner __assign_op;
@@ -1427,15 +1427,15 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
     using _NoAssign = unseq_backend::__scan_no_assign;
     using _MaskAssigner = unseq_backend::__mask_assigner<2>;
     using _InitType = unseq_backend::__no_init_value<_Size1>;
-    using _DataAcc = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
+    using _DataAcc = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, oneapi::dpl::__internal::__no_op>;
 
     _ReduceOp __reduce_op;
     _Assigner __assign_op;
     _DataAcc __get_data_op;
     unseq_backend::__copy_by_mask<_ReduceOp, oneapi::dpl::__internal::__pstl_assign, /*inclusive*/ std::true_type, 2>
         __copy_by_mask_op;
-    unseq_backend::__brick_set_op<_ExecutionPolicy, _Compare, _Size1, _Size2, _IsOpDifference> __create_mask_op{
-        __comp, __n1, __n2};
+    unseq_backend::__brick_set_op<std::decay_t<_ExecutionPolicy>, _Compare, _Size1, _Size2, _IsOpDifference>
+        __create_mask_op{__comp, __n1, __n2};
 
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);
@@ -1610,9 +1610,11 @@ __is_backward_tag(_TagType)
 // early_exit (find_or)
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _DecayedExecutionPolicy, typename _Pred>
 struct __early_exit_find_or
 {
+    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
+
     _Pred __pred;
 
     template <typename _NDItemId, typename _SrcDataSize, typename _IterationDataSize, typename _LocalFoundState,
@@ -1890,7 +1892,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     using _AtomicType = typename _BrickTag::_AtomicType;
     const _AtomicType __init_value = _BrickTag::__init_value(__rng_n);
-    const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_ExecutionPolicy, _Brick>{__f};
+    const auto __pred =
+        oneapi::dpl::__par_backend_hetero::__early_exit_find_or<std::decay_t<_ExecutionPolicy>, _Brick>{__f};
 
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
