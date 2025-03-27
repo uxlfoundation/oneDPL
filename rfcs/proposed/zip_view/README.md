@@ -45,7 +45,7 @@ This class encapsulates a tuple-like type to keep a combination of two or more r
 `oneapi::dpl::ranges::zip_view::iterator` due to `std::tuple` not satisfying the value-swappable requirement in C++20.
 - Usage of C++ concepts is desirable to write type requirements for types, methods and members of the class.
 - C++20 is minimum supported version for the class. It allows using modern C++ features such as concepts and others.
-- Considiration `std::tuple` as `oneapi::dpl::ranges::zip_view::iterator`. There are issues, at least, with `sortable`, `permutable`
+- Considiration `std::tuple` as `oneapi::dpl::ranges::zip_view::iterator::value_type`. There are issues, at least, with `sortable`, `permutable`
   and `indirectly_writable` concepts: const_cast<const std::iter_reference_t<Out>&&>(*o) = std::forward<T>(t) is not compiled till C++23.  (https://godbolt.org/z/zT9qqnjWq)
 
 ### Test coverage
