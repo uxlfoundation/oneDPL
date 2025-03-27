@@ -1050,12 +1050,9 @@ __pattern_search_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 // clear that doing so is worth the trouble and extra layers of call chain.
 // Sometimes a little duplication for sake of regularity is better than the alternative.
 
-template <class _Tag, typename _DecayedExecutionPolicy>
-struct __brick_copy_n<_Tag, _DecayedExecutionPolicy,
-                      ::std::enable_if_t<oneapi::dpl::__internal::__is_host_dispatch_tag_v<_Tag>>>
+template <class _Tag>
+struct __brick_copy_n<_Tag, std::enable_if_t<oneapi::dpl::__internal::__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     template <typename _RandomAccessIterator1, typename _Size, typename _RandomAccessIterator2>
     _RandomAccessIterator2
     operator()(_RandomAccessIterator1 __first, _Size __n, _RandomAccessIterator2 __result,
