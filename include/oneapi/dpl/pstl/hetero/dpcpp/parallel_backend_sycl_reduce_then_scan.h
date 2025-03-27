@@ -763,16 +763,15 @@ __is_gpu_with_reduce_then_scan_sg_sz(const _ExecutionPolicy& __exec)
 // _ReduceOp - a binary function which is used in the reduction and scan operations
 // _WriteOp - a function which accepts output range, index, and output of `_GenScanInput` applied to the input range
 //            and performs the final write to output operation
-template <std::uint32_t __bytes_per_work_item_iter,
-          typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp,
-          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename _Inclusive, typename _IsUniquePattern>
+template <std::uint32_t __bytes_per_work_item_iter, typename _ExecutionPolicy, typename _InRng, typename _OutRng,
+          typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
+          typename _WriteOp, typename _InitType, typename _Inclusive, typename _IsUniquePattern>
 auto
-__parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, const std::size_t __n,
-                                      _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
-                                      _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
-                                      _ScanInputTransform __scan_input_transform, _WriteOp __write_op, _InitType __init,
-                                      _Inclusive, _IsUniquePattern)
+__parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+                                      const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
+                                      _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
+                                      _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
+                                      _WriteOp __write_op, _InitType __init, _Inclusive, _IsUniquePattern)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -783,7 +782,8 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
 
     constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_sg_sz();
     // Empirically determined maximum. May be less for non-full blocks.
-    constexpr std::uint16_t __max_inputs_per_item = std::max(std::uint16_t{1}, std::uint16_t{256 / __bytes_per_work_item_iter});
+    constexpr std::uint16_t __max_inputs_per_item =
+        std::max(std::uint16_t{1}, std::uint16_t{256 / __bytes_per_work_item_iter});
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
 
