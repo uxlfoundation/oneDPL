@@ -706,11 +706,9 @@ struct n_elem_match_pred
     }
 };
 
-template <typename _DecayedExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct first_match_pred
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     _Pred __pred;
 
     template <typename _Idx, typename _Acc1, typename _Acc2>
