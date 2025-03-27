@@ -1939,6 +1939,14 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
     const _Size1 __n1 = __last1 - __first1;
     const _Size1 __n2 = __last2 - __first2;
 
+
+    _Size1 __output_size = __n1;
+    if constexpr (_SetTag::__is_one_shot_v)
+    {
+        // one shot algorithm can write from set 1 or set 2, whereas old algorithm can only write from set 1.
+        __output_size = __n1 + __n2;
+    }
+
     auto __keep1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();
     auto __buf1 = __keep1(__first1, __last1);
@@ -1947,7 +1955,7 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
     auto __buf2 = __keep2(__first2, __last2);
 
     auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _OutputIterator>();
-    auto __buf3 = __keep3(__result, __result + __n1 + __n2);
+    auto __buf3 = __keep3(__result, __result + __output_size);
 
     sycl::queue __q_local = __exec.queue();
 
