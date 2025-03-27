@@ -2330,11 +2330,14 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       _BinaryOperator __binary_op,
                                       /*known_identity=*/std::false_type)
 {
+    const auto __n = __keys.size();
+    if(__n == 0)
+        return 0;
+
     using __diff_type = oneapi::dpl::__internal::__difference_t<_Range1>;
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
 
-    const auto __n = __keys.size();
     // Round 1: reduce with extra indices added to avoid long segments
     // TODO: At threshold points check if the key is equal to the key at the previous threshold point, indicating a long sequence.
     // Skip a round of copy_if and reduces if there are none.
