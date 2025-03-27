@@ -965,8 +965,8 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
           typename _Iterator3, typename _UnaryPredicate>
 ::std::pair<_Iterator2, _Iterator3>
-__pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first,
-                         _Iterator1 __last, _Iterator2 __result1, _Iterator3 __result2, _UnaryPredicate __pred)
+__pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __last,
+                         _Iterator2 __result1, _Iterator3 __result2, _UnaryPredicate __pred)
 {
     if (__first == __last)
         return ::std::make_pair(__result1, __result2);
@@ -1784,12 +1784,12 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     if (__par_backend_hetero::__can_set_op_write_from_set_b(__exec))
     {
         return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                    __last2, __result, __comp, unseq_backend::_IntersectionTag<std::true_type>());
+                                       __last2, __result, __comp, unseq_backend::_IntersectionTag<std::true_type>());
     }
     else
     {
         return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                                __last2, __result, __comp, unseq_backend::_IntersectionTag<std::false_type>());
+                                       __last2, __result, __comp, unseq_backend::_IntersectionTag<std::false_type>());
     }
 }
 
@@ -1823,12 +1823,12 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     if (__par_backend_hetero::__can_set_op_write_from_set_b(__exec))
     {
         return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                   __last2, __result, __comp, unseq_backend::_DifferenceTag<std::true_type>());
+                                       __last2, __result, __comp, unseq_backend::_DifferenceTag<std::true_type>());
     }
     else
     {
         return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                             __last2, __result, __comp, unseq_backend::_DifferenceTag<std::false_type>());
+                                       __last2, __result, __comp, unseq_backend::_DifferenceTag<std::false_type>());
     }
 }
 
@@ -1888,13 +1888,13 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         const auto __n2 = __last2 - __first2;
         oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
         auto __buf = __diff.get();
-    
+
         //1. Calc difference {2} \ {1}
         const auto __n_diff =
             oneapi::dpl::__internal::__pattern_hetero_set_op(__tag, __exec, __first2, __last2, __first1, __last1, __buf,
                                                              __comp, unseq_backend::_DifferenceTag<std::false_type>()) -
             __buf;
-    
+
         //2. Merge {1} and the difference
         return oneapi::dpl::__internal::__pattern_merge(
             __tag,
@@ -1902,7 +1902,6 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __buf, __buf + __n_diff, __result, __comp);
     }
-
 }
 
 //Dummy names to avoid kernel problems
@@ -1968,7 +1967,8 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
     if (__par_backend_hetero::__can_set_op_write_from_set_b(__exec))
     {
         return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                       __last2, __result, __comp, unseq_backend::_SymmetricDifferenceTag<std::true_type>());
+                                       __last2, __result, __comp,
+                                       unseq_backend::_SymmetricDifferenceTag<std::true_type>());
     }
     else
     {
@@ -1981,21 +1981,25 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
         const auto __n2 = __last2 - __first2;
         oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_2(__n2);
         auto __buf_2 = __diff_2.get();
-    
+
         //1. Calc difference {1} \ {2}
         const auto __n_diff_1 =
             oneapi::dpl::__internal::__pattern_hetero_set_op(
-                __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_phase_1>(__exec),
-                __first1, __last1, __first2, __last2, __buf_1, __comp, unseq_backend::_DifferenceTag<std::false_type>()) -
+                __tag,
+                oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_phase_1>(__exec),
+                __first1, __last1, __first2, __last2, __buf_1, __comp,
+                unseq_backend::_DifferenceTag<std::false_type>()) -
             __buf_1;
-    
+
         //2. Calc difference {2} \ {1}
         const auto __n_diff_2 =
             oneapi::dpl::__internal::__pattern_hetero_set_op(
-                __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_phase_2>(__exec),
-                __first2, __last2, __first1, __last1, __buf_2, __comp, unseq_backend::_DifferenceTag<std::false_type>()) -
+                __tag,
+                oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_phase_2>(__exec),
+                __first2, __last2, __first1, __last1, __buf_2, __comp,
+                unseq_backend::_DifferenceTag<std::false_type>()) -
             __buf_2;
-    
+
         //3. Merge the differences
         return oneapi::dpl::__internal::__pattern_merge(__tag, ::std::forward<_ExecutionPolicy>(__exec), __buf_1,
                                                         __buf_1 + __n_diff_1, __buf_2, __buf_2 + __n_diff_2, __result,
