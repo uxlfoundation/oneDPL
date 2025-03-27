@@ -20,7 +20,7 @@
 #include _PSTL_TEST_HEADER(execution)
 #include _PSTL_TEST_HEADER(algorithm)
 
-
+#if TEST_DPCPP_BACKEND_PRESENT
 template <typename InputIterator1, typename InputIterator2, typename OutputIterator, typename Compare>
 auto
 call_generic_std_set_alg(oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
@@ -419,11 +419,12 @@ test_variety_of_combinations_of_setops(SetTag set_tag)
     EXPECT_TRUE(test_serial_set_op_count_and_write2_large_setB(set_tag), "test for serial set_intersection operation2 large SetB");
     EXPECT_TRUE(test_serial_set_op_count_and_write_limited(set_tag), "test for serial set_intersection operation limited");
 }
-
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
+#if TEST_DPCPP_BACKEND_PRESENT
     std::cout<<"Test intersection"<<std::endl;
     test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>{});
     std::cout<<"Test difference"<<std::endl;
@@ -434,5 +435,6 @@ main()
     test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>{});
     EXPECT_TRUE(test_right_biased_lower_bound(), "test for right biased lower bound");
     EXPECT_TRUE(test_find_balanced_path(), "test for find balanced path");
-    return TestUtils::done();
+#endif // TEST_DPCPP_BACKEND_PRESENT
+    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
