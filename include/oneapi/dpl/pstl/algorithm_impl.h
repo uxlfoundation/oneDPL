@@ -817,7 +817,7 @@ __find_subrange(_RandomAccessIterator __first, _RandomAccessIterator __last, _Ra
         __first = __internal::__brick_find_if(__first, __last, __unary_pred, __is_vector);
 
         // check that all of elements in [first+1, first+count) equal to value
-        if (__first != __last && (__global_last - __first >= __count) &&
+        if (__first != __last && (static_cast<_Size>(__global_last - __first) >= __count) &&
             !__internal::__brick_any_of(__first + 1, __first + __count,
                                         __not_pred<decltype(__unary_pred)&>(__unary_pred), __is_vector))
         {

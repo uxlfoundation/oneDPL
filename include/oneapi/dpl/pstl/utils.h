@@ -922,6 +922,33 @@ struct __count_fn_pred
     }
 };
 #endif
+// The equivalents of std::cmp_less, std::cmp_greater and other from c++20
+// for safe comparison of signed and unsigned types
+template <typename _T, typename _U>
+constexpr bool
+__cmp_less(_T __t, _U __u) noexcept
+{
+    if constexpr (std::is_signed_v<_T> == std::is_signed_v<_U>)
+        return __t < __u;
+    else if constexpr (std::is_signed_v<_T>)
+        return __t < 0 ? true : std::make_unsigned_t<_T>(__t) < __u;
+    else
+        return __u < 0 ? false : __t < std::make_unsigned_t<_U>(__u);
+}
+
+template <typename _T, typename _U>
+constexpr bool
+__cmp_greater(_T __t, _U __u) noexcept
+{
+    return __cmp_less(__u, __t);
+}
+
+template <typename _T, typename _U>
+constexpr bool
+__cmp_less_equal(_T __t, _U __u) noexcept
+{
+    return !__cmp_greater(__t, __u);
+}
 
 } // namespace __internal
 } // namespace dpl
