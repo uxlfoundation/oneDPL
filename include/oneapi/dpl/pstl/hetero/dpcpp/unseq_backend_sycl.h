@@ -1415,11 +1415,9 @@ class __brick_set_op
     }
 };
 
-template <typename _DecayedExecutionPolicy, typename _DiffType, typename _Range>
+template <typename _DiffType, typename _Range>
 struct __brick_shift_left
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
   private:
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
     // Maximum size supported by compilers to generate vector instructions
