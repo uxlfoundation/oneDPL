@@ -672,12 +672,6 @@ __group_scan_fits_in_slm(const sycl::queue& __queue, std::size_t __n, std::size_
 template <std::uint16_t elements, typename _ValueT>
 struct __set_temp_data
 {
-    __set_temp_data()
-    {
-        for (std::uint16_t i = 0; i < elements; ++i)
-            __data[i] = _ValueT{55};
-    }
-
     template<typename _Rng>
     void
     set(std::uint16_t __idx, const _Rng& __val, std::size_t __read_idx)
