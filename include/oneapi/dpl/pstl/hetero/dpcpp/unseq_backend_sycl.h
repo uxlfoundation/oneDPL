@@ -161,11 +161,9 @@ struct walk_scalar_base
         __bytes_per_item / (__min_type_size * __preferred_vector_size);
 };
 
-template <typename _DecayedExecutionPolicy, typename _F, typename _Range>
+template <typename _F, typename _Range>
 struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
   private:
     using __base_t = walk_vector_or_scalar_base<_Range>;
     _F __f;
