@@ -424,12 +424,9 @@ struct __init_processing
 
 // Load elements consecutively from global memory, transform them, and apply a local reduction. Each local result is
 // stored in local memory.
-template <typename _DecayedExecutionPolicy, typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative,
-          std::uint8_t _VecSize>
+template <typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative, std::uint8_t _VecSize>
 struct transform_reduce
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     _Operation1 __binary_op;
     _Operation2 __unary_op;
 
