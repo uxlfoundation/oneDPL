@@ -646,11 +646,9 @@ struct single_match_pred_by_idx
     }
 };
 
-template <typename _DecayedExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct single_match_pred : single_match_pred_by_idx<walk_n<_Pred>>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     single_match_pred(_Pred __p) : single_match_pred_by_idx<walk_n<_Pred>>{__p} {}
 };
 
