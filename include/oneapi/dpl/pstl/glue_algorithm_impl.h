@@ -283,7 +283,7 @@ copy_n(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _Size __n, _Forward
 
     return oneapi::dpl::__internal::__pattern_walk2_brick_n(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
-        oneapi::dpl::__internal::__brick_copy_n<decltype(__dispatch_tag), std::decay_t<_ExecutionPolicy>>{});
+        oneapi::dpl::__internal::__brick_copy_n<decltype(__dispatch_tag)>{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Predicate>
