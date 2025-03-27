@@ -82,7 +82,7 @@ copy_async(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterato
     wait_for_all(::std::forward<_Events>(__dependencies)...);
     auto ret_val = oneapi::dpl::__internal::__pattern_walk2_brick_async(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
-        oneapi::dpl::__internal::__brick_copy<decltype(__dispatch_tag), std::decay_t<_ExecutionPolicy>>{});
+        oneapi::dpl::__internal::__brick_copy<decltype(__dispatch_tag)>{});
     return ret_val;
 }
 

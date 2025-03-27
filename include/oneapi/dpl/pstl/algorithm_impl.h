@@ -1075,11 +1075,9 @@ struct __brick_copy_n<_Tag, std::enable_if_t<oneapi::dpl::__internal::__is_host_
 // copy
 //------------------------------------------------------------------------
 
-template <class _Tag, typename _DecayedExecutionPolicy>
-struct __brick_copy<_Tag, _DecayedExecutionPolicy, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
+template <class _Tag>
+struct __brick_copy<_Tag, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
     operator()(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
@@ -1941,10 +1939,8 @@ __brick_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccess
                     _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last,
                     _RandomAccessIterator2 __result) noexcept
 {
-    _RandomAccessIterator2 __res =
-        __brick_copy<__parallel_tag<_IsVector>, std::decay_t<_ExecutionPolicy>>{}(__middle, __last, __result);
-    return __internal::__brick_copy<__parallel_tag<_IsVector>, std::decay_t<_ExecutionPolicy>>{}(__first, __middle,
-                                                                                                 __res);
+    _RandomAccessIterator2 __res = __brick_copy<__parallel_tag<_IsVector>>{}(__middle, __last, __result);
+    return __internal::__brick_copy<__parallel_tag<_IsVector>>{}(__first, __middle, __res);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
@@ -1969,7 +1965,7 @@ __pattern_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
         __par_backend::__parallel_for(
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
             [__first, __last, __middle, __result](_RandomAccessIterator1 __b, _RandomAccessIterator1 __e) {
-                __internal::__brick_copy<__parallel_tag<_IsVector>, std::decay_t<_ExecutionPolicy>> __copy{};
+                __internal::__brick_copy<__parallel_tag<_IsVector>> __copy{};
                 if (__b > __middle)
                 {
                     __copy(__b, __e, __result + (__b - __middle), _IsVector{});
@@ -2551,8 +2547,7 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec
                     _RandomAccessIterator1 __j1 = __first + (__j - __d_first);
 
                     // 1. Copy elements from input to output
-                    __brick_copy<__parallel_tag<_IsVector>, std::decay_t<_ExecutionPolicy>>{}(__i1, __j1, __i,
-                                                                                              _IsVector{});
+                    __brick_copy<__parallel_tag<_IsVector>>{}(__i1, __j1, __i, _IsVector{});
                     // 2. Sort elements in output sequence
                     ::std::sort(__i, __j, __comp);
                 },
@@ -3392,7 +3387,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
 
-    __brick_copy<__parallel_tag<_IsVector>, std::decay_t<_ExecutionPolicy>> __copy_range{};
+    __brick_copy<__parallel_tag<_IsVector>> __copy_range{};
 
     // {1} {}: parallel copying just first sequence
     if (__n2 == 0)
@@ -3723,25 +3718,22 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     // {1} \ {}: parallel copying just first sequence
     if (__n2 == 0)
-        return __pattern_walk2_brick(
-            __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
-            __internal::__brick_copy<__parallel_tag<_IsVector>, std::decay_t<_ExecutionPolicy>>{});
+        return __pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
+                                     __internal::__brick_copy<__parallel_tag<_IsVector>>{});
 
     // testing  whether the sequences are intersected
     _RandomAccessIterator1 __left_bound_seq_1 = ::std::lower_bound(__first1, __last1, *__first2, __comp);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, parallel copying just first sequence
     if (__left_bound_seq_1 == __last1)
-        return __pattern_walk2_brick(
-            __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
-            __internal::__brick_copy<__parallel_tag<_IsVector>, std::decay_t<_ExecutionPolicy>>{});
+        return __pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
+                                     __internal::__brick_copy<__parallel_tag<_IsVector>>{});
 
     // testing  whether the sequences are intersected
     _RandomAccessIterator2 __left_bound_seq_2 = ::std::lower_bound(__first2, __last2, *__first1, __comp);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, parallel copying just first sequence
     if (__left_bound_seq_2 == __last2)
-        return __internal::__pattern_walk2_brick(
-            __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
-            __brick_copy<__parallel_tag<_IsVector>, std::decay_t<_ExecutionPolicy>>{});
+        return __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+                                                 __result, __brick_copy<__parallel_tag<_IsVector>>{});
 
     if (__n1 + __n2 > __set_algo_cut_off)
         return __parallel_set_op(
