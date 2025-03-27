@@ -70,7 +70,7 @@ struct test_non_const
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
-        invoke_if(exec, [&]() { is_partitioned(exec, iter, iter, non_const(is_even)); });
+        is_partitioned(exec, iter, iter, non_const(is_even));
     }
 };
 

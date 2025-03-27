@@ -155,7 +155,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        invoke_if(exec, [&]() { inplace_merge(exec, iter, iter, iter, non_const(::std::less<T>())); });
+        inplace_merge(exec, iter, iter, iter, non_const(::std::less<T>()));
     }
 };
 

@@ -164,9 +164,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        invoke_if(exec, [&]() {
-            partial_sort_copy(exec, input_iter, input_iter, out_iter, out_iter, non_const(::std::less<T>()));
-        });
+        partial_sort_copy(exec, input_iter, input_iter, out_iter, out_iter, non_const(::std::less<T>()));
     }
 };
 

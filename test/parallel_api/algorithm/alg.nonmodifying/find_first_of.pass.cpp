@@ -108,9 +108,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, FirstIterator first_iter, SecondInterator second_iter)
     {
-        invoke_if(exec, [&]() {
-            find_first_of(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::equal_to<T>()));
-        });
+        find_first_of(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::equal_to<T>()));
     }
 };
 

@@ -105,7 +105,7 @@ struct test_non_const
             return i % 2 == 0;
         };
 
-        invoke_if(exec, [&]() { remove_if(exec, iter, iter, non_const(is_even)); });
+        remove_if(exec, iter, iter, non_const(is_even));
     }
 };
 

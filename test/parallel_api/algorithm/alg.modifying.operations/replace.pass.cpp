@@ -155,7 +155,8 @@ struct test_non_const
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
-        invoke_if(exec, [&]() { replace_if(exec, iter, iter, non_const(is_even), T(0)); });
+
+        replace_if(exec, iter, iter, non_const(is_even), T(0));
     }
 };
 
