@@ -317,11 +317,9 @@ struct walk_n<oneapi::dpl::__internal::__no_op>
 // walk_adjacent_difference
 //------------------------------------------------------------------------
 
-template <typename _DecayedExecutionPolicy, typename _F, typename _Range1, typename _Range2>
+template <typename _F, typename _Range1, typename _Range2>
 struct walk_adjacent_difference : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     _F __f;
