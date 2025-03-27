@@ -373,7 +373,7 @@ struct walk1_vector_or_scalar;
 template <typename _F, typename _Range1, typename _Range2>
 struct walk2_vectors_or_scalars;
 
-template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2, typename _Range3>
+template <typename _F, typename _Range1, typename _Range2, typename _Range3>
 struct walk3_vectors_or_scalars;
 
 template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2>
@@ -450,9 +450,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _ExecutionPolicy, typename _F, typename _Range1, typename _Range2, typename _Range3>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk3_vectors_or_scalars,
-                                                       _ExecutionPolicy, _F, _Range1, _Range2, _Range3)>
+template <typename _F, typename _Range1, typename _Range2, typename _Range3>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk3_vectors_or_scalars, _F,
+                                                       _Range1, _Range2, _Range3)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
 };
