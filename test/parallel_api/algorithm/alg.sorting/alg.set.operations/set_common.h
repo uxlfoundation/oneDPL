@@ -27,31 +27,6 @@
 
 using namespace TestUtils;
 
-template <typename InputIterator>
-bool
-write_first_n_last_m(int n, int m, InputIterator first, InputIterator last)
-{
-    auto size = std::distance(first,last);
-    if (size < n + m)
-    {
-        for (int i = 0; i < size; ++i)
-            std::cout << first[i] << " ";
-        std::cout << std::endl;
-    }
-    else
-    {
-        for (int i = 0; i < n; ++i)
-            std::cout << first[i] << " ";
-        std::cout << " ... ";
-
-        for (int i = size - m - 1; i < size; ++i)
-            std::cout << first[i] << " ";
-        std::cout << std::endl;
-    }
-    return true;
-}
-
-
 template <typename T>
 struct Num
 {
@@ -112,19 +87,6 @@ struct test_set_union
         auto out = sequences.second;
         auto expect_res = ::std::set_union(first1, last1, first2, last2, expect.begin(), comp);
         auto res = ::std::set_union(exec, first1, last1, first2, last2, out.begin(), comp);
-        std::cout<<"exected num "<<expect_res - expect.begin()<<", actual num"<<res - out.begin()<<std::endl;
-        std::cout<<"\nSetA "<<std::distance(first1,last1)<<" elements:\n";
-        write_first_n_last_m(20, 30, first1, last1);
-        std::cout<<"\nSetB "<<std::distance(first2,last2)<<" elements:\n";
-        write_first_n_last_m(20, 30, first2, last2);
-
-        std::cout<<"\nExpected "<<std::distance(expect.begin(), expect_res)<<" elements:\n";
-        write_first_n_last_m(20, 30, expect.begin(), expect_res);
-
-        std::cout<<"\nOut "<<std::distance(out.begin(), res)<<" elements:\n";
-        write_first_n_last_m(20, 30, out.begin(), res);
-
-        std::cout<<std::endl;
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_union");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_union effect");
@@ -139,19 +101,6 @@ struct test_set_union
         auto out = sequences.second;
         auto expect_res = ::std::set_union(first1, last1, first2, last2, expect.begin());
         auto res = ::std::set_union(exec, first1, last1, first2, last2, out.begin());
-        std::cout<<"exected num "<<expect_res - expect.begin()<<", actual num"<<res - out.begin()<<std::endl;
-        std::cout<<"\nSetA "<<std::distance(first1,last1)<<" elements:\n";
-        write_first_n_last_m(20, 30, first1, last1);
-        std::cout<<"\nSetB "<<std::distance(first2,last2)<<" elements:\n";
-        write_first_n_last_m(20, 30, first2, last2);
-
-        std::cout<<"\nExpected "<<std::distance(expect.begin(), expect_res)<<" elements:\n";
-        write_first_n_last_m(20, 30, expect.begin(), expect_res);
-
-        std::cout<<"\nOut "<<std::distance(out.begin(), res)<<" elements:\n";
-        write_first_n_last_m(20, 30, out.begin(), res);
-
-        std::cout<<std::endl;
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_union without comparator");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_union effect without comparator");
@@ -233,8 +182,6 @@ struct test_set_intersection
         }
     }
 
-
-
     template <typename Policy, typename InputIterator1, typename InputIterator2>
     ::std::enable_if_t<!TestUtils::is_reverse_v<InputIterator1>>
     operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2)
@@ -244,19 +191,7 @@ struct test_set_intersection
         auto out = sequences.second;
         auto expect_res = ::std::set_intersection(first1, last1, first2, last2, expect.begin());
         auto res = ::std::set_intersection(exec, first1, last1, first2, last2, out.begin());
-        std::cout<<"exected num "<<expect_res - expect.begin()<<", actual num"<<res - out.begin()<<std::endl;
-        std::cout<<"\nSetA "<<std::distance(first1,last1)<<" elements:\n";
-        write_first_n_last_m(20, 30, first1, last1);
-        std::cout<<"\nSetB "<<std::distance(first2,last2)<<" elements:\n";
-        write_first_n_last_m(20, 30, first2, last2);
 
-        std::cout<<"\nExpected "<<std::distance(expect.begin(), expect_res)<<" elements:\n";
-        write_first_n_last_m(20, 30, expect.begin(), expect_res);
-
-        std::cout<<"\nOut "<<std::distance(out.begin(), res)<<" elements:\n";
-        write_first_n_last_m(20, 30, out.begin(), res);
-
-        std::cout<<std::endl;
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_intersection without comparator");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_intersection effect without comparator");
     }
@@ -287,19 +222,6 @@ struct test_set_difference
         auto out = sequences.second;
         auto expect_res = ::std::set_difference(first1, last1, first2, last2, expect.begin(), comp);
         auto res = ::std::set_difference(exec, first1, last1, first2, last2, out.begin(), comp);
-        std::cout<<"exected num "<<expect_res - expect.begin()<<", actual num"<<res - out.begin()<<std::endl;
-        std::cout<<"\nSetA "<<std::distance(first1,last1)<<" elements:\n";
-        write_first_n_last_m(20, 30, first1, last1);
-        std::cout<<"\nSetB "<<std::distance(first2,last2)<<" elements:\n";
-        write_first_n_last_m(20, 30, first2, last2);
-
-        std::cout<<"\nExpected "<<std::distance(expect.begin(), expect_res)<<" elements:\n";
-        write_first_n_last_m(20, 30, expect.begin(), expect_res);
-
-        std::cout<<"\nOut "<<std::distance(out.begin(), res)<<" elements:\n";
-        write_first_n_last_m(20, 30, out.begin(), res);
-
-        std::cout<<std::endl;
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_difference");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_difference effect");
@@ -314,19 +236,6 @@ struct test_set_difference
         auto out = sequences.second;
         auto expect_res = ::std::set_difference(first1, last1, first2, last2, expect.begin());
         auto res = ::std::set_difference(exec, first1, last1, first2, last2, out.begin());
-        std::cout<<"exected num "<<expect_res - expect.begin()<<", actual num"<<res - out.begin()<<std::endl;
-        std::cout<<"\nSetA "<<std::distance(first1,last1)<<" elements:\n";
-        write_first_n_last_m(20, 30, first1, last1);
-        std::cout<<"\nSetB "<<std::distance(first2,last2)<<" elements:\n";
-        write_first_n_last_m(20, 30, first2, last2);
-
-        std::cout<<"\nExpected "<<std::distance(expect.begin(), expect_res)<<" elements:\n";
-        write_first_n_last_m(20, 30, expect.begin(), expect_res);
-
-        std::cout<<"\nOut "<<std::distance(out.begin(), res)<<" elements:\n";
-        write_first_n_last_m(20, 30, out.begin(), res);
-
-        std::cout<<std::endl;
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(),
                     "wrong result for set_difference without comparator");
@@ -360,19 +269,6 @@ struct test_set_symmetric_difference
         auto out = sequences.second;
         auto expect_res = ::std::set_symmetric_difference(first1, last1, first2, last2, expect.begin(), comp);
         auto res = ::std::set_symmetric_difference(exec, first1, last1, first2, last2, out.begin(), comp);
-        std::cout<<"exected num "<<expect_res - expect.begin()<<", actual num"<<res - out.begin()<<std::endl;
-        std::cout<<"\nSetA "<<std::distance(first1,last1)<<" elements:\n";
-        write_first_n_last_m(20, 30, first1, last1);
-        std::cout<<"\nSetB "<<std::distance(first2,last2)<<" elements:\n";
-        write_first_n_last_m(20, 30, first2, last2);
-
-        std::cout<<"\nExpected "<<std::distance(expect.begin(), expect_res)<<" elements:\n";
-        write_first_n_last_m(20, 30, expect.begin(), expect_res);
-
-        std::cout<<"\nOut "<<std::distance(out.begin(), res)<<" elements:\n";
-        write_first_n_last_m(20, 30, out.begin(), res);
-
-        std::cout<<std::endl;
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_symmetric_difference");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res),
@@ -388,19 +284,6 @@ struct test_set_symmetric_difference
         auto out = sequences.second;
         auto expect_res = ::std::set_symmetric_difference(first1, last1, first2, last2, expect.begin());
         auto res = ::std::set_symmetric_difference(exec, first1, last1, first2, last2, out.begin());
-        std::cout<<"exected num "<<expect_res - expect.begin()<<", actual num"<<res - out.begin()<<std::endl;
-        std::cout<<"\nSetA "<<std::distance(first1,last1)<<" elements:\n";
-        write_first_n_last_m(20, 30, first1, last1);
-        std::cout<<"\nSetB "<<std::distance(first2,last2)<<" elements:\n";
-        write_first_n_last_m(20, 30, first2, last2);
-
-        std::cout<<"\nExpected "<<std::distance(expect.begin(), expect_res)<<" elements:\n";
-        write_first_n_last_m(20, 30, expect.begin(), expect_res);
-
-        std::cout<<"\nOut "<<std::distance(out.begin(), res)<<" elements:\n";
-        write_first_n_last_m(20, 30, out.begin(), res);
-
-        std::cout<<std::endl;
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(),
                     "wrong result for set_symmetric_difference without comparator");
@@ -425,23 +308,21 @@ template <template <typename T> typename TestType, typename T1, typename T2, typ
 void
 test_set(Compare compare, bool comp_flag)
 {
-    const ::std::size_t n_max = 300000;
+    const ::std::size_t n_max = 100000;
 
     // The rand()%(2*n+1) encourages generation of some duplicates.
     ::std::srand(4200);
-    
-    for (::std::size_t m = 0; m < n_max; m = m <= 16 ? m + 1 : size_t(2.71828 * m))
+
+    for (::std::size_t n = 0; n < n_max; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
-        for (::std::size_t n = 0; n < n_max; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+        for (::std::size_t m = 0; m < n_max; m = m <= 16 ? m + 1 : size_t(2.71828 * m))
         {
-            //prepare the input ranges
-            Sequence<T1> in1(n, [](::std::size_t k) { return rand() % (std::max(std::size_t{1},k>>6)); });
-            Sequence<T2> in2(m, [m](::std::size_t k) { return ((m % 2) * rand() + rand()) % (std::max(std::size_t{1},k>>6)); });
+            //prepare the input ranges trying to get some amount of overlap
+            Sequence<T1> in1(n, [](::std::size_t k) { return rand() % (std::max(std::size_t{3},k>>4)); });
+            Sequence<T2> in2(m, [m](::std::size_t k) { return ((m % 2) * rand() + rand()) % (std::max(std::size_t{3},k>>4)); });
 
             ::std::sort(in1.begin(), in1.end(), compare);
             ::std::sort(in2.begin(), in2.end(), compare);
-
-            std::cout<<"Test Case:"<<n<<" "<<m<<std::endl;
 
             if (comp_flag)
                 invoke_on_all_policies<0>()(TestType<T1>(), in1.begin(), in1.end(), in2.cbegin(), in2.cend(), compare);
