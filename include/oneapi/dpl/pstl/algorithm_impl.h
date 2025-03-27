@@ -2721,11 +2721,9 @@ __pattern_nth_element(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
 //------------------------------------------------------------------------
 // fill, fill_n
 //------------------------------------------------------------------------
-template <class _Tag, typename _DecayedExecutionPolicy, typename _Tp>
-struct __brick_fill<_Tag, _DecayedExecutionPolicy, _Tp, ::std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
+template <class _Tag, typename _Tp>
+struct __brick_fill<_Tag, _Tp, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     const _Tp& __value;
 
     template <typename _RandomAccessIterator>
@@ -2751,8 +2749,7 @@ __pattern_fill(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardItera
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    __internal::__brick_fill<_Tag, std::decay_t<_ExecutionPolicy>, _Tp>{__value}(__first, __last,
-                                                                                 typename _Tag::__is_vector{});
+    __internal::__brick_fill<_Tag, _Tp>{__value}(__first, __last, typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Tp>
@@ -2763,12 +2760,11 @@ __pattern_fill(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcce
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
     return __internal::__except_handler([&__exec, __first, __last, &__value]() {
-        __par_backend::__parallel_for(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            [&__value](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
-                __internal::__brick_fill<__parallel_tag<_IsVector>, std::decay_t<_ExecutionPolicy>, _Tp>{__value}(
-                    __begin, __end, _IsVector{});
-            });
+        __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                      [&__value](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
+                                          __internal::__brick_fill<__parallel_tag<_IsVector>, _Tp>{__value}(
+                                              __begin, __end, _IsVector{});
+                                      });
         return __last;
     });
 }
