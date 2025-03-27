@@ -47,7 +47,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     if (__first1 == __last1)
         return __init;
 
-    using _Functor = unseq_backend::walk_n<_ExecutionPolicy, _BinaryOperation2>;
+    using _Functor = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, _BinaryOperation2>;
     using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
 
     auto __n = __last1 - __first1;
@@ -80,7 +80,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     if (__first == __last)
         return __init;
 
-    using _Functor = unseq_backend::walk_n<_ExecutionPolicy, _UnaryOperation>;
+    using _Functor = unseq_backend::walk_n<std::decay_t<_ExecutionPolicy>, _UnaryOperation>;
     using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator>();
@@ -176,7 +176,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         // Move data from temporary buffer into results
         oneapi::dpl::__internal::__pattern_walk2_brick(
             __tag, ::std::move(__policy), __first_tmp, __last_tmp, __result,
-            oneapi::dpl::__internal::__brick_move<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
+            oneapi::dpl::__internal::__brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
 
         //TODO: optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
     }
@@ -246,7 +246,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
             ::std::forward<_ExecutionPolicy>(__exec));
 
         __internal::__pattern_walk2_brick(__hetero_tag<_BackendTag>{}, __wrapped_policy, __first, __last, __d_first,
-                                          __internal::__brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
+                                          __internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
     }
     else
 #endif
@@ -263,8 +263,8 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
         auto __buf2 = __keep2(__d_first, __d_last);
 
         using _Function =
-            unseq_backend::walk_adjacent_difference<_ExecutionPolicy, decltype(__fn), decltype(__buf1.all_view()),
-                                                    decltype(__buf2.all_view())>;
+            unseq_backend::walk_adjacent_difference<std::decay_t<_ExecutionPolicy>, decltype(__fn),
+                                                    decltype(__buf1.all_view()), decltype(__buf2.all_view())>;
 
         oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, __exec,
                                                           _Function{__fn, static_cast<std::size_t>(__n)}, __n,
