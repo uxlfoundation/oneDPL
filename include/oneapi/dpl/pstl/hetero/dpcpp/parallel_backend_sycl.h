@@ -1396,11 +1396,11 @@ struct __write_multiple_to_id
 {
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData& __temp_data) const
+    operator()(_OutRng& __out_rng, _SizeType, const _ValueType& __v, const _TempData& __temp_data) const
     {
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.__data[0])>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
         for (std::size_t __i = 0; __i < std::get<1>(__v); ++__i)
             __assign(static_cast<_ConvertedTupleType>(__temp_data.__data[__i]), __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
     }
