@@ -424,11 +424,9 @@ struct __brick_copy<__hetero_tag<_BackendTag>>
     }
 };
 
-template <typename _BackendTag, typename _DecayedExecutionPolicy>
-struct __brick_move<__hetero_tag<_BackendTag>, _DecayedExecutionPolicy>
+template <typename _BackendTag>
+struct __brick_move<__hetero_tag<_BackendTag>>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     template <typename _SourceT, typename _TargetT>
     void
     operator()(_SourceT&& __source, _TargetT&& __target) const
@@ -1275,7 +1273,7 @@ __pattern_inplace_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __ex
     // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
     __pattern_walk2(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
-        __copy_first, __copy_last, __first, __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
+        __copy_first, __copy_last, __first, __brick_move<__hetero_tag<_BackendTag>>{});
 }
 
 //------------------------------------------------------------------------
@@ -1356,13 +1354,11 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     //TODO: optimize copy back if possible (inplace, decrease number of submits)
     __pattern_walk2(__tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __true_result,
-                    copy_result.first, __first,
-                    __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
+                    copy_result.first, __first, __brick_move<__hetero_tag<_BackendTag>>{});
 
     __pattern_walk2(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper2>(::std::forward<_ExecutionPolicy>(__exec)),
-        __false_result, copy_result.second, __first + true_count,
-        __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
+        __false_result, copy_result.second, __first + true_count, __brick_move<__hetero_tag<_BackendTag>>{});
 
     //TODO: A buffer is constructed from a range, the destructor does not need to block.
     // The synchronization between these patterns is not required due to the data are being processed independently.
@@ -1695,7 +1691,7 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     //An explicit wait isn't required here because we are working with a temporary sycl::buffer and sycl accessors and
     //SYCL runtime makes a dependency graph to prevent the races between two __parallel_for patterns.
 
-    using _Function = __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>;
+    using _Function = __brick_move<__hetero_tag<_BackendTag>>;
     auto __temp_rng_rw =
         oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::read_write>(__temp_buf.get_buffer());
     auto __brick =
@@ -1988,7 +1984,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
     //1. n >= size/2; 'size - _n' parallel copying
     if (__n >= __mid)
     {
-        using _Function = __brick_move<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>;
+        using _Function = __brick_move<__hetero_tag<_BackendTag>>;
 
         //TODO: to consider use just "read" access mode for a source range and just "write" - for a destination range.
         auto __src = oneapi::dpl::__ranges::drop_view_simple<_Range, _DiffType>(__rng, __n);
