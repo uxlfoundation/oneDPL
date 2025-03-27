@@ -898,53 +898,6 @@ struct __simple_write_to_id
         __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
     }
 };
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
-_Size1
-__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
-{
-    auto __n = __last - __first;
-    _Size1 __div = 64;
-    _Size1 __it = 0;
-    _Size1 __cur_idx = 0;
-
-    while (__n > 0 && __div > 2)
-    {
-        if constexpr (__bias_last)
-            __cur_idx = __n - __n / __div - 1;
-        else 
-            __cur_idx = __n / __div;
-        __it = __first + __cur_idx;
-
-        if (__comp(__acc[__it], __value))
-        {
-            __first = __it + 1;
-            __n = __last - __first;
-        }
-        else
-        {
-            __last = __it;
-            __n = __last - __first;
-        }
-        // get closer and closer to binary search with more iterations
-        __div >>= 1;
-    }
-    if (__n > 0)
-    {
-        //end up fully at binary search
-        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, __value, __comp);
-    }
-    else
-    {
-        return __first;
-    }
-}
-
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
-_Size1
-__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
-{
-    return __biased_lower_bound<__bias_last>(__acc, __first, __last, __value, oneapi::dpl::__internal::__not_pred{oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
-}
 
 template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
 auto
@@ -1731,43 +1684,6 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
     }
 }
 
-// template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
-//           typename _IsOpDifference>
-// auto
-// __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-//                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
-//                                 _IsOpDifference)
-// {
-//     // fill in reduce then scan impl
-//     using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_IsOpDifference, _Compare>;
-//     using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
-//     using _MaskPredicate = oneapi::dpl::__internal::__no_op;
-//     using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
-//     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
-//     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
-//     using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
-
-//     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMaskReduce>;
-//     using _ReduceOp = std::plus<_Size>;
-//     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _ScanRangeTransform>;
-//     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
-
-//     oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, std::int32_t> __mask_buf(__exec, __rng1.size());
-
-//     return __parallel_transform_reduce_then_scan(
-//         __backend_tag, std::forward<_ExecutionPolicy>(__exec), __rng1.size(),
-//         oneapi::dpl::__ranges::make_zip_view(
-//             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-//             oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
-//                 __mask_buf.get_buffer())),
-//         std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp}}, _ReduceOp{},
-//         _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
-//         _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-//         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
-// }
-
-
-
 // balanced path
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _SetTag>
@@ -1776,7 +1692,7 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                                 _SetTag)
 {
-    constexpr std::int32_t __diagonal_spacing = 16;
+    constexpr std::int32_t __diagonal_spacing = 4;
 
     using _SetOperation = __get_set_operation<_SetTag>;
     using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
