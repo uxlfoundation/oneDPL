@@ -198,11 +198,9 @@ struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
     }
 };
 
-template <typename _DecayedExecutionPolicy, typename _F, typename _Range1, typename _Range2>
+template <typename _F, typename _Range1, typename _Range2>
 struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
     _F __f;
