@@ -83,7 +83,7 @@ __find_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __i_el
 template <typename _Rng1, typename _Rng2, typename _Rng3, typename _Index, typename _Compare>
 void
 __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, _Index __start1, _Index __start2,
-               const _Index __start3, const std::uint8_t __chunk, const _Index __n1, const _Index __n2, _Compare __comp)
+               const _Index __start3, const _Index __chunk, const _Index __n1, const _Index __n2, _Compare __comp)
 {
     if (__start1 >= __n1)
     {
@@ -149,7 +149,7 @@ struct __parallel_merge_submitter<_IdType, __internal::__optional_kernel_name<_N
         _PRINT_INFO_IN_DEBUG_MODE(__exec);
 
         // Empirical number of values to process per work-item
-        const std::uint8_t __chunk = __exec.queue().get_device().is_cpu() ? 128 : 4;
+        const _IdType __chunk = __exec.queue().get_device().is_cpu() ? 128 : 4;
 
         const _IdType __steps = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk);
 
