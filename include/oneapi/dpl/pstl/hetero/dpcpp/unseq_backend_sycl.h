@@ -1091,11 +1091,9 @@ struct __scan
 // __brick_includes
 //------------------------------------------------------------------------
 
-template <typename _DecayedExecutionPolicy, typename _Compare, typename _Size1, typename _Size2>
+template <typename _Compare, typename _Size1, typename _Size2>
 struct __brick_includes
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     _Compare __comp;
     _Size1 __na;
     _Size2 __nb;
