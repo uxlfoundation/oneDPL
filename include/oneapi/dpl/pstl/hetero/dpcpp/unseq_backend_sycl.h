@@ -937,8 +937,8 @@ struct __global_scan_functor
     }
 };
 
-template <typename _Inclusive, typename _ExecutionPolicy, typename _BinaryOperation, typename _UnaryOp,
-          typename _WgAssigner, typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
+template <typename _Inclusive, typename _BinaryOperation, typename _UnaryOp, typename _WgAssigner,
+          typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
 struct __scan
 {
     using _Tp = typename _InitType::__value_type;
