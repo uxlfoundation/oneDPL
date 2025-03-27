@@ -750,8 +750,7 @@ __is_gpu_with_reduce_then_scan_sg_sz(const _ExecutionPolicy& __exec)
 {
     const bool __dev_supports_sg_sz =
         oneapi::dpl::__internal::__supports_sub_group_size(__exec, __get_reduce_then_scan_sg_sz());
-    return true;
-//    return (__exec.queue().get_device().is_gpu() && __dev_supports_sg_sz);
+    return (__exec.queue().get_device().is_gpu() && __dev_supports_sg_sz);
 }
 
 // General scan-like algorithm helpers
@@ -817,7 +816,6 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     std::uint32_t __inputs_per_item = __inputs_per_sub_group / __sub_group_size;
     const std::size_t __block_size = std::min(__inputs_remaining, std::size_t{__max_inputs_per_block});
     const std::size_t __num_blocks = __inputs_remaining / __block_size + (__inputs_remaining % __block_size != 0);
-
 
     // We need temporary storage for reductions of each sub-group (__num_sub_groups_global).
     // Additionally, we need two elements for the block carry-out to prevent a race condition

@@ -1745,12 +1745,10 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
     typedef typename std::iterator_traits<_ForwardIterator1>::difference_type _Size1;
 
     const _Size1 __n1 = __last1 - __first1;
-    const _Size1 __n2 = __last2 - __first2;
-
-
     _Size1 __output_size = __n1;
     if constexpr (_SetTag::__is_one_shot_v)
     {
+        const _Size1 __n2 = __last2 - __first2;
         // one shot algorithm can write from set 1 or set 2, whereas old algorithm can only write from set 1.
         __output_size = __n1 + __n2;
     }
@@ -1833,8 +1831,6 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                                              __last2, __result, __comp, unseq_backend::_DifferenceTag<std::false_type>());
     }
 }
-
-
 
 //Dummy names to avoid kernel problems
 template <typename Name>

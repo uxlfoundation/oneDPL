@@ -904,32 +904,26 @@ auto
 __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1, const _Index __merge_path_rng2,
                     _Compare __comp)
 {
-    //std::cout <<std::endl<<std::endl;
     // back up to balanced path divergence with a biased binary search
     auto __start_point = __merge_path_rng1;
     auto __start_point2 = __merge_path_rng2;
     bool __star = false;
     if (__merge_path_rng1 == 0)
     {
-  //      std::cout<<"merge path is on rng1 idx 0\n";
         return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
     }
 
- //   std::cout<<"elementA: "<< __rng1[__merge_path_rng1 - 1]<<" elementB: "<<__rng2[__merge_path_rng2]<<"\n";
     
     auto __ele_val = __rng1[__merge_path_rng1 - 1];
 
     if (__comp(__ele_val, __rng2[__merge_path_rng2]))
     {
- ///       std::cout<<"last rng1 element doesnt match next rng2 element, return merge path\n";
 
         // There is no chance that the balanced path differs from the merge path here, because the previous element of
         // rng1 does not match the next element of rng2. We can just return the merge path.
         return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
     }
 
-//    std::cout<<"must do binary searches\n";
-    
     // find first element of repeating sequence in the first set of the previous element
     _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(__rng1, _Index{0}, __merge_path_rng1, __ele_val, __comp);
     // find first element of repeating sequence in the second set of the next element
@@ -938,16 +932,12 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
     _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
 
-  //  std::cout<<"rng1 repeats: "<<__rng1_repeats<<" rng2 repeats: "<<__rng2_repeats_bck<<"\n";
     if (__rng2_repeats_bck >= __rng1_repeats)
     {
-  //      std::cout<<"at least as many repeats in rng2 back as rng1, so we are on merge path\n";
 
         // If we have at least as many repeated elements in rng2, we end up back on merge path
         return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
     }
-//    std::cout<<"have to do forward binary search\n";
-
     _Index __total_repeats = __rng1_repeats + __rng2_repeats_bck;
 
     _Index __fwd_search_count = std::max(__total_repeats / 2, __rng2_repeats_bck);
@@ -956,13 +946,11 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     _Index __rng2_repeat_end = oneapi::dpl::__internal::__biased_upper_bound</*__last_bias=*/false>(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
     
     _Index __rng2_eligible_repeats = __rng2_repeat_end - __rng2_repeat_start;
-//    std::cout<<"rng2 eligible repeats: "<<__rng2_eligible_repeats<<"\n";
     _Index __balanced_path_rng2_diff = std::min(__rng2_eligible_repeats, __fwd_search_count);
     _Index __balanced_path_rng1_diff = __total_repeats - __balanced_path_rng2_diff;
 
     if (__balanced_path_rng1_diff - 1 == __balanced_path_rng2_diff && (__balanced_path_rng2_diff + 1 <= __rng2_eligible_repeats))
     {   
-    //    std::cout<<"balanced path is one element ahead of merge path\n";
         __star = true;
         ++__balanced_path_rng2_diff;
     }
@@ -1177,7 +1165,7 @@ struct __gen_mask
         return __pred((__rng_transform(std::forward<_InRng>(__in_rng)))[__id]);
     }
     _Predicate __pred;
-    _RangeTransform __rng_transform{};
+    _RangeTransform __rng_transform;
 };
 
 template <typename _BinaryPredicate>
@@ -1288,7 +1276,7 @@ struct __gen_expand_count_mask
         return std::tuple(mask ? _SizeType{1} : _SizeType{0}, mask, ele);
     }
     _GenMask __gen_mask;
-    _RangeTransform __rng_transform{};
+    _RangeTransform __rng_transform;
 };
 
 struct __get_zeroth_element
