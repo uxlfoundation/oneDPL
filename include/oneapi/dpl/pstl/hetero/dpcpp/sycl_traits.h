@@ -364,7 +364,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 namespace oneapi::dpl::unseq_backend
 {
 
-template <typename _ExecutionPolicy, typename _F>
+template <typename _F>
 struct walk_n;
 
 template <typename _ExecutionPolicy, typename _F, typename _Range>
@@ -431,8 +431,8 @@ struct __brick_reduce_idx;
 
 } // namespace oneapi::dpl::unseq_backend
 
-template <typename _ExecutionPolicy, typename _F>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_n, _ExecutionPolicy, _F)>
+template <typename _F>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_n, _F)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
 };
