@@ -54,8 +54,8 @@ __cancel_execution(oneapi::dpl::__internal::__omp_backend_tag)
 // raw buffer
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _Tp>
-using __buffer = oneapi::dpl::__utils::__buffer_impl<std::decay_t<_ExecutionPolicy>, _Tp, std::allocator>;
+template <typename _Tp>
+using __buffer = oneapi::dpl::__utils::__buffer_impl<_Tp, std::allocator>;
 
 // Preliminary size of each chunk: requires further discussion
 constexpr std::size_t __default_chunk_size = 2048;

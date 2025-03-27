@@ -159,10 +159,9 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
 
         auto __policy =
             __par_backend_hetero::make_wrapped_policy<ExecutionPolicyWrapper>(::std::forward<_ExecutionPolicy>(__exec));
-        using _NewExecutionPolicy = decltype(__policy);
 
         // Create temporary buffer
-        oneapi::dpl::__par_backend_hetero::__buffer<_NewExecutionPolicy, _Type> __tmp_buf(__policy, __n);
+        oneapi::dpl::__par_backend_hetero::__buffer<_Type> __tmp_buf(__n);
         auto __first_tmp = __tmp_buf.get();
         auto __last_tmp = __first_tmp + __n;
         auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _Iterator2>();
