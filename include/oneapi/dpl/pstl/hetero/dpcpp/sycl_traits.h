@@ -419,7 +419,7 @@ template <typename _Inclusive, typename _ExecutionPolicy, typename _BinaryOperat
           typename _WgAssigner, typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
 struct __scan;
 
-template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2>
+template <typename _Compare, typename _Size1, typename _Size2>
 struct __brick_includes;
 
 template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
@@ -551,9 +551,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_includes, _ExecutionPolicy,
-                                                       _Compare, _Size1, _Size2)>
+template <typename _Compare, typename _Size1, typename _Size2>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_includes, _Compare, _Size1,
+                                                       _Size2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _Size1, _Size2>
 {
 };
