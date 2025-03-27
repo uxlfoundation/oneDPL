@@ -1349,11 +1349,26 @@ struct __rotate_copy : public walk_vector_or_scalar_base<_Range1, _Range2>
 //------------------------------------------------------------------------
 // brick_set_op for difference and intersection operations
 //------------------------------------------------------------------------
+
+template <typename _IsOneShot>
 struct _IntersectionTag : public ::std::false_type
 {
+    static constexpr bool __is_one_shot_v = _IsOneShot::value;
 };
+template <typename _IsOneShot>
 struct _DifferenceTag : public ::std::true_type
 {
+    static constexpr bool __is_one_shot_v = _IsOneShot::value;
+};
+template <typename _IsOneShot>
+struct _UnionTag : public std::true_type
+{
+    static constexpr bool __is_one_shot_v = _IsOneShot::value;
+};
+template <typename _IsOneShot>
+struct _SymmetricDifferenceTag : public std::true_type
+{
+    static constexpr bool __is_one_shot_v = _IsOneShot::value;
 };
 
 template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
