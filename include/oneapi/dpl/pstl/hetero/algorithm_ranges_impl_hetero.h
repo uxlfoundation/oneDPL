@@ -620,7 +620,7 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __buf(__exec, __rng.size());
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__rng.size());
     auto __copy_rng = oneapi::dpl::__ranges::views::all(__buf.get_buffer());
 
     auto __copy_last_id = __ranges::__pattern_copy_if(__tag, __exec, __rng, __copy_rng, __not_pred<_Predicate>{__pred},
@@ -690,7 +690,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
 
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _ValueType> __buf(__exec, __rng.size());
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__rng.size());
     auto res_rng = oneapi::dpl::__ranges::views::all(__buf.get_buffer());
     oneapi::dpl::__internal::__difference_t<_Range> res = __ranges::__pattern_unique_copy(
         __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__unique_wrapper>(__exec), __rng, res_rng,
