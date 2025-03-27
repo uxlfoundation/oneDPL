@@ -290,7 +290,7 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
         return __res ? 0 : __rng1.size();
     }
 
-    using _Predicate = unseq_backend::multiple_match_pred<std::decay_t<_ExecutionPolicy>, _Pred>;
+    using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
     using _TagType = __par_backend_hetero::__parallel_find_backward_tag<_Range1>;
 
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
@@ -383,7 +383,7 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
         return __res ? 0 : __rng1.size();
     }
 
-    using _Predicate = unseq_backend::multiple_match_pred<std::decay_t<_ExecutionPolicy>, _Pred>;
+    using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
     using _TagType = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range1>;
 
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
