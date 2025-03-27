@@ -1875,20 +1875,40 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     }
 };
 
+template <typename... _Ranges>
+struct __first_size_calc
+{
+    auto
+    operator()(const _Ranges&... __rngs) const
+    {
+        return oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
+    }
+};
+
+template <typename... _Ranges>
+struct __min_size_calc
+{
+    auto
+    operator()(const _Ranges&... __rngs) const
+    {
+        using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+        return std::min({_Size(__rngs.size())...});
+    }
+};
+
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
-template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
+template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename _SizeCalc, typename... _Ranges>
 ::std::conditional_t<
     ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
     oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
-__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
-                   _BrickTag __brick_tag, _Ranges&&... __rngs)
+__parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                   _BrickTag __brick_tag, _SizeCalc __sz_calc, _Ranges&&... __rngs)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
     
-    using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
-    const _Size __rng_n = std::min({_Size(__rngs.size())...});
+    const auto __rng_n = __sz_calc(__rngs...);
 
     assert(__rng_n > 0);
 
@@ -1936,6 +1956,30 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         return __result != __init_value;
     else
         return __result != __init_value ? __result : __rng_n;
+}
+
+template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
+::std::conditional_t<
+    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
+    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
+__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                   _BrickTag __brick_tag, _Ranges&&... __rngs)
+{
+    return __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag{},
+        std::forward<_ExecutionPolicy>(__exec), __f, __brick_tag, __first_size_calc<_Ranges...>{},
+        std::forward<_Ranges>(__rngs)...);
+}
+
+template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
+::std::conditional_t<
+    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
+    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
+__parallel_find_or_min_size(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                   _BrickTag __brick_tag, _Ranges&&... __rngs)
+{
+    return __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag{},
+        std::forward<_ExecutionPolicy>(__exec), __f, __brick_tag, __min_size_calc<_Ranges...>{},
+        std::forward<_Ranges>(__rngs)...);
 }
 
 // parallel_or - sync pattern
