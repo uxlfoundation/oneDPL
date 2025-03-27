@@ -569,11 +569,9 @@ struct transform_reduce
 // Reduce local reductions of each work item to a single reduced element per work group. The local reductions are held
 // in local memory. sycl::reduce_over_group is used for supported data types and operations. All other operations are
 // processed in order and without a known identity.
-template <typename _DecayedExecutionPolicy, typename _BinaryOperation1, typename _Tp>
+template <typename _BinaryOperation1, typename _Tp>
 struct reduce_over_group
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     _BinaryOperation1 __bin_op1;
 
     // Reduce on local memory with subgroups
