@@ -60,8 +60,8 @@ confirm user iterator types "passed directly" traits are as intended to prevent 
 The default implementation of the customization point `is_passed_directly_in_onedpl_device_policies` will be used to
 explicitly mark the following iterators as "passed directly":
 * Pointers (assumes USM pointers)
-* Iterators containing the legacy `using is_passed_directly = true` trait defined within the type definition
-* Iterators to USM shared allocated `std::vectors` (when knowable)
+* Iterators containing the legacy `using is_passed_directly = std::true_type` trait defined within the type definition
+* Iterators to USM shared allocated `std::vector`-s (when knowable)
 * `std::reverse_iterator<Iter>` when `Iter` is also "passed directly"
 
 oneDPL will define the "passed directly" definitions of its custom iterators as follows:
@@ -135,7 +135,7 @@ namespace user
 } //namespace user
 ```
 
-It is also possible to write overloads without a body using an `auto` trailing return type. The following is an
+It is also possible to write overloads without a body. The following is an
 alternative written in this way for the previous example:
 
 ```cpp
