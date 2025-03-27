@@ -109,7 +109,7 @@ struct test_non_const
             return i % 2 == 0;
         };
 
-        invoke_if(exec, [&]() { replace_copy_if(exec, input_iter, input_iter, out_iter, non_const(is_even), T(0)); });
+        replace_copy_if(exec, input_iter, input_iter, out_iter, non_const(is_even), T(0));
     }
 };
 

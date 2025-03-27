@@ -178,7 +178,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        invoke_if(exec, [&]() { nth_element(exec, iter, iter, iter, non_const(::std::less<T>())); });
+        nth_element(exec, iter, iter, iter, non_const(::std::less<T>()));
     }
 };
 

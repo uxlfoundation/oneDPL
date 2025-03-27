@@ -760,13 +760,6 @@ test_algo_basic_double(F&& f)
     invoke_on_all_host_policies()(::std::forward<F>(f), in.begin(), out.begin());
 }
 
-template <typename Policy, typename F>
-static void
-invoke_if(Policy&&, F f)
-{
-    f();
-}
-
 template <typename T, typename = bool>
 struct can_use_default_less_operator : ::std::false_type
 {
