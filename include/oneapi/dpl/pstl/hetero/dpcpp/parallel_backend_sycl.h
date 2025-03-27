@@ -1250,7 +1250,7 @@ struct __gen_count_mask
     using TempData = __noop_temp_data;
     template <typename _InRng, typename _SizeType>
     _SizeType
-    operator()(_InRng&& __in_rng, _SizeType __id) const
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
     }
@@ -1263,7 +1263,7 @@ struct __gen_expand_count_mask
     using TempData = __noop_temp_data;
     template <typename _InRng, typename _SizeType>
     auto
-    operator()(_InRng&& __in_rng, _SizeType __id) const
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
         auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
