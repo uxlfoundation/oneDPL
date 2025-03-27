@@ -690,7 +690,6 @@ struct __noop_temp_data
     }
 };
 
-
 template <typename _UnaryOp>
 struct __gen_transform_input
 {
@@ -1114,8 +1113,6 @@ struct __set_generic_operation
     }
 };
 
-
-
 struct __set_intersection : __set_generic_operation<true, false, false>
 {
 };
@@ -1341,7 +1338,6 @@ struct __write_multiple_to_id
     }
     _Assign __assign;
 };
-
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
@@ -1680,7 +1676,7 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                                 _SetTag)
 {
-    constexpr std::int32_t __diagonal_spacing = 4;
+    constexpr std::int32_t __diagonal_spacing = 16;
 
     using _SetOperation = __get_set_operation<_SetTag>;
     using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
