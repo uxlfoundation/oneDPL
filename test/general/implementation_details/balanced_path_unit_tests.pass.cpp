@@ -21,20 +21,49 @@
 #include _PSTL_TEST_HEADER(algorithm)
 
 
-
-bool test_serial_set_intersection_op_count()
+template <typename InputIterator1, typename InputIterator2, typename OutputIterator, typename Compare>
+auto
+call_generic_std_set_alg(oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
+               OutputIterator out, Compare comp)
 {
-    // Test for set_intersection operation with serial policy
-    std::cout << "Test for set_intersection operation count only" << std::endl;
+    return std::set_intersection(first1, last1, first2, last2, out, comp);
+}
+template <typename InputIterator1, typename InputIterator2, typename OutputIterator, typename Compare>
+auto
+call_generic_std_set_alg(oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
+               OutputIterator out, Compare comp)
+{
+    return std::set_difference(first1, last1, first2, last2, out, comp);
+}
+template <typename InputIterator1, typename InputIterator2, typename OutputIterator, typename Compare>
+auto
+call_generic_std_set_alg(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
+               OutputIterator out, Compare comp)
+{
+    return std::set_symmetric_difference(first1, last1, first2, last2, out, comp);
+}
+template <typename InputIterator1, typename InputIterator2, typename OutputIterator, typename Compare>
+auto
+call_generic_std_set_alg(oneapi::dpl::unseq_backend::_UnionTag<std::true_type>, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
+               OutputIterator out, Compare comp)
+{
+    return std::set_union(first1, last1, first2, last2, out, comp);
+}
+
+template<typename SetTag>
+bool test_serial_set_op_count(SetTag set_tag)
+{
+    // Test for set operation with serial policy
+    std::cout << "Test for set operation count only" << std::endl;
     std::vector<int> v1 = {1, 2, 3, 4, 5};
     std::vector<int> v2 = {3, 4, 5, 6, 7};
     std::vector<int> v3(v1.size() + v2.size());
 
     oneapi::dpl::__par_backend_hetero::__noop_temp_data __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__set_intersection __set_op;
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
-    auto res = std::set_intersection(v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
+    auto res = call_generic_std_set_alg(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
     if (count != res - v3.begin())
     {
@@ -44,19 +73,20 @@ bool test_serial_set_intersection_op_count()
     return true;
 }
 
-bool test_serial_set_intersection_op_count_and_write()
+template <typename SetTag>
+bool test_serial_set_op_count_and_write(SetTag set_tag)
 {
-    // Test for set_intersection operation with serial policy
-    std::cout << "Test for set_intersection operation with count and write" << std::endl;
+    // Test for set operation with serial policy
+    std::cout << "Test for set operation with count and write" << std::endl;
     std::vector<int> v1 = {1, 2, 3, 4, 5};
     std::vector<int> v2 = {3, 4, 5, 6, 7};
     std::vector<int> v3(v1.size() + v2.size());
 
     oneapi::dpl::__par_backend_hetero::__set_temp_data<10, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__set_intersection __set_op;
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
-    auto res = std::set_intersection(v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
+    auto res = call_generic_std_set_alg(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
     if (count != res - v3.begin())
     {
@@ -74,20 +104,20 @@ bool test_serial_set_intersection_op_count_and_write()
     }
     return true;
 }
-
-bool test_serial_set_intersection_op_count_and_write2()
+template <typename SetTag>
+bool test_serial_set_op_count_and_write2(SetTag set_tag)
 {
-    // Test for set_intersection operation with serial policy
-    std::cout << "Test for set_intersection operation with count and write" << std::endl;
+    // Test for set operation with serial policy
+    std::cout << "Test for set operation with count and write" << std::endl;
     std::vector<int> v1 = {1};
     std::vector<int> v2 = {1, 1};
     std::vector<int> v3(v1.size() + v2.size());
 
     oneapi::dpl::__par_backend_hetero::__set_temp_data<10, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__set_intersection __set_op;
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
-    auto res = std::set_intersection(v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
+    auto res = call_generic_std_set_alg(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
     if (count != res - v3.begin())
     {
@@ -106,19 +136,51 @@ bool test_serial_set_intersection_op_count_and_write2()
     return true;
 }
 
-bool test_serial_set_intersection_op_count_and_write_limited()
+template <typename SetTag>
+bool test_serial_set_op_count_and_write_limited(SetTag set_tag)
 {
-    // Test for set_intersection operation with serial policy
-    std::cout << "Test for set_intersection operation with count and write limited" << std::endl;
+    std::cout << "Test for set operation with count and write limited" << std::endl;
     std::vector<int> v1 = {1, 2, 3, 4, 4, 5, 6, 7, 8, 9, 10};
     std::vector<int> v2 = {3, 4, 4, 4, 5, 6, 7, 11, 12, 13, 14, 15};
     std::vector<int> v3(v1.size() + v2.size());
 
-    oneapi::dpl::__par_backend_hetero::__set_temp_data<10, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__set_intersection __set_op;
+    oneapi::dpl::__par_backend_hetero::__set_temp_data<11, int> __temp_data{};
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 4, 2, 10, __temp_data, std::less<int>());
 
-    auto res = std::set_intersection(v1.begin()+4, v1.begin() + 4 + 5, v2.begin() + 2, v2.begin() + 2 + 5, v3.begin(), std::less<int>());
+    auto res = call_generic_std_set_alg(set_tag,v1.begin()+ 4 , v1.begin() + 4 + 5, v2.begin()+2, v2.begin() + 2 + 5, v3.begin(), std::less<int>());
+
+    if (count != res - v3.begin())
+    {
+        std::cout << "Failed: count mismatch, expected "<< res - v3.begin() <<" got "<< count << std::endl;
+        return false;
+    }
+
+    for (std::size_t i = 0; i < count; ++i)
+    {
+        if (__temp_data.__data[i] != v3[i])
+        {
+            std::cout << "Failed: data mismatch" << std::endl;
+            return false;
+        }
+    }
+    return true;
+}
+
+template <typename SetTag>
+bool test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
+{
+    // Test for set operation with serial policy
+    std::cout << "Test for set operation with count and write" << std::endl;
+    std::vector<int> v1 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0};
+    std::vector<int> v2 = {1};
+    std::vector<int> v3(v1.size() + v2.size());
+
+    oneapi::dpl::__par_backend_hetero::__set_temp_data<10, int> __temp_data{};
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
+
+    auto res = call_generic_std_set_alg(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
     if (count != res - v3.begin())
     {
@@ -137,6 +199,37 @@ bool test_serial_set_intersection_op_count_and_write_limited()
     return true;
 }
 
+template <typename SetTag>
+bool test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
+{
+    // Test for set operation with serial policy
+    std::cout << "Test for set operation with count and write" << std::endl;
+    std::vector<int> v1 = {1};
+    std::vector<int> v2 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0};
+    std::vector<int> v3(v1.size() + v2.size());
+
+    oneapi::dpl::__par_backend_hetero::__set_temp_data<10, int> __temp_data{};
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
+
+    auto res = call_generic_std_set_alg(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
+
+    if (count != res - v3.begin())
+    {
+        std::cout << "Failed: count mismatch" << std::endl;
+        return false;
+    }
+
+    for (std::size_t i = 0; i < count; ++i)
+    {
+        if (__temp_data.__data[i] != v3[i])
+        {
+            std::cout << "Failed: data mismatch" << std::endl;
+            return false;
+        }
+    }
+    return true;
+}
 
 
 template <typename Rng>
@@ -144,7 +237,7 @@ bool
 test_right_biased_lower_bound_impl(Rng __rng, std::size_t __location, std::less<typename Rng::value_type> __comp)
 {
     auto expected_res = std::lower_bound(__rng.begin(), __rng.begin() + __location, __rng[__location], __comp);
-    auto res = oneapi::dpl::__par_backend_hetero::__right_biased_lower_bound(__rng.begin(), std::size_t{0}, __location, __rng[__location], __comp);
+    auto res = oneapi::dpl::__par_backend_hetero::__biased_lower_bound</*last_biased=*/true>(__rng.begin(), std::size_t{0}, __location, __rng[__location], __comp);
     
     if (res != expected_res - __rng.begin())
     {
@@ -315,15 +408,30 @@ test_find_balanced_path()
 }
 
 
+template <typename SetTag>
+void
+test_variety_of_combinations_of_setops(SetTag set_tag)
+{
+    EXPECT_TRUE(test_serial_set_op_count(set_tag), "test for serial set_intersection operation returning count only");
+    EXPECT_TRUE(test_serial_set_op_count_and_write(set_tag), "test for serial set_intersection operation");
+    EXPECT_TRUE(test_serial_set_op_count_and_write2(set_tag), "test for serial set_intersection operation2");
+    EXPECT_TRUE(test_serial_set_op_count_and_write2_large_setA(set_tag), "test for serial set_intersection operation2 large SetA");
+    EXPECT_TRUE(test_serial_set_op_count_and_write2_large_setB(set_tag), "test for serial set_intersection operation2 large SetB");
+    EXPECT_TRUE(test_serial_set_op_count_and_write_limited(set_tag), "test for serial set_intersection operation limited");
+}
+
 
 int
 main()
 {
-
-    EXPECT_TRUE(test_serial_set_intersection_op_count(), "test for serial set_intersection operation returning count only");
-    EXPECT_TRUE(test_serial_set_intersection_op_count_and_write(), "test for serial set_intersection operation");
-    EXPECT_TRUE(test_serial_set_intersection_op_count_and_write2(), "test for serial set_intersection operation2");
-    EXPECT_TRUE(test_serial_set_intersection_op_count_and_write_limited(), "test for serial set_intersection operation limited");
+    std::cout<<"Test intersection"<<std::endl;
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>{});
+    std::cout<<"Test difference"<<std::endl;
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>{});
+    std::cout<<"Test union"<<std::endl;
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_UnionTag<std::true_type>{});
+    std::cout<<"Test symmetric diff"<<std::endl;
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>{});
     EXPECT_TRUE(test_right_biased_lower_bound(), "test for right biased lower bound");
     EXPECT_TRUE(test_find_balanced_path(), "test for find balanced path");
     return TestUtils::done();
