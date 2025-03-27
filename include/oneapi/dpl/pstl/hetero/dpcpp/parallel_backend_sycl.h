@@ -1247,6 +1247,7 @@ struct __extract_range_from_zip
 template <typename _GenMask>
 struct __gen_count_mask
 {
+    using TempData = __noop_temp_data;
     template <typename _InRng, typename _SizeType>
     _SizeType
     operator()(_InRng&& __in_rng, _SizeType __id) const
@@ -1259,6 +1260,7 @@ struct __gen_count_mask
 template <typename _GenMask, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
 struct __gen_expand_count_mask
 {
+    using TempData = __noop_temp_data;
     template <typename _InRng, typename _SizeType>
     auto
     operator()(_InRng&& __in_rng, _SizeType __id) const
