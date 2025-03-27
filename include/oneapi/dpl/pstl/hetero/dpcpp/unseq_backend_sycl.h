@@ -633,11 +633,9 @@ struct reduce_over_group
 
 // Matchers for early_exit_or and early_exit_find
 
-template <typename _DecayedExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct single_match_pred_by_idx
 {
-    static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
-
     _Pred __pred;
 
     template <typename _Idx, typename _Acc>
@@ -649,11 +647,11 @@ struct single_match_pred_by_idx
 };
 
 template <typename _DecayedExecutionPolicy, typename _Pred>
-struct single_match_pred : single_match_pred_by_idx<_DecayedExecutionPolicy, walk_n<_Pred>>
+struct single_match_pred : single_match_pred_by_idx<walk_n<_Pred>>
 {
     static_assert(std::is_same_v<_DecayedExecutionPolicy, std::decay_t<_DecayedExecutionPolicy>>);
 
-    single_match_pred(_Pred __p) : single_match_pred_by_idx<_DecayedExecutionPolicy, walk_n<_Pred>>{__p} {}
+    single_match_pred(_Pred __p) : single_match_pred_by_idx<walk_n<_Pred>>{__p} {}
 };
 
 template <typename _DecayedExecutionPolicy, typename _Pred>
