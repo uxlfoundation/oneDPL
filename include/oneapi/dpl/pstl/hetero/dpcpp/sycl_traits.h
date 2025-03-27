@@ -397,7 +397,7 @@ struct multiple_match_pred;
 template <typename _Pred, typename _Tp, typename _Size>
 struct n_elem_match_pred;
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct first_match_pred;
 
 template <typename _Pred, typename _Tp>
@@ -502,9 +502,8 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::first_match_pred, _ExecutionPolicy,
-                                                       _Pred)>
+template <typename _Pred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::first_match_pred, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
