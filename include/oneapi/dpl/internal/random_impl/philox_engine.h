@@ -508,10 +508,11 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
 
     __is.setf(std::ios_base::dec);
 
-    const std::size_t __state_size = 2 * __n + __n / 2 + 1;
+    /* Size of X, K and idx */
+    const std::size_t __inp_state_size = __n + __n / 2 + 1;
 
-    std::array<oneapi::dpl::internal::element_type_t<__UIntType>, __state_size> __tmp_inp;
-    for (std::size_t __i = 0; __i < __state_size; ++__i)
+    std::array<oneapi::dpl::internal::element_type_t<__UIntType>, __inp_state_size> __tmp_inp;
+    for (std::size_t __i = 0; __i < __inp_state_size; ++__i)
     {
         __is >> __tmp_inp[__i];
     }
@@ -526,6 +527,9 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
         for (std::size_t __i = 0; __i < __n; ++__i, ++__inp_itr)
             __engine.state_.Y[__i] = __tmp_inp[__inp_itr];
         __engine.state_.idx = __tmp_inp[__inp_itr];
+
+        /* setup Yi */
+        __engine.philox_kernel();
     }
 
     return __is;
