@@ -798,7 +798,7 @@ copy(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result)
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__internal::__brick_copy<decltype(__dispatch_tag), std::decay_t<_ExecutionPolicy>>{},
+        oneapi::dpl::__internal::__brick_copy<decltype(__dispatch_tag)>{},
         views::all_read(::std::forward<_Range1>(__rng)), views::all_write(::std::forward<_Range2>(__result)));
 }
 

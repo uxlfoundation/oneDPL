@@ -398,7 +398,7 @@ __pattern_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRan
     oneapi::dpl::__internal::__pattern_walk2_brick(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r),
         std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r),
-        oneapi::dpl::__internal::__brick_copy<decltype(__tag), std::decay_t<_ExecutionPolicy>>{});
+        oneapi::dpl::__internal::__brick_copy<decltype(__tag)>{});
 }
 
 template<typename _ExecutionPolicy, typename _InRange, typename _OutRange>

@@ -149,8 +149,7 @@ __pattern_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRa
     assert(std::ranges::size(__in_r) <= std::ranges::size(__out_r)); // for debug purposes only
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__internal::__brick_copy<decltype(__tag), std::decay_t<_ExecutionPolicy>>{},
+        __tag, ::std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__internal::__brick_copy<decltype(__tag)>{},
         oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 }
@@ -630,8 +629,8 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
         __tag, ::std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{},
-        __copy_rng_truncated, ::std::forward<_Range>(__rng));
+        oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{}, __copy_rng_truncated,
+        ::std::forward<_Range>(__rng));
 
     return __copy_last_id;
 }
@@ -655,8 +654,7 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     if (__n == 1)
     {
         // For a sequence of size 1, we can just copy the only element to the result.
-        using _CopyBrick =
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>;
+        using _CopyBrick = oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>;
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(
@@ -701,8 +699,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
     __ranges::__pattern_walk_n(
         __tag,
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-        __brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{}, res_rng,
-        std::forward<_Range>(__rng));
+        __brick_copy<__hetero_tag<_BackendTag>>{}, res_rng, std::forward<_Range>(__rng));
     return res;
 }
 
@@ -739,8 +736,8 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy1_wrapper>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{},
-            ::std::forward<_Range2>(__rng2), ::std::forward<_Range3>(__rng3));
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{}, ::std::forward<_Range2>(__rng2),
+            ::std::forward<_Range3>(__rng3));
         return {0, __res};
     }
 
@@ -750,8 +747,8 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy2_wrapper>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{},
-            ::std::forward<_Range1>(__rng1), ::std::forward<_Range3>(__rng3));
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{}, ::std::forward<_Range1>(__rng1),
+            ::std::forward<_Range3>(__rng3));
         return {__res, 0};
     }
 
@@ -963,7 +960,7 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
     if (__n == 1)
     {
-        __brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>> __copy_range{};
+        __brick_copy<__hetero_tag<_BackendTag>> __copy_range{};
 
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_keys_values_range_wrapper>(__exec),
