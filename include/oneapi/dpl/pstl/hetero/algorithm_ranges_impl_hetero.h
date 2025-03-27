@@ -1076,9 +1076,9 @@ __pattern_mismatch(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     using _TagType = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_R1, _R2>;
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, oneapi::dpl::__internal::__not_pred<__bin_pred_type>>;
 
-    auto __idx = oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{oneapi::dpl::__internal::__not_pred<__bin_pred_type>(__bin_pred)}, _TagType{}, oneapi::dpl::__ranges::views::all_read(__r1),
-        oneapi::dpl::__ranges::views::all_read(__r2));
+    auto __idx = oneapi::dpl::__par_backend_hetero::__parallel_find_or_min_size(_BackendTag{},
+        std::forward<_ExecutionPolicy>(__exec), _Predicate{oneapi::dpl::__internal::__not_pred<__bin_pred_type>(__bin_pred)}, _TagType{},
+        oneapi::dpl::__ranges::views::all_read(__r1), oneapi::dpl::__ranges::views::all_read(__r2));
 
     return {std::ranges::begin(__r1) + __idx, std::ranges::begin(__r2)+ __idx};
 }
