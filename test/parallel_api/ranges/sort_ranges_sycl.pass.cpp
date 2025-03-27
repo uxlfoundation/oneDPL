@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <cstddef>
 #include <iostream>
@@ -47,7 +48,7 @@ main()
         sycl::buffer<int> B(data2, sycl::range<1>(max_n));
 
         sort(exec, A); //check passing sycl buffer directly
-        sort(make_new_policy<new_kernel_name<Policy, 0>>(exec), all_view<int, sycl::access::mode::read_write>(B),
+        sort(CREATE_NEW_POLICY(exec, 0), all_view<int, sycl::access::mode::read_write>(B),
             ::std::greater<int>());
     }
 
@@ -75,8 +76,8 @@ main()
         B.set_final_data(keys.begin());
         B.set_write_back(true);
 
-        sort(make_new_policy<new_kernel_name<Policy, 1>>(exec), zip_view(views::all(A), views::all(B)), ::std::less{},
-             [](const auto& a) { return ::std::get<1>(a); });
+        sort(CREATE_NEW_POLICY(exec, 1), zip_view(views::all(A), views::all(B)), ::std::less{},
+             [](const auto& a) { return ::std::get<1>(a); }); // KSATODO need move out
     }
     bool res3 = ::std::is_sorted(values.begin(), values.end(), ::std::less{});
     EXPECT_TRUE(res3, "wrong effect from 'sort by key'");
