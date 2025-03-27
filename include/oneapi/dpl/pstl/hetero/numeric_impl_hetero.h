@@ -246,7 +246,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
             ::std::forward<_ExecutionPolicy>(__exec));
 
         __internal::__pattern_walk2_brick(__hetero_tag<_BackendTag>{}, __wrapped_policy, __first, __last, __d_first,
-                                          __internal::__brick_copy<__hetero_tag<_BackendTag>, std::decay_t<_ExecutionPolicy>>{});
+                                          __internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
     else
 #endif
