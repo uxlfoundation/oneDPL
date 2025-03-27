@@ -157,8 +157,8 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
 
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::__brick_swap<std::decay_t<_ExecutionPolicy>, _Function, decltype(__buf1.all_view()),
-                                    decltype(__buf2.all_view())>{__f, static_cast<std::size_t>(__n)},
+        unseq_backend::__brick_swap<_Function, decltype(__buf1.all_view()), decltype(__buf2.all_view())>{
+            __f, static_cast<std::size_t>(__n)},
         __n, __buf1.all_view(), __buf2.all_view());
     __future.wait(__par_backend_hetero::__deferrable_mode{});
     return __first2 + __n;
