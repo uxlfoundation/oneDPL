@@ -597,26 +597,52 @@ __pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __
     return __pstl_upper_bound(__a, __first, __last, __val, __comp);
 }
 
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
 _Size1
 __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
 {
     auto __n = __last - __first;
-    auto __cur = __n;
-    _Size1 __it;
-    while (__n > 0)
+    _Size1 __div = 64;
+    _Size1 __it = 0;
+    _Size1 __cur_idx = 0;
+
+    while (__n > 0 && __div > 2)
     {
-        __it = __first;
-        __cur = __n / 2;
-        __it += __cur;
+        if constexpr (__bias_last)
+            __cur_idx = __n - __n / __div - 1;
+        else 
+            __cur_idx = __n / __div;
+        __it = __first + __cur_idx;
+
         if (__comp(__acc[__it], __value))
         {
-            __n -= __cur + 1, __first = ++__it;
+            __first = __it + 1;
+            __n = __last - __first;
         }
         else
-            __n = __cur;
+        {
+            __last = __it;
+            __n = __last - __first;
+        }
+        // get closer and closer to binary search with more iterations
+        __div >>= 1;
     }
-    return __first;
+    if (__n > 0)
+    {
+        //end up fully at binary search
+        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, __value, __comp);
+    }
+    else
+    {
+        return __first;
+    }
+}
+
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
+_Size1
+__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+{
+    return __biased_lower_bound<__bias_last>(__acc, __first, __last, __value, oneapi::dpl::__internal::__not_pred{oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
 template <typename _IntType, typename _Acc>

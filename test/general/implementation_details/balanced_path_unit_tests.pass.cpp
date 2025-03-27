@@ -237,7 +237,7 @@ bool
 test_right_biased_lower_bound_impl(Rng __rng, std::size_t __location, std::less<typename Rng::value_type> __comp)
 {
     auto expected_res = std::lower_bound(__rng.begin(), __rng.begin() + __location, __rng[__location], __comp);
-    auto res = oneapi::dpl::__par_backend_hetero::__biased_lower_bound</*last_biased=*/true>(__rng.begin(), std::size_t{0}, __location, __rng[__location], __comp);
+    auto res = oneapi::dpl::__internal::__biased_lower_bound</*last_biased=*/true>(__rng.begin(), std::size_t{0}, __location, __rng[__location], __comp);
     
     if (res != expected_res - __rng.begin())
     {
