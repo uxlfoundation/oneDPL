@@ -23,7 +23,9 @@ But, we would not specify that internal type in oneDPL specification. Rather we 
 
 
 ### Key Requirements
-TODO
+- oneDPL tuple type should be explcitly convertable to `std::tuple`
+- Elements of tuple-like types can be accessed using structured bindings.
+- The type can be used with `onedpl::get`, `onedpl::tuple_element` and `onedpl::tuple_size`.
 
 
 ### Implementation proposal (C++20)
