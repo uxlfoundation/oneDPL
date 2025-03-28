@@ -186,7 +186,7 @@ namespace __internal
 struct __find_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-             typename _T>
+             typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
         && std::indirect_binary_predicate<std::ranges::equal_to, std::projected<std::ranges::iterator_t<_R>, _Proj>,
         const _T*>
@@ -354,8 +354,9 @@ namespace __internal
 {
 struct __search_n_fn
 {
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _T,
-             typename _Pred = std::ranges::equal_to, typename _Proj = std::identity>
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R,
+             typename _Pred = std::ranges::equal_to, typename _Proj = std::identity,
+             typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
         && std::indirectly_comparable<std::ranges::iterator_t<_R>, const _T*, _Pred, _Proj>
     auto
@@ -409,7 +410,7 @@ struct __count_fn_pred
 struct __count_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-             typename _T>
+             typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
         && std::indirect_binary_predicate<std::ranges::equal_to, std::projected<std::ranges::iterator_t<_R>, _Proj>,
         const _T*>
@@ -778,8 +779,8 @@ namespace __internal
 struct __generate_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, std::copy_constructible _F>
-    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
-             std::ranges::output_range<_R, std::invoke_result_t<_F&>> && std::ranges::sized_range<_R>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::invocable<_F&>
+        && std::ranges::output_range<_R, std::invoke_result_t<_F&>> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _F __gen) const
@@ -821,8 +822,8 @@ namespace __internal
 
 struct __replace_if_fn
 {
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _T,
-             typename _Proj = std::identity,
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R,
+             typename _Proj = std::identity, typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>,
              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
         && std::indirectly_writable<std::ranges::iterator_t<_R>, const _T&>
@@ -846,7 +847,7 @@ namespace __internal
 struct __replace_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-             typename _T1, typename _T2>
+             typename _T1 = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>, typename _T2 = _T1>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
         && std::indirectly_writable<std::ranges::iterator_t<_R>, const _T2&>
         && std::indirect_binary_predicate<std::ranges::equal_to, std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T1*>
@@ -944,7 +945,7 @@ struct __remove_fn
 {
 
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-             typename _T>
+             typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
         && std::permutable<std::ranges::iterator_t<_R>> && std::indirect_binary_predicate<std::ranges::equal_to,
             std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T*> && std::ranges::sized_range<_R>
