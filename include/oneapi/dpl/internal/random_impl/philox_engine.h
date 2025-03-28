@@ -10,6 +10,9 @@
 // Abstract:
 //
 // Public header file provides implementation for Philox Engine
+// 
+// The documentation of the Engine: https://en.cppreference.com/w/cpp/numeric/random/philox_engine
+//
 
 #ifndef _ONEDPL_PHILOX_ENGINE_H
 #define _ONEDPL_PHILOX_ENGINE_H
