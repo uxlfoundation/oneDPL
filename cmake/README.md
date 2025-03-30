@@ -8,7 +8,7 @@ The following variables are provided for oneDPL configuration:
 
 | Variable                     | Type   | Description                                                                                   | Default value |
 |------------------------------|--------|-----------------------------------------------------------------------------------------------|---------------|
-| ONEDPL_BACKEND               | STRING | Threading backend; supported values: tbb, dpcpp, dpcpp_only, serial, ...; the default value is defined by compiler: dpcpp for DPC++ and tbb for others | tbb/dpcpp |
+| ONEDPL_BACKEND               | STRING | Threading backend; supported values: tbb, dpcpp, dpcpp_only, tbb, omp, serial, ...; the default value is defined by compiler: dpcpp for DPC++ and tbb for others. These values may conflict with explicit set variables like `-DCMAKE_CXX_FLAGS="-DONEDPL_USE_DPCPP_BACKEND=0"` etc. | tbb/dpcpp |
 | ONEDPL_DEVICE_TYPE           | STRING | Select device type for oneDPL test targets; affects only DPC++ backends; supported values: GPU, CPU, FPGA_HW, FPGA_EMU | GPU           |
 | ONEDPL_DEVICE_BACKEND        | STRING | Select device backend type for oneDPL test targets; affects only oneDPL DPC++ backends; supported values: opencl, level_zero, cuda, hip or * (the best backend as per DPC++ runtime heuristics). | * |
 | ONEDPL_USE_UNNAMED_LAMBDA    | BOOL   | Pass `-fsycl-unnamed-lambda`, `-fno-sycl-unnamed-lambda` compile options or nothing           |               |
