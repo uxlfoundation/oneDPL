@@ -38,7 +38,6 @@ class sycl_backend
     using resource_container_t = std::vector<execution_resource_t>;
 
   private:
-    static inline bool is_profiling_enabled = false;
     using report_clock_type = std::chrono::steady_clock;
     using report_duration = std::chrono::milliseconds;
 
@@ -85,6 +84,9 @@ class sycl_backend
                     s->report(execution_info::task_time, std::chrono::duration_cast<report_duration>(
                                                              std::chrono::nanoseconds(time_end - time_start)));
                 }
+            }
+            if constexpr (report_info_v<Selection, execution_info::task_completion_t>){
+                s->report(execution_info::task_completion);
             }
         }
 
@@ -159,17 +161,18 @@ class sycl_backend
     template <typename NativeUniverseVector>
     sycl_backend(const NativeUniverseVector& v)
     {
-        bool profiling = true;
         global_rank_.reserve(v.size());
         for (auto e : v)
         {
-            global_rank_.push_back(e);
-            if (!e.template has_property<sycl::property::queue::enable_profiling>())
-            {
-                profiling = false;
+            if(!e.get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag)){
+                if (!e.template has_property<sycl::property::queue::enable_profiling>()){
+                    auto prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
+                    auto e_tmp = sycl::queue{e.get_device(), prop_list};
+                    e = e_tmp;
+                }
             }
+            global_rank_.push_back(e);
         }
-        is_profiling_enabled = profiling;
         sgroup_ptr_ = std::make_unique<submission_group>(global_rank_);
     }
 
@@ -188,34 +191,12 @@ class sycl_backend
 
         if constexpr (report_task_completion || report_task_time)
         {
-            const auto t0 = report_clock_type::now();
 
             auto e1 = f(q, std::forward<Args>(args)...);
             async_waiter<SelectionHandle> waiter{e1, std::make_shared<SelectionHandle>(s)};
 
-            if constexpr (report_task_time)
-            {
-                if (is_profiling_enabled)
-                    async_waiter_list.add_waiter(new async_waiter(waiter));
-            }
+            async_waiter_list.add_waiter(new async_waiter(waiter));
 
-            if (report_task_time && !is_profiling_enabled || report_task_completion)
-            {
-                auto e2 = q.submit([=](sycl::handler& h) {
-                    h.depends_on(e1);
-                    h.host_task([=]() {
-                        if constexpr (report_task_time)
-                        {
-                            if (!is_profiling_enabled)
-                                s.report(execution_info::task_time,
-                                         std::chrono::duration_cast<report_duration>(report_clock_type::now() - t0));
-                        }
-                        if constexpr (report_task_completion)
-                            s.report(execution_info::task_completion);
-                    });
-                });
-                waiter = async_waiter{e2, std::make_shared<SelectionHandle>(s)};
-            }
             return waiter;
         }
 
@@ -237,10 +218,7 @@ class sycl_backend
     void
     lazy_report()
     {
-        if (is_profiling_enabled)
-        {
             async_waiter_list.lazy_report();
-        }
     }
 
   private:
@@ -250,21 +228,8 @@ class sycl_backend
     void
     initialize_default_resources()
     {
-        bool profiling = true;
-        auto prop_list = sycl::property_list{};
         auto devices = sycl::device::get_devices();
-        for (auto& x : devices)
-        {
-            if (!x.has(sycl::aspect::queue_profiling))
-            {
-                profiling = false;
-            }
-        }
-        is_profiling_enabled = profiling;
-        if (is_profiling_enabled)
-        {
-            prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
-        }
+        auto prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
         for (auto& x : devices)
         {
             global_rank_.push_back(sycl::queue{x, prop_list});
