@@ -665,7 +665,7 @@ struct __parallel_radix_sort_iteration
             __internal::__kernel_name_generator<__reorder_phase, _CustomName, _ExecutionPolicy,
                                                 ::std::decay_t<_InRange>, ::std::decay_t<_OutRange>, _Proj>;
 
-        ::std::size_t __max_sg_size = oneapi::dpl::__internal::__max_sub_group_size(__exec);
+        ::std::size_t __max_sg_size = oneapi::dpl::__internal::__max_sub_group_size(__exec.queue());
         ::std::size_t __reorder_sg_size = __max_sg_size;
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
