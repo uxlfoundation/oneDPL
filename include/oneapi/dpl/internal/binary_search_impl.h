@@ -129,7 +129,8 @@ struct __upper_bound_impl_fn_fo
     InputIterator end;
     StrictWeakOrdering comp;
 
-    auto operator()(const _ValueType& val) const -> decltype(std::upper_bound(start, end, val, comp) - start)
+    auto
+    operator()(const _ValueType& val) const -> decltype(std::upper_bound(start, end, val, comp) - start)
     {
         return std::upper_bound(start, end, val, comp) - start;
     }

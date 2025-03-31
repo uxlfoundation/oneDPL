@@ -566,7 +566,8 @@ struct __pattern_minmax_element__reduce_fn
 {
     _Compare __comp;
 
-    _ReduceValueType operator()(_ReduceValueType __a, _ReduceValueType __b) const
+    _ReduceValueType
+    operator()(_ReduceValueType __a, _ReduceValueType __b) const
     {
         using ::std::get;
         auto __chosen_for_min = __a;
@@ -585,7 +586,8 @@ template <typename _ReduceValueType>
 struct __pattern_minmax_element_transform_fn
 {
     template <typename _TGroupIdx, typename _TAcc>
-    _ReduceValueType operator()(_TGroupIdx __gidx, _TAcc __acc) const
+    _ReduceValueType
+    operator()(_TGroupIdx __gidx, _TAcc __acc) const
     {
         return _ReduceValueType{__gidx, __gidx, __acc[__gidx], __acc[__gidx]};
     }
@@ -691,7 +693,8 @@ struct __pattern_count_transform_fn
     _Predicate __predicate;
 
     template <typename _TGroupIdx, typename _TAcc>
-    int operator()(_TGroupIdx __gidx, _TAcc __acc) const
+    int
+    operator()(_TGroupIdx __gidx, _TAcc __acc) const
     {
         return (__predicate(__acc[__gidx]) ? 1 : 0);
     }
@@ -1153,7 +1156,8 @@ enum _IsPartitionedReduceType : signed char
 template <typename _ReduceValueType>
 struct __pattern_is_partitioned_reduce_fn
 {
-    _IsPartitionedReduceType operator()(_ReduceValueType __a, _ReduceValueType __b) const
+    _IsPartitionedReduceType
+    operator()(_ReduceValueType __a, _ReduceValueType __b) const
     {
         _ReduceValueType __table[] = {__broken,     __broken,     __broken,     __broken, __broken,    __all_true,
                                       __true_false, __true_false, __broken,     __broken, __all_false, __broken,
@@ -1458,7 +1462,8 @@ __pattern_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 template <typename _ReduceValueType>
 struct __pattern_lexicographical_compare_reduce_fn
 {
-    auto operator()(_ReduceValueType __a, _ReduceValueType __b) const
+    auto
+    operator()(_ReduceValueType __a, _ReduceValueType __b) const
     {
         bool __is_mismatched = __a != 0;
         return __a * __is_mismatched + __b * !__is_mismatched;
@@ -1471,7 +1476,8 @@ struct __pattern_lexicographical_compare_transform_fn
     _Compare __comp;
 
     template <typename _TGroupIdx, typename _TAcc1, typename _TAcc2>
-    _ReduceValueType operator()(_TGroupIdx __gidx, _TAcc1 __acc1, _TAcc2 __acc2) const
+    _ReduceValueType
+    operator()(_TGroupIdx __gidx, _TAcc1 __acc1, _TAcc2 __acc2) const
     {
         auto const& __s1_val = __acc1[__gidx];
         auto const& __s2_val = __acc2[__gidx];
