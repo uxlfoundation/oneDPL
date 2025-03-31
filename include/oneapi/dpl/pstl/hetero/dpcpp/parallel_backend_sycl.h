@@ -257,7 +257,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 
 #if _ONEDPL_COMPILE_KERNEL
         //Actually there is one kernel_bundle for the all kernels of the pattern.
-        auto __kernels = __internal::__kernel_compiler<_LocalScanKernel, _GroupScanKernel>::__compile(__exec);
+        auto __kernels = __internal::__kernel_compiler<_LocalScanKernel, _GroupScanKernel>::__compile(__exec.queue());
         auto __kernel_1 = __kernels[0];
         auto __kernel_2 = __kernels[1];
         auto __wgroup_size_kernel_1 = oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __kernel_1);

@@ -678,8 +678,9 @@ struct __parallel_radix_sort_iteration
 
         // correct __count_wg_size, __scan_wg_size, __reorder_sg_size after introspection of the kernels
 #if _ONEDPL_COMPILE_KERNEL
-        auto __kernels = __internal::__kernel_compiler<_RadixCountKernel, _RadixLocalScanKernel,
-                                                       _RadixReorderPeerKernel, _RadixReorderKernel>::__compile(__exec);
+        auto __kernels =
+            __internal::__kernel_compiler<_RadixCountKernel, _RadixLocalScanKernel, _RadixReorderPeerKernel,
+                                          _RadixReorderKernel>::__compile(__exec.queue());
         auto __count_kernel = __kernels[0];
         auto __local_scan_kernel = __kernels[1];
         auto __reorder_peer_kernel = __kernels[2];

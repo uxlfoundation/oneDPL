@@ -130,13 +130,13 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
 #if _ONEDPL_COMPILE_KERNEL
     auto __seg_reduce_count_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceCountKernel>::__compile(__exec);
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceCountKernel>::__compile(__exec.queue());
     auto __seg_reduce_offset_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceOffsetKernel>::__compile(__exec);
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceOffsetKernel>::__compile(__exec.queue());
     auto __seg_reduce_wg_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceWgKernel>::__compile(__exec);
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceWgKernel>::__compile(__exec.queue());
     auto __seg_reduce_prefix_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReducePrefixKernel>::__compile(__exec);
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReducePrefixKernel>::__compile(__exec.queue());
     __wgroup_size = std::min(
         {__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __seg_reduce_count_kernel),
          oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __seg_reduce_offset_kernel),
