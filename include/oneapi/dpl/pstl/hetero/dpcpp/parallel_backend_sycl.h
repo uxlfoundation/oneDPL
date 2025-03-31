@@ -240,9 +240,11 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
     {
         using _Type = typename _InitType::__value_type;
         using _LocalScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-            __scan_local_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
+            __scan_local_kernel, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Type, _LocalScan, _GroupScan,
+            _GlobalScan>;
         using _GroupScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-            __scan_group_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
+            __scan_group_kernel, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Type, _LocalScan, _GroupScan,
+            _GlobalScan>;
         auto __n = __rng1.size();
         assert(__n > 0);
 
