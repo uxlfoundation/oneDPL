@@ -325,9 +325,9 @@ swap_ranges(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardItera
 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2);
 
-    return oneapi::dpl::__internal::__pattern_swap(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-        __internal::swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
+    return oneapi::dpl::__internal::__pattern_swap(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1,
+                                                   __last1, __first2,
+                                                   __internal::swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
 }
 
 // [alg.transform]

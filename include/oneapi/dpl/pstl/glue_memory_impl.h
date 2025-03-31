@@ -229,9 +229,10 @@ namespace __internal
 template <typename _ValueType, typename _ReferenceType>
 struct destroy_fn
 {
-    void operator()(_ReferenceType __val) const
+    void
+    operator()(_ReferenceType __val) const
     {
-         __val.~_ValueType();
+        __val.~_ValueType();
     }
 };
 }; // namespace __internal
@@ -254,9 +255,8 @@ destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __
             oneapi::dpl::__internal::__select_backend(__exec, __first);
 #endif
 
-        oneapi::dpl::__internal::__pattern_walk1(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            __internal::destroy_fn<_ValueType, _ReferenceType>{});
+        oneapi::dpl::__internal::__pattern_walk1(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first,
+                                                 __last, __internal::destroy_fn<_ValueType, _ReferenceType>{});
     }
 }
 
@@ -280,9 +280,9 @@ destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
             oneapi::dpl::__internal::__select_backend(__exec, __first);
 #endif
 
-        return oneapi::dpl::__internal::__pattern_walk1_n(
-            __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n,
-            __internal::destroy_fn<_ValueType, _ReferenceType>{});
+        return oneapi::dpl::__internal::__pattern_walk1_n(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+                                                          __first, __n,
+                                                          __internal::destroy_fn<_ValueType, _ReferenceType>{});
     }
 }
 

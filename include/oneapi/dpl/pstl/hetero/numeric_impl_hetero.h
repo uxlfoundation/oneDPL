@@ -228,7 +228,8 @@ struct __pattern_adjacent_difference_op_caller
 {
     _Op __op;
 
-    void operator()(_It1ValueT __in1, _It1ValueT __in2, _It2ValueTRef __out1) const
+    void
+    operator()(_It1ValueT __in1, _It1ValueT __in2, _It2ValueTRef __out1) const
     {
         __out1 = __op(__in2, __in1); // This move assignment is allowed by the C++ standard draft N4810
     }
