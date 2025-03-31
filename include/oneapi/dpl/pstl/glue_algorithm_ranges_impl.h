@@ -429,7 +429,7 @@ namespace __internal
 {
 struct __stable_sort_fn_pred
 {
-    template <typename ...Args>
+    template <typename... Args>
     auto
     operator()(Args&&... __args) const -> decltype(std::ranges::stable_sort(std::forward<Args>(__args)...))
     {
@@ -460,7 +460,7 @@ namespace __internal
 {
 struct __sort_fn_pred
 {
-    template <typename ...Args>
+    template <typename... Args>
     auto
     operator()(Args&&... __args) const -> decltype(std::ranges::sort(std::forward<Args>(__args)...))
     {

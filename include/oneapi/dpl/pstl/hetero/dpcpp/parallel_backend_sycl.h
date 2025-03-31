@@ -2276,7 +2276,8 @@ struct __parallel_reduce_by_segment_fallback_fn1_fo
     std::size_t __wgroup_size;
 
     template <typename T>
-    bool operator()(const T& __a) const
+    bool
+    operator()(const T& __a) const
     {
         // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
         // for (i-1), but we still need to get its key value as it is the start of a segment
@@ -2294,7 +2295,8 @@ struct __parallel_reduce_by_segment_fallback_fn2_fo
     _BinaryPredicate __binary_pred;
 
     template <typename T>
-    bool operator()(const T& __a) const
+    bool
+    operator()(const T& __a) const
     {
         // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
         // for (i-1), but we still need to get its key value as it is the start of a segment
@@ -2303,7 +2305,6 @@ struct __parallel_reduce_by_segment_fallback_fn2_fo
         return !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // keys comparison
     }
 };
-
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
@@ -2349,8 +2350,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
             oneapi::dpl::__internal::__device_backend_tag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2,
-            __n,
-            __parallel_reduce_by_segment_fallback_fn1_fo<_BinaryPredicate>{__binary_pred, __wgroup_size},
+            __n, __parallel_reduce_by_segment_fallback_fn1_fo<_BinaryPredicate>{__binary_pred, __wgroup_size},
             unseq_backend::__brick_assign_key_position{})
             .get();
 
@@ -2386,13 +2386,13 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // element is copied if it is the 0th element (marks beginning of first segment), or has a key not equal to
     // the adjacent element (end of a segment). Artificial segments based on wg size are not created.
-    auto __result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
-                            oneapi::dpl::__internal::__device_backend_tag{},
-                            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec),
-                            __view3, __view4, __view3.size(),
-                            __parallel_reduce_by_segment_fallback_fn2_fo<_BinaryPredicate>{__binary_pred},
-                            unseq_backend::__brick_assign_key_position{})
-                            .get();
+    auto __result_end =
+        oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+            oneapi::dpl::__internal::__device_backend_tag{},
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec), __view3, __view4,
+            __view3.size(), __parallel_reduce_by_segment_fallback_fn2_fo<_BinaryPredicate>{__binary_pred},
+            unseq_backend::__brick_assign_key_position{})
+            .get();
 
     //reduce by segment
     oneapi::dpl::__par_backend_hetero::__parallel_for(
