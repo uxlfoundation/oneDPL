@@ -137,6 +137,7 @@ class philox_engine
             // all counters are set in reverse order
             state_.X[word_count - __i - 1] = __counter[__i] & in_mask;
         }
+        state_.idx = word_count - 1;
     }
 
     /* Generating functions */
