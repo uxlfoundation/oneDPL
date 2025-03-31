@@ -515,7 +515,7 @@ struct __result_and_scratch_storage_base
 };
 
 template <typename _T>
-struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
+struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
   private:
     using __sycl_buffer_t = sycl::buffer<_T, 1>;
@@ -563,7 +563,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 
   public:
-    __result_and_scratch_storage_impl(sycl::queue __q_, std::size_t __result_n, std::size_t __scratch_n)
+    __result_and_scratch_storage(sycl::queue __q_, std::size_t __result_n, std::size_t __scratch_n)
         : __q{std::move(__q_)}, __result_n{__result_n}, __scratch_n{__scratch_n},
           __use_USM_host{__use_USM_host_allocations(__q)}, __supports_USM_device{__use_USM_allocations(__q)}
     {
@@ -707,9 +707,6 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 };
 
-template <typename _T>
-using __result_and_scratch_storage = __result_and_scratch_storage_impl<_T>;
-
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
 {
@@ -741,7 +738,7 @@ class __future : private std::tuple<_Args...>
 
     template <typename _T>
     constexpr auto
-    __wait_and_get_value(__result_and_scratch_storage_impl<_T>& __storage)
+    __wait_and_get_value(__result_and_scratch_storage<_T>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
     }
