@@ -458,8 +458,8 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
     // Get the work group size adjusted to the local memory limit.
     // Pessimistically double the memory requirement to take into account memory used by compiled kernel.
     // TODO: find a way to generalize getting of reliable work-group size.
-    std::size_t __work_group_size =
-        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec, static_cast<std::size_t>(sizeof(_Tp) * 2));
+    std::size_t __work_group_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(
+        __exec.queue(), static_cast<std::size_t>(sizeof(_Tp) * 2));
 
     // Limit work-group size to __max_work_group_size for performance on GPUs. Empirically tested.
     __work_group_size = std::min(__work_group_size, __max_work_group_size);
