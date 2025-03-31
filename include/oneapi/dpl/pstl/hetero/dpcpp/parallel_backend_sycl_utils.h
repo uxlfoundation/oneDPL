@@ -48,11 +48,11 @@ namespace __internal
 //-----------------------------------------------------------------------------
 
 #if _ONEDPL_DEBUG_SYCL
-template <typename _ExecutionPolicy>
-::std::string
-__device_info(const _ExecutionPolicy& __policy)
+iniline
+std::string
+__device_info(const sycl::queue& __q)
 {
-    return __policy.queue().get_device().template get_info<sycl::info::device::name>();
+    return __q.get_device().template get_info<sycl::info::device::name>();
 }
 #endif
 
