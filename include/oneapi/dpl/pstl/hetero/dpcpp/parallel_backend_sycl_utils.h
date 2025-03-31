@@ -266,14 +266,13 @@ class __kernel_compiler
 
   public:
 #if _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
-    template <typename _Exec>
     static auto
-    __compile(_Exec&& __exec)
+    __compile(const sycl::queue& __q)
     {
-        ::std::vector<sycl::kernel_id> __kernel_ids{sycl::get_kernel_id<_KernelNames>()...};
+        std::vector<sycl::kernel_id> __kernel_ids{sycl::get_kernel_id<_KernelNames>()...};
 
         auto __kernel_bundle = sycl::get_kernel_bundle<sycl::bundle_state::executable>(
-            __exec.queue().get_context(), {__exec.queue().get_device()}, __kernel_ids);
+            __q.get_context(), {__q.get_device()}, __kernel_ids);
 
         if constexpr (__kernel_count > 1)
             return __make_kernels_array(__kernel_bundle, __kernel_ids, ::std::make_index_sequence<__kernel_count>());
@@ -289,11 +288,10 @@ class __kernel_compiler
         return __kernel_array_type{__kernel_bundle.get_kernel(__kernel_ids[_Ip])...};
     }
 #elif _ONEDPL_LIBSYCL_PROGRAM_PRESENT
-    template <typename _Exec>
     static auto
-    __compile(_Exec&& __exec)
+    __compile(const sycl::queue& __q)
     {
-        sycl::program __program(__exec.queue().get_context());
+        sycl::program __program(__q.get_context());
 
         using __return_type = std::conditional_t<(__kernel_count > 1), __kernel_array_type, sycl::kernel>;
         return __return_type{
