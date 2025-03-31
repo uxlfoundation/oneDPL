@@ -747,12 +747,9 @@ class __future : private std::tuple<_Args...>
         return __buf.get_host_access(sycl::read_only)[0];
     }
 
-    // Here we use __result_and_scratch_storage_impl rather than __result_and_scratch_storage because we need to
-    // match the type with the overload and are deducing the policy type. If we used __result_and_scratch_storage,
-    // it would cause issues in type deduction due to decay of the policy in that using statement.
-    template <typename _DecayedExecutionPolicy, typename _T>
+    template <typename _T>
     constexpr auto
-    __wait_and_get_value(const __result_and_scratch_storage_impl<_DecayedExecutionPolicy, _T>& __storage)
+    __wait_and_get_value(const __result_and_scratch_storage_impl<_T>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
     }
