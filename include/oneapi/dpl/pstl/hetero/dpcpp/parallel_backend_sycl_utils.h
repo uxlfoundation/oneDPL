@@ -88,11 +88,11 @@ __max_sub_group_size(const sycl::queue& __q)
 }
 #endif // _ONEDPL_USE_SUB_GROUPS
 
-template <typename _ExecutionPolicy>
-::std::uint32_t
-__max_compute_units(const _ExecutionPolicy& __policy)
+inline
+std::uint32_t
+__max_compute_units(const sycl::queue& __q)
 {
-    return __policy.queue().get_device().template get_info<sycl::info::device::max_compute_units>();
+    return __q.get_device().template get_info<sycl::info::device::max_compute_units>();
 }
 
 template <typename _ExecutionPolicy>
