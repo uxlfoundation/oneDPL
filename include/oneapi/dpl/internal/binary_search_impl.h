@@ -123,7 +123,7 @@ lower_bound_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterator1
 }
 
 template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
-struct __upper_bound_impl_fn_fo
+struct __upper_bound_impl_fn
 {
     InputIterator start;
     InputIterator end;
@@ -149,7 +149,7 @@ upper_bound_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterator1
     return oneapi::dpl::__internal::__pattern_walk2(
         tag, std::forward<Policy>(policy), value_start, value_end, result,
         oneapi::dpl::__internal::__transform_functor{
-            __upper_bound_impl_fn_fo<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}});
+            __upper_bound_impl_fn<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}});
 }
 
 template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
