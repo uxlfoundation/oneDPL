@@ -746,7 +746,7 @@ bool
 __is_gpu_with_reduce_then_scan_sg_sz(const _ExecutionPolicy& __exec)
 {
     const bool __dev_supports_sg_sz =
-        oneapi::dpl::__internal::__supports_sub_group_size(__exec, __get_reduce_then_scan_sg_sz());
+        oneapi::dpl::__internal::__supports_sub_group_size(__exec.queue(), __get_reduce_then_scan_sg_sz());
     return (__exec.queue().get_device().is_gpu() && __dev_supports_sg_sz);
 }
 
