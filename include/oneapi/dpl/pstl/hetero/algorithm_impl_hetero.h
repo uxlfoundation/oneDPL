@@ -465,7 +465,7 @@ struct __brick_fill_n<__hetero_tag<_BackendTag>, _ExecutionPolicy, _SourceT>
 //------------------------------------------------------------------------
 
 template <typename _ReduceValueType, typename _Compare>
-struct __pattern_min_element_reduce_fn_fo
+struct __pattern_min_element_reduce_fn
 {
     _Compare __comp;
 
@@ -528,7 +528,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
     // target can be correctly tested.
     using _Commutative = oneapi::dpl::__internal::__spirv_target_conditional</*_SpirvT*/ ::std::false_type,
                                                                              /*_NonSpirvT*/ ::std::true_type>;
-    __pattern_min_element_reduce_fn_fo<_ReduceValueType, _Compare> __reduce_fn{__comp};
+    __pattern_min_element_reduce_fn<_ReduceValueType, _Compare> __reduce_fn{__comp};
     __pattern_min_element_transform_fn_fo<_ReduceValueType> __transform_fn;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
