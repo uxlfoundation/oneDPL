@@ -153,7 +153,7 @@ upper_bound_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterator1
 }
 
 template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
-struct __binary_search_impl_fn_fo
+struct __binary_search_impl_fn
 {
     InputIterator start;
     InputIterator end;
@@ -179,7 +179,7 @@ binary_search_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterato
     return oneapi::dpl::__internal::__pattern_walk2(
         tag, std::forward<Policy>(policy), value_start, value_end, result,
         oneapi::dpl::__internal::__transform_functor{
-            __binary_search_impl_fn_fo<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}});
+            __binary_search_impl_fn<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}});
 }
 
 #if _ONEDPL_BACKEND_SYCL
