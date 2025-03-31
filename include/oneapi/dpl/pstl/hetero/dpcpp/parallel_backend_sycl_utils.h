@@ -67,13 +67,13 @@ __max_work_group_size(const sycl::queue& __q, std::size_t __wg_size_limit = 8192
     return std::min(__wg_size, __wg_size_limit);
 }
 
-template <typename _ExecutionPolicy, typename _Size>
+template <typename _Size>
 _Size
-__slm_adjusted_work_group_size(const _ExecutionPolicy& __policy, _Size __local_mem_per_wi, _Size __wg_size = 0)
+__slm_adjusted_work_group_size(const sycl::queue& __q, _Size __local_mem_per_wi, _Size __wg_size = 0)
 {
     if (__wg_size == 0)
-        __wg_size = __max_work_group_size(__policy);
-    auto __local_mem_size = __policy.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
+        __wg_size = __max_work_group_size(__q);
+    auto __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
     return std::min<_Size>(__local_mem_size / __local_mem_per_wi, __wg_size);
 }
 
