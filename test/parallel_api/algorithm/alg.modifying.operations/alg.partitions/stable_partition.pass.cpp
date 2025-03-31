@@ -120,9 +120,8 @@ struct test_non_const_stable_partition
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
-        invoke_if(exec, [&]() {
-            stable_partition(exec, iter, iter, non_const(is_even));
-        });
+
+        stable_partition(exec, iter, iter, non_const(is_even));
     }
 };
 

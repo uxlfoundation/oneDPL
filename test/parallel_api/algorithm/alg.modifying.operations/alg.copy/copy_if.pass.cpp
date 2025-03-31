@@ -209,7 +209,7 @@ struct test_non_const_remove_copy_if
             std::uint32_t i = (std::uint32_t)v;
             return i % 2 == 0;
         };
-        invoke_if(exec, [&]() { remove_copy_if(exec, input_iter, input_iter, out_iter, non_const(is_even)); });
+        remove_copy_if(exec, input_iter, input_iter, out_iter, non_const(is_even));
     }
 };
 

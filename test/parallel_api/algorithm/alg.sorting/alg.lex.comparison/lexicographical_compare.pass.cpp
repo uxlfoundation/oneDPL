@@ -162,9 +162,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, FirstIterator first_iter, SecondInterator second_iter)
     {
-        invoke_if(exec, [&]() {
-            lexicographical_compare(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::less<T>()));
-        });
+        lexicographical_compare(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::less<T>()));
     }
 };
 

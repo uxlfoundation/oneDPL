@@ -93,9 +93,7 @@ struct test_non_const_find_if
             return i % 2 == 0;
         };
 
-        invoke_if(exec, [&]() {
-            find_if(exec, iter, iter, non_const(is_even));
-        });
+        find_if(exec, iter, iter, non_const(is_even));
     }
 };
 
@@ -110,9 +108,7 @@ struct test_non_const_find_if_not
             return i % 2 == 0;
         };
 
-        invoke_if(exec, [&]() {
-            find_if_not(exec, iter, iter, non_const(is_even));
-        });
+        find_if_not(exec, iter, iter, non_const(is_even));
     }
 };
 

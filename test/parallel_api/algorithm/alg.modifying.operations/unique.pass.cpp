@@ -112,7 +112,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        invoke_if(exec, [&]() { unique(exec, iter, iter, non_const(::std::equal_to<T>())); });
+        unique(exec, iter, iter, non_const(::std::equal_to<T>()));
     }
 };
 

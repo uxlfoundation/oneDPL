@@ -139,9 +139,7 @@ struct test_non_const_find_end
     void
     operator()(Policy&& exec, FirstIterator first_iter, SecondInterator second_iter)
     {
-        invoke_if(exec, [&]() {
-            find_end(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::equal_to<T>()));
-        });
+        find_end(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::equal_to<T>()));
     }
 };
 
@@ -152,9 +150,7 @@ struct test_non_const_search
     void
     operator()(Policy&& exec, FirstIterator first_iter, SecondInterator second_iter)
     {
-        invoke_if(exec, [&]() {
-            search(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::equal_to<T>()));
-        });
+        search(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::equal_to<T>()));
     }
 };
 
