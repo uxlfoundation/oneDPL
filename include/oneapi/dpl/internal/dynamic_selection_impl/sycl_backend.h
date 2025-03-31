@@ -23,6 +23,7 @@
 #include <utility>
 #include <algorithm>
 
+
 namespace oneapi
 {
 namespace dpl
@@ -43,6 +44,7 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
     static inline bool is_profiling_enabled = false;
     using report_clock_type = std::chrono::steady_clock;
     using report_duration = std::chrono::milliseconds;
+    report_clock_type::time_point t0; //TODO: Relocate to prevent single copy
 
     class async_waiter_base
     {
@@ -175,24 +177,28 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
         sgroup_ptr_ = std::make_unique<submission_group>(global_rank_);
     }
 
-    template <typename SelectionHandle, typename Function, typename... Args>
+
+    template <typename SelectionHandle>
+    void
+    instrument_before_impl(SelectionHandle s)
+    {
+        t0 = report_clock_type::now();
+        if constexpr (report_info_v<SelectionHandle, execution_info::task_submission_t>)
+            report(s, execution_info::task_submission);
+    }
+
+
+   template <typename SelectionHandle, typename WaitType>
     auto
-    submit_impl(SelectionHandle s, Function&& f, Args&&... args)
+    instrument_after_impl(SelectionHandle s, WaitType e1)
     {
         constexpr bool report_task_completion = report_info_v<SelectionHandle, execution_info::task_completion_t>;
-        constexpr bool report_task_submission = report_info_v<SelectionHandle, execution_info::task_submission_t>;
         constexpr bool report_task_time = report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
 
         auto q = unwrap(s);
 
-        if constexpr (report_task_submission)
-            report(s, execution_info::task_submission);
-
         if constexpr (report_task_completion || report_task_time)
         {
-            const auto t0 = report_clock_type::now();
-
-            auto e1 = f(q, std::forward<Args>(args)...);
             async_waiter<SelectionHandle> waiter{e1, std::make_shared<SelectionHandle>(s)};
 
             if constexpr (report_task_time)
@@ -218,10 +224,11 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
                 });
                 waiter = async_waiter{e2, std::make_shared<SelectionHandle>(s)};
             }
+	    
             return waiter;
         }
 
-        return async_waiter{f(q, std::forward<Args>(args)...), std::make_shared<SelectionHandle>(s)};
+        return async_waiter{e1, std::make_shared<SelectionHandle>(s)};
     }
 
     auto

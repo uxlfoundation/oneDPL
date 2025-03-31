@@ -83,14 +83,28 @@ class backend_base
         return resources_;
     }
 
+    template <typename SelectionHandle>
+    void
+    instrument_before_impl(SelectionHandle /*s*/)
+    {
+    }
+
+    template <typename SelectionHandle, typename WaitType>
+    auto
+    instrument_after_impl(SelectionHandle /*s*/, WaitType w)
+    {
+        return async_waiter{w};
+    }
+
     template <typename SelectionHandle, typename Function, typename... Args>
     auto
     submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
-
+	instrument_before(s);
         auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
-        return async_waiter{w};
+	return instrument_after(s, w);
     }
+
   public:
     auto
     get_submission_group()
@@ -103,18 +117,18 @@ class backend_base
         return static_cast<Backend*>(this)->get_resources_impl();
     }
 
-    template <typename SelectionHandle, typename Function, typename... Args>
+    template <typename SelectionHandle>
     void
-    instrument_before(SelectionHandle s, Function&& f, Args&&... args)
+    instrument_before(SelectionHandle s)
     {
-        return static_cast<Backend *>(this)->instrument_before_impl(s, f, args...);
+        return static_cast<Backend *>(this)->instrument_before_impl(s);
     }
 
-    template <typename SelectionHandle, typename WaitType, typename Function, typename... Args>
-    WaitType
-    instrument_after(SelectionHandle s, WaitType w, Function&& f, Args&&... args)
+    template <typename SelectionHandle, typename WaitType>
+    auto
+    instrument_after(SelectionHandle s, WaitType w)
     {
-        return static_cast<Backend*>(this)->instrument_after_impl(s, w, f, args...);
+        return static_cast<Backend*>(this)->instrument_after_impl(s, w);
     }
 
     template <typename SelectionHandle, typename Function, typename... Args>
