@@ -542,8 +542,8 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     bool __supports_USM_device;
 
     // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a device allocation instead.
-    inline bool
-    __use_USM_host_allocations(const sycl::queue& __queue) const
+    static bool
+    __use_USM_host_allocations(const sycl::queue& __queue)
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
         auto __device = __queue.get_device();
@@ -559,8 +559,8 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 #endif
     }
 
-    inline bool
-    __use_USM_allocations(const sycl::queue& __queue) const
+    static bool
+    __use_USM_allocations(const sycl::queue& __queue)
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         return __queue.get_device().has(sycl::aspect::usm_device_allocations);
@@ -570,8 +570,8 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 
   public:
-    __result_and_scratch_storage_impl(sycl::queue __q, std::size_t __result_n, std::size_t __scratch_n)
-        : __q{__q}, __result_n{__result_n}, __scratch_n{__scratch_n},
+    __result_and_scratch_storage_impl(sycl::queue __q_, std::size_t __result_n, std::size_t __scratch_n)
+        : __q{std::move(__q_)}, __result_n{__result_n}, __scratch_n{__scratch_n},
           __use_USM_host{__use_USM_host_allocations(__q)},
           __supports_USM_device{__use_USM_allocations(__q)}
     {
