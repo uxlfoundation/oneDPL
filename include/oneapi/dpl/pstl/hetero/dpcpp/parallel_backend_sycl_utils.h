@@ -48,16 +48,14 @@ namespace __internal
 //-----------------------------------------------------------------------------
 
 #if _ONEDPL_DEBUG_SYCL
-iniline
-std::string
+iniline std::string
 __device_info(const sycl::queue& __q)
 {
     return __q.get_device().template get_info<sycl::info::device::name>();
 }
 #endif
 
-inline
-std::size_t
+inline std::size_t
 __max_work_group_size(const sycl::queue& __q, std::size_t __wg_size_limit = 8192)
 {
     std::size_t __wg_size = __q.get_device().template get_info<sycl::info::device::max_work_group_size>();
@@ -78,8 +76,7 @@ __slm_adjusted_work_group_size(const sycl::queue& __q, _Size __local_mem_per_wi,
 }
 
 #if _ONEDPL_USE_SUB_GROUPS
-inline
-std::size_t
+inline std::size_t
 __max_sub_group_size(const sycl::queue& __q)
 {
     auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
@@ -88,15 +85,13 @@ __max_sub_group_size(const sycl::queue& __q)
 }
 #endif // _ONEDPL_USE_SUB_GROUPS
 
-inline
-std::uint32_t
+inline std::uint32_t
 __max_compute_units(const sycl::queue& __q)
 {
     return __q.get_device().template get_info<sycl::info::device::max_compute_units>();
 }
 
-inline
-bool
+inline bool
 __supports_sub_group_size(const sycl::queue& __q, std::size_t __target_size)
 {
     const std::vector<std::size_t> __subgroup_sizes =
@@ -108,8 +103,7 @@ __supports_sub_group_size(const sycl::queue& __q, std::size_t __target_size)
 // Kernel run-time information helpers
 //-----------------------------------------------------------------------------
 
-inline
-std::size_t
+inline std::size_t
 __kernel_work_group_size(const sycl::queue& __q, const sycl::kernel& __kernel)
 {
     const sycl::device& __device = __q.get_device();
@@ -120,8 +114,7 @@ __kernel_work_group_size(const sycl::queue& __q, const sycl::kernel& __kernel)
 #endif
 }
 
-inline
-std::uint32_t
+inline std::uint32_t
 __kernel_sub_group_size(const sycl::queue& __q, const sycl::kernel& __kernel)
 {
     const sycl::device& __device = __q.get_device();
@@ -423,8 +416,8 @@ struct __sycl_usm_alloc
     _T*
     operator()(::std::size_t __elements) const
     {
-        if (auto __buf = static_cast<_T*>(
-                sycl::malloc(sizeof(_T) * __elements, __q.get_device(), __q.get_context(), __alloc_t)))
+        if (auto __buf =
+                static_cast<_T*>(sycl::malloc(sizeof(_T) * __elements, __q.get_device(), __q.get_context(), __alloc_t)))
             return __buf;
 
         throw std::bad_alloc();
@@ -572,8 +565,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
   public:
     __result_and_scratch_storage_impl(sycl::queue __q_, std::size_t __result_n, std::size_t __scratch_n)
         : __q{std::move(__q_)}, __result_n{__result_n}, __scratch_n{__scratch_n},
-          __use_USM_host{__use_USM_host_allocations(__q)},
-          __supports_USM_device{__use_USM_allocations(__q)}
+          __use_USM_host{__use_USM_host_allocations(__q)}, __supports_USM_device{__use_USM_allocations(__q)}
     {
         const std::size_t __total_n = __scratch_n + __result_n;
         // Skip in case this is a dummy container
