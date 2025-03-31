@@ -249,7 +249,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec);
         // get the work group size adjusted to the local memory limit
         // TODO: find a way to generalize getting of reliable work-group sizes
-        ::std::size_t __wgroup_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec, sizeof(_Type));
+        std::size_t __wgroup_size =
+            oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec.queue(), sizeof(_Type));
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value matches the current practical limit for GPUs, but may need to be re-evaluated in the future.
         __wgroup_size = std::min(__wgroup_size, (std::size_t)1024);
@@ -2302,8 +2303,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                                    oneapi::dpl::__ranges::views::all_write(__idx));
 
     // use work group size adjusted to shared local memory as the maximum segment size.
-    std::size_t __wgroup_size =
-        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec, sizeof(__key_type) + sizeof(__val_type));
+    std::size_t __wgroup_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(
+        __exec.queue(), sizeof(__key_type) + sizeof(__val_type));
 
     // element is copied if it is the 0th element (marks beginning of first segment), is in an index
     // evenly divisible by wg size (ensures segments are not long), or has a key not equal to the

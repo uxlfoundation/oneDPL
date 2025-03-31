@@ -695,7 +695,7 @@ struct __parallel_radix_sort_iteration
         // correct __count_wg_size according to local memory limit in count phase
         using _CounterType = typename ::std::decay_t<_TmpBuf>::value_type;
         const auto __max_count_wg_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(
-            __exec, sizeof(_CounterType) * __radix_states, __count_wg_size);
+            __exec.queue(), sizeof(_CounterType) * __radix_states, __count_wg_size);
         __count_wg_size = static_cast<::std::size_t>((__max_count_wg_size / __radix_states)) * __radix_states;
 
         // work-group size must be a power of 2 and not less than the number of states.
