@@ -108,7 +108,7 @@ struct __sycl_scan_by_segment_impl
     template <typename _BackendTag, typename _Range1, typename _Range2, typename _Range3,
               typename _BinaryPredicate, typename _BinaryOperator, typename _T>
     void
-    operator()(_BackendTag, sycl::queue __q, _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
+    operator()(_BackendTag, sycl::queue& __q, _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
                _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init, _T __identity)
     {
         using _SegScanWgKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
@@ -389,8 +389,10 @@ __scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, Policy&& po
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<Policy>;
 
+    sycl::queue __q_local = policy.queue();
+
     __sycl_scan_by_segment_impl<_CustomName, Inclusive::value>{}(
-        _BackendTag{}, policy.queue(), key_buf.all_view(), value_buf.all_view(), value_output_buf.all_view(),
+        _BackendTag{}, __q_local, key_buf.all_view(), value_buf.all_view(), value_output_buf.all_view(),
         binary_pred, binary_op, init, identity);
 
     return result + n;

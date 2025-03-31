@@ -58,7 +58,7 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
 {
     template <typename _Fp, typename _Index, typename... _Ranges>
     auto
-    operator()(sycl::queue __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
         _PRINT_INFO_IN_DEBUG_MODE(__q);
@@ -138,7 +138,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 
     template <typename _Fp, typename _Index, typename... _Ranges>
     auto
-    operator()(sycl::queue __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
         const std::size_t __work_group_size =
@@ -185,6 +185,8 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     using _ForKernelLarge =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__parallel_for_large_kernel<_CustomName>>;
 
+    sycl::queue __q_local = __exec.queue();
+
     using __small_submitter = __parallel_for_small_submitter<_ForKernelSmall>;
     using __large_submitter = __parallel_for_large_submitter<_ForKernelLarge>;
     // Compile two kernels: one for small-to-medium inputs and a second for large. This avoids runtime checks within a
@@ -192,12 +194,12 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     // then only compile the basic kernel as the two versions are effectively the same.
     if constexpr (_Fp::__preferred_iters_per_item > 1 || _Fp::__preferred_vector_size > 1)
     {
-        if (__count >= __large_submitter::__estimate_best_start_size(__exec.queue(), __brick))
+        if (__count >= __large_submitter::__estimate_best_start_size(__q_local, __brick))
         {
-            return __large_submitter{}(__exec.queue(), __brick, __count, std::forward<_Ranges>(__rngs)...);
+            return __large_submitter{}(__q_local, __brick, __count, std::forward<_Ranges>(__rngs)...);
         }
     }
-    return __small_submitter{}(__exec.queue(), __brick, __count, std::forward<_Ranges>(__rngs)...);
+    return __small_submitter{}(__q_local, __brick, __count, std::forward<_Ranges>(__rngs)...);
 }
 
 } // namespace __par_backend_hetero

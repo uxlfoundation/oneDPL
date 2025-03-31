@@ -382,7 +382,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     template <typename _Range, typename _TempBuf, typename _Compare, typename _Storage>
     sycl::event
     eval_split_points_for_groups(const sycl::event& __event_chain, const _IndexT __n_sorted, const bool __data_in_temp,
-                                 sycl::queue __q, const _Range& __rng, _TempBuf& __temp_buf,
+                                 sycl::queue& __q, const _Range& __rng, _TempBuf& __temp_buf,
                                  _Compare __comp, const nd_range_params& __nd_range_params,
                                  _Storage& __base_diagonals_sp_global_storage) const
     {
@@ -474,7 +474,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     template <typename _Range, typename _TempBuf, typename _Compare>
     sycl::event
     run_parallel_merge(const sycl::event& __event_chain, const _IndexT __n_sorted, const bool __data_in_temp,
-                       sycl::queue __q, _Range& __rng, _TempBuf& __temp_buf, _Compare __comp,
+                       sycl::queue& __q, _Range& __rng, _TempBuf& __temp_buf, _Compare __comp,
                        const nd_range_params& __nd_range_params) const
     {
         const _IndexT __n = __rng.size();
@@ -515,7 +515,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     template <typename _Range, typename _TempBuf, typename _Compare, typename _Storage>
     sycl::event
     run_parallel_merge_from_diagonals(const sycl::event& __event_chain, const _IndexT __n_sorted,
-                                      const bool __data_in_temp, sycl::queue __q, _Range& __rng,
+                                      const bool __data_in_temp, sycl::queue& __q, _Range& __rng,
                                       _TempBuf& __temp_buf, _Compare __comp, const nd_range_params& __nd_range_params,
                                       _Storage& __base_diagonals_sp_global_storage) const
     {
@@ -566,7 +566,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
   public:
     template <typename _Range, typename _Compare, typename _TempBuf, typename _LeafSizeT>
     std::tuple<sycl::event, bool, std::shared_ptr<__result_and_scratch_storage_base>>
-    operator()(sycl::queue __q, _Range& __rng, _Compare __comp, _LeafSizeT __leaf_size, _TempBuf& __temp_buf,
+    operator()(sycl::queue& __q, _Range& __rng, _Compare __comp, _LeafSizeT __leaf_size, _TempBuf& __temp_buf,
                sycl::event __event_chain) const
     {
         // 1 final base diagonal for save final sp(0,0)
@@ -694,7 +694,7 @@ class __sort_copy_back_kernel;
 
 template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare, typename _LeafSorter>
 auto
-__merge_sort(sycl::queue __q, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
+__merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
 {
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
 
@@ -733,7 +733,7 @@ __merge_sort(sycl::queue __q, _Range&& __rng, _Compare __comp, _LeafSorter& __le
 
 template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare>
 auto
-__submit_selecting_leaf(sycl::queue __q, _Range&& __rng, _Compare __comp)
+__submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
 {
     using _Leaf = __leaf_sorter<std::decay_t<_Range>, _Compare>;
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;

@@ -145,7 +145,7 @@ struct __lookback_init_submitter<_FlagType, _Type, _BinaryOp,
 {
     template <typename _StatusFlags, typename _PartialValues>
     sycl::event
-    operator()(sycl::queue __q, _StatusFlags&& __status_flags, _PartialValues&& __partial_values,
+    operator()(sycl::queue& __q, _StatusFlags&& __status_flags, _PartialValues&& __partial_values,
                std::size_t __status_flags_size, std::uint16_t __status_flag_padding) const
     {
         return __q.submit([&](sycl::handler& __hdl) {
@@ -276,7 +276,7 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
 
     template <typename _InRng, typename _OutRng, typename _BinaryOp, typename _StatusFlags, typename _StatusValues>
     sycl::event
-    operator()(sycl::queue __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
+    operator()(sycl::queue& __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
                std::size_t __n, _StatusFlags&& __status_flags, std::size_t __status_flags_size,
                _StatusValues&& __status_vals_full, _StatusValues&& __status_vals_partial,
                std::size_t __current_num_items) const

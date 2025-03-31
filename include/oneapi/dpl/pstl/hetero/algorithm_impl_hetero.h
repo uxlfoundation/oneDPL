@@ -950,7 +950,9 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    auto __res = __par_backend_hetero::__parallel_copy_if<_CustomName>(_BackendTag{}, __exec.queue(), __buf1.all_view(),
+    sycl::queue __q_local = __exec.queue();
+
+    auto __res = __par_backend_hetero::__parallel_copy_if<_CustomName>(_BackendTag{}, __q_local, __buf1.all_view(),
                                                                        __buf2.all_view(), __n, __pred);
 
     ::std::size_t __num_copied = __res.get(); //is a blocking call
