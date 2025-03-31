@@ -502,7 +502,7 @@ struct __pattern_min_element_reduce_fn
 };
 
 template <typename _ReduceValueType>
-struct __pattern_min_element_transform_fn_fo
+struct __pattern_min_element_transform_fn
 {
     template <typename _TGroupIdx, typename _TAcc>
     _ReduceValueType
@@ -529,7 +529,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
     using _Commutative = oneapi::dpl::__internal::__spirv_target_conditional</*_SpirvT*/ ::std::false_type,
                                                                              /*_NonSpirvT*/ ::std::true_type>;
     __pattern_min_element_reduce_fn<_ReduceValueType, _Compare> __reduce_fn{__comp};
-    __pattern_min_element_transform_fn_fo<_ReduceValueType> __transform_fn;
+    __pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
