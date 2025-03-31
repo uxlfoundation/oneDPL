@@ -2350,7 +2350,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
             oneapi::dpl::__internal::__device_backend_tag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2,
             __n,
-            __parallel_reduce_by_segment_fallback_fn1_fo<_BinaryPredicate>{__binary_pred, __wgroup_size}, // KSATODO moved out
+            __parallel_reduce_by_segment_fallback_fn1_fo<_BinaryPredicate>{__binary_pred, __wgroup_size},
             unseq_backend::__brick_assign_key_position{})
             .get();
 
@@ -2390,7 +2390,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                             oneapi::dpl::__internal::__device_backend_tag{},
                             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec),
                             __view3, __view4, __view3.size(),
-                            __parallel_reduce_by_segment_fallback_fn2_fo<_BinaryPredicate>{__binary_pred}, // KSATODO moved out
+                            __parallel_reduce_by_segment_fallback_fn2_fo<_BinaryPredicate>{__binary_pred},
                             unseq_backend::__brick_assign_key_position{})
                             .get();
 

@@ -366,7 +366,7 @@ struct __count_fn
     std::ranges::range_difference_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
-        __count_fn_pred<_T> __pred{__value}; // KSATODO moved out
+        __count_fn_pred<_T> __pred{__value};
 
         return oneapi::dpl::ranges::count_if(std::forward<_ExecutionPolicy>(__exec),
             std::forward<_R>(__r), __pred, __proj);
@@ -449,7 +449,7 @@ struct __stable_sort_fn
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_sort_ranges(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj,
-            __internal::__stable_sort_fn_pred{}); // KSATODO moved out
+            __internal::__stable_sort_fn_pred{});
     }
 }; //__stable_sort_fn
 }  //__internal
@@ -480,7 +480,7 @@ struct __sort_fn
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_sort_ranges(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj,
-            __internal::__sort_fn_pred{}); // KSATODO moved out
+            __internal::__sort_fn_pred{});
     }
 }; //__sort_fn
 }  //__internal
@@ -875,7 +875,7 @@ swap_ranges(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 
     return oneapi::dpl::__internal::__ranges::__pattern_swap(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all(::std::forward<_Range1>(__rng1)),
-        views::all(::std::forward<_Range2>(__rng2)), __internal::swap_ranges_fn<_ReferenceType1, _ReferenceType2>{}); // KSATODO moved out
+        views::all(::std::forward<_Range2>(__rng2)), __internal::swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
 }
 
 namespace __internal
@@ -903,7 +903,7 @@ transform(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result, _Unary
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng, __result);
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __internal::transform_fn<_UnaryOperation>{__op}, // KSATODO moved out
+        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __internal::transform_fn<_UnaryOperation>{__op},
         views::all_read(::std::forward<_Range1>(__rng)), views::all_write(::std::forward<_Range2>(__result)));
 }
 
@@ -930,7 +930,7 @@ transform(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2, __result);
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __internal::transform_fn2<_BinaryOperation>{__op}, // KSATODO moved out
+        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __internal::transform_fn2<_BinaryOperation>{__op},
         views::all_read(::std::forward<_Range1>(__rng1)), views::all_read(::std::forward<_Range2>(__rng2)),
         views::all_write(::std::forward<_Range3>(__result)));
 }
