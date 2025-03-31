@@ -331,7 +331,7 @@ struct __parallel_transform_reduce_impl
 
 #if _ONEDPL_COMPILE_KERNEL
         auto __kernel = __internal::__kernel_compiler<_ReduceKernel>::__compile(__exec);
-        _Size __adjusted_work_group_size = oneapi::dpl::__internal::__kernel_work_group_size(__exec, __kernel);
+        _Size __adjusted_work_group_size = oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __kernel);
         __work_group_size = std::min(__work_group_size, __adjusted_work_group_size);
 #endif
 
