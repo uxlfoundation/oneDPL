@@ -274,7 +274,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Type>;
         __result_and_scratch_storage_t __result_and_scratch{__exec, 1, __n_groups + 1};
 
-        _PRINT_INFO_IN_DEBUG_MODE(__exec, __wgroup_size, __max_cu);
+        _PRINT_INFO_IN_DEBUG_MODE(__exec.queue(), __wgroup_size, __max_cu);
 
         // 1. Local scan on each workgroup
         auto __submit_event = __exec.queue().submit([&](sycl::handler& __cgh) {
@@ -1887,7 +1887,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     const auto [__n_groups, __wgroup_size] =
         __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__exec, __rng_n);
 
-    _PRINT_INFO_IN_DEBUG_MODE(__exec, __wgroup_size);
+    _PRINT_INFO_IN_DEBUG_MODE(__exec.queue(), __wgroup_size);
 
     using _AtomicType = typename _BrickTag::_AtomicType;
     const _AtomicType __init_value = _BrickTag::__init_value(__rng_n);
@@ -2115,7 +2115,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
 
         oneapi::dpl::__par_backend_hetero::__buffer<_Tp> __temp_buf(__n);
         auto __temp = __temp_buf.get_buffer();
-        _PRINT_INFO_IN_DEBUG_MODE(__exec);
+        _PRINT_INFO_IN_DEBUG_MODE(__exec.queue());
 
         _Size __k = 1;
         bool __data_in_temp = false;
