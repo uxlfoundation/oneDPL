@@ -78,11 +78,11 @@ __slm_adjusted_work_group_size(const sycl::queue& __q, _Size __local_mem_per_wi,
 }
 
 #if _ONEDPL_USE_SUB_GROUPS
-template <typename _ExecutionPolicy>
-::std::size_t
-__max_sub_group_size(const _ExecutionPolicy& __policy)
+inline
+std::size_t
+__max_sub_group_size(const sycl::queue& __q)
 {
-    auto __supported_sg_sizes = __policy.queue().get_device().template get_info<sycl::info::device::sub_group_sizes>();
+    auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
     //The result of get_info<sycl::info::device::sub_group_sizes>() can be empty; if so, return 0
     return __supported_sg_sizes.empty() ? 0 : __supported_sg_sizes.back();
 }
