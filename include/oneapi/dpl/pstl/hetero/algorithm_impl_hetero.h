@@ -528,8 +528,8 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
     // target can be correctly tested.
     using _Commutative = oneapi::dpl::__internal::__spirv_target_conditional</*_SpirvT*/ ::std::false_type,
                                                                              /*_NonSpirvT*/ ::std::true_type>;
-    __pattern_min_element_reduce_fn_fo<_ReduceValueType, _Compare> __reduce_fn{__comp}; // KSATODO moved out
-    __pattern_min_element_transform_fn_fo<_ReduceValueType> __transform_fn; // KSATODO moved out
+    __pattern_min_element_reduce_fn_fo<_ReduceValueType, _Compare> __reduce_fn{__comp};
+    __pattern_min_element_transform_fn_fo<_ReduceValueType> __transform_fn;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
@@ -605,12 +605,12 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
-    __pattern_minmax_element__reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp}; // KSATODO moved out
+    __pattern_minmax_element__reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
 
     // TODO: Doesn't work with `zip_iterator`.
     //       In that case the first and the second arguments of `_ReduceValueType` will be
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
-    __pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn; // KSATODO moved out
+    __pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
@@ -714,7 +714,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator 
     auto __reduce_fn = ::std::plus<_ReduceValueType>{};
     // int is being implicitly casted to difference_type
     // otherwise we can only pass the difference_type as a functor template parameter
-    __pattern_count_transform_fn<_Predicate> __transform_fn{__predicate}; // KSATODO moved out
+    __pattern_count_transform_fn<_Predicate> __transform_fn{__predicate};
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
@@ -1184,8 +1184,8 @@ __pattern_is_partitioned(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
         return true;
 
     using _ReduceValueType = _IsPartitionedReduceType;
-    __pattern_is_partitioned_reduce_fn<_ReduceValueType> __reduce_fn; // KSATODO moved out
-    __pattern_is_partitioned_transform_fn<_Predicate> __transform_fn{__predicate}; // KSATODO moved out
+    __pattern_is_partitioned_reduce_fn<_ReduceValueType> __reduce_fn;
+    __pattern_is_partitioned_transform_fn<_Predicate> __transform_fn{__predicate};
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
@@ -1395,7 +1395,7 @@ __pattern_sort_by_key(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
     auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
     auto __end = __beg + (__keys_last - __keys_first);
     __stable_sort_with_projection(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end, __comp,
-                                  __pattern_sort_by_key_fn{}); // KSATODO moved out
+                                  __pattern_sort_by_key_fn{});
 }
 
 //------------------------------------------------------------------------
@@ -1498,8 +1498,8 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
     using _Iterator1DifferenceType = typename ::std::iterator_traits<_Iterator1>::difference_type;
     using _ReduceValueType = int32_t;
 
-    __pattern_lexicographical_compare_reduce_fn<_ReduceValueType> __reduce_fn; // KSATODO moved out
-    __pattern_lexicographical_compare_transform_fn<_Compare, _ReduceValueType> __transform_fn{__comp}; // KSATODO moved out
+    __pattern_lexicographical_compare_reduce_fn<_ReduceValueType> __reduce_fn;
+    __pattern_lexicographical_compare_transform_fn<_Compare, _ReduceValueType> __transform_fn{__comp};
 
     auto __shared_size = ::std::min(__last1 - __first1, (_Iterator1DifferenceType)(__last2 - __first2));
 

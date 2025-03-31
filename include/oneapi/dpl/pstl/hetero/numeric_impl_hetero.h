@@ -262,7 +262,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     else
 #endif
     {
-        __pattern_adjacent_difference_op_caller<_BinaryOperation, _It1ValueT, _It2ValueTRef> __fn{__op}; // KSATODO moved out
+        __pattern_adjacent_difference_op_caller<_BinaryOperation, _It1ValueT, _It2ValueTRef> __fn{__op};
 
         auto __keep1 =
             oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();

@@ -256,7 +256,7 @@ destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __
 
         oneapi::dpl::__internal::__pattern_walk1(
             __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            __internal::destroy_fn<_ValueType, _ReferenceType>{}); // KSATODO moved out
+            __internal::destroy_fn<_ValueType, _ReferenceType>{});
     }
 }
 
@@ -282,7 +282,7 @@ destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 
         return oneapi::dpl::__internal::__pattern_walk1_n(
             __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n,
-            __internal::destroy_fn<_ValueType, _ReferenceType>{}); // KSATODO moved out
+            __internal::destroy_fn<_ValueType, _ReferenceType>{});
     }
 }
 

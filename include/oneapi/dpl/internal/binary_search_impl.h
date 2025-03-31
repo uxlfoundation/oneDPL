@@ -119,7 +119,7 @@ lower_bound_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterator1
     return oneapi::dpl::__internal::__pattern_walk2(
         tag, std::forward<Policy>(policy), value_start, value_end, result,
         oneapi::dpl::__internal::__transform_functor{
-            __lower_bound_impl_fn_fo<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}}); // KSATODO moved out
+            __lower_bound_impl_fn_fo<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}});
 }
 
 template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
@@ -148,7 +148,7 @@ upper_bound_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterator1
     return oneapi::dpl::__internal::__pattern_walk2(
         tag, std::forward<Policy>(policy), value_start, value_end, result,
         oneapi::dpl::__internal::__transform_functor{
-            __upper_bound_impl_fn_fo<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}}); // KSATODO moved out
+            __upper_bound_impl_fn_fo<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}});
 }
 
 template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
@@ -178,7 +178,7 @@ binary_search_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterato
     return oneapi::dpl::__internal::__pattern_walk2(
         tag, std::forward<Policy>(policy), value_start, value_end, result,
         oneapi::dpl::__internal::__transform_functor{
-            __binary_search_impl_fn_fo<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}});  // KSATODO moved out
+            __binary_search_impl_fn_fo<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}});
 }
 
 #if _ONEDPL_BACKEND_SYCL
