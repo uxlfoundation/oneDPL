@@ -330,7 +330,7 @@ struct __parallel_transform_reduce_impl
         auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
 
 #if _ONEDPL_COMPILE_KERNEL
-        auto __kernel = __internal::__kernel_compiler<_ReduceKernel>::__compile(__exec);
+        auto __kernel = __internal::__kernel_compiler<_ReduceKernel>::__compile(__exec.queue());
         _Size __adjusted_work_group_size = oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __kernel);
         __work_group_size = std::min(__work_group_size, __adjusted_work_group_size);
 #endif
