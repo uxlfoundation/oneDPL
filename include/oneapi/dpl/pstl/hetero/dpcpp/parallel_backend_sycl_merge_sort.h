@@ -340,7 +340,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     std::size_t
     get_max_base_diags_count(const _ExecutionPolicy& __exec, const _IndexT __chunk, std::size_t __n) const
     {
-        const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec);
+        const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue());
         return oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk * __max_wg_size);
     }
 
