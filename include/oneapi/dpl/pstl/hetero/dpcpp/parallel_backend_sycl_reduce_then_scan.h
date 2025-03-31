@@ -784,7 +784,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
 
-    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__exec, 8192);
+    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), 8192);
     // Round down to nearest multiple of the subgroup size
     const std::uint32_t __work_group_size = (__max_work_group_size / __sub_group_size) * __sub_group_size;
 
