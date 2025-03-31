@@ -95,12 +95,12 @@ __max_compute_units(const sycl::queue& __q)
     return __q.get_device().template get_info<sycl::info::device::max_compute_units>();
 }
 
-template <typename _ExecutionPolicy>
+inline
 bool
-__supports_sub_group_size(const _ExecutionPolicy& __exec, std::size_t __target_size)
+__supports_sub_group_size(const sycl::queue& __q, std::size_t __target_size)
 {
     const std::vector<std::size_t> __subgroup_sizes =
-        __exec.queue().get_device().template get_info<sycl::info::device::sub_group_sizes>();
+        __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
     return std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), __target_size) != __subgroup_sizes.end();
 }
 
