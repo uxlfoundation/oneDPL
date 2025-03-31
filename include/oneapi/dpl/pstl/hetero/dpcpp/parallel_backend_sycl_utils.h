@@ -120,11 +120,11 @@ __kernel_work_group_size(const sycl::queue& __q, const sycl::kernel& __kernel)
 #endif
 }
 
-template <typename _ExecutionPolicy>
-::std::uint32_t
-__kernel_sub_group_size(const _ExecutionPolicy& __policy, const sycl::kernel& __kernel)
+inline
+std::uint32_t
+__kernel_sub_group_size(const sycl::queue& __q, const sycl::kernel& __kernel)
 {
-    const sycl::device& __device = __policy.queue().get_device();
+    const sycl::device& __device = __q.get_device();
     [[maybe_unused]] const ::std::size_t __wg_size = __kernel_work_group_size(__policy, __kernel);
     const ::std::uint32_t __sg_size =
 #if _ONEDPL_SYCL2020_KERNEL_DEVICE_API_PRESENT
