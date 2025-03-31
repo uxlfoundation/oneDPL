@@ -246,7 +246,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         auto __n = __rng1.size();
         assert(__n > 0);
 
-        auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec);
+        auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec.queue());
         // get the work group size adjusted to the local memory limit
         // TODO: find a way to generalize getting of reliable work-group sizes
         std::size_t __wgroup_size =
@@ -1681,7 +1681,7 @@ struct __parallel_find_or_nd_range_tuner
         {
             // Compute the number of groups and limit by the number of compute units
             __n_groups = std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size),
-                                               oneapi::dpl::__internal::__max_compute_units(__exec));
+                                               oneapi::dpl::__internal::__max_compute_units(__exec.queue()));
         }
 
         return {__n_groups, __wgroup_size};

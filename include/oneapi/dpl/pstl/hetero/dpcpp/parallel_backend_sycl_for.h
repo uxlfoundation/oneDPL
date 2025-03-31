@@ -132,7 +132,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     {
         const std::size_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), __max_work_group_size);
-        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec);
+        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec.queue());
         return __work_group_size * _Fp::__preferred_iters_per_item * __max_cu;
     }
 
