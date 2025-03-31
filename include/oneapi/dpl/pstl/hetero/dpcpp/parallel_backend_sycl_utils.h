@@ -405,29 +405,28 @@ class __buffer_impl
     }
 };
 
-template <typename _ExecutionPolicy, typename _T>
+template <typename _T>
 struct __sycl_usm_free
 {
-    _ExecutionPolicy __exec;
+    sycl::queue __q;
 
     void
     operator()(_T* __memory) const
     {
-        sycl::free(__memory, __exec.queue().get_context());
+        sycl::free(__memory, __q.get_context());
     }
 };
 
-template <typename _ExecutionPolicy, typename _T, sycl::usm::alloc __alloc_t>
+template <typename _T, sycl::usm::alloc __alloc_t>
 struct __sycl_usm_alloc
 {
-    _ExecutionPolicy __exec;
+    sycl::queue __q;
 
     _T*
     operator()(::std::size_t __elements) const
     {
-        const auto& __queue = __exec.queue();
         if (auto __buf = static_cast<_T*>(
-                sycl::malloc(sizeof(_T) * __elements, __queue.get_device(), __queue.get_context(), __alloc_t)))
+                sycl::malloc(sizeof(_T) * __elements, __q.get_device(), __q.get_context(), __alloc_t)))
             return __buf;
 
         throw std::bad_alloc();
@@ -524,7 +523,7 @@ struct __result_and_scratch_storage_base
     __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
-template <typename _ExecutionPolicy, typename _T>
+template <typename _T>
 struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 {
   private:
@@ -534,7 +533,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     using __accessor_t =
         sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
 
-    _ExecutionPolicy __exec;
+    mutable sycl::queue __q;
     std::shared_ptr<_T> __scratch_buf;
     std::shared_ptr<_T> __result_buf;
     std::shared_ptr<__sycl_buffer_t> __sycl_buf;
@@ -546,7 +545,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 
     // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a device allocation instead.
     inline bool
-    __use_USM_host_allocations(sycl::queue __queue)
+    __use_USM_host_allocations(const sycl::queue& __queue) const
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
         auto __device = __queue.get_device();
@@ -563,7 +562,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 
     inline bool
-    __use_USM_allocations(sycl::queue __queue)
+    __use_USM_allocations(const sycl::queue& __queue) const
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         return __queue.get_device().has(sycl::aspect::usm_device_allocations);
@@ -573,10 +572,10 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 
   public:
-    __result_and_scratch_storage_impl(const _ExecutionPolicy& __exec_, std::size_t __result_n, std::size_t __scratch_n)
-        : __exec{__exec_}, __result_n{__result_n}, __scratch_n{__scratch_n},
-          __use_USM_host{__use_USM_host_allocations(__exec.queue())},
-          __supports_USM_device{__use_USM_allocations(__exec.queue())}
+    __result_and_scratch_storage_impl(sycl::queue __q, std::size_t __result_n, std::size_t __scratch_n)
+        : __q{__q}, __result_n{__result_n}, __scratch_n{__scratch_n},
+          __use_USM_host{__use_USM_host_allocations(__q)},
+          __supports_USM_device{__use_USM_allocations(__q)}
     {
         const std::size_t __total_n = __scratch_n + __result_n;
         // Skip in case this is a dummy container
@@ -588,23 +587,22 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
                 if (__scratch_n > 0)
                 {
                     __scratch_buf = std::shared_ptr<_T>(
-                        __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::device>{__exec}(
-                            __scratch_n),
-                        __internal::__sycl_usm_free<_ExecutionPolicy, _T>{__exec});
+                        __internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__scratch_n),
+                        __internal::__sycl_usm_free<_T>{__q});
                 }
                 if (__result_n > 0)
                 {
-                    __result_buf = std::shared_ptr<_T>(
-                        __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::host>{__exec}(__result_n),
-                        __internal::__sycl_usm_free<_ExecutionPolicy, _T>{__exec});
+                    __result_buf =
+                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::host>{__q}(__result_n),
+                                            __internal::__sycl_usm_free<_T>{__q});
                 }
             }
             else if (__supports_USM_device)
             {
                 // If we don't use host memory, malloc only a single unified device allocation
-                __scratch_buf = std::shared_ptr<_T>(
-                    __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::device>{__exec}(__total_n),
-                    __internal::__sycl_usm_free<_ExecutionPolicy, _T>{__exec});
+                __scratch_buf =
+                    std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__total_n),
+                                        __internal::__sycl_usm_free<_T>{__q});
             }
             else
             {
@@ -676,7 +674,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         else if (__supports_USM_device)
         {
             _T __tmp;
-            __exec.queue().memcpy(&__tmp, __scratch_buf.get() + __scratch_n + idx, 1 * sizeof(_T)).wait();
+            __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + idx, 1 * sizeof(_T)).wait();
             return __tmp;
         }
         else
@@ -719,8 +717,8 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 };
 
-template <typename _ExecutionPolicy, typename _T>
-using __result_and_scratch_storage = __result_and_scratch_storage_impl<std::decay_t<_ExecutionPolicy>, _T>;
+template <typename _T>
+using __result_and_scratch_storage = __result_and_scratch_storage_impl<_T>;
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
