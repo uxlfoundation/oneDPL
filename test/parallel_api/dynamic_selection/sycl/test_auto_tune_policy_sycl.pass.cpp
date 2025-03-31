@@ -530,7 +530,7 @@ main()
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 #if !ONEDPL_FPGA_DEVICE || !ONEDPL_FPGA_EMULATOR
-    using policy_t = oneapi::dpl::experimental::auto_tune_policy<oneapi::dpl::experimental::sycl_backend>;
+    using policy_t = oneapi::dpl::experimental::auto_tune_policy<sycl::queue, oneapi::dpl::experimental::default_backend<sycl::queue>>;
     std::vector<sycl::queue> u1;
     std::vector<sycl::queue> u2;
     constexpr bool use_event_profiling = true;
