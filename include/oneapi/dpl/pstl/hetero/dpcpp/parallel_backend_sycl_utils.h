@@ -302,22 +302,20 @@ class __kernel_compiler
 #endif // _ONEDPL_COMPILE_KERNEL
 
 #if _ONEDPL_DEBUG_SYCL
-template <typename _Policy>
 inline void
 // Passing policy by value should be enough for debugging
-__print_device_debug_info(const _Policy& __policy, size_t __wg_size = 0, size_t __max_cu = 0)
+__print_device_debug_info(const sycl::queue& __q, size_t __wg_size = 0, size_t __max_cu = 0)
 {
-    ::std::cout << "Device info" << ::std::endl;
-    ::std::cout << " > device name:         " << oneapi::dpl::__internal::__device_info(__policy) << ::std::endl;
-    ::std::cout << " > max compute units:   "
-                << (__max_cu ? __max_cu : oneapi::dpl::__internal::__max_compute_units(__policy)) << ::std::endl;
-    ::std::cout << " > max work-group size: "
-                << (__wg_size ? __wg_size : oneapi::dpl::__internal::__max_work_group_size(__policy)) << ::std::endl;
+    std::cout << "Device info" << ::std::endl;
+    std::cout << " > device name:         " << oneapi::dpl::__internal::__device_info(__q) << ::std::endl;
+    std::cout << " > max compute units:   " << (__max_cu ? __max_cu : oneapi::dpl::__internal::__max_compute_units(__q))
+              << ::std::endl;
+    std::cout << " > max work-group size: "
+              << (__wg_size ? __wg_size : oneapi::dpl::__internal::__max_work_group_size(__q)) << ::std::endl;
 }
 #else
-template <typename _Policy>
 inline void
-__print_device_debug_info(const _Policy&, size_t = 0, size_t = 0)
+__print_device_debug_info(const sycl::queue&, size_t = 0, size_t = 0)
 {
 }
 #endif
