@@ -92,6 +92,21 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _Fun, typename _Proj>
+struct __pattern_for_each_fn
+{
+    _Fun __f;
+    _Proj __proj;
+
+    template <typename _TValue>
+    void
+    operator()(_TValue&& __val) const
+    {
+        std::invoke(__f, std::invoke(__proj, std::forward<_TValue>(__val)));
+    }
+};
+
 //---------------------------------------------------------------------------------------------------------------------
 // pattern_for_each
 //---------------------------------------------------------------------------------------------------------------------
@@ -99,13 +114,25 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 void
 __pattern_for_each(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _Proj __proj)
 {
-    // KSATODO move lambda
-    auto __f_1 =
-        [__f, __proj](auto&& __val) { std::invoke(__f, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
+    __pattern_for_each_fn<_Fun, _Proj> __f_1{__f, __proj}; // KSATODO moved out
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f_1,
                                                             oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
 }
+
+template <typename _F, typename _Proj>
+struct __pattern_transform_unary_op
+{
+    _F __op;
+    _Proj __proj;
+
+    template <typename _TValue>
+    auto
+    operator()(_TValue&& __val) const -> decltype(std::invoke(__op, std::invoke(__proj, std::forward<_TValue>(__val))))
+    {
+        return std::invoke(__op, std::invoke(__proj, std::forward<_TValue>(__val)));
+    }
+};
 
 //---------------------------------------------------------------------------------------------------------------------
 // pattern_transform
@@ -117,9 +144,7 @@ __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
                     _F __op, _Proj __proj)
 {
     assert(std::ranges::size(__in_r) <= std::ranges::size(__out_r)); // for debug purposes only
-    // KSATODO move lambda
-    auto __unary_op = [__op, __proj](auto&& __val)
-        { return std::invoke(__op, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
+    __pattern_transform_unary_op<_F, _Proj> __unary_op{__op, __proj}; // KSATODO moved out
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__transform_functor<decltype(__unary_op)>{std::move(__unary_op)},
@@ -127,16 +152,31 @@ __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 }
 
+template <typename _F, typename _Proj1, typename _Proj2>
+struct __pattern_transform_fn
+{
+    _F __binary_op;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
+
+    template <typename _TValue1, typename _TValue2>
+    auto
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
+        -> decltype(std::invoke(__binary_op, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                                std::invoke(__proj2, std::forward<_TValue2>(__val2))))
+    {
+        return std::invoke(__binary_op, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj2, std::forward<_TValue2>(__val2)));
+    }
+};
+
 template<typename _BackendTag, typename _ExecutionPolicy, typename _InRange1, typename _InRange2, typename _OutRange, typename _F,
          typename _Proj1, typename _Proj2>
 void
 __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange1&& __in_r1,
                     _InRange2&& __in_r2, _OutRange&& __out_r, _F __binary_op, _Proj1 __proj1, _Proj2 __proj2)
 {
-    // KSATODO move lambda
-    auto __f = [__binary_op, __proj1, __proj2](auto&& __val1, auto&& __val2) {
-        return std::invoke(__binary_op, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
-            std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
+    __pattern_transform_fn<_F, _Proj1, _Proj2> __f{__binary_op, __proj1, __proj2}; // KSATODO moved out
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__transform_functor<decltype(__f)>{std::move(__f)},
@@ -222,16 +262,32 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& 
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _Pred, typename _Proj1, typename _Proj2>
+struct __pattern_equal_pred
+{
+    _Pred __pred;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
+
+    template <typename _TValue1, typename _TValue2>
+    auto
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
+        -> decltype(std::invoke(__pred, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                                std::invoke(__proj2, std::forward<_TValue2>(__val2))))
+    {
+        return std::invoke(__pred, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj2, std::forward<_TValue2>(__val2)));
+    }
+};
+
 template<typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
          typename _Proj2>
 bool
 __pattern_equal(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
                  _Proj1 __proj1, _Proj2 __proj2)
 {
-    // KSATODO move lambda
-    auto __pred_2 = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2)
-        { return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
-                             std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
+    __pattern_equal_pred<_Pred, _Proj1, _Proj2> __pred_2(__pred, __proj1, __proj2); // KSATODO moved out
 
     return oneapi::dpl::__internal::__ranges::__pattern_equal(__tag, ::std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(::std::forward<_R1>(__r1)),
@@ -262,13 +318,26 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&&
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Pred, typename _Proj>
+struct __pattern_find_if_pred
+{
+    _Pred __pred;
+    _Proj __proj;
+
+    template <typename _TValue>
+    auto
+    operator()(_TValue&& __val) const -> decltype(std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val))))
+    {
+        return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val)));
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 auto
 __pattern_find_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    // KSATODO move lambda
-    auto __pred_1 = [__pred, __proj](auto&& __val)
-        { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
+    __pattern_find_if_pred<_Pred, _Proj> __pred_1{__pred, __proj}; // KSATODO moved out
+
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_find_if(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r), __pred_1);
 
@@ -350,13 +419,27 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& 
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _Pred, typename _Proj>
+struct __pattern_any_of_pred
+{
+    _Pred __pred;
+    _Proj __proj;
+
+    template <typename _TValue>
+    auto
+    operator()(_TValue&& __val) const -> decltype(std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val))))
+    {
+        return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val)));
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 bool
 __pattern_any_of(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    // KSATODO move lambda
-    auto __pred_1 = [__pred, __proj](auto&& __val)
-        { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
+    __pattern_any_of_pred<_Pred, _Proj> __pred_1{__pred, __proj}; // KSATODO moved out
+
     return oneapi::dpl::__internal::__ranges::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec),
                 oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)), __pred_1);
 }
@@ -401,16 +484,31 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Pred, typename _Proj1, typename _Proj2>
+struct __pattern_search_pred
+{
+    _Pred __pred;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
+
+    template <typename _TValue1, typename _TValue2>
+    auto
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
+        -> decltype(std::invoke(__pred, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                                std::invoke(__proj2, std::forward<_TValue2>(__val2))))
+    {
+        return std::invoke(__pred, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj2, std::forward<_TValue2>(__val2)));
+    }
+};
+
 template<typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
          typename _Proj2>
 auto
 __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
                  _Proj1 __proj1, _Proj2 __proj2)
 {
-    // KSATODO move lambda
-    auto __pred_2 =  [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2)
-        { return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
-                        std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
+    __pattern_search_pred<_Pred, _Proj1, _Proj2> __pred_2{__pred, __proj1, __proj2}; // KSATODO moved out
 
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_search(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r1),
@@ -426,31 +524,55 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1
 // search_n
 //------------------------------------------------------------------------
 
+template <typename _Tp>
+struct __pattern_search_n_fn
+{
+    const _Tp& __value;
+
+    template <typename _TValue1>
+    const _Tp& operator()(_TValue1&&) const { return __value; }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Size, typename _Tp,
           typename _BinaryPredicate>
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range&& __rng, _Size __count,
                    const _Tp& __value, _BinaryPredicate __pred)
 {
+    __pattern_search_n_fn<_Tp> __fn{__value};
+
     //TODO: To consider definition a kind of special factory "multiple_view" (addition to standard "single_view").
     //The factory "multiple_view" would generate a range of N identical values.
     auto __s_rng = oneapi::dpl::experimental::ranges::views::iota(0, __count) |
-                   oneapi::dpl::experimental::ranges::views::transform([__value](auto) { return __value; });// KSATODO move lambda
+                   oneapi::dpl::experimental::ranges::views::transform(__fn); // KSATODO moved out
 
     return __ranges::__pattern_search(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __s_rng,
                             __pred);
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Pred, typename _Proj>
+struct __pattern_search_n_pred
+{
+    _Pred __pred;
+    _Proj __proj;
+
+    template <typename _TValue1, typename _TValue2>
+    auto
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
+        -> decltype(std::invoke(__pred, std::invoke(__proj, std::forward<_TValue1>(__val1)),
+                               std::forward<_TValue2>(__val2)))
+    {
+        return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue1>(__val1)), std::forward<_TValue2>(__val2));
+    }
+};
+
 template<typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _T, typename _Pred, typename _Proj>
 auto
 __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r,
                    std::ranges::range_difference_t<_R> __count, const _T& __value, _Pred __pred, _Proj __proj)
 {
-    // KSATODO move lambda
-    auto __pred_2 = [__pred, __proj](auto&& __val1, auto&& __val2)
-        { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
-        std::forward<decltype(__val2)>(__val2));};
+    __pattern_search_n_pred<_Pred, _Proj> __pred_2{__pred, __proj}; // KSATODO moved out
 
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_search_n(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r), __count, __value, __pred_2);
@@ -502,15 +624,29 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Pred, typename _Proj>
+struct __pattern_adjacent_find_ranges_pred
+{
+    _Pred __pred;
+    _Proj __proj;
+
+    template <typename _TValue1, typename _TValue2>
+    auto
+    operator()(_TValue1&& __val, _TValue2&& __next) const
+        -> decltype(std::invoke(__pred, std::invoke(__proj, std::forward<_TValue1>(__val)),
+                           std::invoke(__proj, std::forward<_TValue2>(__next))))
+    {
+        return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue1>(__val)),
+                           std::invoke(__proj, std::forward<_TValue2>(__next)));
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 auto
 __pattern_adjacent_find_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
                         _Proj __proj)
 {
-    // KSATODO move lambda
-    auto __pred_2 = [__pred, __proj](auto&& __val, auto&& __next)
-        { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)),
-        std::invoke(__proj, std::forward<decltype(__next)>(__next)));};
+    __pattern_adjacent_find_ranges_pred<_Pred, _Proj> __pred_2{__pred, __proj}; // KSATODO moved out
 
     auto __idx =
         oneapi::dpl::__internal::__ranges::__pattern_adjacent_find(__tag, std::forward<_ExecutionPolicy>(__exec),
@@ -520,14 +656,28 @@ __pattern_adjacent_find_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy
     return std::ranges::borrowed_iterator_t<_R>(std::ranges::begin(__r) + __idx);
 }
 
+template <typename _Comp, typename _Proj>
+struct __pattern_is_sorted_pred
+{
+    _Comp __comp;
+    _Proj __proj;
+
+    template <typename _TValue1, typename _TValue2>
+    auto
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
+        -> decltype(std::invoke(__comp, std::invoke(__proj, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj, std::forward<_TValue2>(__val2))))
+    {
+        return std::invoke(__comp, std::invoke(__proj, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj, std::forward<_TValue2>(__val2)));
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 bool
 __pattern_is_sorted(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    // KSATODO move lambda
-    auto __pred_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
-        std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
-        std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
+    __pattern_is_sorted_pred<_Comp, _Proj> __pred_2{__comp, __proj}; // KSATODO moved out
 
     return oneapi::dpl::__internal::__ranges::__pattern_adjacent_find(__tag,
         std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r),
@@ -536,6 +686,21 @@ __pattern_is_sorted(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _Predicate>
+struct __pattern_count_transform_fn
+{
+    _Predicate __predicate;
+
+    // int is being implicitly casted to difference_type
+    // otherwise we can only pass the difference_type as a functor template parameter
+    template <typename _TGroupIdx, typename _TAcc>
+    int
+    operator()(_TGroupIdx __gidx, _TAcc __acc) const
+    {
+        return (__predicate(__acc[__gidx]) ? 1 : 0);
+    }
+};
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Predicate>
 oneapi::dpl::__internal::__difference_t<_Range>
@@ -547,12 +712,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
     using _ReduceValueType = oneapi::dpl::__internal::__difference_t<_Range>;
 
     auto __reduce_fn = ::std::plus<_ReduceValueType>{};
-    // int is being implicitly casted to difference_type
-    // otherwise we can only pass the difference_type as a functor template parameter
-    // KSATODO move lambda
-    auto __transform_fn = [__predicate](auto __gidx, auto __acc) -> int {
-        return (__predicate(__acc[__gidx]) ? 1 : 0);
-    };
+    __pattern_count_transform_fn<_Predicate> __transform_fn{__predicate}; // KSATODO moved out
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                           ::std::true_type /*is_commutative*/>(
@@ -563,13 +723,26 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _Pred, typename _Proj>
+struct __pattern_count_if_pred
+{
+    _Pred __pred;
+    _Proj __proj;
+
+    template <typename _TValue>
+    auto
+    operator()(_TValue&& __val) const -> decltype(std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val))))
+    {
+        return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val)));
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 std::ranges::range_difference_t<_R>
 __pattern_count_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    // KSATODO move lambda
-    auto __pred_1 = [__pred, __proj](auto&& __val) { return std::invoke(__pred, std::invoke(__proj,
-        std::forward<decltype(__val)>(__val)));};
+    __pattern_count_if_pred<_Pred, _Proj> __pred_1{__pred, __proj}; // KSATODO moved out
 
     return oneapi::dpl::__internal::__ranges::__pattern_count(__tag, ::std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(::std::forward<_R>(__r)), __pred_1);
@@ -598,15 +771,28 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _Pred, typename _Proj>
+struct __pattern_copy_if_ranges_pred
+{
+    _Pred __pred;
+    _Proj __proj;
+
+    template <typename _TValue>
+    auto
+    operator()(_TValue&& __val) const -> decltype(std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val))))
+    {
+        return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val)));
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred,
           typename _Proj>
 auto
 __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r,
     _Pred __pred, _Proj __proj)
 {
-    // KSATODO move lambda
-    auto __pred_1 = [__pred, __proj](auto&& __val) { return std::invoke(__pred, std::invoke(__proj,
-        std::forward<decltype(__val)>(__val)));};
+    __pattern_copy_if_ranges_pred<_Pred, _Proj> __pred_1{__pred, __proj}; // KSATODO moved out
 
     auto __res_idx = oneapi::dpl::__internal::__ranges::__pattern_copy_if(__tag,
         std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__in_r),
@@ -774,16 +960,32 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _Comp, typename _Proj1, typename _Proj2>
+struct __pattern_merge_comp
+{
+    _Comp __comp;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
+
+    template <typename _TValue1, typename _TValue2>
+    auto
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
+        -> decltype(std::invoke(__comp, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj2, std::forward<_TValue2>(__val2))))
+    {
+        return std::invoke(__comp, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj2, std::forward<_TValue2>(__val2)));
+    }
+};
+
 template<typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
          typename _Proj1, typename _Proj2>
 auto
 __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    // KSATODO move lambda
-    auto __comp_2 = [__comp, __proj1, __proj2](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
-        std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
-        std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
+    __pattern_merge_comp<_Comp, _Proj1, _Proj2> __comp_2{__comp, __proj1, __proj2}; // KSATODO moved out
 
     using _Index1 = std::ranges::range_difference_t<_R1>;
     using _Index2 = std::ranges::range_difference_t<_R2>;
@@ -840,6 +1042,34 @@ __pattern_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 // min_element
 //------------------------------------------------------------------------
 
+template <typename _Compare, typename _ReduceValueType>
+struct __pattern_min_element_reduce_fn
+{
+    _Compare __comp;
+
+    _ReduceValueType
+    operator()(_ReduceValueType __a, _ReduceValueType __b) const
+    {
+        using ::std::get;
+        if (__comp(get<1>(__b), get<1>(__a)))
+        {
+            return __b;
+        }
+        return __a;
+    }
+};
+
+template <typename _ReduceValueType>
+struct __pattern_min_element_transform_fn
+{
+    template <typename _TGroupIdx, typename _TAcc>
+    _ReduceValueType
+    operator()(_TGroupIdx __gidx, _TAcc __acc) const
+    {
+        return _ReduceValueType{__gidx, __acc[__gidx]};
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
@@ -854,17 +1084,8 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
 
     // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
     // not commutative.
-    // KSATODO move lambda
-    auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
-        using ::std::get;
-        if (__comp(get<1>(__b), get<1>(__a)))
-        {
-            return __b;
-        }
-        return __a;
-    };
-    // KSATODO move lambda
-    auto __transform_fn = [](auto __gidx, auto __acc) { return _ReduceValueType{__gidx, __acc[__gidx]}; };
+    __pattern_min_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp}; // KSATODO moved out
+    __pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;             // KSATODO moved out
 
     auto __ret_idx =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
@@ -879,14 +1100,29 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _Comp, typename _Proj>
+struct __pattern_min_element_comp
+{
+    _Comp __comp;
+    _Proj __proj;
+
+    template <typename _TValue1, typename _TValue2>
+    auto
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
+        -> decltype(std::invoke(__comp, std::invoke(__proj, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj, std::forward<_TValue2>(__val2))))
+    {
+        return std::invoke(__comp, std::invoke(__proj, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj, std::forward<_TValue2>(__val2)));
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 auto
 __pattern_min_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    // KSATODO move lambda
-    auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
-        std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
-        std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
+    __pattern_min_element_comp<_Comp, _Proj> __comp_2{__comp, __proj}; // KSATODO moved out
 
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
@@ -899,6 +1135,38 @@ __pattern_min_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 //------------------------------------------------------------------------
 // minmax_element
 //------------------------------------------------------------------------
+
+template <typename _Compare, typename _ReduceValueType>
+struct __pattern_minmax_element_reduce_fn
+{
+    _Compare __comp;
+
+    _ReduceValueType
+    operator()(_ReduceValueType __a, _ReduceValueType __b) const
+    {
+        using ::std::get;
+        auto __chosen_for_min = __a;
+        auto __chosen_for_max = __b;
+
+        if (__comp(get<2>(__b), get<2>(__a)))
+            __chosen_for_min = ::std::move(__b);
+        if (__comp(get<3>(__b), get<3>(__a)))
+            __chosen_for_max = ::std::move(__a);
+        return _ReduceValueType{get<0>(__chosen_for_min), get<1>(__chosen_for_max), get<2>(__chosen_for_min),
+                                get<3>(__chosen_for_max)};
+    }
+};
+
+template <typename _ReduceValueType>
+struct __pattern_minmax_element_transform_fn
+{
+    template <typename _TGroupIdx, typename _TAcc>
+    _ReduceValueType
+    operator()(_TGroupIdx __gidx, _TAcc __acc) const
+    {
+        return _ReduceValueType{__gidx, __gidx, __acc[__gidx], __acc[__gidx]};
+    }
+};
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
 ::std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__difference_t<_Range>>
@@ -915,27 +1183,12 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
-    // KSATODO move lambda
-    auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
-        using ::std::get;
-        auto __chosen_for_min = __a;
-        auto __chosen_for_max = __b;
-
-        if (__comp(get<2>(__b), get<2>(__a)))
-            __chosen_for_min = ::std::move(__b);
-        if (__comp(get<3>(__b), get<3>(__a)))
-            __chosen_for_max = ::std::move(__a);
-        return _ReduceValueType{get<0>(__chosen_for_min), get<1>(__chosen_for_max), get<2>(__chosen_for_min),
-                                get<3>(__chosen_for_max)};
-    };
+    __pattern_minmax_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp}; // KSATODO moved out
 
     // TODO: Doesn't work with `zip_iterator`.
     //       In that case the first and the second arguments of `_ReduceValueType` will be
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
-    // KSATODO move lambda
-    auto __transform_fn = [](auto __gidx, auto __acc) {
-        return _ReduceValueType{__gidx, __gidx, __acc[__gidx], __acc[__gidx]};
-    };
+    __pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn; // KSATODO moved out
 
     _ReduceValueType __ret =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,

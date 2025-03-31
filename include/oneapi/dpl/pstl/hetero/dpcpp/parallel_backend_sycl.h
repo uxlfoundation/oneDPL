@@ -2269,6 +2269,42 @@ struct __assign_key1_wrapper;
 template <typename _Name>
 struct __assign_key2_wrapper;
 
+template <typename _BinaryPredicate>
+struct __parallel_reduce_by_segment_fallback_fn1_fo
+{
+    _BinaryPredicate __binary_pred;
+    std::size_t __wgroup_size;
+
+    template <typename T>
+    bool operator()(const T& __a) const
+    {
+        // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
+        // for (i-1), but we still need to get its key value as it is the start of a segment
+        const auto index = std::get<0>(__a);
+        if (index == 0)
+            return true;
+        return index % __wgroup_size == 0                             // segment size
+               || !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // key comparison
+    }
+};
+
+template <typename _BinaryPredicate>
+struct __parallel_reduce_by_segment_fallback_fn2_fo
+{
+    _BinaryPredicate __binary_pred;
+
+    template <typename T>
+    bool operator()(const T& __a) const
+    {
+        // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
+        // for (i-1), but we still need to get its key value as it is the start of a segment
+        if (std::get<0>(__a) == 0)
+            return true;
+        return !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // keys comparison
+    }
+};
+
+
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
@@ -2314,15 +2350,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
             oneapi::dpl::__internal::__device_backend_tag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2,
             __n,
-            [__binary_pred, __wgroup_size](const auto& __a) { // KSATODO move lambda
-                // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
-                // for (i-1), but we still need to get its key value as it is the start of a segment
-                const auto index = std::get<0>(__a);
-                if (index == 0)
-                    return true;
-                return index % __wgroup_size == 0                             // segment size
-                       || !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // key comparison
-            },
+            __parallel_reduce_by_segment_fallback_fn1_fo<_BinaryPredicate>{__binary_pred, __wgroup_size}, // KSATODO moved out
             unseq_backend::__brick_assign_key_position{})
             .get();
 
@@ -2362,13 +2390,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                             oneapi::dpl::__internal::__device_backend_tag{},
                             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec),
                             __view3, __view4, __view3.size(),
-                            [__binary_pred](const auto& __a) { // KSATODO move lambda
-                                // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
-                                // for (i-1), but we still need to get its key value as it is the start of a segment
-                                if (std::get<0>(__a) == 0)
-                                    return true;
-                                return !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // keys comparison
-                            },
+                            __parallel_reduce_by_segment_fallback_fn2_fo<_BinaryPredicate>{__binary_pred}, // KSATODO moved out
                             unseq_backend::__brick_assign_key_position{})
                             .get();
 
