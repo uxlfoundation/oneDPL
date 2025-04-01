@@ -1059,6 +1059,10 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                     ++__count;
                 }
             }
+            else
+            {
+                __idx = __num_eles_min;
+            }
             return;
         }
     }
@@ -1074,6 +1078,10 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                     __temp_out.set(__count, __in_rng1[__idx1]);
                     ++__count;
                 }
+            }
+            else
+            {
+                __idx = __num_eles_min;
             }
             return;
         }
