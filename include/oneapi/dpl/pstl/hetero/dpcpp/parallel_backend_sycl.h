@@ -1059,10 +1059,6 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                     ++__count;
                 }
             }
-            else
-            {
-                __idx = __num_eles_min;
-            }
             return;
         }
     }
@@ -1075,13 +1071,9 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
             {
                 for (; __idx1 < __in_rng1.size() && __idx < __num_eles_min; ++__idx1, ++__idx)
                 {
-                    __temp_out.set(__count, __ele_rng1);
+                    __temp_out.set(__count, __in_rng1[__idx1]);
                     ++__count;
                 }
-            }
-            else
-            {
-                __idx = __num_eles_min;
             }
             return;
         }
@@ -1125,10 +1117,10 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
 struct __set_generic_operation
 {
-    template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
-    std::uint16_t
-    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               _SizeType __num_eles_min, _TempOutput& __temp_out, _Compare __comp) const
+    using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
+    using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
+
+    if constexpr (_CheckBounds1)
     {
 
         std::uint16_t __count = 0;
