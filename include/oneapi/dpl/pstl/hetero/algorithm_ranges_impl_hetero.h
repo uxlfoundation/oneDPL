@@ -900,9 +900,12 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
         return 1;
     }
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
-        std::forward<_Range2>(__result), __pred);
+    sycl::queue __q_local = __exec.queue();
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy<_CustomName>(
+        _BackendTag{}, __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __pred);
 
     return __res.get(); // is a blocking call
 }

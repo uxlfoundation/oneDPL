@@ -1086,8 +1086,12 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _Iterator2>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
-    auto __result = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __pred);
+    sycl::queue __q_local = __exec.queue();
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    auto __result = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy<_CustomName>(
+        _BackendTag{}, __q_local, __buf1.all_view(), __buf2.all_view(), __pred);
 
     return __result_first + __result.get(); // is a blocking call
 }
