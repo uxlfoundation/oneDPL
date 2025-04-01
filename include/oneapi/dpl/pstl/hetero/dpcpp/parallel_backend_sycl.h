@@ -1082,7 +1082,7 @@ struct __set_generic_operation
             {
                 if constexpr (_CopyDiffSetA)
                 {
-                    __temp_out.set(__count, __in_rng1, __idx1);
+                    __temp_out.set(__count, __ele_rng1);
                     ++__count;
                 }
                 ++__idx1;
