@@ -25,7 +25,7 @@ namespace oneapi::dpl::experimental::kt::gpu::esimd
 // TODO: make sure to provide sufficient diagnostic if input does not allow either reading or writing
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysRng>
 std::enable_if_t<!oneapi::dpl::__internal::__is_iterator_type_v<_KeysRng>, sycl::event>
-radix_sort(sycl::queue __q, _KeysRng&& __keys_rng, _KernelParam __param = {})
+radix_sort(sycl::queue& __q, _KeysRng&& __keys_rng, _KernelParam __param = {})
 {
     __impl::__check_esimd_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
 
@@ -38,7 +38,7 @@ radix_sort(sycl::queue __q, _KeysRng&& __keys_rng, _KernelParam __param = {})
 
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysIterator>
 std::enable_if_t<oneapi::dpl::__internal::__is_iterator_type_v<_KeysIterator>, sycl::event>
-radix_sort(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __keys_last, _KernelParam __param = {})
+radix_sort(sycl::queue& __q, _KeysIterator __keys_first, _KeysIterator __keys_last, _KernelParam __param = {})
 {
     __impl::__check_esimd_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
 
@@ -54,7 +54,7 @@ radix_sort(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __keys_las
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysRng,
           typename _ValsRng>
 std::enable_if_t<!oneapi::dpl::__internal::__is_iterator_type_v<_KeysRng>, sycl::event>
-radix_sort_by_key(sycl::queue __q, _KeysRng&& __keys_rng, _ValsRng&& __vals_rng, _KernelParam __param = {})
+radix_sort_by_key(sycl::queue& __q, _KeysRng&& __keys_rng, _ValsRng&& __vals_rng, _KernelParam __param = {})
 {
     __impl::__check_esimd_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
 
@@ -69,7 +69,7 @@ radix_sort_by_key(sycl::queue __q, _KeysRng&& __keys_rng, _ValsRng&& __vals_rng,
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysIterator,
           typename _ValsIterator>
 std::enable_if_t<oneapi::dpl::__internal::__is_iterator_type_v<_KeysIterator>, sycl::event>
-radix_sort_by_key(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __keys_last, _ValsIterator __vals_first,
+radix_sort_by_key(sycl::queue& __q, _KeysIterator __keys_first, _KeysIterator __keys_last, _ValsIterator __vals_first,
                   _KernelParam __param = {})
 {
     __impl::__check_esimd_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
@@ -89,7 +89,7 @@ radix_sort_by_key(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __k
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysRng1,
           typename _KeysRng2>
 std::enable_if_t<!oneapi::dpl::__internal::__is_iterator_type_v<_KeysRng1>, sycl::event>
-radix_sort(sycl::queue __q, _KeysRng1&& __keys_rng, _KeysRng2&& __keys_rng_out, _KernelParam __param = {})
+radix_sort(sycl::queue& __q, _KeysRng1&& __keys_rng, _KeysRng2&& __keys_rng_out, _KernelParam __param = {})
 {
     __impl::__check_esimd_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
     if (__keys_rng.size() == 0)
@@ -104,7 +104,7 @@ radix_sort(sycl::queue __q, _KeysRng1&& __keys_rng, _KeysRng2&& __keys_rng_out, 
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysIterator1,
           typename _KeysIterator2>
 std::enable_if_t<oneapi::dpl::__internal::__is_iterator_type_v<_KeysIterator1>, sycl::event>
-radix_sort(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_last, _KeysIterator2 __keys_out_first,
+radix_sort(sycl::queue& __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_last, _KeysIterator2 __keys_out_first,
            _KernelParam __param = {})
 {
     __impl::__check_esimd_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
@@ -126,7 +126,7 @@ radix_sort(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_l
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysRng1,
           typename _ValsRng1, typename _KeysRng2, typename _ValsRng2>
 std::enable_if_t<!oneapi::dpl::__internal::__is_iterator_type_v<_KeysRng1>, sycl::event>
-radix_sort_by_key(sycl::queue __q, _KeysRng1&& __keys_rng, _ValsRng1&& __vals_rng, _KeysRng2&& __keys_out_rng,
+radix_sort_by_key(sycl::queue& __q, _KeysRng1&& __keys_rng, _ValsRng1&& __vals_rng, _KeysRng2&& __keys_out_rng,
                   _ValsRng2&& __vals_out_rng, _KernelParam __param = {})
 {
     __impl::__check_esimd_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
@@ -144,7 +144,7 @@ radix_sort_by_key(sycl::queue __q, _KeysRng1&& __keys_rng, _ValsRng1&& __vals_rn
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysIterator1,
           typename _ValsIterator1, typename _KeysIterator2, typename _ValsIterator2>
 std::enable_if_t<oneapi::dpl::__internal::__is_iterator_type_v<_KeysIterator1>, sycl::event>
-radix_sort_by_key(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_last, _ValsIterator1 __vals_first,
+radix_sort_by_key(sycl::queue& __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_last, _ValsIterator1 __vals_first,
                   _KeysIterator2 __keys_out_first, _ValsIterator2 __vals_out_first, _KernelParam __param = {})
 {
     __impl::__check_esimd_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();

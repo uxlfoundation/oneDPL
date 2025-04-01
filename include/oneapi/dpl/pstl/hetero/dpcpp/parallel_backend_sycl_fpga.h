@@ -55,14 +55,14 @@ struct __parallel_for_fpga_submitter;
 template <typename... _Name>
 struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
+    template <typename _Fp, typename _Index, typename... _Ranges>
     auto
-    operator()(_ExecutionPolicy&& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
 
-        _PRINT_INFO_IN_DEBUG_MODE(__exec.queue());
-        auto __event = __exec.queue().submit([&__rngs..., &__brick, __count](sycl::handler& __cgh) {
+        _PRINT_INFO_IN_DEBUG_MODE(__q);
+        auto __event = __q.submit([&__rngs..., &__brick, __count](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
@@ -86,8 +86,10 @@ __parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& _
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using __parallel_for_name = __internal::__kernel_name_provider<_CustomName>;
 
-    return __parallel_for_fpga_submitter<__parallel_for_name>()(std::forward<_ExecutionPolicy>(__exec), __brick,
-                                                                __count, std::forward<_Ranges>(__rngs)...);
+    sycl::queue __q_local = __exec.queue();
+
+    return __parallel_for_fpga_submitter<__parallel_for_name>()(__q_local, __brick, __count,
+                                                                std::forward<_Ranges>(__rngs)...);
 }
 
 //------------------------------------------------------------------------
