@@ -552,19 +552,15 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
     }
 };
 
-template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _UnaryOperation, typename _InitType,
+template <typename _CustomName, typename _InRng, typename _OutRng, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
 auto
-__parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+__parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
                                        _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n,
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
                                        _Inclusive)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
-    sycl::queue __q_local = __exec.queue();
-
-    ::std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+    ::std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q);
 
     // Specialization for devices that have a max work-group size of 1024
     constexpr ::std::uint16_t __targeted_wg_size = 1024;
@@ -573,7 +569,7 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
 
     // Although we do not actually need result storage in this case, we need to construct
     // a placeholder here to match the return type of the non-single-work-group implementation
-    __result_and_scratch_storage<_ValueType> __dummy_result_and_scratch{__q_local, 0, 0};
+    __result_and_scratch_storage<_ValueType> __dummy_result_and_scratch{__q, 0, 0};
 
     if (__max_wg_size >= __targeted_wg_size)
     {
@@ -593,8 +589,8 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
                         ::std::integral_constant<::std::uint16_t, __wg_size>,
                         ::std::integral_constant<::std::uint16_t, __num_elems_per_item>, _BinaryOperation,
                         /* _IsFullGroup= */ std::true_type, _Inclusive, _CustomName>>>()(
-                    __q_local, std::forward<_InRng>(__in_rng),
-                    std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op);
+                    __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
+                    __unary_op);
             else
                 __event = __parallel_transform_scan_static_single_group_submitter<
                     _Inclusive::value, __num_elems_per_item, __wg_size,
@@ -603,8 +599,8 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
                         ::std::integral_constant<::std::uint16_t, __wg_size>,
                         ::std::integral_constant<::std::uint16_t, __num_elems_per_item>, _BinaryOperation,
                         /* _IsFullGroup= */ ::std::false_type, _Inclusive, _CustomName>>>()(
-                    __q_local, std::forward<_InRng>(__in_rng),
-                    std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op);
+                    __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
+                    __unary_op);
             return __future(__event, __dummy_result_and_scratch);
         };
         if (__n <= 16)
@@ -637,8 +633,8 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
 
         auto __event =
             __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive::value, _DynamicGroupScanKernel>()(
-                __q_local, std::forward<_InRng>(__in_rng),
-                std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op, __max_wg_size);
+                __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
+                __unary_op, __max_wg_size);
         return __future(__event, __dummy_result_and_scratch);
     }
 }
@@ -1077,9 +1073,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             std::size_t __single_group_upper_limit = __use_reduce_then_scan ? 2048 : 16384;
             if (__group_scan_fits_in_slm<_Type>(__q_local, __n, __n_uniform, __single_group_upper_limit))
             {
-                return __parallel_transform_scan_single_group(
-                    __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
-                    std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
+                return __parallel_transform_scan_single_group<_CustomName>(
+                    __backend_tag, __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __n,
+                    __unary_op, __init, __binary_op, _Inclusive{});
             }
         }
         if (__use_reduce_then_scan)
