@@ -1332,7 +1332,7 @@ __pattern_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
             bool* __mask = __mask_buf.get();
             _DifferenceType __m{};
             __par_backend::__parallel_strict_scan(
-                __backend_tag{}, , __n, _DifferenceType(0),
+                __backend_tag{}, __n, _DifferenceType(0),
                 [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
                     return __internal::__brick_calc_mask_1<_DifferenceType>(__first + __i, __first + (__i + __len),
                                                                             __mask + __i, __pred, _IsVector{})
