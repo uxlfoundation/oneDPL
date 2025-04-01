@@ -1022,6 +1022,91 @@ struct __gen_set_op_from_known_balanced_path
     _Compare __comp;
 };
 
+//returns iterations consumed, and the number of elements copied
+template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds1, bool _CheckBounds2,
+          typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
+void
+__set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1, std::size_t& __idx2,
+                                 _SizeType __num_eles_min, _TempOutput& __temp_out, _SizeType& __idx, std::uint16_t& __count, _Compare __comp)
+{
+    using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
+    using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
+
+    if constexpr (_CheckBounds1)
+    {
+        if (__idx1 == __in_rng1.size())
+        {
+            if constexpr (_CopyDiffSetB)
+            {
+                for (; __idx2 < __in_rng2.size() && __idx < __num_eles_min; ++__idx2, ++__idx)
+                {
+                    __temp_out.set(__count, __in_rng2[__idx2]);
+                    ++__count;
+                }
+            }
+            else
+            {
+                __idx = __num_eles_min;
+            }
+            return;
+        }
+    }
+
+    if constexpr (_CheckBounds2)
+    {
+        if (__idx2 == __in_rng2.size())
+        {
+            if constexpr (_CopyDiffSetA)
+            {
+                for (; __idx1 < __in_rng1.size() && __idx < __num_eles_min; ++__idx1, ++__idx)
+                {
+                    __temp_out.set(__count, __in_rng1[__idx1]);
+                    ++__count;
+                }
+            }
+            else
+            {
+                __idx = __num_eles_min;
+            }
+            return;
+        }
+    }
+
+    const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
+    const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
+    if (__comp(__ele_rng1, __ele_rng2))
+    {
+        if constexpr (_CopyDiffSetA)
+        {
+            __temp_out.set(__count, __ele_rng1);
+            ++__count;
+        }
+        ++__idx1;
+        ++__idx;
+    }
+    else if (__comp(__ele_rng2, __ele_rng1))
+    {
+        if constexpr (_CopyDiffSetB)
+        {
+            __temp_out.set(__count, __ele_rng2);
+            ++__count;
+        }
+        ++__idx2;
+        ++__idx;
+    }
+    else // if neither element is less than the other, they are equal
+    {
+        if constexpr (_CopyMatch)
+        {
+            __temp_out.set(__count, __ele_rng1);
+            ++__count;
+        }
+        ++__idx1;
+        ++__idx2;
+        __idx += 2;
+    }
+}
+
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
 struct __set_generic_operation
 {
@@ -1030,69 +1115,45 @@ struct __set_generic_operation
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
                _SizeType __num_eles_min, _TempOutput& __temp_out, _Compare __comp) const
     {
-        using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
-        using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
+
         std::uint16_t __count = 0;
         _SizeType __idx = 0;
-        while (__idx < __num_eles_min)
-        {
-            if (__idx1 == __in_rng1.size())
-            {
-                if constexpr (_CopyDiffSetB)
-                {
-                    for (; __idx2 < __in_rng2.size() && __idx < __num_eles_min; ++__idx2, ++__idx)
-                    {
-                        __temp_out.set(__count, __in_rng2[__idx2]);
-                        ++__count;
-                    }
-                }
-                return __count;
-            }
-            else if (__idx2 == __in_rng2.size())
-            {
-                if constexpr (_CopyDiffSetA)
-                {
-                    for (; __idx1 < __in_rng1.size() && __idx < __num_eles_min; ++__idx1, ++__idx)
-                    {
-                        __temp_out.set(__count, __in_rng1[__idx1]);
-                        ++__count;
-                    }
-                }
-                return __count;
-            }
+        bool __can_reach_rng1_end = __idx1 + __num_eles_min > __in_rng1.size();
+        bool __can_reach_rng2_end = __idx2 + __num_eles_min > __in_rng2.size();
 
-            const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
-            const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
-            if (__comp(__ele_rng1, __ele_rng2))
+        if (!__can_reach_rng1_end && !__can_reach_rng2_end)
+        {
+            while (__idx < __num_eles_min)
             {
-                if constexpr (_CopyDiffSetA)
-                {
-                    __temp_out.set(__count, __in_rng1, __idx1);
-                    ++__count;
-                }
-                ++__idx1;
-                ++__idx;
+                // no bounds checking
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false, false>(
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
             }
-            else if (__comp(__ele_rng2, __ele_rng1))
+        }
+        else if (__can_reach_rng1_end && __can_reach_rng2_end)
+        {
+            while (__idx < __num_eles_min)
             {
-                if constexpr (_CopyDiffSetB)
-                {
-                    __temp_out.set(__count, __ele_rng2);
-                    ++__count;
-                }
-                ++__idx2;
-                ++__idx;
+                //bounds check all
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true, true>(
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
             }
-            else // if neither element is less than the other, they are equal
+        }
+        // bounds check only the range that needs it
+        else if (__can_reach_rng1_end)
+        {
+            while (__idx < __num_eles_min)
             {
-                if constexpr (_CopyMatch)
-                {
-                    __temp_out.set(__count, __ele_rng1);
-                    ++__count;
-                }
-                ++__idx1;
-                ++__idx2;
-                __idx += 2;
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true, false>(
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
+            }
+        }
+        else //(__can_reach_rng2_end)
+        {
+            while (__idx < __num_eles_min)
+            {
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false, true>(
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
             }
         }
         return __count;
