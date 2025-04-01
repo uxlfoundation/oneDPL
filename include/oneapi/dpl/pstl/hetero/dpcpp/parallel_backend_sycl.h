@@ -1422,10 +1422,10 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _IsOpDifference>
 auto
-__parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+__parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
                     _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _IsOpDifference)
 {
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
@@ -1452,12 +1452,8 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);
 
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
-    sycl::queue __q_local = __exec.queue();
-
     return __par_backend_hetero::__parallel_transform_scan_base<_CustomName>(
-        __backend_tag, __q_local,
+        __backend_tag, __q,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
@@ -1481,21 +1477,21 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _
                   _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                   _IsOpDifference __is_op_difference)
 {
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
     sycl::queue __q_local = __exec.queue();
 
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
-        using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
         return __parallel_set_reduce_then_scan<_CustomName>(
             __backend_tag, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             std::forward<_Range3>(__result), __comp, __is_op_difference);
     }
     else
     {
-        return __parallel_set_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
-                                   std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
-                                   __is_op_difference);
+        return __parallel_set_scan<_CustomName>(__backend_tag, __q_local, std::forward<_Range1>(__rng1),
+                                                std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
+                                                __is_op_difference);
     }
 }
 
