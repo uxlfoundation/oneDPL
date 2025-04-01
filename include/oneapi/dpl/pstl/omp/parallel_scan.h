@@ -105,10 +105,10 @@ __parallel_strict_scan_body(_Index __n, _Tp __initial, _Rp __reduce, _Cp __combi
                                             __initial, __combine, __scan);
 }
 
-template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
+template <typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
-__parallel_strict_scan(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&& __exec, _Index __n, _Tp __initial,
-                       _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
+__parallel_strict_scan(oneapi::dpl::__internal::__omp_backend_tag, _Index __n, _Tp __initial, _Rp __reduce,
+                       _Cp __combine, _Sp __scan, _Ap __apex)
 {
     if (__n <= __default_chunk_size)
     {

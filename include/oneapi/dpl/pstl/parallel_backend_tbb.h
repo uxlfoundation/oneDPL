@@ -354,10 +354,10 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 // apex is called exactly once, after all calls to reduce and before all calls to scan.
 // For example, it's useful for allocating a __buffer used by scan but whose size is the sum of all reduction values.
 // T must have a trivial constructor and destructor.
-template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
+template <typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
-__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&& __exec, _Index __n, _Tp __initial,
-                       _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
+__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _Index __n, _Tp __initial, _Rp __reduce,
+                       _Cp __combine, _Sp __scan, _Ap __apex)
 {
     tbb::this_task_arena::isolate([=, &__combine]() {
         if (__n > 1)
@@ -374,7 +374,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
             // When __apex is a no-op and __combine has no side effects, a good optimizer
             // should be able to eliminate all code between here and __apex.
             // Alternatively, provide a default value for __apex that can be
-            // recognized by metaprogramming that conditionlly executes the following.
+            // recognized by metaprogramming that conditionally executes the following.
             size_t __k = __m + 1;
             _Tp __t = __r[__k - 1];
             while ((__k &= __k - 1))
