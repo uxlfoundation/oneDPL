@@ -602,7 +602,7 @@ _Size1
 __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
 {
     auto __n = __last - __first;
-    _Size1 __div = 64;
+    _Size1 __div = 32;
     _Size1 __it = 0;
     _Size1 __cur_idx = 0;
 
