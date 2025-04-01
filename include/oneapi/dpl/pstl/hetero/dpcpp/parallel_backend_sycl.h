@@ -2174,21 +2174,18 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
 template <typename... _Name>
 class __sort_global_kernel;
 
-template <typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare>
+template <typename _CustomName, typename _Range, typename _Merge, typename _Compare>
 auto
-__parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
+__parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range&& __rng,
                              _Merge __merge, _Compare __comp)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _GlobalSortKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_global_kernel<_CustomName>>;
     using _CopyBackKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_copy_back_kernel<_CustomName>>;
 
-    sycl::queue __q_local = __exec.queue();
-
     return __parallel_partial_sort_submitter<_GlobalSortKernel, _CopyBackKernel>()(
-        oneapi::dpl::__internal::__device_backend_tag{}, __q_local, ::std::forward<_Range>(__rng), __merge, __comp);
+        oneapi::dpl::__internal::__device_backend_tag{}, __q, std::forward<_Range>(__rng), __merge, __comp);
 }
 
 //------------------------------------------------------------------------
@@ -2269,8 +2266,12 @@ __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag __backend_
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    return __parallel_partial_sort_impl(__backend_tag, ::std::forward<_ExecutionPolicy>(__exec), __buf.all_view(),
-                                        __partial_merge_kernel<decltype(__mid_idx)>{__mid_idx}, __comp);
+    sycl::queue __q_local = exec.queue();
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    return __parallel_partial_sort_impl<_CustomName>(__backend_tag, __q_local, __buf.all_view(),
+                                                     __partial_merge_kernel<decltype(__mid_idx)>{__mid_idx}, __comp);
 }
 
 //------------------------------------------------------------------------
