@@ -2256,9 +2256,9 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_t
 // TODO: check if it makes sense to move these wrappers out of backend to a common place
 // TODO: consider changing __partial_merge_kernel to make it compatible with
 //       __full_merge_kernel in order to use __parallel_sort_impl routine
-template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>
+template <typename _CustomName, typename _Iterator, typename _Compare>
 auto
-__parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+__parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
                         _Iterator __first, _Iterator __mid, _Iterator __last, _Compare __comp)
 {
     const auto __mid_idx = __mid - __first;
@@ -2266,11 +2266,7 @@ __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag __backend_
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    sycl::queue __q_local = exec.queue();
-
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
-    return __parallel_partial_sort_impl<_CustomName>(__backend_tag, __q_local, __buf.all_view(),
+    return __parallel_partial_sort_impl<_CustomName>(__backend_tag, __q, __buf.all_view(),
                                                      __partial_merge_kernel<decltype(__mid_idx)>{__mid_idx}, __comp);
 }
 
