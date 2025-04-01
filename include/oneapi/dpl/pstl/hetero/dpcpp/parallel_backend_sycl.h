@@ -661,7 +661,7 @@ struct __set_temp_data
     void
     set(std::uint16_t __idx, const _ValueT2& __ele)
     {
-        __data[__idx] = ele;
+        __data[__idx] = __ele;
     }
     _ValueT __data[elements];
 };
