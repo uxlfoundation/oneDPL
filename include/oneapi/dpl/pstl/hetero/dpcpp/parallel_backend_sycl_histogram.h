@@ -537,26 +537,22 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
     }
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinHashMgr>
+template <typename _CustomName, typename _Range1, typename _Range2, typename _BinHashMgr>
 auto
-__parallel_histogram(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+__parallel_histogram(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
                      const sycl::event& __init_event, _Range1&& __input, _Range2&& __bins,
                      const _BinHashMgr& __binhash_manager)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
-    sycl::queue __q_local = __exec.queue();
-
     if (__input.size() < 1048576) // 2^20
     {
         return __parallel_histogram_select_kernel<_CustomName, /*iters_per_workitem = */ 4>(
-            __backend_tag, __q_local, __init_event, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins),
+            __backend_tag, __q, __init_event, std::forward<_Range1>(__input), std::forward<_Range2>(__bins),
             __binhash_manager);
     }
     else
     {
         return __parallel_histogram_select_kernel<_CustomName, /*iters_per_workitem = */ 32>(
-            __backend_tag, __q_local, __init_event, ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins),
+            __backend_tag, __q, __init_event, std::forward<_Range1>(__input), std::forward<_Range2>(__bins),
             __binhash_manager);
     }
 }
