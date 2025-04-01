@@ -657,20 +657,20 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
 template <std::uint16_t elements, typename _ValueT>
 struct __set_temp_data
 {
-    template <typename _Rng>
+    template <typename _ValueT2>
     void
-    set(std::uint16_t __idx, const _Rng& __val, std::size_t __read_idx)
+    set(std::uint16_t __idx, const _ValueT2& __ele)
     {
-        __data[__idx] = __val[__read_idx];
+        __data[__idx] = ele;
     }
     _ValueT __data[elements];
 };
 
 struct __noop_temp_data
 {
-    template <typename _Rng>
+    template <typename _ValueT>
     void
-    set(std::uint16_t __idx, const _Rng& __val, std::size_t __read_idx) const
+    set(std::uint16_t __idx, const _ValueT& __ele) const
     {
     }
 };
@@ -1030,6 +1030,8 @@ struct __set_generic_operation
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
                _SizeType __num_eles_min, _TempOutput& __temp_out, _Compare __comp) const
     {
+        using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
+        using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
         std::uint16_t __count = 0;
         _SizeType __idx = 0;
         while (__idx < __num_eles_min)
@@ -1040,7 +1042,7 @@ struct __set_generic_operation
                 {
                     for (; __idx2 < __in_rng2.size() && __idx < __num_eles_min; ++__idx2, ++__idx)
                     {
-                        __temp_out.set(__count, __in_rng2, __idx2);
+                        __temp_out.set(__count, __in_rng2[__idx2]);
                         ++__count;
                     }
                 }
@@ -1052,13 +1054,16 @@ struct __set_generic_operation
                 {
                     for (; __idx1 < __in_rng1.size() && __idx < __num_eles_min; ++__idx1, ++__idx)
                     {
-                        __temp_out.set(__count, __in_rng1, __idx1);
+                        __temp_out.set(__count, __in_rng1[__idx1]);
                         ++__count;
                     }
                 }
                 return __count;
             }
-            else if (__comp(__in_rng1[__idx1], __in_rng2[__idx2]))
+
+            const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
+            const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
+            if (__comp(__ele_rng1, __ele_rng2))
             {
                 if constexpr (_CopyDiffSetA)
                 {
@@ -1068,11 +1073,11 @@ struct __set_generic_operation
                 ++__idx1;
                 ++__idx;
             }
-            else if (__comp(__in_rng2[__idx2], __in_rng1[__idx1]))
+            else if (__comp(__ele_rng2, __ele_rng1))
             {
                 if constexpr (_CopyDiffSetB)
                 {
-                    __temp_out.set(__count, __in_rng2, __idx2);
+                    __temp_out.set(__count, __ele_rng2);
                     ++__count;
                 }
                 ++__idx2;
@@ -1082,7 +1087,7 @@ struct __set_generic_operation
             {
                 if constexpr (_CopyMatch)
                 {
-                    __temp_out.set(__count, __in_rng1, __idx1);
+                    __temp_out.set(__count, __ele_rng1);
                     ++__count;
                 }
                 ++__idx1;
