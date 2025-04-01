@@ -79,11 +79,9 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
     }
 }
 
-template <typename _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp,
-          typename _Ap>
+template <typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
-__parallel_strict_scan_body(_ExecutionPolicy&& /*__exec*/, _Index __n, _Tp __initial, _Rp __reduce, _Cp __combine,
-                            _Sp __scan, _Ap __apex)
+__parallel_strict_scan_body(_Index __n, _Tp __initial, _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
     _Index __p = omp_get_num_threads();
     const _Index __slack = 4;
@@ -129,16 +127,15 @@ __parallel_strict_scan(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPol
 
     if (omp_in_parallel())
     {
-        oneapi::dpl::__omp_backend::__parallel_strict_scan_body(::std::forward<_ExecutionPolicy>(__exec), __n,
-                                                                __initial, __reduce, __combine, __scan, __apex);
+        oneapi::dpl::__omp_backend::__parallel_strict_scan_body(__n, __initial, __reduce, __combine, __scan, __apex);
     }
     else
     {
         _PSTL_PRAGMA(omp parallel)
         _PSTL_PRAGMA(omp single nowait)
         {
-            oneapi::dpl::__omp_backend::__parallel_strict_scan_body(::std::forward<_ExecutionPolicy>(__exec), __n,
-                                                                    __initial, __reduce, __combine, __scan, __apex);
+            oneapi::dpl::__omp_backend::__parallel_strict_scan_body(__n, __initial, __reduce, __combine, __scan,
+                                                                    __apex);
         }
     }
 }
