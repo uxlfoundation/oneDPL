@@ -1884,25 +1884,21 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 };
 
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
-template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
+template <typename _CustomName, typename _Brick, typename _BrickTag, typename... _Ranges>
 ::std::conditional_t<
     ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
     oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
-__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
-                   _BrickTag __brick_tag, _Ranges&&... __rngs)
+__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Brick __f, _BrickTag __brick_tag,
+                   _Ranges&&... __rngs)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
     auto __rng_n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
     assert(__rng_n > 0);
 
-    sycl::queue __q_local = __exec.queue();
-
     // Evaluate the amount of work-groups and work-group size
     const auto [__n_groups, __wgroup_size] =
-        __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__q_local, __rng_n);
+        __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__q, __rng_n);
 
-    _PRINT_INFO_IN_DEBUG_MODE(__exec.queue(), __wgroup_size);
+    _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size);
 
     using _AtomicType = typename _BrickTag::_AtomicType;
     const _AtomicType __init_value = _BrickTag::__init_value(__rng_n);
@@ -1921,21 +1917,21 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         // Single WG implementation
         __result = __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
-            oneapi::dpl::__internal::__device_backend_tag{}, __q_local, __brick_tag, __rng_n, __wgroup_size,
-            __init_value, __pred, std::forward<_Ranges>(__rngs)...);
+            oneapi::dpl::__internal::__device_backend_tag{}, __q, __brick_tag, __rng_n, __wgroup_size, __init_value,
+            __pred, std::forward<_Ranges>(__rngs)...);
     }
     else
     {
         assert("This device does not support 64-bit atomics" &&
-               (sizeof(_AtomicType) < 8 || __q_local.get_device().has(sycl::aspect::atomic64)));
+               (sizeof(_AtomicType) < 8 || __q.get_device().has(sycl::aspect::atomic64)));
 
         using __find_or_kernel_name =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
 
         // Multiple WG implementation
         __result = __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name>()(
-            oneapi::dpl::__internal::__device_backend_tag{}, __q_local, __brick_tag,
-            __rng_n, __n_groups, __wgroup_size, __init_value, __pred, std::forward<_Ranges>(__rngs)...);
+            oneapi::dpl::__internal::__device_backend_tag{}, __q, __brick_tag, __rng_n, __n_groups, __wgroup_size,
+            __init_value, __pred, std::forward<_Ranges>(__rngs)...);
     }
 
     if constexpr (__or_tag_check)
@@ -1957,15 +1953,17 @@ bool
 __parallel_or(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
               _Iterator1 __first, _Iterator1 __last, _Iterator2 __s_first, _Iterator2 __s_last, _Brick __f)
 {
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
     auto __buf = __keep(__first, __last);
     auto __s_keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator2>();
     auto __s_buf = __s_keep(__s_first, __s_last);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        __backend_tag,
-        __par_backend_hetero::make_wrapped_policy<__or_policy_wrapper>(::std::forward<_ExecutionPolicy>(__exec)), __f,
-        __parallel_or_tag{}, __buf.all_view(), __s_buf.all_view());
+    using _CustomName = __or_policy_wrapper<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>;
+
+    return oneapi::dpl::__par_backend_hetero::__parallel_find_or<_CustomName>(
+        __backend_tag, __q_local, __f, __parallel_or_tag{}, __buf.all_view(), __s_buf.all_view());
 }
 
 // Special overload for single sequence cases.
@@ -1976,13 +1974,15 @@ bool
 __parallel_or(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec, _Iterator __first,
               _Iterator __last, _Brick __f)
 {
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        __backend_tag,
-        __par_backend_hetero::make_wrapped_policy<__or_policy_wrapper>(::std::forward<_ExecutionPolicy>(__exec)), __f,
-        __parallel_or_tag{}, __buf.all_view());
+    using _CustomName = __or_policy_wrapper<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>;
+
+    return oneapi::dpl::__par_backend_hetero::__parallel_find_or<_CustomName>(__backend_tag, __q_local, __f,
+                                                                              __parallel_or_tag{}, __buf.all_view());
 }
 
 //------------------------------------------------------------------------
@@ -1999,6 +1999,8 @@ _Iterator1
 __parallel_find(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                 _Iterator1 __first, _Iterator1 __last, _Iterator2 __s_first, _Iterator2 __s_last, _Brick __f, _IsFirst)
 {
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
     auto __buf = __keep(__first, __last);
     auto __s_keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator2>();
@@ -2006,11 +2008,11 @@ __parallel_find(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _Ex
 
     using _TagType = ::std::conditional_t<_IsFirst::value, __parallel_find_forward_tag<decltype(__buf.all_view())>,
                                           __parallel_find_backward_tag<decltype(__buf.all_view())>>;
-    return __first + oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-                         __backend_tag,
-                         __par_backend_hetero::make_wrapped_policy<__find_policy_wrapper>(
-                             ::std::forward<_ExecutionPolicy>(__exec)),
-                         __f, _TagType{}, __buf.all_view(), __s_buf.all_view());
+
+    using _CustomName = __find_policy_wrapper<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>;
+
+    return __first + oneapi::dpl::__par_backend_hetero::__parallel_find_or<_CustomName>(
+                         __backend_tag, __q_local, __f, _TagType{}, __buf.all_view(), __s_buf.all_view());
 }
 
 // Special overload for single sequence cases.
@@ -2021,16 +2023,18 @@ _Iterator
 __parallel_find(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                 _Iterator __first, _Iterator __last, _Brick __f, _IsFirst)
 {
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
 
     using _TagType = ::std::conditional_t<_IsFirst::value, __parallel_find_forward_tag<decltype(__buf.all_view())>,
                                           __parallel_find_backward_tag<decltype(__buf.all_view())>>;
-    return __first + oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-                         __backend_tag,
-                         __par_backend_hetero::make_wrapped_policy<__find_policy_wrapper>(
-                             ::std::forward<_ExecutionPolicy>(__exec)),
-                         __f, _TagType{}, __buf.all_view());
+
+    using _CustomName = __find_policy_wrapper<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>;
+
+    return __first + oneapi::dpl::__par_backend_hetero::__parallel_find_or<_CustomName>(__backend_tag, __q_local, __f,
+                                                                                        _TagType{}, __buf.all_view());
 }
 
 //------------------------------------------------------------------------
