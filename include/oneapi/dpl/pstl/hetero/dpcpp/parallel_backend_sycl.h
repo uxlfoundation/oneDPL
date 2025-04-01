@@ -1387,15 +1387,13 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
     }
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _IsOpDifference>
 auto
-__parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+__parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                                 _IsOpDifference)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
     // fill in reduce then scan impl
     using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_IsOpDifference, _Compare>;
     using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
@@ -1412,10 +1410,8 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
 
     oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__rng1.size());
 
-    sycl::queue __q_local = __exec.queue();
-
     return __parallel_transform_reduce_then_scan<_CustomName>(
-        __backend_tag, __q_local,
+        __backend_tag, __q,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
@@ -1485,11 +1481,15 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _
                   _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                   _IsOpDifference __is_op_difference)
 {
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec.queue()))
+    sycl::queue __q_local = __exec.queue();
+
+    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
-        return __parallel_set_reduce_then_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                               std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                                               std::forward<_Range3>(__result), __comp, __is_op_difference);
+        using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+        return __parallel_set_reduce_then_scan<_CustomName>(
+            __backend_tag, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+            std::forward<_Range3>(__result), __comp, __is_op_difference);
     }
     else
     {
