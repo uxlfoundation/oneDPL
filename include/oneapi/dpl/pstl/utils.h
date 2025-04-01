@@ -602,16 +602,17 @@ _Size1
 __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
 {
     auto __n = __last - __first;
-    _Size1 __div = 32;
+    _Size1 __shift_right_div = 10; // divide by 2^10 = 1024
     _Size1 __it = 0;
     _Size1 __cur_idx = 0;
 
-    while (__n > 0 && __div > 2)
+    while (__n > 0 && __shift_right_div > 1)
     {
+        _Size1 __biased_step = (__n >> __shift_right_div);
         if constexpr (__bias_last)
-            __cur_idx = __n - __n / __div - 1;
+            __cur_idx = __n - __biased_step - 1;
         else
-            __cur_idx = __n / __div;
+            __cur_idx = __biased_step;
         __it = __first + __cur_idx;
 
         if (__comp(__acc[__it], __value))
@@ -625,7 +626,7 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
             __n = __last - __first;
         }
         // get closer and closer to binary search with more iterations
-        __div >>= 1;
+        __shift_right_div -= 3;
     }
     if (__n > 0)
     {

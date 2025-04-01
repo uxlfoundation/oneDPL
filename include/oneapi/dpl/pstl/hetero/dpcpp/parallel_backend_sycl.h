@@ -943,7 +943,7 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     _Index __fwd_search_count = std::max(__total_repeats / 2, __rng2_repeats_bck);
     _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count + 1, __rng2.size());
 
-    _Index __rng2_repeat_end = oneapi::dpl::__internal::__biased_upper_bound</*__last_bias=*/false>(
+    _Index __rng2_repeat_end = oneapi::dpl::__internal::__pstl_upper_bound(
         __rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
 
     _Index __rng2_eligible_repeats = __rng2_repeat_end - __rng2_repeat_start;
