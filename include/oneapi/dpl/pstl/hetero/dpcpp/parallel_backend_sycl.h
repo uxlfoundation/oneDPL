@@ -1075,7 +1075,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
             {
                 for (; __idx1 < __in_rng1.size() && __idx < __num_eles_min; ++__idx1, ++__idx)
                 {
-                    __temp_out.set(__count, __in_rng1[__idx1]);
+                    __temp_out.set(__count, __ele_rng1);
                     ++__count;
                 }
             }
