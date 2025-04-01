@@ -284,7 +284,7 @@ __pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _OutputIterator,
           class _UnaryOperation, class _Tp, class _BinaryOperation, class _Inclusive>
 ::std::enable_if_t<::std::is_floating_point_v<_Tp>, _OutputIterator>
-__pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&& /*__exec*/, _RandomAccessIterator __first,
+__pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator __first,
                          _RandomAccessIterator __last, _OutputIterator __result, _UnaryOperation __unary_op, _Tp __init,
                          _BinaryOperation __binary_op, _Inclusive)
 {
