@@ -82,7 +82,7 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 template <typename _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp,
           typename _Ap>
 void
-__parallel_strict_scan_body(_ExecutionPolicy&& __exec, _Index __n, _Tp __initial, _Rp __reduce, _Cp __combine,
+__parallel_strict_scan_body(_ExecutionPolicy&& /*__exec*/, _Index __n, _Tp __initial, _Rp __reduce, _Cp __combine,
                             _Sp __scan, _Ap __apex)
 {
     _Index __p = omp_get_num_threads();
