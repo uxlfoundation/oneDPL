@@ -1289,26 +1289,22 @@ __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_
         /*Inclusive*/ std::true_type{}, /*_IsUniquePattern=*/std::false_type{});
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
+template <typename _CustomName, typename _Range1, typename _Range2, typename _UnaryPredicate>
 auto
-__parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+__parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
                           _Range1&& __rng, _Range2&& __result, _UnaryPredicate __pred)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
-    sycl::queue __q_local = __exec.queue();
-
     oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng.size();
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
         using _WriteOp =
             oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
 
-        return __parallel_reduce_then_scan_copy<_CustomName>(
-            __backend_tag, __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
-            _GenMask{__pred, {}}, _WriteOp{},
-            /*_IsUniquePattern=*/std::false_type{});
+        return __parallel_reduce_then_scan_copy<_CustomName>(__backend_tag, __q, std::forward<_Range1>(__rng),
+                                                             std::forward<_Range2>(__result), __n, _GenMask{__pred, {}},
+                                                             _WriteOp{},
+                                                             /*_IsUniquePattern=*/std::false_type{});
     }
     else
     {
@@ -1316,7 +1312,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
         using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
         using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp, /*inclusive*/ std::true_type>;
 
-        return __parallel_scan_copy<_CustomName>(__backend_tag, __q_local, std::forward<_Range1>(__rng),
+        return __parallel_scan_copy<_CustomName>(__backend_tag, __q, std::forward<_Range1>(__rng),
                                                  std::forward<_Range2>(__result), __n, _CreateOp{__pred},
                                                  _CopyOp{_ReduceOp{}});
     }
