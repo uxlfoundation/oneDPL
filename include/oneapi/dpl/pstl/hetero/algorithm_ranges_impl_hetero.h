@@ -992,9 +992,13 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         return {__res, 0};
     }
 
-    auto __res = __par_backend_hetero::__parallel_merge(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
-        ::std::forward<_Range2>(__rng2), ::std::forward<_Range3>(__rng3), __comp, __out_size_limit{});
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
+    auto __res = __par_backend_hetero::__parallel_merge<_CustomName>(
+        _BackendTag{}, __q_local, ::std::forward<_Range1>(__rng1), ::std::forward<_Range2>(__rng2),
+        ::std::forward<_Range3>(__rng3), __comp, __out_size_limit{});
 
     auto __val = __res.get();
     return {__val.first, __val.second};
