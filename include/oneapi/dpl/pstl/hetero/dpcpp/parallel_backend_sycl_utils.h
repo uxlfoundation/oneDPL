@@ -694,8 +694,8 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         }
     }
 
-    template <typename _T, std::size_t _N>
-    void get_values(std::array<_T, _N>& __arr)
+    template <typename _TArrayVal, std::size_t _N>
+    void get_values(std::array<_TArrayVal, _N>& __arr)
     {
         assert(__result_n > 0);
         assert(_N == __result_n);
@@ -724,9 +724,9 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         return __fill_data(__get_value(), __p_buf);
     }
 
-    template <typename _Event, typename _T, std::size_t _N>
+    template <typename _Event, typename _TArrayVal, std::size_t _N>
     void
-    __wait_and_get_value(_Event&& __event, std::array<_T, _N>& __arr) const
+    __wait_and_get_value(_Event&& __event, std::array<_TArrayVal, _N>& __arr) const
     {
         if (is_USM())
             __event.wait_and_throw();
