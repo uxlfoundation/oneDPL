@@ -1411,8 +1411,12 @@ __stable_sort_with_projection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-                                                 __buf.all_view(), __comp, __proj)
+    sycl::queue __q_local = __exec.queue();
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    __par_backend_hetero::__parallel_stable_sort<_CustomName>(_BackendTag{}, __q_local, __buf.all_view(), __comp,
+                                                              __proj)
         .__deferrable_wait();
 }
 

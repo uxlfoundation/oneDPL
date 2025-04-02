@@ -1054,10 +1054,16 @@ void
 __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp,
                       _Proj __proj)
 {
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
     if (__rng.size() >= 2)
-        __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-                                                     ::std::forward<_Range>(__rng), __comp, __proj)
+    {
+        sycl::queue __q_local = __exec.queue();
+
+        __par_backend_hetero::__parallel_stable_sort<_CustomName>(_BackendTag{}, __q_local,
+                                                                  ::std::forward<_Range>(__rng), __comp, __proj)
             .__deferrable_wait();
+    }
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT

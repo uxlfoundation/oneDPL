@@ -2182,45 +2182,35 @@ struct __is_radix_sort_usable_for_type
 
 #if _ONEDPL_USE_RADIX_SORT
 template <
-    typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
+    typename _CustomName, typename _Range, typename _Compare, typename _Proj,
     ::std::enable_if_t<
         __is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
 auto
-__parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                       _Range&& __rng, _Compare, _Proj __proj)
+__parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Range&& __rng,
+                       _Compare, _Proj __proj)
 {
-    using _RadixSortKernel = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
-    sycl::queue __q_local = __exec.queue();
-
-    return __parallel_radix_sort<_RadixSortKernel, __internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
-        __backend_tag, __q_local, ::std::forward<_Range>(__rng), __proj);
+    return __parallel_radix_sort<_CustomName, __internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
+        __backend_tag, __q, ::std::forward<_Range>(__rng), __proj);
 }
 #endif // _ONEDPL_USE_RADIX_SORT
 
 template <
-    typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
+    typename _CustomName, typename _Range, typename _Compare, typename _Proj,
     ::std::enable_if_t<
         !__is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
 auto
-__parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                       _Range&& __rng, _Compare __comp, _Proj __proj)
+__parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Range&& __rng,
+                       _Compare __comp, _Proj __proj)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
-    sycl::queue __q_local = __exec.queue();
-
     if (__rng.size() <= std::numeric_limits<std::uint32_t>::max())
     {
         return __submit_selecting_leaf<_CustomName, std::uint32_t>(
-            __q_local, std::forward<_Range>(__rng),
-            oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
+            __q, std::forward<_Range>(__rng), oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
     }
     else
     {
         return __submit_selecting_leaf<_CustomName, std::uint64_t>(
-            __q_local, std::forward<_Range>(__rng),
-            oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
+            __q, std::forward<_Range>(__rng), oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
     }
 }
 
