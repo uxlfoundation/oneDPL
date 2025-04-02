@@ -1118,8 +1118,8 @@ struct __set_generic_operation
 
         std::uint16_t __count = 0;
         _SizeType __idx = 0;
-        bool __can_reach_rng1_end = __idx1 + __num_eles_min > __in_rng1.size();
-        bool __can_reach_rng2_end = __idx2 + __num_eles_min > __in_rng2.size();
+        bool __can_reach_rng1_end = __idx1 + __num_eles_min >= __in_rng1.size();
+        bool __can_reach_rng2_end = __idx2 + __num_eles_min >= __in_rng2.size();
 
         if (!__can_reach_rng1_end && !__can_reach_rng2_end)
         {
