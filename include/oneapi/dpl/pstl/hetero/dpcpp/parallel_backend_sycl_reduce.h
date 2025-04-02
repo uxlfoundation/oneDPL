@@ -427,14 +427,12 @@ struct __parallel_transform_reduce_impl
 // Mid-sized arrays use two tree reductions with independent __iters_per_work_item.
 // Big arrays are processed with a recursive tree reduction. __work_group_size * __iters_per_work_item elements are
 // reduced in each step.
-template <typename _Tp, typename _Commutative, typename _ExecutionPolicy, typename _ReduceOp, typename _TransformOp,
+template <typename _CustomName, typename _Tp, typename _Commutative, typename _ReduceOp, typename _TransformOp,
           typename _InitType, typename... _Ranges>
 auto
-__parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+__parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
                             _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
     auto __n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
     assert(__n > 0);
     using _Size = decltype(__n);
@@ -447,13 +445,11 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
     constexpr std::uint8_t __vector_size = 4;
     constexpr std::uint32_t __oversubscription = 2;
 
-    sycl::queue __q_local = __exec.queue();
-
     // Get the work group size adjusted to the local memory limit.
     // Pessimistically double the memory requirement to take into account memory used by compiled kernel.
     // TODO: find a way to generalize getting of reliable work-group size.
     std::size_t __work_group_size =
-        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q_local, static_cast<std::size_t>(sizeof(_Tp) * 2));
+        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, static_cast<std::size_t>(sizeof(_Tp) * 2));
 
     // Limit work-group size to __max_work_group_size for performance on GPUs. Empirically tested.
     __work_group_size = std::min(__work_group_size, __max_work_group_size);
@@ -469,7 +465,7 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
         std::uint16_t __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n_short, __work_group_size);
         __iters_per_work_item = __adjust_iters_per_work_item<__vector_size>(__iters_per_work_item);
         return __parallel_transform_reduce_small_impl<_CustomName, _Tp, _Commutative, __vector_size>(
-            __backend_tag, __q_local, __n_short, __work_group_size_short, __iters_per_work_item, __reduce_op, __transform_op,
+            __backend_tag, __q, __n_short, __work_group_size_short, __iters_per_work_item, __reduce_op, __transform_op,
             __init, std::forward<_Ranges>(__rngs)...);
     }
     // Use two-step tree reduction.
@@ -484,7 +480,7 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
         const auto __work_group_size_short = static_cast<std::uint32_t>(__work_group_size);
         // Fully-utilize the device by running a work-group per compute unit.
         // Add a factor more work-groups than compute units to fully utilizes the device and hide latencies.
-        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__q_local);
+        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__q);
         std::uint32_t __n_groups = __max_cu * __oversubscription;
         std::uint32_t __iters_per_work_item_device_kernel =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n_short, __n_groups * __work_group_size_short);
@@ -503,14 +499,14 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
         __iters_per_work_item_work_group_kernel =
             __adjust_iters_per_work_item<__vector_size>(__iters_per_work_item_work_group_kernel);
         return __parallel_transform_reduce_mid_impl<_CustomName, _Tp, _Commutative, __vector_size>(
-            __backend_tag, __q_local, __n_short, __work_group_size_short, __iters_per_work_item_device_kernel,
+            __backend_tag, __q, __n_short, __work_group_size_short, __iters_per_work_item_device_kernel,
             __iters_per_work_item_work_group_kernel, __reduce_op, __transform_op, __init,
             std::forward<_Ranges>(__rngs)...);
     }
     // Otherwise use a recursive tree reduction with __max_iters_per_work_item __iters_per_work_item.
     const auto __work_group_size_long = static_cast<_Size>(__work_group_size);
     return __parallel_transform_reduce_impl<_CustomName, _Tp, _Commutative, __vector_size>::submit(
-        __backend_tag, __q_local, __n, __work_group_size_long, __max_iters_per_work_item, __reduce_op, __transform_op, __init,
+        __backend_tag, __q, __n, __work_group_size_long, __max_iters_per_work_item, __reduce_op, __transform_op, __init,
         std::forward<_Ranges>(__rngs)...);
 }
 

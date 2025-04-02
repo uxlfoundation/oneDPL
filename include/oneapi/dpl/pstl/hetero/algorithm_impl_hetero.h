@@ -549,11 +549,15 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    auto __ret_idx = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, _Commutative>(
-                         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-                         unseq_backend::__no_init_value{}, // no initial value
-                         __buf.all_view())
-                         .get();
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
+    auto __ret_idx =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType, _Commutative>(
+            _BackendTag{}, __q_local, __reduce_fn, __transform_fn, unseq_backend::__no_init_value{}, // no initial value
+            __buf.all_view())
+            .get();
 
     return __first + ::std::get<0>(__ret_idx);
 }
@@ -632,12 +636,16 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    auto __ret = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                                ::std::false_type /*is_commutative*/>(
-                     _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-                     unseq_backend::__no_init_value{}, // no initial value
-                     __buf.all_view())
-                     .get();
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
+    auto __ret =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
+                                                                       ::std::false_type /*is_commutative*/>(
+            _BackendTag{}, __q_local, __reduce_fn, __transform_fn, unseq_backend::__no_init_value{}, // no initial value
+            __buf.all_view())
+            .get();
 
     return ::std::make_pair<_Iterator, _Iterator>(__first + ::std::get<0>(__ret), __first + ::std::get<1>(__ret));
 }
@@ -743,9 +751,13 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
+    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
                                                                           ::std::true_type /*is_commutative*/>(
-               _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+               _BackendTag{}, __q_local, __reduce_fn, __transform_fn,
                unseq_backend::__no_init_value{}, // no initial value
                __buf.all_view())
         .get();
@@ -1260,12 +1272,16 @@ __pattern_is_partitioned(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                                ::std::false_type /*is_commutative*/>(
-                     _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-                     unseq_backend::__no_init_value{}, // no initial value
-                     __buf.all_view())
-                     .get();
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
+    auto __res =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
+                                                                       ::std::false_type /*is_commutative*/>(
+            _BackendTag{}, __q_local, __reduce_fn, __transform_fn, unseq_backend::__no_init_value{}, // no initial value
+            __buf.all_view())
+            .get();
 
     return __broken != __reduce_fn(_ReduceValueType{__all_true}, __res);
 }
@@ -1592,11 +1608,14 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator2>();
     auto __buf2 = __keep2(__first2, __first2 + __shared_size);
 
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
     auto __ret_idx =
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
                                                                        ::std::false_type /*is_commutative*/>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-            unseq_backend::__no_init_value{}, // no initial value
+            _BackendTag{}, __q_local, __reduce_fn, __transform_fn, unseq_backend::__no_init_value{}, // no initial value
             __buf1.all_view(), __buf2.all_view())
             .get();
 

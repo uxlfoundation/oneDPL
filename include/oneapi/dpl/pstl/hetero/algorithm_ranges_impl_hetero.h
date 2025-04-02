@@ -748,9 +748,13 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
     auto __reduce_fn = ::std::plus<_ReduceValueType>{};
     __pattern_count_transform_fn<_Predicate> __transform_fn{__predicate};
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
+    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
                                                                           ::std::true_type /*is_commutative*/>(
-               _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+               _BackendTag{}, __q_local, __reduce_fn, __transform_fn,
                unseq_backend::__no_init_value{}, // no initial value
                ::std::forward<_Range>(__rng))
         .get();
@@ -1139,11 +1143,14 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     __pattern_min_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
     __pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
     auto __ret_idx =
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
                                                                        ::std::false_type /*is_commutative*/>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-            unseq_backend::__no_init_value{}, // no initial value
+            _BackendTag{}, __q_local, __reduce_fn, __transform_fn, unseq_backend::__no_init_value{}, // no initial value
             ::std::forward<_Range>(__rng))
             .get();
 
@@ -1243,11 +1250,14 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
     __pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn;
 
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
     _ReduceValueType __ret =
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
                                                                        ::std::false_type /*is_commutative*/>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-            unseq_backend::__no_init_value{}, // no initial value
+            _BackendTag{}, __q_local, __reduce_fn, __transform_fn, unseq_backend::__no_init_value{}, // no initial value
             ::std::forward<_Range>(__rng))
             .get();
 
