@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <tuple>
 #include <type_traits>
 
 #include "sycl_defs.h"
