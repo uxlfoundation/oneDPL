@@ -145,7 +145,7 @@ struct __lookback_init_submitter<_FlagType, _Type, _BinaryOp,
 {
     template <typename _StatusFlags, typename _PartialValues>
     sycl::event
-    operator()(sycl::queue __q, _StatusFlags&& __status_flags, _PartialValues&& __partial_values,
+    operator()(sycl::queue& __q, _StatusFlags&& __status_flags, _PartialValues&& __partial_values,
                std::size_t __status_flags_size, std::uint16_t __status_flag_padding) const
     {
         return __q.submit([&](sycl::handler& __hdl) {
@@ -276,7 +276,7 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
 
     template <typename _InRng, typename _OutRng, typename _BinaryOp, typename _StatusFlags, typename _StatusValues>
     sycl::event
-    operator()(sycl::queue __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
+    operator()(sycl::queue& __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
                std::size_t __n, _StatusFlags&& __status_flags, std::size_t __status_flags_size,
                _StatusValues&& __status_vals_full, _StatusValues&& __status_vals_partial,
                std::size_t __current_num_items) const
@@ -334,11 +334,11 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     // Perform a single-work group scan if the input is small
     if (oneapi::dpl::__par_backend_hetero::__group_scan_fits_in_slm<_Type>(__queue, __n, __n_uniform, /*limit=*/16384))
     {
-        return oneapi::dpl::__par_backend_hetero::__parallel_transform_scan_single_group(
-            oneapi::dpl::__internal::__device_backend_tag{},
-            oneapi::dpl::execution::__dpl::make_device_policy<typename _KernelParam::kernel_name>(__queue),
-            std::forward<_InRange>(__in_rng), std::forward<_OutRange>(__out_rng), __n,
-            oneapi::dpl::__internal::__no_op{}, unseq_backend::__no_init_value<_Type>{}, __binary_op, std::true_type{});
+        return oneapi::dpl::__par_backend_hetero::__parallel_transform_scan_single_group<
+            typename _KernelParam::kernel_name>(oneapi::dpl::__internal::__device_backend_tag{}, __queue,
+                                                std::forward<_InRange>(__in_rng), std::forward<_OutRange>(__out_rng),
+                                                __n, oneapi::dpl::__internal::__no_op{},
+                                                unseq_backend::__no_init_value<_Type>{}, __binary_op, std::true_type{});
     }
 
     constexpr std::size_t __workgroup_size = _KernelParam::workgroup_size;

@@ -141,8 +141,12 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
         auto __fill_func = oneapi::dpl::__internal::fill_functor<_global_histogram_type>{_global_histogram_type{0}};
         //fill histogram bins with zeros
 
-        auto __init_event = oneapi::dpl::__par_backend_hetero::__parallel_for(
-            _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
+        using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+        sycl::queue __q_local = __exec.queue();
+
+        auto __init_event = oneapi::dpl::__par_backend_hetero::__parallel_for<__hist_fill_zeros_wrapper<_CustomName>>(
+            _BackendTag{}, __q_local,
             unseq_backend::walk1_vector_or_scalar<decltype(__fill_func), decltype(__bins)>{
                 __fill_func, static_cast<std::size_t>(__num_bins)},
             __num_bins, __bins);
@@ -157,8 +161,8 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
                                                         _RandomAccessIterator1>();
             auto __input_buf = __keep_input(__first, __last);
 
-            __parallel_histogram(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __init_event,
-                                 __input_buf.all_view(), ::std::move(__bins), __binhash_manager)
+            __parallel_histogram<_CustomName>(_BackendTag{}, __q_local, __init_event, __input_buf.all_view(),
+                                              std::move(__bins), __binhash_manager)
                 .__deferrable_wait();
         }
         else
