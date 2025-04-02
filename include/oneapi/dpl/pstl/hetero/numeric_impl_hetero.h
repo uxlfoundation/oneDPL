@@ -137,6 +137,10 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
     auto __buf1 = __keep1(__first, __last);
 
+    sycl::queue __q_local = __exec.queue();
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
     // This is a temporary workaround for an in-place exclusive scan while the SYCL backend scan pattern is not fixed.
     const bool __is_scan_inplace_exclusive = __n > 1 && !_Inclusive{} && __iterators_possibly_equal(__first, __result);
     if (!__is_scan_inplace_exclusive)
@@ -144,9 +148,9 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _Iterator2>();
         auto __buf2 = __keep2(__result, __result + __n);
 
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
-            __unary_op, __init, __binary_op, _Inclusive{})
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan<_CustomName>(
+            _BackendTag{}, __q_local, __buf1.all_view(), __buf2.all_view(), __n, __unary_op, __init, __binary_op,
+            _Inclusive{})
             .__deferrable_wait();
     }
     else
@@ -168,9 +172,10 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         auto __buf2 = __keep2(__first_tmp, __last_tmp);
 
         // Run main algorithm and save data into temporary buffer
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(_BackendTag{}, __policy, __buf1.all_view(),
-                                                                     __buf2.all_view(), __n, __unary_op, __init,
-                                                                     __binary_op, _Inclusive{})
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan<
+            oneapi::dpl::__internal::__policy_kernel_name<decltype(__policy)>>(
+            _BackendTag{}, __q_local, __buf1.all_view(), __buf2.all_view(), __n, __unary_op, __init, __binary_op,
+            _Inclusive{})
             .wait();
 
         // Move data from temporary buffer into results

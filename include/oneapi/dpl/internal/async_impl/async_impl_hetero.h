@@ -204,9 +204,13 @@ __pattern_transform_scan_base_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _Iterator2>();
     auto __buf2 = __keep2(__result, __result + __n);
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __unary_op,
-        __init, __binary_op, _Inclusive{});
+    sycl::queue __q_local = __exec.queue();
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan<_CustomName>(
+        _BackendTag{}, __q_local, __buf1.all_view(), __buf2.all_view(), __n, __unary_op, __init, __binary_op,
+        _Inclusive{});
     return __res.__make_future(__result + __n);
 }
 
