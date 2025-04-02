@@ -48,7 +48,7 @@ namespace __internal
 //-----------------------------------------------------------------------------
 
 #if _ONEDPL_DEBUG_SYCL
-iniline std::string
+inline std::string
 __device_info(const sycl::queue& __q)
 {
     return __q.get_device().template get_info<sycl::info::device::name>();
