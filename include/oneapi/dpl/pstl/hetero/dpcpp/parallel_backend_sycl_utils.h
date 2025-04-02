@@ -735,6 +735,9 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 };
 
+template <typename _ExecutionPolicy, typename _T>
+using __result_and_scratch_storage = __result_and_scratch_storage_impl<std::decay_t<_ExecutionPolicy>, _T>;
+
 // The type specifies the polymorphic behaviour for different value types via the overloads
 struct __wait_and_get_value
 {
@@ -767,9 +770,6 @@ struct __wait_and_get_value
         return __val;
     }
 };
-
-template <typename _ExecutionPolicy, typename _T>
-using __result_and_scratch_storage = __result_and_scratch_storage_impl<std::decay_t<_ExecutionPolicy>, _T>;
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
