@@ -100,7 +100,7 @@ struct __lower_bound_impl_fn
     StrictWeakOrdering comp;
 
     auto
-    operator()(const _ValueType& val) const -> decltype(std::lower_bound(start, end, val, comp) - start)
+    operator()(const _ValueType& val) const
     {
         return std::lower_bound(start, end, val, comp) - start;
     }
@@ -130,7 +130,7 @@ struct __upper_bound_impl_fn
     StrictWeakOrdering comp;
 
     auto
-    operator()(const _ValueType& val) const -> decltype(std::upper_bound(start, end, val, comp) - start)
+    operator()(const _ValueType& val) const
     {
         return std::upper_bound(start, end, val, comp) - start;
     }
@@ -160,7 +160,7 @@ struct __binary_search_impl_fn
     StrictWeakOrdering comp;
 
     auto
-    operator()(const _ValueType& val) const -> decltype(std::binary_search(start, end, val, comp))
+    operator()(const _ValueType& val) const
     {
         return std::binary_search(start, end, val, comp);
     }
