@@ -675,9 +675,9 @@ struct sort_fn
 {
     template <typename... _Arg>
     void
-    operator()(_Arg&&... __args) const
+    operator()(_Arg... __args) const
     {
-        std::sort(std::forward<_Arg>(__args)...);
+        std::sort(__args...);
     }
 };
 }; // namespace __internal
@@ -708,9 +708,9 @@ struct stable_sort_fn
 {
     template <typename... _Args>
     void
-    operator()(_Args&&... __args) const
+    operator()(_Args... __args) const
     {
-        std::stable_sort(std::forward<_Args>(__args)...);
+        std::stable_sort(__args...);
     }
 };
 }; // namespace __internal
