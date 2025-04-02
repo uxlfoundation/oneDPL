@@ -1738,7 +1738,7 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
     using _In2ValueT = oneapi::dpl::__internal::__value_t<_Range2>;
     using _OutValueT = oneapi::dpl::__internal::__value_t<_Range3>;
-    using _TempData = __set_temp_data<__diagonal_spacing + 1, _OutValueT>;
+    using _TempData = __set_temp_data<__diagonal_spacing, _OutValueT>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
     using _ReduceOp = std::plus<_Size>;
 
