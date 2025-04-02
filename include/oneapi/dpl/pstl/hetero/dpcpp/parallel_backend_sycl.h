@@ -1183,13 +1183,14 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
                                                  /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
 
-template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _CreateMaskOp,
+template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _CreateMaskOp,
           typename _CopyByMaskOp>
 auto
 __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                     _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _CreateMaskOp __create_mask_op,
+                     _InRng&& __in_rng, _OutRng&& __out_rng, _CreateMaskOp __create_mask_op,
                      _CopyByMaskOp __copy_by_mask_op)
 {
+    using _Size = decltype(__in_rng.size());
     using _ReduceOp = std::plus<_Size>;
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
@@ -1203,7 +1204,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     _MaskAssigner __add_mask_op;
 
     // temporary buffer to store boolean mask
-    oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n);
+    oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__in_rng.size());
 
     return __parallel_transform_scan_base(
         __backend_tag, std::forward<_ExecutionPolicy>(__exec),
@@ -1254,7 +1255,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, /*inclusive*/ std::true_type, 1>;
 
         return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
-                                    std::forward<_Range2>(__result), __n,
+                                    std::forward<_Range2>(__result),
                                     _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}},
                                     _CopyOp{_ReduceOp{}, _Assign{}});
     }
@@ -1316,16 +1317,35 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
         using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp, /*inclusive*/ std::true_type>;
 
         return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
-                                    std::forward<_Range2>(__result), __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
+                                    std::forward<_Range2>(__result), _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
     }
 }
 
-template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
+template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Pred,
+          typename _Assign = oneapi::dpl::__internal::__pstl_assign>
+auto
+__parallel_copy_if_out_lim(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+                   _InRng&& __in_rng, _OutRng&& __out_rng, _Pred __pred, _Assign __assign = _Assign{})
+{
+    using _Size = decltype(__in_rng.size());
+    using _ReduceOp = std::plus<_Size>;
+    using _CreateOp = unseq_backend::__create_mask<_Pred, _Size>;
+    using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,
+                                                  /*inclusive*/ std::true_type, 1>;
+
+    return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
+                                    std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
+                                    _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
+}
+
+template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Pred,
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 auto
 __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                   _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Pred __pred, _Assign __assign = _Assign{})
+                   _InRng&& __in_rng, _OutRng&& __out_rng, _Pred __pred, _Assign __assign = _Assign{})
 {
+    auto __n = __in_rng.size();
+    using _Size = decltype(__n);
     using _SingleGroupInvoker = __invoke_single_group_copy_if<_Size>;
 
     // Next power of 2 greater than or equal to __n
@@ -1369,7 +1389,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
                                                       /*inclusive*/ std::true_type, 1>;
 
         return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                    std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
+                                    std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
                                     _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
     }
 }

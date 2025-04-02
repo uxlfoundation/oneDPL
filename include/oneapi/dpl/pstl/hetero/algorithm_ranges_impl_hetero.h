@@ -570,19 +570,22 @@ __pattern_count_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Predicate,
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
-oneapi::dpl::__internal::__difference_t<_Range2>
+std::pair<oneapi::dpl::__internal::__difference_t<_Range1>, oneapi::dpl::__internal::__difference_t<_Range2>>
 __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                   _Predicate __pred, _Assign __assign)
 {
-    oneapi::dpl::__internal::__difference_t<_Range2> __n = __rng1.size();
-    if (__n == 0)
-        return 0;
+    using _Index = oneapi::dpl::__internal::__difference_t<_Range2>;
+    _Index __n = __rng1.size();
+    if (__n == 0 || __rng2.empty())
+        return {0, 0};
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_copy_if_out_lim(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
-        std::forward<_Range2>(__rng2), __n, __pred, __assign);
+        std::forward<_Range2>(__rng2), __pred, __assign).get();
 
-    return __res.get(); //is a blocking call
+    std::array<_Index, 2> __idx;
+    __res.get_values(__idx); //a blocking call
+    return {__idx[0], __idx[1]};
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -595,7 +598,7 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     auto __pred_1 = [__pred, __proj](auto&& __val) { return std::invoke(__pred, std::invoke(__proj,
         std::forward<decltype(__val)>(__val)));};
 
-    auto __res_idx = oneapi::dpl::__internal::__ranges::__pattern_copy_if(__tag,
+    auto __res = oneapi::dpl::__internal::__ranges::__pattern_copy_if(__tag,
         std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__in_r),
         oneapi::dpl::__ranges::views::all_write(__out_r), __pred_1,
         oneapi::dpl::__internal::__pstl_assign());
@@ -603,7 +606,7 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     using __return_t = std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>,
         std::ranges::borrowed_iterator_t<_OutRange>>;
 
-    return __return_t{std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r) + __res_idx};
+    return __return_t{std::ranges::begin(__in_r) + __res.first, std::ranges::begin(__out_r) + __res.second};
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
