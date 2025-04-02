@@ -58,12 +58,16 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
     const _Size __n = std::min({_Size(__rngs.size())...});
     if (__n > 0)
     {
+        sycl::queue __q_local = __exec.queue();
+
+        using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
         constexpr std::size_t __num_ranges = sizeof...(_Ranges);
         static_assert(__num_ranges <= 3, "__pattern_walk_n only supports up to three packed range parameters");
         if constexpr (__num_ranges == 1)
         {
-            oneapi::dpl::__par_backend_hetero::__parallel_for(
-                _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(
+                _BackendTag{}, __q_local,
                 unseq_backend::walk1_vector_or_scalar<_Function, std::decay_t<_Ranges>...>{
                     __f, static_cast<std::size_t>(__n)},
                 __n, std::forward<_Ranges>(__rngs)...)
@@ -71,8 +75,8 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
         }
         else if constexpr (__num_ranges == 2)
         {
-            oneapi::dpl::__par_backend_hetero::__parallel_for(
-                _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(
+                _BackendTag{}, __q_local,
                 unseq_backend::walk2_vectors_or_scalars<_Function, std::decay_t<_Ranges>...>{
                     __f, static_cast<std::size_t>(__n)},
                 __n, std::forward<_Ranges>(__rngs)...)
@@ -80,8 +84,8 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
         }
         else
         {
-            oneapi::dpl::__par_backend_hetero::__parallel_for(
-                _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(
+                _BackendTag{}, __q_local,
                 unseq_backend::walk3_vectors_or_scalars<_Function, std::decay_t<_Ranges>...>{
                     __f, static_cast<std::size_t>(__n)},
                 __n, std::forward<_Ranges>(__rngs)...)
@@ -215,22 +219,23 @@ bool
 __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                _Function __f)
 {
+    sycl::queue __q_local = __exec.queue();
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
     if (__rng1.size() <= __rng2.size())
     {
         const std::size_t __n = __rng1.size();
-        oneapi::dpl::__par_backend_hetero::__parallel_for(
-            _BackendTag{},
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
-                std::forward<_ExecutionPolicy>(__exec)),
+        oneapi::dpl::__par_backend_hetero::__parallel_for<__swap1_wrapper<_CustomName>>(
+            _BackendTag{}, __q_local,
             unseq_backend::__brick_swap<_Function, std::decay_t<_Range1>, std::decay_t<_Range2>>{__f, __n}, __n, __rng1,
             __rng2)
             .__deferrable_wait();
         return __n;
     }
     const std::size_t __n = __rng2.size();
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{},
-        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
+    oneapi::dpl::__par_backend_hetero::__parallel_for<__swap2_wrapper<_CustomName>>(
+        _BackendTag{}, __q_local,
         unseq_backend::__brick_swap<_Function, std::decay_t<_Range2>, std::decay_t<_Range1>>{__f, __n}, __n, __rng2,
         __rng1)
         .__deferrable_wait();
@@ -884,14 +889,17 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     oneapi::dpl::__internal::__difference_t<_Range2> __n = __rng.size();
     if (__n == 0)
         return 0;
+
+    sycl::queue __q_local = __exec.queue();
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
     if (__n == 1)
     {
         // For a sequence of size 1, we can just copy the only element to the result.
         using _CopyBrick = oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>;
-        oneapi::dpl::__par_backend_hetero::__parallel_for(
-            _BackendTag{},
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(
-                std::forward<_ExecutionPolicy>(__exec)),
+        oneapi::dpl::__par_backend_hetero::__parallel_for<__copy_wrapper<_CustomName>>(
+            _BackendTag{}, __q_local,
             unseq_backend::walk2_vectors_or_scalars<_CopyBrick, std::decay_t<_Range1>, std::decay_t<_Range2>>{
                 _CopyBrick{}, static_cast<std::size_t>(__n)},
             __n, std::forward<_Range1>(__rng), std::forward<_Range2>(__result))
@@ -899,10 +907,6 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
 
         return 1;
     }
-
-    sycl::queue __q_local = __exec.queue();
-
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy<_CustomName>(
         _BackendTag{}, __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __pred);
