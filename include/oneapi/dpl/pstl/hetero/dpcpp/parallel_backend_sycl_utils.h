@@ -827,10 +827,16 @@ class __future : private std::tuple<_Args...>
     }
 
     template <typename _T, std::size_t _N>
-    std::enable_if_t<sizeof...(_Args) > 0>
+    void
     get_values(std::array<_T, _N>& __arr)
     {
-        __wait_and_get_value<_Event>{}(event(), __val, __arr);
+        if constexpr (sizeof...(_Args) > 0)
+            __wait_and_get_value<_Event>{}(event(), __val, __arr);
+        else
+        {
+            static_assert(N == 0, "This __future object has been created without any arguments so unable to get any value from them");
+            wait();
+        }
     }
 
     auto
