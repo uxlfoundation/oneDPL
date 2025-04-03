@@ -939,7 +939,11 @@ _Iterator2
 __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __last,
                   _Iterator2 __result_first, _Predicate __pred)
 {
-    if (__first == __last)
+    using _It1DifferenceType = typename ::std::iterator_traits<_Iterator1>::difference_type;
+
+    _It1DifferenceType __n = __last - __first;
+
+    if (__n == 0)
         return __result_first;
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
