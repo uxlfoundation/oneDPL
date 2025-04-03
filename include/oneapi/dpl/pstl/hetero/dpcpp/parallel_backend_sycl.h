@@ -892,7 +892,7 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     auto __start_point = __merge_path_rng1;
     auto __start_point2 = __merge_path_rng2;
     bool __star = false;
-    if (__merge_path_rng1 == 0)
+    if (__merge_path_rng1 == 0 || __merge_path_rng2 == __rng2.size())
     {
         return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
     }
