@@ -522,8 +522,6 @@ struct __usm_or_buffer_accessor
 struct __result_and_scratch_storage_base
 {
     virtual ~__result_and_scratch_storage_base() = default;
-    virtual std::size_t
-    __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
 template <typename _ExecutionPolicy, typename _T>
@@ -721,7 +719,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         if (is_USM())
             __event.wait_and_throw();
 
-        return __fill_data(__get_value(), __p_buf);
+        return __get_value(idx);
     }
 
     template <typename _Event, typename _TArrayVal, std::size_t _N>
@@ -830,13 +828,9 @@ class __future : private std::tuple<_Args...>
     void
     get_values(std::array<_T, _N>& __arr)
     {
-        if constexpr (sizeof...(_Args) > 0)
-            __wait_and_get_value<_Event>{}(event(), __val, __arr);
-        else
-        {
-            static_assert(N == 0, "This __future object has been created without any arguments so unable to get any value from them");
-            wait();
-        }
+        static_assert(sizeof...(_Args) > 0);
+        auto& __val = std::get<0>(*this);
+        __wait_and_get_value<_Event>{}(event(), __val, __arr);
     }
 
     auto
