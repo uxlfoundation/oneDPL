@@ -375,10 +375,9 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
     using _TagType = __par_backend_hetero::__parallel_find_backward_tag<_Range1>;
 
-    using _CustomName =
-        __par_backend_hetero::__find_policy_wrapper<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>;
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or<_CustomName>(
+    return oneapi::dpl::__par_backend_hetero::__parallel_find_or<__par_backend_hetero::__find_policy_wrapper<_CustomName>>(
         _BackendTag{}, __q_local, _Predicate{__pred}, _TagType{}, ::std::forward<_Range1>(__rng1),
         ::std::forward<_Range2>(__rng2));
 }
@@ -401,13 +400,13 @@ __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     using _Predicate = unseq_backend::first_match_pred<_Pred>;
     using _TagType = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range1>;
 
-    using _CustomName =
-        __par_backend_hetero::__find_policy_wrapper<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>;
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     //TODO: To check whether it makes sense to iterate over the second sequence in case of __rng1.size() < __rng2.size()
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or<_CustomName>(
-        _BackendTag{}, __q_local, _Predicate{__pred}, _TagType{}, ::std::forward<_Range1>(__rng1),
-        ::std::forward<_Range2>(__rng2));
+    return oneapi::dpl::__par_backend_hetero::__parallel_find_or<
+        __par_backend_hetero::__find_policy_wrapper<_CustomName>>(_BackendTag{}, __q_local, _Predicate{__pred},
+                                                                  _TagType{}, ::std::forward<_Range1>(__rng1),
+                                                                  ::std::forward<_Range2>(__rng2));
 }
 
 //------------------------------------------------------------------------
