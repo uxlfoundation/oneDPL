@@ -738,32 +738,31 @@ template <typename _ExecutionPolicy, typename _T>
 using __result_and_scratch_storage = __result_and_scratch_storage_impl<std::decay_t<_ExecutionPolicy>, _T>;
 
 // The type specifies the polymorphic behaviour for different value types via the overloads
-template <typename _Event>
 struct __wait_and_get_value
 {
-    template <typename _T>
+    template <typename _Event, typename _T>
     constexpr auto
     operator()(_Event&& /*__event*/, const sycl::buffer<_T>& __buf)
     {
         return __buf.get_host_access(sycl::read_only)[0];
     }
 
-    template <typename _ExecutionPolicy, typename _T>
+    template <typename _Event, typename _ExecutionPolicy, typename _T>
     constexpr auto
-    operator()(_Event&& __event, const __result_and_scratch_storage<_ExecutionPolicy, _T>& __storage)
+    operator()(_Event&& __event, const __result_and_scratch_storage_impl<_ExecutionPolicy, _T>& __storage)
     {
         return __storage.__wait_and_get_value(__event);
     }
 
-    template <typename _ExecutionPolicy, typename _T, std::size_t _N>
+    template <typename _Event, typename _ExecutionPolicy, typename _T, std::size_t _N>
     constexpr void
-    operator()(_Event&& __event, const __result_and_scratch_storage<_ExecutionPolicy, _T>& __storage,
+    operator()(_Event&& __event, const __result_and_scratch_storage_impl<_ExecutionPolicy, _T>& __storage,
                std::array<_T, _N>& __arr)
     {
         return __storage.__wait_and_get_value(__event, __arr);
     }
 
-    template <typename _T>
+    template <typename _Event, typename _T>
     constexpr auto
     operator()(_Event&& __event, const _T& __val)
     {
@@ -832,7 +831,7 @@ class __future : private std::tuple<_Args...>
     {
         static_assert(sizeof...(_Args) > 0);
         auto& __val = std::get<0>(*this);
-        __wait_and_get_value<_Event>{}(event(), __val, __arr);
+        __wait_and_get_value{}(event(), __val, __arr);
     }
 
     auto
@@ -841,7 +840,7 @@ class __future : private std::tuple<_Args...>
         if constexpr (sizeof...(_Args) > 0)
         {
             auto& __val = std::get<0>(*this);
-            return __wait_and_get_value<_Event>{}(event(), __val);
+            return __wait_and_get_value{}(event(), __val);
         }
         else
             wait();
