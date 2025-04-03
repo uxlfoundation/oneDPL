@@ -348,7 +348,7 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
     std::pair<_Index, _Index> __res{};
     if (__m == 1)
     {
-        if(__initial < __n_out)
+        if (__initial < __n_out)
             __res = __scan(__i * __tilesize, __lastsize, __initial, __n_out - __initial);
     }
     else
@@ -358,12 +358,15 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 
         std::pair<_Index, _Index> __res_1{}, __res_2{};
         tbb::parallel_invoke(
-            [=, &__res_1] { __res_1 = __tbb_backend::__downsweep(__i, __k, __tilesize, __r, __tilesize, __initial, __combine, __scan, __n_out); },
+            [=, &__res_1] {
+                __res_1 = __tbb_backend::__downsweep(__i, __k, __tilesize, __r, __tilesize, __initial, __combine,
+                                                     __scan, __n_out);
+            },
             // Assumes that __combine never throws.
             //TODO: Consider adding a requirement for user functors to be constant.
             [=, &__combine, &__res_2] {
-                __res_2 = __tbb_backend::__downsweep(__i + __k, __m - __k, __tilesize, __r + __k, __lastsize,
-                                        __start, __combine, __scan, __n_out);
+                __res_2 = __tbb_backend::__downsweep(__i + __k, __m - __k, __tilesize, __r + __k, __lastsize, __start,
+                                                     __combine, __scan, __n_out);
             });
         __res = std::make_pair(__res_1.first + __res_2.first, __res_1.second + __res_2.second);
     }
@@ -387,8 +390,8 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 // T must have a trivial constructor and destructor.
 template <typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
-__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _Index __n, _Tp __initial,
-                       _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
+__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _Index __n, _Tp __initial, _Rp __reduce,
+                       _Cp __combine, _Sp __scan, _Ap __apex)
 {
     tbb::this_task_arena::isolate([=, &__combine]() {
         if (__n > 1)
@@ -427,12 +430,12 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _Index __n, _
 
 template <typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
-__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _Index __n, _Tp __initial,
-                       _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex, _Index __n_out)
+__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _Index __n, _Tp __initial, _Rp __reduce,
+                       _Cp __combine, _Sp __scan, _Ap __apex, _Index __n_out)
 {
-    if(__n_out == 0)
+    if (__n_out == 0)
         return;
-    else if(__n_out < 0)
+    else if (__n_out < 0)
         __n_out = __n;
     tbb::this_task_arena::isolate([=, &__combine]() {
         if (__n > 1)
@@ -455,8 +458,8 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _Index __n, _
             while ((__k &= __k - 1))
                 __t = __combine(__r[__k - 1], __t);
 
-            auto __res = __tbb_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __initial,
-                                       __combine, __scan, __n_out);
+            auto __res = __tbb_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize,
+                                                    __initial, __combine, __scan, __n_out);
             __apex(__res.first, __res.second);
             return;
         }

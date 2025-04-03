@@ -843,7 +843,7 @@ struct __copy_by_mask
                 // NOTE: we only need this explicit conversion when we have internal::tuple and
                 // ::std::tuple as operands, in all the other cases this is not necessary and no conversion
                 // is performed(i.e. __typle_type is the same type as its operand).
-                if(__out_idx < __out_acc.size())
+                if (__out_idx < __out_acc.size())
                     __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
         }
         if (__item_idx == 0)

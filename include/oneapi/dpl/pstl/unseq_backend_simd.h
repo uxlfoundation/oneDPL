@@ -309,7 +309,7 @@ __simd_copy_if(_InputIt __first, _DiffTypeIn __n, _OutputIt __result, _DiffTypeO
 {
     _DiffTypeIn __i = 0;
     _DiffTypeOut __cnt = 0;
-    if(__m >= __n)
+    if (__m >= __n)
     {
         _ONEDPL_PRAGMA_SIMD
         for (__i = 0; __i < __n; ++__i)
@@ -380,7 +380,8 @@ __simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, bool* __mask, _U
 
 template <typename _InputIterator, typename _DifferenceType, typename _Bound, typename _UnaryPredicate>
 std::pair<_DifferenceType, _DifferenceType>
-__simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, _Bound __m, bool* __mask, _UnaryPredicate __pred) noexcept
+__simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, _Bound __m, bool* __mask,
+                   _UnaryPredicate __pred) noexcept
 {
     _DifferenceType __count = 0;
     _DifferenceType __i = 0;
@@ -388,7 +389,7 @@ __simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, _Bound __m, bool
     _ONEDPL_PRAGMA_SIMD_EARLYEXIT_REDUCTION(+ : __count)
     for (__i = 0; __i < __n; ++__i)
     {
-        if(__count >= __m)
+        if (__count >= __m)
             break;
 
         __mask[__i] = __pred(__first[__i]);
@@ -424,7 +425,7 @@ __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator
 {
     _DifferenceType __cnt = 0;
     _DifferenceType __i = 0;
-    if(__m >= __n)
+    if (__m >= __n)
     {
         _ONEDPL_PRAGMA_SIMD
         for (__i = 0; __i < __n; ++__i)

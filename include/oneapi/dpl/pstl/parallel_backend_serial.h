@@ -133,9 +133,9 @@ void
 __parallel_strict_scan(oneapi::dpl::__internal::__serial_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex, _Index __n_out)
 {
-    if(__n_out == 0)
+    if (__n_out == 0)
         return;
-    else if(__n_out < 0)
+    else if (__n_out < 0)
         __n_out = __n;
 
     if (__n)

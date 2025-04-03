@@ -1183,8 +1183,7 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
                                                  /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
 
-template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _CreateMaskOp,
-          typename _CopyByMaskOp>
+template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _CreateMaskOp, typename _CopyByMaskOp>
 auto
 __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                      _InRng&& __in_rng, _OutRng&& __out_rng, _CreateMaskOp __create_mask_op,
@@ -1325,7 +1324,7 @@ template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 auto
 __parallel_copy_if_out_lim(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                   _InRng&& __in_rng, _OutRng&& __out_rng, _Pred __pred, _Assign __assign = _Assign{})
+                           _InRng&& __in_rng, _OutRng&& __out_rng, _Pred __pred, _Assign __assign = _Assign{})
 {
     using _Size = decltype(__in_rng.size());
     using _ReduceOp = std::plus<_Size>;
@@ -1333,9 +1332,8 @@ __parallel_copy_if_out_lim(oneapi::dpl::__internal::__device_backend_tag __backe
     using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,
                                                   /*inclusive*/ std::true_type, 1>;
 
-    return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                    std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
-                                    _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
+    return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
+                                std::forward<_OutRng>(__out_rng), _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
 }
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Pred,
@@ -1389,8 +1387,8 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
                                                       /*inclusive*/ std::true_type, 1>;
 
         return __parallel_scan_copy(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                    std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
-                                    _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
+                                    std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _CreateOp{__pred},
+                                    _CopyOp{_ReduceOp{}, __assign});
     }
 }
 

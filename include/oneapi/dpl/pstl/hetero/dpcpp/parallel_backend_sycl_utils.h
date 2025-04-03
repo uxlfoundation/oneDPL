@@ -693,7 +693,8 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 
     template <typename _TArrayVal, std::size_t _N>
-    void get_values(std::array<_TArrayVal, _N>& __arr)
+    void
+    get_values(std::array<_TArrayVal, _N>& __arr)
     {
         assert(__result_n > 0);
         assert(_N == __result_n);
@@ -756,7 +757,8 @@ struct __wait_and_get_value
 
     template <typename _ExecutionPolicy, typename _T, std::size_t _N>
     constexpr void
-    operator()(_Event&& __event, const __result_and_scratch_storage<_ExecutionPolicy, _T>& __storage, std::array<_T, _N>& __arr)
+    operator()(_Event&& __event, const __result_and_scratch_storage<_ExecutionPolicy, _T>& __storage,
+               std::array<_T, _N>& __arr)
     {
         return __storage.__wait_and_get_value(__event, __arr);
     }
