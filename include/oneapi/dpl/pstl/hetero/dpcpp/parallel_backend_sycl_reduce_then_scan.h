@@ -267,13 +267,25 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     }
 }
 
+constexpr inline std::uint8_t
+__get_reduce_then_scan_default_sg_sz()
+{
+    return 32;
+}
+
+constexpr inline std::uint8_t
+__get_reduce_then_scan_workaround_sg_sz()
+{
+    return 16;
+}
+
 // The default sub-group size for reduce-then-scan is 32, but we conditionally enable sub-group sizes of 16 on Intel
 // devices to workaround a hardware bug. From the host side, return 32 to assert that this sub-group size is supported
 // by an arbitrary device.
 constexpr inline std::uint8_t
 __get_reduce_then_scan_reqd_sg_sz_host()
 {
-    return 32;
+    return __get_reduce_then_scan_default_sg_sz();
 }
 
 // To workaround a hardware bug on certain Intel iGPUs with older driver versions and -O0 device compilation, use a
@@ -284,9 +296,9 @@ __get_reduce_then_scan_actual_sg_sz_device()
 {
     return
 #if _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED || !_ONEDPL_DETECT_SPIRV_COMPILATION
-        32;
+        __get_reduce_then_scan_default_sg_sz();
 #else
-        16;
+        __get_reduce_then_scan_workaround_sg_sz();
 #endif
 }
 
@@ -825,8 +837,8 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
         __reduce_then_scan_scan_kernel<_CustomName>>;
     using _ValueType = typename _InitType::__value_type;
 
-    constexpr std::uint8_t __min_sub_group_size = 16;
-    constexpr std::uint8_t __max_sub_group_size = 32;
+    constexpr std::uint8_t __min_sub_group_size = __get_reduce_then_scan_workaround_sg_sz();
+    constexpr std::uint8_t __max_sub_group_size = __get_reduce_then_scan_default_sg_sz();
     constexpr std::uint8_t __block_size_scale = std::max(std::size_t{1}, sizeof(double) / sizeof(_ValueType));
     // Empirically determined maximum. May be less for non-full blocks.
     constexpr std::uint16_t __max_inputs_per_item = 64 * __block_size_scale;
