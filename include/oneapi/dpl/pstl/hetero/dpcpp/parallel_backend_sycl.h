@@ -928,8 +928,8 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     _Index __fwd_search_count = std::max(__total_repeats / 2, __rng2_repeats_bck);
     _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count + 1, __rng2.size());
 
-    _Index __rng2_repeat_end = oneapi::dpl::__internal::__pstl_upper_bound(
-        __rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
+    _Index __rng2_repeat_end =
+        oneapi::dpl::__internal::__pstl_upper_bound(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
 
     _Index __rng2_eligible_repeats = __rng2_repeat_end - __rng2_repeat_start;
     _Index __balanced_path_rng2_diff = std::min(__rng2_eligible_repeats, __fwd_search_count);
@@ -1026,8 +1026,9 @@ struct __gen_set_op_from_known_balanced_path
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds1, bool _CheckBounds2,
           typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
 void
-__set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1, std::size_t& __idx2,
-                                 _SizeType __num_eles_min, _TempOutput& __temp_out, _SizeType& __idx, std::uint16_t& __count, _Compare __comp)
+__set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
+                                  std::size_t& __idx2, _SizeType __num_eles_min, _TempOutput& __temp_out,
+                                  _SizeType& __idx, std::uint16_t& __count, _Compare __comp)
 {
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
