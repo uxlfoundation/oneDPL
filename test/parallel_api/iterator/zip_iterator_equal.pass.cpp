@@ -16,6 +16,7 @@
 #include "zip_iterator_funcs.h"
 #include "support/test_config.h"
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #   include "support/utils_sycl.h"
@@ -59,7 +60,7 @@ DEFINE_TEST(test_equal)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first2)>, "zip_iterator (equal2) not properly copyable");
         }
 
-        bool is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2,
+        bool is_equal = std::equal(CREATE_NEW_POLICY(exec, 0), tuple_first1, tuple_last1, tuple_first2,
                                    TuplePredicate<std::equal_to<T>, 0>{std::equal_to<T>{}});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -70,7 +71,7 @@ DEFINE_TEST(test_equal)
         *(host_vals.get() + n - 1) = T{0};
         host_vals.update_data();
 
-        is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 1>>(exec), tuple_first1, tuple_last1, tuple_first2,
+        is_equal = std::equal(CREATE_NEW_POLICY(exec, 1), tuple_first1, tuple_last1, tuple_first2,
                               TuplePredicate<std::equal_to<T>, 0>{std::equal_to<T>{}});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -110,7 +111,7 @@ DEFINE_TEST(test_equal_structured_binding)
                         "zip_iterator (equal_structured_binding2) not properly copyable");
         }
 
-        auto compare = [](auto tuple_first1, auto tuple_first2)
+        auto compare = [](auto tuple_first1, auto tuple_first2) // KSATODO need move out
         {
             const auto& [a, b] = tuple_first1;
             const auto& [c, d] = tuple_first2;
@@ -123,7 +124,7 @@ DEFINE_TEST(test_equal_structured_binding)
             return (a == c) && (b == d);
         };
 
-        bool is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2,
+        bool is_equal = std::equal(CREATE_NEW_POLICY(exec, 0), tuple_first1, tuple_last1, tuple_first2,
                                    compare);
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -134,7 +135,7 @@ DEFINE_TEST(test_equal_structured_binding)
         *(host_vals.get() + n - 1) = T{0};
         host_vals.update_data();
 
-        is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 1>>(exec), tuple_first1, tuple_last1, tuple_first2,
+        is_equal = std::equal(CREATE_NEW_POLICY(exec, 1), tuple_first1, tuple_last1, tuple_first2,
                               compare);
         EXPECT_TRUE(!is_equal, "wrong effect from equal(tuple with use of structured binding) 2");
     }

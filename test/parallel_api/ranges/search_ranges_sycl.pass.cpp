@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <iostream>
 
@@ -51,7 +52,7 @@ main()
         using Policy = decltype(TestUtils::default_dpcpp_policy);
 
         res1 = search(exec, A, view_b);
-        res2 = search(make_new_policy<new_kernel_name<Policy, 0>>(exec), view_a, B, [](auto a, auto b) { return a == b; });
+        res2 = search(CREATE_NEW_POLICY(exec, 0), view_a, B, [](auto a, auto b) { return a == b; }); // KSATODO need move out
     }
 
     //check result

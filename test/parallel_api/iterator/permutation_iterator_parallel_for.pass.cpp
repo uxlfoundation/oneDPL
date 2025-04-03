@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "support/test_config.h"
+#include "support/utils_invoke.h"
 
 #include "permutation_iterator_common.h"
 
@@ -51,9 +52,6 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
     {
         if constexpr (is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>)
         {
-            auto exec1 = TestUtils::create_new_policy_idx<0>(exec);
-            auto exec2 = TestUtils::create_new_policy_idx<1>(exec);
-
             TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);     // source data for transform
             TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);     // result data of transform
 
@@ -79,11 +77,11 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
 
                     // Copy data back
                     std::vector<TestValueType> sourceData(testing_n);
-                    dpl::copy(exec1, permItBegin, permItEnd, sourceData.begin());
-                    wait_and_throw(exec1);
+                    dpl::copy(CREATE_NEW_POLICY(exec, 0), permItBegin, permItEnd, sourceData.begin());
+                    wait_and_throw(CREATE_NEW_POLICY(exec, 0));
                     std::vector<TestValueType> transformedDataResult(testing_n);
-                    dpl::copy(exec2, first2, itResultEnd, transformedDataResult.begin());
-                    wait_and_throw(exec2);
+                    dpl::copy(CREATE_NEW_POLICY(exec, 1), first2, itResultEnd, transformedDataResult.begin());
+                    wait_and_throw(CREATE_NEW_POLICY(exec, 1));
 
                     // Check results
                     std::vector<TestValueType> transformedDataExpected(testing_n);

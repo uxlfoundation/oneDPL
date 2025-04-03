@@ -41,7 +41,7 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
             TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> shared_data(policy.queue(), n);
             auto usm_shared = shared_data.get_data();
             //test all modes / wrappers
-            wrap_recurse<__recurse, 0>(policy, usm_shared, usm_shared + n, counting, copy_out.get_data(), usm_shared,
+            wrap_recurse<__recurse, 0>(std::forward<Policy>(policy), usm_shared, usm_shared + n, counting, copy_out.get_data(), usm_shared,
                                     copy_out.get_data(), counting, trash,
                                     std::string("usm_shared<") + type_text + std::string(">"));
         }
@@ -52,6 +52,33 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
     }
 }
 
+template <typename Policy>
+void
+test(Policy&& policy)
+{
+    constexpr size_t n = 10;
+
+    // baseline with no wrapping
+    test<float, 0>(CREATE_NEW_POLICY(policy, 0), -666.0f, n, "float");
+    test<double, 0>(CREATE_NEW_POLICY(policy, 1), -666.0, n, "double");
+    test<std::uint64_t, 0>(CREATE_NEW_POLICY(policy, 2), 999, n, "uint64_t");
+
+    // big recursion step: 1 and 2 layers of wrapping
+    test<std::int32_t, 2>(CREATE_NEW_POLICY(policy, 3), -666, n, "int32_t");
+
+    // special case: recurse once on perm(perm(usm_shared<int>,count), count)
+    oneapi::dpl::counting_iterator<int> counting(0);
+    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, int> copy_out(policy.queue(), n);
+    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, int> input(policy.queue(), n);
+    auto perm1 = oneapi::dpl::make_permutation_iterator(input.get_data(), counting);
+    auto perm2 = oneapi::dpl::make_permutation_iterator(perm1, counting);
+    wrap_recurse<1, 0, /*__read =*/false, /*__reset_read=*/false, /*__write=*/true,
+                 /*__check_write=*/false, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/true,
+                 /*__is_reversible=*/true>(
+        CREATE_NEW_POLICY(policy, 4), perm2, perm2 + n, counting, copy_out.get_data(), perm2, copy_out.get_data(), counting, -666,
+        "permutation_iter(permutation_iterator(usm_shared<int>,counting_iterator),counting_iterator)");
+}
+
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 int
@@ -59,37 +86,14 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
 
-    constexpr size_t n = 10;
-
     auto q = TestUtils::get_test_queue();
 
     auto policy = TestUtils::make_new_policy<class Kernel1>(q);
+    test(policy);
 
-    auto policy1 = TestUtils::create_new_policy_idx<0>(policy);
-    auto policy2 = TestUtils::create_new_policy_idx<1>(policy);
-    auto policy3 = TestUtils::create_new_policy_idx<2>(policy);
-    auto policy4 = TestUtils::create_new_policy_idx<3>(policy);
-    auto policy5 = TestUtils::create_new_policy_idx<4>(policy);
+    const auto& policy_ref = policy;
+    test(policy_ref);
 
-    // baseline with no wrapping
-    test<float, 0>(policy1, -666.0f, n, "float");
-    test<double, 0>(policy2, -666.0, n, "double");
-    test<std::uint64_t, 0>(policy3, 999, n, "uint64_t");
-
-    // big recursion step: 1 and 2 layers of wrapping
-    test<std::int32_t, 2>(policy4, -666, n, "int32_t");
-
-    // special case: recurse once on perm(perm(usm_shared<int>,count), count)
-    oneapi::dpl::counting_iterator<int> counting(0);
-    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, int> copy_out(policy5.queue(), n);
-    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, int> input(policy5.queue(), n);
-    auto perm1 = oneapi::dpl::make_permutation_iterator(input.get_data(), counting);
-    auto perm2 = oneapi::dpl::make_permutation_iterator(perm1, counting);
-    wrap_recurse<1, 0, /*__read =*/false, /*__reset_read=*/false, /*__write=*/true,
-                 /*__check_write=*/false, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/true,
-                 /*__is_reversible=*/true>(
-        policy5, perm2, perm2 + n, counting, copy_out.get_data(), perm2, copy_out.get_data(), counting, -666,
-        "permutation_iter(permutation_iterator(usm_shared<int>,counting_iterator),counting_iterator)");
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
