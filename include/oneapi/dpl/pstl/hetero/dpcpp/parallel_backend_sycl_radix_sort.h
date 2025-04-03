@@ -507,10 +507,9 @@ template <typename _KernelName, ::std::uint32_t __radix_bits, bool __is_ascendin
 #endif
           >
 sycl::event
-__radix_sort_reorder_submit(sycl::queue& __q, ::std::size_t __segments,
-                            ::std::size_t __sg_size, ::std::uint32_t __radix_offset, _InRange&& __input_rng,
-                            _OutRange&& __output_rng, _OffsetBuf& __offset_buf, sycl::event __dependency_event,
-                            _Proj __proj
+__radix_sort_reorder_submit(sycl::queue& __q, ::std::size_t __segments, ::std::size_t __sg_size,
+                            ::std::uint32_t __radix_offset, _InRange&& __input_rng, _OutRange&& __output_rng,
+                            _OffsetBuf& __offset_buf, sycl::event __dependency_event, _Proj __proj
 #if _ONEDPL_COMPILE_KERNEL
                             , _Kernel& __kernel
 #endif
@@ -856,12 +855,14 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, sycl::queue
             // TODO: convert to ordered type once at the first iteration and convert back at the last one
             if (__radix_iter % 2 == 0)
                 __event =
-                    __parallel_radix_sort_iteration<_RadixSortKernel, __radix_bits, __is_ascending, /*even=*/true>::submit(
-                        __q, __segments, __radix_iter, __in_rng, __out_rng, __tmp_buf, __event, __proj);
+                    __parallel_radix_sort_iteration<_RadixSortKernel, __radix_bits, __is_ascending,
+                                                    /*even=*/true>::submit(__q, __segments, __radix_iter, __in_rng,
+                                                                           __out_rng, __tmp_buf, __event, __proj);
             else //swap __in_rng and __out_rng
                 __event =
-                    __parallel_radix_sort_iteration<_RadixSortKernel, __radix_bits, __is_ascending, /*even=*/false>::submit(
-                        __q, __segments, __radix_iter, __out_rng, __in_rng, __tmp_buf, __event, __proj);
+                    __parallel_radix_sort_iteration<_RadixSortKernel, __radix_bits, __is_ascending,
+                                                    /*even=*/false>::submit(__q, __segments, __radix_iter, __out_rng,
+                                                                            __in_rng, __tmp_buf, __event, __proj);
         }
     }
 

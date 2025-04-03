@@ -215,8 +215,8 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
 {
     template <typename _Range1, typename _Range2, typename _BinHashMgr>
     auto
-    operator()(sycl::queue& __q, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
-               _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
+    operator()(sycl::queue& __q, const sycl::event& __init_event, ::std::uint16_t __work_group_size, _Range1&& __input,
+               _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
         const ::std::size_t __n = __input.size();
         const ::std::uint8_t __num_bins = __bins.size();
@@ -315,8 +315,8 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 {
     template <typename _Range1, typename _Range2, typename _BinHashMgr>
     auto
-    operator()(sycl::queue& __q, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
-               _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
+    operator()(sycl::queue& __q, const sycl::event& __init_event, ::std::uint16_t __work_group_size, _Range1&& __input,
+               _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
         using _local_histogram_type = ::std::uint32_t;
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
@@ -492,9 +492,9 @@ __histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_bac
 template <typename _CustomName, ::std::uint16_t __iters_per_work_item, typename _Range1, typename _Range2,
           typename _BinHashMgr>
 auto
-__parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
-                                   sycl::queue& __q, const sycl::event& __init_event, _Range1&& __input,
-                                   _Range2&& __bins, const _BinHashMgr& __binhash_manager)
+__parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
+                                   const sycl::event& __init_event, _Range1&& __input, _Range2&& __bins,
+                                   const _BinHashMgr& __binhash_manager)
 {
     using _private_histogram_type = ::std::uint16_t;
     using _local_histogram_type = ::std::uint32_t;

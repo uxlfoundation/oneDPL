@@ -232,11 +232,11 @@ struct __parallel_scan_submitter;
 template <typename _CustomName, typename... _PropagateScanName>
 struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name<_PropagateScanName...>>
 {
-    template <typename _Range1, typename _Range2, typename _InitType,
-              typename _LocalScan, typename _GroupScan, typename _GlobalScan>
+    template <typename _Range1, typename _Range2, typename _InitType, typename _LocalScan, typename _GroupScan,
+              typename _GlobalScan>
     auto
-    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _InitType __init,
-               _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan) const
+    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _InitType __init, _LocalScan __local_scan,
+               _GroupScan __group_scan, _GlobalScan __global_scan) const
     {
         using _Type = typename _InitType::__value_type;
         using _LocalScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
@@ -368,8 +368,7 @@ template <bool _Inclusive, typename... _ScanKernelName>
 struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
                                                                 __internal::__optional_kernel_name<_ScanKernelName...>>
 {
-    template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation,
-              typename _UnaryOp>
+    template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
     auto
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op, ::std::uint16_t __wg_size)
@@ -1120,7 +1119,8 @@ struct __invoke_single_group_copy_if
     template <std::uint16_t _Size, typename _InRng, typename _OutRng, typename _Pred,
               typename _Assign = oneapi::dpl::__internal::__pstl_assign>
     auto
-    operator()(sycl::queue& __q, std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng, _Pred __pred, _Assign __assign)
+    operator()(sycl::queue& __q, std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng, _Pred __pred,
+               _Assign __assign)
     {
         constexpr ::std::uint16_t __wg_size = ::std::min(_Size, __targeted_wg_size);
         constexpr ::std::uint16_t __num_elems_per_item = ::oneapi::dpl::__internal::__dpl_ceiling_div(_Size, __wg_size);
@@ -1137,8 +1137,8 @@ struct __invoke_single_group_copy_if
             using _FullKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<_FullKernel>;
             return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<
                 _SizeType, __num_elems_per_item, __wg_size, true, _FullKernelName>()(
-                __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _InitType{},
-                _ReduceOp{}, __pred, __assign);
+                __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{},
+                __pred, __assign);
         }
         else
         {
@@ -1150,14 +1150,14 @@ struct __invoke_single_group_copy_if
                 oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<_NonFullKernel>;
             return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<
                 _SizeType, __num_elems_per_item, __wg_size, false, _NonFullKernelName>()(
-                __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _InitType{},
-                _ReduceOp{}, __pred, __assign);
+                __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{},
+                __pred, __assign);
         }
     }
 };
 
-template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
-          typename _WriteOp, typename _IsUniquePattern>
+template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask, typename _WriteOp,
+          typename _IsUniquePattern>
 auto
 __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
                                  _InRng&& __in_rng, _OutRng&& __out_rng, _Size, _GenMask __generate_mask,
@@ -1403,8 +1403,8 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _IsOpDifference>
 auto
-__parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
-                    _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _IsOpDifference)
+__parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Range1&& __rng1,
+                    _Range2&& __rng2, _Range3&& __result, _Compare __comp, _IsOpDifference)
 {
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
@@ -1655,8 +1655,7 @@ template <typename Tag>
 struct __parallel_find_or_nd_range_tuner
 {
     // Tune the amount of work-groups and work-group size
-    inline
-    std::tuple<std::size_t, std::size_t>
+    inline std::tuple<std::size_t, std::size_t>
     operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
         // TODO: find a way to generalize getting of reliable work-group size
@@ -1682,8 +1681,7 @@ template <>
 struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>
 {
     // Tune the amount of work-groups and work-group size
-    inline
-    std::tuple<std::size_t, std::size_t>
+    inline std::tuple<std::size_t, std::size_t>
     operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
         // Call common tuning function to get the work-group size
@@ -1923,8 +1921,8 @@ class __or_policy_wrapper
 
 template <typename _CustomName, typename _Iterator1, typename _Iterator2, typename _Brick>
 bool
-__parallel_or(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
-              _Iterator1 __first, _Iterator1 __last, _Iterator2 __s_first, _Iterator2 __s_last, _Brick __f)
+__parallel_or(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Iterator1 __first,
+              _Iterator1 __last, _Iterator2 __s_first, _Iterator2 __s_last, _Brick __f)
 {
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
     auto __buf = __keep(__first, __last);
@@ -1961,8 +1959,8 @@ class __find_policy_wrapper
 
 template <typename _CustomName, typename _Iterator1, typename _Iterator2, typename _Brick, typename _IsFirst>
 _Iterator1
-__parallel_find(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
-                _Iterator1 __first, _Iterator1 __last, _Iterator2 __s_first, _Iterator2 __s_last, _Brick __f, _IsFirst)
+__parallel_find(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Iterator1 __first,
+                _Iterator1 __last, _Iterator2 __s_first, _Iterator2 __s_last, _Brick __f, _IsFirst)
 {
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
     auto __buf = __keep(__first, __last);

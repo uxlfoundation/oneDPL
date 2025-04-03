@@ -741,8 +741,7 @@ __get_reduce_then_scan_sg_sz()
 // Enable reduce-then-scan if the device uses the required sub-group size and is ran on a device
 // with fast coordinated subgroup operations. We do not want to run this scan on CPU targets, as they are not
 // performant with this algorithm.
-inline
-bool
+inline bool
 __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 {
     const bool __dev_supports_sg_sz =

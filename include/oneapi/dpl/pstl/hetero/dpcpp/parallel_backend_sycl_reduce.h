@@ -120,7 +120,8 @@ template <typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _
 struct __parallel_transform_reduce_small_submitter;
 
 template <typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename... _Name>
-struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize, __internal::__optional_kernel_name<_Name...>>
+struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
+                                                   __internal::__optional_kernel_name<_Name...>>
 {
     template <typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
     auto

@@ -276,8 +276,8 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
 
     template <typename _InRng, typename _OutRng, typename _BinaryOp, typename _StatusFlags, typename _StatusValues>
     sycl::event
-    operator()(sycl::queue& __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
-               std::size_t __n, _StatusFlags&& __status_flags, std::size_t __status_flags_size,
+    operator()(sycl::queue& __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng,
+               _BinaryOp __binary_op, std::size_t __n, _StatusFlags&& __status_flags, std::size_t __status_flags_size,
                _StatusValues&& __status_vals_full, _StatusValues&& __status_vals_partial,
                std::size_t __current_num_items) const
     {

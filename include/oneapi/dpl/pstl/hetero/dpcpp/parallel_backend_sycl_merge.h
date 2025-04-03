@@ -313,8 +313,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     // Calculation of split points on each base diagonal
     template <typename _Range1, typename _Range2, typename _Compare, typename _Storage>
     sycl::event
-    eval_split_points_for_groups(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _IdType __n,
-                                 _Compare __comp, const nd_range_params& __nd_range_params,
+    eval_split_points_for_groups(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _IdType __n, _Compare __comp,
+                                 const nd_range_params& __nd_range_params,
                                  _Storage& __base_diagonals_sp_global_storage) const
     {
         const _IdType __n1 = __rng1.size();
@@ -478,8 +478,8 @@ __get_starting_size_limit_for_large_submitter<int>()
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _OutSizeLimit = std::false_type>
 auto
-__parallel_merge(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range1&& __rng1,
-                 _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _OutSizeLimit = {})
+__parallel_merge(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2,
+                 _Range3&& __rng3, _Compare __comp, _OutSizeLimit = {})
 {
     using __value_type = oneapi::dpl::__internal::__value_t<_Range3>;
 

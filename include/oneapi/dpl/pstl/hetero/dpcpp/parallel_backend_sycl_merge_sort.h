@@ -382,8 +382,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     template <typename _Range, typename _TempBuf, typename _Compare, typename _Storage>
     sycl::event
     eval_split_points_for_groups(const sycl::event& __event_chain, const _IndexT __n_sorted, const bool __data_in_temp,
-                                 sycl::queue& __q, const _Range& __rng, _TempBuf& __temp_buf,
-                                 _Compare __comp, const nd_range_params& __nd_range_params,
+                                 sycl::queue& __q, const _Range& __rng, _TempBuf& __temp_buf, _Compare __comp,
+                                 const nd_range_params& __nd_range_params,
                                  _Storage& __base_diagonals_sp_global_storage) const
     {
         const _IndexT __n = __rng.size();
@@ -515,8 +515,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     template <typename _Range, typename _TempBuf, typename _Compare, typename _Storage>
     sycl::event
     run_parallel_merge_from_diagonals(const sycl::event& __event_chain, const _IndexT __n_sorted,
-                                      const bool __data_in_temp, sycl::queue& __q, _Range& __rng,
-                                      _TempBuf& __temp_buf, _Compare __comp, const nd_range_params& __nd_range_params,
+                                      const bool __data_in_temp, sycl::queue& __q, _Range& __rng, _TempBuf& __temp_buf,
+                                      _Compare __comp, const nd_range_params& __nd_range_params,
                                       _Storage& __base_diagonals_sp_global_storage) const
     {
         const _IndexT __n = __rng.size();
