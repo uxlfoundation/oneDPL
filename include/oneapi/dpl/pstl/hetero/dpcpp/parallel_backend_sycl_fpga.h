@@ -55,7 +55,7 @@ struct __parallel_for_fpga_submitter;
 template <typename... _Name>
 struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _Fp, typename _Index, typename... _Ranges>
+    template <unsigned int unroll_factor, typename _Fp, typename _Index, typename... _Ranges>
     auto
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
@@ -67,7 +67,7 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
             __cgh.single_task<_Name...>([=]() {
-#pragma unroll(::std::decay <_ExecutionPolicy>::type::unroll_factor)
+#pragma unroll(unroll_factor)
                 for (auto __idx = 0; __idx < __count; ++__idx)
                 {
                     __brick.__scalar_path_impl(std::true_type{}, __idx, __rngs...);
@@ -85,8 +85,10 @@ __parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, sycl::queue& __q, _F
 {
     using __parallel_for_name = __internal::__kernel_name_provider<_CustomName>;
 
-    return __parallel_for_fpga_submitter<__parallel_for_name>()(__q, __brick, __count,
-                                                                std::forward<_Ranges>(__rngs)...);
+    constexpr unsigned int unroll_factor = std::decay<_ExecutionPolicy>::type::unroll_factor;
+
+    return __parallel_for_fpga_submitter<__parallel_for_name>{}.template operator()<unroll_factor>(
+        __q, __brick, __count, std::forward<_Ranges>(__rngs)...);
 }
 
 //------------------------------------------------------------------------
