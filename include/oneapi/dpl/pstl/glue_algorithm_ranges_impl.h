@@ -809,9 +809,13 @@ copy_if(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result, _Predica
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng, __result);
 
-    return oneapi::dpl::__internal::__ranges::__pattern_copy_if(
+    auto __res = oneapi::dpl::__internal::__ranges::__pattern_copy_if(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__rng)),
         views::all_write(::std::forward<_Range2>(__result)), __pred, oneapi::dpl::__internal::__pstl_assign());
+
+    using __return_type = std::common_type_t<decltype(__res.first), decltype(__res.second)>;
+
+    return __return_type{__res.first} + __return_type{__res.second};
 }
 
 // [alg.swap]
@@ -1173,12 +1177,9 @@ merge(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3&& _
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2, __rng3);
 
-    auto __view_res = views::all_write(::std::forward<_Range3>(__rng3));
-    oneapi::dpl::__internal::__ranges::__pattern_merge(
+    return oneapi::dpl::__internal::__ranges::__pattern_merge(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__rng1)),
-        views::all_read(::std::forward<_Range2>(__rng2)), __view_res, __comp);
-
-    return __view_res.size();
+        views::all_read(::std::forward<_Range2>(__rng2)), views::all_write(::std::forward<_Range3>(__rng3)), __comp);
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3>
