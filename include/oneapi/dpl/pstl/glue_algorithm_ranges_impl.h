@@ -52,7 +52,6 @@ namespace ranges
 
 namespace __internal
 {
-
 struct __for_each_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
@@ -850,7 +849,7 @@ copy_if(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result, _Predica
 namespace __internal
 {
 template <typename _ReferenceType1, typename _ReferenceType2>
-struct swap_ranges_fn
+struct __swap_ranges_fn
 {
     void
     operator()(_ReferenceType1 __x, _ReferenceType2 __y) const
@@ -875,13 +874,13 @@ swap_ranges(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 
     return oneapi::dpl::__internal::__ranges::__pattern_swap(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all(::std::forward<_Range1>(__rng1)),
-        views::all(::std::forward<_Range2>(__rng2)), __internal::swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
+        views::all(::std::forward<_Range2>(__rng2)), __internal::__swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
 }
 
 namespace __internal
 {
 template <typename _UnaryOperation>
-struct transform_fn
+struct __transform_fn
 {
     _UnaryOperation __op;
 
@@ -903,14 +902,14 @@ transform(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result, _Unary
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng, __result);
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __internal::transform_fn<_UnaryOperation>{__op},
+        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __internal::__transform_fn<_UnaryOperation>{__op},
         views::all_read(::std::forward<_Range1>(__rng)), views::all_write(::std::forward<_Range2>(__result)));
 }
 
 namespace __internal
 {
 template <typename _BinaryOperation>
-struct transform_fn2
+struct __transform_fn2
 {
     _BinaryOperation __op;
 
@@ -930,7 +929,7 @@ transform(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2, __result);
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __internal::transform_fn2<_BinaryOperation>{__op},
+        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __internal::__transform_fn2<_BinaryOperation>{__op},
         views::all_read(::std::forward<_Range1>(__rng1)), views::all_read(::std::forward<_Range2>(__rng2)),
         views::all_write(::std::forward<_Range3>(__result)));
 }
