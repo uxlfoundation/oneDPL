@@ -512,12 +512,8 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
 
     __is.setf(std::ios_base::dec);
 
-    /* Number of elements in X, K and Y */
-    constexpr std::size_t __x_elm_num = __n;
-    constexpr std::size_t __k_elm_num = __n / 2;
-    constexpr std::size_t __y_elm_num = __n;
-
-    constexpr std::size_t __state_size = __x_elm_num + __k_elm_num + __y_elm_num + 1;
+    /* Number of elements in the state (X, K, Y and idx) */
+    constexpr std::size_t __state_size = 2 * __n + __n / 2 + 1;
 
     std::array<oneapi::dpl::internal::element_type_t<__UIntType>, __state_size> __tmp_inp;
     for (std::size_t __i = 0; __i < __state_size; ++__i)
@@ -528,11 +524,11 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
     if (!__is.fail())
     {
         int __inp_itr = 0;
-        for (std::size_t __i = 0; __i < __x_elm_num; ++__i, ++__inp_itr)
+        for (std::size_t __i = 0; __i < __n; ++__i, ++__inp_itr)
             __engine.state_.X[__i] = __tmp_inp[__inp_itr];
-        for (std::size_t __i = 0; __i < __k_elm_num; ++__i, ++__inp_itr)
+        for (std::size_t __i = 0; __i < __n / 2; ++__i, ++__inp_itr)
             __engine.state_.K[__i] = __tmp_inp[__inp_itr];
-        for (std::size_t __i = 0; __i < __y_elm_num; ++__i, ++__inp_itr)
+        for (std::size_t __i = 0; __i < __n; ++__i, ++__inp_itr)
             __engine.state_.Y[__i] = __tmp_inp[__inp_itr];
         __engine.state_.idx = __tmp_inp[__inp_itr];
     }
