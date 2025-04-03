@@ -78,17 +78,20 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
     }
 };
 
-template <typename _CustomName, typename _Fp, typename _Index, typename... _Ranges>
+template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
 auto
-__parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, sycl::queue& __q, _Fp __brick, _Index __count,
+__parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& __exec, _Fp __brick, _Index __count,
                _Ranges&&... __rngs)
 {
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using __parallel_for_name = __internal::__kernel_name_provider<_CustomName>;
 
     constexpr unsigned int unroll_factor = std::decay<_ExecutionPolicy>::type::unroll_factor;
 
+    sycl::queue __q_local = __exec.queue();
+
     return __parallel_for_fpga_submitter<__parallel_for_name>{}.template operator()<unroll_factor>(
-        __q, __brick, __count, std::forward<_Ranges>(__rngs)...);
+        __q_local, __brick, __count, std::forward<_Ranges>(__rngs)...);
 }
 
 //------------------------------------------------------------------------
