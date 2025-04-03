@@ -208,9 +208,9 @@ lower_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = policy.queue();
 
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<Policy>;
 
     __bknd::__parallel_for<_CustomName>(
         _BackendTag{}, __q_local,
@@ -246,9 +246,9 @@ upper_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = policy.queue();
 
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<Policy>;
 
     __bknd::__parallel_for<_CustomName>(
         _BackendTag{}, __q_local,
@@ -284,9 +284,9 @@ binary_search_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, Input
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = policy.queue();
 
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<Policy>;
 
     __bknd::__parallel_for<_CustomName>(
         _BackendTag{}, __q_local,
