@@ -1113,7 +1113,7 @@ __pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     auto __result = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy<_CustomName>(
-        _BackendTag{}, __q, __buf1.all_view(), __buf2.all_view(), __pred);
+        _BackendTag{}, __q_local, __buf1.all_view(), __buf2.all_view(), __pred);
 
     _It1DifferenceType __num_true = __result.get(); // blocking call
 
@@ -1772,7 +1772,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         sycl::queue __q_local = __exec.queue();
 
         __par_backend_hetero::__parallel_partial_sort<__partial_sort_2<_CustomName>>(
-            _BackendTag{}, ___q_local,
+            _BackendTag{}, __q_local,
             __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__buf_first),
             __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__buf_mid),
             __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__buf_last), __comp);
