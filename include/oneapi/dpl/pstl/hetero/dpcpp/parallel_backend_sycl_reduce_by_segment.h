@@ -134,11 +134,11 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         __par_backend_hetero::__internal::__kernel_compiler<_SegReduceWgKernel>::__compile(__q_local);
     auto __seg_reduce_prefix_kernel =
         __par_backend_hetero::__internal::__kernel_compiler<_SegReducePrefixKernel>::__compile(__q_local);
-    __wgroup_size =
-        std::min({__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_count_kernel),
-                  oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_offset_kernel),
-                  oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_wg_kernel),
-                  oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_prefix_kernel)});
+    __wgroup_size = std::min(
+        {__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_count_kernel),
+         oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_offset_kernel),
+         oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_wg_kernel),
+         oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_prefix_kernel)});
 #endif
 
     std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);
@@ -329,7 +329,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     });
 
     // 3. Apply inter work-group aggregates
-    __q_local.submit([&](sycl::handler& __cgh) {
+    __q_local
+        .submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_keys, __out_values);
 
             auto __partials_acc = __partials.template get_access<sycl::access_mode::read>(__cgh);
