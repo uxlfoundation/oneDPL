@@ -188,7 +188,8 @@ struct walk_n_vectors_or_scalars
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Ranges&&... __rngs) const
     {
         constexpr std::size_t __num_ranges = sizeof...(__rngs);
-        static_assert(__num_ranges <= 3, "walk_n_vectors_or_scalars only supports up to 3 vectorized impls");
+        static_assert(__num_ranges <= 3,
+                      "walk_n_vectors_or_scalars only supports up to 3 range packs with vectorization enabled");
         if constexpr (__num_ranges == 1)
         {
             using oneapi::dpl::__par_backend_hetero::__vector_walk;
