@@ -1342,8 +1342,8 @@ auto
 __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                    _InRng&& __in_rng, _OutRng&& __out_rng, _Pred __pred, _Assign __assign = _Assign{})
 {
-    auto __n = __in_rng.size();
-    using _Size = decltype(__n);
+    using _Size = decltype(__out_rng.size());
+    _Size __n = __in_rng.size();
     using _SingleGroupInvoker = __invoke_single_group_copy_if<_Size>;
 
     // Next power of 2 greater than or equal to __n
@@ -2331,7 +2331,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
             oneapi::dpl::__internal::__device_backend_tag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2,
-            __n,
+            /*__n,*/
             [__binary_pred, __wgroup_size](const auto& __a) {
                 // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
                 // for (i-1), but we still need to get its key value as it is the start of a segment
@@ -2379,7 +2379,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     auto __result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
                             oneapi::dpl::__internal::__device_backend_tag{},
                             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec),
-                            __view3, __view4, __view3.size(),
+                            __view3, __view4, /*__view3.size(),*/
                             [__binary_pred](const auto& __a) {
                                 // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
                                 // for (i-1), but we still need to get its key value as it is the start of a segment
