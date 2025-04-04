@@ -138,50 +138,7 @@ struct walk_n_vectors_or_scalars
   private:
     _F __f;
     std::size_t __n;
-#if 0
-    template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
-              std::enable_if_t<_Params::__b_vectorize, int> = 0>
-    void
-    __vector_impl(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
-    {
-        using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
-        using oneapi::dpl::__par_backend_hetero::__vector_load;
-        using oneapi::dpl::__par_backend_hetero::__vector_store;
-        _ValueType1 __rng1_vector[_Params::__vector_size];
-        // 1. Load input into a vector
-        __vector_load<_Params::__vector_size>{__n}(
-            __is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{}, __rng1, __rng1_vector);
-        // 2. Apply functor to vector and store into global memory
-        __vector_store<_Params::__vector_size>{__n}(
-            __is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f}, __rng1_vector,
-            __rng2);
-    }
-    template <typename _IsFull, typename _Params, typename _Range1, typename _Range2, typename _Range3,
-              std::enable_if_t<_Params::__b_vectorize, int> = 0>
-    void
-    __vector_impl(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2,
-                  _Range3&& __rng3) const
-    {
-        using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
-        using _ValueType2 = oneapi::dpl::__internal::__value_t<_Range2>;
-        using oneapi::dpl::__par_backend_hetero::__vector_load;
-        using oneapi::dpl::__par_backend_hetero::__vector_store;
 
-        _ValueType1 __rng1_vector[_Params::__vector_size];
-        _ValueType2 __rng2_vector[_Params::__vector_size];
-
-        __vector_load<_Params::__vector_size> __vec_load{__n};
-        __vector_store<_Params::__vector_size> __vec_store{__n};
-        oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
-
-        // 1. Load inputs into vectors
-        __vec_load(__is_full, __idx, __load_op, __rng1, __rng1_vector);
-        __vec_load(__is_full, __idx, __load_op, __rng2, __rng2_vector);
-        // 2. Apply binary functor to vector and store into global memory
-        __vec_store(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f},
-                    __rng1_vector, __rng2_vector, __rng3);
-    }
-#else
 	template <typename _IsFull, typename _LoadOp, typename LocalArray, std::size_t vec_size, std::size_t num_ranges>
 	struct load_all_but_last
 	{
@@ -196,7 +153,7 @@ struct walk_n_vectors_or_scalars
 			// Don't load the last buffer, but the pack must still fully expand
 			if constexpr (I < num_ranges - 1)
 			{
-                __vec_load(_IsFull{}, idx, __load_op, std::forward<Rng>(rng), std::get<I>(local_arr_tup));
+                __vec_load(_IsFull{}, idx, __load_op, rng, std::get<I>(local_arr_tup).data());
 			}
 		}
 	};
@@ -226,7 +183,6 @@ struct walk_n_vectors_or_scalars
         __vec_store(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f},
                     std::get<_Is>(load_and_store_tup)...);
     }
-#endif
 
   public:
     constexpr static bool __can_vectorize = true;
@@ -239,8 +195,6 @@ struct walk_n_vectors_or_scalars
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Ranges&&... __rngs) const
     {
         constexpr std::size_t __num_ranges = sizeof...(__rngs);
-        static_assert(__num_ranges <= 3,
-                      "walk_n_vectors_or_scalars only supports up to 3 range packs with vectorization enabled");
         if constexpr (__num_ranges == 1)
         {
             using oneapi::dpl::__par_backend_hetero::__vector_walk;
@@ -252,9 +206,6 @@ struct walk_n_vectors_or_scalars
 			auto __indices_dropped = std::make_index_sequence<__num_ranges - 1>();
             __vector_impl(__is_full, __idx, _Params{}, __indices, __indices_dropped,
 						  std::forward<_Ranges>(__rngs)...);
-            //__vector_impl(__is_full, __idx, _Params{},
-			//			  std::forward<_Ranges>(__rngs)...);
-
         }
     }
 
