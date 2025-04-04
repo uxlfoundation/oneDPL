@@ -57,8 +57,8 @@ using ::std::rend;
 using ::std::reverse_iterator;
 using ::std::size;
 
-using oneapi::dpl::__internal::is_passed_directly_to_device;
-using oneapi::dpl::__internal::is_passed_directly_to_device_v;
+using oneapi::dpl::__internal::is_device_accessible_content_iterator;
+using oneapi::dpl::__internal::is_device_accessible_content_iterator_v;
 
 } // namespace dpl
 } // namespace oneapi
