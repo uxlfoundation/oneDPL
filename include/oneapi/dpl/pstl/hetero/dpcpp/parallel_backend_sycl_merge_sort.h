@@ -340,7 +340,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     std::size_t
     get_max_base_diags_count(const _ExecutionPolicy& __exec, const _IndexT __chunk, std::size_t __n) const
     {
-        const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec);
+        const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue());
         return oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk * __max_wg_size);
     }
 
@@ -586,7 +586,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         // Calculate nd-range params
         const nd_range_params __nd_range_params = eval_nd_range_params(__exec, __n, __n_sorted);
 
-        using __base_diagonals_sp_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _merge_split_point_t>;
+        using __base_diagonals_sp_storage_t = __result_and_scratch_storage<_merge_split_point_t>;
 
         const std::size_t __n_power2 = oneapi::dpl::__internal::__dpl_bit_ceil(__n);
         // ctz precisely calculates log2 of an integral value which is a power of 2, while
@@ -618,7 +618,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                 {
                     // Create storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
                     __p_base_diagonals_sp_global_storage =
-                        new __base_diagonals_sp_storage_t(__exec, 0, __max_base_diags_count);
+                        new __base_diagonals_sp_storage_t(__exec.queue(), 0, __max_base_diags_count);
 
                     // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
                     __p_result_and_scratch_storage_base.reset(
