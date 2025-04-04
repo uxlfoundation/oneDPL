@@ -23,7 +23,7 @@ Visit the latest [Release Notes](https://github.com/uxlfoundation/oneDPL/blob/ma
 
 ## License
 oneDPL is licensed under [Apache License Version 2.0 with LLVM exceptions](https://github.com/uxlfoundation/oneDPL/blob/main/LICENSE.txt).
-Refer to the [LICENSE](licensing/LICENSE.txt) file for the full license text and copyright notice.
+Refer to the [LICENSE](LICENSE.txt) file for the full license text and copyright notice.
 
 ## Security
 See the [Intel Security Center](https://www.intel.com/content/www/us/en/security-center/default.html)
