@@ -694,7 +694,10 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         }
         else if (__supports_USM_device)
         {
-            __exec.queue().memcpy(__arr.begin(), __scratch_buf.get() + __scratch_n, __result_n * sizeof(_T)).wait();
+            // Copy the result from the scratch buffer to the array
+            const std::size_t __items_to_copy = std::min(__result_n, _N);
+            const std::size_t __numBytes = __items_to_copy * sizeof(_T);
+            __exec.queue().memcpy(__arr.data(), __scratch_buf.get() + __scratch_n, __numBytes).wait();
         }
         else
         {
