@@ -56,6 +56,10 @@ using ::std::rbegin;
 using ::std::rend;
 using ::std::reverse_iterator;
 using ::std::size;
+
+using oneapi::dpl::__internal::is_device_accessible_content_iterator;
+using oneapi::dpl::__internal::is_device_accessible_content_iterator_v;
+
 } // namespace dpl
 } // namespace oneapi
 namespace dpl = oneapi::dpl;
