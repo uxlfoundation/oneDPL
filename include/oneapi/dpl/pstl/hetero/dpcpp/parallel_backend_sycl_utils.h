@@ -22,7 +22,7 @@
 #include <tuple>
 #include <algorithm>
 
-#include "../../iterator_impl.h" 
+#include "../../iterator_impl.h"
 
 #include "sycl_defs.h"
 #include "execution_sycl_defs.h"
@@ -684,7 +684,8 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 
     template <std::size_t _N>
-    void get_values(std::array<_T, _N>& __arr) const
+    void
+    get_values(std::array<_T, _N>& __arr) const
     {
         assert(__result_n > 0);
         assert(_N == __result_n);

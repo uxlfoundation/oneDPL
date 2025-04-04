@@ -844,16 +844,16 @@ struct __copy_by_mask
                 // NOTE: we only need this explicit conversion when we have internal::tuple and
                 // ::std::tuple as operands, in all the other cases this is not necessary and no conversion
                 // is performed(i.e. __typle_type is the same type as its operand).
-                if(__out_idx < __out_acc.size())
+                if (__out_idx < __out_acc.size())
                 {
                     __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
                     auto __last_out_idx = __wg_sums_ptr[(__n - 1) / __size_per_wg];
-                    if(__out_idx + 1 == __last_out_idx)
+                    if (__out_idx + 1 == __last_out_idx)
                     {
                         __ret_ptr[0] = __item_idx + 1, __ret_ptr[1] = __last_out_idx;
                     }
                 }
-                else if(__out_idx == __out_acc.size())
+                else if (__out_idx == __out_acc.size())
                 {
                     __ret_ptr[0] = __item_idx, __ret_ptr[1] = __out_idx;
                 }

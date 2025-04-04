@@ -586,7 +586,7 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&
         std::forward<_Range2>(__rng2), __pred, __assign);
 
     std::array<_Index, 2> __idx;
-    __res.get_values(__idx); //a blocking call
+    __res.get_values(__idx);     //a blocking call
     return {__idx[1], __idx[0]}; //__parallel_copy_if_out_lim returns {last index in output, last index in input}
 }
 

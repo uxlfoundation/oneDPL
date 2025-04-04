@@ -1189,7 +1189,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
                      _InRng&& __in_rng, _OutRng&& __out_rng, _CreateMaskOp __create_mask_op,
                      _CopyByMaskOp __copy_by_mask_op)
 {
-    using  _Size = decltype(__out_rng.size());
+    using _Size = decltype(__out_rng.size());
     using _ReduceOp = std::plus<_Size>;
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
