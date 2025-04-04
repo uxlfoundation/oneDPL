@@ -288,7 +288,7 @@ __pattern_walk2_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
 {
     // Require `read_write` access mode for output sequence to force a copy in for host iterators to capture incoming
     // values of the output sequence for elements where the predicate is false. We never actually read from the output
-    // sequence, so there is no risk when ran with the vectorized path of walk2_vector_or_scalars. For more info,
+    // sequence, so there is no risk when ran with the vectorized path of walk_n_vector_or_scalars. For more info,
     // please see the comment above __pattern_walk2 and https://github.com/uxlfoundation/oneDPL/issues/1272.
     return __pattern_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
                            __par_backend_hetero::access_mode::read, __par_backend_hetero::access_mode::read_write>(
@@ -310,7 +310,7 @@ __pattern_walk3_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
 {
     // Require `read_write` access mode for output sequence to force a copy in for host iterators to capture incoming
     // values of the output sequence for elements where the predicate is false. We never actually read from the output
-    // sequence, so there is no risk when ran with the vectorized path of walk3_vector_or_scalars. For more info,
+    // sequence, so there is no risk when ran with the vectorized path of walk_n_vector_or_scalars. For more info,
     // please see the comment above __pattern_walk3 and https://github.com/uxlfoundation/oneDPL/issues/1272.
     return __pattern_walk3<_BackendTag, __par_backend_hetero::access_mode::read,
                            __par_backend_hetero::access_mode::read, __par_backend_hetero::access_mode::read_write>(
@@ -1075,7 +1075,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
     // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
     // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
     // We never actually write to the sequence, so there is no risk when ran with the vectorized path of
-    // walk2_vector_or_scalars. For more info, please see the comment above __pattern_walk2 and
+    // walk_n_vector_or_scalars. For more info, please see the comment above __pattern_walk2 and
     // https://github.com/uxlfoundation/oneDPL/issues/1272.
     return __pattern_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
                            __par_backend_hetero::access_mode::read_write,

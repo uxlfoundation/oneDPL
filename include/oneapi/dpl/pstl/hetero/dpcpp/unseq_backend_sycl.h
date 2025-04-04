@@ -1410,7 +1410,7 @@ struct __brick_reduce_idx
 };
 
 // std::swap_ranges is unique in that both sets of provided ranges will be modified. Due to this,
-// we define a separate functor from __walk2_vectors_or_scalars with a customized vectorization path.
+// we define a separate functor from __walk_n_vectors_or_scalars with a customized vectorization path.
 template <typename _ExecutionPolicy, typename _F>
 struct __brick_swap
 {
