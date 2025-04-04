@@ -1401,7 +1401,6 @@ struct __write_multiple_to_id
             __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
                      __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
         }
-        
     }
     _Assign __assign;
 };
