@@ -158,6 +158,16 @@ template<typename T>
 static constexpr
 bool is_range<T, std::void_t<decltype(std::declval<T&>().begin())>> = true;
 
+template<typename, typename = void>
+static constexpr bool check_minmax{};
+
+template<typename T>
+static constexpr
+bool check_minmax<T, std::void_t<decltype(std::declval<T>().min, std::declval<T>().max)>> = true;
+
+template<typename>
+struct print_type;
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in>
 struct test
 {
@@ -182,7 +192,7 @@ struct test
 
         typename Container::type& A = cont_in();
         decltype(auto) r_in = tr_in(A);
-        auto res = algo(exec, r_in, args...);
+        auto res = algo(exec, r_in, args...);        
 
         //check result
         static_assert(std::is_same_v<decltype(res), decltype(checker(r_in, args...))>, "Wrong return type");
@@ -353,6 +363,14 @@ private:
             return std::distance(begin, ret);
         else if constexpr(is_range<Ret>)
             return std::pair{std::distance(begin, ret.begin()), std::ranges::distance(ret.begin(), ret.end())};
+        else if constexpr(check_minmax<Ret>)
+        {
+            const auto& [first, second] = ret;
+            if constexpr(std::random_access_iterator<std::remove_cvref_t<decltype(first)>>)
+                return std::pair{std::distance(begin, first), std::ranges::distance(begin, second)};
+            else
+                return std::pair{first, second};
+        }
         else
             return ret;
     }
