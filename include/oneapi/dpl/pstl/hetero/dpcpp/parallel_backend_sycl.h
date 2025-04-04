@@ -661,16 +661,25 @@ struct __set_temp_data
     void
     set(std::uint16_t __idx, const _ValueT2& __ele)
     {
-        __data[__idx] = __ele;
+        __data[__idx].__setup(__ele);
     }
-    _ValueT __data[elements];
+
+    _ValueT
+    get_and_destroy(std::uint16_t __idx)
+    {
+        _ValueT __ele = std::move(__data[__idx].__v);
+        __data[__idx].__destroy();
+        return __ele;
+    }
+
+    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
 };
 
 struct __noop_temp_data
 {
     template <typename _ValueT>
     void
-    set(std::uint16_t __idx, const _ValueT& __ele) const
+    set(std::uint16_t, const _ValueT&) const
     {
     }
 };
@@ -1382,14 +1391,17 @@ struct __write_multiple_to_id
 {
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, _SizeType, const _ValueType& __v, const _TempData& __temp_data) const
+    operator()(_OutRng& __out_rng, _SizeType, const _ValueType& __v, _TempData& __temp_data) const
     {
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.__data[0])>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
         for (std::size_t __i = 0; __i < std::get<1>(__v); ++__i)
-            __assign(static_cast<_ConvertedTupleType>(__temp_data.__data[__i]),
+        {
+            __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
                      __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
+        }
+        
     }
     _Assign __assign;
 };
