@@ -90,14 +90,13 @@ template <typename _T>
 struct __is_reverse_iterator_passed_directly;
 
 template <typename T>
-constexpr auto
-is_passed_directly_in_onedpl_device_policies(T) -> std::disjunction<
-#if _ONEDPL_BACKEND_SYCL // only available with SYCL backend
-        oneapi::dpl::__internal::__is_known_usm_vector_iter<std::decay_t<T>>,             // USM vector iterator
-#endif // _ONEDPL_BACKEND_SYCL
-        std::is_pointer<std::decay_t<T>>,                                                 // USM pointer
-        oneapi::dpl::__internal::__is_legacy_passed_directly<std::decay_t<T>>,            // legacy iterator
-        oneapi::dpl::__internal::__is_reverse_iterator_passed_directly<std::decay_t<T>>>; // reverse iterator
+constexpr auto is_passed_directly_in_onedpl_device_policies(T) -> std::disjunction<
+#if _ONEDPL_BACKEND_SYCL                                                   // only available with SYCL backend
+    oneapi::dpl::__internal::__is_known_usm_vector_iter<std::decay_t<T>>,  // USM vector iterator
+#endif                                                                     // _ONEDPL_BACKEND_SYCL
+    std::is_pointer<std::decay_t<T>>,                                      // USM pointer
+    oneapi::dpl::__internal::__is_legacy_passed_directly<std::decay_t<T>>, // legacy iterator
+    oneapi::dpl::__internal::__is_reverse_iterator_passed_directly<std::decay_t<T>>>; // reverse iterator
 
 struct __is_passed_directly_in_onedpl_device_policies_fn
 {
@@ -454,7 +453,7 @@ class zip_iterator
 
     friend auto
     is_passed_directly_in_onedpl_device_policies(const zip_iterator&)
-        -> std::conjunction<oneapi::dpl::__internal::is_passed_directly_to_device<_Types> ...>;
+        -> std::conjunction<oneapi::dpl::__internal::is_passed_directly_to_device<_Types>...>;
 
   private:
     __it_types __my_it_;
@@ -826,9 +825,11 @@ class permutation_iterator
         return !(*this < it);
     }
 
-    friend auto is_passed_directly_in_onedpl_device_policies(const permutation_iterator&) -> std::conjunction<oneapi::dpl::__internal::is_passed_directly_to_device<SourceIterator>, 
-        oneapi::dpl::__internal::is_passed_directly_to_device<
-        typename oneapi::dpl::permutation_iterator<SourceIterator, _Permutation>::IndexMap>>;
+    friend auto
+    is_passed_directly_in_onedpl_device_policies(const permutation_iterator&)
+        -> std::conjunction<oneapi::dpl::__internal::is_passed_directly_to_device<SourceIterator>,
+                            oneapi::dpl::__internal::is_passed_directly_to_device<
+                                typename oneapi::dpl::permutation_iterator<SourceIterator, _Permutation>::IndexMap>>;
 
   private:
     SourceIterator my_source_it;
