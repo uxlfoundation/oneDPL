@@ -17,6 +17,7 @@
 #ifndef _ONEDPL_UNSEQ_BACKEND_SYCL_H
 #define _ONEDPL_UNSEQ_BACKEND_SYCL_H
 
+#include <array>
 #include <type_traits>
 
 #include "../../onedpl_config.h"
@@ -137,6 +138,7 @@ struct walk_n_vectors_or_scalars
   private:
     _F __f;
     std::size_t __n;
+#if 0
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
               std::enable_if_t<_Params::__b_vectorize, int> = 0>
     void
@@ -179,6 +181,52 @@ struct walk_n_vectors_or_scalars
         __vec_store(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f},
                     __rng1_vector, __rng2_vector, __rng3);
     }
+#else
+	template <typename _IsFull, typename _LoadOp, typename LocalArray, std::size_t vec_size, std::size_t num_ranges>
+	struct load_all_but_last
+	{
+        //using oneapi::dpl::__par_backend_hetero::__vector_load;
+		std::size_t idx;
+		LocalArray& local_arr_tup;
+        oneapi::dpl::__par_backend_hetero::__vector_load<vec_size> __vec_load;
+        _LoadOp __load_op;
+		template <std::size_t I, typename Rng>
+		void operator()(std::integral_constant<std::size_t, I>, Rng&& rng)
+		{
+			// Don't load the last buffer, but the pack must still fully expand
+			if constexpr (I < num_ranges - 1)
+			{
+                __vec_load(_IsFull{}, idx, __load_op, std::forward<Rng>(rng), std::get<I>(local_arr_tup));
+			}
+		}
+	};
+    template <typename _IsFull, typename _Params, std::size_t... _Is, std::size_t... _Js,
+              typename... _Ranges,
+              std::enable_if_t<_Params::__b_vectorize, int> = 0>
+    void
+    __vector_impl(_IsFull __is_full, const std::size_t __idx, _Params, 
+                  std::integer_sequence<std::size_t, _Is...>,
+                  std::integer_sequence<std::size_t, _Js...>,
+                  _Ranges&&... __rngs) const
+    {
+        using oneapi::dpl::__par_backend_hetero::__vector_load;
+        using oneapi::dpl::__par_backend_hetero::__vector_store;
+        using oneapi::dpl::__par_backend_hetero::__scalar_load_op;
+        using _ValueTypes =
+            std::tuple<std::array<oneapi::dpl::__internal::__value_t<_Ranges>, _Params::__vector_size>...>;
+        using _LastDroppedTuple =
+            std::tuple<std::remove_reference_t<decltype(std::get<_Js>(std::declval<_ValueTypes>()))>...>;
+        __vector_load<_Params::__vector_size> __vec_load{__n};
+        __vector_store<_Params::__vector_size> __vec_store{__n};
+        _LastDroppedTuple __ld;
+        __scalar_load_op __load_op;
+        load_all_but_last<_IsFull, __scalar_load_op, _LastDroppedTuple, _Params::__vector_size, sizeof...(_Ranges)> __loader{__idx, __ld, __vec_load, __load_op};
+        (__loader(std::integral_constant<std::size_t, _Is>{}, __rngs), ...);
+        auto load_and_store_tup = std::tuple_cat(__ld, std::make_tuple(std::get<sizeof...(_Ranges)-1>(std::tuple<_Ranges...>(__rngs...))));
+        __vec_store(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f},
+                    std::get<_Is>(load_and_store_tup)...);
+    }
+#endif
 
   public:
     constexpr static bool __can_vectorize = true;
@@ -198,9 +246,15 @@ struct walk_n_vectors_or_scalars
             using oneapi::dpl::__par_backend_hetero::__vector_walk;
             __vector_walk<_Params::__vector_size>{__n}(__is_full, __idx, __f, std::forward<_Ranges>(__rngs)...);
         }
-        else //if constexpr (__num_ranges == 3)
+        else
         {
-            __vector_impl(__is_full, __idx, _Params{}, std::forward<_Ranges>(__rngs)...);
+			auto __indices = std::make_index_sequence<__num_ranges>();
+			auto __indices_dropped = std::make_index_sequence<__num_ranges - 1>();
+            __vector_impl(__is_full, __idx, _Params{}, __indices, __indices_dropped,
+						  std::forward<_Ranges>(__rngs)...);
+            //__vector_impl(__is_full, __idx, _Params{},
+			//			  std::forward<_Ranges>(__rngs)...);
+
         }
     }
 
