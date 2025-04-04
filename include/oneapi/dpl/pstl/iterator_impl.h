@@ -19,6 +19,7 @@
 #include <iterator>
 #include <tuple>
 #include <cassert>
+#include <type_traits>
 
 #include "onedpl_config.h"
 #include "utils.h"
@@ -90,31 +91,19 @@ struct __is_reverse_iterator_passed_directly;
 
 template <typename T>
 constexpr auto
-is_passed_directly_in_onedpl_device_policies(const T&)
-{
-    if constexpr (std::is_pointer<std::decay_t<T>>::value)
-        return std::true_type{};
-#if _ONEDPL_BACKEND_SYCL
-    // TODO: hide this better in sycl backend, either all passed directly functions, or just this
-    else if constexpr (oneapi::dpl::__internal::__is_known_usm_vector_iter_v<std::decay_t<T>>)
-        return std::true_type{};
-#endif
-    else if constexpr (__is_legacy_passed_directly<std::decay_t<T>>::value)
-        return std::true_type{};
-    else if constexpr (__is_reverse_iterator_passed_directly<std::decay_t<T>>::value)
-        return std::true_type{};
-    else
-        return std::false_type{};
-}
+is_passed_directly_in_onedpl_device_policies(T) -> std::disjunction<
+#if _ONEDPL_BACKEND_SYCL // only available with SYCL backend
+        oneapi::dpl::__internal::__is_known_usm_vector_iter<std::decay_t<T>>,             // USM vector iterator
+#endif // _ONEDPL_BACKEND_SYCL
+        std::is_pointer<std::decay_t<T>>,                                                 // USM pointer
+        oneapi::dpl::__internal::__is_legacy_passed_directly<std::decay_t<T>>,            // legacy iterator
+        oneapi::dpl::__internal::__is_reverse_iterator_passed_directly<std::decay_t<T>>>; // reverse iterator
 
 struct __is_passed_directly_in_onedpl_device_policies_fn
 {
     template <typename T>
     constexpr auto
-    operator()(const T& t) const
-    {
-        return is_passed_directly_in_onedpl_device_policies(t);
-    }
+    operator()(const T& t) const -> decltype(is_passed_directly_in_onedpl_device_policies(t));
 };
 
 inline constexpr __is_passed_directly_in_onedpl_device_policies_fn __is_passed_directly_in_onedpl_device_policies;
