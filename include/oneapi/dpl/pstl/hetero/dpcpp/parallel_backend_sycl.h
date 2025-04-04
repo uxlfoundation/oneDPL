@@ -669,12 +669,43 @@ __group_scan_fits_in_slm(const sycl::queue& __queue, std::size_t __n, std::size_
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
 }
 
+template <std::uint16_t elements, typename _ValueT>
+struct __set_temp_data
+{
+    template <typename _ValueT2>
+    void
+    set(std::uint16_t __idx, const _ValueT2& __ele)
+    {
+        __data[__idx].__setup(__ele);
+    }
+
+    _ValueT
+    get_and_destroy(std::uint16_t __idx)
+    {
+        _ValueT __ele = std::move(__data[__idx].__v);
+        __data[__idx].__destroy();
+        return __ele;
+    }
+
+    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
+};
+
+struct __noop_temp_data
+{
+    template <typename _ValueT>
+    void
+    set(std::uint16_t, const _ValueT&) const
+    {
+    }
+};
+
 template <typename _UnaryOp>
 struct __gen_transform_input
 {
+    using TempData = __noop_temp_data;
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
@@ -688,13 +719,14 @@ struct __gen_transform_input
 template <typename _BinaryPred>
 struct __gen_red_by_seg_reduce_input
 {
+    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // (new_seg_mask, value)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
     // ValueType value     : Current element's value for reduction
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         const auto __in_keys = std::get<0>(__in_rng.tuple());
         const auto __in_vals = std::get<1>(__in_rng.tuple());
@@ -711,6 +743,7 @@ struct __gen_red_by_seg_reduce_input
 template <typename _BinaryPred>
 struct __gen_red_by_seg_scan_input
 {
+    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // ((new_seg_mask, value), output_value, next_key, current_key)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
@@ -720,7 +753,7 @@ struct __gen_red_by_seg_scan_input
     // KeyType current_key : The current element's key. This is only ever used by work-item 0 to write the first key
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         const auto __in_keys = std::get<0>(__in_rng.tuple());
         const auto __in_vals = std::get<1>(__in_rng.tuple());
@@ -827,9 +860,9 @@ struct __red_by_seg_op
 template <typename _BinaryPred>
 struct __write_red_by_seg
 {
-    template <typename _OutRng, typename _Tup>
+    template <typename _OutRng, typename _Tup, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
     {
         using std::get;
         auto __out_keys = get<0>(__out_rng.tuple());
@@ -861,9 +894,9 @@ struct __write_red_by_seg
 
 struct __simple_write_to_id
 {
-    template <typename _OutRng, typename _ValueType>
+    template <typename _OutRng, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed through.
@@ -872,6 +905,327 @@ struct __simple_write_to_id
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
         __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
     }
+};
+
+template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
+auto
+__find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1,
+                                 const _Index __merge_path_rng2, _Compare __comp)
+{
+    // back up to balanced path divergence with a biased binary search
+    auto __start_point = __merge_path_rng1;
+    auto __start_point2 = __merge_path_rng2;
+    bool __star = false;
+    if (__merge_path_rng1 == 0 || __merge_path_rng2 == __rng2.size())
+    {
+        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+    }
+
+    auto __ele_val = __rng1[__merge_path_rng1 - 1];
+
+    if (__comp(__ele_val, __rng2[__merge_path_rng2]))
+    {
+
+        // There is no chance that the balanced path differs from the merge path here, because the previous element of
+        // rng1 does not match the next element of rng2. We can just return the merge path.
+        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+    }
+
+    // find first element of repeating sequence in the first set of the previous element
+    _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
+        __rng1, _Index{0}, __merge_path_rng1, __ele_val, __comp);
+    // find first element of repeating sequence in the second set of the next element
+    _Index __rng2_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
+        __rng2, _Index{0}, __merge_path_rng2, __ele_val, __comp);
+
+    _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
+    _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
+
+    if (__rng2_repeats_bck >= __rng1_repeats)
+    {
+
+        // If we have at least as many repeated elements in rng2, we end up back on merge path
+        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+    }
+    _Index __total_repeats = __rng1_repeats + __rng2_repeats_bck;
+
+    _Index __fwd_search_count = std::max(__total_repeats / 2, __rng2_repeats_bck);
+    _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count + 1, __rng2.size());
+
+    _Index __rng2_repeat_end =
+        oneapi::dpl::__internal::__pstl_upper_bound(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
+
+    _Index __rng2_eligible_repeats = __rng2_repeat_end - __rng2_repeat_start;
+    _Index __balanced_path_rng2_diff = std::min(__rng2_eligible_repeats, __fwd_search_count);
+    _Index __balanced_path_rng1_diff = __total_repeats - __balanced_path_rng2_diff;
+
+    if (__balanced_path_rng1_diff - 1 == __balanced_path_rng2_diff &&
+        (__balanced_path_rng2_diff + 1 <= __rng2_eligible_repeats))
+    {
+        __star = true;
+        ++__balanced_path_rng2_diff;
+    }
+
+    return std::make_tuple(__rng1_repeat_start + __balanced_path_rng1_diff,
+                           __rng2_repeat_start + __balanced_path_rng2_diff, __star);
+}
+
+template <typename _SetOpCount, typename _Compare>
+struct __gen_set_balanced_path
+{
+    using TempData = __noop_temp_data;
+    template <typename _InRng, typename _IndexT>
+    std::uint16_t
+    operator()(const _InRng& __in_rng, _IndexT __id, __noop_temp_data& __temp_data) const
+    {
+        // First we must extract individual sequences from zip iterator because they may not have the same length,
+        // dereferencing is dangerous
+        auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
+        auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+
+        auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
+
+        using _SizeType = decltype(__rng1.size());
+        _SizeType __i_elem = __id * __diagonal_spacing;
+        if (__i_elem >= __rng1.size() + __rng2.size())
+            return 0;
+        //find merge path intersection
+        auto [__rng1_pos, __rng2_pos] = oneapi::dpl::__par_backend_hetero::__find_start_point(
+            __rng1, _SizeType{0}, __rng1.size(), __rng2, _SizeType{0}, __rng2.size(), __i_elem, __comp);
+
+        //Find balanced path for diagonal start
+        auto [__rng1_balanced_pos, __rng2_balanced_pos, __star_offset] =
+            __find_balanced_path_start_point(__rng1, __rng2, __rng1_pos, __rng2_pos, __comp);
+
+        //use sign bit to represent star offset
+        __rng1_temp_diag[__id] = __rng1_balanced_pos * (__star_offset ? -1 : 1);
+
+        _SizeType __eles_to_process = std::min(__diagonal_spacing - (__star_offset ? _SizeType{1} : _SizeType{0}),
+                                               __rng1.size() + __rng2.size() - (__i_elem - 1));
+
+        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
+                                               __eles_to_process, __temp_data, __comp);
+        return __count;
+    }
+    _SetOpCount __set_op_count;
+    std::uint16_t __diagonal_spacing;
+    _Compare __comp;
+};
+
+template <typename _SetOpCount, typename _TempData, typename _Compare>
+struct __gen_set_op_from_known_balanced_path
+{
+    using TempData = _TempData;
+    template <typename _InRng, typename _IndexT>
+    auto
+    operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
+    {
+        // First we must extract individual sequences from zip iterator because they may not have the same length,
+        // dereferencing is dangerous
+        auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
+        auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+
+        auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
+        using _SizeType = decltype(__rng1.size());
+        _SizeType __i_elem = __id * __diagonal_spacing;
+        if (__i_elem >= __rng1.size() + __rng2.size())
+            return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
+        _SizeType __star_offset = std::signbit(__rng1_temp_diag[__id]) ? 1 : 0;
+        auto __rng1_temp_diag_abs = std::abs(__rng1_temp_diag[__id]);
+        auto __rng2_temp_diag = __i_elem - __rng1_temp_diag_abs + __star_offset;
+
+        _SizeType __eles_to_process =
+            std::min(_SizeType{__diagonal_spacing} - __star_offset, __rng1.size() + __rng2.size() - (__i_elem - 1));
+
+        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_temp_diag_abs, __rng2_temp_diag,
+                                               __eles_to_process, __output_data, __comp);
+        return std::make_tuple(std::uint32_t{__count}, __count);
+    }
+    _SetOpCount __set_op_count;
+    std::uint16_t __diagonal_spacing;
+    _Compare __comp;
+};
+
+//returns iterations consumed, and the number of elements copied
+template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds1, bool _CheckBounds2,
+          typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
+void
+__set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
+                                  std::size_t& __idx2, _SizeType __num_eles_min, _TempOutput& __temp_out,
+                                  _SizeType& __idx, std::uint16_t& __count, _Compare __comp)
+{
+    using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
+    using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
+
+    if constexpr (_CheckBounds1)
+    {
+        if (__idx1 == __in_rng1.size())
+        {
+            if constexpr (_CopyDiffSetB)
+            {
+                for (; __idx2 < __in_rng2.size() && __idx < __num_eles_min; ++__idx2, ++__idx)
+                {
+                    __temp_out.set(__count, __in_rng2[__idx2]);
+                    ++__count;
+                }
+            }
+            else
+            {
+                __idx = __num_eles_min;
+            }
+            return;
+        }
+    }
+
+    if constexpr (_CheckBounds2)
+    {
+        if (__idx2 == __in_rng2.size())
+        {
+            if constexpr (_CopyDiffSetA)
+            {
+                for (; __idx1 < __in_rng1.size() && __idx < __num_eles_min; ++__idx1, ++__idx)
+                {
+                    __temp_out.set(__count, __in_rng1[__idx1]);
+                    ++__count;
+                }
+            }
+            else
+            {
+                __idx = __num_eles_min;
+            }
+            return;
+        }
+    }
+
+    const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
+    const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
+    if (__comp(__ele_rng1, __ele_rng2))
+    {
+        if constexpr (_CopyDiffSetA)
+        {
+            __temp_out.set(__count, __ele_rng1);
+            ++__count;
+        }
+        ++__idx1;
+        ++__idx;
+    }
+    else if (__comp(__ele_rng2, __ele_rng1))
+    {
+        if constexpr (_CopyDiffSetB)
+        {
+            __temp_out.set(__count, __ele_rng2);
+            ++__count;
+        }
+        ++__idx2;
+        ++__idx;
+    }
+    else // if neither element is less than the other, they are equal
+    {
+        if constexpr (_CopyMatch)
+        {
+            __temp_out.set(__count, __ele_rng1);
+            ++__count;
+        }
+        ++__idx1;
+        ++__idx2;
+        __idx += 2;
+    }
+}
+
+template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
+struct __set_generic_operation
+{
+    template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
+    std::uint16_t
+    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
+               _SizeType __num_eles_min, _TempOutput& __temp_out, _Compare __comp) const
+    {
+
+        std::uint16_t __count = 0;
+        _SizeType __idx = 0;
+        bool __can_reach_rng1_end = __idx1 + __num_eles_min >= __in_rng1.size();
+        bool __can_reach_rng2_end = __idx2 + __num_eles_min >= __in_rng2.size();
+
+        if (!__can_reach_rng1_end && !__can_reach_rng2_end)
+        {
+            while (__idx < __num_eles_min)
+            {
+                // no bounds checking
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false, false>(
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
+            }
+        }
+        else if (__can_reach_rng1_end && __can_reach_rng2_end)
+        {
+            while (__idx < __num_eles_min)
+            {
+                //bounds check all
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true, true>(
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
+            }
+        }
+        // bounds check only the range that needs it
+        else if (__can_reach_rng1_end)
+        {
+            while (__idx < __num_eles_min)
+            {
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true, false>(
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
+            }
+        }
+        else //(__can_reach_rng2_end)
+        {
+            while (__idx < __num_eles_min)
+            {
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false, true>(
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
+            }
+        }
+        return __count;
+    }
+};
+
+struct __set_intersection : __set_generic_operation<true, false, false>
+{
+};
+
+struct __set_difference : __set_generic_operation<false, true, false>
+{
+};
+
+struct __set_union : __set_generic_operation<true, true, true>
+{
+};
+
+struct __set_symmetric_difference : __set_generic_operation<false, true, true>
+{
+};
+
+template <typename _SetTag, typename _Void = void>
+struct __get_set_operation : public __set_intersection
+{
+};
+
+template <typename _SetTag>
+struct __get_set_operation<
+    _SetTag, std::enable_if_t<std::is_same<_SetTag, oneapi::dpl::unseq_backend::_UnionTag<std::true_type>>::value>>
+    : public __set_union
+{
+};
+
+template <typename _SetTag>
+struct __get_set_operation<
+    _SetTag, std::enable_if_t<std::is_same<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>>::value>>
+    : public __set_difference
+{
+};
+
+template <typename _SetTag>
+struct __get_set_operation<
+    _SetTag,
+    std::enable_if_t<std::is_same<_SetTag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>>::value>>
+    : public __set_symmetric_difference
+{
 };
 
 template <typename _Predicate, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
@@ -969,9 +1323,10 @@ struct __extract_range_from_zip
 template <typename _GenMask>
 struct __gen_count_mask
 {
+    using TempData = __noop_temp_data;
     template <typename _InRng, typename _SizeType>
     _SizeType
-    operator()(_InRng&& __in_rng, _SizeType __id) const
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
     }
@@ -981,9 +1336,10 @@ struct __gen_count_mask
 template <typename _GenMask, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
 struct __gen_expand_count_mask
 {
+    using TempData = __noop_temp_data;
     template <typename _InRng, typename _SizeType>
     auto
-    operator()(_InRng&& __in_rng, _SizeType __id) const
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
         auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
@@ -1007,12 +1363,13 @@ struct __get_zeroth_element
         return std::get<0>(std::forward<_Tp>(__a));
     }
 };
+
 template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed through.
@@ -1028,9 +1385,9 @@ struct __write_to_id_if
 template <typename _Assign>
 struct __write_to_id_if_else
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
@@ -1040,6 +1397,25 @@ struct __write_to_id_if_else
         else
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
                      std::get<1>(__out_rng[__id - std::get<0>(__v)]));
+    }
+    _Assign __assign;
+};
+
+template <typename _Assign>
+struct __write_multiple_to_id
+{
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    void
+    operator()(_OutRng& __out_rng, _SizeType, const _ValueType& __v, _TempData& __temp_data) const
+    {
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
+        for (std::size_t __i = 0; __i < std::get<1>(__v); ++__i)
+        {
+            __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
+                     __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
+        }
     }
     _Assign __assign;
 };
@@ -1084,8 +1460,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
 
             _GenInput __gen_transform{__unary_op};
 
-            return __parallel_transform_reduce_then_scan(
-                __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
+            return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type)>(
+                __backend_tag, std::forward<_ExecutionPolicy>(__exec), __in_rng.size(), std::forward<_Range1>(__in_rng),
                 std::forward<_Range2>(__out_rng), __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{},
                 _WriteOp{}, __init, _Inclusive{}, /*_IsUniquePattern=*/std::false_type{});
         }
@@ -1175,12 +1551,12 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    return __parallel_transform_reduce_then_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
-                                                 std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
-                                                 _GenReduceInput{__generate_mask}, _ReduceOp{},
-                                                 _GenScanInput{__generate_mask, {}}, _ScanInputTransform{}, __write_op,
-                                                 oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-                                                 /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
+    return __parallel_transform_reduce_then_scan<sizeof(_Size)>(
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __in_rng.size(), std::forward<_InRng>(__in_rng),
+        std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask}, _ReduceOp{},
+        _GenScanInput{__generate_mask, {}}, _ScanInputTransform{}, __write_op,
+        oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+        /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _CreateMaskOp,
@@ -1282,8 +1658,8 @@ __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_
     std::size_t __n = __keys.size();
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
-    return __parallel_transform_reduce_then_scan(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec),
+    return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>)>(
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __keys.size(),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values)),
         _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{__binary_pred, __n},
@@ -1374,39 +1750,49 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
     }
 }
 
+// balanced path
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
-          typename _IsOpDifference>
+          typename _SetTag>
 auto
 __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                                _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
-                                _IsOpDifference)
+                                _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag)
 {
-    // fill in reduce then scan impl
-    using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_IsOpDifference, _Compare>;
-    using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
-    using _MaskPredicate = oneapi::dpl::__internal::__no_op;
-    using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
-    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
+    constexpr std::int32_t __diagonal_spacing = 32;
+
+    using _SetOperation = __get_set_operation<_SetTag>;
+    using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
+    using _In2ValueT = oneapi::dpl::__internal::__value_t<_Range2>;
+    using _OutValueT = oneapi::dpl::__internal::__value_t<_Range3>;
+    using _TempData = __set_temp_data<__diagonal_spacing, _OutValueT>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
-    using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
-
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMaskReduce>;
     using _ReduceOp = std::plus<_Size>;
-    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _ScanRangeTransform>;
+
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _Compare>;
+    using _GenScanInput =
+        oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_SetOperation, _TempData, _Compare>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
+    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign>;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__rng1.size());
+    const std::int32_t __num_diagonals =
+        oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size() + __rng2.size(), __diagonal_spacing);
 
-    return __parallel_transform_reduce_then_scan(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec),
+    //should be safe to use the type of the range size as the temporary type. Use sign bit as a flag for the star
+    using _TemporaryType = decltype(__rng1.size());
+    //TODO: limit to diagonals per block, and only write to a block based index of temporary data
+    oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
+
+    constexpr std::uint32_t __bytes_per_work_item_iter =
+        ((sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2) * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
+    return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter>(
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __num_diagonals,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
-                __mask_buf.get_buffer())),
-        std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp}}, _ReduceOp{},
-        _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
-        _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-        /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
+            oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
+                __temp_diags.get_buffer())),
+        std::forward<_Range3>(__result), _GenReduceInput{_SetOperation{}, __diagonal_spacing, __comp}, _ReduceOp{},
+        _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp}, _ScanInputTransform{}, _WriteOp{},
+        oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{},
+        /*__is_unique_pattern=*/std::false_type{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
@@ -1459,24 +1845,29 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
-          typename _IsOpDifference>
+          typename _SetTag>
 auto
 __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                  _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
-                  _IsOpDifference __is_op_difference)
+                  _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag __set_tag)
 {
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec))
+    if constexpr (_SetTag::__is_one_shot_v)
     {
         return __parallel_set_reduce_then_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec),
                                                std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                                               std::forward<_Range3>(__result), __comp, __is_op_difference);
+                                               std::forward<_Range3>(__result), __comp, __set_tag);
     }
     else
     {
         return __parallel_set_scan(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
-                                   std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
-                                   __is_op_difference);
+                                   std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __set_tag);
     }
+}
+
+template <typename _ExecutionPolicy>
+bool
+__can_set_op_write_from_set_b(_ExecutionPolicy&& __exec)
+{
+    return oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec);
 }
 
 //------------------------------------------------------------------------
