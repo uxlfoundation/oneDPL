@@ -574,7 +574,9 @@ std::pair<oneapi::dpl::__internal::__difference_t<_Range1>, oneapi::dpl::__inter
 __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                   _Predicate __pred, _Assign __assign)
 {
-    using _Index = std::size_t; //TODO
+    //using _Index = std::size_t; //TODO
+    using _Index = std::common_type_t<oneapi::dpl::__internal::__difference_t<_Range1>,
+                                      oneapi::dpl::__internal::__difference_t<_Range2>>;
     _Index __n = __rng1.size();
     if (__n == 0 || __rng2.empty())
         return {0, 0};
