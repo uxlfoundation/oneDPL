@@ -90,13 +90,14 @@ template <typename _T>
 struct __is_reverse_iterator_passed_directly;
 
 template <typename T>
-constexpr auto is_passed_directly_in_onedpl_device_policies(T) -> std::disjunction<
-#if _ONEDPL_BACKEND_SYCL                                                   // only available with SYCL backend
-    oneapi::dpl::__internal::__is_known_usm_vector_iter<std::decay_t<T>>,  // USM vector iterator
-#endif                                                                     // _ONEDPL_BACKEND_SYCL
-    std::is_pointer<std::decay_t<T>>,                                      // USM pointer
-    oneapi::dpl::__internal::__is_legacy_passed_directly<std::decay_t<T>>, // legacy iterator
-    oneapi::dpl::__internal::__is_reverse_iterator_passed_directly<std::decay_t<T>>>; // reverse iterator
+constexpr auto is_passed_directly_in_onedpl_device_policies(T)
+    -> std::disjunction<
+#if _ONEDPL_BACKEND_SYCL // only available with SYCL backend
+        oneapi::dpl::__internal::__is_known_usm_vector_iter<std::decay_t<T>>,             // USM vector iterator
+#endif // _ONEDPL_BACKEND_SYCL
+        std::is_pointer<std::decay_t<T>>,                                                 // USM pointer
+        oneapi::dpl::__internal::__is_legacy_passed_directly<std::decay_t<T>>,            // legacy passed directly iter
+        oneapi::dpl::__internal::__is_reverse_iterator_passed_directly<std::decay_t<T>>>; // reverse iterator
 
 struct __is_passed_directly_in_onedpl_device_policies_fn
 {
@@ -836,7 +837,6 @@ class permutation_iterator
     IndexMap my_index;
 };
 
-
 template <typename SourceIterator, typename IndexMap, typename... StartIndex>
 permutation_iterator<SourceIterator, IndexMap>
 make_permutation_iterator(SourceIterator source, IndexMap map, StartIndex... idx)
@@ -997,11 +997,9 @@ class discard_iterator
     friend std::true_type
     is_passed_directly_in_onedpl_device_policies(const discard_iterator&);
 
-    private:
+  private:
     difference_type __my_position_;
 };
-
-
 
 } // namespace dpl
 } // namespace oneapi
