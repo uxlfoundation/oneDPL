@@ -51,7 +51,7 @@ class __esimd_radix_sort_onesweep_copyback_by_key;
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           ::std::uint16_t __work_group_size, typename _RngPack>
 sycl::event
-__one_wg(sycl::queue __q, _RngPack&& __pack, ::std::size_t __n)
+__one_wg(sycl::queue& __q, _RngPack&& __pack, ::std::size_t __n)
 {
     using _KeyT = typename ::std::decay_t<_RngPack>::_KeyT;
     using _EsimRadixSortKernel =
@@ -64,7 +64,7 @@ __one_wg(sycl::queue __q, _RngPack&& __pack, ::std::size_t __n)
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           ::std::uint16_t __work_group_size, typename _RngPack1, typename _RngPack2>
 sycl::event
-__one_wg(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, ::std::size_t __n)
+__one_wg(sycl::queue& __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, ::std::size_t __n)
 {
     using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
     using _EsimRadixSortKernel =
@@ -377,7 +377,7 @@ __radix_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, _Ke
     const auto __n = __pack_in.__keys_rng().size();
     assert(__n > 0);
 
-    // _PRINT_INFO_IN_DEBUG_MODE(__exec); TODO: extend the utility to work with queues
+    _PRINT_INFO_IN_DEBUG_MODE(__q);
     constexpr auto __data_per_workitem = _KernelParam::data_per_workitem;
     constexpr auto __workgroup_size = _KernelParam::workgroup_size;
     using _KernelName = typename _KernelParam::kernel_name;

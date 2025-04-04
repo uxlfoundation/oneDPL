@@ -35,7 +35,7 @@ struct __subgroup_radix_sort
 {
     template <typename _RangeIn, typename _Proj>
     auto
-    operator()(sycl::queue __q, _RangeIn&& __src, _Proj __proj)
+    operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj)
     {
         using __wg_size_t = ::std::integral_constant<::std::uint16_t, __wg_size>;
         using __block_size_t = ::std::integral_constant<::std::uint16_t, __block_size>;
@@ -127,7 +127,7 @@ struct __subgroup_radix_sort
 
     template <typename _T, typename _Size>
     auto
-    __check_slm_size(sycl::queue __q, _Size __n)
+    __check_slm_size(const sycl::queue& __q, _Size __n)
     {
         assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
 
@@ -156,7 +156,7 @@ struct __subgroup_radix_sort
     {
         template <typename _RangeIn, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
         auto
-        operator()(sycl::queue __q, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
+        operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
         {
             uint16_t __n = __src.size();
             assert(__n <= __block_size * __wg_size);

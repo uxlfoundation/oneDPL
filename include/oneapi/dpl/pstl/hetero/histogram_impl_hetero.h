@@ -143,12 +143,16 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
 
         auto __init_event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
-            unseq_backend::walk1_vector_or_scalar<_ExecutionPolicy, decltype(__fill_func), decltype(__bins)>{
+            unseq_backend::walk1_vector_or_scalar<decltype(__fill_func), decltype(__bins)>{
                 __fill_func, static_cast<std::size_t>(__num_bins)},
             __num_bins, __bins);
 
         if (__n > 0)
         {
+            using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+            sycl::queue __q_local = __exec.queue();
+
             //need __binhash_manager to stay in scope until the kernel completes to keep the buffer alive
             // __make_binhash_manager will call __get_sycl_range for any data which requires it within __func
             auto __binhash_manager = __make_binhash_manager(::std::forward<_BinHash>(__func));
@@ -157,8 +161,8 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
                                                         _RandomAccessIterator1>();
             auto __input_buf = __keep_input(__first, __last);
 
-            __parallel_histogram(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __init_event,
-                                 __input_buf.all_view(), ::std::move(__bins), __binhash_manager)
+            __parallel_histogram<_CustomName>(_BackendTag{}, __q_local, __init_event, __input_buf.all_view(),
+                                              std::move(__bins), __binhash_manager)
                 .__deferrable_wait();
         }
         else
