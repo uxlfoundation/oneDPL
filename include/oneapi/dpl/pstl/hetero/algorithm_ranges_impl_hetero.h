@@ -574,19 +574,18 @@ std::pair<oneapi::dpl::__internal::__difference_t<_Range1>, oneapi::dpl::__inter
 __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                   _Predicate __pred, _Assign __assign)
 {
-    using _Index = oneapi::dpl::__internal::__difference_t<_Range2>;
+    using _Index = std::size_t; //TODO
     _Index __n = __rng1.size();
     if (__n == 0 || __rng2.empty())
         return {0, 0};
 
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_copy_if_out_lim(
-                     _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
-                     std::forward<_Range2>(__rng2), __pred, __assign)
-                     .get();
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
+        std::forward<_Range2>(__rng2), __pred, __assign);
 
     std::array<_Index, 2> __idx;
     __res.get_values(__idx); //a blocking call
-    return {__idx[0], __idx[1]};
+    return {__idx[1], __idx[0]}; //__parallel_copy_if_out_lim returns {last index in output, last index in input}
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT

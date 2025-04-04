@@ -271,7 +271,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         // Storage for the results of scan for each workgroup
 
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Type>;
-        __result_and_scratch_storage_t __result_and_scratch{__exec, 1, __n_groups + 1};
+        __result_and_scratch_storage_t __result_and_scratch{__exec, 2, __n_groups + 1};
 
         _PRINT_INFO_IN_DEBUG_MODE(__exec, __wgroup_size, __max_cu);
 
@@ -1189,7 +1189,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
                      _InRng&& __in_rng, _OutRng&& __out_rng, _CreateMaskOp __create_mask_op,
                      _CopyByMaskOp __copy_by_mask_op)
 {
-    using _Size = decltype(__in_rng.size());
+    using  _Size = decltype(__out_rng.size());
     using _ReduceOp = std::plus<_Size>;
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
@@ -1326,7 +1326,7 @@ auto
 __parallel_copy_if_out_lim(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                            _InRng&& __in_rng, _OutRng&& __out_rng, _Pred __pred, _Assign __assign = _Assign{})
 {
-    using _Size = decltype(__in_rng.size());
+    using _Size = decltype(__out_rng.size());
     using _ReduceOp = std::plus<_Size>;
     using _CreateOp = unseq_backend::__create_mask<_Pred, _Size>;
     using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,

@@ -941,10 +941,10 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 {
     using _It1DifferenceType = typename ::std::iterator_traits<_Iterator1>::difference_type;
 
-    _It1DifferenceType __n = __last - __first;
-
-    if (__n == 0)
+    if (__first == __last)
         return __result_first;
+
+    _It1DifferenceType __n = __last - __first;
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
     auto __buf1 = __keep1(__first, __last);

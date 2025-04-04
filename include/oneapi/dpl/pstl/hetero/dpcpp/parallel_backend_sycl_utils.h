@@ -22,7 +22,7 @@
 #include <tuple>
 #include <algorithm>
 
-#include "../../iterator_impl.h"
+#include "../../iterator_impl.h" 
 
 #include "sycl_defs.h"
 #include "execution_sycl_defs.h"
@@ -614,12 +614,6 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         }
     }
 
-    bool
-    is_USM() const
-    {
-        return __supports_USM_device;
-    }
-
     template <typename _Acc>
     static auto
     __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n = 0)
@@ -660,13 +654,10 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 #endif
     }
 
-    _T
-    __wait_and_get_value(sycl::event __event) const
+    bool
+    is_USM() const
     {
-        if (is_USM())
-            __event.wait_and_throw();
-
-        return __get_value();
+        return __supports_USM_device;
     }
 
     // Note: this member function assumes the result is *ready*, since the __future has already
@@ -692,9 +683,8 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         }
     }
 
-    template <typename _TArrayVal, std::size_t _N>
-    void
-    get_values(std::array<_TArrayVal, _N>& __arr)
+    template <std::size_t _N>
+    void get_values(std::array<_T, _N>& __arr) const
     {
         assert(__result_n > 0);
         assert(_N == __result_n);
@@ -723,14 +713,14 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         return __get_value(idx);
     }
 
-    template <typename _Event, typename _TArrayVal, std::size_t _N>
+    template <typename _Event, std::size_t _N>
     void
-    __wait_and_get_value(_Event&& __event, std::array<_TArrayVal, _N>& __arr) const
+    __wait_and_get_value(_Event&& __event, std::array<_T, _N>& __arr) const
     {
         if (is_USM())
             __event.wait_and_throw();
 
-        return get_values(__arr);
+        get_values(__arr);
     }
 };
 
@@ -759,7 +749,7 @@ struct __wait_and_get_value
     operator()(_Event&& __event, const __result_and_scratch_storage_impl<_ExecutionPolicy, _T>& __storage,
                std::array<_T, _N>& __arr)
     {
-        return __storage.__wait_and_get_value(__event, __arr);
+        __storage.__wait_and_get_value(__event, __arr);
     }
 
     template <typename _Event, typename _T>
