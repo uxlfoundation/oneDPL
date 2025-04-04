@@ -829,6 +829,7 @@ struct __copy_by_mask
                 __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx]);
             }
             if (__item_idx % __size_per_wg == 0 || (get<N>(__in_acc[__item_idx]) != get<N>(__in_acc[__item_idx - 1])))
+            {
                 // If we work with tuples we might have a situation when internal tuple is assigned to ::std::tuple
                 // (e.g. returned by user-provided lambda).
                 // For internal::tuple<T...> we have a conversion operator to ::std::tuple<T..>. The problem here
@@ -843,12 +844,25 @@ struct __copy_by_mask
                 // NOTE: we only need this explicit conversion when we have internal::tuple and
                 // ::std::tuple as operands, in all the other cases this is not necessary and no conversion
                 // is performed(i.e. __typle_type is the same type as its operand).
-                __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
+                if (__out_idx < __out_acc.size())
+                {
+                    __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
+                    auto __last_out_idx = __wg_sums_ptr[(__n - 1) / __size_per_wg];
+                    if (__out_idx + 1 == __last_out_idx)
+                    {
+                        __ret_ptr[0] = __item_idx + 1, __ret_ptr[1] = __last_out_idx;
+                    }
+                }
+                else if (__out_idx == __out_acc.size())
+                {
+                    __ret_ptr[0] = __item_idx, __ret_ptr[1] = __out_idx;
+                }
+            }
         }
         if (__item_idx == 0)
         {
             //copy final result to output
-            *__ret_ptr = __wg_sums_ptr[(__n - 1) / __size_per_wg];
+            __ret_ptr[1] = __wg_sums_ptr[(__n - 1) / __size_per_wg];
         }
     }
 };

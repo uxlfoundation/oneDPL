@@ -522,8 +522,6 @@ struct __usm_or_buffer_accessor
 struct __result_and_scratch_storage_base
 {
     virtual ~__result_and_scratch_storage_base() = default;
-    virtual std::size_t
-    __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
 template <typename _ExecutionPolicy, typename _T>
@@ -656,13 +654,10 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 #endif
     }
 
-    _T
-    __wait_and_get_value(sycl::event __event) const
+    bool
+    is_USM() const
     {
-        if (is_USM())
-            __event.wait_and_throw();
-
-        return __get_value();
+        return __supports_USM_device;
     }
 
     // Note: this member function assumes the result is *ready*, since the __future has already
@@ -670,6 +665,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     _T
     __get_value(size_t idx = 0) const
     {
+        assert(__result_n > 0);
         assert(idx < __result_n);
         if (__use_USM_host && __supports_USM_device)
         {
@@ -687,42 +683,87 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         }
     }
 
-  private:
-    bool
-    is_USM() const
+    template <std::size_t _N>
+    void
+    get_values(std::array<_T, _N>& __arr) const
     {
-        return __supports_USM_device;
+        assert(__result_n > 0);
+        assert(_N == __result_n);
+        if (__use_USM_host && __supports_USM_device)
+        {
+            std::copy_n(__result_buf.get(), __result_n, __arr.begin());
+        }
+        else if (__supports_USM_device)
+        {
+            // Copy the result from the scratch buffer to the array
+            const std::size_t __items_to_copy = std::min(__result_n, _N);
+            const std::size_t __numBytes = __items_to_copy * sizeof(_T);
+            __exec.queue().memcpy(__arr.data(), __scratch_buf.get() + __scratch_n, __numBytes).wait();
+        }
+        else
+        {
+            auto _acc_h = __sycl_buf->get_host_access(sycl::read_only);
+            std::copy_n(_acc_h.begin() + __scratch_n, __result_n, __arr.begin());
+        }
     }
 
-    template <typename _Type>
-    std::size_t
-    __fill_data(std::pair<_Type, _Type>&& __p, std::size_t* __p_buf) const
-    {
-        __p_buf[0] = __p.first;
-        __p_buf[1] = __p.second;
-        return 2;
-    }
-
-    template <typename _Args>
-    std::size_t
-    __fill_data(_Args&&...) const
-    {
-        assert(!"Unsupported return type");
-        return 0;
-    }
-
-    virtual std::size_t
-    __get_data(sycl::event __event, std::size_t* __p_buf) const override
+    template <typename _Event>
+    _T
+    __wait_and_get_value(_Event&& __event, size_t idx = 0) const
     {
         if (is_USM())
             __event.wait_and_throw();
 
-        return __fill_data(__get_value(), __p_buf);
+        return __get_value(idx);
+    }
+
+    template <typename _Event, std::size_t _N>
+    void
+    __wait_and_get_value(_Event&& __event, std::array<_T, _N>& __arr) const
+    {
+        if (is_USM())
+            __event.wait_and_throw();
+
+        get_values(__arr);
     }
 };
 
 template <typename _ExecutionPolicy, typename _T>
 using __result_and_scratch_storage = __result_and_scratch_storage_impl<std::decay_t<_ExecutionPolicy>, _T>;
+
+// The type specifies the polymorphic behaviour for different value types via the overloads
+struct __wait_and_get_value
+{
+    template <typename _Event, typename _T>
+    constexpr auto
+    operator()(_Event&& /*__event*/, const sycl::buffer<_T>& __buf)
+    {
+        return __buf.get_host_access(sycl::read_only)[0];
+    }
+
+    template <typename _Event, typename _ExecutionPolicy, typename _T>
+    constexpr auto
+    operator()(_Event&& __event, const __result_and_scratch_storage_impl<_ExecutionPolicy, _T>& __storage)
+    {
+        return __storage.__wait_and_get_value(__event);
+    }
+
+    template <typename _Event, typename _ExecutionPolicy, typename _T, std::size_t _N>
+    constexpr void
+    operator()(_Event&& __event, const __result_and_scratch_storage_impl<_ExecutionPolicy, _T>& __storage,
+               std::array<_T, _N>& __arr)
+    {
+        __storage.__wait_and_get_value(__event, __arr);
+    }
+
+    template <typename _Event, typename _T>
+    constexpr auto
+    operator()(_Event&& __event, const _T& __val)
+    {
+        __event.wait_and_throw();
+        return __val;
+    }
+};
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
@@ -744,42 +785,6 @@ template <typename _Event, typename... _Args>
 class __future : private std::tuple<_Args...>
 {
     _Event __my_event;
-
-    template <typename _T>
-    constexpr _T
-    __wait_and_get_value(const sycl::buffer<_T>& __buf)
-    {
-        //according to a contract, returned value is one-element sycl::buffer
-        return __buf.get_host_access(sycl::read_only)[0];
-    }
-
-    // Here we use __result_and_scratch_storage_impl rather than __result_and_scratch_storage because we need to
-    // match the type with the overload and are deducing the policy type. If we used __result_and_scratch_storage,
-    // it would cause issues in type deduction due to decay of the policy in that using statement.
-    template <typename _DecayedExecutionPolicy, typename _T>
-    constexpr auto
-    __wait_and_get_value(const __result_and_scratch_storage_impl<_DecayedExecutionPolicy, _T>& __storage)
-    {
-        return __storage.__wait_and_get_value(__my_event);
-    }
-
-    constexpr std::pair<std::size_t, std::size_t>
-    __wait_and_get_value(const std::shared_ptr<__result_and_scratch_storage_base>& __p_storage)
-    {
-        std::size_t __buf[2] = {0, 0};
-        [[maybe_unused]] auto __n = __p_storage->__get_data(__my_event, __buf);
-        assert(__n == 2);
-
-        return {__buf[0], __buf[1]};
-    }
-
-    template <typename _T>
-    constexpr _T
-    __wait_and_get_value(const _T& __val)
-    {
-        wait();
-        return __val;
-    }
 
   public:
     __future(_Event __e, _Args... __args) : std::tuple<_Args...>(__args...), __my_event(__e) {}
@@ -814,13 +819,22 @@ class __future : private std::tuple<_Args...>
 #endif
     }
 
+    template <typename _T, std::size_t _N>
+    void
+    get_values(std::array<_T, _N>& __arr)
+    {
+        static_assert(sizeof...(_Args) > 0);
+        auto& __val = std::get<0>(*this);
+        __wait_and_get_value{}(event(), __val, __arr);
+    }
+
     auto
     get()
     {
         if constexpr (sizeof...(_Args) > 0)
         {
             auto& __val = std::get<0>(*this);
-            return __wait_and_get_value(__val);
+            return __wait_and_get_value{}(event(), __val);
         }
         else
             wait();
