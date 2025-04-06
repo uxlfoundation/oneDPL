@@ -23,6 +23,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <iostream>
 
@@ -49,7 +50,7 @@ main()
         using Policy = decltype(TestUtils::default_dpcpp_policy);
 
         ranges::exclusive_scan(exec, A, view_res1, 100);
-        ranges::exclusive_scan(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, B2, 100, ::std::plus<int>());
+        ranges::exclusive_scan(CREATE_NEW_POLICY(exec, 0), view, B2, 100, ::std::plus<int>());
     }
 
     //check result

@@ -109,6 +109,38 @@ make_new_policy(sycl::queue _queue)
 #endif
 }
 
+// struct policy_container - a container for policy which return saved policy
+// as l-value or r-value depends on source policy type qualifiers
+template <typename _Policy>
+struct policy_container
+{
+    using _DecayedPolicy = std::decay_t<_Policy>;
+
+    _DecayedPolicy __policy;
+
+    policy_container(_DecayedPolicy&& __policy) : __policy(std::move(__policy))
+    {
+    }
+
+    auto get() &&
+    {
+        if constexpr (std::is_rvalue_reference_v<_Policy>)
+        {
+            // Return policy as r-value
+            return std::move(__policy);
+        }
+        else
+        {
+            // Return policy as l-value
+            return __policy;
+        }
+    }
+};
+
+// Create new policy and pass it into called function as l-value / r-value
+// depends on qualifiers of source policy type
+#define CREATE_NEW_POLICY(exec, idx) policy_container<decltype(exec)>(make_new_policy<new_kernel_name<std::decay_t<decltype(exec)>, idx>>(exec)).get()
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -218,7 +250,27 @@ struct invoke_on_all_hetero_policies
             using kernel_name = unique_kernel_name<Op, CallNumber>;
             auto my_policy = make_new_policy<kernel_name>(queue);
             iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
-                my_policy, op, ::std::forward<Args>(rest)...);
+                my_policy, op, std::forward<Args>(rest)...);
+
+            // The goal of this check is to compile the same Kernel code with different policy type qualifiers.
+            // This gives us ability to check that Kernel names generated inside oneDPL code are unique.
+            volatile bool always_false = false;
+            if (always_false)
+            {
+                // We just need to compile some Kernel code and we don't need to run this code in run-time
+                // so we can move the rest of params again
+
+                // Compile for const ExecutionPolicy&
+                // - we able to call std::forward<Args>(rest)... here because it's just for compile
+                const auto& my_policy_ref = my_policy;
+                iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
+                    my_policy_ref, op, std::forward<Args>(rest)...);
+
+                // Compile for ExecutionPolicy&&
+                // - we able to call std::forward<Args>(rest)... here because it's just for compile
+                iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
+                    std::move(my_policy), op, std::forward<Args>(rest)...);
+            }
         }
         else
         {
