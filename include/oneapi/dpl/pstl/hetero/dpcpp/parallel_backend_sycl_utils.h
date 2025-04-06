@@ -1031,29 +1031,6 @@ struct __strided_loop
     }
 };
 
-template <bool __can_vectorize_brick, bool __can_brick_process_multiple_iters, typename... _Ranges>
-struct __pfor_params
-{
-  private:
-    using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<_Ranges>...>;
-    constexpr static std::uint8_t __min_type_size = oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value;
-    // Empirically determined 'bytes-in-flight' to maximize bandwidth utilization
-    constexpr static std::uint8_t __bytes_per_item = 16;
-    // Maximum size supported by compilers to generate vector instructions
-    constexpr static std::uint8_t __max_vector_size = 4;
-
-  public:
-    constexpr static bool __b_vectorize =
-        __can_vectorize_brick &&
-        (oneapi::dpl::__ranges::__is_vectorizable_range<std::decay_t<_Ranges>>::value && ...) &&
-        (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) && __min_type_size < 4;
-    // Vectorize for small types, so we generate 128-byte load / stores in a sub-group
-    constexpr static std::uint8_t __vector_size =
-        __b_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1;
-    constexpr static std::uint8_t __iters_per_item =
-        __can_brick_process_multiple_iters ? __bytes_per_item / (__min_type_size * __vector_size) : 1;
-};
-
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi
