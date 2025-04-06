@@ -28,6 +28,7 @@
 #include "parallel_backend_sycl_utils.h"
 // workaround until we implement more performant optimization for patterns
 #include "parallel_backend_sycl.h"
+#include "parallel_backend_sycl_for.h"
 #include "parallel_backend_sycl_histogram.h"
 #include "../../execution_impl.h"
 #include "execution_sycl_defs.h"
