@@ -3,7 +3,7 @@
 ## Introduction
 
 Dynamic Selection is a Technology Preview feature 
-[documented in the oneDPL Developer Guide](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-7/dynamic-selection-api.html).
+[documented in the oneDPL Developer Guide](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/dynamic-selection-api.html).
 Dynamic selection provides functions for choosing a resource using a *selection policy*. 
 By default, the *resources* selected via Dynamic Selection APIs are SYCL queues. Since the
 API itself is documented in the oneDPL Developer Guide that information will not
@@ -19,9 +19,9 @@ a timely manner, for justifying removal of the feature.
 
 The key components of the Dynamic Selection API are shown below, including the
 [Free Functions](#free_functions_id) (such as `submit`, `select`, `wait`, etc), a
-[Policy](#policy_req_id) object (such as [fixed_resource_policy](#fixed_resource_id),
-[round_robin_policy](#round_robin_id), [dynamic_load_policy](#dynamic_load_id) and
-[auto_tune_policy](#auto_tune_id)) and a [Backend](#backend_req_id) object (currently only
+[Policy](#policy_req_id) object (such as [fixed_resource_policy](#provided-concrete-policies),
+[round_robin_policy](#provided-concrete-policies), [dynamic_load_policy](#provided-concrete-policies) and
+[auto_tune_policy](#provided-concrete-policies)) and a [Backend](#backend_req_id) object (currently only
 `sycl_backend`). Users interact with Dynamic Selection through the [Free Functions](#free_functions_id)
 and their chosen [Policy](#policy_req_id). The [Free Functions](#free_functions_id) have
 default implementations that depend on a limited set of required functions in the
@@ -108,7 +108,6 @@ The type `T` satisfies *Policy* if given,
 - `args` an arbitrary parameter pack of types `typename… Args`
 - `s` a selection of a type `selection_t<T>` , which satisfies [Selection](#selection_req_id), and was made by `p`.
 - `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
-- `r` a container of resources of type `std::vector<resource_t<T>`.
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
@@ -116,15 +115,19 @@ The type `T` satisfies *Policy* if given,
 | `p.select(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
 | `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` with the selected resource `s` and the arguments `args...`. |
 
+| *Optional* | Description |
+| --------------------- | ----------- |
+| `p.submit_and_wait(s, f, args…)` | Returns `void`. The function invokes `f` with `s` and `args...` and waits for the `wait_t<T>` it returns to complete. |
+| `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
+| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits for the `wait_t<T>` it returns to complete. |
+
 | Policy Traits* | Description |
 | ------- | ----------- |
 | `policy_traits<T>::selection_type`, `selection_t<T>` | The wrapped select type returned by `T`. Must satisfy [Selection](#selection_req_id). |
 | `policy_traits<T>::resource_type`, `resource_t<T>` | The backend defined resource type that is passed to the user function object. Calling `unwrap` an object of type `selection_t<T>` returns an object of type `resource_t<T>`. |
 | `policy_traits<T>::wait_type`, `wait_type_t<T>` | The backend type that is returned by the user function object. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns on object of type `wait_type_t<T>`. |
 
-*Policy traits are defined in `include/oneapi/dpl/internal/dynamic_selection_impl/policy_traits.h`.
-
-The current implementation of these traits depends on types defined in the Policy:
+The default implementation of these traits depends on types defined in the Policy:
 
 ```cpp
   template <typename Policy>
@@ -135,11 +138,6 @@ The current implementation of these traits depends on types defined in the Polic
       using wait_type = typename std::decay_t<Policy>::wait_type;
   };
 ```
-| *Optional* | Description |
-| --------------------- | ----------- |
-| `p.submit_and_wait(s, f, args…)` | Returns `void`. The function invokes `f` with `s` and `args...` and waits for the `wait_t<T>` it returns to complete. |
-| `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
-| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits for the `wait_t<T>` it returns to complete. |
 
 <a id="selection_req_id"></a>
 ### Selection
@@ -153,8 +151,9 @@ The type `T` satisfies *Selection* for a given [Policy](#policy_req_id) `p` if g
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
 | `s.unwrap()` | Returns `resource_t<T>` that should represent one of the resources returned by `p.get_resources()` for the Policy `p` that generated `s`. |
-| `s.policy()` | Returns the Policy `p` that was used to make the selection. |
+| `s.get_policy()` | Returns the Policy `p` that was used to make the selection. |
 | `s.report(i)` | Returns `void`. Notifies policy that an execution info event has occurred. |
+| `s.report(i, v)` | Returns `void`. Notifies policy of a new value `v` for execution info event `i`. |
 | `report_execution_info<T, Info>::value`, `report_execution_info_v<T,Info>` | `true` if this selection needs the backend to report the Info. `false` otherwise. |
 
 <a id="submission_req_id"></a>
@@ -166,230 +165,27 @@ The type `T` satisfies *Submission* for a given [Policy](#policy_req_id) `p` if 
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
-| `s.get_policy()` | Returns an object that satisfies [Policy](#policy_req_id) and corresponds to the Policy that made the selection. |
 | `s.wait()` | Blocks until the submission has completed. |
 | `s.unwrap()` | Returns the underlying backend type value. This type may be void, may represent the backend’s synchronization type, or may represent a return value from the submission. |
 
+<a id="concrete_policies_id"></a>
 ## Provided Concrete Policies 
 
-<a id="fixed_resource_id"></a>
-### `fixed_resource_policy`
+The following concrete policies are provided in the experimental implementation. Their details can be found in
+[the oneDPL Developer Guide](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/dynamic-selection-api.html).
 
-```cpp
-template<typename Backend=sycl_backend> 
-class fixed_resource_policy;
-```
-
-| Constructors and Initialization |
-| -----------------------------------------------------------|
-| `fixed_resource_policy(deferred_initialization_t); // (1)` |
-| `fixed_resource_policy(size_t index=0); // (2)` |
-| `fixed_resource_policy(const std::vector<resource_t<Backend>>& resources, size_t index=0); // (3)` |
-| `void initialize(size_t index=0); // (4)` |
-| `void initialize(const std::vector<resource_t<Backend>>& resources, size_t index=0); // (5)` |
-
-1. Defers initialization and requires a later call to `initialize`.
-2. Always selects index `index` in the default set of resources.
-3. Uses the provided set of resources and always selects index `index` from that set.
-4. Always selects index `index` in the default set of resources.
-5. Uses the provided set of resources and always selects index `index` from that set.
-
-`initialize` should only be called for policies that are constructed with `deferred_initialization_t`.
-
-#### select heuristic (expository)
-
-```cpp
-  template<typename ...Args>
-  selection_type fixed_resource_policy::select(Args&&...) {
-    if (initialized_) {
-      return selection_type{*this, resources_[index_]};
-    } else {
-      throw std::logic_error(“select called before initialize”);
-    }
-  }
-```
-
-#### execution info reporting requirements
-
-none
-
-#### Exceptions
-
-Constructor or initialize may throw `std::bad_alloc` or `std::logic_error`.
-
-<a id="round_robin_id"></a>
-### `round_robin_policy`
-
-```cpp
-template<typename Backend=sycl_backend> 
-class round_robin_policy;
-```
-
-| Constructors and Initialization |
-| -----------------------------------------------------------|
-| `round_robin_policy(); // (1)` |
-| `round_robin_policy(deferred_initialization_t); // (2)` |
-| `round_robin_policy(const std::vector<resource_t<Backend>>& resources); // (3)` |
-| `void initialize(); // (4)` |
-| `void initialize(const std::vector<resource_t<Backend>>& resources); // (5)` |
-
-1. Rotates through the default set of resources at each call to `select`.
-2. Defers initialization and requires a later call to `initialize`.
-3. Uses the provided set of resources and rotates through the default set of resources at each call to `select`.
-4. Rotates through the default set of resources at each call to `select`.
-5. Uses the provided set of resources and rotates through the default set of resources at each call to `select`.
-
-`initialize` should only be called for policies that are constructed with `deferred_initialization_t`.
-
-#### select heuristic (expository)
-
-```cpp
-  template<typename ...Args>
-  selection_type select(Args&&...) {
-    if (initialized_) {
-      resources_size_t i = 0;
-      {
-        std::lock_guard<mutex_type> l(mutex_);
-        if (next_context_ == MAX_VALUE) {
-          next_context_ = MAX_VALUE%num_contexts_;
-        }
-        i = next_context_++ % num_contexts_;
-      }
-      auto &r = resources_[i];
-      return selection_type{*this, r};
-    } else {
-      throw std::logic_error(“select called before initialization”);
-    }
-  }
-```
-
-#### execution info reporting requirements
-
-none
-
-#### Exceptions
-
-Constructor or initialize may throw `std::bad_alloc` or `std::logic_error`.
-
-<a id="dynamic_load_id"></a>
-### `dynamic_load_policy`
-
-```cpp
-template<typename Backend=sycl_backend> 
-class round_robin_policy;
-```
-
-| Constructors and Initialization |
-| -----------------------------------------------------------|
-| `dynamic_load_policy(); // (1)` |
-| `dynamic_load_policy(deferred_initialization_t); // (2)` |
-| `dynamic_load_policy(const std::vector<resource_t<Backend>>& resources); // (3)` |
-| `void initialize(); // (4)` |
-| `void initialize(const std::vector<resource_t<Backend>>& resources); // (5)` |
-
-1. Selects the least loaded resource from the default set of resources at each call to `select`.
-2. Defers initialization and requires a later call to `initialize`.
-3. Uses the provided set of resources and then selects the least loaded resource at each call to `select`.
-4. Selects the least loaded resource from the default set of resources at each call to `select`.
-5. Uses the provided set of resources and then selects the least loaded resource at each call to `select`.
-
-`initialize` should only be called for policies that are constructed with `deferred_initialization_t`.
-
-#### select heuristic (expository)
-
-```cpp
-  template<typename ...Args>
-  selection_type select(Args&&...) {
-    if (initialized_) {
-      std::shared_ptr<resource> resource_ptr = nullptr;
-      int least_load = std::numeric_limits<load_t>::max();
-      for (auto& r : resources_) {
-        load_t v = r->load_.load();
-        if (resource_ptr == nullptr || v < least_load) {
-          least_load = v;
-          resource_ptr = r;
-        }
-      }
-      return selection_type {*this, resource_ptr};
-    } else {
-      throw std::logic_error(“select called before initialization”);
-    }
-  }
-```
-
-#### execution info reporting requirements
-
-```cpp
-  void report(task_submission_t) { resource_ptr->load_.fetch_add(1); }
-  void report(task_completion_t) { resource_ptr->load_.fetch_sub(1); }
-```
-
-#### Exceptions
-
-Constructor or initialize may throw `std::bad_alloc` or `std::logic_error`.
-
-<a id="auto_tune_id"></a>
-### `auto_tune_policy`
-
-```cpp
-template<typename Backend=sycl_backend> 
-class auto_tune_policy;
-```
-
-| Constructors and Initialization |
-| -----------------------------------------------------------|
-| `auto_tune_policy(deferred_initialization_t); // (1)` |
-| `auto_tune_policy(double resample_time=never_resample); // (2)` |
-| `auto_tune_policy(const std::vector<resource_t<Backend>>& resources, double resample_time=never_resample); // (3)` |
-| `void initialize(double resample_time=never_resample); // (4)` |
-| `void initialize(const std::vector<resource_t<Backend>>& resources, double resample_time=never_resample); // (5)` |
-
-1. Defers initialization and requires a later call to `initialize`.
-2. Profiles each set of unique `f` and `args` for each resource in the default set and then uses the best.
-3. Uses the provided set of resources and profiles each set of unique `f` and `args` for each resource uses the best.
-4. Profiles each set of unique `f` and `args` for each resource in the default set and then uses the best.
-5. Uses the provided set of resources and profiles each set of unique `f` and `args` for each resource uses the best.
-
-`initialize` should only be called for policies that are constructed with `deferred_initialization_t`.
-
-#### select heuristic (expository)
-
-```cpp
-  template<typename Function, typename ...Args>
-  selection_type select(Function&& f, Args&&...args) {
-    if (initialized_) {
-      auto k = make_task_key(f, args...);
-      auto tuner = get_tuner(k);
-      auto offset = tuner->get_resource_to_profile();
-      if (offset == use_best) {
-        return selection_type {*this, tuner->best_resource_, tuner}; 
-      } else {
-        auto r = resources_[offset];
-        return selection{*this, r, tuner}; 
-      }
-    } else {
-      throw std::logic_error(“select called before initialization”);
-    } 
-  }
-```
-
-#### execution info reporting requirements
-
-```cpp
-  void report(task_execution_time_t, timing_t v) { 
-    tuner_->add_timing(offset_, v); 
-  }
-```
-
-#### Exceptions
-
-Constructor or initialize may throw `std::bad_alloc` or `std::logic_error`.
+| Available Policies |
+| ------------------------|
+| [`fixed_resource_policy`](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/fixed-resource-policy.html) |
+| [`round_robin_policy`](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/round-robin-policy.html) |
+| [`dynamic_load_policy`](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/dynamic-load-policy.html) |
+| [`auto_tune_policy`](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/auto-tune-policy.html) |
 
 <a id="backend_req_id"></a>
 ## Backends
 
-Backends allow generic policies to be implemented. End-users do not directly interact
-with a backend, except to choose the backend if they opt-out of the default SYCL backend.
+Backends allow generic policies to be implemented. Application developers do not directly
+interact with a backend, except to choose the backend if they opt-out of the default SYCL backend.
 Custom policy writers that wish to implement a generic policy that can accept backends
 should follow the backend contract. Developers that wish to provide a backend that can
 be used with the existing concrete policies should also follow the backend contract.
@@ -402,7 +198,6 @@ The type `T` satisfies the *Backend* contract if given,
 - `args` an arbitrary parameter pack of types `typename… Args`
 - `s` is of type `S` and satisfies *Selection* and `is_same_v<resource_t<S>, resource_t<T>>` is `true`
 - `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
-- `r` a container of resources of type `std::vector<resource_t<T>`.
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
@@ -421,10 +216,10 @@ The type `T` satisfies the *Backend* contract if given,
 | --------- | ----------- |
 | `vector<typename policy_traits<P>::resource_type> get_resources(P&& p);` | Returns the resources associated with the Policy `p`. |
 | `template<typename P, typename... Args> selection_t<P> select(P&& p, Args&&... args);` | Applies the policy `p` and returns a *Selection*. |
-| `template<Selection S, tyepname F, typename... Args> auto submit(Selection s, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource from selection `s` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. May be implemented as `s.get_policy().submit(s, f, args…)`. |
-| `template<Policy P, tyepname F, typename... Args> auto submit(P&& p, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource returned by `select(p, f, args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. May be implemented as `p.submit(p.select(p, f, args…), f, args…)`. |
-| `template<Selection S, tyepname F, typename... Args> auto submit_and_wait(Selection s, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource from selection `s` and `args`. And then waits on object returned by the `f`.  May be implemented as `wait(s.get_policy().submit(s, f, args…))`. |
-| `template<Policy P, tyepname F, typename... Args> auto submit_and_wait(P&& p, F&& f, Args&&... args);` |  Invokes `f` with the unwrapped resource returned by `select(p, f, args…)` and `args`.And then waits on object returned by the `f`. May be implemented as `wait(p.submit(p.select(f, args…),f,args…))`. |
+| `template<Selection S, typename F, typename... Args> auto submit(Selection s, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource from selection `s` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. May be implemented as `s.get_policy().submit(s, f, args…)`. |
+| `template<Policy P, typename F, typename... Args> auto submit(P&& p, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource returned by `select(p, f, args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. May be implemented as `p.submit(p.select(p, f, args…), f, args…)`. |
+| `template<Selection S, typename F, typename... Args> auto submit_and_wait(Selection s, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource from selection `s` and `args`. And then waits on object returned by the `f`.  May be implemented as `wait(s.get_policy().submit(s, f, args…))`. |
+| `template<Policy P, typename F, typename... Args> auto submit_and_wait(P&& p, F&& f, Args&&... args);` |  Invokes `f` with the unwrapped resource returned by `select(p, f, args…)` and `args`.And then waits on object returned by the `f`. May be implemented as `wait(p.submit(p.select(f, args…),f,args…))`. |
 | `template<typename P> auto get_submission_group(P&& p);` | Returns an object that has a member function `void wait()`. Calling this wait function blocks until all previous submissions to this policy are complete. |
 | `template<typename W> void unwrap(W&& w) noexcept;` | Returns `w.unwrap()` if available, otherwise returns `w`. |
 | `template<typename W> void wait(W&& w);` | Calls `w.wait()`. |
@@ -458,8 +253,6 @@ are currently three kinds of Execution Info that may be required by a Policy:
 | ------- | ----------- |
 | `report_info<S,Info>::value`, `report_info_v<S,Info>` | 'true' if the *Selection* requires the event type to be reported |
 | `report_value<S,Info,V>::value`, `report_info_v<S,Info,V>` | `true` if the *Selection* requires the event value to be reported |
-
-* These traits are defined in `include/oneapi/dpl/internal/dynamic_selection_traits.h`
 
 Backend traits can be used to determine what events are need by the *Policy* that provided a *Selection*.
 For example, below is code a function the receives a *Selection* and uses traits to determine if the
@@ -511,6 +304,11 @@ applies its selection logic.
 
 - Demonstrate use cases where dynamic selection provides significant improvements.
 - Address open questions
-  - Is the current API sufficient, performant and user-friendly
-  - Are custom policies needed, and if so, is customization support sufficient and effective.
-  - Are custom backends needed, and if so, is customization support sufficient and effective.
+  - Is the current API sufficient, performant and user-friendly?
+  - Are custom policies needed, and if so, is customization support sufficient and effective?
+  - Are custom backends needed, and if so, is customization support sufficient and effective?
+  - Should the oneDPL algorithms work with selection policies?
+  - What is the proper namespace for the dynamic selection functionality?
+  - Do we need a formal concept and/or type trait to check that a type is a selection policy?
+  - What is the minimally required C++ standard version (if different from C++17)?
+- After open questions are settled, the oneDPL specification must be updated and accepted.
