@@ -670,7 +670,6 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     std::enable_if<(_Idx < _NResults), _T>
     __get_value() const
     {
-        assert(idx < _NResults);
         if (__use_USM_host && __supports_USM_device)
         {
             return *(__result_buf.get() + idx);
