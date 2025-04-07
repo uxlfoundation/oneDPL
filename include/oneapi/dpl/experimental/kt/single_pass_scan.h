@@ -110,7 +110,7 @@ struct __scan_status_flag
                 *((__is_full ? __full_vals_begin : __partial_vals_begin) + __tile + __padding - __local_id));
             _T __tile_val = __tile_value_atomic.load(sycl::memory_order::acquire);
 
-            auto __lowest_item_with_full = sycl::ctz(__is_full_ballot_bits);
+            auto __lowest_item_with_full = 0;//sycl::ctz(__is_full_ballot_bits);
             _T __contribution = __local_id <= __lowest_item_with_full
                                     ? __tile_val
                                     : oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _T>;

@@ -43,15 +43,6 @@
 #    include <cstring> // memcpy
 #endif
 
-namespace sycl
-{
-    template<typename GenInt>
-    /*return-type*/ ctz(GenInt x)
-    {
-        return x;
-    }
-}
-
 namespace oneapi
 {
 namespace dpl
