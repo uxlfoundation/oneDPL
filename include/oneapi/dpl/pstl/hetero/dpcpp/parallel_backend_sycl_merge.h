@@ -434,7 +434,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
         // Create storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
         using __val_t = _split_point_t<_IdType>;
-        using _NResults = std::conditional_t<_OutSizeLimit, std::integral_constant<std::size_t, 1>, std::integral_constant<std::size_t, 0>>;
+        using _NResults = std::conditional_t<_OutSizeLimit{}, std::integral_constant<std::size_t, 1>, std::integral_constant<std::size_t, 0>>;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, __val_t, _NResults::value>;
         auto __p_base_diagonals_sp_global_storage =
             new __result_and_scratch_storage_t(__exec, __nd_range_params.base_diag_count + 1);

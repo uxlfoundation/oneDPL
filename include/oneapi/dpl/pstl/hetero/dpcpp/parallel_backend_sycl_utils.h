@@ -655,9 +655,11 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 #endif
     }
 
-    std::enable_if<_NResults == 1, _T>
+    _T
     __wait_and_get_value(sycl::event __event) const
     {
+        static_assert(_NResults == 1);
+
         if (is_USM())
             __event.wait_and_throw();
 
@@ -667,9 +669,11 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     // Note: this member function assumes the result is *ready*, since the __future has already
     // waited on the relevant event.
     template <std::size_t _Idx = 0>
-    std::enable_if<(_Idx < _NResults), _T>
+    _T
     __get_value() const
     {
+        static_assert(0 <= _Idx && _Idx < _NResults);
+
         if (__use_USM_host && __supports_USM_device)
         {
             return *(__result_buf.get() + _Idx);
