@@ -541,6 +541,7 @@ __get_host_access(_Buf&& __buf)
 #endif
 }
 
+#if 0
 template <typename _Acc>
 auto
 __get_accessor_ptr(const _Acc& __acc)
@@ -553,6 +554,7 @@ __get_accessor_ptr(const _Acc& __acc)
 #    error "sycl::accessor::get_multi_ptr is not supported, and no alternative is available"
 #endif
 }
+#endif
 
 #if defined(SYCL_EXT_ONEAPI_BACKEND_LEVEL_ZERO) || defined(SYCL_EXT_ACPP_BACKEND_LEVEL_ZERO)
 #    define _ONEDPL_SYCL_L0_EXT_PRESENT 1
