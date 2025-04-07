@@ -86,21 +86,21 @@ struct __group_merge_path_sorter
             const std::uint32_t __n1 = __end1 - __start1;
             const std::uint32_t __n2 = __end2 - __start2;
 
-            auto __in_ptr = __dpl_sycl::__get_accessor_ptr(__storage_acc) + __data_in_temp * __sorted_final;
-            auto __out_ptr = __dpl_sycl::__get_accessor_ptr(__storage_acc) + (!__data_in_temp) * __sorted_final;
-            auto __in_ptr1 = __in_ptr + __start1;
-            auto __in_ptr2 = __in_ptr + __start2;
+            //auto __in_ptr = __dpl_sycl::__get_accessor_ptr(__storage_acc) + __data_in_temp * __sorted_final;
+            //auto __out_ptr = __dpl_sycl::__get_accessor_ptr(__storage_acc) + (!__data_in_temp) * __sorted_final;
+            //auto __in_ptr1 = __in_ptr + __start1;
+            //auto __in_ptr2 = __in_ptr + __start2;
 
-            const std::pair<std::uint32_t, std::uint32_t> __start = __find_start_point(
-                __in_ptr1, std::uint32_t{0}, __n1, __in_ptr2, std::uint32_t{0}, __n2, __id_local, __comp);
-            // TODO: copy the data into registers before the merge to halve the required amount of SLM
-            __serial_merge(__in_ptr1, __in_ptr2, __out_ptr, __start.first, __start.second, __id, __data_per_workitem,
-                           __n1, __n2, __comp);
-            __dpl_sycl::__group_barrier(__item);
+            //const std::pair<std::uint32_t, std::uint32_t> __start = __find_start_point(
+            //    __in_ptr1, std::uint32_t{0}, __n1, __in_ptr2, std::uint32_t{0}, __n2, __id_local, __comp);
+            //// TODO: copy the data into registers before the merge to halve the required amount of SLM
+            //__serial_merge(__in_ptr1, __in_ptr2, __out_ptr, __start.first, __start.second, __id, __data_per_workitem,
+            //               __n1, __n2, __comp);
+            //__dpl_sycl::__group_barrier(__item);
 
-            __sorted = __next_sorted;
-            __next_sorted *= 2;
-            __data_in_temp = !__data_in_temp;
+            //__sorted = __next_sorted;
+            //__next_sorted *= 2;
+            //__data_in_temp = !__data_in_temp;
         }
         return __data_in_temp;
     }

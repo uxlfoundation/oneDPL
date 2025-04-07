@@ -199,59 +199,59 @@ struct __subgroup_radix_sort
 
                                 //1. "counting" phase
                                 //counter initialization
-                                auto __pcounter = __dpl_sycl::__get_accessor_ptr(__counter_lacc) + __wi;
+                                //auto __pcounter = __dpl_sycl::__get_accessor_ptr(__counter_lacc) + __wi;
 
-                                _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __bin_count; ++__i)
-                                    __pcounter[__i * __wg_size] = 0;
+                                //_ONEDPL_PRAGMA_UNROLL
+                                //for (uint16_t __i = 0; __i < __bin_count; ++__i)
+                                //    __pcounter[__i * __wg_size] = 0;
 
-                                _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __block_size; ++__i)
-                                {
-                                    const uint16_t __idx = __wi * __block_size + __i;
-                                    const uint16_t __bin = __idx < __n ? __get_bucket</*mask*/ __bin_count - 1>(
-                                        __order_preserving_cast<__is_asc>(__proj(__values.__v[__i])), __begin_bit)
-                                        : __bin_count - 1/*default bin for out of range elements (when idx >= n)*/;
+                                //_ONEDPL_PRAGMA_UNROLL
+                                //for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                //{
+                                //    const uint16_t __idx = __wi * __block_size + __i;
+                                //    const uint16_t __bin = __idx < __n ? __get_bucket</*mask*/ __bin_count - 1>(
+                                //        __order_preserving_cast<__is_asc>(__proj(__values.__v[__i])), __begin_bit)
+                                //        : __bin_count - 1/*default bin for out of range elements (when idx >= n)*/;
 
-                                    //"counting" and local offset calculation
-                                    __counters[__i] = &__pcounter[__bin * __wg_size];
-                                    __indices[__i] = *__counters[__i];
-                                    *__counters[__i] = __indices[__i] + 1;
-                                }
-                                __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
+                                //    //"counting" and local offset calculation
+                                //    __counters[__i] = &__pcounter[__bin * __wg_size];
+                                //    __indices[__i] = *__counters[__i];
+                                //    *__counters[__i] = __indices[__i] + 1;
+                                //}
+                                //__dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
 
-                                //2. scan phase
-                                {
-                                    //TODO: probably can be further optimized
+                                ////2. scan phase
+                                //{
+                                //    //TODO: probably can be further optimized
 
-                                    //scan contiguous numbers
-                                    uint16_t __bin_sum[__bin_count];
-                                    __bin_sum[0] = __counter_lacc[__wi * __bin_count];
+                                //    //scan contiguous numbers
+                                //    uint16_t __bin_sum[__bin_count];
+                                //    __bin_sum[0] = __counter_lacc[__wi * __bin_count];
 
-                                    _ONEDPL_PRAGMA_UNROLL
-                                    for (uint16_t __i = 1; __i < __bin_count; ++__i)
-                                        __bin_sum[__i] = __bin_sum[__i - 1] + __counter_lacc[__wi * __bin_count + __i];
-                                    __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
+                                //    _ONEDPL_PRAGMA_UNROLL
+                                //    for (uint16_t __i = 1; __i < __bin_count; ++__i)
+                                //        __bin_sum[__i] = __bin_sum[__i - 1] + __counter_lacc[__wi * __bin_count + __i];
+                                //    __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
 
-                                    //exclusive scan local sum
-                                    uint16_t __sum_scan = __dpl_sycl::__exclusive_scan_over_group(
-                                        __it.get_group(), __bin_sum[__bin_count - 1], __dpl_sycl::__plus<uint16_t>());
-                                    //add to local sum, generate exclusive scan result
-                                    _ONEDPL_PRAGMA_UNROLL
-                                    for (uint16_t __i = 0; __i < __bin_count; ++__i)
-                                        __counter_lacc[__wi * __bin_count + __i + 1] = __sum_scan + __bin_sum[__i];
+                                //    //exclusive scan local sum
+                                //    uint16_t __sum_scan = __dpl_sycl::__exclusive_scan_over_group(
+                                //        __it.get_group(), __bin_sum[__bin_count - 1], __dpl_sycl::__plus<uint16_t>());
+                                //    //add to local sum, generate exclusive scan result
+                                //    _ONEDPL_PRAGMA_UNROLL
+                                //    for (uint16_t __i = 0; __i < __bin_count; ++__i)
+                                //        __counter_lacc[__wi * __bin_count + __i + 1] = __sum_scan + __bin_sum[__i];
 
-                                    if (__wi == 0)
-                                        __counter_lacc[0] = 0;
-                                    __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
-                                }
+                                //    if (__wi == 0)
+                                //        __counter_lacc[0] = 0;
+                                //    __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
+                                //}
 
-                                _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __block_size; ++__i)
-                                {
-                                    // a global index is a local offset plus a global base index
-                                    __indices[__i] += *__counters[__i];
-                                }
+                                //_ONEDPL_PRAGMA_UNROLL
+                                //for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                //{
+                                //    // a global index is a local offset plus a global base index
+                                //    __indices[__i] += *__counters[__i];
+                                //}
                             }
 
                             __begin_bit += __radix;

@@ -238,33 +238,33 @@ struct __lookback_kernel_func
             }
         }
 
-        auto __tile_vals_ptr = __dpl_sycl::__get_accessor_ptr(__tile_vals);
-        _Type __local_reduction =
-            sycl::joint_reduce(__group, __tile_vals_ptr, __tile_vals_ptr + __wg_local_memory_size, __binary_op);
-        _Type __prev_tile_reduction{};
+        //auto __tile_vals_ptr = __dpl_sycl::__get_accessor_ptr(__tile_vals);
+        //_Type __local_reduction =
+        //    sycl::joint_reduce(__group, __tile_vals_ptr, __tile_vals_ptr + __wg_local_memory_size, __binary_op);
+        //_Type __prev_tile_reduction{};
 
-        // The first sub-group will query the previous tiles to find a prefix
-        if (__subgroup.get_group_id() == 0)
-        {
-            _FlagType __flag(__status_flags, __status_vals_full, __status_vals_partial, __tile_id);
+        //// The first sub-group will query the previous tiles to find a prefix
+        //if (__subgroup.get_group_id() == 0)
+        //{
+        //    _FlagType __flag(__status_flags, __status_vals_full, __status_vals_partial, __tile_id);
 
-            if (__subgroup.get_local_id() == 0)
-            {
-                __flag.set_partial(__local_reduction);
-            }
+        //    if (__subgroup.get_local_id() == 0)
+        //    {
+        //        __flag.set_partial(__local_reduction);
+        //    }
 
-            __prev_tile_reduction = __flag.cooperative_lookback(__subgroup, __binary_op);
+        //    __prev_tile_reduction = __flag.cooperative_lookback(__subgroup, __binary_op);
 
-            if (__subgroup.get_local_id() == 0)
-            {
-                __flag.set_full(__binary_op(__prev_tile_reduction, __local_reduction));
-            }
-        }
+        //    if (__subgroup.get_local_id() == 0)
+        //    {
+        //        __flag.set_full(__binary_op(__prev_tile_reduction, __local_reduction));
+        //    }
+        //}
 
-        __prev_tile_reduction = sycl::group_broadcast(__group, __prev_tile_reduction, 0);
+        //__prev_tile_reduction = sycl::group_broadcast(__group, __prev_tile_reduction, 0);
 
-        sycl::joint_inclusive_scan(__group, __tile_vals_ptr, __tile_vals_ptr + __wg_local_memory_size, __out_begin,
-                                   __binary_op, __prev_tile_reduction);
+        //sycl::joint_inclusive_scan(__group, __tile_vals_ptr, __tile_vals_ptr + __wg_local_memory_size, __out_begin,
+        //                           __binary_op, __prev_tile_reduction);
     }
 };
 
