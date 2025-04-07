@@ -40,7 +40,8 @@ __simd_walk_n(_DifferenceType __n, _Function __f, _Iterators... __it)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
         __f(__it[__i]...);
 
-    return (__it, ...) + __n;
+    //A conciser writting (__it, ...) produces a warning in -Wunused-value mode.
+    return __internal::get_last_arg(__it...) + __n;
 }
 
 // TODO: check whether __simd_first() can be used here
