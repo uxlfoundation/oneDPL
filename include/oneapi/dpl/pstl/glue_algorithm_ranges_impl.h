@@ -835,9 +835,11 @@ struct __replace_if_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, const _T& __new_value, _Proj __proj = {}) const
     {
+        auto __pred_prj = [__pred, __proj](auto&& __val) { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
+        
         return oneapi::dpl::ranges::for_each(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            [__pred, __proj, __new_value](auto&& __a) {
-                if(std::invoke(__pred, std::invoke(__proj, __a))) __a = __new_value;}, std::identity{});
+            oneapi::dpl::__internal::__replace_functor<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>,
+            decltype(__pred_prj)>(__new_value, __pred_prj));
     }
 }; //__replace_if_fn
 } //__internal
@@ -853,14 +855,16 @@ struct __replace_fn
              typename _T1 = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>, typename _T2 = _T1>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
         && std::indirectly_writable<std::ranges::iterator_t<_R>, const _T2&>
-        && std::indirect_binary_predicate<std::ranges::equal_to, std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T1*>
+        && std::indirect_binary_predicate<std::ranges::equal_to,
+            std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T1*>
         && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T1& __old_value, const _T2& __new_value, _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::replace_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            [__old_value](auto&& __a) { return std::ranges::equal_to{}(__a, __old_value);}, __new_value, __proj);
+            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>(__old_value),
+            __new_value, __proj);
     }
 }; //__replace_fn
 
