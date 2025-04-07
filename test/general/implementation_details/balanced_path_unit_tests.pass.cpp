@@ -96,7 +96,7 @@ bool test_serial_set_op_count_and_write(SetTag set_tag)
 
     for (std::size_t i = 0; i < count; ++i)
     {
-        if (__temp_data.__data[i] != v3[i])
+        if (__temp_data.__data[i].__v != v3[i])
         {
             std::cout << "Failed: data mismatch" << std::endl;
             return false;
@@ -127,7 +127,7 @@ bool test_serial_set_op_count_and_write2(SetTag set_tag)
 
     for (std::size_t i = 0; i < count; ++i)
     {
-        if (__temp_data.__data[i] != v3[i])
+        if (__temp_data.__data[i].__v != v3[i])
         {
             std::cout << "Failed: data mismatch" << std::endl;
             return false;
@@ -158,7 +158,7 @@ bool test_serial_set_op_count_and_write_limited(SetTag set_tag)
 
     for (std::size_t i = 0; i < count; ++i)
     {
-        if (__temp_data.__data[i] != v3[i])
+        if (__temp_data.__data[i].__v != v3[i])
         {
             std::cout << "Failed: data mismatch" << std::endl;
             return false;
@@ -190,7 +190,7 @@ bool test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
 
     for (std::size_t i = 0; i < count; ++i)
     {
-        if (__temp_data.__data[i] != v3[i])
+        if (__temp_data.__data[i].__v != v3[i])
         {
             std::cout << "Failed: data mismatch" << std::endl;
             return false;
@@ -222,7 +222,7 @@ bool test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
 
     for (std::size_t i = 0; i < count; ++i)
     {
-        if (__temp_data.__data[i] != v3[i])
+        if (__temp_data.__data[i].__v != v3[i])
         {
             std::cout << "Failed: data mismatch" << std::endl;
             return false;
