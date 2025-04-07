@@ -654,7 +654,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 #endif
     }
 
-    _T
+    auto
     __wait_and_get_value(sycl::event __event) const
     {
         static_assert(_NResults == 1);
@@ -662,7 +662,8 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         if (is_USM())
             __event.wait_and_throw();
 
-        return __get_value();
+        if constexpr (_NResults == 1)
+            return __get_value();
     }
 
     // Note: this member function assumes the result is *ready*, since the __future has already
