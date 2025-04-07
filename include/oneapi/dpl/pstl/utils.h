@@ -830,6 +830,18 @@ constexpr auto __get_first_iterator(_FirstIt __first_it, _RestIt...) {
     return __first_it;
 }
 
+template<typename T>
+auto get_last_arg(T t)
+{
+    return t;
+}
+
+template<typename T, typename... Rest>
+auto get_last_arg(T, Rest... args)
+{
+    return get_last_arg(args...);
+}
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
