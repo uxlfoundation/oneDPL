@@ -672,17 +672,17 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     {
         if (__use_USM_host && __supports_USM_device)
         {
-            return *(__result_buf.get() + idx);
+            return *(__result_buf.get() + _Idx);
         }
         else if (__supports_USM_device)
         {
             _T __tmp;
-            __exec.queue().memcpy(&__tmp, __scratch_buf.get() + __scratch_n + idx, 1 * sizeof(_T)).wait();
+            __exec.queue().memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
             return __tmp;
         }
         else
         {
-            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + idx];
+            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + _Idx];
         }
     }
 
