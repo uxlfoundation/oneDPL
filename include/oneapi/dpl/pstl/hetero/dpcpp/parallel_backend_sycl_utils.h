@@ -575,8 +575,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 
   public:
     __result_and_scratch_storage_impl(const _ExecutionPolicy& __exec_, std::size_t __scratch_n)
-        : __exec{__exec_}, __scratch_n{__scratch_n},
-          __use_USM_host{__use_USM_host_allocations(__exec.queue())},
+        : __exec{__exec_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations(__exec.queue())},
           __supports_USM_device{__use_USM_allocations(__exec.queue())}
     {
         const std::size_t __total_n = _NResults + __scratch_n;
