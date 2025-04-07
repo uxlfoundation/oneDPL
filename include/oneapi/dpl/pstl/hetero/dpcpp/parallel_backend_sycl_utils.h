@@ -720,7 +720,10 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         if (is_USM())
             __event.wait_and_throw();
 
-        return __fill_data(__get_value(), __p_buf);
+        if constexpr (_NResults == 1)
+            return __fill_data(__get_value(), __p_buf);
+        else
+            return 0;
     }
 };
 
