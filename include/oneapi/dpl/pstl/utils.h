@@ -26,6 +26,7 @@
 #include <functional>
 #include <type_traits>
 #include <algorithm>
+#include <cmath>
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "hetero/dpcpp/sycl_defs.h"
@@ -557,6 +558,19 @@ __dpl_ceiling_div(_T1 __number, _T2 __divisor)
 {
     return (__number - 1) / __divisor + 1;
 }
+
+template <typename _T>
+bool
+__dpl_signbit(const _T& __x)
+{
+    if constexpr (!std::is_floating_point_v<_T>)
+    {
+        //This is required to resolve some possible ambiguity for some STL implementations
+        return std::signbit(static_cast<double>(__x));
+    }
+    return std::signbit(__x);
+}
+
 
 template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
 _Size1

@@ -1015,7 +1015,7 @@ struct __gen_set_op_from_known_balanced_path
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
-        _SizeType __star_offset = std::signbit(__rng1_temp_diag[__id]) ? 1 : 0;
+        _SizeType __star_offset = oneapi::dpl::__internal::__dpl_signbit(__rng1_temp_diag[__id]) ? 1 : 0;
         auto __rng1_temp_diag_abs = std::abs(__rng1_temp_diag[__id]);
         auto __rng2_temp_diag = __i_elem - __rng1_temp_diag_abs + __star_offset;
 
