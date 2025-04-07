@@ -179,6 +179,16 @@ __pattern_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRa
         oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 }
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _T>
+void
+__pattern_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value)
+{
+    auto __f = [__value](auto&& __a) { __a = __value; };
+
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f,
+                                                            oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+}
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
@@ -633,6 +643,18 @@ __pattern_count_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     return oneapi::dpl::__internal::__ranges::__pattern_count(__tag, ::std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(::std::forward<_R>(__r)), __pred_1);
 }
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _T, typename _Proj>
+std::ranges::range_difference_t<_R>
+__pattern_count(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj)
+{
+    auto __pred = [__value](auto&& __val) { return std::ranges::equal_to{}(
+            std::forward<decltype(__val)>(__val), __value);};
+
+    return oneapi::dpl::__internal::__ranges::__pattern_count(__tag, ::std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::views::all_read(::std::forward<_R>(__r)), __pred);
+}
+
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
