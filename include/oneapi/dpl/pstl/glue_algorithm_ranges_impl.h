@@ -762,10 +762,10 @@ struct __fill_fn
              std::ranges::output_range<_R, const _T&> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& exec, _R&& __r, const _T& __value) const
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_fill(__dispatch_tag, std::forward<_ExecutionPolicy>(exec),
+        return oneapi::dpl::__internal::__ranges::__pattern_fill(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
             std::forward<_R>(__r), __value);
     }
 }; //__fill_fn
@@ -786,8 +786,9 @@ struct __generate_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _F __gen) const
     {
-        return oneapi::dpl::ranges::for_each(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), [__gen](auto&& __a)
-            { __a = std::invoke(__gen);} );
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_generate(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+            std::forward<_R>(__r), __gen);
     }
 }; //__generate_fn
 

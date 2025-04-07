@@ -181,13 +181,27 @@ __pattern_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRa
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _T>
-void
+std::ranges::borrowed_iterator_t<_R>
 __pattern_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value)
 {
     auto __f = [__value](auto&& __a) { __a = __value; };
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f,
                                                             oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+
+    return {std::ranges::begin(__r) + std::ranges::size(__r)};
+}
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _F>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_generate(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _F __gen)
+{
+    auto __f = [__gen](auto&& __a) { __a = std::invoke(__gen);};
+
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f,
+                                                            oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+
+    return {std::ranges::begin(__r) + std::ranges::size(__r)};
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
