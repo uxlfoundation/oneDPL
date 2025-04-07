@@ -48,10 +48,17 @@
 namespace oneapi::dpl::__internal
 {
 
+#if 0
 template <typename... _Ts>
 struct __are_all_device_copyable : std::conjunction<sycl::is_device_copyable<_Ts>...>
 {
 };
+#else
+template <typename... _Ts>
+struct __are_all_device_copyable : std::false_type
+{
+};
+#endif
 
 template <typename _Pred>
 class __not_pred;
@@ -156,6 +163,7 @@ struct __pattern_adjacent_difference_op_caller_fn;
 
 } // namespace oneapi::dpl::__internal
 
+#if 0
 template <typename _Pred>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__not_pred, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
@@ -455,6 +463,7 @@ struct __red_by_seg_op;
 
 } // namespace oneapi::dpl::__par_backend_hetero
 
+#if 0
 template <typename _UnaryOp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_transform_input,
                                                        _UnaryOp)>
@@ -541,6 +550,8 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOp>
 {
 };
+
+#endif
 
 namespace oneapi::dpl::unseq_backend
 {
@@ -731,6 +742,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOperator, _Size>
 {
 };
+#endif
 
 namespace oneapi::dpl::internal
 {
@@ -757,6 +769,7 @@ class transform_if_stencil_fun;
 
 } // namespace oneapi::dpl::internal
 
+#if 0
 template <typename Comp, typename T, oneapi::dpl::internal::search_algorithm func>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::__custom_brick, Comp, T, func)>
     : oneapi::dpl::__internal::__are_all_device_copyable<Comp, T>
@@ -797,6 +810,8 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::tr
 {
 };
 
+#endif
+
 namespace oneapi::dpl
 {
 
@@ -811,6 +826,7 @@ class permutation_iterator;
 
 } // namespace oneapi::dpl
 
+#if 0
 template <typename... _Types>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::zip_iterator, _Types...)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Types...>
@@ -828,6 +844,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::permutation_
     : oneapi::dpl::__internal::__are_all_device_copyable<SourceIterator, _Permutation>
 {
 };
+#endif
 
 #undef _ONEDPL_SPECIALIZE_FOR
 
