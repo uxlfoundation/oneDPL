@@ -571,7 +571,7 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
 
     // Although we do not actually need result storage in this case, we need to construct
     // a placeholder here to match the return type of the non-single-work-group implementation
-    __result_and_scratch_storage<_ExecutionPolicy, _ValueType, /* _NResults = */ 0> __dummy_result_and_scratch{__exec,
+    __result_and_scratch_storage<_ExecutionPolicy, _ValueType, /* _NResults = */ 1> __dummy_result_and_scratch{__exec,
                                                                                                                0};
 
     if (__max_wg_size >= __targeted_wg_size)
