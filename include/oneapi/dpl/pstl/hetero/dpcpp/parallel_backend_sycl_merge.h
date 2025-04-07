@@ -222,8 +222,10 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         const _IdType __steps = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk);
 
         using __val_t = _split_point_t<_IdType>;
+        using _NResults = std::conditional_t<_OutSizeLimit{}, std::integral_constant<std::size_t, 1>,
+                                             std::integral_constant<std::size_t, 0>>;
         using __result_and_scratch_storage_t =
-            __result_and_scratch_storage<_ExecutionPolicy, __val_t, /* _NResults = */ 1>;
+            __result_and_scratch_storage<_ExecutionPolicy, __val_t, _NResults::value>;
         __result_and_scratch_storage_t* __p_res_storage = nullptr;
 
         if constexpr (_OutSizeLimit{})
