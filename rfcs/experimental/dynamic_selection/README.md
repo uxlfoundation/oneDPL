@@ -112,9 +112,9 @@ The type `T` satisfies *Policy* if given,
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
-| `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. calling this function before `initialize` throws a `std::runtime_exception`. |
+| `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
 | `p.select(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
-| `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` but does not wait for the `wait_t<T>` object returned by it. |
+| `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` with the selected resource `s` and the arguments `args...`. |
 
 | Policy Traits* | Description |
 | ------- | ----------- |
@@ -137,9 +137,9 @@ The current implementation of these traits depends on types defined in the Polic
 ```
 | *Optional* | Description |
 | --------------------- | ----------- |
-| `p.submit_and_wait(s, f, args…)` | Returns `void`. The function invokes `f` and waits for the `wait_t<T>` it returns to complete. |
-| `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` but does not wait for the `wait_t<T>` it returns to complete. |
-| `p.submit_and_wait(f, args…)` | Returns `void`. The function invokes `f` and waits for the `wait_t<T>` it returns to complete. |
+| `p.submit_and_wait(s, f, args…)` | Returns `void`. The function invokes `f` with `s` and `args...` and waits for the `wait_t<T>` it returns to complete. |
+| `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
+| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits for the `wait_t<T>` it returns to complete. |
 
 <a id="selection_req_id"></a>
 ### Selection
@@ -412,7 +412,7 @@ The type `T` satisfies the *Backend* contract if given,
 
 | *Optional* | Description |
 | --------------------- | ----------- |
-| `void lazy_report()` | If defined by a backend, this function must be called before each new selection. It triggers reporting of the necessary execution info back to the policy. |
+| `void lazy_report()` | If defined by a backend, this function must be called by a policy before each new selection. It triggers reporting of the necessary execution info back to the policy. |
 
 <a id="free_functions_id"></a>
 ## Free Functions
