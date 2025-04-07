@@ -956,7 +956,7 @@ struct __remove_fn
     std::ranges::borrowed_subrange_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
-        return remove_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+        return oneapi::dpl::ranges::remove_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             [__value](auto&& __a) { return std::ranges::equal_to{}(__a, __value);}, __proj);
     }
   
