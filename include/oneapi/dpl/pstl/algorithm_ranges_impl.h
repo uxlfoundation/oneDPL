@@ -340,6 +340,30 @@ __pattern_count_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// pattern_count
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _T, typename _Proj>
+std::ranges::range_difference_t<_R>
+__pattern_count(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __pred = [&__value](auto&& __val) { return std::ranges::equal_to{}(
+            std::forward<decltype(__val)>(__val), __value);};
+
+    return oneapi::dpl::__internal::__pattern_count(__tag, std::forward<_ExecutionPolicy>(__exec),
+        std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r), __pred);
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _T, typename _Proj>
+std::ranges::range_difference_t<_R>
+__pattern_count(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, const _T& __value, _Proj __proj)
+{
+    return std::ranges::count(std::forward<_R>(__r), __value, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // pattern_equal
 //---------------------------------------------------------------------------------------------------------------------
 template<typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
@@ -547,6 +571,29 @@ __pattern_copy_if_ranges(__serial_tag</*IsVector*/std::false_type>, _ExecutionPo
                          _Pred __pred, _Proj __proj)
 {
     return std::ranges::copy_if(std::forward<_InRange>(__in_r), std::ranges::begin(__out_r), __pred, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_fill
+//---------------------------------------------------------------------------------------------------------------------
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _T>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    const auto __first = std::ranges::begin(__r);
+    const auto __last = __first + std::ranges::size(__r);
+    oneapi::dpl::__internal::__pattern_fill(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __value);
+
+    return {__last};
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _T>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_fill(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, const _T& __value)
+{
+    return std::ranges::fill(std::forward<_R>(__r), __value);
 }
 
 //---------------------------------------------------------------------------------------------------------------------

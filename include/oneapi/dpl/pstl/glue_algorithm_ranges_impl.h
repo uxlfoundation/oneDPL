@@ -417,10 +417,9 @@ struct __count_fn
     std::ranges::range_difference_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
-        __count_fn_pred<_T> __pred{__value};
-
-        return oneapi::dpl::ranges::count_if(std::forward<_ExecutionPolicy>(__exec),
-            std::forward<_R>(__r), __pred, __proj);
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_count(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __value, __proj);
     }
 }; //__count_fn
 }  //__internal
@@ -765,8 +764,9 @@ struct __fill_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& exec, _R&& __r, const _T& __value) const
     {
-        return oneapi::dpl::ranges::for_each(std::forward<_ExecutionPolicy>(exec), std::forward<_R>(__r),
-            [__value](auto&& __a) { __a = __value;} );
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_fill(__dispatch_tag, std::forward<_ExecutionPolicy>(exec),
+            std::forward<_R>(__r), __value);
     }
 }; //__fill_fn
 
