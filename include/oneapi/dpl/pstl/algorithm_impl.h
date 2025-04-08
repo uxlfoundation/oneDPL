@@ -46,23 +46,6 @@ namespace dpl
 namespace __internal
 {
 
-template <typename _DifferenceType, typename _F, typename... _Iterators>
-auto
-__brick_walk_n(_DifferenceType __n, _F __f, /*__is_vector=*/ std::false_type, _Iterators... __it) noexcept
-{
-    for (_DifferenceType __i = 0; __i < __n; ++__i)
-        __f(__it[__i]...);
-
-    return (__it, ...) + __n;
-}
-
-template <typename _DifferenceType, typename _F, typename... _Iterators>
-auto
-__brick_walk_n(_DifferenceType __n, _F __f, /*__is_vector=*/ std::true_type, _Iterators... __it) noexcept
-{
-    return __unseq_backend::__simd_walk_n(__n, __f, __it...);
-}
-
 //------------------------------------------------------------------------
 // any_of
 //------------------------------------------------------------------------
