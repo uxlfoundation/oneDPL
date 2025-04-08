@@ -553,12 +553,12 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
 };
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _UnaryOperation, typename _InitType,
-          typename _BinaryOperation, typename _Inclusive, typename _NResults>
-auto
+          typename _BinaryOperation, typename _Inclusive>
+sycl::event
 __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                        _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n,
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
-                                       _Inclusive, _NResults)
+                                       _Inclusive)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -569,10 +569,6 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
 
     using _ValueType = typename _InitType::__value_type;
 
-    // Although we do not actually need result storage in this case, we need to construct
-    // a placeholder here to match the return type of the non-single-work-group implementation
-    __result_and_scratch_storage<_ExecutionPolicy, _ValueType, _NResults::value> __dummy_result_and_scratch{__exec, 0};
-
     if (__max_wg_size >= __targeted_wg_size)
     {
         auto __single_group_scan_f = [&](auto __size_constant) {
@@ -582,9 +578,8 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
                 oneapi::dpl::__internal::__dpl_ceiling_div(__size, __wg_size);
             const bool __is_full_group = __n == __wg_size;
 
-            sycl::event __event;
             if (__is_full_group)
-                __event = __parallel_transform_scan_static_single_group_submitter<
+                return __parallel_transform_scan_static_single_group_submitter<
                     _Inclusive::value, __num_elems_per_item, __wg_size,
                     /* _IsFullGroup= */ true,
                     oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__scan_single_wg_kernel<
@@ -594,7 +589,7 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
                     ::std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
                     std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op);
             else
-                __event = __parallel_transform_scan_static_single_group_submitter<
+                return __parallel_transform_scan_static_single_group_submitter<
                     _Inclusive::value, __num_elems_per_item, __wg_size,
                     /* _IsFullGroup= */ false,
                     oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__scan_single_wg_kernel<
@@ -603,7 +598,6 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
                         /* _IsFullGroup= */ ::std::false_type, _Inclusive, _CustomName>>>()(
                     ::std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
                     std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op);
-            return __future(__event, __dummy_result_and_scratch);
         };
         if (__n <= 16)
             return __single_group_scan_f(std::integral_constant<::std::uint16_t, 16>{});
@@ -633,11 +627,9 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
         using _DynamicGroupScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __par_backend_hetero::__scan_single_wg_dynamic_kernel<_BinaryOperation, _CustomName>>;
 
-        auto __event =
-            __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive::value, _DynamicGroupScanKernel>()(
+        return __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive::value, _DynamicGroupScanKernel>()(
                 std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
                 std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op, __max_wg_size);
-        return __future(__event, __dummy_result_and_scratch);
     }
 }
 
@@ -1047,7 +1039,7 @@ struct __write_to_id_if_else
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
-auto
+__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type, 1>>
 __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                           _Range1&& __in_rng, _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op,
                           _InitType __init, _BinaryOperation __binary_op, _Inclusive)
@@ -1072,11 +1064,15 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             std::size_t __single_group_upper_limit = __use_reduce_then_scan ? 2048 : 16384;
             if (__group_scan_fits_in_slm<_Type>(__exec.queue(), __n, __n_uniform, __single_group_upper_limit))
             {
-                return __parallel_transform_scan_single_group(
+                auto __event = __parallel_transform_scan_single_group(
                     __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
-                    std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{},
-                    std::integral_constant<std::size_t, 1>{});  // One result required inside return value __future<sycl::event, __result_and_scratch_storage<...>>
-                                                                // to align with other return values
+                    std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
+
+                // For align with other return values we need to return a future with __result_and_scratch_storage object inside
+                return {
+                    std::move(__event),
+                    __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type, /*_NResults*/ 1>{
+                        __exec, 0}};
             }
         }
         if (__use_reduce_then_scan)
