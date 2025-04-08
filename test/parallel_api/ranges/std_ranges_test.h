@@ -84,7 +84,7 @@ auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
 auto proj = [](auto&& val){ return val * 2; };
 auto pred = [](auto&& val) { return val == 5; };
 auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
-auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; }
+auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
 
 auto pred1 = [](auto&& val) -> decltype(auto) { return val > 0; };
 auto pred2 = [](auto&& val) -> decltype(auto) { return val == 4; };
@@ -261,7 +261,7 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
         process_data_in_out(max_n, r_size/2, r_size, exec, algo, checker, args...);
@@ -272,8 +272,23 @@ public:
     std::enable_if_t<mode == data_in_in>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
-        Container cont_in1(exec, max_n, DataGen1{});
-        Container cont_in2(exec, max_n, DataGen2{});
+        const int r_size = max_n;
+        process_data_in_in(max_n, r_size, r_size, exec, algo, checker, tr_in, args...);
+
+        //test case the sizes of input ranges are different
+        process_data_in_in(max_n, r_size/2, r_size, exec, algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size/2, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+    }
+
+private:
+    void
+    process_data_in_in(int max_n, int n_in1, int n_in2, auto&& exec, auto algo, auto& checker, auto tr_in, auto... args)
+    {
+        assert(n_in1 <= max_n);
+        assert(n_in2 <= max_n);
+
+        Container cont_in1(exec, n_in1, DataGen1{});
+        Container cont_in2(exec, n_in2, DataGen2{});
 
         auto src_view1 = tr_in(std::views::all(cont_in1()));
         auto src_view2 = tr_in(std::views::all(cont_in2()));
@@ -287,11 +302,10 @@ public:
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), args...))>, "Wrong return type");
 
         auto bres_in = ret_in_val(expected_res, src_view1.begin()) == ret_in_val(res, tr_in(A).begin());
-        EXPECT_TRUE(bres_in, (std::string("wrong return value from algo: ") + typeid(Algo).name() +
+        EXPECT_TRUE(bres_in, (std::string("wrong return value from algo: ") + typeid(decltype(algo)).name() +
             typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
     }
 
-private:
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
     void
     process_data_in_in_out(int max_n, int n_in1, int n_in2, int n_out, Policy&& exec, Algo algo, Checker& checker,
