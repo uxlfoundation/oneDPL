@@ -311,7 +311,7 @@ struct __parallel_transform_reduce_impl
 {
     template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType,
               typename... _Ranges>
-    static auto
+    static __future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, _Tp>>
     submit(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Size __n, _Size __work_group_size,
            const _Size __iters_per_work_item, _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init,
            _Ranges&&... __rngs)
@@ -421,7 +421,7 @@ struct __parallel_transform_reduce_impl
             __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
         } while (__n > 1);
 
-        return __future(__reduce_event, __scratch_container);
+        return {std::move(__reduce_event), std::move(__scratch_container)};
     }
 }; // struct __parallel_transform_reduce_impl
 
