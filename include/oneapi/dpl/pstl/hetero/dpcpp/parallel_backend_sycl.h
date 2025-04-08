@@ -554,7 +554,7 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
-auto
+__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type>>
 __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                        _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n,
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
@@ -603,7 +603,8 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
                         /* _IsFullGroup= */ ::std::false_type, _Inclusive, _CustomName>>>()(
                     ::std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
                     std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op);
-            return __future(__event, __dummy_result_and_scratch);
+
+            return __future{std::move(__event), std::move(__dummy_result_and_scratch)};
         };
         if (__n <= 16)
             return __single_group_scan_f(std::integral_constant<::std::uint16_t, 16>{});
@@ -637,7 +638,8 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
             __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive::value, _DynamicGroupScanKernel>()(
                 std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
                 std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op, __max_wg_size);
-        return __future(__event, __dummy_result_and_scratch);
+
+        return {std::move(__event), std::move(__dummy_result_and_scratch)};
     }
 }
 
