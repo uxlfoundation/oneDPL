@@ -24,6 +24,10 @@ main()
 
     auto find_end_checker = TEST_PREPARE_CALLABLE(std::ranges::find_end);
 
+    //true result
+    test_range_algo<0, int, data_in_in, std::identity/*data gen*/, 
+                   std::identity/*data gen*/>{medium_size}(dpl_ranges::find_end, find_end_checker, binary_pred);
+    //false result
     test_range_algo<0, int, data_in_in>{big_sz}(dpl_ranges::find_end, find_end_checker, binary_pred);
     test_range_algo<1, int, data_in_in>{}(dpl_ranges::find_end, find_end_checker, binary_pred, proj, proj);
     test_range_algo<2, P2, data_in_in>{}(dpl_ranges::find_end, find_end_checker, binary_pred, &P2::x, &P2::x);
