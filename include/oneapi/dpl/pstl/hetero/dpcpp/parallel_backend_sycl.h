@@ -234,7 +234,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 {
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _InitType,
               typename _LocalScan, typename _GroupScan, typename _GlobalScan>
-    auto
+    __future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type>>
     operator()(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _InitType __init,
                _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan) const
     {
@@ -333,7 +333,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             });
         });
 
-        return __future(__final_event, __result_and_scratch);
+        return {std::move(__final_event), std::move(__result_and_scratch)};
     }
 };
 
