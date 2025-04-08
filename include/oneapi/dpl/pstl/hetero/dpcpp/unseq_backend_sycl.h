@@ -128,7 +128,6 @@ struct walk_vector_or_scalar_base
 
   public:
     constexpr static bool __can_vectorize =
-        (oneapi::dpl::__ranges::__is_vectorizable_range<std::decay_t<_Ranges>>::value && ...) &&
         (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) && __min_type_size < 4;
     // Vectorize for small types, so we generate 128-byte load / stores in a sub-group
     constexpr static std::uint8_t __preferred_vector_size =
@@ -1428,7 +1427,6 @@ struct __brick_shift_left
     // Multiple iterations per item are manually processed in the brick with a nd-range strided approach.
     constexpr static std::uint8_t __preferred_iters_per_item = 1;
     constexpr static bool __can_vectorize =
-        oneapi::dpl::__ranges::__is_vectorizable_range<std::decay_t<_Range>>::value &&
         std::is_fundamental_v<_ValueType> && sizeof(_ValueType) < 4;
     constexpr static std::uint8_t __preferred_vector_size =
         __can_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, sizeof(_ValueType)) : 1;
