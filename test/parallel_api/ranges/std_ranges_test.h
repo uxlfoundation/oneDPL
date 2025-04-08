@@ -165,7 +165,11 @@ template<typename T>
 static constexpr
 bool check_minmax<T, std::void_t<decltype(std::declval<T>().min, std::declval<T>().max)>> = true;
 
-template<typename DataType, typename Container, TestDataMode test_mode = data_in>
+auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
+auto data_gen_zero = [](auto i) { return 0;};
+
+template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
+         typename DataGen2 = decltype(data_gen2_default)>
 struct test
 {
     void
@@ -181,8 +185,8 @@ struct test
     std::enable_if_t<mode == data_in>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
-        Container cont_in(exec, max_n, [](auto i) { return i;});
-        Container cont_exp(exec, max_n, [](auto i) { return i;});
+        Container cont_in(exec, max_n, DataGen1{});
+        Container cont_exp(exec, max_n, DataGen1{});
 
         auto expected_view = tr_in(std::views::all(cont_exp()));
         auto expected_res = checker(expected_view, args...);
@@ -212,9 +216,9 @@ private:
     {
         static_assert(mode == data_in_out || mode == data_in_out_lim);
 
-        Container cont_in(exec, n_in, [](auto i) { return i;});
-        Container cont_out(exec, n_out, [](auto i) { return 0;});
-        Container cont_exp(exec, n_out, [](auto i) { return 0;});
+        Container cont_in(exec, n_in, DataGen1{});
+        Container cont_out(exec, n_out, data_gen_zero);
+        Container cont_exp(exec, n_out, data_gen_zero);
 
         assert(n_in <= max_n);
         assert(n_out <= max_n);
@@ -267,8 +271,8 @@ public:
     std::enable_if_t<mode == data_in_in>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
-        Container cont_in1(exec, max_n, [](auto i) { return i;});
-        Container cont_in2(exec, max_n, [](auto i) { return i % 5 ? i : 0;});
+        Container cont_in1(exec, max_n, DataGen1{});
+        Container cont_in2(exec, max_n, DataGen2{});
 
         auto src_view1 = tr_in(std::views::all(cont_in1()));
         auto src_view2 = tr_in(std::views::all(cont_in2()));
@@ -294,11 +298,11 @@ private:
     {
         static_assert(mode == data_in_in_out || mode == data_in_in_out_lim);
 
-        Container cont_in1(exec, n_in1, [](auto i) { return i;});
+        Container cont_in1(exec, n_in1, DataGen1{});
         Container cont_in2(exec, n_in2, [](auto i) { return i/3;});
 
-        Container cont_out(exec, n_out, [](auto i) { return 0;});
-        Container cont_exp(exec, n_out, [](auto i) { return 0;});
+        Container cont_out(exec, n_out, data_gen_zero);
+        Container cont_exp(exec, n_out, data_gen_zero);
 
         assert(n_in1 <= max_n);
         assert(n_in2 <= max_n);
@@ -539,7 +543,8 @@ using  usm_span = usm_subrange_impl<T, std::span<T>>;
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-template<int call_id = 0, typename T = int, TestDataMode mode = data_in>
+template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
+         typename DataGen2 = decltype(data_gen2_default)>
 struct test_range_algo
 {
     const int n_serial = small_size;
@@ -568,9 +573,9 @@ struct test_range_algo
 
     void test_view(auto view, auto algo, auto& checker, auto... args)
     {
-        test<T, host_subrange<T>, mode>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
+        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
 #if TEST_DPCPP_BACKEND_PRESENT
-        test<T, usm_subrange<T>, mode>{}(n_device, dpcpp_policy<call_id>(), algo, checker, view, std::identity{}, args...);
+        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, dpcpp_policy<call_id>(), algo, checker, view, std::identity{}, args...);
 #endif //TEST_DPCPP_BACKEND_PRESENT
     }
 
@@ -582,18 +587,18 @@ struct test_range_algo
         auto span_view = [](auto&& v) { return std::span(v); };
 #endif
 
-        test<T, host_vector<T>, mode>{}.host_policies(
+        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker, std::identity{}, std::identity{}, args...);
-        test<T, host_vector<T>, mode>{}.host_policies(
+        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker, subrange_view, std::identity{}, args...);
-        test<T, host_vector<T>, mode>{}.host_policies(
+        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
-        test<T, host_subrange<T>, mode>{}.host_policies(
+        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-        test<T, host_vector<T>, mode>{}.host_policies(
+        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker,  span_view, std::identity{}, args...);
-        test<T, host_span<T>, mode>{}.host_policies(
+        test<T, host_span<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
 #endif
 
@@ -605,14 +610,14 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                test<T, usm_vector<T>, mode>{}(
+                test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
                     n_device, dpcpp_policy<call_id + 10>(), algo, checker, subrange_view, subrange_view, args...);
-                test<T, usm_subrange<T>, mode>{}(
+                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(
                     n_device, dpcpp_policy<call_id + 30>(), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>, mode>{}(
+                test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
                     n_device, dpcpp_policy<call_id + 20>(), algo, checker, span_view, subrange_view, args...);
-                test<T, usm_span<T>, mode>{}(
+                test<T, usm_span<T>, mode, DataGen1, DataGen2>{}(
                     n_device, dpcpp_policy<call_id + 40>(), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
