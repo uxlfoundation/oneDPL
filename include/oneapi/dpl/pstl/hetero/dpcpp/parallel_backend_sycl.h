@@ -553,12 +553,12 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
 };
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _UnaryOperation, typename _InitType,
-          typename _BinaryOperation, typename _Inclusive>
+          typename _BinaryOperation, typename _Inclusive, typename _NResults>
 auto
 __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                        _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n,
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
-                                       _Inclusive)
+                                       _Inclusive, _NResults)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -571,8 +571,7 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
 
     // Although we do not actually need result storage in this case, we need to construct
     // a placeholder here to match the return type of the non-single-work-group implementation
-    __result_and_scratch_storage<_ExecutionPolicy, _ValueType, /* _NResults = */ 1> __dummy_result_and_scratch{__exec,
-                                                                                                               0};
+    __result_and_scratch_storage<_ExecutionPolicy, _ValueType, _NResults::value> __dummy_result_and_scratch{__exec, 0};
 
     if (__max_wg_size >= __targeted_wg_size)
     {
@@ -1075,7 +1074,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             {
                 return __parallel_transform_scan_single_group(
                     __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
-                    std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
+                    std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{},
+                    std::integral_constant<std::size_t, 1>{});  // One result required inside return value __future<sycl::event, __result_and_scratch_storage<...>>
+                                                                // to align with other return values
             }
         }
         if (__use_reduce_then_scan)
