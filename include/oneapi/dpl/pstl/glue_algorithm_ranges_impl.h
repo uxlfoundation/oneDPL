@@ -931,7 +931,7 @@ struct __mismatch_fn
         {
             static_assert(!std::ranges::sized_range<_R2>);
             const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(__dispatch_tag,
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_R2>(__r1), std::ranges::subrange(std::ranges::begin(__r2),
+                std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::ranges::subrange(std::ranges::begin(__r2),
                 std::ranges::begin(__r2) + std::ranges::size(__r1)), __pred, __proj1,
                 __proj2);
 
