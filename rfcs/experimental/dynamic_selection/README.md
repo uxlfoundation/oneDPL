@@ -19,9 +19,9 @@ a timely manner, for justifying removal of the feature.
 
 The key components of the Dynamic Selection API are shown below, including the
 [Free Functions](#free_functions_id) (such as `submit`, `select`, `wait`, etc), a
-[Policy](#policy_req_id) object (such as [fixed_resource_policy](#provided-concrete-policies),
-[round_robin_policy](#provided-concrete-policies), [dynamic_load_policy](#provided-concrete-policies) and
-[auto_tune_policy](#provided-concrete-policies)) and a [Backend](#backend_req_id) object (currently only
+[Policy](#policy_req_id) object (such as [fixed_resource_policy](#concrete_policies_id),
+[round_robin_policy](#concrete_policies_id), [dynamic_load_policy](#concrete_policies_id) and
+[auto_tune_policy](#concrete_policies_id)) and a [Backend](#backend_req_id) object (currently only
 `sycl_backend`). Users interact with Dynamic Selection through the [Free Functions](#free_functions_id)
 and their chosen [Policy](#policy_req_id). The [Free Functions](#free_functions_id) have
 default implementations that depend on a limited set of required functions in the
