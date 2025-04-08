@@ -31,38 +31,37 @@ main()
 
     {
     auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::seq, view1, view2, binary_pred, proj, proj);
-    EXPECT_EQ(ex_res1, res1, err_msg);
-    EXPECT_EQ(ex_res2, res2, err_msg);
+    EXPECT_TRUE(ex_res1 == res1, err_msg);
+    EXPECT_TRUE(ex_res2 == res2, err_msg);
     }
 
     {
     auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::unseq, view1, view2, binary_pred, proj, proj);
-    EXPECT_EQ(ex_res1, res1, err_msg);
-    EXPECT_EQ(ex_res2, res2, err_msg);
+    EXPECT_TRUE(ex_res1 == res1, err_msg);
+    EXPECT_TRUE(ex_res2 == res2, err_msg);
     }
 
     {
     auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::par, view1, view2, binary_pred, proj, proj);
-    EXPECT_EQ(ex_res1, res1, err_msg);
-    EXPECT_EQ(ex_res2, res2, err_msg);
+    EXPECT_TRUE(ex_res1 == res1, err_msg);
+    EXPECT_TRUE(ex_res2 == res2, err_msg);
     }
 
     {
-    auto [ex_res1, ex_res2] = std::ranges::mismatch(view1, view1, binary_pred, proj, proj);
+    auto [ex_res1, ex_res2] = std::ranges::mismatch(view2, view1, binary_pred, proj, proj);
     auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::par_unseq, view2, view1, binary_pred, proj, proj);
-    EXPECT_EQ(ex_res1, res1, err_msg);
-    EXPECT_EQ(ex_res2, res2, err_msg);
+    EXPECT_TRUE(ex_res1 == res1, err_msg);
+    EXPECT_TRUE(ex_res2 == res2, err_msg);
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
     auto exec = dpcpp_policy();
     {
     auto [res1, res2] = dpl_ranges::mismatch(exec, view1, view2, binary_pred, proj, proj);
-    EXPECT_EQ(ex_res1, res1, err_msg);
-    EXPECT_EQ(ex_res2, res2, err_msg);
+    EXPECT_TRUE(ex_res1 == res1, err_msg);
+    EXPECT_TRUE(ex_res2 == res2, err_msg);
     }
 #endif //TEST_DPCPP_BACKEND_PRESENT
-
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

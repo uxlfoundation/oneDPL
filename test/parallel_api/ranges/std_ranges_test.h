@@ -165,9 +165,6 @@ template<typename T>
 static constexpr
 bool check_minmax<T, std::void_t<decltype(std::declval<T>().min, std::declval<T>().max)>> = true;
 
-template<typename>
-struct print_type;
-
 template<typename DataType, typename Container, TestDataMode test_mode = data_in>
 struct test
 {
