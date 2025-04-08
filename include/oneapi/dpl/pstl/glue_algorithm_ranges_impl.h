@@ -903,18 +903,40 @@ struct __mismatch_fn
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
              typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
     requires std::indirectly_comparable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>, _Pred, _Proj1, _Proj2>
-        && oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R1>
-        && std::ranges::sized_range<_R2>
+        && oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && (std::ranges::sized_range<_R1> || std::ranges::sized_range<_R2>)
 
     std::ranges::mismatch_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>>
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {}, _Proj2 __proj2 = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1,
-            __proj2);
+        if constexpr (std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2>)
+        {
+            const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(__dispatch_tag,
+                std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1,
+                __proj2);
 
-        return {__it_1, __it_2};
+            return {__it_1, __it_2};
+        }
+        else if constexpr (!std::ranges::sized_range<_R1>)
+        {
+            const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(__dispatch_tag,
+                std::forward<_ExecutionPolicy>(__exec), std::ranges::subrange(std::ranges::begin(__r1),
+                std::ranges::begin(__r1) + std::ranges::size(__r2)), std::forward<_R2>(__r2), __pred, __proj1,
+                __proj2);
+
+            return {__it_1, __it_2};
+        }
+        else
+        {
+            static_assert(!std::ranges::sized_range<_R2>);
+            const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(__dispatch_tag,
+                std::forward<_ExecutionPolicy>(__exec), std::forward<_R2>(__r1), std::ranges::subrange(std::ranges::begin(__r2),
+                std::ranges::begin(__r2) + std::ranges::size(__r1)), __pred, __proj1,
+                __proj2);
+
+            return {__it_1, __it_2};
+        }
     }
 
 }; //__mismatch_fn
