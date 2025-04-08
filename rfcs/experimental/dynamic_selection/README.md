@@ -146,7 +146,7 @@ The type `T` satisfies *Selection* for a given [Policy](#policy_req_id) `p` if g
 
 - `s` an arbitrary identifier of type `T`
 - `i` an object of type `Info` where `execution_info_v<Info>` is `true`
-- 'v' an object of type `V` and `is_same_v<Info::value_type, V>` is `true`
+- 'v' an object of type `Info::value_type`
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
