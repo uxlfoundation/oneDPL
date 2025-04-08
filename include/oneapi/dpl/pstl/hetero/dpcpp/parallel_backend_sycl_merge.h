@@ -205,7 +205,7 @@ template <typename _OutSizeLimit, typename _IdType, typename... _Name>
 struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional_kernel_name<_Name...>>
 {
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare>
-    auto
+    __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
     operator()(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp) const
     {
         const _IdType __n1 = __rng1.size();
@@ -258,7 +258,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
         // We should return the same thing in the second param of __future for compatibility
         // with the returning value in __parallel_merge_submitter_large::operator()
-        return __future(__event, std::shared_ptr<__result_and_scratch_storage_base>{__p_res_storage});
+        return {std::move(__event), __p_res_storage};
     }
 
   private:
