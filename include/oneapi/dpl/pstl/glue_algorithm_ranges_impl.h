@@ -920,22 +920,23 @@ struct __mismatch_fn
         }
         else if constexpr (!std::ranges::sized_range<_R1>)
         {
+            auto __sized_range = std::ranges::subrange(std::ranges::begin(__r1), std::ranges::begin(__r1) + std::ranges::size(__r2));
             const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(__dispatch_tag,
-                std::forward<_ExecutionPolicy>(__exec), std::ranges::subrange(std::ranges::begin(__r1),
-                std::ranges::begin(__r1) + std::ranges::size(__r2)), std::forward<_R2>(__r2), __pred, __proj1,
+                std::forward<_ExecutionPolicy>(__exec), __sized_range, std::forward<_R2>(__r2), __pred, __proj1,
                 __proj2);
 
-            return {__it_1, __it_2};
+            return {std::ranges::begin(__r1) + (__it_1 - __sized_range.begin()), __it_2};
         }
         else
         {
             static_assert(!std::ranges::sized_range<_R2>);
+
+            auto __sized_range = std::ranges::subrange(std::ranges::begin(__r2), std::ranges::begin(__r2) + std::ranges::size(__r1));
             const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(__dispatch_tag,
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::ranges::subrange(std::ranges::begin(__r2),
-                std::ranges::begin(__r2) + std::ranges::size(__r1)), __pred, __proj1,
+                std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), __sized_range, __pred, __proj1,
                 __proj2);
 
-            return {__it_1, __it_2};
+            return {__it_1, std::ranges::begin(__r2) + (__it_2 - __sized_range.begin())};
         }
     }
 
