@@ -232,11 +232,11 @@ struct __parallel_scan_submitter;
 template <typename _CustomName, typename... _PropagateScanName>
 struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name<_PropagateScanName...>>
 {
-    template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _InitType,
-              typename _LocalScan, typename _GroupScan, typename _GlobalScan>
+    template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _InitType, typename _LocalScan,
+              typename _GroupScan, typename _GlobalScan>
     __future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type>>
-    operator()(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _InitType __init,
-               _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan) const
+    operator()(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _InitType __init, _LocalScan __local_scan,
+               _GroupScan __group_scan, _GlobalScan __global_scan) const
     {
         using _Type = typename _InitType::__value_type;
         using _LocalScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
