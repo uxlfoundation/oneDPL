@@ -29,7 +29,8 @@ non device copyabiability reason. To support  `std::vector` with `USM` allocator
 - Output data, return type, and value should be checked/compared with the reference result
 computed by the corresponding serial std::ranges algorithm or by a custom implemented serial version
 in case of different semantics.
-- The tests should also call the algorithms with following standard range adapters: `std::ranges::subrange`, `std::span`, `std::views::all`
+- The tests should also call the algorithms with following standard range adapters: `std::ranges::subrange`, `std::span`, `std::views::all`,
+  `std::views::iota`, `std::views::transform`, `std::views::reverse`, `std::views::take`, `std::views::drop`
 - The tests should also call the algorithms with non-trivial projections.
-- In case of a device policy and std::vector with USM allocator, 
+- In case of a device policy and std::vector with USM allocator, the algorithms accept the vector wrapped into `std::ranges::subrange` or `std::span`.
 
