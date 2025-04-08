@@ -481,7 +481,7 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
 {
     template <typename _Policy, typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation,
               typename _UnaryOp, typename _Assign>
-    auto
+    __future<sycl::event, __result_and_scratch_storage<_Policy, _Size>>
     operator()(_Policy&& __policy, _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op, _Assign __assign)
     {
@@ -547,7 +547,8 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
                     }
                 });
         });
-        return __future(__event, __result);
+
+        return {std::move(__event), std::move(__result)};
     }
 };
 
