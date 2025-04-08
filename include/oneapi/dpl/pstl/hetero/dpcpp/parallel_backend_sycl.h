@@ -2106,7 +2106,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                                          __internal::__optional_kernel_name<_CopyBackName...>>
 {
     template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare>
-    auto
+    __future<sycl::event>
     operator()(_BackendTag, _ExecutionPolicy&& __exec, _Range&& __rng, _Merge __merge, _Compare __comp) const
     {
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
@@ -2166,7 +2166,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
             });
         }
         // return future and extend lifetime of temporary buffer
-        return __future(__event1);
+        return {std::move(__event1)};
     }
 };
 
