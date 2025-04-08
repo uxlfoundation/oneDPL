@@ -305,6 +305,7 @@ applies its selection logic.
 - Demonstrate use cases where dynamic selection provides significant improvements.
 - Address open questions
   - Is the current API sufficient, performant and user-friendly?
+  - Does there need to be support to associate a selected resource with related application data, for example, a device-allocated buffer?
   - Are custom policies needed, and if so, is customization support sufficient and effective?
   - Are custom backends needed, and if so, is customization support sufficient and effective?
   - Should the oneDPL algorithms work with selection policies?
