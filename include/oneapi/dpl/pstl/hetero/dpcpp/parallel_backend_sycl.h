@@ -1039,7 +1039,7 @@ struct __write_to_id_if_else
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
-__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type, 1>>
+__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type, /* _NResults = */ 1>>
 __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                           _Range1&& __in_rng, _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op,
                           _InitType __init, _BinaryOperation __binary_op, _Inclusive)
