@@ -293,7 +293,7 @@ __radix_sort_scan_submit(_ExecutionPolicy&& __exec, ::std::size_t __scan_wg_size
 
     // compilation of the kernel prevents out of resources issue, which may occur due to usage of
     // collective algorithms such as joint_exclusive_scan even if local memory is not explicitly requested
-    sycl::event __scan_event = __exec.queue().submit([&](sycl::handler& __hdl) {
+    return __exec.queue().submit([&](sycl::handler& __hdl) {
         __hdl.depends_on(__dependency_event);
         // access the counters for all work groups
         oneapi::dpl::__ranges::__require_access(__hdl, __count_rng);
@@ -319,7 +319,6 @@ __radix_sort_scan_submit(_ExecutionPolicy&& __exec, ::std::size_t __scan_wg_size
                 }
             });
     });
-    return __scan_event;
 }
 
 //-----------------------------------------------------------------------
