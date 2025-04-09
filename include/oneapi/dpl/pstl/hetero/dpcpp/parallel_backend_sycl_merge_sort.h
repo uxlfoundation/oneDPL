@@ -653,7 +653,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             __data_in_temp = !__data_in_temp;
         }
 
-        return __future{std::move(__event_chain), __data_in_temp, std::move(__p_result_and_scratch_storage_base)};
+        return {std::move(__event_chain), __data_in_temp, std::move(__p_result_and_scratch_storage_base)};
     }
 };
 
