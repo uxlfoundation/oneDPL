@@ -270,8 +270,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
         // Storage for the results of scan for each workgroup
 
-        using __result_and_scratch_storage_t =
-            __result_and_scratch_storage<_ExecutionPolicy, _Type, /* _NResults */ 1>;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Type, /* _NResults */ 1>;
         __result_and_scratch_storage_t __result_and_scratch{__exec, __n_groups + 1};
 
         _PRINT_INFO_IN_DEBUG_MODE(__exec, __wgroup_size, __max_cu);

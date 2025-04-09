@@ -235,11 +235,10 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
 {
     template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _InitType>
     auto
-    operator()(
-        oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, sycl::event& __reduce_event,
-        const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
-        _InitType __init,
-        const __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults */ 1>& __scratch_container) const
+    operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, sycl::event& __reduce_event,
+               const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
+               _InitType __init,
+               const __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults */ 1>& __scratch_container) const
     {
         using __result_and_scratch_storage_t = std::decay_t<decltype(__scratch_container)>;
 
