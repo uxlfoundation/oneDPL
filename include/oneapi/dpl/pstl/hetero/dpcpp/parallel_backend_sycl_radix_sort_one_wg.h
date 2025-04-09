@@ -34,7 +34,7 @@ template <typename _KernelNameBase, uint16_t __wg_size = 256 /*work group size*/
 struct __subgroup_radix_sort
 {
     template <typename _RangeIn, typename _Proj>
-    auto
+    sycl::event
     operator()(sycl::queue __q, _RangeIn&& __src, _Proj __proj)
     {
         using __wg_size_t = ::std::integral_constant<::std::uint16_t, __wg_size>;
