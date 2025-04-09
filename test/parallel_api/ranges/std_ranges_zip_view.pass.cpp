@@ -29,6 +29,8 @@ void test_zip_view_base_op()
 
     auto zip_view = dpl_ranges::views::zip(vec1, vec2);
 
+    static_assert(std::is_trivially_copyable_v<decltype(zip_view)>);
+
     static_assert(std::random_access_iterator<decltype(zip_view.begin())>);
     static_assert(std::sentinel_for<decltype(zip_view.end()), decltype(zip_view.begin())>);
 
@@ -46,6 +48,8 @@ void test_zip_view_base_op()
     EXPECT_TRUE(!zip_view.empty(), "zip_view::empty() method returns a wrong result.");
 
     using zip_view_t = dpl_ranges::zip_view<std::ranges::iota_view<int>>;
+    static_assert(std::is_trivially_copyable_v<zip_view_t>);
+
     auto zip_view_0 = zip_view_t();
     EXPECT_TRUE(!zip_view_0.empty(), "zip_view::empty() method returns a wrong result.");
 }
