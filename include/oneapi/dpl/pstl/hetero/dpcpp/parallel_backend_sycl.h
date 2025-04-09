@@ -1325,7 +1325,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
-auto
+__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, _Size>>
 __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                    _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Pred __pred, _Assign __assign = _Assign{})
 {
