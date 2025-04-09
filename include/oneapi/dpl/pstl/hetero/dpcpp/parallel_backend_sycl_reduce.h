@@ -161,7 +161,7 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
 
 template <typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _ExecutionPolicy, typename _Size,
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
-auto
+__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, _Tp>>
 __parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
                                        _ExecutionPolicy&& __exec, const _Size __n, const _Size __work_group_size,
                                        const _Size __iters_per_work_item, _ReduceOp __reduce_op,
