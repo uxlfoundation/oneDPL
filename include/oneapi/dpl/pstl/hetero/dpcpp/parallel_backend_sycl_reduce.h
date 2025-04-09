@@ -302,7 +302,7 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
     // __n_groups preliminary results from the device kernel.
     return __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative, _VecSize,
                                                                    _ReduceWorkGroupKernel>()(
-        __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::move(__reduce_event), __n_groups, __work_group_size,
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec), __reduce_event, __n_groups, __work_group_size,
         __iters_per_work_item_work_group_kernel, __reduce_op, __init, std::move(__scratch_container));
 }
 
