@@ -1265,7 +1265,9 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
-auto
+__future<sycl::event,
+         __result_and_scratch_storage<_ExecutionPolicy, oneapi::dpl::__internal::tuple<
+                                                            std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
 __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
                                               _ExecutionPolicy&& __exec, _Range1&& __keys, _Range2&& __values,
                                               _Range3&& __out_keys, _Range4&& __out_values,
