@@ -191,7 +191,7 @@ __radix_sort_count_submit(_ExecutionPolicy&& __exec, ::std::size_t __segments, :
         oneapi::dpl::__ranges::all_view<_CountT, __par_backend_hetero::access_mode::read_write>(__count_buf);
 
     // submit to compute arrays with local count values
-    sycl::event __count_levent = __exec.queue().submit([&](sycl::handler& __hdl) {
+    return __exec.queue().submit([&](sycl::handler& __hdl) {
         __hdl.depends_on(__dependency_event);
 
         // ensure the input data and the space for counters are accessible
@@ -258,8 +258,6 @@ __radix_sort_count_submit(_ExecutionPolicy&& __exec, ::std::size_t __segments, :
                 }
             });
     });
-
-    return __count_levent;
 }
 
 //-----------------------------------------------------------------------
