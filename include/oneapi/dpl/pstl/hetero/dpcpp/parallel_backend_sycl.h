@@ -1188,7 +1188,7 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _CreateMaskOp,
           typename _CopyByMaskOp>
-auto
+__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, _Size>>
 __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                      _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _CreateMaskOp __create_mask_op,
                      _CopyByMaskOp __copy_by_mask_op)
