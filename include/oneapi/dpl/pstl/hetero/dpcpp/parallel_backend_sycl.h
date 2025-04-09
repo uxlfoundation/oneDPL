@@ -271,7 +271,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         // Storage for the results of scan for each workgroup
 
         using __result_and_scratch_storage_t =
-            __result_and_scratch_storage<_ExecutionPolicy, _Type, /* _NResults = */ 1>;
+            __result_and_scratch_storage<_ExecutionPolicy, _Type, /* _NResults */ 1>;
         __result_and_scratch_storage_t __result_and_scratch{__exec, __n_groups + 1};
 
         _PRINT_INFO_IN_DEBUG_MODE(__exec, __wgroup_size, __max_cu);
@@ -495,7 +495,7 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
                                                                  std::decay_t<decltype(__out_rng[0])>>::__type;
 
         constexpr ::std::uint32_t __elems_per_wg = _ElemsPerItem * _WGSize;
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Policy, _Size, /* _NResults = */ 1>;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Policy, _Size, /* _NResults */ 1>;
         __result_and_scratch_storage_t __result{__policy, 0};
 
         auto __event = __policy.queue().submit([&](sycl::handler& __hdl) {
@@ -1040,7 +1040,7 @@ struct __write_to_id_if_else
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
 __future<sycl::event,
-         __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type, /* _NResults = */ 1>>
+         __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type, /* _NResults */ 1>>
 __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                           _Range1&& __in_rng, _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op,
                           _InitType __init, _BinaryOperation __binary_op, _Inclusive)
@@ -1746,7 +1746,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
                _Predicate __pred, _Ranges&&... __rngs)
     {
         using __result_and_scratch_storage_t =
-            __result_and_scratch_storage<_ExecutionPolicy, __FoundStateType, /* _NResults = */ 1>;
+            __result_and_scratch_storage<_ExecutionPolicy, __FoundStateType, /* _NResults */ 1>;
         __result_and_scratch_storage_t __result_storage{__exec, 0};
 
         // Calculate the number of elements to be processed by each work-item.

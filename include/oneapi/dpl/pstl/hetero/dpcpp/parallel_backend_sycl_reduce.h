@@ -136,7 +136,7 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
         auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
 
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults = */ 1>;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults */ 1>;
         __result_and_scratch_storage_t __scratch_container{__exec, 0};
 
         sycl::event __reduce_event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
@@ -191,7 +191,7 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
     operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, const _Size __n,
                const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
                _TransformOp __transform_op,
-               const __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults = */ 1>& __scratch_container,
+               const __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults */ 1>& __scratch_container,
                _Ranges&&... __rngs) const
     {
         using __scratch_container_t = std::decay_t<decltype(__scratch_container)>;
@@ -239,7 +239,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
         oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, sycl::event& __reduce_event,
         const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
         _InitType __init,
-        const __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults = */ 1>& __scratch_container) const
+        const __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults */ 1>& __scratch_container) const
     {
         using __result_and_scratch_storage_t = std::decay_t<decltype(__scratch_container)>;
 
@@ -292,7 +292,7 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
     // number of buffer elements processed within workgroup
     const _Size __size_per_work_group = __iters_per_work_item_device_kernel * __work_group_size;
     const _Size __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
-    __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults = */ 1> __scratch_container{__exec, __n_groups};
+    __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults */ 1> __scratch_container{__exec, __n_groups};
 
     sycl::event __reduce_event =
         __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _VecSize, _ReduceDeviceKernel>()(
@@ -342,7 +342,7 @@ struct __parallel_transform_reduce_impl
 
         // Create temporary global buffers to store temporary values
         const std::size_t __n_scratch = 2 * __n_groups;
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults = */ 1>;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Tp, /* _NResults */ 1>;
         __result_and_scratch_storage_t __scratch_container{__exec, __n_scratch};
 
         // __is_first == true. Reduce over each work_group
