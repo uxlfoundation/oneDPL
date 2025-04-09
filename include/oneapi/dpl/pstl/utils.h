@@ -632,13 +632,12 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
         if (__comp(__acc[__it], __value))
         {
             __first = __it + 1;
-            __n = __last - __first;
         }
         else
         {
             __last = __it;
-            __n = __last - __first;
         }
+        __n = __last - __first;
         // get closer and closer to binary search with more iterations
         __shift_right_div -= 3;
     }
@@ -647,10 +646,7 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
         //end up fully at binary search
         return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, __value, __comp);
     }
-    else
-    {
-        return __first;
-    }
+    return __first;
 }
 
 template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
