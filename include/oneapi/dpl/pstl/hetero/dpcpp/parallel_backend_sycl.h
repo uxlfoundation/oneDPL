@@ -1072,7 +1072,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
                 // For align with other return values we need to return a future with __result_and_scratch_storage object inside
                 return {
                     std::move(__event),
-                    __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type, /*_NResults*/ 1>{
+                    __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type, /* _NResults */ 1>{
                         __exec, 0}};
             }
         }
