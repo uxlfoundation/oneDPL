@@ -382,7 +382,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 
 template <::std::uint16_t __iters_per_work_item, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _BinHashMgr>
-auto
+sycl::event
 __histogram_general_local_atomics(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                   const sycl::event& __init_event, ::std::uint16_t __work_group_size, _Range1&& __input,
                                   _Range2&& __bins, const _BinHashMgr& __binhash_manager)
