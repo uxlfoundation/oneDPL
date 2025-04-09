@@ -571,7 +571,6 @@ __dpl_signbit(const _T& __x)
     return std::signbit(__x);
 }
 
-
 template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
 _Size1
 __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
