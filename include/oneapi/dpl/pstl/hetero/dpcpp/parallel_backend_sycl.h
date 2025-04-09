@@ -1296,7 +1296,7 @@ __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
-auto
+__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, oneapi::dpl::__internal::__difference_t<_Range1>>>
 __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                           _Range1&& __rng, _Range2&& __result, _UnaryPredicate __pred)
 {
