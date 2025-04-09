@@ -723,7 +723,7 @@ struct __parallel_radix_sort_iteration
         );
 
         // 3. Reorder Phase
-        sycl::event __reorder_event{};
+        sycl::event __reorder_event;
         if (__reorder_sg_size == 8 || __reorder_sg_size == 16 || __reorder_sg_size == 32)
         {
 #if _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
