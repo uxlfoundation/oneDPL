@@ -645,7 +645,7 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _InitType, typename _LocalScan,
           typename _GroupScan, typename _GlobalScan>
-auto
+__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type>>
 __parallel_transform_scan_base(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                _Range1&& __in_rng, _Range2&& __out_rng, _InitType __init, _LocalScan __local_scan,
                                _GroupScan __group_scan, _GlobalScan __global_scan)
