@@ -866,7 +866,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         }
     }
 
-    return {std::move(__event)};
+    return __future{std::move(__event)};
 }
 
 } // namespace __par_backend_hetero

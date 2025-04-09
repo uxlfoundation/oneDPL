@@ -333,7 +333,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             });
         });
 
-        return {std::move(__final_event), std::move(__result_and_scratch)};
+        return __future{std::move(__final_event), std::move(__result_and_scratch)};
     }
 };
 
@@ -548,7 +548,7 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
                 });
         });
 
-        return {std::move(__event), std::move(__result)};
+        return __future{std::move(__event), std::move(__result)};
     }
 };
 
@@ -639,7 +639,7 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
                 std::forward<_ExecutionPolicy>(__exec), std::forward<_InRng>(__in_rng),
                 std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op, __max_wg_size);
 
-        return {std::move(__event), std::move(__dummy_result_and_scratch)};
+        return __future{std::move(__event), std::move(__dummy_result_and_scratch)};
     }
 }
 
@@ -2168,7 +2168,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
             });
         }
         // return future and extend lifetime of temporary buffer
-        return {std::move(__event1)};
+        return __future{std::move(__event1)};
     }
 };
 

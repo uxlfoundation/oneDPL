@@ -653,7 +653,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             __data_in_temp = !__data_in_temp;
         }
 
-        return {std::move(__event_chain), __data_in_temp, std::move(__p_result_and_scratch_storage_base)};
+        return __future{std::move(__event_chain), __data_in_temp, std::move(__p_result_and_scratch_storage_base)};
     }
 };
 
@@ -736,7 +736,7 @@ __merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSo
         __event_sort = __merge_sort_copy_back_submitter<_CopyBackKernel>()(__q, __rng, __temp_buf, __event_sort);
     }
 
-    return {std::move(__event_sort), std::move(__temp_sp_storages)};
+    return __future{std::move(__event_sort), std::move(__temp_sp_storages)};
 }
 
 template <typename _IndexT, typename _ExecutionPolicy, typename _Range, typename _Compare>

@@ -75,7 +75,7 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
             });
         });
 
-        return {std::move(__event)};
+        return __future{std::move(__event)};
     }
 };
 

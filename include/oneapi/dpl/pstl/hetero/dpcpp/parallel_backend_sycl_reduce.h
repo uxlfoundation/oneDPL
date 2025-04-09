@@ -155,7 +155,7 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
                 });
         });
 
-        return {std::move(__reduce_event), std::move(__scratch_container)};
+        return __future{std::move(__reduce_event), std::move(__scratch_container)};
     }
 }; // struct __parallel_transform_reduce_small_submitter
 
@@ -269,7 +269,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
                 });
         });
 
-        return {std::move(__event), std::move(__scratch_container)};
+        return __future{std::move(__event), std::move(__scratch_container)};
     }
 }; // struct __parallel_transform_reduce_work_group_kernel_submitter
 
@@ -421,7 +421,7 @@ struct __parallel_transform_reduce_impl
             __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
         } while (__n > 1);
 
-        return {std::move(__reduce_event), std::move(__scratch_container)};
+        return __future{std::move(__reduce_event), std::move(__scratch_container)};
     }
 }; // struct __parallel_transform_reduce_impl
 
