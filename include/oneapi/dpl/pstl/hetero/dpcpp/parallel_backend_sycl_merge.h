@@ -482,7 +482,7 @@ __get_starting_size_limit_for_large_submitter<int>()
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _OutSizeLimit = std::false_type>
-auto
+__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
                  _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _OutSizeLimit = {})
 {
