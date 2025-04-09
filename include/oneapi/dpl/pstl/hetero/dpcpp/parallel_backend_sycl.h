@@ -2240,7 +2240,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_t
 // TODO: consider changing __partial_merge_kernel to make it compatible with
 //       __full_merge_kernel in order to use __parallel_sort_impl routine
 template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>
-auto
+__future<sycl::event>
 __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                         _Iterator __first, _Iterator __mid, _Iterator __last, _Compare __comp)
 {
