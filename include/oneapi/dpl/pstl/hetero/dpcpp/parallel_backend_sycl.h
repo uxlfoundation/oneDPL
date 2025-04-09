@@ -1840,11 +1840,8 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, s
                                                __set_tag);
 
     }
-    else
-    {
-        return __parallel_set_scan(__backend_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                                   std::forward<_Range3>(__result), __comp, __set_tag);
-    }
+    return __parallel_set_scan(__backend_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                                std::forward<_Range3>(__result), __comp, __set_tag);
 }
 
 template <typename _ExecutionPolicy>
