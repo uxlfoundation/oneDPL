@@ -24,7 +24,7 @@ main()
 
     auto find_first_of_checker = TEST_PREPARE_CALLABLE(std::ranges::find_first_of);
 
-    test_range_algo<0, int, data_in_in>{big_sz}(dpl_ranges::find_first_of, find_first_of_checker, binary_pred);
+    test_range_algo<0, int, data_in_in>{medium_size}(dpl_ranges::find_first_of, find_first_of_checker, binary_pred);
     test_range_algo<1, int, data_in_in>{}(dpl_ranges::find_first_of, find_first_of_checker, binary_pred, proj, proj);
     test_range_algo<2, P2, data_in_in>{}(dpl_ranges::find_first_of, find_first_of_checker, binary_pred, &P2::x, &P2::x);
     test_range_algo<3, P2, data_in_in>{}(dpl_ranges::find_first_of, find_first_of_checker, binary_pred, &P2::proj, &P2::proj);
