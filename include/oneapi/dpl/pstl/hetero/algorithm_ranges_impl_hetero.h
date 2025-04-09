@@ -355,10 +355,15 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
                            std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));
     };
 
+    auto __last1 = std::ranges::begin(__r1) + std::ranges::size(__r1);
+    if(std::ranges::empty(__r2))
+        return std::ranges::borrowed_subrange_t<_R1>(__last1, __last1);
+
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_find_end(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r1), oneapi::dpl::__ranges::views::all_read(__r2), __bin_pred);
 
-    return std::ranges::borrowed_subrange_t<_R1>(std::ranges::begin(__r1) + __idx, std::ranges::begin(__r1) + std::ranges::size(__r2));
+    auto __it = std::ranges::begin(__r1) + __idx;
+    return std::ranges::borrowed_subrange_t<_R1>(__it, __it + (__it == __last1 ? 0 : std::ranges::size(__r2)));
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
