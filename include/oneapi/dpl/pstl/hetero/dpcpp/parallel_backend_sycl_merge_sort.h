@@ -740,7 +740,7 @@ __merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSo
 }
 
 template <typename _IndexT, typename _ExecutionPolicy, typename _Range, typename _Compare>
-auto
+__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __submit_selecting_leaf(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     using _Leaf = __leaf_sorter<std::decay_t<_Range>, _Compare>;
