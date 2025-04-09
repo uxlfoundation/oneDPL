@@ -1340,11 +1340,6 @@ class __brick_set_op
 template <typename _ExecutionPolicy, typename _DiffType>
 struct __brick_shift_left
 {
-  private:
-    // Maximum size supported by compilers to generate vector instructions
-    constexpr static std::uint8_t __max_vector_size = 4;
-
-  public:
     // Multiple iterations per item are manually processed in the brick with a nd-range strided approach.
     constexpr static bool __can_vectorize = true;
     constexpr static bool __can_process_multiple_iters = false;
