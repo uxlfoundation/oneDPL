@@ -13,5 +13,8 @@ endif()
 cmake_minimum_required (VERSION 3.0)
 project(gamma_correction LANGUAGES CXX)
 enable_testing()
-find_package(oneDPL REQUIRED)
+# Specify oneDPL backend
+set(ONEDPL_BACKEND dpcpp)
+# Add oneDPL to the build.
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../ ${CMAKE_CURRENT_BINARY_DIR}/oneDPL)
 add_subdirectory (src)
