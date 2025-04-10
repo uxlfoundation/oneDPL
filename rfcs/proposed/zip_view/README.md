@@ -22,6 +22,7 @@ So, oneDPL tuple-like concept  should be proposed into the oneDPL spec.
 - API-compliant with `std::ranges::zip_view`
 - in case of a device usage: a device copyable view if the all "underlying" views are device copyable views.
 - To provide a transitive device copyability oneDPL tuple-like type underhood is proposed - `oneapi::dpl::__internal::tuple`.
+- To satisfy trivially copyability to provide a transitive device copyability for the pipes created over `oneapi::dpl::ranges::zip_view`.
   
 `oneapi::dpl::ranges::zip_view::iterator` should be:
 - value-swappable (https://en.cppreference.com/w/cpp/named_req/ValueSwappable)
@@ -41,6 +42,7 @@ So, oneDPL tuple-like concept  should be proposed into the oneDPL spec.
 
 ### Implementation proposal (C++20)
 - `oneapi::dpl::ranges::zip_view` is designed as a C++ class which represents a range adaptor (see C++ Range Library).
+- The implementation is based on the C++ `std::ranges::view_interface`.
 This class encapsulates a tuple-like type to keep a combination of two or more ranges.
 - To ensure device copyability, `oneapi::dpl::__internal::tuple` is proposed as a tuple-like type for underlying elements.
 - To provide a value-swappable requirement `oneapi::dpl::__internal::tuple` is proposed as a dereferenced value for
@@ -49,7 +51,6 @@ This class encapsulates a tuple-like type to keep a combination of two or more r
 - C++20 is minimum supported version for the class. It allows using modern C++ features such as concepts and others.
 
 ### Test coverage
-
 - `oneapi::dpl::ranges::zip_view` is tested itself, base functionality (the API that is used for a range in the oneDPL algorithm implementations)
 - the base functionality test coverage may be extended by the adapted LLVM `std::ranges::zip_view` tests.
 - should be tested with at least one oneDPL range based algorithm.
