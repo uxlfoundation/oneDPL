@@ -568,8 +568,6 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
     // Specialization for devices that have a max work-group size of 1024
     constexpr ::std::uint16_t __targeted_wg_size = 1024;
 
-    using _ValueType = typename _InitType::__value_type;
-
     if (__max_wg_size >= __targeted_wg_size)
     {
         auto __single_group_scan_f = [&](auto __size_constant) {
