@@ -21,8 +21,7 @@ implemented in oneDPL.
 might require modifications or new versions.
 
 ### Implementation limitation
-- In case of a device policy and `std::vector` with `USM` allocator, `std::vector` cannot be passed into algorithm directly by
-non device copyabiability reason. To support  `std::vector` with `USM` allocator `std::vector` should be wrapped into std::ranges::subrange.
+- In case of a `device_policy` and `std::vector` with `USM` allocator, `std::vector` cannot be passed into algorithm directly by because a `std::vector` is not [SYCL device_copyable](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable). To support  `std::vector` with `USM` allocator `std::vector` should be wrapped into `std::ranges::subrange`.
 
 ### Test coverage
 - The algorithms should be called with both small and large data sizes and with all the policies mentioned above.
