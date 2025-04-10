@@ -2195,26 +2195,6 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_t
 }
 #endif // _ONEDPL_USE_RADIX_SORT
 
-template <
-    typename _CustomName, typename _Range, typename _Compare, typename _Proj,
-    ::std::enable_if_t<
-        !__is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
-__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
-__parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Range&& __rng,
-                       _Compare __comp, _Proj __proj)
-{
-    if (__rng.size() <= std::numeric_limits<std::uint32_t>::max())
-    {
-        return __submit_selecting_leaf<_CustomName, std::uint32_t>(
-            __q, std::forward<_Range>(__rng), oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
-    }
-    else
-    {
-        return __submit_selecting_leaf<_CustomName, std::uint64_t>(
-            __q, std::forward<_Range>(__rng), oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
-    }
-}
-
 //------------------------------------------------------------------------
 // parallel_partial_sort - async pattern
 //-----------------------------------------------------------------------
