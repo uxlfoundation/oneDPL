@@ -8,4 +8,5 @@ endif()
 
 cmake_minimum_required (VERSION 3.0)
 project(dot_product LANGUAGES CXX)
+find_package(oneDPL REQUIRED)
 add_subdirectory (src)

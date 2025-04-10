@@ -3,6 +3,7 @@ add_executable(${PROJECT_NAME} main.cpp)
 
 # Specify libraries to link with
 target_link_libraries(${PROJECT_NAME} tbb)
+target_link_libraries(${PROJECT_NAME} oneDPL)
 
 if(WIN32)
   # Add custom target for running

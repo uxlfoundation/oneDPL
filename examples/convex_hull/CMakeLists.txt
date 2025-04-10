@@ -8,4 +8,5 @@ endif()
 
 cmake_minimum_required (VERSION 3.0)
 project(convex_hull LANGUAGES CXX)
+find_package(oneDPL REQUIRED)
 add_subdirectory (src)
