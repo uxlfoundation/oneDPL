@@ -31,5 +31,5 @@ in case of different semantics.
 - The tests should also call the algorithms with following standard range adapters: `std::ranges::subrange`, `std::span`, `std::views::all`,
   `std::views::iota`, `std::views::transform`, `std::views::reverse`, `std::views::take`, `std::views::drop`
 - The tests should also call the algorithms with non-trivial projections.
-- In case of a device policy and std::vector with USM allocator, the algorithms accept the vector wrapped into `std::ranges::subrange` or `std::span`.
+- In case of a `device_policy` and `std::vector` with USM allocator, the algorithms accept the vector wrapped into `std::ranges::subrange` or `std::span`.
 
