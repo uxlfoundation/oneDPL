@@ -1,7 +1,3 @@
-if (NOT CMAKE_CXX_COMPILER)
-    set(CMAKE_CXX_COMPILER "dpcpp")
-endif()
-
 # Set default build type to RelWithDebInfo if not specified
 if (NOT CMAKE_BUILD_TYPE)
     message (STATUS "Default CMAKE_BUILD_TYPE not set using Release with Debug Info")
@@ -11,6 +7,10 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 cmake_minimum_required (VERSION 3.0)
+if (WIN32)
+    list(APPEND CMAKE_PREFIX_PATH /path/to/oneDPL/cmake)
+    find_package(oneDPLWindowsIntelLLVM)
+endif()
 project(stable_sort_by_key LANGUAGES CXX)
 enable_testing()
 # Specify oneDPL backend

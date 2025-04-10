@@ -11,6 +11,10 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 cmake_minimum_required (VERSION 3.0)
+if (WIN32)
+    list(APPEND CMAKE_PREFIX_PATH /path/to/oneDPL/cmake)
+    find_package(oneDPLWindowsIntelLLVM)
+endif()
 project(gamma_correction LANGUAGES CXX)
 enable_testing()
 # Specify oneDPL backend
