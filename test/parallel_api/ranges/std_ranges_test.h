@@ -186,6 +186,16 @@ struct test
     std::enable_if_t<mode == data_in>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
+        process_data_in(max_n, exec, algo, checker, tr_in, args...);
+
+        //test with empty sequence
+        process_data_in(0, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+    }
+
+private:
+    void
+    process_data_in(int max_n, auto&& exec, auto algo, auto& checker, auto tr_in, auto... args)
+    {
         Container cont_in(exec, max_n, DataGen1{});
         Container cont_exp(exec, max_n, DataGen1{});
 
@@ -199,6 +209,7 @@ struct test
         //check result
         static_assert(std::is_same_v<decltype(res), decltype(checker(r_in, args...))>, "Wrong return type");
 
+        using Algo = decltype(algo);
         auto bres = ret_in_val(expected_res, expected_view.begin()) == ret_in_val(res, r_in.begin());
         EXPECT_TRUE(bres, (std::string("wrong return value from algo with ranges: ") + typeid(Algo).name() +
                 typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
@@ -209,7 +220,6 @@ struct test
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
     }
 
-private:
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
     void
     process_data_in_out(int max_n, int n_in, int n_out, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in,
@@ -253,7 +263,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
+
+        //test cases with empty sequence(s)
+	process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -265,7 +278,10 @@ public:
 
         //test case size of input range is less than size of output and vice-versa
         process_data_in_out(max_n, r_size/2, r_size, exec, algo, checker, args...);
-        process_data_in_out(max_n, r_size, r_size/2, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size/2, exec, algo, checker, args...);
+
+        //test cases with empty sequence(s)
+        process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
@@ -277,7 +293,10 @@ public:
 
         //test case the sizes of input ranges are different
         process_data_in_in(max_n, r_size/2, r_size, exec, algo, checker, tr_in, args...);
-        process_data_in_in(max_n, r_size, r_size/2, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size/2, exec, algo, checker, tr_in, args...);
+
+        //test cases with empty sequence(s)
+        process_data_in_in(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -350,7 +369,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
+
+        //test cases with empty sequence(s)
+        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -362,7 +384,10 @@ public:
         process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
         process_data_in_in_out(max_n, r_size/2, r_size, r_size, exec, algo, checker, args...);
         process_data_in_in_out(max_n, r_size, r_size/2, r_size, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size/2, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size/2, exec, algo, checker, args...);
+
+	//test cases with empty sequence(s)
+        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 private:
 
