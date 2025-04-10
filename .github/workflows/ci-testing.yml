@@ -208,6 +208,7 @@ jobs:
               cd build
               ctest --timeout ${TEST_TIMEOUT} --output-on-failure |& tee ctest.log
             fi
+            done
           fi
 
           # Generate a summary
@@ -296,7 +297,7 @@ jobs:
           ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1 || set exit_code=%errorlevel%
           type ctest.log
 
-          if "%{ matrix.backend }" == "dpcpp" (
+          if "${{ matrix.backend }}" == "dpcpp" (
             cd examples
             for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
               cd %%i
