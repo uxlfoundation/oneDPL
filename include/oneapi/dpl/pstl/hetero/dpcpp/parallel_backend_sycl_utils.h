@@ -511,7 +511,7 @@ struct __result_and_scratch_storage_base
 {
     virtual ~__result_and_scratch_storage_base() = default;
     virtual std::size_t
-    __get_data(sycl::event, std::size_t* __p_buf) = 0;
+    __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
 template <typename _T>
@@ -524,7 +524,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     using __accessor_t =
         sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
 
-    sycl::queue __q;
+    mutable sycl::queue __q;
     std::shared_ptr<_T> __scratch_buf;
     std::shared_ptr<_T> __result_buf;
     std::shared_ptr<__sycl_buffer_t> __sycl_buf;
@@ -643,7 +643,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 
     _T
-    __wait_and_get_value(sycl::event __event)
+    __wait_and_get_value(sycl::event __event) const
     {
         if (is_USM())
             __event.wait_and_throw();
@@ -654,7 +654,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     // Note: this member function assumes the result is *ready*, since the __future has already
     // waited on the relevant event.
     _T
-    __get_value(size_t idx = 0)
+    __get_value(size_t idx = 0) const
     {
         assert(idx < __result_n);
         if (__use_USM_host && __supports_USM_device)
@@ -698,7 +698,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 
     virtual std::size_t
-    __get_data(sycl::event __event, std::size_t* __p_buf) override
+    __get_data(sycl::event __event, std::size_t* __p_buf) const override
     {
         if (is_USM())
             __event.wait_and_throw();
@@ -738,7 +738,7 @@ class __future : private std::tuple<_Args...>
 
     template <typename _T>
     constexpr auto
-    __wait_and_get_value(__result_and_scratch_storage<_T>& __storage)
+    __wait_and_get_value(const __result_and_scratch_storage<_T>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
     }
