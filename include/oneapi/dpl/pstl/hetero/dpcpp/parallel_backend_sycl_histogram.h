@@ -214,7 +214,7 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
                                                                __internal::__optional_kernel_name<_KernelName...>>
 {
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinHashMgr>
-    auto
+    sycl::event
     operator()(_ExecutionPolicy&& __exec, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
                _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
@@ -287,7 +287,7 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
 
 template <::std::uint16_t __iters_per_work_item, ::std::uint8_t __bins_per_work_item, typename _ExecutionPolicy,
           typename _Range1, typename _Range2, typename _BinHashMgr>
-auto
+sycl::event
 __histogram_general_registers_local_reduction(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                               const sycl::event& __init_event, ::std::uint16_t __work_group_size,
                                               _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
@@ -316,7 +316,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                                                    __internal::__optional_kernel_name<_KernelName...>>
 {
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinHashMgr>
-    auto
+    sycl::event
     operator()(_ExecutionPolicy&& __exec, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
                _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
@@ -382,7 +382,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 
 template <::std::uint16_t __iters_per_work_item, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _BinHashMgr>
-auto
+sycl::event
 __histogram_general_local_atomics(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                   const sycl::event& __init_event, ::std::uint16_t __work_group_size, _Range1&& __input,
                                   _Range2&& __bins, const _BinHashMgr& __binhash_manager)
@@ -409,7 +409,7 @@ template <typename... _KernelName>
 struct __histogram_general_private_global_atomics_submitter<__internal::__optional_kernel_name<_KernelName...>>
 {
     template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinHashMgr>
-    auto
+    sycl::event
     operator()(_BackendTag, _ExecutionPolicy&& __exec, const sycl::event& __init_event,
                ::std::uint16_t __min_iters_per_work_item, ::std::uint16_t __work_group_size, _Range1&& __input,
                _Range2&& __bins, const _BinHashMgr& __binhash_manager)
@@ -479,7 +479,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
     }
 };
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinHashMgr>
-auto
+sycl::event
 __histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                            const sycl::event& __init_event, ::std::uint16_t __min_iters_per_work_item,
                                            ::std::uint16_t __work_group_size, _Range1&& __input, _Range2&& __bins,
@@ -498,7 +498,7 @@ __histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_bac
 
 template <::std::uint16_t __iters_per_work_item, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _BinHashMgr>
-auto
+__future<sycl::event>
 __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
                                    _ExecutionPolicy&& __exec, const sycl::event& __init_event, _Range1&& __input,
                                    _Range2&& __bins, const _BinHashMgr& __binhash_manager)
@@ -546,7 +546,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinHashMgr>
-auto
+__future<sycl::event>
 __parallel_histogram(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                      const sycl::event& __init_event, _Range1&& __input, _Range2&& __bins,
                      const _BinHashMgr& __binhash_manager)
