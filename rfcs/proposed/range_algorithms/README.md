@@ -22,6 +22,7 @@ might require modifications or new versions.
 
 ### Implementation limitation
 - In case of a `device_policy` and `std::vector` with `USM` allocator, `std::vector` cannot be passed into algorithm directly by because a `std::vector` is not [SYCL device_copyable](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable). To support  `std::vector` with `USM` allocator `std::vector` should be wrapped into `std::ranges::subrange`.
+- In case of a `device_policy` the projections pointer-to-member and pointer-to-function are not supported, for SYCL backend at least.
 
 ### Test coverage
 - The algorithms should be called with both small and large data sizes and with all the policies mentioned above.
@@ -30,6 +31,6 @@ computed by the corresponding serial `std::ranges` algorithm or by a custom impl
 in case of different semantics.
 - The tests should also call the algorithms with following standard range adapters: `std::ranges::subrange`, `std::span`, `std::views::all`,
   `std::views::iota`, `std::views::transform`, `std::views::reverse`, `std::views::take`, `std::views::drop`
-- The tests should also call the algorithms with non-trivial projections.
+- The tests should also call the algorithms with default and custom predicates, comporators and projections.
 - In case of a `device_policy` and `std::vector` with USM allocator, the algorithms accept the vector wrapped into `std::ranges::subrange` or `std::span`.
 
