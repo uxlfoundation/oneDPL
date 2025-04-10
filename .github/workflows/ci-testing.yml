@@ -194,6 +194,22 @@ jobs:
           make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags} |& tee ctest.log
 
+          # now run through the examples if dpcpp backend
+          if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
+            cd examples
+            for example_dir in ${GITHUB_WORKSPACE}/examples/*; do
+            # Skip the example if it is not a directory
+            if [[ -d "$example_dir" ]]; then
+              cd "$example_dir"
+              mkdir build
+              cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
+                -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -S . -B build
+              cmake --build build
+              cd build
+              ctest --timeout ${TEST_TIMEOUT} --output-on-failure |& tee ctest.log
+            fi
+          fi
+
           # Generate a summary
           os_name=$(uname -a | head -n 1)
           cmake_version=$(cmake --version | head -n 1)
@@ -276,11 +292,24 @@ jobs:
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" .. || set exit_code=%errorlevel%
 
           ninja -j 2 -v %ninja_targets% > build.log 2>&1 || set exit_code=%errorlevel%
-          :: Display the results after executing all tests because "tee" alternative is unavailable in CMD.
-          type build.log
 
           ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1 || set exit_code=%errorlevel%
           type ctest.log
+
+          if "%{ matrix.backend }" == "dpcpp" (
+            cd examples
+            for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
+              cd %%i
+              mkdir build
+              cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -S . -B build
+              cmake --build build
+              cd build
+              ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest.log 2>&1 || set exit_code=%errorlevel%
+            )
+          )
+
+          :: Display the results after executing all tests because "tee" alternative is unavailable in CMD.
+          type build.log
 
           :: Generate a summary
           powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption" > os_name.txt
