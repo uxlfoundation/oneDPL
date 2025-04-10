@@ -207,10 +207,10 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
             __seg_reduce_offset_kernel,
 #endif
             sycl::nd_range<1>{__wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
-                auto __beg = __dpl_sycl::__get_accessor_ptr(__seg_ends_acc);
-                auto __out_beg = __dpl_sycl::__get_accessor_ptr(__seg_ends_scan_acc);
-                __dpl_sycl::__joint_exclusive_scan(__item.get_group(), __beg, __beg + __n_groups, __out_beg,
-                                                   __diff_type(0), sycl::plus<__diff_type>());
+                //auto __beg = __dpl_sycl::__get_accessor_ptr(__seg_ends_acc);
+                //auto __out_beg = __dpl_sycl::__get_accessor_ptr(__seg_ends_scan_acc);
+                //__dpl_sycl::__joint_exclusive_scan(__item.get_group(), __beg, __beg + __n_groups, __out_beg,
+                //                                   __diff_type(0), sycl::plus<__diff_type>());
             });
     });
 

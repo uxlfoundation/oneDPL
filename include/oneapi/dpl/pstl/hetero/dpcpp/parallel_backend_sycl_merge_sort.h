@@ -74,7 +74,7 @@ struct __group_merge_path_sorter
         std::uint32_t __next_sorted = __sorted * 2;
         // ctz precisely calculates log2 of an integral value which is a power of 2, while
         // std::log2 may be prone to rounding errors on some architectures
-        std::int16_t __iters = sycl::ctz(__sorted_final) - sycl::ctz(__sorted);
+        std::int16_t __iters = 0;   //sycl::ctz(__sorted_final) - sycl::ctz(__sorted);
         for (std::int16_t __i = 0; __i < __iters; ++__i)
         {
             const std::uint32_t __id_local = __id % __next_sorted;
@@ -86,21 +86,21 @@ struct __group_merge_path_sorter
             const std::uint32_t __n1 = __end1 - __start1;
             const std::uint32_t __n2 = __end2 - __start2;
 
-            auto __in_ptr = __dpl_sycl::__get_accessor_ptr(__storage_acc) + __data_in_temp * __sorted_final;
-            auto __out_ptr = __dpl_sycl::__get_accessor_ptr(__storage_acc) + (!__data_in_temp) * __sorted_final;
-            auto __in_ptr1 = __in_ptr + __start1;
-            auto __in_ptr2 = __in_ptr + __start2;
+            //auto __in_ptr = __dpl_sycl::__get_accessor_ptr(__storage_acc) + __data_in_temp * __sorted_final;
+            //auto __out_ptr = __dpl_sycl::__get_accessor_ptr(__storage_acc) + (!__data_in_temp) * __sorted_final;
+            //auto __in_ptr1 = __in_ptr + __start1;
+            //auto __in_ptr2 = __in_ptr + __start2;
 
-            const std::pair<std::uint32_t, std::uint32_t> __start = __find_start_point(
-                __in_ptr1, std::uint32_t{0}, __n1, __in_ptr2, std::uint32_t{0}, __n2, __id_local, __comp);
-            // TODO: copy the data into registers before the merge to halve the required amount of SLM
-            __serial_merge(__in_ptr1, __in_ptr2, __out_ptr, __start.first, __start.second, __id, __data_per_workitem,
-                           __n1, __n2, __comp);
-            __dpl_sycl::__group_barrier(__item);
+            //const std::pair<std::uint32_t, std::uint32_t> __start = __find_start_point(
+            //    __in_ptr1, std::uint32_t{0}, __n1, __in_ptr2, std::uint32_t{0}, __n2, __id_local, __comp);
+            //// TODO: copy the data into registers before the merge to halve the required amount of SLM
+            //__serial_merge(__in_ptr1, __in_ptr2, __out_ptr, __start.first, __start.second, __id, __data_per_workitem,
+            //               __n1, __n2, __comp);
+            //__dpl_sycl::__group_barrier(__item);
 
-            __sorted = __next_sorted;
-            __next_sorted *= 2;
-            __data_in_temp = !__data_in_temp;
+            //__sorted = __next_sorted;
+            //__next_sorted *= 2;
+            //__data_in_temp = !__data_in_temp;
         }
         return __data_in_temp;
     }
@@ -591,7 +591,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         const std::size_t __n_power2 = oneapi::dpl::__internal::__dpl_bit_ceil(__n);
         // ctz precisely calculates log2 of an integral value which is a power of 2, while
         // std::log2 may be prone to rounding errors on some architectures
-        const std::int64_t __n_iter = sycl::ctz(__n_power2) - sycl::ctz(__leaf_size);
+        const std::int64_t __n_iter = 0;    //sycl::ctz(__n_power2) - sycl::ctz(__leaf_size);
 
         // Storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
         __base_diagonals_sp_storage_t* __p_base_diagonals_sp_global_storage = nullptr;

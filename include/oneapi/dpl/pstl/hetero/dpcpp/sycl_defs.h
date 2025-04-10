@@ -86,7 +86,7 @@
 #define _ONEDPL_SYCL2020_HOST_TARGET_PRESENT                  (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200))
 #define _ONEDPL_SYCL2020_HOST_ACCESSOR_PRESENT                (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200))
 #define _ONEDPL_SYCL2020_GET_HOST_ACCESS_PRESENT              (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200))
-#define _ONEDPL_SYCL2020_LOCAL_ACC_GET_MULTI_PTR_PRESENT      (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(70000))
+//#define _ONEDPL_SYCL2020_LOCAL_ACC_GET_MULTI_PTR_PRESENT      (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(70000))
 
 // Feature macros for DPC++ SYCL runtime library alternatives to non-supported SYCL 2020 features
 #define _ONEDPL_LIBSYCL_COLLECTIVES_PRESENT                   (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
@@ -541,6 +541,7 @@ __get_host_access(_Buf&& __buf)
 #endif
 }
 
+#if 0
 template <typename _Acc>
 auto
 __get_accessor_ptr(const _Acc& __acc)
@@ -553,6 +554,7 @@ __get_accessor_ptr(const _Acc& __acc)
 #    error "sycl::accessor::get_multi_ptr is not supported, and no alternative is available"
 #endif
 }
+#endif
 
 #if defined(SYCL_EXT_ONEAPI_BACKEND_LEVEL_ZERO) || defined(SYCL_EXT_ACPP_BACKEND_LEVEL_ZERO)
 #    define _ONEDPL_SYCL_L0_EXT_PRESENT 1

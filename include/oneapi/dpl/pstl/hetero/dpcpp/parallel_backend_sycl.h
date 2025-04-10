@@ -394,8 +394,8 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
                         __lacc[__idx] = __unary_op(__in_rng[__idx]);
                     }
 
-                    auto __ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
-                    __scan_work_group<_ValueType, _Inclusive>(__group, __ptr, __ptr + __n, __ptr, __bin_op, __init);
+                    //auto __ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
+                    //__scan_work_group<_ValueType, _Inclusive>(__group, __ptr, __ptr + __n, __ptr, __bin_op, __init);
 
                     for (::std::uint16_t __idx = __item_id; __idx < __n; __idx += __wg_size)
                     {
@@ -444,27 +444,27 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
                     // This kernel is only launched for sizes less than 2^16
                     const ::std::uint16_t __item_id = __self_item.get_local_linear_id();
 
-                    auto __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
-                    for (std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
-                    {
-                        __lacc[__idx] = __unary_op(__in_rng[__idx]);
-                    }
+                    //auto __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
+                    //for (std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
+                    //{
+                    //    __lacc[__idx] = __unary_op(__in_rng[__idx]);
+                    //}
 
-                    __scan_work_group<_ValueType, _Inclusive>(__group, __lacc_ptr, __lacc_ptr + __n,
-                                                              __lacc_ptr, __bin_op, __init);
+                    //__scan_work_group<_ValueType, _Inclusive>(__group, __lacc_ptr, __lacc_ptr + __n,
+                    //                                          __lacc_ptr, __bin_op, __init);
 
-                    for (std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
-                    {
-                        __out_rng[__idx] = __lacc[__idx];
-                    }
+                    //for (std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
+                    //{
+                    //    __out_rng[__idx] = __lacc[__idx];
+                    //}
 
-                    const std::uint16_t __residual = __n % _WGSize;
-                    const std::uint16_t __residual_start = __n - __residual;
-                    if (__item_id < __residual)
-                    {
-                        auto __idx = __residual_start + __item_id;
-                        __out_rng[__idx] = __lacc[__idx];
-                    }
+                    //const std::uint16_t __residual = __n % _WGSize;
+                    //const std::uint16_t __residual_start = __n - __residual;
+                    //if (__item_id < __residual)
+                    //{
+                    //    auto __idx = __residual_start + __item_id;
+                    //    __out_rng[__idx] = __lacc[__idx];
+                    //}
                 });
         });
     }
@@ -513,38 +513,38 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
                     const auto& __group = __self_item.get_group();
                     // This kernel is only launched for sizes less than 2^16
                     const ::std::uint16_t __item_id = __self_item.get_local_linear_id();
-                    auto __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
-                    for (std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
-                    {
-                        __lacc[__idx] = __unary_op(__in_rng[__idx]);
-                    }
+                    //auto __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
+                    //for (std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
+                    //{
+                    //    __lacc[__idx] = __unary_op(__in_rng[__idx]);
+                    //}
 
-                    __scan_work_group<_ValueType, /* _Inclusive */ false>(
-                        __group, __lacc_ptr, __lacc_ptr + __elems_per_wg, __lacc_ptr + __elems_per_wg, __bin_op,
-                         __init);
+                    //__scan_work_group<_ValueType, /* _Inclusive */ false>(
+                    //    __group, __lacc_ptr, __lacc_ptr + __elems_per_wg, __lacc_ptr + __elems_per_wg, __bin_op,
+                    //     __init);
 
-                    for (::std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
-                    {
-                        if (__lacc[__idx])
-                            __assign(static_cast<__tuple_type>(__in_rng[__idx]),
-                                     __out_rng[__lacc[__idx + __elems_per_wg]]);
-                    }
+                    //for (::std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
+                    //{
+                    //    if (__lacc[__idx])
+                    //        __assign(static_cast<__tuple_type>(__in_rng[__idx]),
+                    //                 __out_rng[__lacc[__idx + __elems_per_wg]]);
+                    //}
 
-                    const ::std::uint16_t __residual = __n % _WGSize;
-                    const ::std::uint16_t __residual_start = __n - __residual;
-                    if (__item_id < __residual)
-                    {
-                        auto __idx = __residual_start + __item_id;
-                        if (__lacc[__idx])
-                            __assign(static_cast<__tuple_type>(__in_rng[__idx]),
-                                     __out_rng[__lacc[__idx + __elems_per_wg]]);
-                    }
+                    //const ::std::uint16_t __residual = __n % _WGSize;
+                    //const ::std::uint16_t __residual_start = __n - __residual;
+                    //if (__item_id < __residual)
+                    //{
+                    //    auto __idx = __residual_start + __item_id;
+                    //    if (__lacc[__idx])
+                    //        __assign(static_cast<__tuple_type>(__in_rng[__idx]),
+                    //                 __out_rng[__lacc[__idx + __elems_per_wg]]);
+                    //}
 
-                    if (__item_id == 0)
-                    {
-                        // Add predicate of last element to account for the scan's exclusivity
-                        *__res_ptr = __lacc[__elems_per_wg + __n - 1] + __lacc[__n - 1];
-                    }
+                    //if (__item_id == 0)
+                    //{
+                    //    // Add predicate of last element to account for the scan's exclusivity
+                    //    *__res_ptr = __lacc[__elems_per_wg + __n - 1] + __lacc[__n - 1];
+                    //}
                 });
         });
 
@@ -1859,11 +1859,11 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         // Set local found state value value to global atomic
                         if (__local_idx == 0 && __found_local != __init_value)
                         {
-                            __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
-                                *__dpl_sycl::__get_accessor_ptr(__result_sycl_buf_acc));
+                            //__dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
+                            //    *__dpl_sycl::__get_accessor_ptr(__result_sycl_buf_acc));
 
-                            // Update global (for all groups) atomic state with the found index
-                            _BrickTag::__save_state_to_atomic(__found, __found_local);
+                            //// Update global (for all groups) atomic state with the found index
+                            //_BrickTag::__save_state_to_atomic(__found, __found_local);
                         }
                     });
             });

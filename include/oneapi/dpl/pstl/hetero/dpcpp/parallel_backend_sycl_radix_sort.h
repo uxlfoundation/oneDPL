@@ -356,11 +356,11 @@ struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::atomic
     sycl::sub_group __sgroup;
     ::std::uint32_t __self_lidx;
     ::std::uint32_t __item_mask;
-    _AtomicT __atomic_peer_mask;
+    //_AtomicT __atomic_peer_mask;
 
     __peer_prefix_helper(sycl::nd_item<1> __self_item, _TempStorageT __lacc)
         : __sgroup(__self_item.get_sub_group()), __self_lidx(__self_item.get_local_linear_id()),
-          __item_mask(~(~0u << (__self_lidx))), __atomic_peer_mask(*__dpl_sycl::__get_accessor_ptr(__lacc))
+          __item_mask(~(~0u << (__self_lidx)))//, __atomic_peer_mask(*__dpl_sycl::__get_accessor_ptr(__lacc))
     {
     }
 
@@ -373,19 +373,19 @@ struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::atomic
         {
             ::std::uint32_t __is_current_bucket = (__bucket == __radix_state_idx);
             // reset mask for each radix state
-            if (__self_lidx == 0)
-                __atomic_peer_mask.store(0U);
+            //if (__self_lidx == 0)
+            //    __atomic_peer_mask.store(0U);
             sycl::group_barrier(__sgroup);
             // set local id's bit to 1 if the bucket value matches the radix state
-            __atomic_peer_mask.fetch_or(__is_current_bucket << __self_lidx);
+            //__atomic_peer_mask.fetch_or(__is_current_bucket << __self_lidx);
             sycl::group_barrier(__sgroup);
-            ::std::uint32_t __peer_mask_bits = __atomic_peer_mask.load();
-            ::std::uint32_t __sg_total_offset = sycl::popcount(__peer_mask_bits);
+            //::std::uint32_t __peer_mask_bits = __atomic_peer_mask.load();
+            //::std::uint32_t __sg_total_offset = sycl::popcount(__peer_mask_bits);
 
             // get the local offset index from the bits set in the peer mask with index less than the work item ID
-            __peer_mask_bits &= __item_mask;
-            __offset |= __is_current_bucket * (__histogram[__radix_state_idx] + sycl::popcount(__peer_mask_bits));
-            __histogram[__radix_state_idx] += __sg_total_offset;
+            //__peer_mask_bits &= __item_mask;
+            //__offset |= __is_current_bucket * (__histogram[__radix_state_idx] + sycl::popcount(__peer_mask_bits));
+            //__histogram[__radix_state_idx] += __sg_total_offset;
         }
         return __offset;
     }
@@ -450,6 +450,7 @@ struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::subgro
     __peer_contribution(std::uint32_t __bucket, _OffsetHistogramAcc& __histogram)
     {
         _OffsetT __offset = 0;
+        #if 0
         for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
         {
             ::std::uint32_t __is_current_bucket = (__bucket == __radix_state_idx);
@@ -465,6 +466,7 @@ struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::subgro
             __offset |= __is_current_bucket * (__histogram[__radix_state_idx] + sycl::popcount(__peer_mask_bits));
             __histogram[__radix_state_idx] += __sg_total_offset;
         }
+        #endif
         return __offset;
     }
 };
