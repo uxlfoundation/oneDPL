@@ -723,7 +723,7 @@ struct __parallel_radix_sort_iteration
         );
 
         // 3. Reorder Phase
-        sycl::event __reorder_event{};
+        sycl::event __reorder_event;
         if (__reorder_sg_size == 8 || __reorder_sg_size == 16 || __reorder_sg_size == 32)
         {
 #if _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
@@ -766,7 +766,7 @@ struct __parallel_radix_sort_iteration
 // radix sort: main function
 //-----------------------------------------------------------------------
 template <bool __is_ascending, typename _Range, typename _ExecutionPolicy, typename _Proj>
-auto
+__future<sycl::event>
 __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __in_rng,
                       _Proj __proj)
 {
@@ -780,7 +780,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     // radix bits represent number of processed bits in each value during one iteration
     constexpr ::std::uint32_t __radix_bits = 4;
 
-    sycl::event __event{};
+    sycl::event __event;
 
     // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
     // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
@@ -866,7 +866,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         }
     }
 
-    return __future(__event);
+    return __future{std::move(__event)};
 }
 
 } // namespace __par_backend_hetero

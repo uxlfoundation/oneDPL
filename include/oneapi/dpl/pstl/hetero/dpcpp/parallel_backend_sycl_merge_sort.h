@@ -698,7 +698,7 @@ template <typename... _Name>
 class __sort_copy_back_kernel;
 
 template <typename _IndexT, typename _ExecutionPolicy, typename _Range, typename _Compare, typename _LeafSorter>
-auto
+__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
 {
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
@@ -736,11 +736,12 @@ __merge_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _LeafSo
     {
         __event_sort = __merge_sort_copy_back_submitter<_CopyBackKernel>()(__q, __rng, __temp_buf, __event_sort);
     }
-    return __future(__event_sort, std::move(__temp_sp_storages));
+
+    return __future{std::move(__event_sort), std::move(__temp_sp_storages)};
 }
 
 template <typename _IndexT, typename _ExecutionPolicy, typename _Range, typename _Compare>
-auto
+__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __submit_selecting_leaf(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     using _Leaf = __leaf_sorter<std::decay_t<_Range>, _Compare>;
@@ -793,7 +794,7 @@ __submit_selecting_leaf(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __co
 };
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
-auto
+__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                      _Compare __comp)
 {

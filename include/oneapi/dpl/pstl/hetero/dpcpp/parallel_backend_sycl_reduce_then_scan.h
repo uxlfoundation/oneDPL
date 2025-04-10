@@ -839,7 +839,8 @@ __is_gpu_with_reduce_then_scan_sg_sz(const _ExecutionPolicy& __exec)
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
           typename _Inclusive, typename _IsUniquePattern>
-auto
+__future<sycl::event,
+         __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type, /* _NResults */ 1>>
 __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                       _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
                                       _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
@@ -954,7 +955,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
                                           __num_work_groups * __work_group_size);
         }
     }
-    return __future(__event, __result_and_scratch);
+    return __future{std::move(__event), std::move(__result_and_scratch)};
 }
 
 } // namespace __par_backend_hetero
