@@ -125,7 +125,7 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
 {
     template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType,
               typename... _Ranges>
-    auto
+    __future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, _Tp>>
     operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, const _Size __n,
                const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
                _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs) const
@@ -155,13 +155,13 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
                 });
         });
 
-        return __future(__reduce_event, __scratch_container);
+        return __future{std::move(__reduce_event), std::move(__scratch_container)};
     }
 }; // struct __parallel_transform_reduce_small_submitter
 
 template <typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _ExecutionPolicy, typename _Size,
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
-auto
+__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, _Tp>>
 __parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
                                        _ExecutionPolicy&& __exec, const _Size __n, const _Size __work_group_size,
                                        const _Size __iters_per_work_item, _ReduceOp __reduce_op,
@@ -187,7 +187,7 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
                                                            __internal::__optional_kernel_name<_KernelName...>>
 {
     template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _TransformOp, typename... _Ranges>
-    auto
+    sycl::event
     operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, const _Size __n,
                const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
                _TransformOp __transform_op,
@@ -235,10 +235,11 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
                                                                __internal::__optional_kernel_name<_KernelName...>>
 {
     template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _InitType>
-    auto
-    operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, sycl::event& __reduce_event,
-               const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
-               _InitType __init, const __result_and_scratch_storage<_ExecutionPolicy, _Tp>& __scratch_container) const
+    __future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, _Tp>>
+    operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+               const sycl::event& __reduce_event, const _Size __n, const _Size __work_group_size,
+               const _Size __iters_per_work_item, _ReduceOp __reduce_op, _InitType __init,
+               __result_and_scratch_storage<_ExecutionPolicy, _Tp>&& __scratch_container) const
     {
         using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
         auto __transform_pattern =
@@ -250,7 +251,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
 
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_ExecutionPolicy, _Tp>;
 
-        __reduce_event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
+        auto __event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
             __cgh.depends_on(__reduce_event);
 
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
@@ -269,13 +270,13 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
                 });
         });
 
-        return __future(__reduce_event, __scratch_container);
+        return __future{std::move(__event), std::move(__scratch_container)};
     }
 }; // struct __parallel_transform_reduce_work_group_kernel_submitter
 
 template <typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _ExecutionPolicy, typename _Size,
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
-auto
+__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, _Tp>>
 __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
                                      _ExecutionPolicy&& __exec, const _Size __n, const _Size __work_group_size,
                                      const _Size __iters_per_work_item_device_kernel,
@@ -302,7 +303,7 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
     return __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative, _VecSize,
                                                                    _ReduceWorkGroupKernel>()(
         __backend_tag, std::forward<_ExecutionPolicy>(__exec), __reduce_event, __n_groups, __work_group_size,
-        __iters_per_work_item_work_group_kernel, __reduce_op, __init, __scratch_container);
+        __iters_per_work_item_work_group_kernel, __reduce_op, __init, std::move(__scratch_container));
 }
 
 // General implementation using a tree reduction
@@ -311,7 +312,7 @@ struct __parallel_transform_reduce_impl
 {
     template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType,
               typename... _Ranges>
-    static auto
+    static __future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, _Tp>>
     submit(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Size __n, _Size __work_group_size,
            const _Size __iters_per_work_item, _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init,
            _Ranges&&... __rngs)
@@ -421,7 +422,7 @@ struct __parallel_transform_reduce_impl
             __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
         } while (__n > 1);
 
-        return __future(__reduce_event, __scratch_container);
+        return __future{std::move(__reduce_event), std::move(__scratch_container)};
     }
 }; // struct __parallel_transform_reduce_impl
 
@@ -439,7 +440,7 @@ struct __parallel_transform_reduce_impl
 // reduced in each step.
 template <typename _Tp, typename _Commutative, typename _ExecutionPolicy, typename _ReduceOp, typename _TransformOp,
           typename _InitType, typename... _Ranges>
-auto
+__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, _Tp>>
 __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                             _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
 {

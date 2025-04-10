@@ -57,7 +57,7 @@ template <typename... _Name>
 struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name...>>
 {
     template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
-    auto
+    __future<sycl::event>
     operator()(_ExecutionPolicy&& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
@@ -73,7 +73,8 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
                 __brick.__scalar_path_impl(std::true_type{}, __idx, __rngs...);
             });
         });
-        return __future(__event);
+
+        return __future{std::move(__event)};
     }
 };
 
@@ -137,7 +138,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     }
 
     template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
-    auto
+    __future<sycl::event>
     operator()(_ExecutionPolicy&& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
@@ -168,14 +169,15 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
                     }
                 });
         });
-        return __future(__event);
+
+        return __future{std::move(__event)};
     }
 };
 
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
 //for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
 template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
-auto
+__future<sycl::event>
 __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Fp __brick, _Index __count,
                _Ranges&&... __rngs)
 {
