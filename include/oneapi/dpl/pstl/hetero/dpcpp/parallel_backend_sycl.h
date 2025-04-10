@@ -1071,7 +1071,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
 
                 // Although we do not actually need result storage in this case, we need to construct
                 // a placeholder here to match the return type of the non-single-work-group implementation
-                __result_and_scratch_storage<_ValueType, /* _NResults */ 1> __dummy_result_and_scratch{__exec, 0};
+                __result_and_scratch_storage<_Type, /* _NResults */ 1> __dummy_result_and_scratch{__exec, 0};
 
                 return __future{std::move(__event), std::move(__dummy_result_and_scratch)};
             }
