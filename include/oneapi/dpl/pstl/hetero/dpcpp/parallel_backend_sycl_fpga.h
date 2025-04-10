@@ -56,7 +56,7 @@ template <typename... _Name>
 struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...>>
 {
     template <unsigned int unroll_factor, typename _Fp, typename _Index, typename... _Ranges>
-    auto
+    __future<sycl::event>
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
@@ -74,7 +74,8 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
                 }
             });
         });
-        return __future(__event);
+
+        return __future{std::move(__event)};
     }
 };
 

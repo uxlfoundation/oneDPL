@@ -78,13 +78,6 @@
 #define TEST_GCC10_EXCLUSIVE_SCAN_BROKEN (_GLIBCXX_RELEASE == 10)
 // GCC7 std::get doesn't return const rvalue reference from const rvalue reference of tuple
 #define _PSTL_TEST_GCC7_RVALUE_TUPLE_GET_BROKEN (_GLIBCXX_RELEASE > 0 && _GLIBCXX_RELEASE < 8)
-// Array swap broken on Windows because Microsoft implementation of std::swap function for std::array
-// call some internal function which is not declared as SYCL external and we have compile error
-#if defined(_MSC_VER)
-#   define TEST_XPU_ARRAY_SWAP_BROKEN (_MSC_VER <= 1937)
-#else
-#   define TEST_XPU_ARRAY_SWAP_BROKEN 0
-#endif
 
 #define _PSTL_SYCL_TEST_USM 1
 

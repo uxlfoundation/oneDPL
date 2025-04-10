@@ -692,8 +692,8 @@ class __sort_global_kernel2;
 template <typename... _Name>
 class __sort_copy_back_kernel;
 
-template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare, typename _LeafSorter>
-auto
+template <typename _IndexT, typename _Range, typename _Compare, typename _LeafSorter>
+__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
 {
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
@@ -728,11 +728,12 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
     {
         __event_sort = __merge_sort_copy_back_submitter<_CopyBackKernel>()(__q, __rng, __temp_buf, __event_sort);
     }
-    return __future(__event_sort, std::move(__temp_sp_storages));
+
+    return __future{std::move(__event_sort), std::move(__temp_sp_storages)};
 }
 
-template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare>
-auto
+template <typename _IndexT, typename _Range, typename _Compare>
+__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
 {
     using _Leaf = __leaf_sorter<std::decay_t<_Range>, _Compare>;
@@ -783,6 +784,20 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
     _Leaf __leaf(__rng, __comp, __data_per_workitem, __wg_size);
     return __merge_sort<_CustomName, _IndexT>(__q, std::forward<_Range>(__rng), __comp, __leaf);
 };
+
+template <typename _CustomName, typename _Range, typename _Compare>
+__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+__parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range&& __rng, _Compare __comp)
+{
+    if (__rng.size() <= std::numeric_limits<std::uint32_t>::max())
+    {
+        return __submit_selecting_leaf<_CustomName, std::uint32_t>(__q, std::forward<_Range>(__rng), __comp);
+    }
+    else
+    {
+        return __submit_selecting_leaf<_CustomName, std::uint64_t>(__q, std::forward<_Range>(__rng), __comp);
+    }
+}
 
 } // namespace __par_backend_hetero
 } // namespace dpl
