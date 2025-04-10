@@ -1069,11 +1069,11 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
                     __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
                     std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
 
-                // For align with other return values we need to return a future with __result_and_scratch_storage object inside
-                return {
-                    std::move(__event),
-                    __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type, /* _NResults */ 1>{
-                        __exec, 0}};
+                // Although we do not actually need result storage in this case, we need to construct
+                // a placeholder here to match the return type of the non-single-work-group implementation
+                __result_and_scratch_storage<_ValueType, /* _NResults */ 1> __dummy_result_and_scratch{__exec, 0};
+
+                return __future{std::move(__event), std::move(__dummy_result_and_scratch)};
             }
         }
         if (__use_reduce_then_scan)
