@@ -27,7 +27,7 @@ non device copyabiability reason. To support  `std::vector` with `USM` allocator
 ### Test coverage
 - The algorithms should be called with both small and large data sizes and with all the policies mentioned above.
 - Output data, return type, and value should be checked/compared with the reference result
-computed by the corresponding serial std::ranges algorithm or by a custom implemented serial version
+computed by the corresponding serial `std::ranges` algorithm or by a custom implemented serial version
 in case of different semantics.
 - The tests should also call the algorithms with following standard range adapters: `std::ranges::subrange`, `std::span`, `std::views::all`,
   `std::views::iota`, `std::views::transform`, `std::views::reverse`, `std::views::take`, `std::views::drop`
