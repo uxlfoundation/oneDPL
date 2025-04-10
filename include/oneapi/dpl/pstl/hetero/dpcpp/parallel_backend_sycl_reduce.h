@@ -190,8 +190,7 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
     sycl::event
     operator()(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, const _Size __n,
                const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
-               _TransformOp __transform_op,
-               const __result_and_scratch_storage<_ExecutionPolicy, _Tp>& __scratch_container,
+               _TransformOp __transform_op, __result_and_scratch_storage<_ExecutionPolicy, _Tp>& __scratch_container,
                _Ranges&&... __rngs) const
     {
         auto __transform_pattern =
