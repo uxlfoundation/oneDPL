@@ -287,9 +287,12 @@ jobs:
               cd %%i
               :: Get current directory name
               mkdir build && cd build
-              cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} .. || set exit_code=%errorlevel%
-              ninja -v > build_ex.log 2>&1 || set exit_code=%errorlevel%
-              ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest_ex.log 2>&1 || set exit_code=%errorlevel%
+              cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
+              if %errorlevel% neq 0 set exit_code=%errorlevel%
+              ninja -v > build_ex.log 2>&1
+              if %errorlevel% neq 0 set exit_code=%errorlevel%
+              ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest_ex.log 2>&1
+              if %errorlevel% neq 0 set exit_code=%errorlevel%
               type ctest_ex.log
               type build_ex.log
             )
@@ -307,9 +310,11 @@ jobs:
 
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" .. || set exit_code=%errorlevel%
 
-          ninja -j 2 -v %ninja_targets% > build.log 2>&1 || set exit_code=%errorlevel%
+          ninja -j 2 -v %ninja_targets% > build.log 2>&1
+          if %errorlevel% neq 0 set exit_code=%errorlevel%
 
-          ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1 || set exit_code=%errorlevel%
+          ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1
+          if %errorlevel% neq 0 set exit_code=%errorlevel%
           type ctest.log
 
           :: Display the results after executing all tests because "tee" alternative is unavailable in CMD.
