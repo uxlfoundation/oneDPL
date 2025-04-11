@@ -92,7 +92,8 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
             __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item_id) {
                 // Disable vectorization and multiple iterations per item within the brick to evenly spread work across
                 // compute units.
-                __pfor_params<false, false, _Ranges...> __params;
+                __pfor_params<false /*__can_vectorize_brick*/, false /*__can_brick_process_multiple_iters*/, _Ranges...>
+                    __params;
                 const std::size_t __idx = __item_id.get_linear_id();
                 __brick(std::true_type{}, __idx, __params, __rngs...);
             });
