@@ -1088,6 +1088,9 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typenam
 std::pair<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>>
 __pattern_mismatch(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
 {
+    if(std::ranges::empty(__r1) || std::ranges::empty(__r2))
+        return {std::ranges::begin(__r1), std::ranges::begin(__r2)};
+
     auto __bin_pred = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) {
         return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
                            std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
