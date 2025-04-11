@@ -104,6 +104,8 @@ void sparse_histogram(std::vector<uint64_t> &input) {
 }
 
 int main(void) {
+  std::cout<<"FAILED\n";
+  return 1;
   const int N = 1000;
   std::vector<uint64_t> input;
   srand((unsigned)time(0));
