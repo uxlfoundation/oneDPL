@@ -214,7 +214,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
 
         assert(__n1 > 0 || __n2 > 0);
 
-        _PRINT_INFO_IN_DEBUG_MODE(__exec);
+        _PRINT_INFO_IN_DEBUG_MODE(__exec.queue());
 
         // Empirical number of values to process per work-item
         const _IdType __chunk = __exec.queue().get_device().is_cpu() ? 128 : 4;
@@ -224,12 +224,11 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         using __val_t = _split_point_t<_IdType>;
         using _NResults = std::conditional_t<_OutSizeLimit{}, std::integral_constant<std::size_t, 1>,
                                              std::integral_constant<std::size_t, 0>>;
-        using __result_and_scratch_storage_t =
-            __result_and_scratch_storage<_ExecutionPolicy, __val_t, _NResults::value>;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<__val_t, _NResults::value>;
         __result_and_scratch_storage_t* __p_res_storage = nullptr;
 
         if constexpr (_OutSizeLimit{})
-            __p_res_storage = new __result_and_scratch_storage_t(__exec, 0);
+            __p_res_storage = new __result_and_scratch_storage_t(__exec.queue(), 0);
         else
             assert(__rng3.size() >= __n1 + __n2);
 
@@ -434,7 +433,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
         const _IdType __n = std::min<_IdType>(__n1 + __n2, __rng3.size());
 
-        _PRINT_INFO_IN_DEBUG_MODE(__exec);
+        _PRINT_INFO_IN_DEBUG_MODE(__exec.queue());
 
         // Calculate nd-range parameters
         const nd_range_params __nd_range_params = eval_nd_range_params(__exec, __rng1, __rng2, __n);
@@ -443,8 +442,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         using __val_t = _split_point_t<_IdType>;
         using _NResults = std::conditional_t<_OutSizeLimit{}, std::integral_constant<std::size_t, 1>,
                                              std::integral_constant<std::size_t, 0>>;
-        using __result_and_scratch_storage_t =
-            __result_and_scratch_storage<_ExecutionPolicy, __val_t, _NResults::value>;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<__val_t, _NResults::value>;
         auto __p_base_diagonals_sp_global_storage =
             new __result_and_scratch_storage_t(__exec, __nd_range_params.base_diag_count + 1);
 
