@@ -277,6 +277,10 @@ jobs:
             call "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
           )
 
+          :: Preserve the code of an unsuccessful command if any.
+          :: By default, CMD shell only reports the error level of the final command.
+          set exit_code=0
+
           if "${{ matrix.backend }}" == "dpcpp" (
             #build and run examples
             for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
@@ -286,10 +290,10 @@ jobs:
               set LOG_NAME=build_%DIR_NAME%.log
               mkdir build && cd build
               cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} .. || set exit_code=%errorlevel%
-              ninja -v >> "%LOGNAME%" 2>&1 || set exit_code=%errorlevel%
+              ninja -v >> "%LOG_NAME%" 2>&1 || set exit_code=%errorlevel%
               ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest.log 2>&1 || set exit_code=%errorlevel%
               type ctest.log
-              type "%LOGNAME%"
+              type "%LOG_NAME%""
             )
 
             #set targets to just sycl iterator for dpcpp tests
@@ -302,9 +306,6 @@ jobs:
           cd %GITHUB_WORKSPACE%
           mkdir build && cd build
 
-          :: Preserve the code of an unsuccessful command if any.
-          :: By default, CMD shell only reports the error level of the final command.
-          set exit_code=0
 
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" .. || set exit_code=%errorlevel%
 
