@@ -839,7 +839,7 @@ __is_gpu_with_reduce_then_scan_sg_sz(const _ExecutionPolicy& __exec)
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
           typename _Inclusive, typename _IsUniquePattern>
-__future<sycl::event, __result_and_scratch_storage<_ExecutionPolicy, typename _InitType::__value_type>>
+__future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
 __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                       _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
                                       _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
@@ -861,7 +861,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
 
-    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__exec, 8192);
+    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), 8192);
     // Round down to nearest multiple of the subgroup size
     const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
 
@@ -894,8 +894,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     // We need temporary storage for reductions of each sub-group (__num_sub_groups_global).
     // Additionally, we need two elements for the block carry-out to prevent a race condition
     // between reading and writing the block carry-out within a single kernel.
-    __result_and_scratch_storage<_ExecutionPolicy, _ValueType> __result_and_scratch{__exec, 1,
-                                                                                    __max_num_sub_groups_global + 2};
+    __result_and_scratch_storage<_ValueType> __result_and_scratch{__exec.queue(), 1, __max_num_sub_groups_global + 2};
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =
