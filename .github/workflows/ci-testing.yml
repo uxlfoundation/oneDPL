@@ -200,6 +200,8 @@ jobs:
           else
             make_targets="build-onedpl-tests"
           fi
+
+          cd ${GITHUB_WORKSPACE}
           mkdir build && cd build
           lscpu
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
@@ -284,10 +286,10 @@ jobs:
               set LOG_NAME=build_%DIR_NAME%.log
               mkdir build && cd build
               cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} .. || set exit_code=%errorlevel%
-              ninja -v >> %LOGNAME% 2>&1 || set exit_code=%errorlevel%
+              ninja -v >> "%LOGNAME%" 2>&1 || set exit_code=%errorlevel%
               ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest.log 2>&1 || set exit_code=%errorlevel%
               type ctest.log
-              type %LOGNAME%
+              type "%LOGNAME%"
             )
 
             #set targets to just sycl iterator for dpcpp tests
@@ -296,6 +298,8 @@ jobs:
           ) else (
             set ninja_targets=build-onedpl-tests
           )
+          
+          cd %GITHUB_WORKSPACE%
           mkdir build && cd build
 
           :: Preserve the code of an unsuccessful command if any.
