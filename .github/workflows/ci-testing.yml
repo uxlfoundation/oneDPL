@@ -281,7 +281,7 @@ jobs:
             #build and run examples
             for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
               cd %%i
-              #get current directory name
+              :: Get current directory name
               for %%j in (.) do set DIR_NAME=%%~nxj
               set LOG_NAME=build_%DIR_NAME%.log
               mkdir build && cd build
