@@ -249,8 +249,11 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typ
 bool
 __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Pred __pred)
 {
-    if (__rng1.empty() || __rng2.empty() || __rng1.size() != __rng2.size())
+    if (__rng1.size() != __rng2.size())
         return false;
+
+    if(__rng1.empty())
+        return true; //both sequences are empty
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<equal_predicate<_Pred>>;
 
