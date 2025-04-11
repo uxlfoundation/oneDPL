@@ -282,18 +282,16 @@ jobs:
           set exit_code=0
 
           if "${{ matrix.backend }}" == "dpcpp" (
-            #build and run examples
+            :: Build and run examples
             for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
               cd %%i
               :: Get current directory name
-              for %%j in (.) do set DIR_NAME=%%~nxj
-              set LOG_NAME=build_%DIR_NAME%.log
               mkdir build && cd build
               cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} .. || set exit_code=%errorlevel%
-              ninja -v > "%LOG_NAME%" 2>&1 || set exit_code=%errorlevel%
-              ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest.log 2>&1 || set exit_code=%errorlevel%
-              type ctest.log
-              type %LOG_NAME%
+              ninja -v > build_ex.log 2>&1 || set exit_code=%errorlevel%
+              ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest_ex.log 2>&1 || set exit_code=%errorlevel%
+              type ctest_ex.log
+              type build_ex.log
             )
 
             #set targets to just sycl iterator for dpcpp tests
