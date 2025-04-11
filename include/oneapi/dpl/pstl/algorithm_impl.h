@@ -1051,10 +1051,8 @@ __pattern_search_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 // Sometimes a little duplication for sake of regularity is better than the alternative.
 
 template <class _Tag>
-struct __brick_copy_n
+struct __brick_copy_n<_Tag, std::enable_if_t<oneapi::dpl::__internal::__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
-
     template <typename _RandomAccessIterator1, typename _Size, typename _RandomAccessIterator2>
     _RandomAccessIterator2
     operator()(_RandomAccessIterator1 __first, _Size __n, _RandomAccessIterator2 __result,
@@ -1078,10 +1076,8 @@ struct __brick_copy_n
 //------------------------------------------------------------------------
 
 template <class _Tag>
-struct __brick_copy
+struct __brick_copy<_Tag, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
-
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
     operator()(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
@@ -1112,10 +1108,8 @@ struct __brick_copy
 //------------------------------------------------------------------------
 
 template <class _Tag>
-struct __brick_move
+struct __brick_move<_Tag, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
-
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
     operator()(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
