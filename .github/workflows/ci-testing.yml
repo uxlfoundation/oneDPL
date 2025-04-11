@@ -280,6 +280,9 @@ jobs:
           :: Preserve the code of an unsuccessful command if any.
           :: By default, CMD shell only reports the error level of the final command.
 
+          :: cache the path to the current directory
+          set BASE_DIR=%cd%
+
           if "${{ matrix.backend }}" == "dpcpp" (
             :: Build and run examples
             for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
@@ -306,7 +309,7 @@ jobs:
           )
           
           set exit_code=0
-          cd %GITHUB_WORKSPACE%
+          cd %BASE_DIR
           mkdir build && cd build
 
 
