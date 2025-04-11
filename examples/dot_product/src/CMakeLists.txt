@@ -7,7 +7,7 @@ target_link_libraries(${PROJECT_NAME} oneDPL)
 if(WIN32)
   # Add custom target for running
   add_custom_target(run ${PROJECT_NAME}.exe)
-  add_test(NAME ${PROJECT_NAME} COMMAND ./${PROJECT_NAME}.exe)
+  add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME}.exe)
 else()
   # Add custom target for running
   add_custom_target(run ./${PROJECT_NAME})
