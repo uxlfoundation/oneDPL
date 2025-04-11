@@ -13,7 +13,18 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <oneapi/dpl/execution>
+#include <oneapi/dpl/algorithm>
 #include "std_ranges_test.h"
+
+#if _ENABLE_STD_RANGES_TESTING
+namespace test_std_ranges
+{
+template<typename T>
+static constexpr
+int trivial_size<T, std::void_t<decltype(oneapi::dpl::ranges::min)>> = 1;
+}
+#endif
 
 std::int32_t
 main()
@@ -25,7 +36,7 @@ main()
     auto min_checker = TEST_PREPARE_CALLABLE(std::ranges::min);
 
     test_range_algo<0>{big_sz}(dpl_ranges::min, min_checker, std::ranges::less{});
-
+    
     test_range_algo<1>{}(dpl_ranges::min, min_checker, std::ranges::less{}, proj);
     test_range_algo<2, P2>{}(dpl_ranges::min, min_checker, std::ranges::less{}, &P2::x);
     test_range_algo<3, P2>{}(dpl_ranges::min, min_checker, std::ranges::less{}, &P2::proj);
