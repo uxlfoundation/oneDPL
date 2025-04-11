@@ -182,6 +182,19 @@ jobs:
           fi
 
           if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
+            # build and run the examples
+            for example_dir in ${GITHUB_WORKSPACE}/examples/*; do
+            # Skip the example if it is not a directory
+            if [[ -d "$example_dir" ]]; then
+              cd "$example_dir"
+              mkdir build && cd build
+              cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
+              make VERBOSE=1 |& tee build.log
+              ctest --timeout ${TEST_TIMEOUT} --output-on-failure |& tee ctest.log
+            fi
+            done
+
+            #set targets to just sycl iterator for dpcpp tests
             make_targets="build-onedpl-sycl_iterator-tests build-onedpl-ranges-tests"
             ctest_flags="-R (sycl_iterator_.*)|(std_ranges_.*)\.pass"
           else
@@ -194,19 +207,6 @@ jobs:
           make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags} |& tee ctest.log
 
-          # now run through the examples if dpcpp backend
-          if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
-            for example_dir in ${GITHUB_WORKSPACE}/examples/*; do
-            # Skip the example if it is not a directory
-            if [[ -d "$example_dir" ]]; then
-              cd "$example_dir"
-              mkdir build && cd build
-              cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
-              make VERBOSE=1 |& tee build.log
-              ctest --timeout ${TEST_TIMEOUT} --output-on-failure |& tee ctest.log
-            fi
-            done
-          fi
 
           # Generate a summary
           os_name=$(uname -a | head -n 1)
@@ -276,6 +276,21 @@ jobs:
           )
 
           if "${{ matrix.backend }}" == "dpcpp" (
+            #build and run examples
+            for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
+              cd %%i
+              #get current directory name
+              for %%j in (.) do set DIR_NAME=%%~nxj
+              set LOG_NAME=build_%DIR_NAME%.log
+              mkdir build && cd build
+              cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} .. || set exit_code=%errorlevel%
+              ninja -v >> %LOGNAME% 2>&1 || set exit_code=%errorlevel%
+              ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest.log 2>&1 || set exit_code=%errorlevel%
+              type ctest.log
+              type %LOGNAME%
+            )
+
+            #set targets to just sycl iterator for dpcpp tests
             set ninja_targets="build-onedpl-sycl_iterator-tests"
             set ctest_flags=-R sycl_iterator_.*\.pass
           ) else (
@@ -293,17 +308,6 @@ jobs:
 
           ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1 || set exit_code=%errorlevel%
           type ctest.log
-
-          if "${{ matrix.backend }}" == "dpcpp" (
-            cd examples
-            for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
-              cd %%i
-              mkdir build && cd build
-              cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} .. || set exit_code=%errorlevel%
-              ninja -v %ninja_targets% >> build.log 2>&1 || set exit_code=%errorlevel%
-              ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest.log 2>&1 || set exit_code=%errorlevel%
-            )
-          )
 
           :: Display the results after executing all tests because "tee" alternative is unavailable in CMD.
           type build.log
