@@ -200,11 +200,9 @@ jobs:
             # Skip the example if it is not a directory
             if [[ -d "$example_dir" ]]; then
               cd "$example_dir"
-              mkdir build
-              cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
-                -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -S . -B build
-              cmake --build build
-              cd build
+              mkdir build && cd build
+              cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
+              make VERBOSE=1 |& tee build.log
               ctest --timeout ${TEST_TIMEOUT} --output-on-failure |& tee ctest.log
             fi
             done
@@ -300,10 +298,9 @@ jobs:
             cd examples
             for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
               cd %%i
-              mkdir build
-              cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -S . -B build
-              cmake --build build
-              cd build
+              mkdir build && cd build
+              cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} .. || set exit_code=%errorlevel%
+              ninja -v %ninja_targets% >> build.log 2>&1 || set exit_code=%errorlevel%
               ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest.log 2>&1 || set exit_code=%errorlevel%
             )
           )
