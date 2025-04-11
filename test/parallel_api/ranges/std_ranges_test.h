@@ -166,6 +166,9 @@ template<typename T>
 static constexpr
 bool check_minmax<T, std::void_t<decltype(std::declval<T>().min, std::declval<T>().max)>> = true;
 
+template<typename, typename = void>
+static constexpr int trivial_size{0};
+
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_zero = [](auto i) { return 0;};
 
@@ -189,7 +192,7 @@ struct test
         process_data_in(max_n, exec, algo, checker, tr_in, args...);
 
         //test with empty sequence
-        process_data_in(0, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+        process_data_in(trivial_size<Algo>, std::forward<Policy>(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -266,7 +269,7 @@ public:
         process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
 
         //test cases with empty sequence(s)
-	process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+	    process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -386,7 +389,7 @@ public:
         process_data_in_in_out(max_n, r_size, r_size/2, r_size, exec, algo, checker, args...);
         process_data_in_in_out(max_n, r_size, r_size, r_size/2, exec, algo, checker, args...);
 
-	//test cases with empty sequence(s)
+	    //test cases with empty sequence(s)
         process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 private:
