@@ -110,7 +110,7 @@ inline constexpr __is_onedpl_device_accessible_content_iterator_fn __is_onedpl_d
 
 template <typename T>
 struct is_device_accessible_content_iterator
-    : decltype(oneapi::dpl::__internal::__is_onedpl_device_accessible_content_iterator(std::declval<T>())){};
+    : std::bool_constant<bool(decltype(oneapi::dpl::__internal::__is_onedpl_device_accessible_content_iterator(std::declval<T>()))::value)>{};
 
 template <typename T>
 inline constexpr bool is_device_accessible_content_iterator_v = is_device_accessible_content_iterator<T>::value;
