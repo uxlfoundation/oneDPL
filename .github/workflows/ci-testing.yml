@@ -199,7 +199,7 @@ jobs:
             for example_dir in ${GITHUB_WORKSPACE}/examples/*; do
             # Skip the example if it is not a directory
             if [[ -d "$example_dir" ]]; then
-              cd "${GITHUB_WORKSPACE}/examples/"
+              cd "${GITHUB_WORKSPACE}/examples/$example_dir"
               mkdir build
               cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
                 -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -S . -B build
