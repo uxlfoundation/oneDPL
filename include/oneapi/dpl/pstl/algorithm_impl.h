@@ -2728,10 +2728,8 @@ __pattern_nth_element(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
 // fill, fill_n
 //------------------------------------------------------------------------
 template <class _Tag, typename _Tp>
-struct __brick_fill
+struct __brick_fill<_Tag, _Tp, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-    static_assert(__is_host_dispatch_tag_v<_Tag>);
-
     const _Tp& __value;
 
     template <typename _RandomAccessIterator>
