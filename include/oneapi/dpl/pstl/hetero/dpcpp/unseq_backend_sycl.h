@@ -130,8 +130,8 @@ struct walk1_vector_or_scalar
     void
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range&& __rng) const
     {
-        using oneapi::dpl::__par_backend_hetero::__vector_walk;
-        __vector_walk<_Params::__vector_size>{__n}(__is_full, __idx, __f, std::forward<_Range>(__rng));
+        oneapi::dpl::__par_backend_hetero::__vector_walk<_Params::__vector_size> __vec_walk{__n};
+        __vec_walk(__is_full, __idx, __f, std::forward<_Range>(__rng));
     }
 
     // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
@@ -161,16 +161,15 @@ struct walk2_vectors_or_scalars
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
         using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
-        using oneapi::dpl::__par_backend_hetero::__vector_load;
-        using oneapi::dpl::__par_backend_hetero::__vector_store;
         _ValueType1 __rng1_vector[_Params::__vector_size];
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
+        oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F> __store_op{__f};
         // 1. Load input into a vector
-        __vector_load<_Params::__vector_size>{__n}(
-            __is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{}, __rng1, __rng1_vector);
+        __vec_load(__is_full, __idx, __load_op, __rng1, __rng1_vector);
         // 2. Apply functor to vector and store into global memory
-        __vector_store<_Params::__vector_size>{__n}(
-            __is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f}, __rng1_vector,
-            __rng2);
+        __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2);
     }
 
     // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
@@ -204,22 +203,20 @@ struct walk3_vectors_or_scalars
     {
         using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
         using _ValueType2 = oneapi::dpl::__internal::__value_t<_Range2>;
-        using oneapi::dpl::__par_backend_hetero::__vector_load;
-        using oneapi::dpl::__par_backend_hetero::__vector_store;
 
         _ValueType1 __rng1_vector[_Params::__vector_size];
         _ValueType2 __rng2_vector[_Params::__vector_size];
 
-        __vector_load<_Params::__vector_size> __vec_load{__n};
-        __vector_store<_Params::__vector_size> __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
+        oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F> __store_op{__f};
 
         // 1. Load inputs into vectors
         __vec_load(__is_full, __idx, __load_op, __rng1, __rng1_vector);
         __vec_load(__is_full, __idx, __load_op, __rng2, __rng2_vector);
         // 2. Apply binary functor to vector and store into global memory
-        __vec_store(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f},
-                    __rng1_vector, __rng2_vector, __rng3);
+        __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2_vector, __rng3);
     }
 
     // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
@@ -284,18 +281,17 @@ struct walk_adjacent_difference
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
-        using oneapi::dpl::__par_backend_hetero::__vector_load;
-        using oneapi::dpl::__par_backend_hetero::__vector_store;
         _ValueType __rng1_vector[_Params::__vector_size + 1];
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
+        oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F> __store_op{__f};
         // 1. Establish a vector of __preferred_vector_size + 1 where a scalar load is performed on the first element
         // followed by a vector load of the specified length.
         __assigner(__idx != 0 ? __rng1[__idx - 1] : __rng1[0], __rng1_vector[0]);
-        __vector_load<_Params::__vector_size>{__n}(
-            __is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{}, __rng1, &__rng1_vector[1]);
+        __vec_load(__is_full, __idx, __load_op, __rng1, &__rng1_vector[1]);
         // 2. Perform a vector store of __preferred_vector_size adjacent differences.
-        __vector_store<_Params::__vector_size>{__n}(
-            __is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f}, __rng1_vector,
-            &__rng1_vector[1], __rng2);
+        __vec_store(__is_full, __idx, __store_op, __rng1_vector, &__rng1_vector[1], __rng2);
         // A dummy value is first written to global memory followed by an overwrite for the first index. Pulling the vector loads / stores into an if branch
         // to better handle this results in performance degradation.
         if (__idx == 0)
@@ -1095,9 +1091,6 @@ struct __reverse_functor
     operator()(_IsFull, const std::size_t __left_start_idx, _Params, _Range&& __rng) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
-        using oneapi::dpl::__par_backend_hetero::__vector_load;
-        using oneapi::dpl::__par_backend_hetero::__vector_reverse;
-        using oneapi::dpl::__par_backend_hetero::__vector_store;
         const std::size_t __n = __size;
 
         // In the below implementation, we see that _IsFull is ignored in favor of std::true_type{} in all cases.
@@ -1112,9 +1105,9 @@ struct __reverse_functor
         _ValueType __rng_left_vector[_Params::__vector_size];
         _ValueType __rng_right_vector[_Params::__vector_size];
 
-        __vector_load<_Params::__vector_size> __vec_load{__n};
-        __vector_reverse<_Params::__vector_size> __vec_reverse;
-        __vector_store<_Params::__vector_size> __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_reverse<_Params::__vector_size> __vec_reverse;
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
         oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
             __store_op;
@@ -1167,27 +1160,27 @@ struct __reverse_copy
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
-        using oneapi::dpl::__par_backend_hetero::__vector_load;
-        using oneapi::dpl::__par_backend_hetero::__vector_reverse;
         using oneapi::dpl::__par_backend_hetero::__vector_store;
         const std::size_t __n = __size;
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
+        oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
+            __store_op;
+        oneapi::dpl::__par_backend_hetero::__vector_reverse<_Params::__vector_size> __vec_reverse;
         const std::size_t __remaining_elements = __n - __idx;
         const std::uint8_t __elements_to_process =
             std::min(static_cast<std::size_t>(_Params::__vector_size), __remaining_elements);
         const std::size_t __output_start = __size - __idx - __elements_to_process;
         // 1. Load vector to reverse
         _ValueType __rng1_vector[_Params::__vector_size];
-        __vector_load<_Params::__vector_size>{__n}(
-            __is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{}, __rng1, __rng1_vector);
+        __vec_load(__is_full, __idx, __load_op, __rng1, __rng1_vector);
         // 2. Reverse in registers
-        __vector_reverse<_Params::__vector_size>{}(__is_full, __elements_to_process, __rng1_vector);
+        __vec_reverse(__is_full, __elements_to_process, __rng1_vector);
         // 3. Flip the location of the vector in the output buffer
         if constexpr (_IsFull::value)
         {
-            __vector_store<_Params::__vector_size>{__n}(std::true_type{}, __output_start,
-                                                        oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<
-                                                            oneapi::dpl::__internal::__pstl_assign>{},
-                                                        __rng1_vector, __rng2);
+            __vec_store(std::true_type{}, __output_start, __store_op, __rng1_vector, __rng2);
         }
         else
         {
@@ -1223,17 +1216,19 @@ struct __rotate_copy
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
-        using oneapi::dpl::__par_backend_hetero::__vector_load;
-        using oneapi::dpl::__par_backend_hetero::__vector_store;
+        const std::size_t __n = __size;
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
+        oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
+            __store_op;
         const std::size_t __shifted_idx = __shift + __idx;
         const std::size_t __wrapped_idx = __shifted_idx % __size;
-        const std::size_t __n = __size;
         _ValueType __rng1_vector[_Params::__vector_size];
         //1. Vectorize loads only if we know the wrap around point is beyond the current vector elements to process
         if (__wrapped_idx + _Params::__vector_size <= __n)
         {
-            __vector_load<_Params::__vector_size>{__n}(
-                __is_full, __wrapped_idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{}, __rng1, __rng1_vector);
+            __vec_load(__is_full, __wrapped_idx, __load_op, __rng1, __rng1_vector);
         }
         else
         {
@@ -1253,10 +1248,7 @@ struct __rotate_copy
                 __assigner(__rng1[__j], __rng1_vector[__i + __j]);
         }
         // 2. Store the rotation
-        __vector_store<_Params::__vector_size>{__n}(
-            __is_full, __idx,
-            oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>{},
-            __rng1_vector, __rng2);
+        __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2);
     }
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
               std::enable_if_t<!_Params::__b_vectorize, int> = 0>
@@ -1352,12 +1344,10 @@ struct __brick_shift_left
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range&& __rng) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
-        using oneapi::dpl::__par_backend_hetero::__vector_load;
-        using oneapi::dpl::__par_backend_hetero::__vector_store;
         const std::size_t __unsigned_size = __size;
         const _DiffType __i = __idx - __n;
-        __vector_load<_Params::__vector_size> __vec_load{__unsigned_size};
-        __vector_store<_Params::__vector_size> __vec_store{__unsigned_size};
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__unsigned_size};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__unsigned_size};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
         oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
             __store_op;
@@ -1476,11 +1466,9 @@ struct __brick_swap
     {
         // Copies are used in the vector path of swap due to the restriction to fundamental types.
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
-        using oneapi::dpl::__par_backend_hetero::__vector_load;
-        using oneapi::dpl::__par_backend_hetero::__vector_store;
         _ValueType __rng_vector[_Params::__vector_size];
-        __vector_load<_Params::__vector_size> __vec_load{__n};
-        __vector_store<_Params::__vector_size> __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
         // 1. Load elements from __rng1.
         __vec_load(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{}, __rng1, __rng_vector);
         // 2. Swap the __rng1 elements in the vector with __rng2 elements from global memory. Note the store operation
