@@ -2778,8 +2778,10 @@ __pattern_fill(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcce
 }
 
 template <class _Tag, typename _Tp>
-struct __brick_fill_n<_Tag, _Tp, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
+struct __brick_fill_n
 {
+    static_assert(__is_host_dispatch_tag_v<_Tag>);
+
     const _Tp& __value;
 
     template <typename _RandomAccessIterator, typename _Size>
