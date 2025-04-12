@@ -283,7 +283,7 @@ jobs:
           if "${{ matrix.backend }}" == "dpcpp" (
             :: Build and run examples
             echo "loop through examples..."
-            for /D %%i in ("%GITHUB_WORKSPACE%\\examples\\*") do (
+            for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
               echo "setting exit code to 0"
 
               set exit_code=0
@@ -308,13 +308,15 @@ jobs:
             set ninja_targets="build-onedpl-sycl_iterator-tests"
             set ctest_flags=-R sycl_iterator_.*\.pass
           ) else (
+            echo "setting ninja targets"
             set ninja_targets=build-onedpl-tests
           )
-          
+          echo "setting exit code to 0"
           set exit_code=0
-          cd %BASE_DIR
+          echo "changing dir to %BASE_DIR%"
+          cd %BASE_DIR%
           mkdir build && cd build
-
+          echo "running cmake"
 
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" .. || set exit_code=%errorlevel%
 
