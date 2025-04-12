@@ -283,11 +283,11 @@ jobs:
           :: cache the path to the current directory
           set BASE_DIR=%cd%
 
-          if "${{ matrix.backend }}" == "dpcpp" (
+          if "${{ matrix.backend }}"=="dpcpp" (
             :: Build and run examples
-            for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
+            for /D %%i in ("%GITHUB_WORKSPACE%\examples\*") do (
               set exit_code=0
-              cd %%i
+              cd "%%i"
               :: Get current directory name
               mkdir build && cd build
               cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
