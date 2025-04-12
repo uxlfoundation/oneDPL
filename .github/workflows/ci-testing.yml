@@ -273,8 +273,9 @@ jobs:
           if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
             call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
           )
+          echo "loading cl compiler..."
           if "${{ matrix.cxx_compiler }}" == "cl" (
-            call "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+            call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
           )
 
           :: Preserve the code of an unsuccessful command if any.
@@ -283,13 +284,18 @@ jobs:
           :: cache the path to the current directory
           set BASE_DIR=%cd%
 
-          if "${{ matrix.backend }}"=="dpcpp" (
+          if "${{ matrix.backend }}" == "dpcpp" (
             :: Build and run examples
             for /D %%i in ("%GITHUB_WORKSPACE%\examples\*") do (
+              echo "setting exit code to 0"
+
               set exit_code=0
+              echo "changing dir to %%i"
+
               cd "%%i"
               :: Get current directory name
               mkdir build && cd build
+              echo "running cmake..."
               cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
               if %errorlevel% neq 0 set exit_code=%errorlevel%
               ninja -v > build_ex.log 2>&1
