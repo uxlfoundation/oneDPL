@@ -273,20 +273,17 @@ jobs:
           if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
             call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
           )
-          echo "loading cl compiler..."
-          if "${{ matrix.cxx_compiler }}" == "cl" (
-            call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
-          )
 
           :: Preserve the code of an unsuccessful command if any.
           :: By default, CMD shell only reports the error level of the final command.
-
+          echo "caching base dir..."
           :: cache the path to the current directory
           set BASE_DIR=%cd%
-
-          if "${{ matrix.backend }}" == "dpcpp" (
+          echo "checking dpcpp..."
+          if "${{ matrix.backend }}"=="dpcpp" (
             :: Build and run examples
-            for /D %%i in ("%GITHUB_WORKSPACE%\examples\*") do (
+            echo "loop through examples..."
+            for /D %%i in ("%GITHUB_WORKSPACE%\\examples\\*") do (
               echo "setting exit code to 0"
 
               set exit_code=0
