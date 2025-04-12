@@ -280,7 +280,7 @@ jobs:
           :: cache the path to the current directory
           set BASE_DIR=%cd%
           echo "checking dpcpp..."
-          if "${{ matrix.backend }}"=="dpcpp" (
+          if "${{ matrix.backend }}" == "dpcpp" (
             :: Build and run examples
             echo "loop through examples..."
             for /D %%i in ("%GITHUB_WORKSPACE%\\examples\\*") do (
