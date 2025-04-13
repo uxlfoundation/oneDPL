@@ -274,6 +274,7 @@ jobs:
             call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
           )
 
+          set exit_code=0
           :: Preserve the code of an unsuccessful command if any.
           :: By default, CMD shell only reports the error level of the final command.
           echo "caching base dir..."
@@ -286,7 +287,6 @@ jobs:
             for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
               echo "setting exit code to 0"
 
-              set exit_code=0
               echo "changing dir to %%i"
 
               cd "%%i"
@@ -301,7 +301,6 @@ jobs:
               if %errorlevel% neq 0 set exit_code=%errorlevel%
               type ctest_ex.log
               type build_ex.log
-              if %exit_code% neq 0 exit /b %exit_code%
             )
 
             #set targets to just sycl iterator for dpcpp tests
@@ -311,8 +310,7 @@ jobs:
             echo "setting ninja targets"
             set ninja_targets=build-onedpl-tests
           )
-          echo "setting exit code to 0"
-          set exit_code=0
+
           echo "changing dir to %BASE_DIR%"
           cd %BASE_DIR%
           mkdir build && cd build
