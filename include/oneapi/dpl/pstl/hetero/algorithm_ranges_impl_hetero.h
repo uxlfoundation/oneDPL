@@ -866,7 +866,6 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     oneapi::dpl::__internal::__difference_t<_Range2> __n = __rng.size();
     if (__n == 0)
         return 0;
-
     if (__n == 1)
     {
         // For a sequence of size 1, we can just copy the only element to the result.
