@@ -831,15 +831,15 @@ constexpr auto __get_first_iterator(_FirstIt __first_it, _RestIt...) {
 }
 
 template<typename T>
-auto get_last_arg(T t)
+auto __get_last_arg(T t)
 {
     return t;
 }
 
 template<typename T, typename... Rest>
-auto get_last_arg(T, Rest... args)
+auto __get_last_arg(T, Rest... args)
 {
-    return get_last_arg(args...);
+    return __get_last_arg(args...);
 }
 
 } // namespace __internal
