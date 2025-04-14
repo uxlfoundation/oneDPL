@@ -622,8 +622,8 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
             __par_backend_hetero::__scan_single_wg_dynamic_kernel<_BinaryOperation, _CustomName>>;
 
         return __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive::value, _DynamicGroupScanKernel>()(
-            __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
-            __n, __init, __binary_op, __unary_op, __max_wg_size);
+            __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op,
+            __max_wg_size);
     }
 }
 
@@ -1057,8 +1057,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             if (__group_scan_fits_in_slm<_Type>(__q, __n, __n_uniform, __single_group_upper_limit))
             {
                 auto __event = __parallel_transform_scan_single_group<_CustomName>(
-                    __backend_tag, __q, std::forward<_Range1>(__in_rng),
-                    std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
+                    __backend_tag, __q, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __n,
+                    __unary_op, __init, __binary_op, _Inclusive{});
 
                 // Although we do not actually need result storage in this case, we need to construct
                 // a placeholder here to match the return type of the non-single-work-group implementation
