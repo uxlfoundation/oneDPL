@@ -297,7 +297,7 @@ jobs:
               if !errorlevel! neq 0 set exit_code=!errorlevel!
               type ctest_ex.log
               type build_ex.log
-              exit /b !exit_code!
+              if !exit_code neq 0 exit /b !exit_code!
 
             )
 
