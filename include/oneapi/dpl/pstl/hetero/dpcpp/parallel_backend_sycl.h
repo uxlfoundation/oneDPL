@@ -1040,7 +1040,7 @@ struct __write_to_id_if_else
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
-__future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type, /* _NResults */ 1>>
+__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                           _Range1&& __in_rng, _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op,
                           _InitType __init, _BinaryOperation __binary_op, _Inclusive)
@@ -1069,11 +1069,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
                     __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
                     std::forward<_Range2>(__out_rng), __n, __unary_op, __init, __binary_op, _Inclusive{});
 
-                // Although we do not actually need result storage in this case, we need to construct
-                // a placeholder here to match the return type of the non-single-work-group implementation
-                __result_and_scratch_storage<_Type, /* _NResults */ 1> __dummy_result_and_scratch{__exec, 0};
-
-                return __future{std::move(__event), std::move(__dummy_result_and_scratch)};
+                return __future{std::move(__event), std::shared_ptr<__result_and_scratch_storage_base>{}};
             }
         }
         if (__use_reduce_then_scan)
@@ -1084,10 +1080,12 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
 
             _GenInput __gen_transform{__unary_op};
 
-            return __parallel_transform_reduce_then_scan(
+            auto __f_obj = __parallel_transform_reduce_then_scan(
                 __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
                 std::forward<_Range2>(__out_rng), __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{},
                 _WriteOp{}, __init, _Inclusive{}, /*_IsUniquePattern=*/std::false_type{});
+
+            return decltype(__f_obj)::__convert_to_future_with_scratch_storage_base_ptr(__f_obj);
         }
     }
 
@@ -1101,7 +1099,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     _NoAssign __no_assign_op;
     _NoOpFunctor __get_data_op;
 
-    return __parallel_transform_scan_base(
+    auto __f_obj = __parallel_transform_scan_base(
         __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__in_rng),
         std::forward<_Range2>(__out_rng), __init,
         // local scan
@@ -1114,6 +1112,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             __binary_op, _NoOpFunctor{}, __no_assign_op, __assign_op, __get_data_op},
         // global scan
         unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init});
+
+    return decltype(__f_obj)::__convert_to_future_with_scratch_storage_base_ptr(__f_obj);
 }
 
 template <typename _SizeType>
