@@ -300,7 +300,7 @@ copy_if(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 
 namespace __internal
 {
 template <typename _ReferenceType1, typename _ReferenceType2>
-struct swap_ranges_fn
+struct __swap_ranges_fn
 {
     void
     operator()(_ReferenceType1 __x, _ReferenceType2 __y) const
@@ -325,7 +325,7 @@ swap_ranges(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardItera
 
     return oneapi::dpl::__internal::__pattern_swap(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1,
                                                    __last1, __first2,
-                                                   __internal::swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
+                                                   __internal::__swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
 }
 
 // [alg.transform]
@@ -669,7 +669,7 @@ partition_copy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIter
 
 namespace __internal
 {
-struct sort_fn
+struct __sort_fn
 {
     template <typename... _Arg>
     void
@@ -689,7 +689,7 @@ sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIter
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
     oneapi::dpl::__internal::__pattern_sort(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                            __comp, __internal::sort_fn{});
+                                            __comp, __internal::__sort_fn{});
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator>
@@ -702,7 +702,7 @@ sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIter
 
 namespace __internal
 {
-struct stable_sort_fn
+struct __stable_sort_fn
 {
     template <typename... _Args>
     void
@@ -722,7 +722,7 @@ stable_sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAcc
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
     oneapi::dpl::__internal::__pattern_sort(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                            __comp, __internal::stable_sort_fn{});
+                                            __comp, __internal::__stable_sort_fn{});
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator>
