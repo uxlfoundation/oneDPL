@@ -137,33 +137,33 @@ struct walk_n_vectors_or_scalars
   private:
     _F __f;
     std::size_t __n;
-    template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
+    template <typename _IsFull, typename _Params, typename _InRng, typename _OutRng,
               std::enable_if_t<_Params::__b_vectorize, int> = 0>
     void
-    __vector_impl(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
+    __vector_impl(_IsFull __is_full, const std::size_t __idx, _Params, _InRng&& __in_rng, _OutRng&& __out_rng) const
     {
-        using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
-        _ValueType1 __rng1_vector[_Params::__vector_size];
+        using _InValueType = oneapi::dpl::__internal::__value_t<_InRng>;
+        _InValueType __in_rng_vector[_Params::__vector_size];
         oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
         oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
         oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F> __store_op{__f};
         // 1. Load input into a vector
-        __vec_load(__is_full, __idx, __load_op, __rng1, __rng1_vector);
+        __vec_load(__is_full, __idx, __load_op, __in_rng, __in_rng_vector);
         // 2. Apply functor to vector and store into global memory
-        __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2);
+        __vec_store(__is_full, __idx, __store_op, __in_rng_vector, __out_rng);
     }
-    template <typename _IsFull, typename _Params, typename _Range1, typename _Range2, typename _Range3,
+    template <typename _IsFull, typename _Params, typename _InRng1, typename _InRng2, typename _OutRng,
               std::enable_if_t<_Params::__b_vectorize, int> = 0>
     void
-    __vector_impl(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2,
-                  _Range3&& __rng3) const
+    __vector_impl(_IsFull __is_full, const std::size_t __idx, _Params, _InRng1&& __in_rng1, _InRng2&& __in_rng2,
+                  _OutRng&& __out_rng) const
     {
-        using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
-        using _ValueType2 = oneapi::dpl::__internal::__value_t<_Range2>;
+        using _InValueType1 = oneapi::dpl::__internal::__value_t<_InRng1>;
+        using _InValueType2 = oneapi::dpl::__internal::__value_t<_InRng2>;
 
-        _ValueType1 __rng1_vector[_Params::__vector_size];
-        _ValueType2 __rng2_vector[_Params::__vector_size];
+        _InValueType1 __in_rng1_vector[_Params::__vector_size];
+        _InValueType2 __in_rng2_vector[_Params::__vector_size];
 
         oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
         oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
@@ -171,10 +171,10 @@ struct walk_n_vectors_or_scalars
         oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F> __store_op{__f};
 
         // 1. Load inputs into vectors
-        __vec_load(__is_full, __idx, __load_op, __rng1, __rng1_vector);
-        __vec_load(__is_full, __idx, __load_op, __rng2, __rng2_vector);
+        __vec_load(__is_full, __idx, __load_op, __in_rng1, __in_rng1_vector);
+        __vec_load(__is_full, __idx, __load_op, __in_rng2, __in_rng2_vector);
         // 2. Apply binary functor to vector and store into global memory
-        __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2_vector, __rng3);
+        __vec_store(__is_full, __idx, __store_op, __in_rng1_vector, __in_rng2_vector, __out_rng);
     }
 
   public:
