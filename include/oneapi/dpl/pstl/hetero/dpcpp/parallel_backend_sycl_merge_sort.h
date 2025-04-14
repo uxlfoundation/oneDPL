@@ -621,8 +621,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                         new __base_diagonals_sp_storage_t(__exec.queue(), __max_base_diags_count);
 
                     // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
-                    __p_result_and_scratch_storage_base.reset(
-                        static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
+                    __p_result_and_scratch_storage_base = __p_base_diagonals_sp_global_storage->__clone_to_result_and_scratch_storage_base_ptr();
                 }
 
                 nd_range_params __nd_range_params_this =
