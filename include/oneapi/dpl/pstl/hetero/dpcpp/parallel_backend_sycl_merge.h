@@ -227,13 +227,16 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         using __result_and_scratch_storage_t = __result_and_scratch_storage<__val_t, _NResults::value>;
         __result_and_scratch_storage_t* __p_res_storage = nullptr;
 
+        std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base;
         if constexpr (_OutSizeLimit{})
+        {
             __p_res_storage = new __result_and_scratch_storage_t(__exec.queue(), 0);
+            __p_result_and_scratch_storage_base = __p_res_storage->__clone_to_result_and_scratch_storage_base_ptr();
+        }
         else
+        {
             assert(__rng3.size() >= __n1 + __n2);
-
-        std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base(
-            static_cast<__result_and_scratch_storage_base*>(__p_res_storage));
+        }
 
         auto __event = __exec.queue().submit([&__rng1, &__rng2, &__rng3, __p_res_storage, __comp, __chunk, __steps, __n,
                                               __n1, __n2](sycl::handler& __cgh) {
@@ -448,7 +451,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
         // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
         std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base(
-            static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
+            __p_base_diagonals_sp_global_storage->__clone_to_result_and_scratch_storage_base_ptr());
 
         // Find split-points on the base diagonals
         sycl::event __event = eval_split_points_for_groups(__exec, __rng1, __rng2, __n, __comp, __nd_range_params,
