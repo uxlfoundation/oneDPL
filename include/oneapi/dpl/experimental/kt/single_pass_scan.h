@@ -304,7 +304,7 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
 
 template <bool _Inclusive, typename _InRange, typename _OutRange, typename _BinaryOp, typename _KernelParam>
 sycl::event
-__single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_rng, _BinaryOp __binary_op, _KernelParam)
+__single_pass_scan(sycl::queue& __q, _InRange&& __in_rng, _OutRange&& __out_rng, _BinaryOp __binary_op, _KernelParam)
 {
     using _Type = oneapi::dpl::__internal::__value_t<_InRange>;
     using _FlagType = __scan_status_flag<_Type>;
@@ -326,16 +326,16 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
                   "Only binary operators with known identity values are supported");
 
     assert("This device does not support 64-bit atomics" &&
-           (sizeof(_Type) < 8 || __queue.get_device().has(sycl::aspect::atomic64)));
+           (sizeof(_Type) < 8 || __q.get_device().has(sycl::aspect::atomic64)));
 
     // Next power of 2 greater than or equal to __n
     auto __n_uniform = ::oneapi::dpl::__internal::__dpl_bit_ceil(__n);
 
     // Perform a single-work group scan if the input is small
-    if (oneapi::dpl::__par_backend_hetero::__group_scan_fits_in_slm<_Type>(__queue, __n, __n_uniform, /*limit=*/16384))
+    if (oneapi::dpl::__par_backend_hetero::__group_scan_fits_in_slm<_Type>(__q, __n, __n_uniform, /*limit=*/16384))
     {
         return oneapi::dpl::__par_backend_hetero::__parallel_transform_scan_single_group<
-            typename _KernelParam::kernel_name>(oneapi::dpl::__internal::__device_backend_tag{}, __queue,
+            typename _KernelParam::kernel_name>(oneapi::dpl::__internal::__device_backend_tag{}, __q,
                                                 std::forward<_InRange>(__in_rng), std::forward<_OutRange>(__out_rng),
                                                 __n, oneapi::dpl::__internal::__no_op{},
                                                 unseq_backend::__no_init_value<_Type>{}, __binary_op, std::true_type{});
@@ -358,7 +358,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     std::size_t __mem_bytes =
         __status_flags_bytes + __status_vals_full_offset_bytes + __status_vals_partial_offset_bytes + __mem_align_pad;
 
-    std::byte* __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __queue));
+    std::byte* __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __q));
     if (!__device_mem)
         throw std::bad_alloc();
 
@@ -372,14 +372,14 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
         reinterpret_cast<_Type*>(__status_vals_full + __status_vals_full_offset_bytes / sizeof(_Type));
 
     auto __fill_event = __lookback_init_submitter<_FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
-        __queue, __status_flags, __status_vals_partial, __status_flags_size, __status_flag_padding);
+        __q, __status_flags, __status_vals_partial, __status_flags_size, __status_flag_padding);
 
     std::size_t __current_num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
     std::size_t __current_num_items = __current_num_wgs * __workgroup_size;
 
     auto __prev_event =
         __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagType, _LookbackKernel>{}(
-            __queue, __fill_event, __in_rng, __out_rng, __binary_op, __n, __status_flags, __status_flags_size,
+            __q, __fill_event, __in_rng, __out_rng, __binary_op, __n, __status_flags, __status_flags_size,
             __status_vals_full, __status_vals_partial, __current_num_items);
 
     // TODO: Currently, the following portion of code makes this entire function synchronous.
@@ -388,15 +388,15 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     // we should replace this code with the asynchronous version below.
     if (0)
     {
-        return __queue.submit([=](sycl::handler& __hdl) {
+        return __q.submit([=](sycl::handler& __hdl) {
             __hdl.depends_on(__prev_event);
-            __hdl.host_task([=]() { sycl::free(__device_mem, __queue); });
+            __hdl.host_task([=]() { sycl::free(__device_mem, __q); });
         });
     }
     else
     {
         __prev_event.wait();
-        sycl::free(__device_mem, __queue);
+        sycl::free(__device_mem, __q);
         return __prev_event;
     }
 }
