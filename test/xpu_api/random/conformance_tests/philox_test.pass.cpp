@@ -16,7 +16,6 @@
 #if TEST_UNNAMED_LAMBDAS
 #include "common_for_conformance_tests.hpp"
 #include <oneapi/dpl/random>
-#endif // TEST_UNNAMED_LAMBDAS
 
 namespace ex = oneapi::dpl::experimental;
 
@@ -29,6 +28,7 @@ using philox2x32_vec = ex::philox_engine<sycl::vec<uint_fast32_t, _N>, 32, 2, 10
 template <int _N>
 using philox2x64_vec =
     ex::philox_engine<sycl::vec<uint_fast64_t, _N>, 64, 2, 10, 0xD2B74407B1CE6E93, 0x9E3779B97F4A7C15>;
+#endif // TEST_UNNAMED_LAMBDAS
 
 int
 main()

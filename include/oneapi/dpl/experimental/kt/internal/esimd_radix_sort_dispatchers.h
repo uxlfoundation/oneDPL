@@ -377,7 +377,7 @@ __radix_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, _Ke
     const auto __n = __pack_in.__keys_rng().size();
     assert(__n > 0);
 
-    // _PRINT_INFO_IN_DEBUG_MODE(__exec); TODO: extend the utility to work with queues
+    _PRINT_INFO_IN_DEBUG_MODE(__q);
     constexpr auto __data_per_workitem = _KernelParam::data_per_workitem;
     constexpr auto __workgroup_size = _KernelParam::workgroup_size;
     using _KernelName = typename _KernelParam::kernel_name;

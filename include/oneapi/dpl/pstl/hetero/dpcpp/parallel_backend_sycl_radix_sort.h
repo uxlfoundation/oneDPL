@@ -665,11 +665,11 @@ struct __parallel_radix_sort_iteration
             __internal::__kernel_name_generator<__reorder_phase, _CustomName, _ExecutionPolicy,
                                                 ::std::decay_t<_InRange>, ::std::decay_t<_OutRange>, _Proj>;
 
-        ::std::size_t __max_sg_size = oneapi::dpl::__internal::__max_sub_group_size(__exec);
+        ::std::size_t __max_sg_size = oneapi::dpl::__internal::__max_sub_group_size(__exec.queue());
         ::std::size_t __reorder_sg_size = __max_sg_size;
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-        std::size_t __scan_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec, (std::size_t)4096);
+        std::size_t __scan_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), (std::size_t)4096);
 #if _ONEDPL_RADIX_WORKLOAD_TUNING
         ::std::size_t __count_wg_size = (__in_rng.size() > (1 << 21) /*2M*/ ? 128 : __max_sg_size);
 #else
@@ -678,16 +678,17 @@ struct __parallel_radix_sort_iteration
 
         // correct __count_wg_size, __scan_wg_size, __reorder_sg_size after introspection of the kernels
 #if _ONEDPL_COMPILE_KERNEL
-        auto __kernels = __internal::__kernel_compiler<_RadixCountKernel, _RadixLocalScanKernel,
-                                                       _RadixReorderPeerKernel, _RadixReorderKernel>::__compile(__exec);
+        auto __kernels =
+            __internal::__kernel_compiler<_RadixCountKernel, _RadixLocalScanKernel, _RadixReorderPeerKernel,
+                                          _RadixReorderKernel>::__compile(__exec.queue());
         auto __count_kernel = __kernels[0];
         auto __local_scan_kernel = __kernels[1];
         auto __reorder_peer_kernel = __kernels[2];
         auto __reorder_kernel = __kernels[3];
-        ::std::size_t __count_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__exec, __count_kernel);
-        __reorder_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__exec, __reorder_kernel);
-        __scan_wg_size =
-            sycl::min(__scan_wg_size, oneapi::dpl::__internal::__kernel_work_group_size(__exec, __local_scan_kernel));
+        std::size_t __count_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__exec.queue(), __count_kernel);
+        __reorder_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__exec.queue(), __reorder_kernel);
+        __scan_wg_size = sycl::min(
+            __scan_wg_size, oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __local_scan_kernel));
         __count_wg_size = sycl::max(__count_sg_size, __reorder_sg_size);
 #endif
         const ::std::uint32_t __radix_states = 1 << __radix_bits;
@@ -695,7 +696,7 @@ struct __parallel_radix_sort_iteration
         // correct __count_wg_size according to local memory limit in count phase
         using _CounterType = typename ::std::decay_t<_TmpBuf>::value_type;
         const auto __max_count_wg_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(
-            __exec, sizeof(_CounterType) * __radix_states, __count_wg_size);
+            __exec.queue(), sizeof(_CounterType) * __radix_states, __count_wg_size);
         __count_wg_size = static_cast<::std::size_t>((__max_count_wg_size / __radix_states)) * __radix_states;
 
         // work-group size must be a power of 2 and not less than the number of states.
@@ -784,7 +785,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
 
     // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
     // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-    const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec, (std::size_t)4096);
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), (std::size_t)4096);
 
     //TODO: 1.to reduce number of the kernels; 2.to define work group size in runtime, depending on number of elements
     constexpr std::size_t __wg_size = 64;
