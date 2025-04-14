@@ -49,9 +49,9 @@ struct __pfor_params
     constexpr static std::uint8_t __max_vector_size = 4;
 
   public:
-    constexpr static bool __b_vectorize =
-        __can_vectorize_brick &&
-        (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) && __min_type_size < 4;
+    constexpr static bool __b_vectorize = __can_vectorize_brick &&
+                                          (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) &&
+                                          __min_type_size < 4;
     // Vectorize for small types, so we generate 128-byte load / stores in a sub-group
     constexpr static std::uint8_t __vector_size =
         __b_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1;
