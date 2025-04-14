@@ -131,9 +131,9 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
                _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs) const
     {
         auto __transform_pattern =
-            unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{
-                __reduce_op, __transform_op};
-        auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
+            unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{__reduce_op,
+                                                                                                  __transform_op};
+        auto __reduce_pattern = unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op};
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
 
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp, /* _NResults */ 1>;
@@ -195,9 +195,9 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
     {
         using __scratch_container_t = std::decay_t<decltype(__scratch_container)>;
         auto __transform_pattern =
-            unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{
-                __reduce_op, __transform_op};
-        auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
+            unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{__reduce_op,
+                                                                                                  __transform_op};
+        auto __reduce_pattern = unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op};
 
         // number of buffer elements processed within workgroup
         const _Size __size_per_work_group = __iters_per_work_item * __work_group_size;
@@ -241,11 +241,11 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
     {
         using __result_and_scratch_storage_t = std::decay_t<decltype(__scratch_container)>;
 
-        using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
+        using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
         auto __transform_pattern =
-            unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{
-                __reduce_op, _NoOpFunctor{}};
-        auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
+            unseq_backend::transform_reduce<_ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{__reduce_op,
+                                                                                                  _NoOpFunctor{}};
+        auto __reduce_pattern = unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op};
 
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
 
@@ -318,17 +318,17 @@ struct __parallel_transform_reduce_impl
            _Ranges&&... __rngs)
     {
         using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-        using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
+        using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
         using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             __reduce_kernel, _CustomName, _ReduceOp, _TransformOp, _NoOpFunctor, _Ranges...>;
 
         auto __transform_pattern1 =
-            unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{
-                __reduce_op, __transform_op};
+            unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{__reduce_op,
+                                                                                                  __transform_op};
         auto __transform_pattern2 =
-            unseq_backend::transform_reduce<_ExecutionPolicy, _ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{
-                __reduce_op, _NoOpFunctor{}};
-        auto __reduce_pattern = unseq_backend::reduce_over_group<_ExecutionPolicy, _ReduceOp, _Tp>{__reduce_op};
+            unseq_backend::transform_reduce<_ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{__reduce_op,
+                                                                                                  _NoOpFunctor{}};
+        auto __reduce_pattern = unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op};
 
 #if _ONEDPL_COMPILE_KERNEL
         auto __kernel = __internal::__kernel_compiler<_ReduceKernel>::__compile(__exec.queue());
