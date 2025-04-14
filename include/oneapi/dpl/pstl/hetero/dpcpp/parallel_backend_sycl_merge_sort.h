@@ -732,7 +732,7 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
     return __future{std::move(__event_sort), std::move(__temp_sp_storages)};
 }
 
-template <typename _IndexT, typename _Range, typename _Compare>
+template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
 {
