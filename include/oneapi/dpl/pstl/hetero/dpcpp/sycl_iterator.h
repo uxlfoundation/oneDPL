@@ -122,6 +122,10 @@ struct sycl_iterator
     {
         return idx;
     }
+
+    // While sycl_iterator cannot be "passed directly" because it is not device_copyable or a random access iterator,
+    // it does represent indirectly device accessible data.
+    friend std::true_type is_onedpl_indirectly_device_accessible_iterator(sycl_iterator);
 };
 
 // map access_mode tag to access_mode value

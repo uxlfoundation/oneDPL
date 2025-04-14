@@ -387,6 +387,13 @@ main()
     static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<oneapi::dpl::discard_iterator> == true,
                   "is_onedpl_indirectly_device_accessible_iterator is not working correctly for discard iterator");
 
+    // test buffer_wrapper
+    sycl::buffer<int, 1> buf(10);
+    auto buffer_wrapper = oneapi::dpl::begin(buf);
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<decltype(buffer_wrapper)> == true,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for sycl iterator");
+    test_with_base_iterator<true, decltype(buffer_wrapper)>();
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
