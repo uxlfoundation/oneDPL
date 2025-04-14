@@ -78,7 +78,7 @@ struct sycl_iterator
         return it + forward;
     }
     friend sycl_iterator
-    operator-(difference_type forward, const sycl_iterator& it)
+    operator-(differen ce_type forward, const sycl_iterator& it)
     {
         return it - forward;
     }
