@@ -514,7 +514,7 @@ struct __result_and_scratch_storage_base
     __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
-template <typename _T, std::size_t _NResults>
+template <typename _T, std::size_t _NResults = 1>
 struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
   private:
