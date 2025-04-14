@@ -52,7 +52,6 @@ namespace ranges
 
 namespace __internal
 {
-
 struct __for_each_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
@@ -350,7 +349,7 @@ struct __count_fn_pred
 
     template <typename _TValue>
     auto
-    operator()(_TValue&& __val) const -> decltype(std::ranges::equal_to{}(std::forward<_TValue>(__val), __value))
+    operator()(_TValue&& __val) const
     {
         return std::ranges::equal_to{}(std::forward<_TValue>(__val), __value);
     }
@@ -431,7 +430,7 @@ struct __stable_sort_fn_pred
 {
     template <typename... Args>
     auto
-    operator()(Args&&... __args) const -> decltype(std::ranges::stable_sort(std::forward<Args>(__args)...))
+    operator()(Args&&... __args) const
     {
         return std::ranges::stable_sort(std::forward<decltype(__args)>(__args)...);
     }
@@ -462,7 +461,7 @@ struct __sort_fn_pred
 {
     template <typename... Args>
     auto
-    operator()(Args&&... __args) const -> decltype(std::ranges::sort(std::forward<Args>(__args)...))
+    operator()(Args&&... __args) const
     {
         return std::ranges::sort(std::forward<Args>(__args)...);
     }
