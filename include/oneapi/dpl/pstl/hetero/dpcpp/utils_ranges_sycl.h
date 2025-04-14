@@ -18,12 +18,8 @@
 
 #include <iterator>
 #include <type_traits>
-#if _ONEDPL_CPP20_RANGES_PRESENT && _ONEDPL_CPP20_CONCEPTS_PRESENT
-#include <ranges> // std::ranges::contiguous_range
-#endif
 
 #include "../../utils_ranges.h"
-#include "../../ranges/nanorange.hpp" // contiguous_range from nanorange
 #include "../../iterator_impl.h"
 #include "sycl_iterator.h"
 #include "sycl_defs.h"
@@ -757,55 +753,6 @@ __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _Ranges&&.
     return {};
 }
 #endif
-
-// TODO: At some point with C++20, we should implement this with concepts to more easily support the less common edge
-// cases (e.g. a pipe over a counting iterator which is non-contiguous). For now, vectorization is primarily based on
-// range contiguity with specialization for internal views and guard views over internal iterators.
-// The following cases enable vectorization for a range:
-// 1. With C++20 concepts, the range satisfies std::ranges::contiguous_range.
-// 2. With C++17 nanoranges, the range satisfies __nanorange::nano::ranges::contiguous_range. Note that a view over
-// a SYCL buffer satisfies this concept along with pipe views that maintain access contiguity.
-// 3. The range is a guard view over an iterator with no global memory access: counting_iterator and discard_iterator
-// 4. The range is one of our internal, vectorizable range types: drop_view_simple, take_view_simple, or
-// transform_view_simple
-
-// Base case: check contiguous range properties
-template <typename _Rng>
-struct __is_vectorizable_range
-{
-    constexpr static bool value =
-#if _ONEDPL_CPP20_RANGES_PRESENT && _ONEDPL_CPP20_CONCEPTS_PRESENT
-        std::ranges::contiguous_range<_Rng> ||
-#endif
-        __nanorange::nano::ranges::contiguous_range<_Rng>;
-};
-
-// Basic guard view specializations - views which are not contiguous but do not interact with global memory
-template <typename _Ip>
-struct __is_vectorizable_range<oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<_Ip>>> : std::true_type
-{
-};
-
-template <>
-struct __is_vectorizable_range<oneapi::dpl::__ranges::guard_view<oneapi::dpl::discard_iterator>> : std::true_type
-{
-};
-
-// Recursive view specializations - internal views which we need to search inwards to identify if it is vectorizable
-template <typename _Rng, typename _F>
-struct __is_vectorizable_range<oneapi::dpl::__ranges::transform_view_simple<_Rng, _F>> : __is_vectorizable_range<_Rng>
-{
-};
-
-template <typename _Rng, typename _Size>
-struct __is_vectorizable_range<oneapi::dpl::__ranges::drop_view_simple<_Rng, _Size>> : __is_vectorizable_range<_Rng>
-{
-};
-
-template <typename _Rng, typename _F>
-struct __is_vectorizable_range<oneapi::dpl::__ranges::take_view_simple<_Rng, _F>> : __is_vectorizable_range<_Rng>
-{
-};
 
 } // namespace __ranges
 } // namespace dpl
