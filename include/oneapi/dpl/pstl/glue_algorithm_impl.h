@@ -673,9 +673,9 @@ struct sort_fn
 {
     template <typename... _Arg>
     void
-    operator()(_Arg&&... __args) const
+    operator()(_Arg... __args) const
     {
-        std::sort(std::forward<_Arg>(__args)...);
+        std::sort(__args...);
     }
 };
 }; // namespace __internal
@@ -745,7 +745,7 @@ sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first, _Ran
 
     oneapi::dpl::__internal::__pattern_sort_by_key(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
                                                    __keys_first, __keys_last, __values_first, __comp,
-                                                   __internal::sort_fn{});
+                                                   __internal::__sort_fn{});
 }
 
 template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2>
