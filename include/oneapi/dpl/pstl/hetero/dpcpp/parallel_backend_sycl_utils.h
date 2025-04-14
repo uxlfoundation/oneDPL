@@ -836,6 +836,20 @@ class __future : private std::tuple<_Args...>
         auto new_tuple = std::tuple_cat(new_val, (std::tuple<_Args...>)*this);
         return __future<_Event, _T, _Args...>(__my_event, new_tuple);
     }
+
+    template <typename _T, std::size_t _NResults>
+    static __future<_Event, std::shared_ptr<__result_and_scratch_storage_base>>
+    __convert_to_future_with_scratch_storage_base_ptr(
+        const __future<_Event, __result_and_scratch_storage<_T, _NResults>>& __f_obj)
+    {
+        using _storage_t = __result_and_scratch_storage<_T, _NResults>;
+        using _tuple_t = std::tuple<_storage_t>;
+
+        const _tuple_t& __tuple = static_cast<const _tuple_t&>(__f_obj);
+        const _storage_t& __storage = std::get<0>(__tuple);
+
+        return {__f_obj.event(), __storage.__clone_to_result_and_scratch_storage_base_ptr()};
+    }
 };
 
 // Invoke a callable and pass a compile-time integer based on a provided run-time integer.
