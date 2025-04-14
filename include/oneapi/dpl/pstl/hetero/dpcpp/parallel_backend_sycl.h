@@ -1054,10 +1054,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                     ++__count;
                 }
             }
-            else
-            {
-                __idx = __num_eles_min;
-            }
+            __idx = __num_eles_min;
             return;
         }
     }
@@ -1074,10 +1071,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                     ++__count;
                 }
             }
-            else
-            {
-                __idx = __num_eles_min;
-            }
+            __idx = __num_eles_min;
             return;
         }
     }
