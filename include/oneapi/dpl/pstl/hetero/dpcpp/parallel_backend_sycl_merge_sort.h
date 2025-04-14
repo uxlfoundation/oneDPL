@@ -692,7 +692,7 @@ class __sort_global_kernel2;
 template <typename... _Name>
 class __sort_copy_back_kernel;
 
-template <typename _IndexT, typename _Range, typename _Compare, typename _LeafSorter>
+template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare, typename _LeafSorter>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
 {
