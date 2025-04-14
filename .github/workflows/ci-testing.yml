@@ -182,11 +182,26 @@ jobs:
           fi
 
           if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
+            # build and run the examples
+            for example_dir in ${GITHUB_WORKSPACE}/examples/*; do
+            # Skip the example if it is not a directory
+            if [[ -d "$example_dir" ]]; then
+              cd "$example_dir"
+              mkdir build && cd build
+              cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
+              make VERBOSE=1 |& tee build.log
+              ctest --timeout ${TEST_TIMEOUT} --output-on-failure |& tee ctest.log
+            fi
+            done
+
+            #set targets to just sycl iterator for dpcpp tests
             make_targets="build-onedpl-sycl_iterator-tests build-onedpl-ranges-tests"
             ctest_flags="-R (sycl_iterator_.*)|(std_ranges_.*)\.pass"
           else
             make_targets="build-onedpl-tests"
           fi
+
+          cd ${GITHUB_WORKSPACE}
           mkdir build && cd build
           lscpu
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
@@ -257,30 +272,53 @@ jobs:
           if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
             call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
           )
-          if "${{ matrix.cxx_compiler }}" == "cl" (
-            call "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
-          )
 
+          :: Set enable delayed expansion to allow proper resolution of errors in if statements and loops
+          SETLOCAL ENABLEDELAYEDEXPANSION
+
+          set exit_code=0
+          :: Preserve the code of an unsuccessful command if any.
+          :: By default, CMD shell only reports the error level of the final command.
+
+          :: cache the path to the current directory
+          set BASE_DIR=%cd%
           if "${{ matrix.backend }}" == "dpcpp" (
+            :: Build and run examples
+            for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
+              cd "%%i"
+              :: Get current directory name
+              mkdir build && cd build
+              cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
+              if !errorlevel! neq 0 set exit_code=!errorlevel!
+              ninja -v > build_ex.log 2>&1
+              if !errorlevel! neq 0 set exit_code=!errorlevel!
+              ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest_ex.log 2>&1
+              if !errorlevel! neq 0 set exit_code=!errorlevel!
+              type ctest_ex.log
+              type build_ex.log
+              if !exit_code! neq 0 exit /b !exit_code!
+
+            )
+
             set ninja_targets="build-onedpl-sycl_iterator-tests"
             set ctest_flags=-R sycl_iterator_.*\.pass
           ) else (
             set ninja_targets=build-onedpl-tests
           )
+
+          cd %BASE_DIR%
           mkdir build && cd build
 
-          :: Preserve the code of an unsuccessful command if any.
-          :: By default, CMD shell only reports the error level of the final command.
-          set exit_code=0
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" ..
+          if !errorlevel! neq 0 set exit_code=!errorlevel!
+          ninja -j 2 -v %ninja_targets% > build.log 2>&1
+          if !errorlevel! neq 0 set exit_code=!errorlevel!
+          ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1
+          if !errorlevel! neq 0 set exit_code=!errorlevel!
+          type ctest.log
 
-          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" .. || set exit_code=%errorlevel%
-
-          ninja -j 2 -v %ninja_targets% > build.log 2>&1 || set exit_code=%errorlevel%
           :: Display the results after executing all tests because "tee" alternative is unavailable in CMD.
           type build.log
-
-          ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1 || set exit_code=%errorlevel%
-          type ctest.log
 
           :: Generate a summary
           powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption" > os_name.txt
@@ -300,7 +338,7 @@ jobs:
                                                                    --compiler-version "%compiler_version%" ^
                                                                    --cpu-model "%cpu_model%"
           type summary.md > %GITHUB_STEP_SUMMARY%
-          exit /b %exit_code%
+          exit /b !exit_code!
 
   macos-testing:
     name: HOST,bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
