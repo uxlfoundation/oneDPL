@@ -56,13 +56,15 @@ struct simple_indirectly_device_accessible_iterator
     }
 
     friend bool
-    operator==(const simple_indirectly_device_accessible_iterator& a, const simple_indirectly_device_accessible_iterator& b)
+    operator==(const simple_indirectly_device_accessible_iterator& a,
+               const simple_indirectly_device_accessible_iterator& b)
     {
         return a.value == b.value;
     }
 
     friend bool
-    operator!=(const simple_indirectly_device_accessible_iterator& a, const simple_indirectly_device_accessible_iterator& b)
+    operator!=(const simple_indirectly_device_accessible_iterator& a,
+               const simple_indirectly_device_accessible_iterator& b)
     {
         return !(a == b);
     }
@@ -272,12 +274,14 @@ void
 test_with_base_iterator()
 {
     //test assumption about base iterator device accessible content iterator
-    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<BaseIter> == base_indirectly_device_accessible,
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<BaseIter> ==
+                      base_indirectly_device_accessible,
                   "is_onedpl_indirectly_device_accessible_iterator is not working correctly for base iterator");
 
     // test wrapping base in transform_iterator
     using TransformIter = oneapi::dpl::transform_iterator<BaseIter, TestUtils::noop_device_copyable>;
-    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<TransformIter> == base_indirectly_device_accessible,
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<TransformIter> ==
+                      base_indirectly_device_accessible,
                   "is_onedpl_indirectly_device_accessible_iterator is not working correctly for transform iterator");
 
     // test wrapping base in permutation_iterator with counting iter
@@ -288,9 +292,10 @@ test_with_base_iterator()
 
     // test wrapping base in permutation_iter with functor
     using PermutationIterFunctor = oneapi::dpl::permutation_iterator<BaseIter, TestUtils::noop_device_copyable>;
-    static_assert(
-        oneapi::dpl::is_indirectly_device_accessible_iterator_v<PermutationIterFunctor> == base_indirectly_device_accessible,
-        "is_onedpl_indirectly_device_accessible_iterator is not working correctly for permutation iterator with functor");
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<PermutationIterFunctor> ==
+                      base_indirectly_device_accessible,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for permutation iterator "
+                  "with functor");
 
     // test wrapping base in zip_iterator
     using ZipIter = oneapi::dpl::zip_iterator<BaseIter>;
@@ -313,7 +318,8 @@ test_with_base_iterator()
 
     // test wrapping base in reverse_iterator
     using ReverseIter = std::reverse_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<ReverseIter> == base_indirectly_device_accessible,
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<ReverseIter> ==
+                      base_indirectly_device_accessible,
                   "is_onedpl_indirectly_device_accessible_iterator is not working correctly for reverse iterator");
 
     // test custom user first strided iterator with normal ADL function

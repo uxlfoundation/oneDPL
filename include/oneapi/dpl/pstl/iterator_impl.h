@@ -193,8 +193,8 @@ namespace dpl
 
 template <typename T>
 struct is_indirectly_device_accessible_iterator
-    : std::bool_constant<bool(
-            decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible_iterator(std::declval<T>()))::value)>
+    : std::bool_constant<bool(decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible_iterator(
+          std::declval<T>()))::value)>
 {
 };
 

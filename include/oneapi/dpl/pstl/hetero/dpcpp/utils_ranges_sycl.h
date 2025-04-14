@@ -491,10 +491,10 @@ struct __get_sycl_range
     }
 
     //specialization for permutation_iterator using USM pointer or direct pass object as source
-    template <sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
-              std::enable_if_t<!is_sycl_iterator_v<_Iter> &&
-                                   oneapi::dpl::is_indirectly_device_accessible_iterator_v<_Iter>,
-                               int> = 0>
+    template <
+        sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
+        std::enable_if_t<!is_sycl_iterator_v<_Iter> && oneapi::dpl::is_indirectly_device_accessible_iterator_v<_Iter>,
+                         int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_Iter, _Map> __first,
                          oneapi::dpl::permutation_iterator<_Iter, _Map> __last)
@@ -511,10 +511,10 @@ struct __get_sycl_range
 
     // specialization for general case, permutation_iterator with base iterator that is not sycl_iterator or
     // device accessible content iterators.
-    template <sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
-              std::enable_if_t<!is_sycl_iterator_v<_Iter> &&
-                                   !oneapi::dpl::is_indirectly_device_accessible_iterator_v<_Iter>,
-                               int> = 0>
+    template <
+        sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
+        std::enable_if_t<!is_sycl_iterator_v<_Iter> && !oneapi::dpl::is_indirectly_device_accessible_iterator_v<_Iter>,
+                         int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_Iter, _Map> __first,
                          oneapi::dpl::permutation_iterator<_Iter, _Map> __last)
