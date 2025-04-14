@@ -34,7 +34,7 @@
 // When such an issue is fixed, we must replace the usage of these "Latest" macros with the appropriate version number
 // before updating to the newest version in this section.
 
-#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250100
+#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250200
 
 #define _PSTL_TEST_LATEST_MSVC_STL_VERSION 143
 
