@@ -73,60 +73,59 @@ test_device_copyable()
                       int_device_copyable, noop_device_copyable, noop_device_copyable>>,
                   "transform_if_stencil_fun is not device copyable with device copyable types");
 
-    using policy_non_device_copyable = oneapi::dpl::execution::device_policy<oneapi::dpl::execution::DefaultKernelName>;
     //walk_n
     static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::unseq_backend::walk_n<policy_non_device_copyable, noop_device_copyable>>,
+                      oneapi::dpl::unseq_backend::walk_n<noop_device_copyable>>,
                   "walk_n is not device copyable with device copyable types");
     //walk1_vector_or_scalar
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::walk1_vector_or_scalar<
-                      policy_non_device_copyable, noop_device_copyable, range_device_copyable>>,
+                      noop_device_copyable, range_device_copyable>>,
                   "walk1_vector_or_scalar is not device copyable with device copyable types");
     //walk2_vectors_or_scalars
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::walk2_vectors_or_scalars<
-                      policy_non_device_copyable, noop_device_copyable, range_device_copyable, range_device_copyable>>,
+                      noop_device_copyable, range_device_copyable, range_device_copyable>>,
                   "walk2_vectors_or_scalars is not device copyable with device copyable types");
     //walk3_vectors_or_scalars
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::walk3_vectors_or_scalars<
-                      policy_non_device_copyable, noop_device_copyable, range_device_copyable, range_device_copyable,
+                      noop_device_copyable, range_device_copyable, range_device_copyable,
                       range_device_copyable>>,
                   "walk3_vectors_or_scalars is not device copyable with device copyable types");
     //walk_adjacent_difference
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::walk_adjacent_difference<
-                      policy_non_device_copyable, noop_device_copyable, range_device_copyable, range_device_copyable>>,
+                      noop_device_copyable, range_device_copyable, range_device_copyable>>,
                   "walk_adjacent_difference is not device copyable with device copyable types");
     //transform_reduce
     static_assert(
         sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::transform_reduce<policy_non_device_copyable, noop_device_copyable,
+            oneapi::dpl::unseq_backend::transform_reduce<noop_device_copyable,
                                                          noop_device_copyable, int_device_copyable, std::true_type, 4>>,
         "transform_reduce is not device copyable with device copyable types");
     //reduce_over_group
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::reduce_over_group<
-                      policy_non_device_copyable, noop_device_copyable, int_device_copyable>>,
+                      noop_device_copyable, int_device_copyable>>,
                   "reduce_over_group is not device copyable with device copyable types");
     //single_match_pred_by_idx
     static_assert(
         sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::single_match_pred_by_idx<policy_non_device_copyable, noop_device_copyable>>,
+            oneapi::dpl::unseq_backend::single_match_pred_by_idx<noop_device_copyable>>,
         "single_match_pred_by_idx is not device copyable with device copyable types");
     //single_match_pred
     static_assert(
         sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::single_match_pred<policy_non_device_copyable, noop_device_copyable>>,
+            oneapi::dpl::unseq_backend::single_match_pred<noop_device_copyable>>,
         "single_match_pred is not device copyable with device copyable types");
     //multiple_match_pred
     static_assert(
         sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::multiple_match_pred<policy_non_device_copyable, noop_device_copyable>>,
+            oneapi::dpl::unseq_backend::multiple_match_pred<noop_device_copyable>>,
         "multiple_match_pred is not device copyable with device copyable types");
     //n_elem_match_pred
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::n_elem_match_pred<
-                      policy_non_device_copyable, noop_device_copyable, int_device_copyable, int_device_copyable>>,
+                      noop_device_copyable, int_device_copyable, int_device_copyable>>,
                   "n_elem_match_pred is not device copyable with device copyable types");
     //first_match_pred
     static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::unseq_backend::first_match_pred<policy_non_device_copyable, noop_device_copyable>>,
+                      oneapi::dpl::unseq_backend::first_match_pred<noop_device_copyable>>,
                   "first_match_pred is not device copyable with device copyable types");
     //__create_mask
     static_assert(sycl::is_device_copyable_v<
@@ -147,18 +146,18 @@ test_device_copyable()
                   "__global_scan_functor is not device copyable with device copyable types");
     // __scan
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__scan<
-                      std::true_type, policy_non_device_copyable, noop_device_copyable, noop_device_copyable,
+                      std::true_type, noop_device_copyable, noop_device_copyable,
                       noop_device_copyable, noop_device_copyable, noop_device_copyable,
                       oneapi::dpl::unseq_backend::__init_value<int_device_copyable>>>,
                   "__scan is not device copyable with device copyable types");
     // __brick_includes
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_includes<
-                      policy_non_device_copyable, noop_device_copyable, int_device_copyable, int_device_copyable>>,
+                      noop_device_copyable, int_device_copyable, int_device_copyable>>,
                   "__brick_includes is not device copyable with device copyable types");
     // __brick_set_op
     static_assert(
         sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::__brick_set_op<policy_non_device_copyable, noop_device_copyable,
+            oneapi::dpl::unseq_backend::__brick_set_op<noop_device_copyable,
                                                        int_device_copyable, int_device_copyable, std::true_type>>,
         "__brick_set_op is not device copyable with device copyable types");
     // __brick_reduce_idx
@@ -218,7 +217,7 @@ test_device_copyable()
     // __early_exit_find_or
     static_assert(
         sycl::is_device_copyable_v<
-            oneapi::dpl::__par_backend_hetero::__early_exit_find_or<policy_non_device_copyable, noop_device_copyable>>,
+            oneapi::dpl::__par_backend_hetero::__early_exit_find_or<noop_device_copyable>>,
         "__early_exit_find_or is not device copyable with device copyable types");
 
     // __leaf_sorter
@@ -279,11 +278,11 @@ test_device_copyable()
     //__brick_fill
     static_assert(
         sycl::is_device_copyable_v<
-            oneapi::dpl::__internal::__brick_fill<hetero_device_tag, policy_non_device_copyable, int_device_copyable>>,
+            oneapi::dpl::__internal::__brick_fill<hetero_device_tag, int_device_copyable>>,
         "__brick_fill is not device copyable with device copyable types");
     //__brick_fill_n
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__brick_fill_n<
-                      hetero_device_tag, policy_non_device_copyable, int_device_copyable>>,
+                      hetero_device_tag, int_device_copyable>>,
                   "__brick_fill_n is not device copyable with device copyable types");
     //__search_n_unary_predicate
     static_assert(sycl::is_device_copyable_v<
@@ -322,7 +321,8 @@ test_non_device_copyable()
     static_assert(!sycl::is_device_copyable_v<noop_non_device_copyable>, "functor is device copyable");
     static_assert(!sycl::is_device_copyable_v<int_non_device_copyable>, "struct is device copyable");
     static_assert(!sycl::is_device_copyable_v<constant_iterator_non_device_copyable>, "iterator is device copyable");
-    static_assert(!sycl::is_device_copyable_v<range_non_device_copyable>, "range_non_device_copyable is device copyable");
+    static_assert(!sycl::is_device_copyable_v<range_non_device_copyable>,
+                  "range_non_device_copyable is device copyable");
 
     //__custom_brick
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::internal::__custom_brick<
@@ -352,66 +352,53 @@ test_non_device_copyable()
                       int_device_copyable, noop_non_device_copyable, noop_device_copyable>>,
                   "transform_if_stencil_fun is device copyable with non device copyable types");
 
-    using policy_non_device_copyable = oneapi::dpl::execution::device_policy<oneapi::dpl::execution::DefaultKernelName>;
     //walk_n
-    static_assert(!sycl::is_device_copyable_v<
-                      oneapi::dpl::unseq_backend::walk_n<policy_non_device_copyable, noop_non_device_copyable>>,
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::walk_n<noop_non_device_copyable>>,
                   "walk_n is device copyable with non device copyable types");
     //walk1_vector_or_scalar
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::walk1_vector_or_scalar<
-                      policy_non_device_copyable, noop_non_device_copyable, range_non_device_copyable>>,
-                  "walk1_vector_or_scalar is device copyable with non device copyable types");
+    static_assert(
+        !sycl::is_device_copyable_v<
+            oneapi::dpl::unseq_backend::walk1_vector_or_scalar<noop_non_device_copyable, range_non_device_copyable>>,
+        "walk1_vector_or_scalar is device copyable with non device copyable types");
     //walk2_vectors_or_scalars
-    static_assert(
-        !sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::walk2_vectors_or_scalars<policy_non_device_copyable, noop_non_device_copyable,
-                                                                 range_non_device_copyable, range_non_device_copyable>>,
-        "walk2_vectors_or_scalars is device copyable with non device copyable types");
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::walk2_vectors_or_scalars<
+                      noop_non_device_copyable, range_non_device_copyable, range_non_device_copyable>>,
+                  "walk2_vectors_or_scalars is device copyable with non device copyable types");
     //walk3_vectors_or_scalars
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::walk3_vectors_or_scalars<
-                      policy_non_device_copyable, noop_non_device_copyable, range_non_device_copyable,
-                      range_non_device_copyable, range_non_device_copyable>>,
-                  "walk3_vectors_or_scalars is device copyable with non device copyable types");
+    static_assert(
+        !sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::walk3_vectors_or_scalars<
+            noop_non_device_copyable, range_non_device_copyable, range_non_device_copyable, range_non_device_copyable>>,
+        "walk3_vectors_or_scalars is device copyable with non device copyable types");
     //walk_adjacent_difference
-    static_assert(
-        !sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::walk_adjacent_difference<policy_non_device_copyable, noop_non_device_copyable,
-                                                                 range_non_device_copyable, range_non_device_copyable>>,
-        "walk_adjacent_difference is device copyable with non device copyable types");
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::walk_adjacent_difference<
+                      noop_non_device_copyable, range_non_device_copyable, range_non_device_copyable>>,
+                  "walk_adjacent_difference is device copyable with non device copyable types");
     //transform_reduce
-    static_assert(
-        !sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::transform_reduce<policy_non_device_copyable, noop_non_device_copyable,
-                                                         noop_device_copyable, int_device_copyable, std::true_type, 4>>,
-        "transform_reduce is device copyable with non device copyable types");
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::transform_reduce<
+                      noop_non_device_copyable, noop_device_copyable, int_device_copyable, std::true_type, 4>>,
+                  "transform_reduce is device copyable with non device copyable types");
     //reduce_over_group
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::reduce_over_group<
-                      policy_non_device_copyable, noop_non_device_copyable, int_device_copyable>>,
+    static_assert(!sycl::is_device_copyable_v<
+                      oneapi::dpl::unseq_backend::reduce_over_group<noop_non_device_copyable, int_device_copyable>>,
                   "reduce_over_group is device copyable with non device copyable types");
     //single_match_pred_by_idx
     static_assert(
-        !sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::single_match_pred_by_idx<policy_non_device_copyable, noop_non_device_copyable>>,
+        !sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::single_match_pred_by_idx<noop_non_device_copyable>>,
         "single_match_pred_by_idx is device copyable with non device copyable types");
     //single_match_pred
-    static_assert(
-        !sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::single_match_pred<policy_non_device_copyable, noop_non_device_copyable>>,
-        "single_match_pred is device copyable with non device copyable types");
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::single_match_pred<noop_non_device_copyable>>,
+                  "single_match_pred is device copyable with non device copyable types");
     //multiple_match_pred
     static_assert(
-        !sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::multiple_match_pred<policy_non_device_copyable, noop_non_device_copyable>>,
+        !sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::multiple_match_pred<noop_non_device_copyable>>,
         "multiple_match_pred is device copyable with non device copyable types");
     //n_elem_match_pred
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::n_elem_match_pred<
-                      policy_non_device_copyable, noop_device_copyable, int_non_device_copyable, int_device_copyable>>,
+                      noop_device_copyable, int_non_device_copyable, int_device_copyable>>,
                   "n_elem_match_pred is device copyable with non device copyable types");
     //first_match_pred
-    static_assert(
-        !sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::first_match_pred<policy_non_device_copyable, noop_non_device_copyable>>,
-        "first_match_pred is device copyable with non device copyable types");
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::first_match_pred<noop_non_device_copyable>>,
+                  "first_match_pred is device copyable with non device copyable types");
     //__create_mask
     static_assert(!sycl::is_device_copyable_v<
                       oneapi::dpl::unseq_backend::__create_mask<noop_device_copyable, int_non_device_copyable>>,
@@ -429,21 +416,19 @@ test_non_device_copyable()
                       std::true_type, noop_non_device_copyable, int_device_copyable>>,
                   "__global_scan_functor is device copyable with non device copyable types");
     //__scan
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__scan<
-                      std::true_type, policy_non_device_copyable, noop_non_device_copyable, noop_device_copyable,
-                      noop_device_copyable, noop_device_copyable, noop_device_copyable,
-                      oneapi::dpl::unseq_backend::__init_value<int_device_copyable>>>,
-                  "__scan is device copyable with non device copyable types");
+    static_assert(
+        !sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__scan<
+            std::true_type, noop_non_device_copyable, noop_device_copyable, noop_device_copyable, noop_device_copyable,
+            noop_device_copyable, oneapi::dpl::unseq_backend::__init_value<int_device_copyable>>>,
+        "__scan is device copyable with non device copyable types");
     //__brick_includes
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_includes<
-                      policy_non_device_copyable, noop_non_device_copyable, int_device_copyable, int_device_copyable>>,
+                      noop_non_device_copyable, int_device_copyable, int_device_copyable>>,
                   "__brick_includes is device copyable with non device copyable types");
     //__brick_set_op
-    static_assert(
-        !sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::__brick_set_op<policy_non_device_copyable, noop_non_device_copyable,
-                                                       int_device_copyable, int_device_copyable, std::true_type>>,
-        "__brick_set_op is device copyable with non device copyable types");
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_set_op<
+                      noop_non_device_copyable, int_device_copyable, int_device_copyable, std::true_type>>,
+                  "__brick_set_op is device copyable with non device copyable types");
     //__brick_reduce_idx
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_reduce_idx<
                       noop_device_copyable, int_non_device_copyable, range_non_device_copyable>>,
@@ -500,14 +485,14 @@ test_non_device_copyable()
 
     // __early_exit_find_or
     static_assert(
-        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__early_exit_find_or<policy_non_device_copyable,
-                                                                                            noop_non_device_copyable>>,
+        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__early_exit_find_or<noop_non_device_copyable>>,
         "__early_exit_find_or is device copyable with non device copyable types");
 
     // __leaf_sorter
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__leaf_sorter<range_non_device_copyable,
-                                                                                               noop_non_device_copyable>>,
-                  "__leaf_sorter is device copyable with non device copyable types");
+    static_assert(
+        !sycl::is_device_copyable_v<
+            oneapi::dpl::__par_backend_hetero::__leaf_sorter<range_non_device_copyable, noop_non_device_copyable>>,
+        "__leaf_sorter is device copyable with non device copyable types");
 
     //__red_by_seg_op
     static_assert(
@@ -565,13 +550,12 @@ test_non_device_copyable()
     using hetero_device_tag = oneapi::dpl::__internal::__hetero_tag<oneapi::dpl::__internal::__device_backend_tag>;
     //__brick_fill
     static_assert(
-        !sycl::is_device_copyable_v<oneapi::dpl::__internal::__brick_fill<hetero_device_tag, policy_non_device_copyable,
-                                                                          int_non_device_copyable>>,
+        !sycl::is_device_copyable_v<oneapi::dpl::__internal::__brick_fill<hetero_device_tag, int_non_device_copyable>>,
         "__brick_fill is device copyable with non device copyable types");
 
     //__brick_fill_n
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__brick_fill_n<
-                      hetero_device_tag, policy_non_device_copyable, int_non_device_copyable>>,
+    static_assert(!sycl::is_device_copyable_v<
+                      oneapi::dpl::__internal::__brick_fill_n<hetero_device_tag, int_non_device_copyable>>,
                   "__brick_fill_n is device copyable with non device copyable types");
 
     //__search_n_unary_predicate
