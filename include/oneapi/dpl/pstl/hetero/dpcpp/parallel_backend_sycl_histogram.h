@@ -474,7 +474,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
         });
     }
 };
-template <typename _Range1, typename _Range2, typename _BinHashMgr>
+template <typename _CustomName, typename _Range1, typename _Range2, typename _BinHashMgr>
 sycl::event
 __histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
                                            const sycl::event& __init_event, ::std::uint16_t __min_iters_per_work_item,
