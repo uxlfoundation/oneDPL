@@ -676,6 +676,18 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
     }
 
+    std::shared_ptr<__result_and_scratch_storage_base>
+    __clone_to_result_and_scratch_storage_base_ptr() const
+    {
+        using _obj_t = std::decay_t<decltype(*this)>;
+        _obj_t* __p_obj = new _obj_t(*this);
+
+        std::shared_ptr<__result_and_scratch_storage_base> __result;
+        __result.reset(static_cast<__result_and_scratch_storage_base*>(__p_obj));
+
+        return __result;
+    }
+
   private:
     bool
     is_USM() const
