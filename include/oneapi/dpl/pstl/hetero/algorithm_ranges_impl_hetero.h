@@ -128,7 +128,7 @@ struct __pattern_transform_unary_op
 
     template <typename _TValue>
     auto
-    operator()(_TValue&& __val) const -> decltype(std::invoke(__op, std::invoke(__proj, std::forward<_TValue>(__val))))
+    operator()(_TValue&& __val) const
     {
         return std::invoke(__op, std::invoke(__proj, std::forward<_TValue>(__val)));
     }
@@ -161,10 +161,7 @@ struct __pattern_transform_fn
 
     template <typename _TValue1, typename _TValue2>
     auto
-    operator()(_TValue1&& __val1,
-               _TValue2&& __val2) const -> decltype(std::invoke(__binary_op,
-                                                                std::invoke(__proj1, std::forward<_TValue1>(__val1)),
-                                                                std::invoke(__proj2, std::forward<_TValue2>(__val2))))
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
     {
         return std::invoke(__binary_op, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
                            std::invoke(__proj2, std::forward<_TValue2>(__val2)));
@@ -273,10 +270,7 @@ struct __pattern_equal_pred
 
     template <typename _TValue1, typename _TValue2>
     auto
-    operator()(_TValue1&& __val1,
-               _TValue2&& __val2) const -> decltype(std::invoke(__pred,
-                                                                std::invoke(__proj1, std::forward<_TValue1>(__val1)),
-                                                                std::invoke(__proj2, std::forward<_TValue2>(__val2))))
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
     {
         return std::invoke(__pred, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
                            std::invoke(__proj2, std::forward<_TValue2>(__val2)));
@@ -330,8 +324,7 @@ struct __pattern_find_if_pred
 
     template <typename _TValue>
     auto
-    operator()(_TValue&& __val) const -> decltype(std::invoke(__pred,
-                                                              std::invoke(__proj, std::forward<_TValue>(__val))))
+    operator()(_TValue&& __val) const
     {
         return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val)));
     }
@@ -443,8 +436,7 @@ struct __pattern_any_of_pred
 
     template <typename _TValue>
     auto
-    operator()(_TValue&& __val) const -> decltype(std::invoke(__pred,
-                                                              std::invoke(__proj, std::forward<_TValue>(__val))))
+    operator()(_TValue&& __val) const
     {
         return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val)));
     }
@@ -512,10 +504,7 @@ struct __pattern_search_pred
 
     template <typename _TValue1, typename _TValue2>
     auto
-    operator()(_TValue1&& __val1,
-               _TValue2&& __val2) const -> decltype(std::invoke(__pred,
-                                                                std::invoke(__proj1, std::forward<_TValue1>(__val1)),
-                                                                std::invoke(__proj2, std::forward<_TValue2>(__val2))))
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
     {
         return std::invoke(__pred, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
                            std::invoke(__proj2, std::forward<_TValue2>(__val2)));
@@ -583,10 +572,7 @@ struct __pattern_search_n_pred
 
     template <typename _TValue1, typename _TValue2>
     auto
-    operator()(_TValue1&& __val1,
-               _TValue2&& __val2) const -> decltype(std::invoke(__pred,
-                                                                std::invoke(__proj, std::forward<_TValue1>(__val1)),
-                                                                std::forward<_TValue2>(__val2)))
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
     {
         return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue1>(__val1)), std::forward<_TValue2>(__val2));
     }
@@ -659,10 +645,7 @@ struct __pattern_adjacent_find_ranges_pred
 
     template <typename _TValue1, typename _TValue2>
     auto
-    operator()(_TValue1&& __val,
-               _TValue2&& __next) const -> decltype(std::invoke(__pred,
-                                                                std::invoke(__proj, std::forward<_TValue1>(__val)),
-                                                                std::invoke(__proj, std::forward<_TValue2>(__next))))
+    operator()(_TValue1&& __val, _TValue2&& __next) const
     {
         return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue1>(__val)),
                            std::invoke(__proj, std::forward<_TValue2>(__next)));
@@ -692,10 +675,7 @@ struct __pattern_is_sorted_pred
 
     template <typename _TValue1, typename _TValue2>
     auto
-    operator()(_TValue1&& __val1,
-               _TValue2&& __val2) const -> decltype(std::invoke(__comp,
-                                                                std::invoke(__proj, std::forward<_TValue1>(__val1)),
-                                                                std::invoke(__proj, std::forward<_TValue2>(__val2))))
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
     {
         return std::invoke(__comp, std::invoke(__proj, std::forward<_TValue1>(__val1)),
                            std::invoke(__proj, std::forward<_TValue2>(__val2)));
@@ -765,8 +745,7 @@ struct __pattern_count_if_pred
 
     template <typename _TValue>
     auto
-    operator()(_TValue&& __val) const -> decltype(std::invoke(__pred,
-                                                              std::invoke(__proj, std::forward<_TValue>(__val))))
+    operator()(_TValue&& __val) const
     {
         return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val)));
     }
@@ -817,8 +796,7 @@ struct __pattern_copy_if_ranges_pred
 
     template <typename _TValue>
     auto
-    operator()(_TValue&& __val) const -> decltype(std::invoke(__pred,
-                                                              std::invoke(__proj, std::forward<_TValue>(__val))))
+    operator()(_TValue&& __val) const
     {
         return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val)));
     }
@@ -1016,10 +994,7 @@ struct __pattern_merge_comp
 
     template <typename _TValue1, typename _TValue2>
     auto
-    operator()(_TValue1&& __val1,
-               _TValue2&& __val2) const -> decltype(std::invoke(__comp,
-                                                                std::invoke(__proj1, std::forward<_TValue1>(__val1)),
-                                                                std::invoke(__proj2, std::forward<_TValue2>(__val2))))
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
     {
         return std::invoke(__comp, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
                            std::invoke(__proj2, std::forward<_TValue2>(__val2)));
@@ -1165,10 +1140,7 @@ struct __pattern_min_element_comp
 
     template <typename _TValue1, typename _TValue2>
     auto
-    operator()(_TValue1&& __val1,
-               _TValue2&& __val2) const -> decltype(std::invoke(__comp,
-                                                                std::invoke(__proj, std::forward<_TValue1>(__val1)),
-                                                                std::invoke(__proj, std::forward<_TValue2>(__val2))))
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
     {
         return std::invoke(__comp, std::invoke(__proj, std::forward<_TValue1>(__val1)),
                            std::invoke(__proj, std::forward<_TValue2>(__val2)));
