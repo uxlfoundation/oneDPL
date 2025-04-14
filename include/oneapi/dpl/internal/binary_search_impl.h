@@ -208,7 +208,7 @@ lower_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
     __bknd::__parallel_for(
-        _BackendTag{}, std::forward<Policy>(policy),
+        _BackendTag{}, ::std::forward<decltype(policy)>(policy),
         __custom_brick<StrictWeakOrdering, decltype(size), decltype(zip_vw), search_algorithm::lower_bound>{
             comp, size, use_32bit_indexing},
         value_size, zip_vw)
@@ -241,7 +241,7 @@ upper_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
     __bknd::__parallel_for(
-        _BackendTag{}, std::forward<Policy>(policy),
+        _BackendTag{}, std::forward<decltype(policy)>(policy),
         __custom_brick<StrictWeakOrdering, decltype(size), decltype(zip_vw), search_algorithm::upper_bound>{
             comp, size, use_32bit_indexing},
         value_size, zip_vw)
@@ -274,7 +274,7 @@ binary_search_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, Input
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
     __bknd::__parallel_for(
-        _BackendTag{}, std::forward<Policy>(policy),
+        _BackendTag{}, std::forward<decltype(policy)>(policy),
         __custom_brick<StrictWeakOrdering, decltype(size), decltype(zip_vw), search_algorithm::binary_search>{
             comp, size, use_32bit_indexing},
         value_size, zip_vw)
