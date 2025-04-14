@@ -763,7 +763,7 @@ struct __parallel_radix_sort_iteration
 //-----------------------------------------------------------------------
 // radix sort: main function
 //-----------------------------------------------------------------------
-template <bool __is_ascending, typename _Range, typename _Proj>
+template <typename _RadixSortKernel, bool __is_ascending, typename _Range, typename _Proj>
 __future<sycl::event>
 __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range&& __in_rng, _Proj __proj)
 {

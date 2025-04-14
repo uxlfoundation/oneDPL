@@ -1049,7 +1049,6 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
                           _InitType __init, _BinaryOperation __binary_op, _Inclusive)
 {
     using _Type = typename _InitType::__value_type;
-
     // Reduce-then-scan is dependent on sycl::shift_group_right which requires the underlying type to be trivially
     // copyable. If this is not met, then we must fallback to the multi pass scan implementation. The single
     // work-group implementation requires a fundamental type which must also be trivially copyable.
@@ -1255,9 +1254,8 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag __backend_t
 
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
-__future<sycl::event,
-         __result_and_scratch_storage<oneapi::dpl::__internal::tuple<
-                                                            std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
+__future<sycl::event, __result_and_scratch_storage<
+                          oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
 __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
                                               sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                               _Range3&& __out_keys, _Range4&& __out_values,

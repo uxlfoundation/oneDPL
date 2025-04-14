@@ -245,7 +245,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
 
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
 
-        auto __event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
+        auto __event = __q.submit([&, __n](sycl::handler& __cgh) {
             __cgh.depends_on(__reduce_event);
 
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read>(__cgh);

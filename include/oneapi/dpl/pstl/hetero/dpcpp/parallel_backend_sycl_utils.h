@@ -511,7 +511,7 @@ struct __result_and_scratch_storage_base
 {
     virtual ~__result_and_scratch_storage_base() = default;
     virtual std::size_t
-    __get_data(sycl::event, std::size_t* __p_buf) = 0;
+    __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
 template <typename _T>
@@ -524,7 +524,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     using __accessor_t =
         sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
 
-    sycl::queue __q;
+    mutable sycl::queue __q;
     std::shared_ptr<_T> __scratch_buf;
     std::shared_ptr<_T> __result_buf;
     std::shared_ptr<__sycl_buffer_t> __sycl_buf;
@@ -535,11 +535,11 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     bool __supports_USM_device;
 
     // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a device allocation instead.
-    static bool
-    __use_USM_host_allocations(const sycl::queue& __queue)
+    bool
+    __use_USM_host_allocations() const
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
-        auto __device = __queue.get_device();
+        auto __device = __q.get_device();
         if (!__device.is_gpu())
             return false;
         if (!__device.has(sycl::aspect::usm_host_allocations))
@@ -552,11 +552,11 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 #endif
     }
 
-    static bool
-    __use_USM_allocations(const sycl::queue& __queue)
+    bool
+    __use_USM_allocations() const
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-        return __queue.get_device().has(sycl::aspect::usm_device_allocations);
+        return __q.get_device().has(sycl::aspect::usm_device_allocations);
 #else
         return false;
 #endif
@@ -565,7 +565,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
   public:
     __result_and_scratch_storage(sycl::queue __q_, std::size_t __result_n, std::size_t __scratch_n)
         : __q{std::move(__q_)}, __result_n{__result_n}, __scratch_n{__scratch_n},
-          __use_USM_host{__use_USM_host_allocations(__q)}, __supports_USM_device{__use_USM_allocations(__q)}
+          __use_USM_host{__use_USM_host_allocations()}, __supports_USM_device{__use_USM_allocations()}
     {
         const std::size_t __total_n = __scratch_n + __result_n;
         // Skip in case this is a dummy container
@@ -643,7 +643,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 
     _T
-    __wait_and_get_value(sycl::event __event)
+    __wait_and_get_value(sycl::event __event) const
     {
         if (is_USM())
             __event.wait_and_throw();
@@ -654,7 +654,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     // Note: this member function assumes the result is *ready*, since the __future has already
     // waited on the relevant event.
     _T
-    __get_value(size_t idx = 0)
+    __get_value(size_t idx = 0) const
     {
         assert(idx < __result_n);
         if (__use_USM_host && __supports_USM_device)
@@ -698,7 +698,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 
     virtual std::size_t
-    __get_data(sycl::event __event, std::size_t* __p_buf) override
+    __get_data(sycl::event __event, std::size_t* __p_buf) const override
     {
         if (is_USM())
             __event.wait_and_throw();
@@ -738,7 +738,7 @@ class __future : private std::tuple<_Args...>
 
     template <typename _T>
     constexpr auto
-    __wait_and_get_value(__result_and_scratch_storage<_T>& __storage)
+    __wait_and_get_value(const __result_and_scratch_storage<_T>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
     }
