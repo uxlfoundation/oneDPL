@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- device_accessible_content_iterator.pass.cpp -----------------------------------------------===//
+//===-- indirectly_device_accessible_iterator.pass.cpp -----------------------------------------------===//
 //
 // Copyright (C) Intel Corporation
 //
@@ -22,7 +22,7 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 
-struct simple_device_accessible_content_iterator
+struct simple_indirectly_device_accessible_iterator
 {
     using iterator_category = std::input_iterator_tag;
     using value_type = int;
@@ -32,7 +32,7 @@ struct simple_device_accessible_content_iterator
 
     using is_passed_directly = std::true_type;
 
-    simple_device_accessible_content_iterator(int start = 0) : value(start) {}
+    simple_indirectly_device_accessible_iterator(int start = 0) : value(start) {}
 
     int
     operator*() const
@@ -40,29 +40,29 @@ struct simple_device_accessible_content_iterator
         return value;
     }
 
-    simple_device_accessible_content_iterator&
+    simple_indirectly_device_accessible_iterator&
     operator++()
     {
         ++value;
         return *this;
     }
 
-    simple_device_accessible_content_iterator
+    simple_indirectly_device_accessible_iterator
     operator++(int)
     {
-        simple_device_accessible_content_iterator tmp = *this;
+        simple_indirectly_device_accessible_iterator tmp = *this;
         ++(*this);
         return tmp;
     }
 
     friend bool
-    operator==(const simple_device_accessible_content_iterator& a, const simple_device_accessible_content_iterator& b)
+    operator==(const simple_indirectly_device_accessible_iterator& a, const simple_indirectly_device_accessible_iterator& b)
     {
         return a.value == b.value;
     }
 
     friend bool
-    operator!=(const simple_device_accessible_content_iterator& a, const simple_device_accessible_content_iterator& b)
+    operator!=(const simple_indirectly_device_accessible_iterator& a, const simple_indirectly_device_accessible_iterator& b)
     {
         return !(a == b);
     }
@@ -71,7 +71,7 @@ struct simple_device_accessible_content_iterator
     int value;
 };
 
-struct simple_explicitly_not_device_accessible_content_iterator
+struct simple_explicitly_not_indirectly_device_accessible_iterator
 {
     using iterator_category = std::input_iterator_tag;
     using value_type = int;
@@ -81,7 +81,7 @@ struct simple_explicitly_not_device_accessible_content_iterator
 
     using is_passed_directly = std::false_type;
 
-    simple_explicitly_not_device_accessible_content_iterator(int start = 0) : value(start) {}
+    simple_explicitly_not_indirectly_device_accessible_iterator(int start = 0) : value(start) {}
 
     int
     operator*() const
@@ -89,31 +89,31 @@ struct simple_explicitly_not_device_accessible_content_iterator
         return value;
     }
 
-    simple_explicitly_not_device_accessible_content_iterator&
+    simple_explicitly_not_indirectly_device_accessible_iterator&
     operator++()
     {
         ++value;
         return *this;
     }
 
-    simple_explicitly_not_device_accessible_content_iterator
+    simple_explicitly_not_indirectly_device_accessible_iterator
     operator++(int)
     {
-        simple_explicitly_not_device_accessible_content_iterator tmp = *this;
+        simple_explicitly_not_indirectly_device_accessible_iterator tmp = *this;
         ++(*this);
         return tmp;
     }
 
     friend bool
-    operator==(const simple_explicitly_not_device_accessible_content_iterator& a,
-               const simple_explicitly_not_device_accessible_content_iterator& b)
+    operator==(const simple_explicitly_not_indirectly_device_accessible_iterator& a,
+               const simple_explicitly_not_indirectly_device_accessible_iterator& b)
     {
         return a.value == b.value;
     }
 
     friend bool
-    operator!=(const simple_explicitly_not_device_accessible_content_iterator& a,
-               const simple_explicitly_not_device_accessible_content_iterator& b)
+    operator!=(const simple_explicitly_not_indirectly_device_accessible_iterator& a,
+               const simple_explicitly_not_indirectly_device_accessible_iterator& b)
     {
         return !(a == b);
     }
@@ -122,7 +122,7 @@ struct simple_explicitly_not_device_accessible_content_iterator
     int value;
 };
 
-struct simple_implicitly_not_device_accessible_content_iterator
+struct simple_implicitly_not_indirectly_device_accessible_iterator
 {
     using iterator_category = std::input_iterator_tag;
     using value_type = int;
@@ -132,7 +132,7 @@ struct simple_implicitly_not_device_accessible_content_iterator
 
     using is_passed_directly = std::false_type;
 
-    simple_implicitly_not_device_accessible_content_iterator(int start = 0) : value(start) {}
+    simple_implicitly_not_indirectly_device_accessible_iterator(int start = 0) : value(start) {}
 
     int
     operator*() const
@@ -140,31 +140,31 @@ struct simple_implicitly_not_device_accessible_content_iterator
         return value;
     }
 
-    simple_implicitly_not_device_accessible_content_iterator&
+    simple_implicitly_not_indirectly_device_accessible_iterator&
     operator++()
     {
         ++value;
         return *this;
     }
 
-    simple_implicitly_not_device_accessible_content_iterator
+    simple_implicitly_not_indirectly_device_accessible_iterator
     operator++(int)
     {
-        simple_implicitly_not_device_accessible_content_iterator tmp = *this;
+        simple_implicitly_not_indirectly_device_accessible_iterator tmp = *this;
         ++(*this);
         return tmp;
     }
 
     friend bool
-    operator==(const simple_implicitly_not_device_accessible_content_iterator& a,
-               const simple_implicitly_not_device_accessible_content_iterator& b)
+    operator==(const simple_implicitly_not_indirectly_device_accessible_iterator& a,
+               const simple_implicitly_not_indirectly_device_accessible_iterator& b)
     {
         return a.value == b.value;
     }
 
     friend bool
-    operator!=(const simple_implicitly_not_device_accessible_content_iterator& a,
-               const simple_implicitly_not_device_accessible_content_iterator& b)
+    operator!=(const simple_implicitly_not_indirectly_device_accessible_iterator& a,
+               const simple_implicitly_not_indirectly_device_accessible_iterator& b)
     {
         return !(a == b);
     }
@@ -229,9 +229,9 @@ struct first_strided_iterator : public base_strided_iterator<BaseIter>
 
 template <typename BaseIter>
 auto
-is_onedpl_device_accessible_content_iterator(const first_strided_iterator<BaseIter>&)
+is_onedpl_indirectly_device_accessible_iterator(const first_strided_iterator<BaseIter>&)
 {
-    return oneapi::dpl::is_device_accessible_content_iterator<BaseIter>{};
+    return oneapi::dpl::is_indirectly_device_accessible_iterator<BaseIter>{};
 }
 
 template <typename BaseIter>
@@ -242,17 +242,17 @@ struct second_strided_iterator : public base_strided_iterator<BaseIter>
 
 template <typename BaseIter>
 auto
-is_onedpl_device_accessible_content_iterator(const second_strided_iterator<BaseIter>&)
-    -> decltype(oneapi::dpl::is_device_accessible_content_iterator<BaseIter>{});
+is_onedpl_indirectly_device_accessible_iterator(const second_strided_iterator<BaseIter>&)
+    -> decltype(oneapi::dpl::is_indirectly_device_accessible_iterator<BaseIter>{});
 
 template <typename BaseIter>
 struct third_strided_iterator : public base_strided_iterator<BaseIter>
 {
     third_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
     friend auto
-    is_onedpl_device_accessible_content_iterator(const third_strided_iterator<BaseIter>&)
+    is_onedpl_indirectly_device_accessible_iterator(const third_strided_iterator<BaseIter>&)
     {
-        return oneapi::dpl::is_device_accessible_content_iterator<BaseIter>{};
+        return oneapi::dpl::is_indirectly_device_accessible_iterator<BaseIter>{};
     }
 };
 
@@ -261,86 +261,86 @@ struct fourth_strided_iterator : public base_strided_iterator<BaseIter>
 {
     fourth_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
     friend auto
-    is_onedpl_device_accessible_content_iterator(const fourth_strided_iterator<BaseIter>&)
-        -> oneapi::dpl::is_device_accessible_content_iterator<BaseIter>;
+    is_onedpl_indirectly_device_accessible_iterator(const fourth_strided_iterator<BaseIter>&)
+        -> oneapi::dpl::is_indirectly_device_accessible_iterator<BaseIter>;
 };
 
 } // namespace custom_user
 
-template <bool base_device_accessible_content, typename BaseIter>
+template <bool base_indirectly_device_accessible, typename BaseIter>
 void
 test_with_base_iterator()
 {
     //test assumption about base iterator device accessible content iterator
-    static_assert(oneapi::dpl::is_device_accessible_content_iterator_v<BaseIter> == base_device_accessible_content,
-                  "is_onedpl_device_accessible_content_iterator is not working correctly for base iterator");
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<BaseIter> == base_indirectly_device_accessible,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for base iterator");
 
     // test wrapping base in transform_iterator
     using TransformIter = oneapi::dpl::transform_iterator<BaseIter, TestUtils::noop_device_copyable>;
-    static_assert(oneapi::dpl::is_device_accessible_content_iterator_v<TransformIter> == base_device_accessible_content,
-                  "is_onedpl_device_accessible_content_iterator is not working correctly for transform iterator");
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<TransformIter> == base_indirectly_device_accessible,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for transform iterator");
 
     // test wrapping base in permutation_iterator with counting iter
     using PermutationIter = oneapi::dpl::permutation_iterator<BaseIter, oneapi::dpl::counting_iterator<std::int32_t>>;
-    static_assert(oneapi::dpl::is_device_accessible_content_iterator_v<PermutationIter> ==
-                      base_device_accessible_content,
-                  "is_onedpl_device_accessible_content_iterator is not working correctly for permutation iterator");
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<PermutationIter> ==
+                      base_indirectly_device_accessible,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for permutation iterator");
 
     // test wrapping base in permutation_iter with functor
     using PermutationIterFunctor = oneapi::dpl::permutation_iterator<BaseIter, TestUtils::noop_device_copyable>;
     static_assert(
-        oneapi::dpl::is_device_accessible_content_iterator_v<PermutationIterFunctor> == base_device_accessible_content,
-        "is_onedpl_device_accessible_content_iterator is not working correctly for permutation iterator with functor");
+        oneapi::dpl::is_indirectly_device_accessible_iterator_v<PermutationIterFunctor> == base_indirectly_device_accessible,
+        "is_onedpl_indirectly_device_accessible_iterator is not working correctly for permutation iterator with functor");
 
     // test wrapping base in zip_iterator
     using ZipIter = oneapi::dpl::zip_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_device_accessible_content_iterator_v<ZipIter> == base_device_accessible_content,
-                  "is_onedpl_device_accessible_content_iterator is not working correctly for zip iterator");
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<ZipIter> == base_indirectly_device_accessible,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for zip iterator");
 
     // test wrapping base in zip_iterator with counting_iterator first
     using ZipIterCounting = oneapi::dpl::zip_iterator<oneapi::dpl::counting_iterator<std::int32_t>, BaseIter>;
-    static_assert(oneapi::dpl::is_device_accessible_content_iterator_v<ZipIterCounting> ==
-                      base_device_accessible_content,
-                  "is_onedpl_device_accessible_content_iterator is not working correctly for zip iterator with "
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<ZipIterCounting> ==
+                      base_indirectly_device_accessible,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for zip iterator with "
                   "counting iterator first");
 
     // test wrapping base in zip_iterator with counting_iterator second
     using ZipIterCounting2 = oneapi::dpl::zip_iterator<BaseIter, oneapi::dpl::counting_iterator<std::int32_t>>;
-    static_assert(oneapi::dpl::is_device_accessible_content_iterator_v<ZipIterCounting2> ==
-                      base_device_accessible_content,
-                  "is_onedpl_device_accessible_content_iterator is not working correctly for zip iterator with "
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<ZipIterCounting2> ==
+                      base_indirectly_device_accessible,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for zip iterator with "
                   "counting iterator first");
 
     // test wrapping base in reverse_iterator
     using ReverseIter = std::reverse_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_device_accessible_content_iterator_v<ReverseIter> == base_device_accessible_content,
-                  "is_onedpl_device_accessible_content_iterator is not working correctly for reverse iterator");
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<ReverseIter> == base_indirectly_device_accessible,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for reverse iterator");
 
     // test custom user first strided iterator with normal ADL function
     using FirstStridedIter = custom_user::first_strided_iterator<BaseIter>;
     static_assert(
-        oneapi::dpl::is_device_accessible_content_iterator_v<FirstStridedIter> == base_device_accessible_content,
-        "is_onedpl_device_accessible_content_iterator is not working correctly for custom user strided iterator");
+        oneapi::dpl::is_indirectly_device_accessible_iterator_v<FirstStridedIter> == base_indirectly_device_accessible,
+        "is_onedpl_indirectly_device_accessible_iterator is not working correctly for custom user strided iterator");
 
-    // test custom user second strided iterator (no body for is_onedpl_device_accessible_content_iterator)
+    // test custom user second strided iterator (no body for is_onedpl_indirectly_device_accessible_iterator)
     using SecondStridedIter = custom_user::second_strided_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_device_accessible_content_iterator_v<SecondStridedIter> ==
-                      base_device_accessible_content,
-                  "is_onedpl_device_accessible_content_iterator is not working correctly for custom user strided "
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<SecondStridedIter> ==
+                      base_indirectly_device_accessible,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for custom user strided "
                   "iterator with no body in ADL function definition");
 
     // test custom user first strided iterator with hidden friend ADL function
     using ThirdStridedIter = custom_user::third_strided_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_device_accessible_content_iterator_v<ThirdStridedIter> ==
-                      base_device_accessible_content,
-                  "is_onedpl_device_accessible_content_iterator is not working correctly for custom user strided "
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<ThirdStridedIter> ==
+                      base_indirectly_device_accessible,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for custom user strided "
                   "iterator with hidden friend ADL function");
 
     // test custom user first strided iterator with hidden friend ADL function without body
     using FourthStridedIter = custom_user::fourth_strided_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_device_accessible_content_iterator_v<FourthStridedIter> ==
-                      base_device_accessible_content,
-                  "is_onedpl_device_accessible_content_iterator is not working correctly for custom user strided "
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<FourthStridedIter> ==
+                      base_indirectly_device_accessible,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for custom user strided "
                   "iterator with hidden friend ADL function without a body");
 }
 
@@ -365,21 +365,21 @@ main()
                             decltype(vec.begin())>();
 
     // custom iter type with legacy is_passed_directly trait defined
-    test_with_base_iterator<true, simple_device_accessible_content_iterator>();
+    test_with_base_iterator<true, simple_indirectly_device_accessible_iterator>();
 
     // custom iter type with explicit is_passed_directly trait defined as false
-    test_with_base_iterator<false, simple_explicitly_not_device_accessible_content_iterator>();
+    test_with_base_iterator<false, simple_explicitly_not_indirectly_device_accessible_iterator>();
 
     // custom iter type implicitly not device accessible content iterator
-    test_with_base_iterator<false, simple_implicitly_not_device_accessible_content_iterator>();
+    test_with_base_iterator<false, simple_implicitly_not_indirectly_device_accessible_iterator>();
 
     // std vector with normal allocator
     std::vector<int> vec2(10);
     test_with_base_iterator<false, decltype(vec2.begin())>();
 
     // test discard_iterator
-    static_assert(oneapi::dpl::is_device_accessible_content_iterator_v<oneapi::dpl::discard_iterator> == true,
-                  "is_onedpl_device_accessible_content_iterator is not working correctly for discard iterator");
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_iterator_v<oneapi::dpl::discard_iterator> == true,
+                  "is_onedpl_indirectly_device_accessible_iterator is not working correctly for discard iterator");
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
