@@ -209,7 +209,6 @@ jobs:
           make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags} |& tee ctest.log
 
-
           # Generate a summary
           os_name=$(uname -a | head -n 1)
           cmake_version=$(cmake --version | head -n 1)
@@ -301,7 +300,6 @@ jobs:
 
             )
 
-            #set targets to just sycl iterator for dpcpp tests
             set ninja_targets="build-onedpl-sycl_iterator-tests"
             set ctest_flags=-R sycl_iterator_.*\.pass
           ) else (
