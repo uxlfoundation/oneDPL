@@ -514,7 +514,7 @@ struct __result_and_scratch_storage_base
     __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
-template <typename _T>
+template <typename _T, std::size_t _NResults = 1>
 struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
   private:
@@ -529,7 +529,6 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     std::shared_ptr<_T> __result_buf;
     std::shared_ptr<__sycl_buffer_t> __sycl_buf;
 
-    std::size_t __result_n;
     std::size_t __scratch_n;
     bool __use_USM_host;
     bool __supports_USM_device;
@@ -563,11 +562,11 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 
   public:
-    __result_and_scratch_storage(sycl::queue __q_, std::size_t __result_n, std::size_t __scratch_n)
-        : __q{std::move(__q_)}, __result_n{__result_n}, __scratch_n{__scratch_n},
-          __use_USM_host{__use_USM_host_allocations()}, __supports_USM_device{__use_USM_allocations()}
+    __result_and_scratch_storage(sycl::queue __q_, std::size_t __scratch_n)
+        : __q{__q_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
+          __supports_USM_device{__use_USM_allocations()}
     {
-        const std::size_t __total_n = __scratch_n + __result_n;
+        const std::size_t __total_n = _NResults + __scratch_n;
         // Skip in case this is a dummy container
         if (__total_n > 0)
         {
@@ -580,10 +579,10 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                         __internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__scratch_n),
                         __internal::__sycl_usm_free<_T>{__q});
                 }
-                if (__result_n > 0)
+                if constexpr (_NResults > 0)
                 {
                     __result_buf =
-                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::host>{__q}(__result_n),
+                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::host>{__q}(_NResults),
                                             __internal::__sycl_usm_free<_T>{__q});
                 }
             }
@@ -645,6 +644,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     _T
     __wait_and_get_value(sycl::event __event) const
     {
+        static_assert(_NResults == 1);
+
         if (is_USM())
             __event.wait_and_throw();
 
@@ -653,23 +654,25 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
     // Note: this member function assumes the result is *ready*, since the __future has already
     // waited on the relevant event.
+    template <std::size_t _Idx = 0>
     _T
-    __get_value(size_t idx = 0) const
+    __get_value() const
     {
-        assert(idx < __result_n);
+        static_assert(0 <= _Idx && _Idx < _NResults);
+
         if (__use_USM_host && __supports_USM_device)
         {
-            return *(__result_buf.get() + idx);
+            return *(__result_buf.get() + _Idx);
         }
         else if (__supports_USM_device)
         {
             _T __tmp;
-            __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + idx, 1 * sizeof(_T)).wait();
+            __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
             return __tmp;
         }
         else
         {
-            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + idx];
+            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + _Idx];
         }
     }
 
@@ -700,10 +703,15 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     virtual std::size_t
     __get_data(sycl::event __event, std::size_t* __p_buf) const override
     {
+        static_assert(_NResults == 0 || _NResults == 1);
+
         if (is_USM())
             __event.wait_and_throw();
 
-        return __fill_data(__get_value(), __p_buf);
+        if constexpr (_NResults == 1)
+            return __fill_data(__get_value(), __p_buf);
+        else
+            return 0;
     }
 };
 
@@ -736,9 +744,9 @@ class __future : private std::tuple<_Args...>
         return __buf.get_host_access(sycl::read_only)[0];
     }
 
-    template <typename _T>
+    template <typename _T, std::size_t _NResults>
     constexpr auto
-    __wait_and_get_value(const __result_and_scratch_storage<_T>& __storage)
+    __wait_and_get_value(const __result_and_scratch_storage<_T, _NResults>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
     }
