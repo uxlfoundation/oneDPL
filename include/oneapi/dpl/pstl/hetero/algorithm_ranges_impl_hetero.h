@@ -536,10 +536,10 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1
 template <typename _Tp>
 struct __pattern_search_n_fn
 {
-    const _Tp& __value;
+    _Tp __value;
 
     template <typename _TValue1>
-    const _Tp&
+    _Tp
     operator()(_TValue1&&) const
     {
         return __value;
