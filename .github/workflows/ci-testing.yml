@@ -289,15 +289,16 @@ jobs:
               cd "%%i"
               :: Get current directory name
               mkdir build && cd build
-              echo "running cmake..."
               cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
-              if !errorlevel! neq 0 exit /b !errorlevel!
+              if !errorlevel! neq 0 set exit_code=!errorlevel!
               ninja -v > build_ex.log 2>&1
-              if !errorlevel! neq 0 exit /b !errorlevel!
+              if !errorlevel! neq 0 set exit_code=!errorlevel!
               ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest_ex.log 2>&1
-              if !errorlevel! neq 0 exit /b !errorlevel!
+              if !errorlevel! neq 0 set exit_code=!errorlevel!
               type ctest_ex.log
               type build_ex.log
+              exit /b !exit_code!
+
             )
 
             #set targets to just sycl iterator for dpcpp tests
@@ -309,15 +310,13 @@ jobs:
 
           cd %BASE_DIR%
           mkdir build && cd build
-          echo "running cmake"
 
-          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" .. || set exit_code=%errorlevel%
-
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" ..
+          if !errorlevel! neq 0 set exit_code=!errorlevel!
           ninja -j 2 -v %ninja_targets% > build.log 2>&1
-          if !errorlevel! neq 0 exit /b !errorlevel!
-
+          if !errorlevel! neq 0 set exit_code=!errorlevel!
           ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1
-          if !errorlevel! neq 0 exit /b !errorlevel!
+          if !errorlevel! neq 0 set exit_code=!errorlevel!
           type ctest.log
 
           :: Display the results after executing all tests because "tee" alternative is unavailable in CMD.
@@ -341,6 +340,7 @@ jobs:
                                                                    --compiler-version "%compiler_version%" ^
                                                                    --cpu-model "%cpu_model%"
           type summary.md > %GITHUB_STEP_SUMMARY%
+          exit /b !exit_code!
 
   macos-testing:
     name: HOST,bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
