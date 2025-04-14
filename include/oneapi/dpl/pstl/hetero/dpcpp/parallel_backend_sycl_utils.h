@@ -563,7 +563,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
   public:
     __result_and_scratch_storage(sycl::queue __q_, std::size_t __scratch_n)
-        : __exec{__exec_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
+        : __q{__q_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
           __supports_USM_device{__use_USM_allocations()}
     {
         const std::size_t __total_n = _NResults + __scratch_n;
