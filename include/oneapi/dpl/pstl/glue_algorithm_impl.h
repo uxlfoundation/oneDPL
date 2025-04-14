@@ -706,9 +706,9 @@ struct stable_sort_fn
 {
     template <typename... _Args>
     void
-    operator()(_Args&&... __args) const
+    operator()(_Args... __args) const
     {
-        std::stable_sort(std::forward<_Args>(__args)...);
+        std::stable_sort(__args...);
     }
 };
 }; // namespace __internal
@@ -769,7 +769,7 @@ stable_sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_firs
 
     oneapi::dpl::__internal::__pattern_sort_by_key(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
                                                    __keys_first, __keys_last, __values_first, __comp,
-                                                   __internal::stable_sort_fn{});
+                                                   __internal::__stable_sort_fn{});
 }
 
 template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2>
