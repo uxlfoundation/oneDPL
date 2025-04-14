@@ -703,6 +703,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     virtual std::size_t
     __get_data(sycl::event __event, std::size_t* __p_buf) const override
     {
+        static_assert(_NResults == 0 || _NResults == 1);
+
         if (is_USM())
             __event.wait_and_throw();
 
