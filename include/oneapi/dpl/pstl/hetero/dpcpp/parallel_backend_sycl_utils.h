@@ -48,59 +48,54 @@ namespace __internal
 //-----------------------------------------------------------------------------
 
 #if _ONEDPL_DEBUG_SYCL
-template <typename _ExecutionPolicy>
-::std::string
-__device_info(const _ExecutionPolicy& __policy)
+inline std::string
+__device_info(const sycl::queue& __q)
 {
-    return __policy.queue().get_device().template get_info<sycl::info::device::name>();
+    return __q.get_device().template get_info<sycl::info::device::name>();
 }
 #endif
 
-template <typename _ExecutionPolicy>
-std::size_t
-__max_work_group_size(const _ExecutionPolicy& __policy, std::size_t __wg_size_limit = 8192)
+inline std::size_t
+__max_work_group_size(const sycl::queue& __q, std::size_t __wg_size_limit = 8192)
 {
-    std::size_t __wg_size = __policy.queue().get_device().template get_info<sycl::info::device::max_work_group_size>();
+    std::size_t __wg_size = __q.get_device().template get_info<sycl::info::device::max_work_group_size>();
     // Limit the maximum work-group size supported by the device to optimize the throughput or minimize communication
     // costs. This is limited to 8192 which is the highest current limit of the tested hardware (opencl:cpu devices) to
     // prevent huge work-group sizes returned on some devices (e.g., FPGU emulation).
     return std::min(__wg_size, __wg_size_limit);
 }
 
-template <typename _ExecutionPolicy, typename _Size>
+template <typename _Size>
 _Size
-__slm_adjusted_work_group_size(const _ExecutionPolicy& __policy, _Size __local_mem_per_wi, _Size __wg_size = 0)
+__slm_adjusted_work_group_size(const sycl::queue& __q, _Size __local_mem_per_wi, _Size __wg_size = 0)
 {
     if (__wg_size == 0)
-        __wg_size = __max_work_group_size(__policy);
-    auto __local_mem_size = __policy.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
+        __wg_size = __max_work_group_size(__q);
+    auto __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
     return std::min<_Size>(__local_mem_size / __local_mem_per_wi, __wg_size);
 }
 
 #if _ONEDPL_USE_SUB_GROUPS
-template <typename _ExecutionPolicy>
-::std::size_t
-__max_sub_group_size(const _ExecutionPolicy& __policy)
+inline std::size_t
+__max_sub_group_size(const sycl::queue& __q)
 {
-    auto __supported_sg_sizes = __policy.queue().get_device().template get_info<sycl::info::device::sub_group_sizes>();
+    auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
     //The result of get_info<sycl::info::device::sub_group_sizes>() can be empty; if so, return 0
     return __supported_sg_sizes.empty() ? 0 : __supported_sg_sizes.back();
 }
 #endif // _ONEDPL_USE_SUB_GROUPS
 
-template <typename _ExecutionPolicy>
-::std::uint32_t
-__max_compute_units(const _ExecutionPolicy& __policy)
+inline std::uint32_t
+__max_compute_units(const sycl::queue& __q)
 {
-    return __policy.queue().get_device().template get_info<sycl::info::device::max_compute_units>();
+    return __q.get_device().template get_info<sycl::info::device::max_compute_units>();
 }
 
-template <typename _ExecutionPolicy>
-bool
-__supports_sub_group_size(const _ExecutionPolicy& __exec, std::size_t __target_size)
+inline bool
+__supports_sub_group_size(const sycl::queue& __q, std::size_t __target_size)
 {
     const std::vector<std::size_t> __subgroup_sizes =
-        __exec.queue().get_device().template get_info<sycl::info::device::sub_group_sizes>();
+        __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
     return std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), __target_size) != __subgroup_sizes.end();
 }
 
@@ -108,11 +103,10 @@ __supports_sub_group_size(const _ExecutionPolicy& __exec, std::size_t __target_s
 // Kernel run-time information helpers
 //-----------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy>
-::std::size_t
-__kernel_work_group_size(const _ExecutionPolicy& __policy, const sycl::kernel& __kernel)
+inline std::size_t
+__kernel_work_group_size(const sycl::queue& __q, const sycl::kernel& __kernel)
 {
-    const sycl::device& __device = __policy.queue().get_device();
+    const sycl::device& __device = __q.get_device();
 #if _ONEDPL_SYCL2020_KERNEL_DEVICE_API_PRESENT
     return __kernel.template get_info<sycl::info::kernel_device_specific::work_group_size>(__device);
 #else
@@ -120,12 +114,11 @@ __kernel_work_group_size(const _ExecutionPolicy& __policy, const sycl::kernel& _
 #endif
 }
 
-template <typename _ExecutionPolicy>
-::std::uint32_t
-__kernel_sub_group_size(const _ExecutionPolicy& __policy, const sycl::kernel& __kernel)
+inline std::uint32_t
+__kernel_sub_group_size(const sycl::queue& __q, const sycl::kernel& __kernel)
 {
-    const sycl::device& __device = __policy.queue().get_device();
-    [[maybe_unused]] const ::std::size_t __wg_size = __kernel_work_group_size(__policy, __kernel);
+    const sycl::device& __device = __q.get_device();
+    [[maybe_unused]] const ::std::size_t __wg_size = __kernel_work_group_size(__q, __kernel);
     const ::std::uint32_t __sg_size =
 #if _ONEDPL_SYCL2020_KERNEL_DEVICE_API_PRESENT
         __kernel.template get_info<sycl::info::kernel_device_specific::max_sub_group_size>(
@@ -266,14 +259,13 @@ class __kernel_compiler
 
   public:
 #if _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
-    template <typename _Exec>
     static auto
-    __compile(_Exec&& __exec)
+    __compile(const sycl::queue& __q)
     {
-        ::std::vector<sycl::kernel_id> __kernel_ids{sycl::get_kernel_id<_KernelNames>()...};
+        std::vector<sycl::kernel_id> __kernel_ids{sycl::get_kernel_id<_KernelNames>()...};
 
         auto __kernel_bundle = sycl::get_kernel_bundle<sycl::bundle_state::executable>(
-            __exec.queue().get_context(), {__exec.queue().get_device()}, __kernel_ids);
+            __q.get_context(), {__q.get_device()}, __kernel_ids);
 
         if constexpr (__kernel_count > 1)
             return __make_kernels_array(__kernel_bundle, __kernel_ids, ::std::make_index_sequence<__kernel_count>());
@@ -289,11 +281,10 @@ class __kernel_compiler
         return __kernel_array_type{__kernel_bundle.get_kernel(__kernel_ids[_Ip])...};
     }
 #elif _ONEDPL_LIBSYCL_PROGRAM_PRESENT
-    template <typename _Exec>
     static auto
-    __compile(_Exec&& __exec)
+    __compile(const sycl::queue& __q)
     {
-        sycl::program __program(__exec.queue().get_context());
+        sycl::program __program(__q.get_context());
 
         using __return_type = std::conditional_t<(__kernel_count > 1), __kernel_array_type, sycl::kernel>;
         return __return_type{
@@ -304,22 +295,20 @@ class __kernel_compiler
 #endif // _ONEDPL_COMPILE_KERNEL
 
 #if _ONEDPL_DEBUG_SYCL
-template <typename _Policy>
 inline void
 // Passing policy by value should be enough for debugging
-__print_device_debug_info(const _Policy& __policy, size_t __wg_size = 0, size_t __max_cu = 0)
+__print_device_debug_info(const sycl::queue& __q, size_t __wg_size = 0, size_t __max_cu = 0)
 {
-    ::std::cout << "Device info" << ::std::endl;
-    ::std::cout << " > device name:         " << oneapi::dpl::__internal::__device_info(__policy) << ::std::endl;
-    ::std::cout << " > max compute units:   "
-                << (__max_cu ? __max_cu : oneapi::dpl::__internal::__max_compute_units(__policy)) << ::std::endl;
-    ::std::cout << " > max work-group size: "
-                << (__wg_size ? __wg_size : oneapi::dpl::__internal::__max_work_group_size(__policy)) << ::std::endl;
+    std::cout << "Device info" << ::std::endl;
+    std::cout << " > device name:         " << oneapi::dpl::__internal::__device_info(__q) << ::std::endl;
+    std::cout << " > max compute units:   " << (__max_cu ? __max_cu : oneapi::dpl::__internal::__max_compute_units(__q))
+              << ::std::endl;
+    std::cout << " > max work-group size: "
+              << (__wg_size ? __wg_size : oneapi::dpl::__internal::__max_work_group_size(__q)) << ::std::endl;
 }
 #else
-template <typename _Policy>
 inline void
-__print_device_debug_info(const _Policy&, size_t = 0, size_t = 0)
+__print_device_debug_info(const sycl::queue&, size_t = 0, size_t = 0)
 {
 }
 #endif
@@ -407,29 +396,28 @@ class __buffer_impl
     }
 };
 
-template <typename _ExecutionPolicy, typename _T>
+template <typename _T>
 struct __sycl_usm_free
 {
-    _ExecutionPolicy __exec;
+    sycl::queue __q;
 
     void
     operator()(_T* __memory) const
     {
-        sycl::free(__memory, __exec.queue().get_context());
+        sycl::free(__memory, __q.get_context());
     }
 };
 
-template <typename _ExecutionPolicy, typename _T, sycl::usm::alloc __alloc_t>
+template <typename _T, sycl::usm::alloc __alloc_t>
 struct __sycl_usm_alloc
 {
-    _ExecutionPolicy __exec;
+    sycl::queue __q;
 
     _T*
     operator()(::std::size_t __elements) const
     {
-        const auto& __queue = __exec.queue();
-        if (auto __buf = static_cast<_T*>(
-                sycl::malloc(sizeof(_T) * __elements, __queue.get_device(), __queue.get_context(), __alloc_t)))
+        if (auto __buf =
+                static_cast<_T*>(sycl::malloc(sizeof(_T) * __elements, __q.get_device(), __q.get_context(), __alloc_t)))
             return __buf;
 
         throw std::bad_alloc();
@@ -526,8 +514,8 @@ struct __result_and_scratch_storage_base
     __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
-template <typename _ExecutionPolicy, typename _T>
-struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
+template <typename _T, std::size_t _NResults = 1>
+struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
   private:
     using __sycl_buffer_t = sycl::buffer<_T, 1>;
@@ -536,22 +524,21 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     using __accessor_t =
         sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
 
-    _ExecutionPolicy __exec;
+    mutable sycl::queue __q;
     std::shared_ptr<_T> __scratch_buf;
     std::shared_ptr<_T> __result_buf;
     std::shared_ptr<__sycl_buffer_t> __sycl_buf;
 
-    std::size_t __result_n;
     std::size_t __scratch_n;
     bool __use_USM_host;
     bool __supports_USM_device;
 
     // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a device allocation instead.
-    inline bool
-    __use_USM_host_allocations(sycl::queue __queue)
+    bool
+    __use_USM_host_allocations() const
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
-        auto __device = __queue.get_device();
+        auto __device = __q.get_device();
         if (!__device.is_gpu())
             return false;
         if (!__device.has(sycl::aspect::usm_host_allocations))
@@ -564,23 +551,22 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 #endif
     }
 
-    inline bool
-    __use_USM_allocations(sycl::queue __queue)
+    bool
+    __use_USM_allocations() const
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-        return __queue.get_device().has(sycl::aspect::usm_device_allocations);
+        return __q.get_device().has(sycl::aspect::usm_device_allocations);
 #else
         return false;
 #endif
     }
 
   public:
-    __result_and_scratch_storage_impl(const _ExecutionPolicy& __exec_, std::size_t __result_n, std::size_t __scratch_n)
-        : __exec{__exec_}, __result_n{__result_n}, __scratch_n{__scratch_n},
-          __use_USM_host{__use_USM_host_allocations(__exec.queue())},
-          __supports_USM_device{__use_USM_allocations(__exec.queue())}
+    __result_and_scratch_storage(sycl::queue __q_, std::size_t __scratch_n)
+        : __q{__q_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
+          __supports_USM_device{__use_USM_allocations()}
     {
-        const std::size_t __total_n = __scratch_n + __result_n;
+        const std::size_t __total_n = _NResults + __scratch_n;
         // Skip in case this is a dummy container
         if (__total_n > 0)
         {
@@ -590,23 +576,22 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
                 if (__scratch_n > 0)
                 {
                     __scratch_buf = std::shared_ptr<_T>(
-                        __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::device>{__exec}(
-                            __scratch_n),
-                        __internal::__sycl_usm_free<_ExecutionPolicy, _T>{__exec});
+                        __internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__scratch_n),
+                        __internal::__sycl_usm_free<_T>{__q});
                 }
-                if (__result_n > 0)
+                if constexpr (_NResults > 0)
                 {
-                    __result_buf = std::shared_ptr<_T>(
-                        __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::host>{__exec}(__result_n),
-                        __internal::__sycl_usm_free<_ExecutionPolicy, _T>{__exec});
+                    __result_buf =
+                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::host>{__q}(_NResults),
+                                            __internal::__sycl_usm_free<_T>{__q});
                 }
             }
             else if (__supports_USM_device)
             {
                 // If we don't use host memory, malloc only a single unified device allocation
-                __scratch_buf = std::shared_ptr<_T>(
-                    __internal::__sycl_usm_alloc<_ExecutionPolicy, _T, sycl::usm::alloc::device>{__exec}(__total_n),
-                    __internal::__sycl_usm_free<_ExecutionPolicy, _T>{__exec});
+                __scratch_buf =
+                    std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__total_n),
+                                        __internal::__sycl_usm_free<_T>{__q});
             }
             else
             {
@@ -659,6 +644,8 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     _T
     __wait_and_get_value(sycl::event __event) const
     {
+        static_assert(_NResults == 1);
+
         if (is_USM())
             __event.wait_and_throw();
 
@@ -667,23 +654,25 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 
     // Note: this member function assumes the result is *ready*, since the __future has already
     // waited on the relevant event.
+    template <std::size_t _Idx = 0>
     _T
-    __get_value(size_t idx = 0) const
+    __get_value() const
     {
-        assert(idx < __result_n);
+        static_assert(0 <= _Idx && _Idx < _NResults);
+
         if (__use_USM_host && __supports_USM_device)
         {
-            return *(__result_buf.get() + idx);
+            return *(__result_buf.get() + _Idx);
         }
         else if (__supports_USM_device)
         {
             _T __tmp;
-            __exec.queue().memcpy(&__tmp, __scratch_buf.get() + __scratch_n + idx, 1 * sizeof(_T)).wait();
+            __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
             return __tmp;
         }
         else
         {
-            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + idx];
+            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + _Idx];
         }
     }
 
@@ -714,15 +703,17 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     virtual std::size_t
     __get_data(sycl::event __event, std::size_t* __p_buf) const override
     {
+        static_assert(_NResults == 0 || _NResults == 1);
+
         if (is_USM())
             __event.wait_and_throw();
 
-        return __fill_data(__get_value(), __p_buf);
+        if constexpr (_NResults == 1)
+            return __fill_data(__get_value(), __p_buf);
+        else
+            return 0;
     }
 };
-
-template <typename _ExecutionPolicy, typename _T>
-using __result_and_scratch_storage = __result_and_scratch_storage_impl<std::decay_t<_ExecutionPolicy>, _T>;
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
@@ -753,12 +744,9 @@ class __future : private std::tuple<_Args...>
         return __buf.get_host_access(sycl::read_only)[0];
     }
 
-    // Here we use __result_and_scratch_storage_impl rather than __result_and_scratch_storage because we need to
-    // match the type with the overload and are deducing the policy type. If we used __result_and_scratch_storage,
-    // it would cause issues in type deduction due to decay of the policy in that using statement.
-    template <typename _DecayedExecutionPolicy, typename _T>
+    template <typename _T, std::size_t _NResults>
     constexpr auto
-    __wait_and_get_value(const __result_and_scratch_storage_impl<_DecayedExecutionPolicy, _T>& __storage)
+    __wait_and_get_value(const __result_and_scratch_storage<_T, _NResults>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
     }
