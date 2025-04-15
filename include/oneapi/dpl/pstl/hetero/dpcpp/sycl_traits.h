@@ -143,21 +143,6 @@ struct __pattern_lexicographical_compare_transform_fn;
 template <typename _Tp>
 struct __pattern_search_n_fn;
 
-template <typename _ReduceValueType, typename _Compare>
-struct __pattern_min_element_reduce_fn;
-
-template <typename _Compare, typename _ReduceValueType>
-struct __pattern_minmax_element__reduce_fn;
-
-template <typename _Predicate>
-struct __pattern_count_transform_fn;
-
-template <typename _Predicate>
-struct __pattern_is_partitioned_transform_fn;
-
-template <typename _Compare, typename _ReduceValueType>
-struct __pattern_lexicographical_compare_transform_fn;
-
 template <typename _BinaryPredicate>
 struct __parallel_reduce_by_segment_fallback_fn1;
 
@@ -359,41 +344,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
 template <typename _Tp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_search_n_fn, _Tp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
-{
-};
-
-template <typename _ReduceValueType, typename _Compare>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_min_element_reduce_fn,
-                                                       _ReduceValueType, _Compare)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_ReduceValueType, _Compare>
-{
-};
-
-template <typename _Compare, typename _ReduceValueType>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_minmax_element__reduce_fn,
-                                                       _Compare, _ReduceValueType)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _ReduceValueType>
-{
-};
-
-template <typename _Predicate>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_count_transform_fn,
-                                                       _Predicate)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
-{
-};
-
-template <typename _Predicate>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_is_partitioned_transform_fn,
-                                                       _Predicate)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
-{
-};
-
-template <typename _Compare, typename _ReduceValueType>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__internal::__pattern_lexicographical_compare_transform_fn, _Compare, _ReduceValueType)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _ReduceValueType>
 {
 };
 
