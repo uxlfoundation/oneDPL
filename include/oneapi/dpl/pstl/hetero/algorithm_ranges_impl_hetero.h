@@ -92,7 +92,6 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-
 template <typename _Fun, typename _Proj>
 struct __pattern_for_each_fn
 {
@@ -194,7 +193,6 @@ __pattern_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRa
         oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 }
-
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
@@ -256,7 +254,6 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& 
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-
 template <typename _Pred, typename _Proj1, typename _Proj2>
 struct __pattern_equal_pred
 {
@@ -411,7 +408,6 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& 
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-
 template <typename _Pred, typename _Proj>
 struct __pattern_any_of_pred
 {
@@ -671,7 +667,6 @@ __pattern_is_sorted(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         oneapi::dpl::__internal::__reorder_pred(__pred_2),
         oneapi::dpl::__internal::__or_semantic()) == std::ranges::size(__r);
 }
-
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 template <typename _Predicate>
