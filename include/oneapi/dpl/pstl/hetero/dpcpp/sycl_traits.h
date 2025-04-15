@@ -380,7 +380,7 @@ struct __pattern_count_transform_fn;
 template <typename _Compare, typename _ReduceValueType>
 struct __pattern_minmax_element_reduce_fn;
 
-} // oneapi::dpl::__internal::__ranges
+} // namespace oneapi::dpl::__internal::__ranges
 
 template <typename _Tp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__ranges::__pattern_search_n_fn, _Tp)>
