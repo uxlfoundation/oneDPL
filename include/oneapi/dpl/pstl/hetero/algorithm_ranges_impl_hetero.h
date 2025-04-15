@@ -929,27 +929,11 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-
-template <typename _Comp, typename _Proj>
-struct __pattern_min_element_comp
-{
-    _Comp __comp;
-    _Proj __proj;
-
-    template <typename _TValue1, typename _TValue2>
-    auto
-    operator()(_TValue1&& __val1, _TValue2&& __val2) const
-    {
-        return std::invoke(__comp, std::invoke(__proj, std::forward<_TValue1>(__val1)),
-                           std::invoke(__proj, std::forward<_TValue2>(__val2)));
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 auto
 __pattern_min_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    __pattern_min_element_comp<_Comp, _Proj> __comp_2{__comp, __proj};
+    __pattern_transform_binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
 
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
