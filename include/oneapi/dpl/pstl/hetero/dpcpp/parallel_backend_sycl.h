@@ -2271,7 +2271,7 @@ template <typename _Name>
 struct __assign_key2_wrapper;
 
 template <typename _BinaryPredicate>
-struct __parallel_reduce_by_segment_fallback_fn1_fo
+struct __parallel_reduce_by_segment_fallback_fn1
 {
     _BinaryPredicate __binary_pred;
     std::size_t __wgroup_size;
@@ -2351,7 +2351,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
             oneapi::dpl::__internal::__device_backend_tag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2,
-            __n, __parallel_reduce_by_segment_fallback_fn1_fo<_BinaryPredicate>{__binary_pred, __wgroup_size},
+            __n, __parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
             unseq_backend::__brick_assign_key_position{})
             .get();
 
