@@ -560,15 +560,18 @@ __dpl_ceiling_div(_T1 __number, _T2 __divisor)
 }
 
 template <typename _T>
-bool
+std::enable_if_t<std::is_floating_point_v<_T>, bool>
 __dpl_signbit(const _T& __x)
 {
-    if constexpr (!std::is_floating_point_v<_T>)
-    {
-        //This is required to resolve some possible ambiguity for some STL implementations
-        return std::signbit(static_cast<double>(__x));
-    }
     return std::signbit(__x);
+}
+
+//This is required to resolve some possible ambiguity for some STL implementations
+template <typename _T>
+std::enable_if_t<!std::is_floating_point_v<_T>, bool>
+__dpl_signbit(const _T& __x)
+{
+    return std::signbit(static_cast<double>(__x));
 }
 
 template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
