@@ -1968,7 +1968,7 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
 }
 
 template <typename Name>
-class __set_intersection_scan_then_propagate
+struct __set_intersection_scan_then_propagate
 {
 };
 
@@ -1999,12 +1999,12 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
 //Dummy names to avoid kernel problems
 template <typename Name>
-class __set_difference_copy_case_1
+struct __set_difference_copy_case_1
 {
 };
 
 template <typename Name>
-class __set_difference_scan_then_propagate
+struct __set_difference_scan_then_propagate
 {
 };
 
@@ -2045,17 +2045,17 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 
 //Dummy names to avoid kernel problems
 template <typename Name>
-class __set_union_copy_case_1
+struct __set_union_copy_case_1
 {
 };
 
 template <typename Name>
-class __set_union_copy_case_2
+struct __set_union_copy_case_2
 {
 };
 
 template <typename Name>
-class __set_union_scan_then_propagate
+struct __set_union_scan_then_propagate
 {
 };
 
@@ -2121,22 +2121,22 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
 //Dummy names to avoid kernel problems
 template <typename Name>
-class __set_symmetric_difference_copy_case_1
+struct __set_symmetric_difference_copy_case_1
 {
 };
 
 template <typename Name>
-class __set_symmetric_difference_copy_case_2
+struct __set_symmetric_difference_copy_case_2
 {
 };
 
 template <typename Name>
-class __set_symmetric_difference_phase_1
+struct __set_symmetric_difference_phase_1
 {
 };
 
 template <typename Name>
-class __set_symmetric_difference_phase_2
+struct __set_symmetric_difference_phase_2
 {
 };
 
