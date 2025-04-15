@@ -92,6 +92,20 @@ struct __custom_brick : oneapi::dpl::unseq_backend::walk_scalar_base<_Range>
 };
 #endif
 
+template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
+struct __lower_bound_impl_fn
+{
+    InputIterator start;
+    InputIterator end;
+    StrictWeakOrdering comp;
+
+    auto
+    operator()(const _ValueType& val) const
+    {
+        return std::lower_bound(start, end, val, comp) - start;
+    }
+};
+
 template <class _Tag, typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
           typename StrictWeakOrdering>
 OutputIterator
@@ -105,8 +119,22 @@ lower_bound_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterator1
     return oneapi::dpl::__internal::__pattern_walk2(
         tag, std::forward<Policy>(policy), value_start, value_end, result,
         oneapi::dpl::__internal::__transform_functor{
-            [start, end, comp](const _ValueType& val) { return std::lower_bound(start, end, val, comp) - start; }});
+            __lower_bound_impl_fn<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}});
 }
+
+template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
+struct __upper_bound_impl_fn
+{
+    InputIterator start;
+    InputIterator end;
+    StrictWeakOrdering comp;
+
+    auto
+    operator()(const _ValueType& val) const
+    {
+        return std::upper_bound(start, end, val, comp) - start;
+    }
+};
 
 template <class _Tag, typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
           typename StrictWeakOrdering>
@@ -121,8 +149,22 @@ upper_bound_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterator1
     return oneapi::dpl::__internal::__pattern_walk2(
         tag, std::forward<Policy>(policy), value_start, value_end, result,
         oneapi::dpl::__internal::__transform_functor{
-            [start, end, comp](const _ValueType& val) { return std::upper_bound(start, end, val, comp) - start; }});
+            __upper_bound_impl_fn<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}});
 }
+
+template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
+struct __binary_search_impl_fn
+{
+    InputIterator start;
+    InputIterator end;
+    StrictWeakOrdering comp;
+
+    auto
+    operator()(const _ValueType& val) const
+    {
+        return std::binary_search(start, end, val, comp);
+    }
+};
 
 template <class _Tag, typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
           typename StrictWeakOrdering>
@@ -137,7 +179,7 @@ binary_search_impl(_Tag tag, Policy&& policy, InputIterator1 start, InputIterato
     return oneapi::dpl::__internal::__pattern_walk2(
         tag, std::forward<Policy>(policy), value_start, value_end, result,
         oneapi::dpl::__internal::__transform_functor{
-            [start, end, comp](const _ValueType& val) { return std::binary_search(start, end, val, comp); }});
+            __binary_search_impl_fn<InputIterator1, StrictWeakOrdering, _ValueType>{start, end, comp}});
 }
 
 #if _ONEDPL_BACKEND_SYCL
