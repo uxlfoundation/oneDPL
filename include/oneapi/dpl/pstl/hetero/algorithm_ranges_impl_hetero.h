@@ -537,27 +537,12 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Pred, typename _Proj>
-struct __pattern_adjacent_find_ranges_pred
-{
-    _Pred __pred;
-    _Proj __proj;
-
-    template <typename _TValue1, typename _TValue2>
-    auto
-    operator()(_TValue1&& __val, _TValue2&& __next) const
-    {
-        return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue1>(__val)),
-                           std::invoke(__proj, std::forward<_TValue2>(__next)));
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 auto
 __pattern_adjacent_find_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
                         _Proj __proj)
 {
-    __pattern_adjacent_find_ranges_pred<_Pred, _Proj> __pred_2{__pred, __proj};
+    __pattern_transform_fn<_Pred, _Proj, _Proj> __pred_2{__pred, __proj, __proj};
 
     auto __idx =
         oneapi::dpl::__internal::__ranges::__pattern_adjacent_find(__tag, std::forward<_ExecutionPolicy>(__exec),
