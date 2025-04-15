@@ -866,6 +866,24 @@ swap_ranges(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
         oneapi::dpl::__internal::__swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
 }
 
+namespace __internal
+{
+template <typename _UnaryOperation>
+struct __transform_fn
+{
+    _UnaryOperation __op;
+
+    // TODO investigate why we can't use oneapi::dpl::__internal::__transform_functor
+    // instead this predicate
+    template <typename _TArg, typename _TRes>
+    void
+    operator()(_TArg x, _TRes& z) const
+    {
+        z = __op(x);
+    }
+};
+}; // namespace __internal
+
 // [alg.transform]
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation>
@@ -875,10 +893,27 @@ transform(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result, _Unary
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng, __result);
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__internal::__transform_functor<_UnaryOperation>{__op},
+        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __internal::__transform_fn<_UnaryOperation>{__op},
         views::all_read(::std::forward<_Range1>(__rng)), views::all_write(::std::forward<_Range2>(__result)));
 }
+
+namespace __internal
+{
+template <typename _BinaryOperation>
+struct __transform_fn2
+{
+    _BinaryOperation __op;
+
+    // TODO investigate why we can't use oneapi::dpl::__internal::__transform_functor
+    // instead this predicate
+    template <typename _TArg1, typename _TArg2, typename _TRes>
+    void
+    operator()(_TArg1 x, _TArg2 y, _TRes& z) const
+    {
+        z = __op(x, y);
+    }
+};
+}; // namespace __internal
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _BinaryOperation>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
@@ -887,8 +922,7 @@ transform(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2, __result);
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__internal::__transform_functor<_BinaryOperation>{__op},
+        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __internal::__transform_fn2<_BinaryOperation>{__op},
         views::all_read(::std::forward<_Range1>(__rng1)), views::all_read(::std::forward<_Range2>(__rng2)),
         views::all_write(::std::forward<_Range3>(__result)));
 }
