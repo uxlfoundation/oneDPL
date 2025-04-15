@@ -411,7 +411,7 @@ struct __count_fn_pred;
 } // namespace oneapi::dpl::ranges::__internal
 
 template <typename _T>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::ranges::__internal__count_fn_pred, _T)>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::ranges::__internal::__count_fn_pred, _T)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_T>
 {
 };
