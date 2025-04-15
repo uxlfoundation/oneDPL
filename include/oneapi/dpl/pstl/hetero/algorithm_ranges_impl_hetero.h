@@ -380,25 +380,11 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& 
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Pred, typename _Proj>
-struct __pattern_any_of_pred
-{
-    _Pred __pred;
-    _Proj __proj;
-
-    template <typename _TValue>
-    auto
-    operator()(_TValue&& __val) const
-    {
-        return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue>(__val)));
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 bool
 __pattern_any_of(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    __pattern_any_of_pred<_Pred, _Proj> __pred_1{__pred, __proj};
+    __pattern_transform_unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
     return oneapi::dpl::__internal::__ranges::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec),
                 oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)), __pred_1);
