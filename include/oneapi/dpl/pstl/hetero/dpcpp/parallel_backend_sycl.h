@@ -2270,6 +2270,8 @@ struct __assign_key1_wrapper;
 template <typename _Name>
 struct __assign_key2_wrapper;
 
+namespace __internal
+{
 template <typename _BinaryPredicate>
 struct __parallel_reduce_by_segment_fallback_fn1
 {
@@ -2306,6 +2308,7 @@ struct __parallel_reduce_by_segment_fallback_fn2
         return !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // keys comparison
     }
 };
+} // namespace __internal
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
@@ -2351,7 +2354,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
             oneapi::dpl::__internal::__device_backend_tag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2,
-            __n, __parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
+            __n, __internal::__parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
             unseq_backend::__brick_assign_key_position{})
             .get();
 
@@ -2391,7 +2394,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
             oneapi::dpl::__internal::__device_backend_tag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec), __view3, __view4,
-            __view3.size(), __parallel_reduce_by_segment_fallback_fn2<_BinaryPredicate>{__binary_pred},
+            __view3.size(), __internal::__parallel_reduce_by_segment_fallback_fn2<_BinaryPredicate>{__binary_pred},
             unseq_backend::__brick_assign_key_position{})
             .get();
 
