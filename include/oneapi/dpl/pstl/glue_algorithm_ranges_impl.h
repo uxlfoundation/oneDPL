@@ -52,6 +52,7 @@ namespace ranges
 
 namespace __internal
 {
+
 struct __for_each_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
