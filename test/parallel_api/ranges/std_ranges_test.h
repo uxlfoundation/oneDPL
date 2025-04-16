@@ -166,8 +166,8 @@ template<typename T>
 static constexpr
 bool check_minmax<T, std::void_t<decltype(std::declval<T>().min, std::declval<T>().max)>> = true;
 
-template<typename, typename = void>
-static constexpr int trivial_size{0};
+template<typename>
+constexpr int trivial_size{0};
 
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_zero = [](auto i) { return 0;};
@@ -192,7 +192,7 @@ struct test
         process_data_in(max_n, exec, algo, checker, tr_in, args...);
 
         //test with empty sequence
-        process_data_in(trivial_size<Algo>, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+        process_data_in(trivial_size<std::remove_cvref_t<Algo>>, std::forward<Policy>(exec), algo, checker, tr_in, args...);
     }
 
 private:
