@@ -26,6 +26,7 @@
 #endif
 
 #include "utils_ranges.h" // __difference_t
+#include "utils.h"        // oneapi::dpl::__internal::__swap_ranges_fn
 
 #include "execution_defs.h"
 #include "oneapi/dpl/pstl/ranges_defs.h"
@@ -52,6 +53,7 @@ namespace ranges
 
 namespace __internal
 {
+
 struct __for_each_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
@@ -846,20 +848,6 @@ copy_if(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result, _Predica
         views::all_write(::std::forward<_Range2>(__result)), __pred, oneapi::dpl::__internal::__pstl_assign());
 }
 
-namespace __internal
-{
-template <typename _ReferenceType1, typename _ReferenceType2>
-struct __swap_ranges_fn
-{
-    void
-    operator()(_ReferenceType1 __x, _ReferenceType2 __y) const
-    {
-        using ::std::swap;
-        swap(__x, __y);
-    }
-};
-}; // namespace __internal
-
 // [alg.swap]
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2>
@@ -874,7 +862,8 @@ swap_ranges(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 
     return oneapi::dpl::__internal::__ranges::__pattern_swap(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all(::std::forward<_Range1>(__rng1)),
-        views::all(::std::forward<_Range2>(__rng2)), __internal::__swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
+        views::all(::std::forward<_Range2>(__rng2)),
+        oneapi::dpl::__internal::__swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
 }
 
 namespace __internal
@@ -884,6 +873,8 @@ struct __transform_fn
 {
     _UnaryOperation __op;
 
+    // TODO investigate why we can't use oneapi::dpl::__internal::__transform_functor
+    // instead this predicate
     template <typename _TArg, typename _TRes>
     void
     operator()(_TArg x, _TRes& z) const
@@ -913,6 +904,8 @@ struct __transform_fn2
 {
     _BinaryOperation __op;
 
+    // TODO investigate why we can't use oneapi::dpl::__internal::__transform_functor
+    // instead this predicate
     template <typename _TArg1, typename _TArg2, typename _TRes>
     void
     operator()(_TArg1 x, _TArg2 y, _TRes& z) const

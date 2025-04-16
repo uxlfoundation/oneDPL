@@ -297,20 +297,6 @@ copy_if(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 
                                                       __last, __result, __pred);
 }
 
-namespace __internal
-{
-template <typename _ReferenceType1, typename _ReferenceType2>
-struct __swap_ranges_fn
-{
-    void
-    operator()(_ReferenceType1 __x, _ReferenceType2 __y) const
-    {
-        using ::std::swap;
-        swap(__x, __y);
-    }
-};
-}; // namespace __internal
-
 // [alg.swap]
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2>
@@ -323,9 +309,9 @@ swap_ranges(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardItera
 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2);
 
-    return oneapi::dpl::__internal::__pattern_swap(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                   __last1, __first2,
-                                                   __internal::__swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
+    return oneapi::dpl::__internal::__pattern_swap(
+        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+        oneapi::dpl::__internal::__swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
 }
 
 // [alg.transform]

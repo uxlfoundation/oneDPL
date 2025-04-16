@@ -35,6 +35,16 @@
 #    define _ONEDPL_SPECIALIZE_FOR(TYPE, ...) TYPE<__VA_ARGS__>
 #endif
 
+// namespaces in this file:
+//      namespace oneapi::dpl::__internal
+//      namespace oneapi::dpl::__internal::__ranges
+//      namespace oneapi::dpl::ranges::__internal
+//      namespace oneapi::dpl::experimental::ranges::__internal
+//      namespace oneapi::dpl::__par_backend_hetero
+//      namespace oneapi::dpl::unseq_backend
+//      namespace oneapi::dpl::internal
+//      namespace oneapi::dpl
+
 namespace oneapi::dpl::__internal
 {
 
@@ -102,6 +112,45 @@ struct __brick_fill_n;
 
 template <typename... T>
 struct tuple;
+
+template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
+struct __lower_bound_impl_fn;
+
+template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
+struct __upper_bound_impl_fn;
+
+template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
+struct __binary_search_impl_fn;
+
+template <typename _T>
+struct __count_fn_pred;
+
+template <typename _ReduceValueType, typename _Compare>
+struct __pattern_min_element_reduce_fn;
+
+template <typename _Compare, typename _ReduceValueType>
+struct __pattern_minmax_element__reduce_fn;
+
+template <typename _Predicate>
+struct __pattern_count_transform_fn;
+
+template <typename _Predicate>
+struct __pattern_is_partitioned_transform_fn;
+
+template <typename _Compare, typename _ReduceValueType>
+struct __pattern_lexicographical_compare_transform_fn;
+
+template <typename _Tp>
+struct __pattern_search_n_fn;
+
+template <typename _BinaryPredicate>
+struct __parallel_reduce_by_segment_fallback_fn1;
+
+template <typename _BinaryPredicate>
+struct __parallel_reduce_by_segment_fallback_fn2;
+
+template <typename _Op, typename _It1ValueT, typename _It2ValueTRef>
+struct __pattern_adjacent_difference_op_caller_fn;
 
 } // namespace oneapi::dpl::__internal
 
@@ -227,6 +276,168 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 template <typename... _Types>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::tuple, _Types...)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Types...>
+{
+};
+
+template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__lower_bound_impl_fn, InputIterator,
+                                                       StrictWeakOrdering, _ValueType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<InputIterator, StrictWeakOrdering, _ValueType>
+{
+};
+
+template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__upper_bound_impl_fn, InputIterator,
+                                                       StrictWeakOrdering, _ValueType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<InputIterator, StrictWeakOrdering, _ValueType>
+{
+};
+
+template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__binary_search_impl_fn, InputIterator,
+                                                       StrictWeakOrdering, _ValueType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<InputIterator, StrictWeakOrdering, _ValueType>
+{
+};
+
+template <typename _T>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__count_fn_pred, _T)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_T>
+{
+};
+
+template <typename _ReduceValueType, typename _Compare>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_min_element_reduce_fn,
+                                                       _ReduceValueType, _Compare)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_ReduceValueType, _Compare>
+{
+};
+
+template <typename _Compare, typename _ReduceValueType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_minmax_element__reduce_fn,
+                                                       _Compare, _ReduceValueType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _ReduceValueType>
+{
+};
+
+template <typename _Predicate>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_count_transform_fn,
+                                                       _Predicate)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
+{
+};
+
+template <typename _Predicate>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_is_partitioned_transform_fn,
+                                                       _Predicate)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
+{
+};
+
+template <typename _Compare, typename _ReduceValueType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__internal::__pattern_lexicographical_compare_transform_fn, _Compare, _ReduceValueType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _ReduceValueType>
+{
+};
+
+template <typename _Tp>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_search_n_fn, _Tp)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
+{
+};
+
+template <typename _BinaryPredicate>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__internal::__parallel_reduce_by_segment_fallback_fn1, _BinaryPredicate)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPredicate>
+{
+};
+
+template <typename _BinaryPredicate>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__internal::__parallel_reduce_by_segment_fallback_fn2, _BinaryPredicate)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPredicate>
+{
+};
+
+template <typename _Op, typename _It1ValueT, typename _It2ValueTRef>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__internal::__pattern_adjacent_difference_op_caller_fn, _Op, _It1ValueT, _It2ValueTRef)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Op, _It1ValueT, _It2ValueTRef>
+{
+};
+
+namespace oneapi::dpl::__internal::__ranges
+{
+
+template <typename _Tp>
+struct __pattern_search_n_fn;
+
+template <typename _Predicate>
+struct __pattern_count_transform_fn;
+
+template <typename _Compare, typename _ReduceValueType>
+struct __pattern_minmax_element_reduce_fn;
+
+} // namespace oneapi::dpl::__internal::__ranges
+
+template <typename _Tp>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__ranges::__pattern_search_n_fn, _Tp)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
+{
+};
+
+template <typename _Predicate>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__ranges::__pattern_count_transform_fn,
+                                                       _Predicate)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
+{
+};
+
+template <typename _Compare, typename _ReduceValueType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__internal::__ranges::__pattern_minmax_element_reduce_fn, _Compare, _ReduceValueType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _ReduceValueType>
+{
+};
+
+namespace oneapi::dpl::ranges::__internal
+{
+
+template <typename _T>
+struct __count_fn_pred;
+
+} // namespace oneapi::dpl::ranges::__internal
+
+template <typename _T>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::ranges::__internal::__count_fn_pred, _T)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_T>
+{
+};
+
+namespace oneapi::dpl::experimental::ranges::__internal
+{
+
+template <typename _UnaryOperation>
+struct __transform_fn;
+
+template <typename _BinaryOperation>
+struct __transform_fn2;
+
+} // namespace oneapi::dpl::experimental::ranges::__internal
+
+template <typename _UnaryOperation>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::experimental::ranges::__internal::__transform_fn,
+                                                       _UnaryOperation)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_UnaryOperation>
+{
+};
+
+template <typename _BinaryOperation>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::experimental::ranges::__internal::__transform_fn2,
+                                                       _BinaryOperation)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOperation>
 {
 };
 

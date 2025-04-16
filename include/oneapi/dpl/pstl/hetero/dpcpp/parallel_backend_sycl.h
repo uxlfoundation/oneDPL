@@ -2239,8 +2239,10 @@ struct __assign_key1_wrapper;
 template <typename _Name>
 struct __assign_key2_wrapper;
 
+namespace __internal
+{
 template <typename _BinaryPredicate>
-struct __parallel_reduce_by_segment_fallback_fn1_fo
+struct __parallel_reduce_by_segment_fallback_fn1
 {
     _BinaryPredicate __binary_pred;
     std::size_t __wgroup_size;
@@ -2260,7 +2262,7 @@ struct __parallel_reduce_by_segment_fallback_fn1_fo
 };
 
 template <typename _BinaryPredicate>
-struct __parallel_reduce_by_segment_fallback_fn2_fo
+struct __parallel_reduce_by_segment_fallback_fn2
 {
     _BinaryPredicate __binary_pred;
 
@@ -2275,6 +2277,7 @@ struct __parallel_reduce_by_segment_fallback_fn2_fo
         return !__binary_pred(std::get<1>(__a), std::get<2>(__a)); // keys comparison
     }
 };
+} // namespace __internal
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
@@ -2322,7 +2325,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     auto __intermediate_result_end =
         oneapi::dpl::__par_backend_hetero::__parallel_copy_if<__assign_key1_wrapper<_CustomName>>(
             oneapi::dpl::__internal::__device_backend_tag{}, __q_local, __view1, __view2, __n,
-            __parallel_reduce_by_segment_fallback_fn1_fo<_BinaryPredicate>{__binary_pred, __wgroup_size},
+            __internal::__parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
             unseq_backend::__brick_assign_key_position{})
             .get();
 
@@ -2361,7 +2364,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     auto __result_end =
         oneapi::dpl::__par_backend_hetero::__parallel_copy_if<__assign_key2_wrapper<_CustomName>>(
             oneapi::dpl::__internal::__device_backend_tag{}, __q_local, __view3, __view4, __view3.size(),
-            __parallel_reduce_by_segment_fallback_fn2_fo<_BinaryPredicate>{__binary_pred},
+            __internal::__parallel_reduce_by_segment_fallback_fn2<_BinaryPredicate>{__binary_pred},
             unseq_backend::__brick_assign_key_position{})
             .get();
 
