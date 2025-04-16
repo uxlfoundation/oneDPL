@@ -101,7 +101,7 @@ inline constexpr _Tp __known_identity =
     __known_identity_for_plus<_BinaryOp, _Tp>::value; //for plus only
 #endif
 
-template <typename _ExecutionPolicy, typename _F>
+template <typename _F>
 struct walk_n
 {
     _F __f;
@@ -117,8 +117,8 @@ struct walk_n
 // If read accessor returns temporary value then __no_op returns lvalue reference to it.
 // After temporary value destroying it will be a reference on invalid object.
 // So let's don't call functor in case of __no_op
-template <typename _ExecutionPolicy>
-struct walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>
+template <>
+struct walk_n<oneapi::dpl::__internal::__no_op>
 {
     oneapi::dpl::__internal::__no_op __f;
 
@@ -131,7 +131,7 @@ struct walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>
 };
 
 // walk_n_vectors_or_scalars
-template <typename _ExecutionPolicy, typename _F>
+template <typename _F>
 struct walk_n_vectors_or_scalars
 {
   private:
@@ -215,7 +215,7 @@ struct walk_n_vectors_or_scalars
 // walk_adjacent_difference
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _F>
+template <typename _F>
 struct walk_adjacent_difference
 {
   private:
@@ -318,8 +318,7 @@ struct __init_processing
 
 // Load elements consecutively from global memory, transform them, and apply a local reduction. Each local result is
 // stored in local memory.
-template <typename _ExecutionPolicy, typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative,
-          std::uint8_t _VecSize>
+template <typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative, std::uint8_t _VecSize>
 struct transform_reduce
 {
     _Operation1 __binary_op;
@@ -464,7 +463,7 @@ struct transform_reduce
 // Reduce local reductions of each work item to a single reduced element per work group. The local reductions are held
 // in local memory. sycl::reduce_over_group is used for supported data types and operations. All other operations are
 // processed in order and without a known identity.
-template <typename _ExecutionPolicy, typename _BinaryOperation1, typename _Tp>
+template <typename _BinaryOperation1, typename _Tp>
 struct reduce_over_group
 {
     _BinaryOperation1 __bin_op1;
@@ -528,7 +527,7 @@ struct reduce_over_group
 
 // Matchers for early_exit_or and early_exit_find
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct single_match_pred_by_idx
 {
     _Pred __pred;
@@ -541,13 +540,13 @@ struct single_match_pred_by_idx
     }
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
-struct single_match_pred : single_match_pred_by_idx<_ExecutionPolicy, walk_n<_ExecutionPolicy, _Pred>>
+template <typename _Pred>
+struct single_match_pred : single_match_pred_by_idx<walk_n<_Pred>>
 {
-    single_match_pred(_Pred __p) : single_match_pred_by_idx<_ExecutionPolicy, walk_n<_ExecutionPolicy, _Pred>>{__p} {}
+    single_match_pred(_Pred __p) : single_match_pred_by_idx<walk_n<_Pred>>{__p} {}
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct multiple_match_pred
 {
     _Pred __pred;
@@ -579,7 +578,7 @@ struct multiple_match_pred
     }
 };
 
-template <typename _ExecutionPolicy, typename _Pred, typename _Tp, typename _Size>
+template <typename _Pred, typename _Tp, typename _Size>
 struct n_elem_match_pred
 {
     _Pred __pred;
@@ -601,7 +600,7 @@ struct n_elem_match_pred
     }
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct first_match_pred
 {
     _Pred __pred;
@@ -832,8 +831,8 @@ struct __global_scan_functor
     }
 };
 
-template <typename _Inclusive, typename _ExecutionPolicy, typename _BinaryOperation, typename _UnaryOp,
-          typename _WgAssigner, typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
+template <typename _Inclusive, typename _BinaryOperation, typename _UnaryOp, typename _WgAssigner,
+          typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
 struct __scan
 {
     using _Tp = typename _InitType::__value_type;
@@ -986,7 +985,7 @@ struct __scan
 // __brick_includes
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2>
+template <typename _Compare, typename _Size1, typename _Size2>
 struct __brick_includes
 {
     _Compare __comp;
@@ -1234,7 +1233,7 @@ struct _DifferenceTag : public ::std::true_type
 {
 };
 
-template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
+template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
 class __brick_set_op
 {
     _Compare __comp;
@@ -1294,7 +1293,7 @@ class __brick_set_op
     }
 };
 
-template <typename _ExecutionPolicy, typename _DiffType>
+template <typename _DiffType>
 struct __brick_shift_left
 {
     // Multiple iterations per item are manually processed in the brick with a nd-range strided approach.
@@ -1411,8 +1410,8 @@ struct __brick_reduce_idx
 };
 
 // std::swap_ranges is unique in that both sets of provided ranges will be modified. Due to this,
-// we define a separate functor from __walk_n_vectors_or_scalars with a customized vectorization path.
-template <typename _ExecutionPolicy, typename _F>
+// we define a separate functor from walk_n_vectors_or_scalars with a customized vectorization path.
+template <typename _F>
 struct __brick_swap
 {
   private:

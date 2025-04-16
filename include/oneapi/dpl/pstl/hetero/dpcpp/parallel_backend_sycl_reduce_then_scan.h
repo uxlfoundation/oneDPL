@@ -894,7 +894,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
     // We need temporary storage for reductions of each sub-group (__num_sub_groups_global).
     // Additionally, we need two elements for the block carry-out to prevent a race condition
     // between reading and writing the block carry-out within a single kernel.
-    __result_and_scratch_storage<_ValueType> __result_and_scratch{__exec.queue(), 1, __max_num_sub_groups_global + 2};
+    __result_and_scratch_storage<_ValueType> __result_and_scratch{__exec.queue(), __max_num_sub_groups_global + 2};
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =

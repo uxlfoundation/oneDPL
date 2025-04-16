@@ -94,10 +94,10 @@ struct __is_heap_check;
 template <typename _Predicate, typename _ValueType>
 struct __create_mask_unique_copy;
 
-template <class _Tag, typename _ExecutionPolicy, typename _Tp, typename>
+template <class _Tag, typename _Tp, typename>
 struct __brick_fill;
 
-template <class _Tag, typename _ExecutionPolicy, typename _Tp, typename>
+template <class _Tag, typename _Tp, typename>
 struct __brick_fill_n;
 
 template <typename... T>
@@ -179,16 +179,16 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 {
 };
 
-template <class _Tag, typename _ExecutionPolicy, typename _Tp, typename _EnableIfPlaceholder>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__brick_fill, _Tag, _ExecutionPolicy,
-                                                       _Tp, _EnableIfPlaceholder)>
+template <class _Tag, typename _Tp, typename _EnableIfPlaceholder>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__brick_fill, _Tag, _Tp,
+                                                       _EnableIfPlaceholder)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
 {
 };
 
-template <class _Tag, typename _ExecutionPolicy, typename _Tp, typename _EnableIfPlaceholder>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__brick_fill_n, _Tag, _ExecutionPolicy,
-                                                       _Tp, _EnableIfPlaceholder)>
+template <class _Tag, typename _Tp, typename _EnableIfPlaceholder>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__brick_fill_n, _Tag, _Tp,
+                                                       _EnableIfPlaceholder)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
 {
 };
@@ -263,7 +263,7 @@ struct __write_to_id_if_else;
 template <typename _BinaryPred>
 struct __write_red_by_seg;
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct __early_exit_find_or;
 
 template <typename _Range, typename _Compare>
@@ -342,9 +342,8 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__early_exit_find_or,
-                                                       _ExecutionPolicy, _Pred)>
+template <typename _Pred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__early_exit_find_or, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
@@ -365,35 +364,34 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 namespace oneapi::dpl::unseq_backend
 {
 
-template <typename _ExecutionPolicy, typename _F>
+template <typename _F>
 struct walk_n;
 
-template <typename _ExecutionPolicy, typename _F>
+template <typename _F>
 struct walk_n_vectors_or_scalars;
 
-template <typename _ExecutionPolicy, typename _F>
+template <typename _F>
 struct walk_adjacent_difference;
 
-template <typename _ExecutionPolicy, typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative,
-          std::uint8_t _VecSize>
+template <typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative, std::uint8_t _VecSize>
 struct transform_reduce;
 
-template <typename _ExecutionPolicy, typename _BinaryOperation1, typename _Tp>
+template <typename _BinaryOperation1, typename _Tp>
 struct reduce_over_group;
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct single_match_pred_by_idx;
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct single_match_pred;
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct multiple_match_pred;
 
-template <typename _ExecutionPolicy, typename _Pred, typename _Tp, typename _Size>
+template <typename _Pred, typename _Tp, typename _Size>
 struct n_elem_match_pred;
 
-template <typename _ExecutionPolicy, typename _Pred>
+template <typename _Pred>
 struct first_match_pred;
 
 template <typename _Pred, typename _Tp>
@@ -411,14 +409,14 @@ struct __global_scan_functor;
 template <typename _InitType>
 struct __init_value;
 
-template <typename _Inclusive, typename _ExecutionPolicy, typename _BinaryOperation, typename _UnaryOp,
-          typename _WgAssigner, typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
+template <typename _Inclusive, typename _BinaryOperation, typename _UnaryOp, typename _WgAssigner,
+          typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
 struct __scan;
 
-template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2>
+template <typename _Compare, typename _Size1, typename _Size2>
 struct __brick_includes;
 
-template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
+template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
 class __brick_set_op;
 
 template <typename _BinaryOperator, typename _Size>
@@ -426,72 +424,65 @@ struct __brick_reduce_idx;
 
 } // namespace oneapi::dpl::unseq_backend
 
-template <typename _ExecutionPolicy, typename _F>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_n, _ExecutionPolicy, _F)>
+template <typename _F>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_n, _F)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
 };
 
-template <typename _ExecutionPolicy, typename _F>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_n_vectors_or_scalars,
-                                                       _ExecutionPolicy, _F)>
+template <typename _F>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_n_vectors_or_scalars, _F)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
 };
 
-template <typename _ExecutionPolicy, typename _F>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_adjacent_difference,
-                                                       _ExecutionPolicy, _F)>
+template <typename _F>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_adjacent_difference, _F)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
 };
 
-template <typename _ExecutionPolicy, typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative,
-          std::uint8_t _VecSize>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::transform_reduce, _ExecutionPolicy,
-                                                       _Operation1, _Operation2, _Tp, _Commutative, _VecSize)>
+template <typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative, std::uint8_t _VecSize>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::transform_reduce, _Operation1,
+                                                       _Operation2, _Tp, _Commutative, _VecSize)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Operation1, _Operation2, _Tp>
 {
 };
 
-template <typename _ExecutionPolicy, typename _BinaryOperation1, typename _Tp>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::reduce_over_group, _ExecutionPolicy,
-                                                       _BinaryOperation1, _Tp)>
+template <typename _BinaryOperation1, typename _Tp>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::reduce_over_group, _BinaryOperation1,
+                                                       _Tp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOperation1, _Tp>
 {
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::single_match_pred_by_idx,
-                                                       _ExecutionPolicy, _Pred)>
+template <typename _Pred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::single_match_pred_by_idx, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::single_match_pred, _ExecutionPolicy,
-                                                       _Pred)>
+template <typename _Pred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::single_match_pred, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::multiple_match_pred,
-                                                       _ExecutionPolicy, _Pred)>
+template <typename _Pred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::multiple_match_pred, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
 
-template <typename _ExecutionPolicy, typename _Pred, typename _Tp, typename _Size>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::n_elem_match_pred, _ExecutionPolicy,
-                                                       _Pred, _Tp, _Size)>
+template <typename _Pred, typename _Tp, typename _Size>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::n_elem_match_pred, _Pred, _Tp,
+                                                       _Size)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred, _Tp, _Size>
 {
 };
 
-template <typename _ExecutionPolicy, typename _Pred>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::first_match_pred, _ExecutionPolicy,
-                                                       _Pred)>
+template <typename _Pred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::first_match_pred, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
@@ -529,26 +520,26 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _Inclusive, typename _ExecutionPolicy, typename _BinaryOperation, typename _UnaryOp,
-          typename _WgAssigner, typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__scan, _Inclusive, _ExecutionPolicy,
-                                                       _BinaryOperation, _UnaryOp, _WgAssigner, _GlobalAssigner,
-                                                       _DataAccessor, _InitType)>
+template <typename _Inclusive, typename _BinaryOperation, typename _UnaryOp, typename _WgAssigner,
+          typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__scan, _Inclusive, _BinaryOperation,
+                                                       _UnaryOp, _WgAssigner, _GlobalAssigner, _DataAccessor,
+                                                       _InitType)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOperation, _UnaryOp, _WgAssigner, _GlobalAssigner,
                                                          _DataAccessor, _InitType>
 {
 };
 
-template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_includes, _ExecutionPolicy,
-                                                       _Compare, _Size1, _Size2)>
+template <typename _Compare, typename _Size1, typename _Size2>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_includes, _Compare, _Size1,
+                                                       _Size2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _Size1, _Size2>
 {
 };
 
-template <typename _ExecutionPolicy, typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_set_op, _ExecutionPolicy,
-                                                       _Compare, _Size1, _Size2, _IsOpDifference)>
+template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_set_op, _Compare, _Size1,
+                                                       _Size2, _IsOpDifference)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _Size1, _Size2>
 {
 };
