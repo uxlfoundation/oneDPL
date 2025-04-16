@@ -60,8 +60,8 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
     {
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-            unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)},
-            __n, std::forward<_Ranges>(__rngs)...)
+            unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
+            std::forward<_Ranges>(__rngs)...)
             .__deferrable_wait();
     }
     return __n;
@@ -154,8 +154,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng1,
-            __rng2)
+            unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng1, __rng2)
             .__deferrable_wait();
         return __n;
     }
@@ -163,8 +162,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-        unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng2,
-        __rng1)
+        unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng2, __rng1)
         .__deferrable_wait();
     return __n;
 }
@@ -630,9 +628,8 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            unseq_backend::walk_n_vectors_or_scalars<_CopyBrick>{_CopyBrick{},
-                                                                 static_cast<std::size_t>(__n)},
-            __n, std::forward<_Range1>(__rng), std::forward<_Range2>(__result))
+            unseq_backend::walk_n_vectors_or_scalars<_CopyBrick>{_CopyBrick{}, static_cast<std::size_t>(__n)}, __n,
+            std::forward<_Range1>(__rng), std::forward<_Range2>(__result))
             .get();
 
         return 1;
