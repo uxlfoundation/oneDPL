@@ -192,9 +192,8 @@ template <typename _Name>
 struct __swap2_wrapper;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Function>
-bool
-__pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
-               _Function __f)
+oneapi::dpl::__internal::__difference_t<_Range1>
+__pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Function __f)
 {
     if (__rng1.size() <= __rng2.size())
     {
