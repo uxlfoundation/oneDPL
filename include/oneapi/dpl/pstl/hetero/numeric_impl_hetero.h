@@ -278,6 +278,8 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     else
 #endif
     {
+        sycl::queue __q_local = __exec.queue();
+
         __pattern_adjacent_difference_op_caller_fn<_BinaryOperation, _It1ValueT, _It2ValueTRef> __fn{__op};
 
         auto __keep1 =
@@ -290,9 +292,11 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
         using _Function = unseq_backend::walk_adjacent_difference<decltype(__fn), decltype(__buf1.all_view()),
                                                                   decltype(__buf2.all_view())>;
 
-        oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                          _Function{__fn, static_cast<std::size_t>(__n)}, __n,
-                                                          __buf1.all_view(), __buf2.all_view())
+        using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+        oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(_BackendTag{}, __q_local,
+                                                                       _Function{__fn, static_cast<std::size_t>(__n)},
+                                                                       __n, __buf1.all_view(), __buf2.all_view())
             .__deferrable_wait();
     }
 
