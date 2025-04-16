@@ -626,7 +626,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     auto __ret =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
-                                                                       ::std::false_type /*is_commutative*/>(
+                                                                       std::false_type /*is_commutative*/>(
             _BackendTag{}, __q_local, __reduce_fn, __transform_fn, unseq_backend::__no_init_value{}, // no initial value
             __buf.all_view())
             .get();
@@ -740,7 +740,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator 
     sycl::queue __q_local = __exec.queue();
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
-                                                                          ::std::true_type /*is_commutative*/>(
+                                                                          std::true_type /*is_commutative*/>(
                _BackendTag{}, __q_local, __reduce_fn, __transform_fn,
                unseq_backend::__no_init_value{}, // no initial value
                __buf.all_view())
@@ -1262,7 +1262,7 @@ __pattern_is_partitioned(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     auto __res =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
-                                                                       ::std::false_type /*is_commutative*/>(
+                                                                       std::false_type /*is_commutative*/>(
             _BackendTag{}, __q_local, __reduce_fn, __transform_fn, unseq_backend::__no_init_value{}, // no initial value
             __buf.all_view())
             .get();
@@ -1598,7 +1598,7 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
 
     auto __ret_idx =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
-                                                                       ::std::false_type /*is_commutative*/>(
+                                                                       std::false_type /*is_commutative*/>(
             _BackendTag{}, __q_local, __reduce_fn, __transform_fn, unseq_backend::__no_init_value{}, // no initial value
             __buf1.all_view(), __buf2.all_view())
             .get();
