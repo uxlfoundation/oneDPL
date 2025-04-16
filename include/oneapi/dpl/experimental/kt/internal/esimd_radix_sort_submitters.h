@@ -41,7 +41,7 @@ struct __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_wo
 {
     template <typename _RngPack1, typename _RngPack2>
     sycl::event
-    operator()(sycl::queue& __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, ::std::size_t __n) const
+    operator()(sycl::queue& __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __n) const
     {
         sycl::nd_range<1> __nd_range{__work_group_size, __work_group_size};
         return __q.submit([&](sycl::handler& __cgh) {

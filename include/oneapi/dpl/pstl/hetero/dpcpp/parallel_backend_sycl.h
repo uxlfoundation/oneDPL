@@ -249,7 +249,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__q);
         // get the work group size adjusted to the local memory limit
         // TODO: find a way to generalize getting of reliable work-group sizes
-        ::std::size_t __wgroup_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, sizeof(_Type));
+        std::size_t __wgroup_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, sizeof(_Type));
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value matches the current practical limit for GPUs, but may need to be re-evaluated in the future.
         __wgroup_size = std::min(__wgroup_size, (std::size_t)1024);
@@ -370,7 +370,7 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
 {
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
     sycl::event
-    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n, _InitType __init,
+    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op, ::std::uint16_t __wg_size)
     {
         using _ValueType = typename _InitType::__value_type;
@@ -424,7 +424,7 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
 {
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
     sycl::event
-    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n, _InitType __init,
+    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op)
     {
         using _ValueType = typename _InitType::__value_type;
@@ -480,7 +480,7 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp,
               typename _Assign>
     __future<sycl::event, __result_and_scratch_storage<_Size>>
-    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n, _InitType __init,
+    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op, _Assign __assign)
     {
         using _ValueType = ::std::uint16_t;
@@ -558,7 +558,7 @@ __parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
                                        _Inclusive)
 {
-    ::std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q);
+    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q);
 
     // Specialization for devices that have a max work-group size of 1024
     constexpr ::std::uint16_t __targeted_wg_size = 1024;
@@ -2182,8 +2182,8 @@ __future<sycl::event>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Range&& __rng,
                        _Compare, _Proj __proj)
 {
-    return __parallel_radix_sort<_CustomName, __internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
-        __backend_tag, __q, ::std::forward<_Range>(__rng), __proj);
+    return __parallel_radix_sort<_CustomName, __internal::__is_comp_ascending<std::decay_t<_Compare>>::value>(
+        __backend_tag, __q, std::forward<_Range>(__rng), __proj);
 }
 #endif // _ONEDPL_USE_RADIX_SORT
 
@@ -2195,7 +2195,7 @@ __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Range&& __rng,
                        _Compare __comp, _Proj __proj)
 {
-    return __parallel_sort_impl<_CustomName>(__backend_tag, __q, ::std::forward<_Range>(__rng),
+    return __parallel_sort_impl<_CustomName>(__backend_tag, __q, std::forward<_Range>(__rng),
                                              oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
 }
 

@@ -1025,7 +1025,7 @@ __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterat
 
     auto __result = __par_backend_hetero::__parallel_find<_CustomName>(
         _BackendTag{}, __q_local, __first_zip, __first_zip + __n, _Predicate{equal_predicate<_Pred>{__pred}},
-        ::std::true_type{});
+        std::true_type{});
 
     __n = __result - __first_zip;
     return ::std::make_pair(__first1 + __n, __first2 + __n);

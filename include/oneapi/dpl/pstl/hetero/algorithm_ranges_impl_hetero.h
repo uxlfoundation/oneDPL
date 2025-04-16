@@ -278,7 +278,7 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&&
 
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or<
         __par_backend_hetero::__find_policy_wrapper<_CustomName>>(_BackendTag{}, __q_local, _Predicate{__pred},
-                                                                  _TagType{}, ::std::forward<_Range>(__rng));
+                                                                  _TagType{}, std::forward<_Range>(__rng));
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -324,8 +324,8 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or<
         __par_backend_hetero::__find_policy_wrapper<_CustomName>>(_BackendTag{}, __q_local, _Predicate{__pred},
-                                                                  _TagType{}, ::std::forward<_Range1>(__rng1),
-                                                                  ::std::forward<_Range2>(__rng2));
+                                                                  _TagType{}, std::forward<_Range1>(__rng1),
+                                                                  std::forward<_Range2>(__rng2));
 }
 
 //------------------------------------------------------------------------
@@ -351,8 +351,8 @@ __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     //TODO: To check whether it makes sense to iterate over the second sequence in case of __rng1.size() < __rng2.size()
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or<
         __par_backend_hetero::__find_policy_wrapper<_CustomName>>(_BackendTag{}, __q_local, _Predicate{__pred},
-                                                                  _TagType{}, ::std::forward<_Range1>(__rng1),
-                                                                  ::std::forward<_Range2>(__rng2));
+                                                                  _TagType{}, std::forward<_Range1>(__rng1),
+                                                                  std::forward<_Range2>(__rng2));
 }
 
 //------------------------------------------------------------------------
@@ -375,7 +375,7 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& 
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or<
         oneapi::dpl::__par_backend_hetero::__or_policy_wrapper<_CustomName>>(
         _BackendTag{}, __q_local, _Predicate{__pred}, oneapi::dpl::__par_backend_hetero::__parallel_or_tag{},
-        ::std::forward<_Range>(__rng));
+        std::forward<_Range>(__rng));
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -427,8 +427,8 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
 
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or<
         oneapi::dpl::__par_backend_hetero::__find_policy_wrapper<_CustomName>>(
-        _BackendTag{}, __q_local, _Predicate{__pred}, _TagType{}, ::std::forward<_Range1>(__rng1),
-        ::std::forward<_Range2>(__rng2));
+        _BackendTag{}, __q_local, _Predicate{__pred}, _TagType{}, std::forward<_Range1>(__rng1),
+        std::forward<_Range2>(__rng2));
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -835,8 +835,8 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
     sycl::queue __q_local = __exec.queue();
 
     auto __res = __par_backend_hetero::__parallel_merge<_CustomName>(
-        _BackendTag{}, __q_local, ::std::forward<_Range1>(__rng1), ::std::forward<_Range2>(__rng2),
-        ::std::forward<_Range3>(__rng3), __comp, __out_size_limit{});
+        _BackendTag{}, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+        std::forward<_Range3>(__rng3), __comp, __out_size_limit{});
 
     auto __val = __res.get();
     return {__val.first, __val.second};
@@ -887,7 +887,7 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
         sycl::queue __q_local = __exec.queue();
 
         __par_backend_hetero::__parallel_stable_sort<_CustomName>(_BackendTag{}, __q_local,
-                                                                  ::std::forward<_Range>(__rng), __comp, __proj)
+                                                                  std::forward<_Range>(__rng), __comp, __proj)
             .__deferrable_wait();
     }
 }
