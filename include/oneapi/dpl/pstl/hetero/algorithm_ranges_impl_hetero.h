@@ -1105,10 +1105,13 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         return 1;
     }
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__keys),
-        std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values),
-        __binary_pred, __binary_op);
+    sycl::queue __q_local = __exec.queue();
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment<_CustomName>(
+        _BackendTag{}, __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
+        std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
 }
 
 } // namespace __ranges
