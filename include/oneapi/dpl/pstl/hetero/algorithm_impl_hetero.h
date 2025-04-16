@@ -1802,7 +1802,6 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
-
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::__reverse_functor<typename std::iterator_traits<_Iterator>::difference_type,
@@ -1830,7 +1829,6 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bi
     auto __keep2 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _ForwardIterator>();
     auto __buf2 = __keep2(__result, __result + __n);
-
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::__reverse_copy<typename std::iterator_traits<_BidirectionalIterator>::difference_type,
@@ -2286,7 +2284,6 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     auto __keep_value_outputs =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator4>();
     auto __out_values = __keep_value_outputs(__out_values_first, __out_values_first + __n);
-
     return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __keys.all_view(), __values.all_view(),
         __out_keys.all_view(), __out_values.all_view(), __binary_pred, __binary_op);
