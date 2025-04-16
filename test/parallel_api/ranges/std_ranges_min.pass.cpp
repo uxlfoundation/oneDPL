@@ -20,9 +20,8 @@
 #if _ENABLE_STD_RANGES_TESTING
 namespace test_std_ranges
 {
-template<typename T>
-static constexpr
-int trivial_size<T, std::void_t<decltype(oneapi::dpl::ranges::min)>> = 1;
+template<>
+constexpr int trivial_size<std::remove_cvref_t<decltype(oneapi::dpl::ranges::min)>> = 1;
 }
 #endif
 
