@@ -682,7 +682,7 @@ struct __parallel_radix_sort_iteration
         auto __local_scan_kernel = __kernels[1];
         auto __reorder_peer_kernel = __kernels[2];
         auto __reorder_kernel = __kernels[3];
-        ::std::size_t __count_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__q, __count_kernel);
+        std::size_t __count_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__q, __count_kernel);
         __reorder_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__q, __reorder_kernel);
         __scan_wg_size =
             sycl::min(__scan_wg_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __local_scan_kernel));
