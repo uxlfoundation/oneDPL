@@ -139,7 +139,7 @@ struct __sycl_scan_by_segment_impl
             __par_backend_hetero::__internal::__kernel_compiler<_SegScanPrefixKernel>::__compile(__q);
         __wgroup_size =
             std::min({__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_scan_wg_kernel),
-                        oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_scan_prefix_kernel)});
+                      oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_scan_prefix_kernel)});
 #endif
 
         ::std::size_t __n_groups = __internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);
