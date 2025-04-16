@@ -138,7 +138,7 @@ struct __sycl_scan_by_segment_impl
         auto __seg_scan_prefix_kernel =
             __par_backend_hetero::__internal::__kernel_compiler<_SegScanPrefixKernel>::__compile(__q);
         __wgroup_size =
-            ::std::min({__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_scan_wg_kernel),
+            std::min({__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_scan_wg_kernel),
                         oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_scan_prefix_kernel)});
 #endif
 
