@@ -352,8 +352,7 @@ __pattern_count(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __val
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __pred = [&__value](auto&& __val) { return std::ranges::equal_to{}(
-            std::forward<decltype(__val)>(__val), __value);};
+    __count_fn_pred<_T> __pred{__value};
 
     return oneapi::dpl::__internal::__pattern_count(__tag, std::forward<_ExecutionPolicy>(__exec),
         std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r), __pred);
