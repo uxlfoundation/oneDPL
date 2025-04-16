@@ -644,11 +644,11 @@ __parallel_transform_scan_base(oneapi::dpl::__internal::__device_backend_tag, sy
 
 template <typename _Type>
 bool
-__group_scan_fits_in_slm(const sycl::queue& __queue, std::size_t __n, std::size_t __n_uniform,
+__group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __n_uniform,
                          std::size_t __single_group_upper_limit)
 {
     // Pessimistically only use half of the memory to take into account memory used by compiled kernel
-    const std::size_t __max_slm_size = __queue.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+    const std::size_t __max_slm_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
     const auto __req_slm_size = sizeof(_Type) * __n_uniform;
 
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
