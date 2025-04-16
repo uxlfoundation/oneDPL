@@ -52,12 +52,16 @@ __pattern_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     if (__n <= 0)
         return;
 
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator>();
     auto __buf = __keep(__first, __last);
 
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(
+        _BackendTag{}, __q_local,
         unseq_backend::walk1_vector_or_scalar<_Function, decltype(__buf.all_view())>{__f,
                                                                                      static_cast<std::size_t>(__n)},
         __n, __buf.all_view())
@@ -106,14 +110,18 @@ __pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     if (__n <= 0)
         return __first2;
 
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode1, _ForwardIterator1>();
     auto __buf1 = __keep1(__first1, __last1);
 
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode2, _ForwardIterator2>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(
+        _BackendTag{}, __q_local,
         unseq_backend::walk2_vectors_or_scalars<_Function, decltype(__buf1.all_view()), decltype(__buf2.all_view())>{
             __f, static_cast<std::size_t>(__n)},
         __n, __buf1.all_view(), __buf2.all_view());
@@ -147,6 +155,8 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
     if (__n == 0)
         return __first2;
 
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator1>();
     auto __buf1 = __keep1(__first1, __last1);
@@ -155,8 +165,10 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator2>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(
+        _BackendTag{}, __q_local,
         unseq_backend::__brick_swap<_Function, decltype(__buf1.all_view()), decltype(__buf2.all_view())>{
             __f, static_cast<std::size_t>(__n)},
         __n, __buf1.all_view(), __buf2.all_view());
@@ -189,6 +201,8 @@ __pattern_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     if (__n <= 0)
         return __first3;
 
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode1, _ForwardIterator1>();
     auto __buf1 = __keep1(__first1, __last1);
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode2, _ForwardIterator2>();
@@ -196,8 +210,10 @@ __pattern_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode3, _ForwardIterator3>();
     auto __buf3 = __keep3(__first3, __first3 + __n);
 
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(
+        _BackendTag{}, __q_local,
         unseq_backend::walk3_vectors_or_scalars<_Function, decltype(__buf1.all_view()), decltype(__buf2.all_view()),
                                                 decltype(__buf3.all_view())>{__f, static_cast<std::size_t>(__n)},
         __n, __buf1.all_view(), __buf2.all_view(), __buf3.all_view())
@@ -1799,10 +1815,15 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
     if (__n <= 0)
         return;
 
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(
+        _BackendTag{}, __q_local,
         unseq_backend::__reverse_functor<typename std::iterator_traits<_Iterator>::difference_type,
                                          decltype(__buf.all_view())>{__n},
         __n / 2, __buf.all_view())
@@ -1822,14 +1843,19 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bi
     if (__n <= 0)
         return __result;
 
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _BidirectionalIterator>();
     auto __buf1 = __keep1(__first, __last);
     auto __keep2 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _ForwardIterator>();
     auto __buf2 = __keep2(__result, __result + __n);
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(
+        _BackendTag{}, __q_local,
         unseq_backend::__reverse_copy<typename std::iterator_traits<_BidirectionalIterator>::difference_type,
                                       decltype(__buf1.all_view()), decltype(__buf2.all_view())>{__n},
         __n, __buf1.all_view(), __buf2.all_view())
@@ -1860,6 +1886,8 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     if (__n <= 0)
         return __first;
 
+    sycl::queue __q_local = __exec.queue();
+
     using _Tp = typename ::std::iterator_traits<_Iterator>::value_type;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
@@ -1870,8 +1898,11 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
         oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::write>(__temp_buf.get_buffer());
 
     const auto __shift = __new_first - __first;
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_wrapper>(__exec),
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for<__rotate_wrapper<_CustomName>>(
+        _BackendTag{}, __q_local,
         unseq_backend::__rotate_copy<typename std::iterator_traits<_Iterator>::difference_type,
                                      decltype(__buf.all_view()), decltype(__temp_rng_w)>{__n, __shift},
         __n, __buf.all_view(), __temp_rng_w);
@@ -1885,8 +1916,9 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     auto __brick =
         unseq_backend::walk2_vectors_or_scalars<_Function, decltype(__temp_rng_rw), decltype(__buf.all_view())>{
             _Function{}, static_cast<std::size_t>(__n)};
-    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __brick,
-                                                      __n, __temp_rng_rw, __buf.all_view())
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(_BackendTag{}, __q_local, __brick, __n,
+                                                                   __temp_rng_rw, __buf.all_view())
         .__deferrable_wait();
 
     // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
@@ -1908,6 +1940,8 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bid
     if (__n <= 0)
         return __result;
 
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _BidirectionalIterator>();
     auto __buf1 = __keep1(__first, __last);
@@ -1917,8 +1951,10 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bid
 
     const auto __shift = __new_first - __first;
 
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(
+        _BackendTag{}, __q_local,
         unseq_backend::__rotate_copy<typename std::iterator_traits<_BidirectionalIterator>::difference_type,
                                      decltype(__buf1.all_view()), decltype(__buf2.all_view())>{__n, __shift},
         __n, __buf1.all_view(), __buf2.all_view())
@@ -2170,8 +2206,12 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
 
     assert(__n > 0 && __n < __size);
 
+    sycl::queue __q_local = __exec.queue();
+
     _DiffType __mid = __size / 2 + __size % 2;
     _DiffType __size_res = __size - __n;
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     //1. n >= size/2; 'size - _n' parallel copying
     if (__n >= __mid)
@@ -2185,18 +2225,15 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
         auto __brick = unseq_backend::walk2_vectors_or_scalars<_Function, decltype(__src), decltype(__dst)>{
             _Function{}, static_cast<std::size_t>(__size_res)};
 
-        oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-                                                          __brick, __size_res, __src, __dst)
+        oneapi::dpl::__par_backend_hetero::__parallel_for<_CustomName>(_BackendTag{}, __q_local, __brick, __size_res,
+                                                                       __src, __dst)
             .__deferrable_wait();
     }
     else //2. n < size/2; 'n' parallel copying
     {
         auto __brick = unseq_backend::__brick_shift_left<_DiffType, decltype(__rng)>{__size, __n};
-        oneapi::dpl::__par_backend_hetero::__parallel_for(
-            _BackendTag{},
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_right>(
-                ::std::forward<_ExecutionPolicy>(__exec)),
-            __brick, __n, __rng)
+        oneapi::dpl::__par_backend_hetero::__parallel_for<__shift_left_right<_CustomName>>(_BackendTag{}, __q_local,
+                                                                                           __brick, __n, __rng)
             .__deferrable_wait();
     }
 
