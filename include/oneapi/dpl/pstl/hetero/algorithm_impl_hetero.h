@@ -2310,6 +2310,8 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         return 1;
     }
 
+    sycl::queue __q_local = __exec.queue();
+
     auto __keep_keys = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
     auto __keys = __keep_keys(__keys_first, __keys_last);
     auto __keep_values = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator2>();
@@ -2320,9 +2322,12 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     auto __keep_value_outputs =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator4>();
     auto __out_values = __keep_value_outputs(__out_values_first, __out_values_first + __n);
-    return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __keys.all_view(), __values.all_view(),
-        __out_keys.all_view(), __out_values.all_view(), __binary_pred, __binary_op);
+
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment<_CustomName>(
+        _BackendTag{}, __q_local, __keys.all_view(), __values.all_view(), __out_keys.all_view(),
+        __out_values.all_view(), __binary_pred, __binary_op);
 }
 
 } // namespace __internal

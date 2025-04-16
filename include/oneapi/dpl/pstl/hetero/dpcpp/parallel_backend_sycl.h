@@ -2374,10 +2374,10 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     return __result_end;
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
-__parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __keys,
+__parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range1&& __keys,
                              _Range2&& __values, _Range3&& __out_keys, _Range4&& __out_values,
                              _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
@@ -2390,19 +2390,15 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     //          __out_keys   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 }
     //          __out_values = { 1, 2, 3, 4, 2, 6, 2, 6, 0 }
 
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
-    sycl::queue __q_local = __exec.queue();
-
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
     // Prior to icpx 2025.0, the reduce-then-scan path performs poorly and should be avoided.
 #if !defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000
     if constexpr (std::is_trivially_copyable_v<__val_type>)
     {
-        if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+        if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
         {
             auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
-                oneapi::dpl::__internal::__device_backend_tag{}, __q_local, std::forward<_Range1>(__keys),
+                oneapi::dpl::__internal::__device_backend_tag{}, __q, std::forward<_Range1>(__keys),
                 std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values),
                 __binary_pred, __binary_op);
             // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
@@ -2412,7 +2408,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     }
 #endif
     return __parallel_reduce_by_segment_fallback<_CustomName>(
-        oneapi::dpl::__internal::__device_backend_tag{}, __q_local, std::forward<_Range1>(__keys),
+        oneapi::dpl::__internal::__device_backend_tag{}, __q, std::forward<_Range1>(__keys),
         std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values),
         __binary_pred, __binary_op, oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
 }
