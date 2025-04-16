@@ -96,6 +96,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       /*known_identity=*/std::true_type)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
     using _SegReduceCountKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
         _SegReduceCountPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
     using _SegReduceOffsetKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
