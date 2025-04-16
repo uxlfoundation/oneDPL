@@ -1652,7 +1652,7 @@ template <typename Tag>
 struct __parallel_find_or_nd_range_tuner
 {
     // Tune the amount of work-groups and work-group size
-    inline std::tuple<std::size_t, std::size_t>
+    std::tuple<std::size_t, std::size_t>
     operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
         // TODO: find a way to generalize getting of reliable work-group size
@@ -1678,7 +1678,7 @@ template <>
 struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>
 {
     // Tune the amount of work-groups and work-group size
-    inline std::tuple<std::size_t, std::size_t>
+    std::tuple<std::size_t, std::size_t>
     operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
         // Call common tuning function to get the work-group size
