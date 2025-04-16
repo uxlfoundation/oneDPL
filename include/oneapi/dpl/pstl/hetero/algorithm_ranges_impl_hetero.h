@@ -621,7 +621,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
                                                                           std::true_type /*is_commutative*/>(
                _BackendTag{}, __q_local, __reduce_fn, __transform_fn,
                unseq_backend::__no_init_value{}, // no initial value
-               ::std::forward<_Range>(__rng))
+               std::forward<_Range>(__rng))
         .get();
 }
 
@@ -965,7 +965,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
                                                                        std::false_type /*is_commutative*/>(
             _BackendTag{}, __q_local, __reduce_fn, __transform_fn, unseq_backend::__no_init_value{}, // no initial value
-            ::std::forward<_Range>(__rng))
+            std::forward<_Range>(__rng))
             .get();
 
     using ::std::get;
@@ -1053,7 +1053,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
                                                                        std::false_type /*is_commutative*/>(
             _BackendTag{}, __q_local, __reduce_fn, __transform_fn, unseq_backend::__no_init_value{}, // no initial value
-            ::std::forward<_Range>(__rng))
+            std::forward<_Range>(__rng))
             .get();
 
     using ::std::get;
