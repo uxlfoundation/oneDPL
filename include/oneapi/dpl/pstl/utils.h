@@ -825,21 +825,17 @@ struct __swap_ranges_fn
     }
 };
 
-template <typename _FirstIt, typename... _RestIt>
-constexpr auto __get_first_iterator(_FirstIt __first_it, _RestIt...) {
-    return __first_it;
+
+template<typename _T>
+auto __get_last_arg(_T __t)
+{
+    return __t;
 }
 
-template<typename T>
-auto __get_last_arg(T t)
+template<typename _T, typename... _Rest>
+auto __get_last_arg(_T, _Rest... __args)
 {
-    return t;
-}
-
-template<typename T, typename... Rest>
-auto __get_last_arg(T, Rest... args)
-{
-    return __get_last_arg(args...);
+    return __get_last_arg(__args...);
 }
 
 } // namespace __internal
