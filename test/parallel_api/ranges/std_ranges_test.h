@@ -169,6 +169,9 @@ bool check_minmax<T, std::void_t<decltype(std::declval<T>().min, std::declval<T>
 template<typename>
 constexpr int trivial_size{0};
 
+template<typename>
+constexpr int calc_res_size(int n, int) { return n; }
+
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_zero = [](auto i) { return 0;};
 
@@ -219,6 +222,9 @@ private:
 
         //check result
         auto n = std::ranges::size(expected_view);
+        if constexpr(is_range<std::remove_cvref_t<decltype(res)>>)
+            n = calc_res_size<std::remove_cvref_t<decltype(algo)>>(n, std::ranges::size(res));
+
         EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("wrong effect algo with ranges: ")
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
     }
