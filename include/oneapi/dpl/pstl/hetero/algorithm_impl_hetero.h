@@ -534,7 +534,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     auto __ret_idx =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType, _Commutative>(
@@ -621,7 +621,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     auto __ret =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
@@ -645,7 +645,7 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
     if (__last - __first < 2)
         return __last;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<adjacent_find_fn<_BinaryPredicate>>;
 
@@ -678,7 +678,7 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<adjacent_find_fn<_BinaryPredicate>>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -736,7 +736,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator 
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
                                                                           std::true_type /*is_commutative*/>(
@@ -765,7 +765,7 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or<
         __par_backend_hetero::__or_policy_wrapper<_CustomName>>(
@@ -784,7 +784,7 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1
     if (__last1 == __first1 || __last2 == __first2 || __last1 - __first1 != __last2 - __first2)
         return false;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<equal_predicate<_Pred>>;
 
@@ -829,7 +829,7 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_Pred>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -862,7 +862,7 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     {
         using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
 
-        sycl::queue __q_local = __exec.queue();
+        sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
         using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -890,7 +890,7 @@ __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
 
     using _Predicate = unseq_backend::first_match_pred<_Pred>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     // TODO: To check whether it makes sense to iterate over the second sequence in case of
     // distance(__first, __last) < distance(__s_first, __s_last).
@@ -935,7 +935,7 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
 
     using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -988,7 +988,7 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 
     using _Predicate = unseq_backend::n_elem_match_pred<_BinaryPredicate, _Tp, _Size>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -1018,7 +1018,7 @@ __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterat
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first1),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first2));
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -1054,7 +1054,7 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     auto __res = __par_backend_hetero::__parallel_copy_if<_CustomName>(_BackendTag{}, __q_local, __buf1.all_view(),
                                                                        __buf2.all_view(), __n, __pred);
@@ -1091,7 +1091,7 @@ __pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__zipped_res)>();
     auto __buf2 = __keep2(__zipped_res, __zipped_res + __n);
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -1133,7 +1133,7 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _Iterator2>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -1257,7 +1257,7 @@ __pattern_is_partitioned(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     auto __res =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
@@ -1298,7 +1298,7 @@ __pattern_is_heap_until(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred_by_idx<__is_heap_check<_Compare>>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -1319,7 +1319,7 @@ __pattern_is_heap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _RandomA
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred_by_idx<__is_heap_check<_Compare>>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -1370,7 +1370,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
 
         using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-        sycl::queue __q_local = __exec.queue();
+        sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
         __par_backend_hetero::__parallel_merge<_CustomName>(_BackendTag{}, __q_local, __buf1.all_view(),
                                                             __buf2.all_view(), __buf3.all_view(), __comp)
@@ -1430,7 +1430,7 @@ __stable_sort_with_projection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -1593,7 +1593,7 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     auto __ret_idx =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
@@ -1625,7 +1625,7 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
 
     using __brick_include_type = unseq_backend::__brick_includes<_Compare, _Size1, _Size2>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -1652,7 +1652,7 @@ __pattern_partial_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _It
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     __par_backend_hetero::__parallel_partial_sort<_CustomName>(
         _BackendTag{}, __q_local,
@@ -1752,7 +1752,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-        sycl::queue __q_local = __exec.queue();
+        sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
         __par_backend_hetero::__parallel_partial_sort<__partial_sort_2<_CustomName>>(
             _BackendTag{}, __q_local,
@@ -1948,7 +1948,7 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
     auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _OutputIterator>();
     auto __buf3 = __keep3(__result, __result + __n1);
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 

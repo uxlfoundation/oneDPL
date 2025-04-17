@@ -151,7 +151,7 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
         {
             using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-            sycl::queue __q_local = __exec.queue();
+            sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
             //need __binhash_manager to stay in scope until the kernel completes to keep the buffer alive
             // __make_binhash_manager will call __get_sycl_range for any data which requires it within __func

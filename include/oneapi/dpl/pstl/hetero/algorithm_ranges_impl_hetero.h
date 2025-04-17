@@ -228,7 +228,7 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& 
     if (__rng1.empty() || __rng2.empty() || __rng1.size() != __rng2.size())
         return false;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<equal_predicate<_Pred>>;
 
@@ -269,7 +269,7 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&&
     if (__rng.empty())
         return __rng.size();
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_Pred>;
     using _TagType = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range>;
@@ -315,7 +315,7 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
         return __res ? 0 : __rng1.size();
     }
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
     using _TagType = __par_backend_hetero::__parallel_find_backward_tag<_Range1>;
@@ -341,7 +341,7 @@ __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     if (__rng1.empty() || __rng2.empty())
         return __rng1.size();
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _Predicate = unseq_backend::first_match_pred<_Pred>;
     using _TagType = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range1>;
@@ -366,7 +366,7 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& 
     if (__rng.empty())
         return false;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_Pred>;
 
@@ -421,7 +421,7 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
     using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
     using _TagType = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range1>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -527,7 +527,7 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     if (__rng.size() < 2)
         return __rng.size();
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<adjacent_find_fn<_BinaryPredicate>>;
     using _TagType = ::std::conditional_t<__is__or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
@@ -615,7 +615,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
                                                                           std::true_type /*is_commutative*/>(
@@ -653,7 +653,7 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_copy_if<_CustomName>(
         _BackendTag{}, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), __n, __pred, __assign);
@@ -742,7 +742,7 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
         return 1;
     }
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -832,7 +832,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     auto __res = __par_backend_hetero::__parallel_merge<_CustomName>(
         _BackendTag{}, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
@@ -884,7 +884,7 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
 
     if (__rng.size() >= 2)
     {
-        sycl::queue __q_local = __exec.queue();
+        sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
         __par_backend_hetero::__parallel_stable_sort<_CustomName>(_BackendTag{}, __q_local, std::forward<_Range>(__rng),
                                                                   __comp, __proj)
@@ -959,7 +959,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     auto __ret_idx =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,
@@ -1047,7 +1047,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO revert
 
     _ReduceValueType __ret =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_CustomName, _ReduceValueType,

@@ -2293,7 +2293,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue(); // KSATODO ok
 
     const auto __n = __keys.size();
     // Round 1: reduce with extra indices added to avoid long segments
@@ -2400,7 +2400,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue();// KSATODO ok
 
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
     // Prior to icpx 2025.0, the reduce-then-scan path performs poorly and should be avoided.

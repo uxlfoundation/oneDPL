@@ -187,7 +187,7 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     using _ForKernelLarge =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__parallel_for_large_kernel<_CustomName>>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q_local = __exec.queue();// KSATODO ok
 
     using __small_submitter = __parallel_for_small_submitter<_ForKernelSmall>;
     using __large_submitter = __parallel_for_large_submitter<_ForKernelLarge>;
