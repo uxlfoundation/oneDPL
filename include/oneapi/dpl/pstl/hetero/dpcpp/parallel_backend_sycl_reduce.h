@@ -249,8 +249,6 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
 
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
 
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
-
         auto __event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
             __cgh.depends_on(__reduce_event);
 
