@@ -1936,7 +1936,7 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
 {
     typedef typename std::iterator_traits<_ForwardIterator1>::difference_type _Size1;
 
-    const _Size1 __n1 = std::distance(__first1, __last2);
+    const _Size1 __n1 = std::distance(__first1, __last1);
     _Size1 __output_size = __n1;
     if constexpr (_SetTag::__is_one_shot_v)
     {
