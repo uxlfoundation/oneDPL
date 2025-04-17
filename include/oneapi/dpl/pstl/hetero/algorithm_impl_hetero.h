@@ -1987,14 +1987,11 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
         return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
                                        __last2, __result, __comp, unseq_backend::_IntersectionTag<std::true_type>());
     }
-    else
-    {
-        return __pattern_hetero_set_op(
-            __tag,
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_intersection_scan_then_propagate>(
-                std::forward<_ExecutionPolicy>(__exec)),
-            __first1, __last1, __first2, __last2, __result, __comp, unseq_backend::_IntersectionTag<std::false_type>());
-    }
+    return __pattern_hetero_set_op(
+        __tag,
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_intersection_scan_then_propagate>(
+            std::forward<_ExecutionPolicy>(__exec)),
+        __first1, __last1, __first2, __last2, __result, __comp, unseq_backend::_IntersectionTag<std::false_type>());
 }
 
 //Dummy names to avoid kernel problems
