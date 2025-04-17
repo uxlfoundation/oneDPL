@@ -129,7 +129,7 @@ template <typename _ReduceValueType, typename _Compare>
 struct __pattern_min_element_reduce_fn;
 
 template <typename _Compare, typename _ReduceValueType>
-struct __pattern_minmax_element_reduce_fn;
+struct __pattern_minmax_element__reduce_fn;
 
 template <typename _Predicate>
 struct __pattern_count_transform_fn;
@@ -314,7 +314,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 };
 
 template <typename _Compare, typename _ReduceValueType>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_minmax_element_reduce_fn,
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_minmax_element__reduce_fn,
                                                        _Compare, _ReduceValueType)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _ReduceValueType>
 {
