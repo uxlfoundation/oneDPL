@@ -108,8 +108,9 @@ struct __sycl_scan_by_segment_impl
     template <typename _BackendTag, typename _Range1, typename _Range2, typename _Range3, typename _BinaryPredicate,
               typename _BinaryOperator, typename _T>
     void
-    operator()(_BackendTag, sycl::queue& __q, _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
-               _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init, _T __identity)
+    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
+               _Range3&& __out_values, _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init,
+               _T __identity)
     {
         using _SegScanWgKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             _SegScanWgPhase, _CustomName, _Range1, _Range2, _Range3, _BinaryPredicate, _BinaryOperator>;
@@ -361,10 +362,10 @@ struct __sycl_scan_by_segment_impl
     }
 };
 
-template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
-          typename OutputIterator, typename T, typename BinaryPredicate, typename Operator, typename Inclusive>
-OutputIterator
-__scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
+template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator, typename T,
+          typename BinaryPredicate, typename Operator, typename Inclusive>
+oneapi::dpl::__internal::__enable_if_hetero_execution_policy<Policy, OutputIterator>
+__scan_by_segment_impl_common(oneapi::dpl::__internal::__device_backend_tag, Policy&& policy, InputIterator1 first1,
                               InputIterator1 last1, InputIterator2 first2, OutputIterator result, T init,
                               BinaryPredicate binary_pred, Operator binary_op, Inclusive)
 {
@@ -391,9 +392,9 @@ __scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, Policy&& po
 
     sycl::queue __q_local = policy.queue();
 
-    __sycl_scan_by_segment_impl<_CustomName, Inclusive::value>{}(_BackendTag{}, __q_local, key_buf.all_view(),
-                                                                 value_buf.all_view(), value_output_buf.all_view(),
-                                                                 binary_pred, binary_op, init, identity);
+    __sycl_scan_by_segment_impl<_CustomName, Inclusive::value>{}(
+        oneapi::dpl::__internal::__device_backend_tag{}, __q_local, key_buf.all_view(), value_buf.all_view(),
+        value_output_buf.all_view(), binary_pred, binary_op, init, identity);
 
     return result + n;
 }
