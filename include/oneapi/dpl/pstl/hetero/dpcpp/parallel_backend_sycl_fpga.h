@@ -79,16 +79,16 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
     }
 };
 
-template <typename _CustomName, typename _Fp, typename _Index, typename... _Ranges>
+template <typename _CustomName, unsigned int _Factor, typename _Fp, typename _Index, typename... _Ranges>
 auto
-__parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, sycl::queue& __q, _Fp __brick, _Index __count,
+__parallel_for(oneapi::dpl::__internal::__fpga_backend_tag<_Factor>, sycl::queue& __q, _Fp __brick, _Index __count,
                _Ranges&&... __rngs)
 {
     using __parallel_for_name = __internal::__kernel_name_provider<_CustomName>;
 
-    constexpr unsigned int unroll_factor = std::decay<_ExecutionPolicy>::type::unroll_factor;
+    //constexpr unsigned int unroll_factor = std::decay<_ExecutionPolicy>::type::unroll_factor;
 
-    return __parallel_for_fpga_submitter<__parallel_for_name>{}.template operator()<unroll_factor>(
+    return __parallel_for_fpga_submitter<__parallel_for_name>{}.template operator()<_Factor>(
         __q, __brick, __count, std::forward<_Ranges>(__rngs)...);
 }
 
@@ -97,9 +97,9 @@ __parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, sycl::queue& __q, _F
 //-----------------------------------------------------------------------
 
 // TODO: check if it makes sense to move these wrappers out of backend to a common place
-template <typename _CustomName, typename _Event, typename _Range1, typename _Range2, typename _BinHashMgr>
+template <typename _CustomName, unsigned int _Factor, typename _Event, typename _Range1, typename _Range2, typename _BinHashMgr>
 auto
-__parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, sycl::queue& __q, const _Event& __init_event,
+__parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag<_Factor>, sycl::queue& __q, const _Event& __init_event,
                      _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
     static_assert(sizeof(oneapi::dpl::__internal::__value_t<_Range2>) <= sizeof(::std::uint32_t),
