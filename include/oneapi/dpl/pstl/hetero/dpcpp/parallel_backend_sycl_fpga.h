@@ -86,8 +86,6 @@ __parallel_for(oneapi::dpl::__internal::__fpga_backend_tag<_Factor>, sycl::queue
 {
     using __parallel_for_name = __internal::__kernel_name_provider<_CustomName>;
 
-    //constexpr unsigned int unroll_factor = std::decay<_ExecutionPolicy>::type::unroll_factor;
-
     return __parallel_for_fpga_submitter<__parallel_for_name>{}.template operator()<_Factor>(
         __q, __brick, __count, std::forward<_Ranges>(__rngs)...);
 }
