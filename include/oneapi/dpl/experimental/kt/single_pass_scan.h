@@ -145,7 +145,7 @@ struct __lookback_init_submitter<_FlagType, _Type, _BinaryOp,
 {
     template <typename _StatusFlags, typename _PartialValues>
     sycl::event
-    operator()(sycl::queue __q, _StatusFlags&& __status_flags, _PartialValues&& __partial_values,
+    operator()(sycl::queue& __q, _StatusFlags&& __status_flags, _PartialValues&& __partial_values,
                std::size_t __status_flags_size, std::uint16_t __status_flag_padding) const
     {
         return __q.submit([&](sycl::handler& __hdl) {
@@ -276,8 +276,8 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
 
     template <typename _InRng, typename _OutRng, typename _BinaryOp, typename _StatusFlags, typename _StatusValues>
     sycl::event
-    operator()(sycl::queue __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
-               std::size_t __n, _StatusFlags&& __status_flags, std::size_t __status_flags_size,
+    operator()(sycl::queue& __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng,
+               _BinaryOp __binary_op, std::size_t __n, _StatusFlags&& __status_flags, std::size_t __status_flags_size,
                _StatusValues&& __status_vals_full, _StatusValues&& __status_vals_partial,
                std::size_t __current_num_items) const
     {
@@ -304,7 +304,7 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
 
 template <bool _Inclusive, typename _InRange, typename _OutRange, typename _BinaryOp, typename _KernelParam>
 sycl::event
-__single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_rng, _BinaryOp __binary_op, _KernelParam)
+__single_pass_scan(sycl::queue& __q, _InRange&& __in_rng, _OutRange&& __out_rng, _BinaryOp __binary_op, _KernelParam)
 {
     using _Type = oneapi::dpl::__internal::__value_t<_InRange>;
     using _FlagType = __scan_status_flag<_Type>;
@@ -326,19 +326,19 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
                   "Only binary operators with known identity values are supported");
 
     assert("This device does not support 64-bit atomics" &&
-           (sizeof(_Type) < 8 || __queue.get_device().has(sycl::aspect::atomic64)));
+           (sizeof(_Type) < 8 || __q.get_device().has(sycl::aspect::atomic64)));
 
     // Next power of 2 greater than or equal to __n
     auto __n_uniform = ::oneapi::dpl::__internal::__dpl_bit_ceil(__n);
 
     // Perform a single-work group scan if the input is small
-    if (oneapi::dpl::__par_backend_hetero::__group_scan_fits_in_slm<_Type>(__queue, __n, __n_uniform, /*limit=*/16384))
+    if (oneapi::dpl::__par_backend_hetero::__group_scan_fits_in_slm<_Type>(__q, __n, __n_uniform, /*limit=*/16384))
     {
-        return oneapi::dpl::__par_backend_hetero::__parallel_transform_scan_single_group(
-            oneapi::dpl::__internal::__device_backend_tag{},
-            oneapi::dpl::execution::__dpl::make_device_policy<typename _KernelParam::kernel_name>(__queue),
-            std::forward<_InRange>(__in_rng), std::forward<_OutRange>(__out_rng), __n,
-            oneapi::dpl::__internal::__no_op{}, unseq_backend::__no_init_value<_Type>{}, __binary_op, std::true_type{});
+        return oneapi::dpl::__par_backend_hetero::__parallel_transform_scan_single_group<
+            typename _KernelParam::kernel_name>(oneapi::dpl::__internal::__device_backend_tag{}, __q,
+                                                std::forward<_InRange>(__in_rng), std::forward<_OutRange>(__out_rng),
+                                                __n, oneapi::dpl::__internal::__no_op{},
+                                                unseq_backend::__no_init_value<_Type>{}, __binary_op, std::true_type{});
     }
 
     constexpr std::size_t __workgroup_size = _KernelParam::workgroup_size;
@@ -358,7 +358,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     std::size_t __mem_bytes =
         __status_flags_bytes + __status_vals_full_offset_bytes + __status_vals_partial_offset_bytes + __mem_align_pad;
 
-    std::byte* __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __queue));
+    std::byte* __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __q));
     if (!__device_mem)
         throw std::bad_alloc();
 
@@ -372,14 +372,14 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
         reinterpret_cast<_Type*>(__status_vals_full + __status_vals_full_offset_bytes / sizeof(_Type));
 
     auto __fill_event = __lookback_init_submitter<_FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
-        __queue, __status_flags, __status_vals_partial, __status_flags_size, __status_flag_padding);
+        __q, __status_flags, __status_vals_partial, __status_flags_size, __status_flag_padding);
 
     std::size_t __current_num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
     std::size_t __current_num_items = __current_num_wgs * __workgroup_size;
 
     auto __prev_event =
         __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagType, _LookbackKernel>{}(
-            __queue, __fill_event, __in_rng, __out_rng, __binary_op, __n, __status_flags, __status_flags_size,
+            __q, __fill_event, __in_rng, __out_rng, __binary_op, __n, __status_flags, __status_flags_size,
             __status_vals_full, __status_vals_partial, __current_num_items);
 
     // TODO: Currently, the following portion of code makes this entire function synchronous.
@@ -388,15 +388,15 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     // we should replace this code with the asynchronous version below.
     if (0)
     {
-        return __queue.submit([=](sycl::handler& __hdl) {
+        return __q.submit([=](sycl::handler& __hdl) {
             __hdl.depends_on(__prev_event);
-            __hdl.host_task([=]() { sycl::free(__device_mem, __queue); });
+            __hdl.host_task([=]() { sycl::free(__device_mem, __q); });
         });
     }
     else
     {
         __prev_event.wait();
-        sycl::free(__device_mem, __queue);
+        sycl::free(__device_mem, __q);
         return __prev_event;
     }
 }
@@ -405,18 +405,18 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
 
 template <typename _InRng, typename _OutRng, typename _BinaryOp, typename _KernelParam>
 sycl::event
-inclusive_scan(sycl::queue __queue, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
+inclusive_scan(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
                _KernelParam __param = {})
 {
     auto __in_view = oneapi::dpl::__ranges::views::all(std::forward<_InRng>(__in_rng));
     auto __out_view = oneapi::dpl::__ranges::views::all(std::forward<_OutRng>(__out_rng));
 
-    return __impl::__single_pass_scan<true>(__queue, std::move(__in_view), std::move(__out_view), __binary_op, __param);
+    return __impl::__single_pass_scan<true>(__q, std::move(__in_view), std::move(__out_view), __binary_op, __param);
 }
 
 template <typename _InIterator, typename _OutIterator, typename _BinaryOp, typename _KernelParam>
 sycl::event
-inclusive_scan(sycl::queue __queue, _InIterator __in_begin, _InIterator __in_end, _OutIterator __out_begin,
+inclusive_scan(sycl::queue& __q, _InIterator __in_begin, _InIterator __in_end, _OutIterator __out_begin,
                _BinaryOp __binary_op, _KernelParam __param = {})
 {
     auto __n = __in_end - __in_begin;
@@ -426,7 +426,7 @@ inclusive_scan(sycl::queue __queue, _InIterator __in_begin, _InIterator __in_end
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _OutIterator>();
     auto __buf2 = __keep2(__out_begin, __out_begin + __n);
 
-    return __impl::__single_pass_scan<true>(__queue, __buf1.all_view(), __buf2.all_view(), __binary_op, __param);
+    return __impl::__single_pass_scan<true>(__q, __buf1.all_view(), __buf2.all_view(), __binary_op, __param);
 }
 
 } // namespace gpu
