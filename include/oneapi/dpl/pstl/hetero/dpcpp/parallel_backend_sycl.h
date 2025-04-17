@@ -1029,20 +1029,24 @@ struct __write_to_id_if_else
     _Assign __assign;
 };
 
-template <typename _CustomName, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
+template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
 __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
-__parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
+__parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                           _Range1&& __in_rng, _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op,
                           _InitType __init, _BinaryOperation __binary_op, _Inclusive)
 {
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
     using _Type = typename _InitType::__value_type;
     // Reduce-then-scan is dependent on sycl::shift_group_right which requires the underlying type to be trivially
     // copyable. If this is not met, then we must fallback to the multi pass scan implementation. The single
     // work-group implementation requires a fundamental type which must also be trivially copyable.
     if constexpr (std::is_trivially_copyable_v<_Type>)
     {
-        bool __use_reduce_then_scan = oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q);
+        bool __use_reduce_then_scan = oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local);
 
         // TODO: Consider re-implementing single group scan to support types without known identities. This could also
         // allow us to use single wg scan for the last block of reduce-then-scan if it is sufficiently small.
@@ -1054,15 +1058,15 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
 
             // Empirically found values for reduce-then-scan and multi pass scan implementation for single wg cutoff
             std::size_t __single_group_upper_limit = __use_reduce_then_scan ? 2048 : 16384;
-            if (__group_scan_fits_in_slm<_Type>(__q, __n, __n_uniform, __single_group_upper_limit))
+            if (__group_scan_fits_in_slm<_Type>(__q_local, __n, __n_uniform, __single_group_upper_limit))
             {
                 auto __event = __parallel_transform_scan_single_group<_CustomName>(
-                    __backend_tag, __q, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __n,
+                    __backend_tag, __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __n,
                     __unary_op, __init, __binary_op, _Inclusive{});
 
                 // Although we do not actually need result storage in this case, we need to construct
                 // a placeholder here to match the return type of the non-single-work-group implementation
-                __result_and_scratch_storage<_Type> __dummy_result_and_scratch{__q, 0};
+                __result_and_scratch_storage<_Type> __dummy_result_and_scratch{__q_local, 0};
 
                 return __future{std::move(__event), std::move(__dummy_result_and_scratch)};
             }
@@ -1076,7 +1080,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             _GenInput __gen_transform{__unary_op};
 
             return __parallel_transform_reduce_then_scan<_CustomName>(
-                __backend_tag, __q, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
+                __backend_tag, __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
                 __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
                 /*_IsUniquePattern=*/std::false_type{});
         }
@@ -1093,7 +1097,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     _NoOpFunctor __get_data_op;
 
     return __parallel_transform_scan_base<_CustomName>(
-        __backend_tag, __q, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
+        __backend_tag, __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
         // local scan
         unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _NoOpFunctor,
                               _InitType>{__binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op,
