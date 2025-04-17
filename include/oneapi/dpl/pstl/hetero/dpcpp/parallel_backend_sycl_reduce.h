@@ -471,8 +471,8 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
         std::uint16_t __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n_short, __work_group_size);
         __iters_per_work_item = __adjust_iters_per_work_item<__vector_size>(__iters_per_work_item);
         return __parallel_transform_reduce_small_impl<_CustomName, _Tp, _Commutative, __vector_size>(
-            __backend_tag, __q_local, __n_short, __work_group_size_short, __iters_per_work_item, __reduce_op, __transform_op,
-            __init, std::forward<_Ranges>(__rngs)...);
+            __backend_tag, __q_local, __n_short, __work_group_size_short, __iters_per_work_item, __reduce_op,
+            __transform_op, __init, std::forward<_Ranges>(__rngs)...);
     }
     // Use two-step tree reduction.
     // First step reduces __work_group_size * __iters_per_work_item_device_kernel elements.
