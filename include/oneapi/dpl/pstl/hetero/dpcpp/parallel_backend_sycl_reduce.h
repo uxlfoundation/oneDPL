@@ -239,7 +239,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
                const _Size __iters_per_work_item, _ReduceOp __reduce_op, _InitType __init,
                __result_and_scratch_storage<_Tp>&& __scratch_container) const
     {
-        using __result_and_scratch_storage_t = std::decay_t<decltype(__scratch_container)>;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
 
         using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
         auto __transform_pattern =
