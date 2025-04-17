@@ -2179,28 +2179,49 @@ struct __is_radix_sort_usable_for_type
 
 #if _ONEDPL_USE_RADIX_SORT
 template <
-    typename _CustomName, typename _Range, typename _Compare, typename _Proj,
+    typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
     ::std::enable_if_t<
         __is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
 __future<sycl::event>
-__parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Range&& __rng,
-                       _Compare, _Proj __proj)
+__parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+                       _Range&& __rng, _Compare, _Proj __proj)
 {
-    return __parallel_radix_sort<_CustomName, __internal::__is_comp_ascending<std::decay_t<_Compare>>::value>(
-        __backend_tag, __q, std::forward<_Range>(__rng), __proj);
+    return __parallel_radix_sort<__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
+        __backend_tag, ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __proj);
 }
 #endif // _ONEDPL_USE_RADIX_SORT
 
 template <
-    typename _CustomName, typename _Range, typename _Compare, typename _Proj,
+    typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
     ::std::enable_if_t<
         !__is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
-__parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Range&& __rng,
-                       _Compare __comp, _Proj __proj)
+__parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+                       _Range&& __rng, _Compare __comp, _Proj __proj)
 {
-    return __parallel_sort_impl<_CustomName>(__backend_tag, __q, std::forward<_Range>(__rng),
-                                             oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
+    return __parallel_sort_impl(__backend_tag, ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
+                                oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
+}
+
+//------------------------------------------------------------------------
+// parallel_partial_sort - async pattern
+//-----------------------------------------------------------------------
+
+// TODO: check if it makes sense to move these wrappers out of backend to a common place
+// TODO: consider changing __partial_merge_kernel to make it compatible with
+//       __full_merge_kernel in order to use __parallel_sort_impl routine
+template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>
+__future<sycl::event>
+__parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+                        _Iterator __first, _Iterator __mid, _Iterator __last, _Compare __comp)
+{
+    const auto __mid_idx = __mid - __first;
+
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
+    auto __buf = __keep(__first, __last);
+
+    return __parallel_partial_sort_impl(__backend_tag, ::std::forward<_ExecutionPolicy>(__exec), __buf.all_view(),
+                                        __partial_merge_kernel<decltype(__mid_idx)>{__mid_idx}, __comp);
 }
 
 //------------------------------------------------------------------------
