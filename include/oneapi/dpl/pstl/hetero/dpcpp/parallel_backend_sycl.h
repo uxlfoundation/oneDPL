@@ -1933,17 +1933,15 @@ bool
 __parallel_or(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
               _Iterator1 __first, _Iterator1 __last, _Iterator2 __s_first, _Iterator2 __s_last, _Brick __f)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
     auto __buf = __keep(__first, __last);
     auto __s_keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator2>();
     auto __s_buf = __s_keep(__s_first, __s_last);
 
-    sycl::queue __q_local = __exec.queue();
-
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or<_CustomName>(
-        __backend_tag, ___q_local, __f, __parallel_or_tag{}, __buf.all_view(), __s_buf.all_view());
+    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        __backend_tag,
+        __par_backend_hetero::make_wrapped_policy<__or_policy_wrapper>(::std::forward<_ExecutionPolicy>(__exec)), __f,
+        __parallel_or_tag{}, __buf.all_view(), __s_buf.all_view());
 }
 
 // Special overload for single sequence cases.
@@ -1954,14 +1952,12 @@ bool
 __parallel_or(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec, _Iterator __first,
               _Iterator __last, _Brick __f)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    sycl::queue __q_local = __exec.queue();
-
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or<_CustomName>(__backend_tag, __q_local, __f,
+    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        __backend_tag,
+        __par_backend_hetero::make_wrapped_policy<__or_policy_wrapper>(::std::forward<_ExecutionPolicy>(__exec)), __f,
                                                                               __parallel_or_tag{}, __buf.all_view());
 }
 
