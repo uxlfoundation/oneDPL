@@ -160,6 +160,9 @@ class auto_tune_policy
         std::shared_ptr<tuner_t> tuner_;
 
       public:
+	using scratch_space_t = typename backend_traits::selection_scratch_t<Backend,execution_info::task_time_t>::scratch_t;
+	scratch_space_t scratch_space;
+
         auto_tune_selection_type(const policy_t& p, resource_with_index_t r, std::shared_ptr<tuner_t> t)
             : policy_(p), resource_(r), tuner_(::std::move(t))
         {

@@ -20,6 +20,7 @@
 #include <chrono>
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
+#include "oneapi/dpl/internal/dynamic_selection_impl/backend_traits.h"
 
 namespace oneapi
 {
@@ -37,6 +38,25 @@ class backend_base
     using execution_resource_t = resource_type;
     using resource_container_t = std::vector<resource_type>;
     using report_duration = std::chrono::milliseconds;
+
+
+    template <bool needs_scratch = false, typename...Req>
+    struct scratch_t_check : public no_scratch_t<Req...>
+    {
+    };
+
+    // maximal scratch space to handle all requirements
+    template <typename ...Req>
+    struct scratch_t_check<true, Req...>
+    {
+    };
+
+    // check for task_time_t and define scratch space
+    template<typename ...Req>
+    struct scratch_t : public scratch_t_check<any_of_v<execution_info::task_time_t, Req...>, Req...>
+    {
+    };
+
 
   private:
     class async_waiter

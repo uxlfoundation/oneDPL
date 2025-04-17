@@ -37,6 +37,18 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
   public:
     using resource_type = sycl::queue;
     using wait_type = sycl::event;
+    template<typename ...Req>
+    struct scratch_t 
+    {
+    };
+
+    
+    template<>
+    struct scratch_t<execution_info::task_time_t> 
+    {
+	    sycl::event my_start_event;
+    };
+
     using execution_resource_t = resource_type;
     using resource_container_t = std::vector<execution_resource_t>;
 
@@ -44,7 +56,6 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
     static inline bool is_profiling_enabled = false;
     using report_clock_type = std::chrono::steady_clock;
     using report_duration = std::chrono::milliseconds;
-    report_clock_type::time_point t0; //TODO: Relocate to prevent single copy
 
     class async_waiter_base
     {
@@ -182,7 +193,15 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
     void
     instrument_before_impl(SelectionHandle s)
     {
-        t0 = report_clock_type::now();
+#ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
+	auto q = unwrap(s);
+         if (!q.get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag)) 
+            {
+                std::cout << "Cannot time kernels without enabling profiling on queue\n";
+		///TODO: THROW???
+            }
+	s.scratch_space.my_start_event = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //starting timestamp
+#endif
         if constexpr (report_info_v<SelectionHandle, execution_info::task_submission_t>)
             report(s, execution_info::task_submission);
     }
@@ -209,20 +228,26 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
 
             if ((report_task_time && !is_profiling_enabled) || report_task_completion)
             {
-                auto e2 = q.submit([=](sycl::handler& h) {
-                    h.depends_on(e1);
-                    h.host_task([=]() {
-                        if constexpr (report_task_time)
+#ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
+	    sycl::event q_end = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending timestamp
+
+		//get raw nano number
+                uint64_t time_taken_nanoseconds =
+                q_end.template get_profiling_info<sycl::info::event_profiling::command_start>() -
+                s.scratch_space.my_start_event.template get_profiling_info<sycl::info::event_profiling::command_end>();
+
+		//convert nanoseconds to milliseconds
+		report_duration time_taken_milliseconds = 
+		std::chrono::duration_cast<report_duration>(std::chrono::nanoseconds(time_taken_nanoseconds));
+
+                if constexpr (report_task_time)
                         {
                             if (!is_profiling_enabled)
-                                s.report(execution_info::task_time,
-                                         std::chrono::duration_cast<report_duration>(report_clock_type::now() - t0));
+                                s.report(execution_info::task_time, time_taken_milliseconds);
                         }
                         if constexpr (report_task_completion)
                             s.report(execution_info::task_completion);
-                    });
-                });
-                waiter = async_waiter{e2, std::make_shared<SelectionHandle>(s)};
+#endif
             }
 	    
             return waiter;
