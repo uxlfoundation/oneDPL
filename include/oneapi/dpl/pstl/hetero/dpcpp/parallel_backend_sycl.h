@@ -1399,7 +1399,7 @@ struct __write_multiple_to_id
     _Assign __assign;
 };
 
-template <typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
+template <typename _CustomName, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
 __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
 __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
@@ -1732,7 +1732,8 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
 }
 
 // balanced path
-template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _SetTag>
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+          typename _SetTag>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
 __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
@@ -1822,19 +1823,20 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
         __copy_by_mask_op);
 }
 
-template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _SetTag>
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+          typename _SetTag>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
 __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Range1&& __rng1,
                   _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag __set_tag)
 {
     if constexpr (_SetTag::__is_one_shot_v)
     {
-        return __parallel_set_reduce_then_scan(__backend_tag, __q, std::forward<_Range1>(__rng1),
+        return __parallel_set_reduce_then_scan<_CustomName>(__backend_tag, __q, std::forward<_Range1>(__rng1),
                                                std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
                                                __set_tag);
 
     }
-    return __parallel_set_scan(__backend_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+    return __parallel_set_scan<_CustomName>(__backend_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
                                 std::forward<_Range3>(__result), __comp, __set_tag);
 }
 
