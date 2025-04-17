@@ -332,7 +332,6 @@ template <typename _SourceT>
 struct fill_functor
 {
     _SourceT __value;
-
     template <typename _TargetT>
     void
     operator()(_TargetT& __target) const
