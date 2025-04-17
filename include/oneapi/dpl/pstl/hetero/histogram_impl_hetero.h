@@ -161,8 +161,8 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
                                                         _RandomAccessIterator1>();
             auto __input_buf = __keep_input(__first, __last);
 
-            __parallel_histogram<_CustomName>(_BackendTag{}, __q_local, __init_event, __input_buf.all_view(),
-                                              std::move(__bins), __binhash_manager)
+            oneapi::dpl::__par_backend_hetero::__parallel_histogram<_CustomName>(
+                _BackendTag{}, __q_local, __init_event, __input_buf.all_view(), std::move(__bins), __binhash_manager)
                 .__deferrable_wait();
         }
         else
