@@ -814,6 +814,17 @@ struct __min_nested_type_size<oneapi::dpl::__internal::tuple<_Ts...>>
     constexpr static std::size_t value = std::min({__min_nested_type_size<_Ts>::value...});
 };
 
+template <typename _ReferenceType1, typename _ReferenceType2>
+struct __swap_ranges_fn
+{
+    void
+    operator()(_ReferenceType1 __x, _ReferenceType2 __y) const
+    {
+        using ::std::swap;
+        swap(__x, __y);
+    }
+};
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
