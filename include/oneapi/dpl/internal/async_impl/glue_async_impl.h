@@ -102,12 +102,8 @@ sort_async(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Comp
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
     using __backend_tag = typename decltype(__dispatch_tag)::__backend_tag;
 
-    sycl::queue __q_local = __exec.queue(); // KSATODO revert
-
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
-    return __par_backend_hetero::__parallel_stable_sort<_CustomName>(__backend_tag{}, __q_local, __buf.all_view(),
-                                                                     __comp, oneapi::dpl::identity{});
+    return __par_backend_hetero::__parallel_stable_sort(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec),
+                                                        __buf.all_view(), __comp, oneapi::dpl::identity{});
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator, class... _Events,
