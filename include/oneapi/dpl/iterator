@@ -56,7 +56,6 @@ using ::std::rbegin;
 using ::std::rend;
 using ::std::reverse_iterator;
 using ::std::size;
-
 } // namespace dpl
 } // namespace oneapi
 namespace dpl = oneapi::dpl;
