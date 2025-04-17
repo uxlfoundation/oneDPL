@@ -100,18 +100,18 @@ __parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& _
 //-----------------------------------------------------------------------
 
 // TODO: check if it makes sense to move these wrappers out of backend to a common place
-template <typename _CustomName, typename _Event, typename _Range1, typename _Range2, typename _BinHashMgr>
+template <typename _ExecutionPolicy, typename _Event, typename _Range1, typename _Range2, typename _BinHashMgr>
 __future<sycl::event>
-__parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, sycl::queue& __q, const _Event& __init_event,
+__parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& __exec, const _Event& __init_event,
                      _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
     static_assert(sizeof(oneapi::dpl::__internal::__value_t<_Range2>) <= sizeof(::std::uint32_t),
                   "histogram is not supported on FPGA devices with output types greater than 32 bits");
 
     // workaround until we implement more performant version for patterns
-    return oneapi::dpl::__par_backend_hetero::__parallel_histogram<_CustomName>(
-        oneapi::dpl::__internal::__device_backend_tag{}, __q, __init_event, std::forward<_Range1>(__input),
-        std::forward<_Range2>(__bins), __binhash_manager);
+    return oneapi::dpl::__par_backend_hetero::__parallel_histogram(
+        oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __init_event,
+        std::forward<_Range1>(__input), std::forward<_Range2>(__bins), __binhash_manager);
 }
 
 } // namespace __par_backend_hetero
