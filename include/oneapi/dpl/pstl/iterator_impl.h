@@ -193,9 +193,12 @@ namespace dpl
 
 template <typename T>
 struct is_indirectly_device_accessible_iterator
-    : std::bool_constant<bool(decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible_iterator(
-          std::declval<T>()))::value)>
+    : decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible_iterator(
+          std::declval<T>()))
 {
+    static_assert(std::is_same_v<decltype(decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible_iterator(
+        std::declval<T>()))::value), const bool>,
+                  "Return type of is_onedpl_indirectly_device_accessible_iterator does not have the characteristics of a bool_constant");
 };
 
 template <typename T>
