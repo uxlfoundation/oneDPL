@@ -362,6 +362,7 @@ struct __sycl_scan_by_segment_impl
     }
 };
 
+// TODO required to move into oneapi::dpl::__par_backend_hetero namesace
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator, typename T,
           typename BinaryPredicate, typename Operator, typename Inclusive>
 oneapi::dpl::__internal::__enable_if_hetero_execution_policy<Policy, OutputIterator>
