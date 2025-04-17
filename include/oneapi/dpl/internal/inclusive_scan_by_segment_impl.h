@@ -88,8 +88,8 @@ inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& p
 {
     using iter_value_t = typename ::std::iterator_traits<InputIterator2>::value_type;
     iter_value_t identity = unseq_backend::__known_identity<BinaryOperator, iter_value_t>;
-    return internal::__scan_by_segment_impl_common(_BackendTag{}, std::forward<Policy>(policy), first1, last1, first2, result,
-                                                   identity, binary_pred, binary_op, ::std::true_type{});
+    return internal::__scan_by_segment_impl_common(_BackendTag{}, std::forward<Policy>(policy), first1, last1, first2,
+                                                   result, identity, binary_pred, binary_op, ::std::true_type{});
 }
 
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,

@@ -161,8 +161,8 @@ class __radix_sort_reorder_kernel;
 // radix sort: count kernel (per iteration)
 //-----------------------------------------------------------------------
 
-template <typename _KernelName, std::uint32_t __radix_bits, bool __is_ascending, typename _ValRange,
-          typename _CountBuf, typename _Proj
+template <typename _KernelName, std::uint32_t __radix_bits, bool __is_ascending, typename _ValRange, typename _CountBuf,
+          typename _Proj
 #if _ONEDPL_COMPILE_KERNEL
           , typename _Kernel
 #endif
@@ -272,8 +272,8 @@ template <typename _KernelName, std::uint32_t __radix_bits, typename _CountBuf
 #endif
           >
 sycl::event
-__radix_sort_scan_submit(sycl::queue& __q, std::size_t __scan_wg_size, std::size_t __segments,
-                         _CountBuf& __count_buf, ::std::size_t __n, sycl::event __dependency_event
+__radix_sort_scan_submit(sycl::queue& __q, std::size_t __scan_wg_size, std::size_t __segments, _CountBuf& __count_buf,
+                         ::std::size_t __n, sycl::event __dependency_event
 #if _ONEDPL_COMPILE_KERNEL
                          , _Kernel& __kernel
 #endif

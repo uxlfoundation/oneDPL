@@ -99,8 +99,7 @@ template <typename _BackendTag, typename Policy, typename InputIterator1, typena
 OutputIterator
 exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
                                InputIterator1 last1, InputIterator2 first2, OutputIterator result, T init,
-                               BinaryPredicate binary_pred, Operator binary_op,
-                               std::true_type /* has_known_identity*/)
+                               BinaryPredicate binary_pred, Operator binary_op, std::true_type /* has_known_identity*/)
 {
     return internal::__scan_by_segment_impl_common(_BackendTag{}, std::forward<Policy>(policy), first1, last1, first2,
                                                    result, init, binary_pred, binary_op, ::std::false_type{});
@@ -111,8 +110,7 @@ template <typename _BackendTag, typename Policy, typename InputIterator1, typena
 OutputIterator
 exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
                                InputIterator1 last1, InputIterator2 first2, OutputIterator result, T init,
-                               BinaryPredicate binary_pred, Operator binary_op,
-                               std::false_type /* has_known_identity*/)
+                               BinaryPredicate binary_pred, Operator binary_op, std::false_type /* has_known_identity*/)
 {
 
     const auto n = ::std::distance(first1, last1);

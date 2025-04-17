@@ -1046,7 +1046,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     // work-group implementation requires a fundamental type which must also be trivially copyable.
     if constexpr (std::is_trivially_copyable_v<_Type>)
     {
-        bool __use_reduce_then_scan = oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local);
+        bool __use_reduce_then_scan =
+            oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local);
 
         // TODO: Consider re-implementing single group scan to support types without known identities. This could also
         // allow us to use single wg scan for the last block of reduce-then-scan if it is sufficiently small.
@@ -1080,8 +1081,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             _GenInput __gen_transform{__unary_op};
 
             return __parallel_transform_reduce_then_scan<_CustomName>(
-                __backend_tag, __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
-                __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
+                __backend_tag, __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng),
+                __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
                 /*_IsUniquePattern=*/std::false_type{});
         }
     }
@@ -1336,7 +1337,8 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
     sycl::queue __q_local = __exec.queue();
 
     // Pessimistically only use half of the memory to take into account memory used by compiled kernel
-    const std::size_t __max_slm_size = __q_local.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+    const std::size_t __max_slm_size =
+        __q_local.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
 
     // The kernel stores n integers for the predicate and another n integers for the offsets
     const auto __req_slm_size = sizeof(std::uint16_t) * __n_uniform * 2;
@@ -1351,8 +1353,8 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
         using _SizeBreakpoints = std::integer_sequence<std::uint16_t, 16, 32, 64, 128, 256, 512, 1024, 2048>;
 
         return __par_backend_hetero::__static_monotonic_dispatcher<_SizeBreakpoints>::__dispatch(
-            _SingleGroupInvoker{}, __n, __q_local, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
-            __pred, __assign);
+            _SingleGroupInvoker{}, __n, __q_local, __n, std::forward<_InRng>(__in_rng),
+            std::forward<_OutRng>(__out_rng), __pred, __assign);
     }
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
@@ -1909,8 +1911,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         // Single WG implementation
         __result = __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
-            oneapi::dpl::__internal::__device_backend_tag{}, __q_local, __brick_tag, __rng_n, __wgroup_size, __init_value,
-            __pred, std::forward<_Ranges>(__rngs)...);
+            oneapi::dpl::__internal::__device_backend_tag{}, __q_local, __brick_tag, __rng_n, __wgroup_size,
+            __init_value, __pred, std::forward<_Ranges>(__rngs)...);
     }
     else
     {
