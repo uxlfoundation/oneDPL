@@ -1852,21 +1852,25 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 };
 
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
-template <typename _CustomName, typename _Brick, typename _BrickTag, typename... _Ranges>
+template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
 ::std::conditional_t<
     ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
     oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
-__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Brick __f, _BrickTag __brick_tag,
-                   _Ranges&&... __rngs)
+__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                   _BrickTag __brick_tag, _Ranges&&... __rngs)
 {
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
     auto __rng_n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
     assert(__rng_n > 0);
 
     // Evaluate the amount of work-groups and work-group size
     const auto [__n_groups, __wgroup_size] =
-        __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__q, __rng_n);
+        __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__q_local, __rng_n);
 
-    _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size);
+    _PRINT_INFO_IN_DEBUG_MODE(__q_local, __wgroup_size);
 
     using _AtomicType = typename _BrickTag::_AtomicType;
     const _AtomicType __init_value = _BrickTag::__init_value(__rng_n);
@@ -1885,20 +1889,20 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& _
 
         // Single WG implementation
         __result = __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
-            oneapi::dpl::__internal::__device_backend_tag{}, __q, __brick_tag, __rng_n, __wgroup_size, __init_value,
+            oneapi::dpl::__internal::__device_backend_tag{}, __q_local, __brick_tag, __rng_n, __wgroup_size, __init_value,
             __pred, std::forward<_Ranges>(__rngs)...);
     }
     else
     {
         assert("This device does not support 64-bit atomics" &&
-               (sizeof(_AtomicType) < 8 || __q.get_device().has(sycl::aspect::atomic64)));
+               (sizeof(_AtomicType) < 8 || __q_local.get_device().has(sycl::aspect::atomic64)));
 
         using __find_or_kernel_name =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
 
         // Multiple WG implementation
         __result = __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name>()(
-            oneapi::dpl::__internal::__device_backend_tag{}, __q, __brick_tag, __rng_n, __n_groups, __wgroup_size,
+            oneapi::dpl::__internal::__device_backend_tag{}, __q_local, __brick_tag, __rng_n, __n_groups, __wgroup_size,
             __init_value, __pred, std::forward<_Ranges>(__rngs)...);
     }
 
