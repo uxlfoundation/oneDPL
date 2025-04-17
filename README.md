@@ -7,7 +7,7 @@ oneDPL is part of the [UXL Foundation] and is an implementation of the
 [oneAPI specification] for the oneDPL component.
 
 [UXL Foundation]: http://www.uxlfoundation.org
-[oneAPI specification]: https://spec.oneapi.io
+[oneAPI specification]: https://oneapi-spec.uxlfoundation.org
 
 oneDPL works with the Intel® oneAPI DPC++/C++ Compiler to provide high-productivity
 APIs to developers, which can minimize Data Parallel C++ (DPC++) programming efforts

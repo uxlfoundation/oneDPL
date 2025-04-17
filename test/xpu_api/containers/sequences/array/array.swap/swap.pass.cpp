@@ -29,7 +29,6 @@
 
 #include "support/utils.h"
 
-#if !TEST_XPU_ARRAY_SWAP_BROKEN
 class KernelTest1;
 
 bool
@@ -96,15 +95,12 @@ kernel_test()
     }
     return ret;
 }
-#endif // !TEST_XPU_ARRAY_SWAP_BROKEN
 
 int
 main()
 {
-#if !TEST_XPU_ARRAY_SWAP_BROKEN
     auto ret = kernel_test();
     EXPECT_TRUE(ret, "Wrong result of work with dpl::swap");
-#endif // !TEST_XPU_ARRAY_SWAP_BROKEN
 
-    return TestUtils::done(!TEST_XPU_ARRAY_SWAP_BROKEN);
+    return TestUtils::done();
 }

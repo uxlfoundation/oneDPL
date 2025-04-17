@@ -30,7 +30,6 @@
 int
 main()
 {
-#if !TEST_XPU_ARRAY_SWAP_BROKEN
     bool ret = true;
     {
         sycl::buffer<bool, 1> buf(&ret, sycl::range<1>{1});
@@ -67,7 +66,6 @@ main()
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::swap(dpl::array, dpl::array)");
-#endif // !TEST_XPU_ARRAY_SWAP_BROKEN
 
-    return TestUtils::done(!TEST_XPU_ARRAY_SWAP_BROKEN);
+    return TestUtils::done();
 }

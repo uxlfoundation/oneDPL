@@ -982,7 +982,7 @@ DEFINE_TEST(test_adjacent_difference)
         Iterator1ValueType fill_value{1};
         Iterator2ValueType blank_value{0};
 
-        auto __f = [](Iterator1ValueType& a, Iterator1ValueType& b) -> Iterator2ValueType { return a + b; };
+        auto __f = [](const Iterator1ValueType& a, const Iterator1ValueType& b) -> Iterator2ValueType { return a + b; };
 
         // init
         ::std::for_each(host_keys.get(), host_keys.get() + n,

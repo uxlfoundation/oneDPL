@@ -272,20 +272,18 @@ copy(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __l
 
     return oneapi::dpl::__internal::__pattern_walk2_brick(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
-        oneapi::dpl::__internal::__brick_copy<decltype(__dispatch_tag), _ExecutionPolicy>{});
+        oneapi::dpl::__internal::__brick_copy<decltype(__dispatch_tag)>{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _Size, class _ForwardIterator2>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator2>
 copy_n(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _Size __n, _ForwardIterator2 __result)
 {
-    using _DecayedExecutionPolicy = ::std::decay_t<_ExecutionPolicy>;
-
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
     return oneapi::dpl::__internal::__pattern_walk2_brick_n(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
-        oneapi::dpl::__internal::__brick_copy_n<decltype(__dispatch_tag), _DecayedExecutionPolicy>{});
+        oneapi::dpl::__internal::__brick_copy_n<decltype(__dispatch_tag)>{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Predicate>
@@ -311,11 +309,9 @@ swap_ranges(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardItera
 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2);
 
-    return oneapi::dpl::__internal::__pattern_swap(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                   __last1, __first2, [](_ReferenceType1 __x, _ReferenceType2 __y) {
-                                                       using ::std::swap;
-                                                       swap(__x, __y);
-                                                   });
+    return oneapi::dpl::__internal::__pattern_swap(
+        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+        oneapi::dpl::__internal::__swap_ranges_fn<_ReferenceType1, _ReferenceType2>{});
 }
 
 // [alg.transform]
@@ -657,6 +653,19 @@ partition_copy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIter
                                                              __first, __last, __out_true, __out_false, __pred);
 }
 
+namespace __internal
+{
+struct __sort_fn
+{
+    template <typename... _Arg>
+    void
+    operator()(_Arg... __args) const
+    {
+        std::sort(__args...);
+    }
+};
+}; // namespace __internal
+
 // [alg.sort]
 
 template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
@@ -666,7 +675,7 @@ sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIter
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
     oneapi::dpl::__internal::__pattern_sort(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                            __comp, [](auto... __args) { std::sort(__args...); });
+                                            __comp, __internal::__sort_fn{});
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator>
@@ -677,6 +686,19 @@ sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIter
                       oneapi::dpl::__internal::__pstl_less());
 }
 
+namespace __internal
+{
+struct __stable_sort_fn
+{
+    template <typename... _Args>
+    void
+    operator()(_Args... __args) const
+    {
+        std::stable_sort(__args...);
+    }
+};
+}; // namespace __internal
+
 // [stable.sort]
 
 template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
@@ -686,7 +708,7 @@ stable_sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAcc
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
     oneapi::dpl::__internal::__pattern_sort(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                            __comp, [](auto... __args) { std::stable_sort(__args...); });
+                                            __comp, __internal::__stable_sort_fn{});
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator>
@@ -709,7 +731,7 @@ sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first, _Ran
 
     oneapi::dpl::__internal::__pattern_sort_by_key(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
                                                    __keys_first, __keys_last, __values_first, __comp,
-                                                   [](auto... __args) { std::sort(__args...); });
+                                                   __internal::__sort_fn{});
 }
 
 template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2>
@@ -733,7 +755,7 @@ stable_sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_firs
 
     oneapi::dpl::__internal::__pattern_sort_by_key(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
                                                    __keys_first, __keys_last, __values_first, __comp,
-                                                   [](auto... __args) { std::stable_sort(__args...); });
+                                                   __internal::__stable_sort_fn{});
 }
 
 template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2>
@@ -836,13 +858,11 @@ template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterato
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator2>
 move(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __d_first)
 {
-    using _DecayedExecutionPolicy = ::std::decay_t<_ExecutionPolicy>;
-
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __d_first);
 
     return oneapi::dpl::__internal::__pattern_walk2_brick(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __d_first,
-        oneapi::dpl::__internal::__brick_move<decltype(__dispatch_tag), _DecayedExecutionPolicy>{});
+        oneapi::dpl::__internal::__brick_move<decltype(__dispatch_tag)>{});
 }
 
 // [partial.sort]

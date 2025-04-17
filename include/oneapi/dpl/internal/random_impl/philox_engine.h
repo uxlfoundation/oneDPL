@@ -10,6 +10,9 @@
 // Abstract:
 //
 // Public header file provides implementation for Philox Engine
+//
+// The documentation of the Engine: https://en.cppreference.com/w/cpp/numeric/random/philox_engine
+//
 
 #ifndef _ONEDPL_PHILOX_ENGINE_H
 #define _ONEDPL_PHILOX_ENGINE_H
@@ -134,6 +137,7 @@ class philox_engine
             // all counters are set in reverse order
             state_.X[word_count - __i - 1] = __counter[__i] & in_mask;
         }
+        state_.idx = word_count - 1;
     }
 
     /* Generating functions */
@@ -508,7 +512,8 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
 
     __is.setf(std::ios_base::dec);
 
-    const std::size_t __state_size = 2 * __n + __n / 2 + 1;
+    /* Number of elements in the state (X, K, Y and idx) */
+    constexpr std::size_t __state_size = 2 * __n + __n / 2 + 1;
 
     std::array<oneapi::dpl::internal::element_type_t<__UIntType>, __state_size> __tmp_inp;
     for (std::size_t __i = 0; __i < __state_size; ++__i)
