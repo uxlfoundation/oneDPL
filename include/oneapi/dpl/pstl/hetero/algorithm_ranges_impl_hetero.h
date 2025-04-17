@@ -886,8 +886,8 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     {
         sycl::queue __q_local = __exec.queue();
 
-        __par_backend_hetero::__parallel_stable_sort<_CustomName>(_BackendTag{}, __q_local,
-                                                                  std::forward<_Range>(__rng), __comp, __proj)
+        __par_backend_hetero::__parallel_stable_sort<_CustomName>(_BackendTag{}, __q_local, std::forward<_Range>(__rng),
+                                                                  __comp, __proj)
             .__deferrable_wait();
     }
 }
