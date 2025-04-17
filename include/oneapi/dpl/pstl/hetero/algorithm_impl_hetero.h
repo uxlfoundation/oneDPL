@@ -1959,10 +1959,10 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    auto __result_size = __par_backend_hetero::__parallel_set_op<_CustomName>(
-                             _BackendTag{}, __q_local, __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp,
-                             __set_tag)
-                             .get();
+    auto __result_size =
+        __par_backend_hetero::__parallel_set_op<_CustomName>(_BackendTag{}, __q_local, __buf1.all_view(),
+                                                             __buf2.all_view(), __buf3.all_view(), __comp, __set_tag)
+            .get();
 
     return __result + __result_size;
 }
