@@ -427,6 +427,7 @@ __select_backend(const execution::device_policy<_KernelName>&, _IteratorTypes&&.
 template <unsigned int factor>
 struct __fpga_backend_tag : __device_backend_tag
 {
+    // TODO really this filed never used for this class and may be deleted
     static constexpr unsigned int unroll_factor = factor;
 };
 
