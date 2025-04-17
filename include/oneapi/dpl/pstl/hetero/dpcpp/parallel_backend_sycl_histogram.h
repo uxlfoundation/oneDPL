@@ -537,10 +537,10 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
     }
 }
 
-template <typename _CustomName, typename _Range1, typename _Range2, typename _BinHashMgr>
+template <typename _CustomName, typename _Event, typename _Range1, typename _Range2, typename _BinHashMgr>
 __future<sycl::event>
 __parallel_histogram(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
-                     const sycl::event& __init_event, _Range1&& __input, _Range2&& __bins,
+                     const _Event& __init_event, _Range1&& __input, _Range2&& __bins,
                      const _BinHashMgr& __binhash_manager)
 {
     if (__input.size() < 1048576) // 2^20
