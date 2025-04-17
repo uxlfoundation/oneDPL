@@ -224,6 +224,7 @@ struct __destroy_fn
     void
     operator()(_ReferenceType __val) const
     {
+        static_assert(std::is_reference_v<_ReferenceType>);
         __val.~_ValueType();
     }
 };
