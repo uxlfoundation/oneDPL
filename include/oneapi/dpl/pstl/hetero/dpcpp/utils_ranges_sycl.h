@@ -747,7 +747,7 @@ __select_backend(const execution::device_policy<_KernelName>&, _Ranges&&...)
 // 1. There is still not RA ranges checks
 // 2. Obviously, a return tag is not necessarily oneapi::dpl::__internal::__hetero_tag
 template <unsigned int _Factor, typename _KernelName, typename... _Ranges>
-oneapi::dpl::__internal::__hetero_tag<oneapi::dpl::__internal::__fpga_backend_tag>
+oneapi::dpl::__internal::__hetero_tag<oneapi::dpl::__internal::__fpga_backend_tag<_Factor>>
 __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _Ranges&&...)
 {
     return {};

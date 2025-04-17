@@ -424,12 +424,14 @@ __select_backend(const execution::device_policy<_KernelName>&, _IteratorTypes&&.
 }
 
 #if _ONEDPL_FPGA_DEVICE
+template <unsigned int factor>
 struct __fpga_backend_tag : __device_backend_tag
 {
+    static constexpr unsigned int unroll_factor = factor;
 };
 
 template <class... _IteratorTypes, unsigned int _Factor, typename _KernelName>
-__hetero_tag<__fpga_backend_tag>
+__hetero_tag<__fpga_backend_tag<_Factor>>
 __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _IteratorTypes&&...)
 {
     static_assert(__is_random_access_iterator_v<_IteratorTypes...>);
@@ -447,13 +449,13 @@ struct __is_hetero_backend_tag : ::std::false_type
 };
 
 template <>
-struct __is_hetero_backend_tag<__device_backend_tag> : ::std::true_type
+struct __is_hetero_backend_tag<__device_backend_tag> : std::true_type
 {
 };
 
 #if _ONEDPL_FPGA_DEVICE
-template <>
-struct __is_hetero_backend_tag<__fpga_backend_tag> : ::std::true_type
+template <unsigned int _Factor>
+struct __is_hetero_backend_tag<__fpga_backend_tag<_Factor>> : std::true_type
 {
 };
 #endif
