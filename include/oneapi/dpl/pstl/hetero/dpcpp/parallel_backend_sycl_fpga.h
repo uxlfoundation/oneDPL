@@ -89,7 +89,7 @@ __parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& _
 
     constexpr unsigned int unroll_factor = std::decay<_ExecutionPolicy>::type::unroll_factor;
 
-    sycl::queue __q_local = __exec.queue();// KSATODO ok
+    sycl::queue __q_local = __exec.queue();
 
     return __parallel_for_fpga_submitter<__parallel_for_name>{}.template operator()<unroll_factor>(
         __q_local, __brick, __count, std::forward<_Ranges>(__rngs)...);

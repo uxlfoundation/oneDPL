@@ -106,7 +106,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     using _SegReducePrefixKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
         _SegReducePrefixPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
 
-    sycl::queue __q_local = __exec.queue();// KSATODO ok
+    sycl::queue __q_local = __exec.queue();
 
     using __diff_type = oneapi::dpl::__internal::__difference_t<_Range3>;
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
