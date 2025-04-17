@@ -533,8 +533,8 @@ struct __get_sycl_range
         assert(__n > 0);
 
         //TODO: investigate better method of handling this specifically for fancy_iterators which are composed fully
-        //      of a combination of fancy_iterators, sycl_iterators, and is_onedpl_indirectly_device_accessible_iterator
-        //      types. Currently this relies on UB because the size of the accessor when handling sycl_iterators
+        //      of a combination of fancy_iterators, sycl_iterators, and passed_directly types.
+        //      Currently this relies on UB because the size of the accessor when handling sycl_iterators
         //      in recursion below this level is incorrect.
         auto res_src = this->operator()(__first.base(), __first.base() + 1 /*source size*/);
 
