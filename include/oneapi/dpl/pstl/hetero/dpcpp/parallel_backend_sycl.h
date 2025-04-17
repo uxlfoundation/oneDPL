@@ -1313,26 +1313,30 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag __backen
     }
 }
 
-template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
+template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 __future<sycl::event, __result_and_scratch_storage<_Size>>
-__parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _InRng&& __in_rng,
-                   _OutRng&& __out_rng, _Size __n, _Pred __pred, _Assign __assign = _Assign{})
+__parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+                   _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Pred __pred, _Assign __assign = _Assign{})
 {
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
     using _SingleGroupInvoker = __invoke_single_group_copy_if<_CustomName, _Size>;
 
     // Next power of 2 greater than or equal to __n
     auto __n_uniform = ::oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<std::make_unsigned_t<_Size>>(__n));
 
+    sycl::queue __q_local = __exec.queue();
+
     // Pessimistically only use half of the memory to take into account memory used by compiled kernel
-    const std::size_t __max_slm_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+    const std::size_t __max_slm_size = __q_local.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
 
     // The kernel stores n integers for the predicate and another n integers for the offsets
     const auto __req_slm_size = sizeof(std::uint16_t) * __n_uniform * 2;
 
     constexpr std::uint16_t __single_group_upper_limit = 2048;
 
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q);
+    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
 
     if (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size &&
         __max_wg_size >= _SingleGroupInvoker::__targeted_wg_size)
@@ -1340,15 +1344,15 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
         using _SizeBreakpoints = std::integer_sequence<std::uint16_t, 16, 32, 64, 128, 256, 512, 1024, 2048>;
 
         return __par_backend_hetero::__static_monotonic_dispatcher<_SizeBreakpoints>::__dispatch(
-            _SingleGroupInvoker{}, __n, __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
+            _SingleGroupInvoker{}, __n, __q_local, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
             __pred, __assign);
     }
-    else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
+    else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
 
-        return __parallel_reduce_then_scan_copy<_CustomName>(__backend_tag, __q, std::forward<_InRng>(__in_rng),
+        return __parallel_reduce_then_scan_copy<_CustomName>(__backend_tag, __q_local, std::forward<_InRng>(__in_rng),
                                                              std::forward<_OutRng>(__out_rng), __n,
                                                              _GenMask{__pred, {}}, _WriteOp{__assign},
                                                              /*_IsUniquePattern=*/std::false_type{});
@@ -1360,7 +1364,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,
                                                       /*inclusive*/ std::true_type, 1>;
 
-        return __parallel_scan_copy<_CustomName>(__backend_tag, __q, std::forward<_InRng>(__in_rng),
+        return __parallel_scan_copy<_CustomName>(__backend_tag, __q_local, std::forward<_InRng>(__in_rng),
                                                  std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
                                                  _CopyOp{_ReduceOp{}, __assign});
     }
