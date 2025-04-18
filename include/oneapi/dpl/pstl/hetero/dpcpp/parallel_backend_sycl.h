@@ -1134,29 +1134,12 @@ struct __set_generic_operation
                     __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
             }
         }
-        else if (__can_reach_rng1_end && __can_reach_rng2_end)
+        else
         {
             while (__idx < __num_eles_min)
             {
                 //bounds check all
                 __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true, true>(
-                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
-            }
-        }
-        // bounds check only the range that needs it
-        else if (__can_reach_rng1_end)
-        {
-            while (__idx < __num_eles_min)
-            {
-                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true, false>(
-                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
-            }
-        }
-        else //(__can_reach_rng2_end)
-        {
-            while (__idx < __num_eles_min)
-            {
-                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false, true>(
                     __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
             }
         }
