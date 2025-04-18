@@ -110,6 +110,21 @@ struct __pattern_minmax_element_transform_fn
     }
 };
 
+template <typename _Predicate>
+struct __pattern_count_transform_fn
+{
+    _Predicate __predicate;
+
+    // int is being implicitly casted to difference_type
+    // otherwise we can only pass the difference_type as a functor template parameter
+    template <typename _TGroupIdx, typename _TAcc>
+    int
+    operator()(_TGroupIdx __gidx, _TAcc __acc) const
+    {
+        return (__predicate(__acc[__gidx]) ? 1 : 0);
+    }
+};
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi

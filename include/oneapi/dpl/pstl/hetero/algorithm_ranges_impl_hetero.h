@@ -564,21 +564,6 @@ __pattern_is_sorted(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
-template <typename _Predicate>
-struct __pattern_count_transform_fn
-{
-    _Predicate __predicate;
-
-    // int is being implicitly casted to difference_type
-    // otherwise we can only pass the difference_type as a functor template parameter
-    template <typename _TGroupIdx, typename _TAcc>
-    int
-    operator()(_TGroupIdx __gidx, _TAcc __acc) const
-    {
-        return (__predicate(__acc[__gidx]) ? 1 : 0);
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Predicate>
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Predicate __predicate)
@@ -589,7 +574,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
     using _ReduceValueType = oneapi::dpl::__internal::__difference_t<_Range>;
 
     auto __reduce_fn = ::std::plus<_ReduceValueType>{};
-    __pattern_count_transform_fn<_Predicate> __transform_fn{__predicate};
+    oneapi::dpl::__internal::__pattern_count_transform_fn<_Predicate> __transform_fn{__predicate};
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                           ::std::true_type /*is_commutative*/>(
