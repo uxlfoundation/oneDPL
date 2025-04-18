@@ -2326,7 +2326,6 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       _BinaryOperator __binary_op,
                                       /*known_identity=*/std::false_type)
 {
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using __diff_type = oneapi::dpl::__internal::__difference_t<_Range1>;
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
