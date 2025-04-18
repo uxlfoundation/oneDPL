@@ -77,6 +77,39 @@ struct __create_mask_unique_copy
         return _ValueType{__predicate_result};
     }
 };
+
+template <typename _Compare, typename _ReduceValueType>
+struct __pattern_minmax_element_reduce_fn
+{
+    _Compare __comp;
+
+    _ReduceValueType
+    operator()(_ReduceValueType __a, _ReduceValueType __b) const
+    {
+        using std::get;
+        auto __chosen_for_min = __a;
+        auto __chosen_for_max = __b;
+
+        if (__comp(get<2>(__b), get<2>(__a)))
+            __chosen_for_min = std::move(__b);
+        if (__comp(get<3>(__b), get<3>(__a)))
+            __chosen_for_max = std::move(__a);
+        return _ReduceValueType{get<0>(__chosen_for_min), get<1>(__chosen_for_max), get<2>(__chosen_for_min),
+                                get<3>(__chosen_for_max)};
+    }
+};
+
+template <typename _ReduceValueType>
+struct __pattern_minmax_element_transform_fn
+{
+    template <typename _TGroupIdx, typename _TAcc>
+    _ReduceValueType
+    operator()(_TGroupIdx __gidx, _TAcc __acc) const
+    {
+        return _ReduceValueType{__gidx, __gidx, __acc[__gidx], __acc[__gidx]};
+    }
+};
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi

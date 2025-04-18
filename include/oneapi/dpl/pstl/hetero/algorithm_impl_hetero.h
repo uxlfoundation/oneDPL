@@ -559,38 +559,6 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
 //   However the solution requires use of custom pattern or substantial redesign of existing parallel_transform_reduce.
 //
 
-template <typename _Compare, typename _ReduceValueType>
-struct __pattern_minmax_element_reduce_fn
-{
-    _Compare __comp;
-
-    _ReduceValueType
-    operator()(_ReduceValueType __a, _ReduceValueType __b) const
-    {
-        using ::std::get;
-        auto __chosen_for_min = __a;
-        auto __chosen_for_max = __b;
-
-        if (__comp(get<2>(__b), get<2>(__a)))
-            __chosen_for_min = ::std::move(__b);
-        if (__comp(get<3>(__b), get<3>(__a)))
-            __chosen_for_max = ::std::move(__a);
-        return _ReduceValueType{get<0>(__chosen_for_min), get<1>(__chosen_for_max), get<2>(__chosen_for_min),
-                                get<3>(__chosen_for_max)};
-    }
-};
-
-template <typename _ReduceValueType>
-struct __pattern_minmax_element_transform_fn
-{
-    template <typename _TGroupIdx, typename _TAcc>
-    _ReduceValueType
-    operator()(_TGroupIdx __gidx, _TAcc __acc) const
-    {
-        return _ReduceValueType{__gidx, __gidx, __acc[__gidx], __acc[__gidx]};
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare>
 ::std::pair<_Iterator, _Iterator>
 __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
@@ -605,12 +573,12 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
-    __pattern_minmax_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
+    oneapi::dpl::__internal::__pattern_minmax_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
 
     // TODO: Doesn't work with `zip_iterator`.
     //       In that case the first and the second arguments of `_ReduceValueType` will be
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
-    __pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn;
+    oneapi::dpl::__internal::__pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
