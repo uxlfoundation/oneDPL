@@ -560,7 +560,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
 //
 
 template <typename _Compare, typename _ReduceValueType>
-struct __pattern_minmax_element_reduce_fn
+struct __pattern_minmax_element__reduce_fn
 {
     _Compare __comp;
 
@@ -605,7 +605,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
-    __pattern_minmax_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
+    __pattern_minmax_element__reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
 
     // TODO: Doesn't work with `zip_iterator`.
     //       In that case the first and the second arguments of `_ReduceValueType` will be
