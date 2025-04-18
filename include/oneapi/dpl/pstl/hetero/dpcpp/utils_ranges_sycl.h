@@ -239,7 +239,7 @@ struct is_temp_buff : ::std::false_type
 };
 
 template <typename _Iter>
-struct is_temp_buff<_Iter, std::enable_if_t<!is_sycl_iterator_v<_Iter> && !std::is_pointer_v<_Iter> &&
+struct is_temp_buff<_Iter, std::enable_if_t<!oneapi::dpl::__ranges::is_sycl_iterator_v<_Iter> && !std::is_pointer_v<_Iter> &&
                                             !oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>>>
     : std::true_type
 {
@@ -474,7 +474,7 @@ struct __get_sycl_range
 
     //specialization for permutation_iterator using sycl_iterator as source
     template <sycl::access::mode _LocalAccMode, typename _It, typename _Map,
-              ::std::enable_if_t<is_sycl_iterator_v<_It>, int> = 0>
+              ::std::enable_if_t<oneapi::dpl::__ranges::is_sycl_iterator_v<_It>, int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_It, _Map> __first,
                          oneapi::dpl::permutation_iterator<_It, _Map> __last)
@@ -504,7 +504,7 @@ struct __get_sycl_range
     template <
         sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
         std::enable_if_t<
-            !is_sycl_iterator_v<_Iter> && oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>, int> = 0>
+            !oneapi::dpl::__ranges::is_sycl_iterator_v<_Iter> && oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>, int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_Iter, _Map> __first,
                          oneapi::dpl::permutation_iterator<_Iter, _Map> __last)
@@ -524,7 +524,7 @@ struct __get_sycl_range
     template <
         sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
         std::enable_if_t<
-            !is_sycl_iterator_v<_Iter> && !oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>, int> = 0>
+            !oneapi::dpl::__ranges::is_sycl_iterator_v<_Iter> && !oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>, int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_Iter, _Map> __first,
                          oneapi::dpl::permutation_iterator<_Iter, _Map> __last)
@@ -572,7 +572,7 @@ struct __get_sycl_range
     template <sycl::access::mode _LocalAccMode, typename _Iter>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
-        -> ::std::enable_if_t<is_sycl_iterator_v<_Iter>,
+        -> ::std::enable_if_t<oneapi::dpl::__ranges::is_sycl_iterator_v<_Iter>,
                               __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
     {
         assert(__first < __last);
