@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- indirectly_device_accessible_iterator.pass.cpp -----------------------------------------------===//
+//===-- indirectly_device_accessible.pass.cpp -----------------------------------------------===//
 //
 // Copyright (C) Intel Corporation
 //
