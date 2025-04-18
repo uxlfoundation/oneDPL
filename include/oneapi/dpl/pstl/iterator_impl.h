@@ -192,7 +192,7 @@ namespace dpl
 {
 
 template <typename T>
-struct is_indirectly_device_accessible_iterator
+struct is_indirectly_device_accessible
     : decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible_iterator(std::declval<T>()))
 {
     static_assert(
@@ -204,7 +204,7 @@ struct is_indirectly_device_accessible_iterator
 };
 
 template <typename T>
-inline constexpr bool is_indirectly_device_accessible_iterator_v = is_indirectly_device_accessible_iterator<T>::value;
+inline constexpr bool is_indirectly_device_accessible_v = is_indirectly_device_accessible<T>::value;
 
 template <typename _Ip>
 class counting_iterator
@@ -452,7 +452,7 @@ class zip_iterator
 
     friend auto
     is_onedpl_indirectly_device_accessible_iterator(const zip_iterator&)
-        -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible_iterator<_Types>...>;
+        -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Types>...>;
 
   private:
     __it_types __my_it_;
@@ -632,7 +632,7 @@ class transform_iterator
     }
     friend auto
     is_onedpl_indirectly_device_accessible_iterator(const transform_iterator&)
-        -> oneapi::dpl::is_indirectly_device_accessible_iterator<_Iter>;
+        -> oneapi::dpl::is_indirectly_device_accessible<_Iter>;
 };
 
 template <typename _Iter, typename _UnaryFunc>
@@ -826,8 +826,8 @@ class permutation_iterator
 
     friend auto
     is_onedpl_indirectly_device_accessible_iterator(const permutation_iterator&)
-        -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible_iterator<SourceIterator>,
-                            oneapi::dpl::is_indirectly_device_accessible_iterator<
+        -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<SourceIterator>,
+                            oneapi::dpl::is_indirectly_device_accessible<
                                 typename oneapi::dpl::permutation_iterator<SourceIterator, _Permutation>::IndexMap>>;
 
   private:
@@ -1015,7 +1015,7 @@ struct __is_reverse_it_to_indirectly_device_accessible_iterator : std::false_typ
 
 template <typename _BaseIter>
 struct __is_reverse_it_to_indirectly_device_accessible_iterator<std::reverse_iterator<_BaseIter>>
-    : oneapi::dpl::is_indirectly_device_accessible_iterator<_BaseIter>
+    : oneapi::dpl::is_indirectly_device_accessible<_BaseIter>
 {
 };
 

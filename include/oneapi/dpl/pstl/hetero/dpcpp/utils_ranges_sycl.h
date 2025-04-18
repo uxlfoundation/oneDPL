@@ -223,7 +223,7 @@ inline constexpr bool is_sycl_iterator_v = is_sycl_iterator<Iter>::value || is_h
 
 template <typename _Iter>
 struct __is_passed_directly_device_ready
-    : std::conjunction<oneapi::dpl::is_indirectly_device_accessible_iterator<_Iter>, sycl::is_device_copyable<_Iter>,
+    : std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Iter>, sycl::is_device_copyable<_Iter>,
                        oneapi::dpl::__internal::__is_random_access_iterator<_Iter>>
 {
 };
