@@ -87,7 +87,7 @@ struct __is_legacy_passed_directly<_Iter, ::std::enable_if_t<_Iter::is_passed_di
 };
 
 template <typename _T>
-struct __is_reverse_it_to_indirectly_device_accessible_iterator;
+struct __is_reversed_indirectly_device_accessible_it;
 
 template <typename T>
 constexpr auto is_onedpl_indirectly_device_accessible_iterator(T)
@@ -97,7 +97,7 @@ constexpr auto is_onedpl_indirectly_device_accessible_iterator(T)
 #endif // _ONEDPL_BACKEND_SYCL
         std::is_pointer<std::decay_t<T>>,                                                 // USM pointer
         oneapi::dpl::__internal::__is_legacy_passed_directly<std::decay_t<T>>,            // legacy passed directly iter
-        oneapi::dpl::__internal::__is_reverse_it_to_indirectly_device_accessible_iterator<std::decay_t<T>>>; // reverse iterator
+        oneapi::dpl::__internal::__is_reversed_indirectly_device_accessible_it<std::decay_t<T>>>; // reverse iterator
 
 struct __is_onedpl_indirectly_device_accessible_iterator_fn
 {
@@ -1009,12 +1009,12 @@ namespace dpl
 namespace __internal
 {
 template <typename _T>
-struct __is_reverse_it_to_indirectly_device_accessible_iterator : std::false_type
+struct __is_reversed_indirectly_device_accessible_it : std::false_type
 {
 };
 
 template <typename _BaseIter>
-struct __is_reverse_it_to_indirectly_device_accessible_iterator<std::reverse_iterator<_BaseIter>>
+struct __is_reversed_indirectly_device_accessible_it<std::reverse_iterator<_BaseIter>>
     : oneapi::dpl::is_indirectly_device_accessible<_BaseIter>
 {
 };
