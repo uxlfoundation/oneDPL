@@ -499,8 +499,6 @@ struct __pattern_min_element_reduce_fn
     }
 };
 
-
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare>
 _Iterator
 __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
