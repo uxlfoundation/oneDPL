@@ -125,6 +125,17 @@ struct __pattern_count_transform_fn
     }
 };
 
+template <typename _ReduceValueType>
+struct __pattern_min_element_transform_fn
+{
+    template <typename _TGroupIdx, typename _TAcc>
+    _ReduceValueType
+    operator()(_TGroupIdx __gidx, _TAcc __acc) const
+    {
+        return _ReduceValueType{__gidx, __acc[__gidx]};
+    };
+};
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi

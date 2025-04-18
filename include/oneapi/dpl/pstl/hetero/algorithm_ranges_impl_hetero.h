@@ -872,17 +872,6 @@ struct __pattern_min_element_reduce_fn
     }
 };
 
-template <typename _ReduceValueType>
-struct __pattern_min_element_transform_fn
-{
-    template <typename _TGroupIdx, typename _TAcc>
-    _ReduceValueType
-    operator()(_TGroupIdx __gidx, _TAcc __acc) const
-    {
-        return _ReduceValueType{__gidx, __acc[__gidx]};
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
@@ -898,7 +887,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
     // not commutative.
     __pattern_min_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
-    __pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
+    oneapi::dpl::__internal::__pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
     auto __ret_idx =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
