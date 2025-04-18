@@ -171,24 +171,20 @@ using __usm_host_alloc_vec_iter =
 // default, usm_shared, and usm_host. If all are distinct, it is very unlikely any non-usm based allocator
 // could be confused with a usm allocator.
 template <typename Iter>
-struct __vector_iter_distinguishes_by_allocator
-    : std::conjunction<std::negation<std::is_same<__default_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>>>,
-                       std::negation<std::is_same<__default_alloc_vec_iter<Iter>, __usm_host_alloc_vec_iter<Iter>>>,
-                       std::negation<std::is_same<__usm_host_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>>>>
-{
-};
+using __vector_iter_distinguishes_by_allocator =
+    std::conjunction<std::negation<std::is_same<__default_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>>>,
+                     std::negation<std::is_same<__default_alloc_vec_iter<Iter>, __usm_host_alloc_vec_iter<Iter>>>,
+                     std::negation<std::is_same<__usm_host_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>>>>;
 
 template <typename Iter>
 inline constexpr bool __vector_iter_distinguishes_by_allocator_v =
     __vector_iter_distinguishes_by_allocator<Iter>::value;
 
 template <typename Iter>
-struct __is_known_usm_vector_iter
-    : std::conjunction<__vector_iter_distinguishes_by_allocator<Iter>,
-                       std::disjunction<std::is_same<Iter, oneapi::dpl::__internal::__usm_shared_alloc_vec_iter<Iter>>,
-                                        std::is_same<Iter, oneapi::dpl::__internal::__usm_host_alloc_vec_iter<Iter>>>>
-{
-};
+using __is_known_usm_vector_iter =
+    std::conjunction<__vector_iter_distinguishes_by_allocator<Iter>,
+                     std::disjunction<std::is_same<Iter, oneapi::dpl::__internal::__usm_shared_alloc_vec_iter<Iter>>,
+                                      std::is_same<Iter, oneapi::dpl::__internal::__usm_host_alloc_vec_iter<Iter>>>>;
 
 template <typename Iter>
 inline constexpr bool __is_known_usm_vector_iter_v = __is_known_usm_vector_iter<Iter>::value;
