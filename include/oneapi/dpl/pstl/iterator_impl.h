@@ -76,7 +76,7 @@ struct __make_references
     }
 };
 
-template <typename _Iter, typename _Void = void>
+template <typename _Iter, typename = void>
 struct __is_legacy_passed_directly : std::false_type
 {
 };
