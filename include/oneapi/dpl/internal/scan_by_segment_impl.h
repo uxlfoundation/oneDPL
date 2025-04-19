@@ -96,7 +96,6 @@ class __seg_scan_wg_kernel;
 template <bool __is_inclusive, typename... Name>
 class __seg_scan_prefix_kernel;
 
-// TODO required to move into oneapi::dpl::__par_backend_hetero namesace
 template <typename _CustomName, bool __is_inclusive>
 struct __sycl_scan_by_segment_impl
 {
