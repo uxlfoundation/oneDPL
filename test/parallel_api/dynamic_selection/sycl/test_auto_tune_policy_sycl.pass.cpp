@@ -50,22 +50,18 @@ test_auto_initialization(const std::vector<sycl::queue>& u)
 
 template <typename KernelName>
 auto
-launch_small_kernel(sycl::queue& q)
+launch_small_kernel(sycl::queue& q, int* j, double* v)
 {
     return q.submit([=](sycl::handler& h){
-        h.parallel_for<KernelName>(
-            1, [=](sycl::id<1> idx) {
-                for (int j0 = 0; j0 < *j; ++j0)
-                {
-                    v[idx] += idx;
-                }
+        h.single_task<KernelName>([=]() {
+                    v[0] += *j;
             });
      });
 }
 
 template <typename KernelName>
 auto
-launch_big_kernel(sycl::queue& q)
+launch_big_kernel(sycl::queue& q, int* j, double* v)
 {
     return q.submit([=](sycl::handler& h) {
         h.parallel_for<KernelName>(
@@ -108,7 +104,7 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
         }
         else
         {
-            *j = 0;
+            *j = 1;
         }
         // we can capture all by reference
         // the inline_scheduler reports timings in submit
@@ -138,11 +134,11 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
                 ecount += i;
                 if (*j == 0)
                 {
-                    return launch_small_kernel<class SingleTask1>(q);
+                    return launch_small_kernel<class SingleTask1>(q, j, v);
                 }
                 else
                 {
-                    return launch_big_kernel<TestUtils::unique_kernel_name<class tune1, 0>>(q);
+                    return launch_big_kernel<TestUtils::unique_kernel_name<class tune1, 0>>(q, j, v);
                 }
             };
             auto s = oneapi::dpl::experimental::select(p, f);
@@ -174,11 +170,11 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
                     ecount += i;
                     if (*j == 0)
                     {
-                        return launch_small_kernel<class SingleTask2>(q);
+                        return launch_small_kernel<class SingleTask2>(q, j, v);
                     }
                     else
                     {
-                        return launch_big_kernel<TestUtils::unique_kernel_name<class tune2, 0>>(q);
+                        return launch_big_kernel<TestUtils::unique_kernel_name<class tune2, 0>>(q, j, v);
                     }
                 });
             oneapi::dpl::experimental::wait(s);
@@ -229,7 +225,7 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
         }
         else
         {
-            *j = 0;
+            *j = 1;
         }
         // we can capture all by reference
         // the inline_scheduler reports timings in submit
@@ -259,11 +255,11 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                 ecount += i;
                 if (*j == 0)
                 {
-                    return launch_small_kernel<class SingleTask3>(q);
+                    return launch_small_kernel<class SingleTask3>(q, j, v);
                 }
                 else
                 {
-                    return launch_big_kernel<TestUtils::unique_kernel_name<class tune3, 0>>(q);
+                    return launch_big_kernel<TestUtils::unique_kernel_name<class tune3, 0>>(q, j, v);
                 }
             };
             auto s = oneapi::dpl::experimental::select(p, f);
@@ -295,11 +291,11 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                     ecount += i;
                     if (*j == 0)
                     {
-                        return launch_small_kernel<class SingleTask4>(q);
+                        return launch_small_kernel<class SingleTask4>(q, j, v);
                     }
                     else
                     {
-                        return launch_big_kernel<TestUtils::unique_kernel_name<class tune4, 0>>(q);
+                        return launch_big_kernel<TestUtils::unique_kernel_name<class tune4, 0>>(q, j, v);
                     }
                 });
             oneapi::dpl::experimental::wait(p.get_submission_group());
@@ -350,7 +346,7 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
         }
         else
         {
-            *j = 0;
+            *j = 1;
         }
         // we can capture all by reference
         // the inline_scheduler reports timings in submit
@@ -380,11 +376,11 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
                 ecount += i;
                 if (*j == 0)
                 {
-                    return launch_small_kernel<class SingleTask5>(q);
+                    return launch_small_kernel<class SingleTask5>(q, j, v);
                 }
                 else
                 {
-                    return launch_big_kernel<TestUtils::unique_kernel_name<class tune5, 0>>(q);
+                    return launch_big_kernel<TestUtils::unique_kernel_name<class tune5, 0>>(q, j, v);
                 }
             };
             auto s = oneapi::dpl::experimental::select(p, f);
@@ -415,11 +411,11 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
                     ecount += i;
                     if (*j == 0)
                     {
-                        return launch_small_kernel<class SingleTask6>(q);
+                        return launch_small_kernel<class SingleTask6>(q, j, v);
                     }
                     else
                     {
-                        return launch_big_kernel<TestUtils::unique_kernel_name<class tune6, 0>>(q);
+                        return launch_big_kernel<TestUtils::unique_kernel_name<class tune6, 0>>(q, j, v);
                     }
                 });
         }
