@@ -127,9 +127,8 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
 
     constexpr size_t N = 1000; // Number of vectors
     constexpr size_t D = 100;  // Dimension of each vector
-
-    std::array<std::array<int, D>, N> a;
-    std::array<std::array<int, D>, N> b;
+    std::vector<int> a(N * D);
+    std::vector<int> b(N * D);
 
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution(1, 10);
@@ -138,15 +137,15 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
     {
         for (size_t j = 0; j < D; ++j)
         {
-            a[i][j] = distribution(generator);
-            b[i][j] = distribution(generator);
+            a[i * D + j] = distribution(generator);
+            b[i * D + j] = distribution(generator);
         }
     }
 
-    std::array<std::array<int, N>, N> resultMatrix;
-    sycl::buffer<std::array<int, D>, 1> bufferA(a.data(), sycl::range<1>(N));
-    sycl::buffer<std::array<int, D>, 1> bufferB(b.data(), sycl::range<1>(N));
-    sycl::buffer<std::array<int, N>, 1> bufferResultMatrix(resultMatrix.data(), sycl::range<1>(N));
+    std::vector<int> resultMatrix(N * N);
+    sycl::buffer<int, 1> bufferA(a.data(), sycl::range<1>(N * D));
+    sycl::buffer<int, 1> bufferB(b.data(), sycl::range<1>(N * D));
+    sycl::buffer<int, 1> bufferResultMatrix(resultMatrix.data(), sycl::range<1>(N * N));
 
     std::atomic<int> probability = 0;
     size_t total_items = 6;
@@ -174,9 +173,9 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                                     int dotProduct = 0;
                                     for (size_t i = 0; i < D; ++i)
                                     {
-                                        dotProduct += accessorA[item][i] * accessorB[item][i];
+                                        dotProduct += accessorA[item* D + i] * accessorB[item* D + i];
                                     }
-                                    accessorResultMatrix[item][j] = dotProduct;
+                                    accessorResultMatrix[item * N + j] = dotProduct;
                                 }
                             });
                     });
@@ -220,9 +219,9 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                                         int dotProduct = 0;
                                         for (size_t i = 0; i < D; ++i)
                                         {
-                                            dotProduct += accessorA[item][i] * accessorB[item][i];
+                                            dotProduct += accessorA[item * D + i] * accessorB[item * D + i];
                                         }
-                                        accessorResultMatrix[item][j] = dotProduct;
+                                        accessorResultMatrix[item * N + j] = dotProduct;
                                     }
                                 });
                         });
