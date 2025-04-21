@@ -100,10 +100,10 @@ OutputIterator
 __pattern_exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy,
                                          InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                                          OutputIterator result, T init, BinaryPredicate binary_pred, Operator binary_op,
-                                         ::std::true_type /* has_known_identity*/)
+                                         std::true_type /* has_known_identity*/)
 {
-    return __internal::__pattern_scan_by_segment(__tag, ::std::forward<Policy>(policy), first1, last1, first2, result,
-                                                 init, binary_pred, binary_op, ::std::false_type{});
+    return __internal::__pattern_scan_by_segment(__tag, std::forward<Policy>(policy), first1, last1, first2, result,
+                                                 init, binary_pred, binary_op, std::false_type{});
 }
 
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
@@ -112,7 +112,7 @@ OutputIterator
 __pattern_exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
                                          InputIterator1 last1, InputIterator2 first2, OutputIterator result, T init,
                                          BinaryPredicate binary_pred, Operator binary_op,
-                                         ::std::false_type /* has_known_identity*/)
+                                         std::false_type /* has_known_identity*/)
 {
 
     const auto n = ::std::distance(first1, last1);
@@ -174,9 +174,9 @@ __pattern_exclusive_scan_by_segment(__internal::__hetero_tag<_BackendTag> __tag,
                                     BinaryPredicate binary_pred, Operator binary_op)
 {
     return __internal::__pattern_exclusive_scan_by_segment_impl(
-        __tag, ::std::forward<Policy>(policy), first1, last1, first2, result, init, binary_pred, binary_op,
+        __tag, std::forward<Policy>(policy), first1, last1, first2, result, init, binary_pred, binary_op,
         typename unseq_backend::__has_known_identity<
-            Operator, typename ::std::iterator_traits<InputIterator2>::value_type>::type{});
+            Operator, typename std::iterator_traits<InputIterator2>::value_type>::type{});
 }
 
 #endif
@@ -190,8 +190,8 @@ exclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first1, first2, result);
 
-    return __internal::__pattern_exclusive_scan_by_segment(__dispatch_tag, ::std::forward<Policy>(policy), first1,
-                                                           last1, first2, result, init, binary_pred, binary_op);
+    return __internal::__pattern_exclusive_scan_by_segment(__dispatch_tag, std::forward<Policy>(policy), first1, last1,
+                                                           first2, result, init, binary_pred, binary_op);
 }
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator, typename T,

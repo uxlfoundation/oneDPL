@@ -146,7 +146,7 @@ struct __sycl_scan_by_segment_impl
              oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __seg_scan_prefix_kernel)});
 #endif
 
-        ::std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);
+        std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);
 
         auto __partials = oneapi::dpl::__par_backend_hetero::__buffer<__val_type>(__n_groups).get_buffer();
 
@@ -373,10 +373,10 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
                            _Range2&& __values, _Range3&& __out_values, _BinaryPredicate __binary_pred,
                            _BinaryOperator __binary_op, _T __init, _T __identity)
 {
-    __sycl_scan_by_segment_impl<__is_inclusive>()(
-        oneapi::dpl::__internal::__device_backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        ::std::forward<_Range1>(__keys), ::std::forward<_Range2>(__values), ::std::forward<_Range3>(__out_values),
-        __binary_pred, __binary_op, __init, __identity);
+    __sycl_scan_by_segment_impl<__is_inclusive>()(oneapi::dpl::__internal::__device_backend_tag{},
+                                                  std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__keys),
+                                                  std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
+                                                  __binary_pred, __binary_op, __init, __identity);
 }
 } //namespace __par_backend_hetero
 
@@ -409,7 +409,7 @@ __pattern_scan_by_segment(__internal::__hetero_tag<_BackendTag>, Policy&& policy
     constexpr iter_value_t identity = unseq_backend::__known_identity<Operator, iter_value_t>;
 
     __bknd::__parallel_scan_by_segment<Inclusive::value>(
-        _BackendTag{}, ::std::forward<Policy>(policy), key_buf.all_view(), value_buf.all_view(),
+        _BackendTag{}, std::forward<Policy>(policy), key_buf.all_view(), value_buf.all_view(),
         value_output_buf.all_view(), binary_pred, binary_op, init, identity);
     return result + n;
 }
