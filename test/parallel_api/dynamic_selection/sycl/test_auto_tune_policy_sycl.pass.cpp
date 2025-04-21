@@ -63,7 +63,7 @@ launch_kernel(sycl::queue& q, int* j, volatile double* v)
     });
 }
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename KernelName>
+template <bool call_select_before_submit, typename Policy, typename KernelName, typename UniverseContainer>
 int
 test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
 {
@@ -173,7 +173,7 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
     return 0;
 }
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename KernelName>
+template <bool call_select_before_submit, typename Policy, typename KernelName, typename UniverseContainer>
 int
 test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
 {
@@ -283,7 +283,7 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
 }
 
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename KernelName>
+template <bool call_select_before_submit, typename Policy, typename KernelName, typename UniverseContainer>
 int
 test_auto_submit_and_wait(UniverseContainer u, int best_resource)
 {
