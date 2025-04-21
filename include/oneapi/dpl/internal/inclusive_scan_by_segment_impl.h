@@ -33,7 +33,7 @@ namespace oneapi
 {
 namespace dpl
 {
-namespace internal
+namespace __internal
 {
 
 template <typename Name>
@@ -88,8 +88,8 @@ __pattern_inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag> _
 {
     using iter_value_t = typename ::std::iterator_traits<InputIterator2>::value_type;
     iter_value_t identity = unseq_backend::__known_identity<BinaryOperator, iter_value_t>;
-    return internal::__pattern_scan_by_segment(__tag, ::std::forward<Policy>(policy), first1, last1, first2, result,
-                                               identity, binary_pred, binary_op, ::std::true_type{});
+    return __internal::__pattern_scan_by_segment(__tag, ::std::forward<Policy>(policy), first1, last1, first2, result,
+                                                 identity, binary_pred, binary_op, ::std::true_type{});
 }
 
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
@@ -138,14 +138,14 @@ __pattern_inclusive_scan_by_segment(__internal::__hetero_tag<_BackendTag> __tag,
                                     InputIterator1 last1, InputIterator2 first2, OutputIterator result,
                                     BinaryPredicate binary_pred, BinaryOperator binary_op)
 {
-    return internal::__pattern_inclusive_scan_by_segment_impl(
+    return __internal::__pattern_inclusive_scan_by_segment_impl(
         __tag, ::std::forward<Policy>(policy), first1, last1, first2, result, binary_pred, binary_op,
         typename unseq_backend::__has_known_identity<
             BinaryOperator, typename ::std::iterator_traits<InputIterator2>::value_type>::type{});
 }
 
 #endif
-} // namespace internal
+} // namespace __internal
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
           typename BinaryPredicate, typename BinaryOperator>
@@ -155,8 +155,8 @@ inclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first1, first2, result);
 
-    return internal::__pattern_inclusive_scan_by_segment(__dispatch_tag, ::std::forward<Policy>(policy), first1, last1,
-                                                         first2, result, binary_pred, binary_op);
+    return __internal::__pattern_inclusive_scan_by_segment(__dispatch_tag, ::std::forward<Policy>(policy), first1,
+                                                           last1, first2, result, binary_pred, binary_op);
 }
 
 template <typename Policy, typename InputIter1, typename InputIter2, typename OutputIter, typename BinaryPredicate>

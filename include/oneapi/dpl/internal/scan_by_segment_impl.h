@@ -380,7 +380,7 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
 }
 } //namespace __par_backend_hetero
 
-namespace internal
+namespace __internal
 {
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename T, typename BinaryPredicate, typename Operator, typename Inclusive>
@@ -414,7 +414,7 @@ __pattern_scan_by_segment(__internal::__hetero_tag<_BackendTag>, Policy&& policy
     return result + n;
 }
 
-} // namespace internal
+} // namespace __internal
 } // namespace dpl
 } // namespace oneapi
 #endif
