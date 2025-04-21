@@ -45,6 +45,19 @@ The following targets are available for build system after configuration:
 Sudirectories are added as labels for each test and can be used with `ctest -L <label>`.
 For example, `<root>/test/path/to/test.pass.cpp` will have `path` and `to` labels.
 
+## Ahead of Time (AOT) Compilation
+
+When using the oneAPI DPC++ compiler, you may wish to compile Ahead of Time (AOT) for a specific device target. Usage
+of this compilation mode is required to compile for non-Intel device backends. To compile AOT, you must specify
+additional compiler and linker flags that can be configured through the `CMAKE_CXX_FLAGS` and `CMAKE_EXE_LINKER_FLAGS`
+variables. For more information regarding this feature, please refer to
+[Ahead of Time Compilation](https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2025-1/ahead-of-time-compilation.html),
+a full list of target options in the [oneAPI DPC++ Compiler documentation Users Manual](https://intel.github.io/llvm/UsersManual.html),
+and the [Codeplay® oneAPI Plugins for NVIDIA® & AMD](https://codeplay.com/solutions/oneapi/plugins/).
+
+If you are not using the oneAPI DPC++ compiler, then please refer to your SYCL compiler's documentation regarding
+support of this feature.
+
 ## How to use oneDPL from CMake
 ### Using oneDPL source files
 
