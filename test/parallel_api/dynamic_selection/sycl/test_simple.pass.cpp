@@ -21,26 +21,17 @@ main()
     auto device_cpu1 = sycl::device(sycl::cpu_selector_v);
     sycl::queue cpu1_queue(device_cpu1);
 
-    
-
     constexpr size_t N = 1000; // Number of vectors
-    constexpr size_t D = 100;  // Dimension of each vector
 
-
-    std::vector<int> resultMatrix(N * N);
-    sycl::buffer<int, 1> bufferResultMatrix(resultMatrix.data(), sycl::range<1>(N * N));
-
-    std::atomic<int> probability = 0;
+    std::vector<int> resultMatrix(N);
+    sycl::buffer<int, 1> bufferResultMatrix(resultMatrix.data(), sycl::range<1>(N));
 
 
     auto e2 = cpu1_queue.submit([&](sycl::handler& cgh) {
         auto accessorResultMatrix = bufferResultMatrix.get_access<sycl::access::mode::write>(cgh);
-        cgh.parallel_for<TestUtils::unique_kernel_name<class load2, 0>>(
+        cgh.parallel_for<class load2>(
             sycl::range<1>(N), [=](sycl::item<1> item) {
-                for (size_t j = 0; j < N; ++j)
-                {
-                    accessorResultMatrix[item * N + j] = 1;
-                }
+                accessorResultMatrix[item] = 1;
             });
         });
     e2.wait();
