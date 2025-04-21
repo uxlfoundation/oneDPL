@@ -48,6 +48,36 @@ test_auto_initialization(const std::vector<sycl::queue>& u)
     return 0;
 }
 
+template <typename KernelName>
+auto
+launch_small_kernel(sycl::queue& q)
+{
+    return q.submit([=](sycl::handler& h){
+        h.parallel_for<KernelName>(
+            1, [=](sycl::id<1> idx) {
+                for (int j0 = 0; j0 < *j; ++j0)
+                {
+                    v[idx] += idx;
+                }
+            });
+     });
+}
+
+template <typename KernelName>
+auto
+launch_big_kernel(sycl::queue& q)
+{
+    return q.submit([=](sycl::handler& h) {
+        h.parallel_for<KernelName>(
+            1000000, [=](sycl::id<1> idx) {
+                for (int j0 = 0; j0 < *j; ++j0)
+                {
+                    v[idx] += idx;
+                }
+            });
+    });
+}
+
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer>
 int
 test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
@@ -108,21 +138,11 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
                 ecount += i;
                 if (*j == 0)
                 {
-                     return q.submit([=](sycl::handler& h){
-                        h.single_task<class SingleTask1>([](){});
-                     });
+                    return launch_small_kernel<class SingleTask1>(q);
                 }
                 else
                 {
-                    return q.submit([=](sycl::handler& h) {
-                        h.parallel_for<TestUtils::unique_kernel_name<class tune1, 0>>(
-                            1000000, [=](sycl::id<1> idx) {
-                                for (int j0 = 0; j0 < *j; ++j0)
-                                {
-                                    v[idx] += idx;
-                                }
-                            });
-                    });
+                    return launch_big_kernel<TestUtils::unique_kernel_name<class tune1, 0>>(q);
                 }
             };
             auto s = oneapi::dpl::experimental::select(p, f);
@@ -154,21 +174,11 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
                     ecount += i;
                     if (*j == 0)
                     {
-                         return q.submit([=](sycl::handler& h){
-                            h.single_task<class SingleTask2>([](){});
-                         });
+                        return launch_small_kernel<class SingleTask2>(q);
                     }
                     else
                     {
-                        return q.submit([=](sycl::handler& h) {
-                            h.parallel_for<TestUtils::unique_kernel_name<class tune2, 0>>(
-                                1000000, [=](sycl::id<1> idx) {
-                                    for (int j0 = 0; j0 < *j; ++j0)
-                                    {
-                                        v[idx] += idx;
-                                    }
-                                });
-                        });
+                        return launch_big_kernel<TestUtils::unique_kernel_name<class tune2, 0>>(q);
                     }
                 });
             oneapi::dpl::experimental::wait(s);
@@ -249,21 +259,11 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                 ecount += i;
                 if (*j == 0)
                 {
-                     return q.submit([=](sycl::handler& h){
-                        h.single_task<class SingleTask3>([](){});
-                     });
+                    return launch_small_kernel<class SingleTask3>(q);
                 }
                 else
                 {
-                    return q.submit([=](sycl::handler& h) {
-                        h.parallel_for<TestUtils::unique_kernel_name<class tune3, 0>>(
-                            1000000, [=](sycl::id<1> idx) {
-                                for (int j0 = 0; j0 < *j; ++j0)
-                                {
-                                    v[idx] += idx;
-                                }
-                            });
-                    });
+                    return launch_big_kernel<TestUtils::unique_kernel_name<class tune3, 0>>(q);
                 }
             };
             auto s = oneapi::dpl::experimental::select(p, f);
@@ -295,21 +295,11 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                     ecount += i;
                     if (*j == 0)
                     {
-                         return q.submit([=](sycl::handler& h){
-                            h.single_task<class SingleTask4>([](){});
-                         });
+                        return launch_small_kernel<class SingleTask4>(q);
                     }
                     else
                     {
-                        return q.submit([=](sycl::handler& h) {
-                            h.parallel_for<TestUtils::unique_kernel_name<class tune4, 0>>(
-                                1000000, [=](sycl::id<1> idx) {
-                                    for (int j0 = 0; j0 < *j; ++j0)
-                                    {
-                                        v[idx] += idx;
-                                    }
-                                });
-                        });
+                        return launch_big_kernel<TestUtils::unique_kernel_name<class tune4, 0>>(q);
                     }
                 });
             oneapi::dpl::experimental::wait(p.get_submission_group());
@@ -390,21 +380,11 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
                 ecount += i;
                 if (*j == 0)
                 {
-                     return q.submit([=](sycl::handler& h){
-                        h.single_task<class SingleTask5>([](){});
-                     });
+                    return launch_small_kernel<class SingleTask5>(q);
                 }
                 else
                 {
-                    return q.submit([=](sycl::handler& h) {
-                        h.parallel_for<TestUtils::unique_kernel_name<class tune5, 0>>(
-                            1000000, [=](sycl::id<1> idx) {
-                                for (int j0 = 0; j0 < *j; ++j0)
-                                {
-                                    v[idx] += idx;
-                                }
-                            });
-                    });
+                    return launch_big_kernel<TestUtils::unique_kernel_name<class tune5, 0>>(q);
                 }
             };
             auto s = oneapi::dpl::experimental::select(p, f);
@@ -435,21 +415,11 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
                     ecount += i;
                     if (*j == 0)
                     {
-                         return q.submit([=](sycl::handler& h){
-                            h.single_task<class SingleTask6>([](){});
-                         });
+                        return launch_small_kernel<class SingleTask6>(q);
                     }
                     else
                     {
-                        return q.submit([=](sycl::handler& h) {
-                            h.parallel_for<TestUtils::unique_kernel_name<class tune6, 0>>(
-                                1000000, [=](sycl::id<1> idx) {
-                                    for (int j0 = 0; j0 < *j; ++j0)
-                                    {
-                                        v[idx] += idx;
-                                    }
-                                });
-                        });
+                        return launch_big_kernel<TestUtils::unique_kernel_name<class tune6, 0>>(q);
                     }
                 });
         }
