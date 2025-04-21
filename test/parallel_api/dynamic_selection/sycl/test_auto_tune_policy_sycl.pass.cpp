@@ -50,7 +50,7 @@ test_auto_initialization(const std::vector<sycl::queue>& u)
 
 template <typename KernelName>
 auto
-launch_small_kernel(sycl::queue& q, int* j, double* v)
+launch_small_kernel(sycl::queue& q, int* j, volatile double* v)
 {
     return q.submit([=](sycl::handler& h){
         h.single_task<KernelName>([=]() {
@@ -61,7 +61,7 @@ launch_small_kernel(sycl::queue& q, int* j, double* v)
 
 template <typename KernelName>
 auto
-launch_big_kernel(sycl::queue& q, int* j, double* v)
+launch_big_kernel(sycl::queue& q, int* j, volatile double* v)
 {
     return q.submit([=](sycl::handler& h) {
         h.parallel_for<KernelName>(
