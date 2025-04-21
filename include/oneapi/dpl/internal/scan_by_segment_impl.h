@@ -378,8 +378,8 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
         ::std::forward<_Range1>(__keys), ::std::forward<_Range2>(__values), ::std::forward<_Range3>(__out_values),
         __binary_pred, __binary_op, __init, __identity);
 }
-
 } //namespace __par_backend_hetero
+
 namespace internal
 {
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
