@@ -346,6 +346,19 @@ __pattern_count_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&
 // pattern_count
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _T>
+struct __count_fn_pred
+{
+    _T __value;
+
+    template <typename _TValue>
+    auto
+    operator()(_TValue&& __val) const
+    {
+        return std::ranges::equal_to{}(std::forward<_TValue>(__val), __value);
+    }
+};
+
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _T, typename _Proj>
 std::ranges::range_difference_t<_R>
 __pattern_count(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj)
