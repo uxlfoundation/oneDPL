@@ -202,7 +202,7 @@ struct __find_fn
 
 inline constexpr __internal::__find_fn find;
 
-// [alg.find]
+// [alg.find_first_of]
 
 namespace __internal
 {
@@ -228,6 +228,8 @@ struct __find_first_of_fn
 
 inline constexpr __internal::__find_first_of_fn find_first_of;
 
+// [alg.find_end]
+
 namespace __internal
 {
 struct __find_end_fn
@@ -251,6 +253,8 @@ struct __find_end_fn
 
 inline constexpr __internal::__find_end_fn find_end;
 
+// [alg.any_of]
+
 namespace __internal
 {
 struct __any_of_fn
@@ -269,6 +273,8 @@ struct __any_of_fn
 }  //__internal
 
 inline constexpr __internal::__any_of_fn any_of;
+
+// [alg.all_of]
 
 namespace __internal
 {
@@ -289,6 +295,8 @@ struct __all_of_fn
 
 inline constexpr __internal::__all_of_fn all_of;
 
+// [alg.none_of]
+
 namespace __internal
 {
 struct __none_of_fn
@@ -306,6 +314,8 @@ struct __none_of_fn
 }  //__internal
 
 inline constexpr __internal::__none_of_fn none_of;
+
+// [alg.adjacent_find]
 
 namespace __internal
 {
@@ -326,6 +336,8 @@ struct __adjacent_find_fn
 }  //__internal
 
 inline constexpr __internal::__adjacent_find_fn adjacent_find;
+
+// [alg.search]
 
 namespace __internal
 {
@@ -350,6 +362,8 @@ struct __search_fn
 
 inline constexpr __internal::__search_fn search;
 
+// [alg.search_n]
+
 namespace __internal
 {
 struct __search_n_fn
@@ -372,6 +386,8 @@ struct __search_n_fn
 
 inline constexpr __internal::__search_n_fn search_n;
 
+// [alg.count_if]
+
 namespace __internal
 {
 struct __count_if_fn
@@ -391,6 +407,8 @@ struct __count_if_fn
 }  //__internal
 
 inline constexpr __internal::__count_if_fn count_if;
+
+// [alg.count]
 
 namespace __internal
 {
@@ -413,6 +431,8 @@ struct __count_fn
 }  //__internal
 
 inline constexpr __internal::__count_fn count;
+
+// [alg.equal]
 
 namespace __internal
 {
@@ -443,6 +463,8 @@ struct __equal_fn
 
 inline constexpr __internal::__equal_fn equal;
 
+// [alg.is_sorted]
+
 namespace __internal
 {
 struct __is_sorted_fn
@@ -462,6 +484,8 @@ struct __is_sorted_fn
 }  //__internal
 
 inline constexpr __internal::__is_sorted_fn is_sorted;
+
+// [alg.stable_sort]
 
 namespace __internal
 {
@@ -494,6 +518,8 @@ struct __stable_sort_fn
 
 inline constexpr __internal::__stable_sort_fn stable_sort;
 
+// [alg.sort]
+
 namespace __internal
 {
 struct __sort_fn_pred
@@ -525,6 +551,8 @@ struct __sort_fn
 
 inline constexpr __internal::__sort_fn sort;
 
+// [alg.min_element]
+
 namespace __internal
 {
 struct __min_element_fn
@@ -546,6 +574,8 @@ struct __min_element_fn
 
 inline constexpr __internal::__min_element_fn min_element;
 
+// [alg.max_element]
+
 namespace __internal
 {
 struct __max_element_fn
@@ -564,6 +594,8 @@ struct __max_element_fn
 }  //__internal
 
 inline constexpr __internal::__max_element_fn max_element;
+
+// [alg.minmax_element]
 
 namespace __internal
 {
@@ -587,6 +619,8 @@ struct __minmax_element_fn
 } //__internal
 
 inline constexpr __internal::__minmax_element_fn minmax_element;
+
+// [alg.min]
 
 namespace __internal
 {
@@ -613,6 +647,8 @@ struct __min_fn
 
 inline constexpr __internal::__min_fn min;
 
+// [alg.max]
+
 namespace __internal
 {
 
@@ -636,6 +672,8 @@ struct __max_fn
 } //__internal
 
 inline constexpr __internal::__max_fn max;
+
+// [alg.minmax]
 
 namespace __internal
 {
@@ -663,6 +701,8 @@ struct __minmax_fn
 } //__internal
 
 inline constexpr __internal::__minmax_fn minmax;
+
+// [alg.copy]
 
 namespace __internal
 {
@@ -692,6 +732,8 @@ struct __copy_fn
 
 inline constexpr __internal::__copy_fn copy;
 
+// [alg.copy_if]
+
 namespace __internal
 {
 struct __copy_if_fn
@@ -714,6 +756,8 @@ struct __copy_if_fn
 }  //__internal
 
 inline constexpr __internal::__copy_if_fn copy_if;
+
+// [alg.merge]
 
 namespace __internal
 {
@@ -740,6 +784,8 @@ struct __merge_fn
 
 inline constexpr __internal::__merge_fn merge;
 
+// [alg.fill]
+
 namespace __internal
 {
 
@@ -762,6 +808,8 @@ struct __fill_fn
 
 inline constexpr __internal::__fill_fn fill;
 
+// [alg.generate]
+
 namespace __internal
 {
 
@@ -783,6 +831,8 @@ struct __generate_fn
 } //__internal
 
 inline constexpr __internal::__generate_fn generate;
+
+// [alg.move]
 
 namespace __internal
 {
@@ -807,6 +857,8 @@ struct __move_fn
 } //__internal
 
 inline constexpr __internal::__move_fn move;
+
+// [alg.replace_if]
 
 namespace __internal
 {
@@ -834,6 +886,8 @@ struct __replace_if_fn
 
 inline constexpr __internal::__replace_if_fn replace_if;
 
+// [alg.replace]
+
 namespace __internal
 {
 
@@ -860,6 +914,8 @@ struct __replace_fn
 
 inline constexpr __internal::__replace_fn replace;
 
+// [alg.is_sorted_until]
+
 namespace __internal
 {
 
@@ -882,6 +938,8 @@ struct __is_sorted_until_fn
 } //__internal
 
 inline constexpr __internal::__is_sorted_until_fn is_sorted_until;
+
+// [alg.mismatch]
 
 namespace __internal
 {
@@ -933,6 +991,8 @@ struct __mismatch_fn
 
 inline constexpr __internal::__mismatch_fn mismatch;
 
+// [alg.remove_if]
+
 namespace __internal
 {
 
@@ -955,6 +1015,8 @@ struct __remove_if_fn
 } //__internal
 
 inline constexpr __internal::__remove_if_fn remove_if;
+
+// [alg.remove]
 
 namespace __internal
 {
