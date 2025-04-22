@@ -24,9 +24,9 @@ main()
 
     auto find_end_checker = TEST_PREPARE_CALLABLE(std::ranges::find_end);
 
-    //true result
-    test_range_algo<0, int, data_in_in, std::identity/*data gen*/, 
-                   std::identity/*data gen*/>{medium_size}(dpl_ranges::find_end, find_end_checker, binary_pred);
+    //true result; data generator is a 'gen(i)', so std::identity produces 0, 1, 2, ...
+    test_range_algo<0, int, data_in_in, std::identity/*data generator*/, 
+                   std::identity/*data generator*/>{medium_size}(dpl_ranges::find_end, find_end_checker, binary_pred);
 
     //false result
     test_range_algo<1, int, data_in_in>{big_sz}(dpl_ranges::find_end, find_end_checker, binary_pred);

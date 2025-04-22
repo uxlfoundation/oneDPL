@@ -1086,9 +1086,12 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     if (__rng.size() < 2)
         return {0, 0};
 
-    [[maybe_unused]] const auto& [__idx_min, __min, __idx_max, __max] =
+    [[maybe_unused]] const auto& [__res_min, __res_max] =
         __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         std::forward<_Range>(__rng), __comp);
+
+    [[maybe_unused]] const auto& [__idx_min, __min] = __res_min;
+    [[maybe_unused]] const auto& [__idx_max, __max] = __res_max;
 
     return {__idx_min, __idx_max};
 }
@@ -1117,10 +1120,13 @@ __pattern_minmax(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
         std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
         std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
 
-    [[maybe_unused]] const auto& [__idx_min, __min, __idx_max, __max] =
+    [[maybe_unused]] const auto& [__res_min, __res_max] =
         __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         std::forward<_R>(__r), __comp_2);
-    
+
+    [[maybe_unused]] const auto& [__idx_min, __min] = __res_min;
+    [[maybe_unused]] const auto& [__idx_max, __max] = __res_max;
+
     return {__min, __max};
 }
 
