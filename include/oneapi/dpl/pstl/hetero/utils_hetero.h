@@ -21,6 +21,9 @@
 #ifndef _ONEDPL_UTILS_HETERO_H
 #define _ONEDPL_UTILS_HETERO_H
 
+#include "../utils.h"
+#include <tuple>
+
 namespace oneapi
 {
 namespace dpl
