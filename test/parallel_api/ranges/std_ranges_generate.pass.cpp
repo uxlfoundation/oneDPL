@@ -25,7 +25,7 @@ main()
     auto generate_checker = TEST_PREPARE_CALLABLE(std::ranges::generate);
     auto gen_const = []() { return -3; };
     int seed = 6;
-    auto gen = [&seed]() mutable { return seed; };
+    auto gen = [seed]() mutable { return seed; };
 
     test_range_algo<0>{big_sz}(dpl_ranges::generate, generate_checker, gen_const);
     test_range_algo<1>{}(dpl_ranges::generate, generate_checker, gen);
