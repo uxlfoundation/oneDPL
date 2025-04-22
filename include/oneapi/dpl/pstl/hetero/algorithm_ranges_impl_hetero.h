@@ -972,7 +972,7 @@ struct __pattern_min_element_reduce_fn
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
 std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>
-__pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
+__pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     assert(__rng.size() > 0);
 
@@ -985,10 +985,10 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     __pattern_min_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
     oneapi::dpl::__internal::__pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
-    auto [__idx, __val] =
+    [[maybe_unused]] auto [__idx, __val] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                        ::std::false_type /*is_commutative*/>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            __tag, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
             ::std::forward<_Range>(__rng))
             .get();
@@ -996,17 +996,29 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     return {__idx, __val};
 }
 
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
+oneapi::dpl::__internal::__difference_t<_Range>
+__pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
+{
+    //If size == 1, result is the zero-indexed element. If size == 0, result is 0.
+    if (__rng.size() < 2)
+        return 0;
+
+    [[maybe_unused]] auto [__idx, __val] =
+        __pattern_min_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __comp);
+
+    return __idx;
+}
+
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_min_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    if(std::ranges::size(__r) < 2)
-        return {std::ranges::begin(__r)};
-
     __pattern_transform_binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
 
-    [[maybe_unused]] const auto& [__idx, __val] = 
+    const auto __idx = 
         oneapi::dpl::__internal::__ranges::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
 
@@ -1022,7 +1034,7 @@ __pattern_min(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& _
         std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
 
     [[maybe_unused]] const auto& [__idx, __val] = 
-        oneapi::dpl::__internal::__ranges::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec),
+        __pattern_min_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
 
     return __val;
