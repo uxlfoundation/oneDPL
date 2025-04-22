@@ -23,9 +23,12 @@ main()
     namespace dpl_ranges = oneapi::dpl::ranges;
 
     auto generate_checker = TEST_PREPARE_CALLABLE(std::ranges::generate);
-    auto gen = []() { return -3; };
+    auto gen_const = []() { return -3; };
+    int seed = 6;
+    auto gen = [&seed]() mutable { return seed; };
 
-    test_range_algo<0>{big_sz}(dpl_ranges::generate, generate_checker, gen);
+    test_range_algo<0>{big_sz}(dpl_ranges::generate, generate_checker, gen_const);
+    test_range_algo<1>{}(dpl_ranges::generate, generate_checker, gen);
     test_range_algo<1>{}(dpl_ranges::generate, generate_checker, gen);
 #endif //_ENABLE_STD_RANGES_TESTING
 
