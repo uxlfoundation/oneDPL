@@ -2375,8 +2375,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       /*known_identity=*/std::false_type)
 {
     const auto __n = __keys.size();
-    if(__n == 0)
-        return 0;
+    assert(__n > 0);
 
     using __diff_type = oneapi::dpl::__internal::__difference_t<_Range1>;
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;

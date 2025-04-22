@@ -394,18 +394,6 @@ inline constexpr __internal::__count_if_fn count_if;
 
 namespace __internal
 {
-template <typename _T>
-struct __count_fn_pred
-{
-    _T __value;
-
-    template <typename _TValue>
-    auto
-    operator()(_TValue&& __val) const
-    {
-        return std::ranges::equal_to{}(std::forward<_TValue>(__val), __value);
-    }
-};
 
 struct __count_fn
 {
