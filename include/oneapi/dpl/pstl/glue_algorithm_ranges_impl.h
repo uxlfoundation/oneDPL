@@ -1705,10 +1705,9 @@ min_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng);
 
-    [[maybe_unused]] const auto& [__idx, __val] = oneapi::dpl::__internal::__ranges::__pattern_min_element(
+    return oneapi::dpl::__internal::__ranges::__pattern_min_element(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range>(__rng)),
         __comp);
-    return __idx;
 }
 
 template <typename _ExecutionPolicy, typename _Range>
