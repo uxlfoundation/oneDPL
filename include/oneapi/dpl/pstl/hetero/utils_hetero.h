@@ -107,7 +107,7 @@ struct __pattern_min_element_reduce_fn
     _ReduceValueType
     operator()(_ReduceValueType __a, _ReduceValueType __b) const
     {
-        using ::std::get;
+        using std::get;
         // TODO: Consider removing the non-commutative operator for SPIR-V targets when we see improved performance with the
         // non-sequential load path in transform_reduce.
         if constexpr (oneapi::dpl::__internal::__is_spirv_target_v)
