@@ -165,7 +165,8 @@ struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
 {
   private:
     using __base_t = walk_vector_or_scalar_base<_Range>;
-    _F __f;
+    //'mutable' is to relax the requirements for a user functor/lambda type operator() may be non-const
+    mutable _F __f;
     std::size_t __n;
 
   public:
@@ -202,7 +203,8 @@ struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Ra
 {
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
-    _F __f;
+    //'mutable' is to relax the requirements for a user functor/lambda type operator() may be non-const
+    mutable _F __f;
     std::size_t __n;
 
   public:
@@ -248,7 +250,8 @@ struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Ra
 {
   private:
     using __base_t = walk_vector_or_scalar_base<_Range1, _Range2, _Range3>;
-    _F __f;
+    //'mutable' is to relax the requirements for a user functor/lambda type operator() may be non-const
+    mutable _F __f;
     std::size_t __n;
 
   public:
