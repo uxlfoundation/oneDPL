@@ -115,7 +115,7 @@ struct walk_n
 
 // Base class which establishes tuning parameters including vectorization / scalar path decider at compile time
 // for walk / for based algorithms
-template <typename _F, typename... _Ranges>
+template <typename... _Ranges>
 struct walk_vector_or_scalar_base
 {
   private:
@@ -140,12 +140,6 @@ struct walk_vector_or_scalar_base
     using __vec_store_t = oneapi::dpl::__par_backend_hetero::__vector_store<__preferred_vector_size>;
     using __vec_reverse_t = oneapi::dpl::__par_backend_hetero::__vector_reverse<__preferred_vector_size>;
     using __vec_walk_t = oneapi::dpl::__par_backend_hetero::__vector_walk<__preferred_vector_size>;
-
-  protected:
-    //walk_scalar_base(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
-    //'mutable' is to relax the requirements for a user functor type operator() may be non-const
-    mutable _F __f;
-    std::size_t __n;
 };
 
 // Path that intentionally disables vectorization for algorithms with a scattered access pattern (e.g. binary_search)
@@ -167,19 +161,21 @@ struct walk_scalar_base
 };
 
 template <typename _F, typename _Range>
-struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_F, _Range>
+struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_Range>
 {
   private:
-    using __base_t = walk_vector_or_scalar_base<_F, _Range>;
+    using __base_t = walk_vector_or_scalar_base<_Range>;
+    _F __f;
+    std::size_t __n;
 
   public:
-    walk1_vector_or_scalar(_F __f, std::size_t __n) : __base_t{std::move(__f), __n} {}
+    walk1_vector_or_scalar(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
 
     template <typename _IsFull>
     void
     __vector_path_impl(_IsFull __is_full, const std::size_t __idx, _Range __rng) const
     {
-        typename __base_t::__vec_walk_t{this->__n}(__is_full, __idx, this->__f, __rng);
+        typename __base_t::__vec_walk_t{__n}(__is_full, __idx, __f, __rng);
     }
 
     // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
@@ -202,13 +198,15 @@ struct walk1_vector_or_scalar : public walk_vector_or_scalar_base<_F, _Range>
 };
 
 template <typename _F, typename _Range1, typename _Range2>
-struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_F, _Range1, _Range2>
+struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Range2>
 {
   private:
-    using __base_t = walk_vector_or_scalar_base<_F, _Range1, _Range2>;
+    using __base_t = walk_vector_or_scalar_base<_Range1, _Range2>;
+    _F __f;
+    std::size_t __n;
 
   public:
-    walk2_vectors_or_scalars(_F __f, std::size_t __n) : __base_t{std::move(__f), __n} {}
+    walk2_vectors_or_scalars(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
 
     template <typename _IsFull>
     void
@@ -217,11 +215,11 @@ struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_F, _Range1,
         using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
         _ValueType1 __rng1_vector[__base_t::__preferred_vector_size];
         // 1. Load input into a vector
-        typename __base_t::__vec_load_t{this->__n}(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{},
+        typename __base_t::__vec_load_t{__n}(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_load_op{},
                                              __rng1, __rng1_vector);
         // 2. Apply functor to vector and store into global memory
-        typename __base_t::__vec_store_t{this->__n}(__is_full, __idx,
-                                              oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{this->__f},
+        typename __base_t::__vec_store_t{__n}(__is_full, __idx,
+                                              oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f},
                                               __rng1_vector, __rng2);
     }
 
@@ -246,13 +244,15 @@ struct walk2_vectors_or_scalars : public walk_vector_or_scalar_base<_F, _Range1,
 };
 
 template <typename _F, typename _Range1, typename _Range2, typename _Range3>
-struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_F, _Range1, _Range2, _Range3>
+struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_Range1, _Range2, _Range3>
 {
   private:
-    using __base_t = walk_vector_or_scalar_base<_F, _Range1, _Range2, _Range3>;
+    using __base_t = walk_vector_or_scalar_base<_Range1, _Range2, _Range3>;
+    _F __f;
+    std::size_t __n;
 
   public:
-    walk3_vectors_or_scalars(_F __f, std::size_t __n) : __base_t{std::move(__f), __n} {}
+    walk3_vectors_or_scalars(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
 
     template <typename _IsFull, typename _ItemId>
     void
@@ -264,15 +264,15 @@ struct walk3_vectors_or_scalars : public walk_vector_or_scalar_base<_F, _Range1,
         _ValueType1 __rng1_vector[__base_t::__preferred_vector_size];
         _ValueType2 __rng2_vector[__base_t::__preferred_vector_size];
 
-        typename __base_t::__vec_load_t __vec_load{this->__n};
-        typename __base_t::__vec_store_t __vec_store{this->__n};
+        typename __base_t::__vec_load_t __vec_load{__n};
+        typename __base_t::__vec_store_t __vec_store{__n};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
 
         // 1. Load inputs into vectors
         __vec_load(__is_full, __idx, __load_op, __rng1, __rng1_vector);
         __vec_load(__is_full, __idx, __load_op, __rng2, __rng2_vector);
         // 2. Apply binary functor to vector and store into global memory
-        __vec_store(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{this->__f},
+        __vec_store(__is_full, __idx, oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<_F>{__f},
                     __rng1_vector, __rng2_vector, __rng3);
     }
 
