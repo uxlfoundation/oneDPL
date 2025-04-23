@@ -21,8 +21,9 @@ namespace test_std_ranges
 template<>
 constexpr int calc_res_size<std::remove_cvref_t<decltype(oneapi::dpl::ranges::remove)>>(int n, int res_n)
 { 
-    return n - res_n; } //res_n - number of elements to be removed
+    return n - res_n; //res_n - number of elements to be removed
 }
+} //test_std_ranges
 #endif
 
 std::int32_t
