@@ -898,8 +898,6 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
                                  const _Index __merge_path_rng2, _Compare __comp)
 {
     // back up to balanced path divergence with a biased binary search
-    auto __start_point = __merge_path_rng1;
-    auto __start_point2 = __merge_path_rng2;
     bool __star = false;
     if (__merge_path_rng1 == 0 || __merge_path_rng2 == __rng2.size())
     {

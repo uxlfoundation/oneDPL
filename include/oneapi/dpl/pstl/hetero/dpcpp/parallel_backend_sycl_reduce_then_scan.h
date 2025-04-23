@@ -856,7 +856,6 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
 
     constexpr std::uint8_t __min_sub_group_size = __get_reduce_then_scan_workaround_sg_sz();
     constexpr std::uint8_t __max_sub_group_size = __get_reduce_then_scan_default_sg_sz();
-    constexpr std::uint8_t __block_size_scale = std::max(std::size_t{1}, sizeof(double) / sizeof(_ValueType));
     // Empirically determined maximum. May be less for non-full blocks.
     constexpr std::uint16_t __max_inputs_per_item =
         std::max(std::uint16_t{1}, std::uint16_t{512 / __bytes_per_work_item_iter});
