@@ -21,8 +21,9 @@ namespace test_std_ranges
 template<>
 constexpr int calc_res_size<std::remove_cvref_t<decltype(oneapi::dpl::ranges::remove)>>(int n, int res_n)
 { 
-    return n - res_n; } //res_n - number of elements to be removed
+    return n - res_n; //res_n - number of elements to be removed
 }
+} //test_std_ranges
 #endif
 
 std::int32_t
@@ -36,8 +37,8 @@ main()
 
     test_range_algo<0>{big_sz}(dpl_ranges::remove_if, remove_if_checker, pred);
     test_range_algo<1>{}(dpl_ranges::remove_if, remove_if_checker, pred, proj);
-//    test_range_algo<2, P2>{}(dpl_ranges::remove_if, remove_if_checker, pred, &P2::x);
-  //  test_range_algo<3, P2>{}(dpl_ranges::remove_if, remove_if_checker, pred, &P2::proj);
+    test_range_algo<2, P2>{}(dpl_ranges::remove_if, remove_if_checker, pred, &P2::x);
+    test_range_algo<3, P2>{}(dpl_ranges::remove_if, remove_if_checker, pred, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
