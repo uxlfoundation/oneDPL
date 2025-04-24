@@ -77,6 +77,8 @@ main()
     test_range_algo<4, int, data_in_in_out_lim>{}(dpl_ranges::merge, merge_checker, std::ranges::greater{}, proj, proj);
     test_range_algo<5, P2, data_in_in_out_lim>{}(dpl_ranges::merge, merge_checker, std::ranges::greater{}, &P2::x, &P2::x);
     test_range_algo<6, P2, data_in_in_out_lim>{}(dpl_ranges::merge, merge_checker, std::ranges::greater{}, &P2::proj, &P2::proj);
+
+    test_range_algo<7, int, data_in_in_out_lim>{}(dpl_ranges::merge, merge_checker);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
