@@ -1533,14 +1533,14 @@ struct __parallel_find_forward_tag
 };
 
 // Tag for __parallel_find_or to find the last element that satisfies predicate
-template <typename... _Ranges>
+template <typename _RangeType>
 struct __parallel_find_backward_tag
 {
 // FPGA devices don't support 64-bit atomics
 #if _ONEDPL_FPGA_DEVICE
     using _AtomicType = int32_t;
 #else
-    using _AtomicType = std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>;
+    using _AtomicType = oneapi::dpl::__internal::__difference_t<_RangeType>;
 #endif
 
     using _LocalResultsReduceOp = __dpl_sycl::__maximum<_AtomicType>;
