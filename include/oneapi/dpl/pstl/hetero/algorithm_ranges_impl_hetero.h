@@ -762,6 +762,18 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     return {std::ranges::begin(__r) + __idx, std::ranges::begin(__r) + __n};
 }
 
+
+template<typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+void
+__pattern_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r)
+{
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__internal::__brick_move<decltype(__tag)>{},
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+}
+
+
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------

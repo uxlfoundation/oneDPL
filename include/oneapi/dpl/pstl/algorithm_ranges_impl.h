@@ -729,6 +729,24 @@ __pattern_remove_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&
     return std::ranges::remove_if(std::forward<_R>(__r), __pred, __proj);
 }
 
+
+template<typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+void
+__pattern_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r)
+{
+    auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
+    oneapi::dpl::__internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec),
+        std::ranges::begin(__r), __end, std::ranges::begin(__out_r),
+        oneapi::dpl::__internal::__brick_move<decltype(__tag)>{});
+}
+
+template<typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+void
+__pattern_move(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r)
+{
+    std::ranges::move(std::forward<_InRange>(__r), std::forward<_OutRange>(__out_r));
+}
+
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl
