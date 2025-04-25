@@ -814,7 +814,8 @@ struct __red_by_seg_op
                                                        __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         }
         // We are looking at elements from a previous segment so just update the output index.
-        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup), _OpOutType{get<1>(__rhs_tup)});
+        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup),
+                                                   _OpOutType{get<1>(__rhs_tup)});
     }
     _BinaryOp __binary_op;
 };
