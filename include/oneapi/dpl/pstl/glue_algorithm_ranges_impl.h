@@ -847,11 +847,15 @@ struct __move_fn
     std::ranges::move_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
     operator()(_ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r) const
     {
-        auto [__res_in, __res_out] =
-            oneapi::dpl::ranges::transform(std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__r),
-            std::forward<_OutRange>(__out_r), [](auto& __val) -> decltype(auto){ return std::move(__val); });
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
-        return {__res_in, __res_out};
+        using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
+        const _Size __size = std::ranges::min((_Size)std::ranges::size(__r), (_Size)std::ranges::size(__out_r));
+
+        oneapi::dpl::__internal::__ranges::__pattern_move(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+            std::ranges::take_view(__r, __size), std::ranges::take_view(__out_r, __size));
+
+        return {std::ranges::begin(__r) + __size, std::ranges::begin(__out_r) +  __size};
     }
 }; //__move_fn
 } //__internal
