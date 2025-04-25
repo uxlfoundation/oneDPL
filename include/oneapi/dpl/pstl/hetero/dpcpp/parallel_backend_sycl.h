@@ -806,6 +806,7 @@ struct __red_by_seg_op
     operator()(const _Tup1& __lhs_tup, const _Tup2& __rhs_tup) const
     {
         using std::get;
+        using _OpOutType = decltype(__binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         // The left-hand side has processed elements from the same segment, so update the reduction value.
         if (get<0>(__rhs_tup) == 0)
         {
@@ -813,7 +814,7 @@ struct __red_by_seg_op
                                                        __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         }
         // We are looking at elements from a previous segment so just update the output index.
-        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup), get<1>(__rhs_tup));
+        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup), _OpOutType{get<1>(__rhs_tup)});
     }
     _BinaryOp __binary_op;
 };
