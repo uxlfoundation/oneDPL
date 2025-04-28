@@ -1938,7 +1938,7 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
 
     const _Size1 __n1 = std::distance(__first1, __last1);
     _Size1 __output_size = __n1;
-    if constexpr (_SetTag::__is_one_shot_v)
+    if constexpr (_SetTag::__can_write_from_rng2_v)
     {
         const _Size1 __n2 = std::distance(__first2, __last2);
         // one shot algorithm can write from set 1 or set 2, whereas old algorithm can only write from set 1.

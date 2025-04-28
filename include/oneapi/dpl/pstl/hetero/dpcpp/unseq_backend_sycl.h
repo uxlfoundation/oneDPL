@@ -1351,22 +1351,22 @@ struct __rotate_copy : public walk_vector_or_scalar_base<_Range1, _Range2>
 template <typename _IsOneShot>
 struct _IntersectionTag : public ::std::false_type
 {
-    static constexpr bool __is_one_shot_v = _IsOneShot::value;
+    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
 };
 template <typename _IsOneShot>
 struct _DifferenceTag : public ::std::true_type
 {
-    static constexpr bool __is_one_shot_v = _IsOneShot::value;
+    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
 };
 template <typename _IsOneShot>
 struct _UnionTag : public std::true_type
 {
-    static constexpr bool __is_one_shot_v = _IsOneShot::value;
+    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
 };
 template <typename _IsOneShot>
 struct _SymmetricDifferenceTag : public std::true_type
 {
-    static constexpr bool __is_one_shot_v = _IsOneShot::value;
+    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
 };
 
 template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>

@@ -613,6 +613,10 @@ __pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __
     return __pstl_upper_bound(__a, __first, __last, __val, __comp);
 }
 
+// Performs a "biased" binary search targets the split point close to one edge of the range.
+// When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
+// After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
+// resulting in a standard binary search.
 template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
 _Size1
 __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)

@@ -954,6 +954,12 @@ struct __gen_expand_count_mask
     _RangeTransform __rng_transform;
 };
 
+// Locates and returns the "intersection" of a diagonal on the balanced path, based on merge path coordinates.
+// It returns coordinates in each set of the intersection with a boolean representing if the diagonal is "starred",
+// meaning that the balanced path "intersection" point does not lie directly on the diagonal, but one step forward in
+// the second set.
+// Some diagonals must be "starred" to ensure that matching elements between rng1 and rng2 are processed in pairs
+// starting from the first of repeating value(s) in each range and a matched pair are not split between work-items.
 template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
 auto
 __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1,
@@ -1013,6 +1019,9 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
                            __rng2_repeat_start + __balanced_path_rng2_diff, __star);
 }
 
+// Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
+// balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
+// to the output for the reduction operation.
 template <typename _SetOpCount, typename _Compare>
 struct __gen_set_balanced_path
 {
@@ -1055,6 +1064,9 @@ struct __gen_set_balanced_path
     _Compare __comp;
 };
 
+// Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
+// path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
+// the output to temporary data in registers to be ready for the scan and write operations to follow.
 template <typename _SetOpCount, typename _TempData, typename _Compare>
 struct __gen_set_op_from_known_balanced_path
 {
@@ -1735,7 +1747,7 @@ __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__di
 __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _Range1&& __rng1,
                   _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag __set_tag)
 {
-    if constexpr (_SetTag::__is_one_shot_v)
+    if constexpr (_SetTag::__can_write_from_rng2_v)
     {
         return __parallel_set_reduce_then_scan<_CustomName>(__backend_tag, __q, std::forward<_Range1>(__rng1),
                                                             std::forward<_Range2>(__rng2),
