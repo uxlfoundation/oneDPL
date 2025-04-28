@@ -970,7 +970,6 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
 
     if (__comp(__ele_val, __rng2[__merge_path_rng2]))
     {
-
         // There is no chance that the balanced path differs from the merge path here, because the previous element of
         // rng1 does not match the next element of rng2. We can just return the merge path.
         return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
@@ -988,7 +987,6 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
 
     if (__rng2_repeats_bck >= __rng1_repeats)
     {
-
         // If we have at least as many repeated elements in rng2, we end up back on merge path
         return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
     }
