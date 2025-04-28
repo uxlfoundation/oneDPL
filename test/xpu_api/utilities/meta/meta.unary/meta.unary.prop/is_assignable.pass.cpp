@@ -39,7 +39,7 @@ test_is_assignable(sycl::queue& deviceQueue)
             static_assert(dpl::is_assignable<T, U>::value);
             static_assert(dpl::is_assignable_v<T, U>);
         });
-    });
+    }).wait();
 }
 
 template <class KernelTest, class T, class U>
@@ -51,7 +51,7 @@ test_is_not_assignable(sycl::queue& deviceQueue)
             static_assert(!dpl::is_assignable<T, U>::value);
             static_assert(!dpl::is_assignable_v<T, U>);
         });
-    });
+    }).wait();
 }
 
 struct D;

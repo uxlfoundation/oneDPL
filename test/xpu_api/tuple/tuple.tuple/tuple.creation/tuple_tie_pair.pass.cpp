@@ -38,7 +38,7 @@ kernel_test()
                 dpl::tie(x, y) = p;
                 ret_acc[0] &= (x == 1 && y == 2);
             });
-        });
+        }).wait();
     }
     return ret;
 }

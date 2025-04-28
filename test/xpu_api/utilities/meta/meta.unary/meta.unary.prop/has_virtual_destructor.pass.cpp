@@ -37,7 +37,7 @@ test_has_not_virtual_destructor(sycl::queue& deviceQueue)
             static_assert(!dpl::has_virtual_destructor_v<volatile T>);
             static_assert(!dpl::has_virtual_destructor_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 template <class T>
@@ -56,7 +56,7 @@ test_has_virtual_destructor(sycl::queue& deviceQueue)
             static_assert(dpl::has_virtual_destructor_v<volatile T>);
             static_assert(dpl::has_virtual_destructor_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 class Empty

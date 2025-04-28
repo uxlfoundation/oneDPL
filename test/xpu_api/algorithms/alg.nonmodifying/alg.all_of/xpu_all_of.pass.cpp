@@ -55,7 +55,7 @@ kernel_test(sycl::queue& deviceQueue)
                     ret_acc[0] &= all_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia), test1());
                 }
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

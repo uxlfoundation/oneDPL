@@ -100,7 +100,7 @@ do_test(sycl::queue& deviceQueue)
                     out[0] &= (res1 == 1324997410816LL);
                 }
             });
-        });
+        }).wait();
     }
 
     assert(res);

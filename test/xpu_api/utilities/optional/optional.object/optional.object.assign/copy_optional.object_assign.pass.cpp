@@ -44,7 +44,7 @@ assign_empty()
                 lhs_access[0] = rhs;
                 ret_access[0] &= (!lhs_access[0].has_value() && !rhs.has_value());
             });
-        });
+        }).wait();
     }
     return ret;
 }
@@ -70,7 +70,7 @@ assign_value()
                 lhs_access[0] = rhs;
                 ret_access[0] &= (lhs_access[0].has_value() && rhs.has_value() && *lhs_access[0] == *rhs);
             });
-        });
+        }).wait();
     }
     return ret;
 }

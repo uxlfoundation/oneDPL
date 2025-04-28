@@ -30,7 +30,7 @@ test_is_nothrow_move_constructible(sycl::queue& deviceQueue)
             static_assert(dpl::is_nothrow_move_constructible<T>::value);
             static_assert(dpl::is_nothrow_move_constructible_v<T>);
         });
-    });
+    }).wait();
 }
 
 template <class T>
@@ -48,7 +48,7 @@ test_has_not_nothrow_move_constructor(sycl::queue& deviceQueue)
             static_assert(!dpl::is_nothrow_move_constructible_v<volatile T>);
             static_assert(!dpl::is_nothrow_move_constructible_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 class Empty

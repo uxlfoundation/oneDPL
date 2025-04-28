@@ -83,7 +83,7 @@ kernel_test()
                     ret_access[0] &= (!opt);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

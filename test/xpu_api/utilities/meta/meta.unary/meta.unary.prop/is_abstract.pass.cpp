@@ -37,7 +37,7 @@ test_is_not_abstract(sycl::queue& deviceQueue)
             static_assert(!dpl::is_abstract_v<volatile T>);
             static_assert(!dpl::is_abstract_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 template <class T>
@@ -56,7 +56,7 @@ test_is_abstract(sycl::queue& deviceQueue)
             static_assert(dpl::is_abstract_v<volatile T>);
             static_assert(dpl::is_abstract_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 class Empty

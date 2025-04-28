@@ -38,7 +38,7 @@ test_is_compound(sycl::queue& deviceQueue)
             static_assert(dpl::is_compound_v<volatile T>);
             static_assert(dpl::is_compound_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 template <class KernelTest, class T>
@@ -57,7 +57,7 @@ test_is_not_compound(sycl::queue& deviceQueue)
             static_assert(!dpl::is_compound_v<volatile T>);
             static_assert(!dpl::is_compound_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 class incomplete_type;

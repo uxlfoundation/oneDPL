@@ -57,7 +57,7 @@ main()
                 static_assert(dpl::is_same<std::initializer_list<A>::const_iterator, const A*>::value);
                 acc[0] = true;
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result with initializer list");

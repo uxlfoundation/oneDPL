@@ -95,7 +95,7 @@ kernel_test()
                     ret_acc[0] &= (t2 == 3.5f);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

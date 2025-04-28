@@ -36,7 +36,7 @@ test_is_signed(sycl::queue deviceQueue)
             static_assert(dpl::is_signed_v<volatile T>);
             static_assert(dpl::is_signed_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 template <class KernelTest, class T>
@@ -54,7 +54,7 @@ test_is_not_signed(sycl::queue& deviceQueue)
             static_assert(!dpl::is_signed_v<volatile T>);
             static_assert(!dpl::is_signed_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 struct Class

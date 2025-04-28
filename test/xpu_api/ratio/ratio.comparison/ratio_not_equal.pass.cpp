@@ -29,7 +29,7 @@ test()
     {
         deviceQueue.submit([&](sycl::handler& cgh) {
             cgh.single_task<KernelName>([=]() { static_assert(result == dpl::ratio_not_equal<Rat1, Rat2>::value); });
-        });
+        }).wait();
     }
 }
 

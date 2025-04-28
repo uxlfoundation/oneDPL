@@ -28,7 +28,7 @@ kernel_test(Test test)
         cgh.single_task<KernelName>([=]() {
         ret_access[0] = test(); //run test
         });
-    });
+    }).wait();
 
     return buffer1.get_host_access(sycl::read_only)[0];
 }

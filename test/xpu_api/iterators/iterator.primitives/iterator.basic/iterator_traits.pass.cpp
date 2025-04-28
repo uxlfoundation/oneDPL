@@ -94,7 +94,7 @@ kernelTest()
                 static_assert(dpl::is_same<typename It::iterator_category, dpl::input_iterator_tag>::value);
             }
         });
-    });
+    }).wait();
 #ifdef __clang__
 #    pragma clang diagnostic pop
 #endif

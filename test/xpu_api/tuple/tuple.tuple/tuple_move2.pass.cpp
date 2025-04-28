@@ -43,7 +43,7 @@ kernel_test()
                 move_only_tuple2 t6 = dpl::move(t5);
                 t4 = dpl::move(t6);
             });
-        });
+        }).wait();
     }
 }
 

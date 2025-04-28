@@ -73,7 +73,7 @@ test()
                 static_assert(dpl::is_same<typename R::pointer, typename dpl::iterator_traits<It>::pointer>::value);
                 static_assert(dpl::is_same<typename R::iterator_category, typename T::iterator_category>::value);
             });
-        });
+        }).wait();
     }
 }
 

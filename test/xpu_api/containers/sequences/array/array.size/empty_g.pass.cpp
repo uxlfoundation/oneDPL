@@ -38,7 +38,7 @@ kernel_test()
                 ret_access[0] = (a.empty() == false);
                 ret_access[0] &= (b.empty() == true);
             });
-        });
+        }).wait();
     }
     return ret;
 }

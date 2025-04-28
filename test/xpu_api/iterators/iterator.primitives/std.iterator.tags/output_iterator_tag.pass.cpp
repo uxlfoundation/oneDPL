@@ -34,7 +34,7 @@ kernelTest()
             ((void)tag); // Prevent unused warning
             static_assert(!dpl::is_base_of<dpl::input_iterator_tag, dpl::output_iterator_tag>::value);
         });
-    });
+    }).wait();
 }
 
 int

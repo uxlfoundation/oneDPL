@@ -42,7 +42,7 @@ kernel_test()
             static_assert(std::tuple_size_v<volatile T> == N);
             static_assert(std::tuple_size_v<const volatile T> == N);
         });
-    });
+    }).wait();
 }
 
 class KernelName1;

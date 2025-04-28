@@ -89,7 +89,7 @@ test()
                     static_assert(R::num == 1 && R::den == 1);
                 }
             });
-        });
+        }).wait();
     }
 }
 

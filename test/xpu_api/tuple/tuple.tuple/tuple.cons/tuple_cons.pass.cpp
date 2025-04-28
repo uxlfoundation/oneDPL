@@ -65,7 +65,7 @@ kernel_test1()
                 dpl::tuple<int, int> tp(pair2);
                 dpl::tuple<int, const int&> tq(pair2);
             });
-        });
+        }).wait();
     }
     return ret;
 }

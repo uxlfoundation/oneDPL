@@ -35,7 +35,7 @@ test_function_imp(sycl::queue& deviceQueue)
             static_assert(dpl::is_compound<T>::value);
             static_assert(!dpl::is_member_pointer<T>::value);
         });
-    });
+    }).wait();
 }
 
 template <class T>

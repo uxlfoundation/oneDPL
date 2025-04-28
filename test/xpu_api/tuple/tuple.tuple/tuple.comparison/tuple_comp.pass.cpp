@@ -57,7 +57,7 @@ kernel_test()
                 ret_acc[0] &= (a < b && !(b < a) && a <= b && !(b <= a));
                 ret_acc[0] &= (b > a && !(a > b) && b >= a && !(a >= b));
             });
-        });
+        }).wait();
     }
     return ret;
 }

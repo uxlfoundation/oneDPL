@@ -44,7 +44,7 @@ main()
                 static_assert(dpl::is_integral<dpl::size_t>::value, "spl::is_integral<dpl::size_t>::value");
                 acc[0] &= (sizeof(dpl::size_t) == sizeof(void*));
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with size_t in Kernel");

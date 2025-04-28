@@ -104,7 +104,7 @@ kernel_test()
                 test_is_non_nothrow_swappable<tt2n2&>();
                 test_is_non_nothrow_swappable<tt2n3&>();
             });
-        });
+        }).wait();
     }
 }
 

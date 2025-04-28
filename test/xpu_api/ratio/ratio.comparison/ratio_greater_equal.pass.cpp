@@ -35,7 +35,7 @@ test()
                 static_assert(result == dpl::ratio_greater_equal<Rat1, Rat2>::value);
                 ret_acc[0] = true;
             });
-        });
+        }).wait();
     }
     return ret;
 }

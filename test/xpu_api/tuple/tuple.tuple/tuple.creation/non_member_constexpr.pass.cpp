@@ -121,7 +121,7 @@ kernel_test()
                 test_tuple_cat();
                 test_ignore();
             });
-        });
+        }).wait();
     }
 }
 

@@ -33,7 +33,7 @@ main()
                 static_assert(dpl::is_trivially_copy_constructible<pair_type>::value);
                 static_assert(dpl::is_trivially_destructible<pair_type>::value);
             });
-        });
+        }).wait();
     }
 
     return TestUtils::done();

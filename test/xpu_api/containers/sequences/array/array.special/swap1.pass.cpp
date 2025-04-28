@@ -62,7 +62,7 @@ main()
                     ret_acc[0] &= (c2.size() == 0);
                 }
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::swap(dpl::array, dpl::array)");

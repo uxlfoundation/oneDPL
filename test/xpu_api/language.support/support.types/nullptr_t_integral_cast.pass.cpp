@@ -40,7 +40,7 @@ main()
                 dpl::ptrdiff_t i = reinterpret_cast<dpl::ptrdiff_t>(nullptr);
                 acc[0] &= (i == 0);
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with null_ptr integral cast in Kernel");

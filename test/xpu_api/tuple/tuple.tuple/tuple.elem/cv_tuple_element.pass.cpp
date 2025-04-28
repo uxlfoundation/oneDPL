@@ -39,7 +39,7 @@ kernel_test1(sycl::queue& deviceQueue)
                 static_assert(dpl::is_same_v<std::tuple_element_t<2, const volatile tuple_type>, const volatile int>);
             }
         });
-    });
+    }).wait();
 }
 void
 kernel_test2(sycl::queue& deviceQueue)
@@ -52,7 +52,7 @@ kernel_test2(sycl::queue& deviceQueue)
                 static_assert(dpl::is_same_v<std::tuple_element_t<0, const tuple_type>, const double>);
             }
         });
-    });
+    }).wait();
 }
 
 int

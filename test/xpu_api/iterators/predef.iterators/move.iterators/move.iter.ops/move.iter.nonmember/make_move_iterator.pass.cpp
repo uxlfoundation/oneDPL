@@ -72,7 +72,7 @@ kernel_test()
                     static_assert(iter.base() == p);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

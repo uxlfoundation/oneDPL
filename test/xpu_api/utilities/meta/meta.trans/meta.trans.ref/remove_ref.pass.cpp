@@ -65,7 +65,7 @@ main()
         deviceQueue.submit([&](sycl::handler& cgh) {
             auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
             cgh.single_task<class KernelNot1Test>([=]() { ret_access[0] = kernel_test(); });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::remove_reference");

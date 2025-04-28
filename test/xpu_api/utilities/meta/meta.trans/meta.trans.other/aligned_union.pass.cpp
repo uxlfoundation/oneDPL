@@ -91,7 +91,7 @@ kernel_test1(sycl::queue& deviceQueue)
                 static_assert(sizeof(T1) == 4);
             }
         });
-    });
+    }).wait();
 }
 
 void
@@ -108,7 +108,7 @@ kernel_test2(sycl::queue& deviceQueue)
                 static_assert(sizeof(T1) == 16);
             }
         });
-    });
+    }).wait();
 }
 
 int

@@ -56,7 +56,7 @@ test(sycl::queue& deviceQueue)
                     ret_acc[0] &= dpl::is_heap(input, input + 5, dpl::greater<T>());
                 }
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

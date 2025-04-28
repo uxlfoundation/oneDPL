@@ -49,7 +49,7 @@ kernel_test1(InitArgs&&... args)
                 if (rhs_engaged)
                     ret_access[0] &= (*lhs == *orig_access[0]);
             });
-        });
+        }).wait();
     }
     return ret;
 }
@@ -77,7 +77,7 @@ kernel_test2()
                     static_assert(*o2 == 4);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

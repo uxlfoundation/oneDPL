@@ -63,7 +63,7 @@ kernel_test()
                     static_assert(opt->size == 3);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

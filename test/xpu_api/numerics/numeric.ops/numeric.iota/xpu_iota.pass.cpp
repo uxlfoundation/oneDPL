@@ -41,7 +41,7 @@ template <class InIter> void test() {
       cgh.single_task<class KernelTest<InIter>>([=]() {
         oneapi::dpl::iota(InIter(&out[0]), InIter(&out[0] + 5), 5);
       });
-    });
+    }).wait();
   }
   const int ref[5] = {5, 6, 7, 8, 9};
   for (int i = 0; i < 5; ++i) {

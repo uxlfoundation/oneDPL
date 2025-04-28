@@ -60,7 +60,7 @@ kernel_test()
             ret_access[0] &= (std::get<1>(p.second) == 6u);
             ret_access[0] &= (std::get<2>(p.second) == 2u);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::piecewise_construct check");

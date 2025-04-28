@@ -35,7 +35,7 @@ kernelTest()
             static_assert(dpl::is_base_of<dpl::input_iterator_tag, dpl::forward_iterator_tag>::value);
             static_assert(!dpl::is_base_of<dpl::output_iterator_tag, dpl::forward_iterator_tag>::value);
         });
-    });
+    }).wait();
 }
 
 int

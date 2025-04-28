@@ -55,7 +55,7 @@ test(sycl::queue& deviceQueue)
                     ret_acc[0] &= input[0] == 1;
                 }
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

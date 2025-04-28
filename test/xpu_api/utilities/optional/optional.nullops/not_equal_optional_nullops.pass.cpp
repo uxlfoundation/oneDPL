@@ -44,7 +44,7 @@ kernel_test()
                 ret_access[0] &= (!(ia_acc[0] != nullopt));
                 ret_access[0] &= ((ia_acc[1] != nullopt));
             });
-        });
+        }).wait();
     }
     return ret;
 }

@@ -87,7 +87,7 @@ main()
                     static_assert(dpl::is_copy_constructible<C>::value);
                 }
             });
-        });
+        }).wait();
     }
 
     return TestUtils::done();

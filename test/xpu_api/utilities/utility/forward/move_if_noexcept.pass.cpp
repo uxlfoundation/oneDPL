@@ -114,7 +114,7 @@ main()
     sycl::queue deviceQueue = TestUtils::get_test_queue();
     sycl::range<1> numOfItems{1};
     {
-        deviceQueue.submit([&](sycl::handler& cgh) { cgh.single_task<class KernelTest>([=]() { kernel_test(); }); });
+        deviceQueue.submit([&](sycl::handler& cgh) { cgh.single_task<class KernelTest>([=]() { kernel_test(); }); }).wait();
     }
 
     return TestUtils::done();

@@ -43,7 +43,7 @@ kernel_test()
             const dpl::divides<float> f2;
             ret_access[0] &= (f2(18, 4.0f) == 4.5f);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::divides");

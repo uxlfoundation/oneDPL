@@ -48,7 +48,7 @@ test(sycl::queue& deviceQueue)
                 r = dpl::find_if_not(Iter(ia), Iter(ia + s), ne(10));
                 ret_acc[0] &= (r == Iter(ia + s));
             });
-        });
+        }).wait();
     }
 }
 

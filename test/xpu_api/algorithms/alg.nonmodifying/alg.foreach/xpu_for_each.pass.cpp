@@ -49,7 +49,7 @@ kernel_test(sycl::queue& deviceQueue)
                 for (unsigned i = 0; i < s; ++i)
                     ret_acc[0] &= (ia[i] == static_cast<int>(i + 1));
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

@@ -30,7 +30,7 @@ test_is_move_constructible(sycl::queue& deviceQueue)
             static_assert(dpl::is_move_constructible<T>::value);
             static_assert(dpl::is_move_constructible_v<T>);
         });
-    });
+    }).wait();
 }
 
 template <class T>
@@ -42,7 +42,7 @@ test_is_not_move_constructible(sycl::queue& deviceQueue)
             static_assert(!dpl::is_move_constructible<T>::value);
             static_assert(!dpl::is_move_constructible_v<T>);
         });
-    });
+    }).wait();
 }
 
 class Empty

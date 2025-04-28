@@ -48,7 +48,7 @@ kernel_test()
                     ret_access[0] &= (static_cast<bool>(opt) == false);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

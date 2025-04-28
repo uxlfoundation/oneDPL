@@ -133,7 +133,7 @@ kernel_test()
             ret_access[0] &= !has_result_type<dpl::reference_wrapper<functor4>>::value;
             ret_access[0] &= !has_result_type<dpl::reference_wrapper<C>>::value;
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with weak results");

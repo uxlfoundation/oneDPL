@@ -30,7 +30,7 @@ test_has_nothrow_assign(sycl::queue& deviceQueue)
             static_assert(dpl::is_nothrow_move_assignable<T>::value);
             static_assert(dpl::is_nothrow_move_assignable_v<T>);
         });
-    });
+    }).wait();
 }
 
 template <class KernelTest, class T>
@@ -42,7 +42,7 @@ test_has_not_nothrow_assign(sycl::queue& deviceQueue)
             static_assert(!dpl::is_nothrow_move_assignable<T>::value);
             static_assert(!dpl::is_nothrow_move_assignable_v<T>);
         });
-    });
+    }).wait();
 }
 
 class Empty

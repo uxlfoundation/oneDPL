@@ -39,7 +39,7 @@ kernel_test()
                 ret_access[0] = (ri == 0);
                 ret_access[0] &= (cri == 4);
             });
-        });
+        }).wait();
     }
     return ret;
 }

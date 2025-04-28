@@ -62,7 +62,7 @@ main()
                     ret_acc[0] &= (c.size() == 1);
                 }
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::initializer_list");

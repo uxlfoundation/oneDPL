@@ -250,7 +250,7 @@ test()
                     ret_acc[0] &= (static_cast<bool>(opt2) == false);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

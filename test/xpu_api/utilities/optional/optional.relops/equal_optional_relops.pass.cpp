@@ -96,7 +96,7 @@ kernel_test()
                 static_assert(!(O2(101) == o1));
             }
         });
-    });
+    }).wait();
 }
 
 int

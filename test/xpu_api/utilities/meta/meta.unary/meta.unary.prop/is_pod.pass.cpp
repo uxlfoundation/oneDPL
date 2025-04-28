@@ -38,7 +38,7 @@ test_is_pod(sycl::queue& deviceQueue)
             static_assert(dpl::is_pod_v<volatile T>);
             static_assert(dpl::is_pod_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 template <class T>
@@ -56,7 +56,7 @@ test_is_not_pod(sycl::queue deviceQueue)
             static_assert(!dpl::is_pod_v<volatile T>);
             static_assert(!dpl::is_pod_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 struct Class

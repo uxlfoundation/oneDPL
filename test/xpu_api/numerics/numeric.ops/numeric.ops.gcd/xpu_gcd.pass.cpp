@@ -93,7 +93,7 @@ do_test(sycl::queue& deviceQueue)
                     }
                 }
             });
-        });
+        }).wait();
     }
 
     assert(res);

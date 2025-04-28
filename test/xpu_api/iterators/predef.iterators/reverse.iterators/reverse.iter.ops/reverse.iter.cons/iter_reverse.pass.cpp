@@ -60,7 +60,7 @@ kernel_test()
                     static_assert(it.base() == p);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

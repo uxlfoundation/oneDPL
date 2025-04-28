@@ -39,7 +39,7 @@ main()
                 acc[0] = true;
 #endif
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result: NULL is not defined in Kernel");

@@ -52,7 +52,7 @@ kernel_test()
                 const int j = 0;
                 ret_access[0] &= test(j);
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Error in work with type constructor");

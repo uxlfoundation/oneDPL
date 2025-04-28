@@ -45,7 +45,7 @@ assign_empty()
                 lhs_access[0] = dpl::move(rhs);
                 ret_access[0] &= !lhs_access[0].has_value() && !rhs.has_value();
             });
-        });
+        }).wait();
     }
     return ret;
 }
@@ -71,7 +71,7 @@ assign_value()
                 lhs_access[0] = dpl::move(rhs);
                 ret_access[0] &= lhs_access[0].has_value() && rhs.has_value() && *lhs_access[0] == Tp{101};
             });
-        });
+        }).wait();
     }
     return ret;
 }
@@ -122,7 +122,7 @@ kernel_test()
                     ret_access[0] &= (*opt == *opt2);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

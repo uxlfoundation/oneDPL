@@ -157,7 +157,7 @@ kernel_test()
                 ret_access[0] &= (r1(i, j) == i + j);
             }
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with invoke");

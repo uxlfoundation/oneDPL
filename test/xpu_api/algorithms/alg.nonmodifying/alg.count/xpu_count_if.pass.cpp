@@ -49,7 +49,7 @@ kernel_test(sycl::queue& deviceQueue)
                 ret_acc[0] &=
                     (dpl::count_if(input_iterator<const int*>(ia), input_iterator<const int*>(ia), eq(2)) == 0);
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

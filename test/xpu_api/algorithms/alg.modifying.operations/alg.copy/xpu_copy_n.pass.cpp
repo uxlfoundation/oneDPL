@@ -54,7 +54,7 @@ test(sycl::queue& deviceQueue)
                 OutIter r = dpl::copy_n(InIter(&acc_arr1[0]), N / 2, OutIter(&acc_arr2[0]));
                 ret_acc[0] &= (base(r) == &acc_arr2[0] + N / 2);
             });
-        });
+        }).wait();
     }
     assert(ret);
     for (size_t idx = 0; idx < N / 2; ++idx)

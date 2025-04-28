@@ -64,7 +64,7 @@ test_iterators()
                 ret_acc[0] &=
                     (dpl::is_same<typename CItT::difference_type, typename C::difference_type>::value == true);
             });
-        });
+        }).wait();
     }
     return ret;
 }
@@ -104,7 +104,7 @@ kernel_test()
                                   typename dpl::iterator_traits<typename C::const_iterator>::difference_type>::value ==
                      true);
             });
-        });
+        }).wait();
     }
     return ret;
 }

@@ -81,7 +81,7 @@ kernel_test1(sycl::queue& deviceQueue)
                     ret_acc[0] &= !dpl::is_permutation(Iter1(ia), Iter1(ia + sa), Iter1(ib));
                 }
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

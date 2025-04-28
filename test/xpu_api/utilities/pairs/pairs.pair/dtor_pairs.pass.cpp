@@ -36,7 +36,7 @@ kernel_test()
             static_assert(dpl::is_trivially_destructible<dpl::pair<int, float>>::value);
             ret_access[0] = (dpl::is_trivially_destructible<dpl::pair<int, float>>::value);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::is_trivially_destructible check for dpl::pair");

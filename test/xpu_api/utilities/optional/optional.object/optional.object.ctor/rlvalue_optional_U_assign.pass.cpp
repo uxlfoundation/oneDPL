@@ -43,7 +43,7 @@ test(optional<U>& opt)
                 optional<T> lhs = dpl::move(rhs_access[0]);
                 ret_access[0] &= (static_cast<bool>(lhs) == rhs_engaged);
             });
-        });
+        }).wait();
     }
     return ret;
 }

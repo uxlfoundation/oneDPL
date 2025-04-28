@@ -49,7 +49,7 @@ test_is_literal_type(sycl::queue& deviceQueue)
             static_assert(dpl::is_literal_type_v<volatile T>);
             static_assert(dpl::is_literal_type_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 template <class KernelTest, class T>
@@ -67,7 +67,7 @@ test_is_not_literal_type(sycl::queue& deviceQueue)
             static_assert(!dpl::is_literal_type_v<volatile T>);
             static_assert(!dpl::is_literal_type_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 class Empty

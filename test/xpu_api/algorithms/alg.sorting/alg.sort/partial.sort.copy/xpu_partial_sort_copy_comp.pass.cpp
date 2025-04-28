@@ -47,7 +47,7 @@ test(sycl::queue& deviceQueue)
                     ret_acc[0] &= (b[0] == 34 && b[1] == 1 && b[2] == 0 && b[3] == -1);
                 }
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

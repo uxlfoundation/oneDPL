@@ -46,7 +46,7 @@ kernel_test()
             ret_access[0] &= (p2_null.first == nullptr);
             ret_access[0] &= (p2_null.second == 4);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::make_pair check");

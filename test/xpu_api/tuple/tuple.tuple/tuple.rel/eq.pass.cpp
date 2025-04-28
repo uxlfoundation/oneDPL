@@ -125,7 +125,7 @@ kernel_test1(sycl::queue& deviceQueue)
                 ret_access[0] &= (t1 != t2);
             }
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::tuple::operator= check");
@@ -225,7 +225,7 @@ kernel_test2(sycl::queue& deviceQueue)
                 ret_access[0] &= (t1 != t2);
             }
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::tuple::operator!= check");

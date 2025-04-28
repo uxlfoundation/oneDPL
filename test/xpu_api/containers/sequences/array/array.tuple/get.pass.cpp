@@ -40,7 +40,7 @@ main()
                 ret_acc[0] &= (c[1] == 55);
                 ret_acc[0] &= (c[2] == 35);
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::get");

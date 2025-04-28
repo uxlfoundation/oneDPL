@@ -42,7 +42,7 @@ kernelTest()
             static_assert(dpl::is_same<It::reference, const volatile A&>::value);
             static_assert(dpl::is_same<It::iterator_category, dpl::random_access_iterator_tag>::value);
         });
-    });
+    }).wait();
 }
 
 int

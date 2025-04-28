@@ -87,7 +87,7 @@ test_one_arg()
                     ret_access[0] &= (&v == &*opt);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }
@@ -112,7 +112,7 @@ kernel_test()
                 opt.emplace();
                 ret_access[0] &= (*opt == 0);
             });
-        });
+        }).wait();
     }
     return ret;
 }

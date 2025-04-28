@@ -41,7 +41,7 @@ kernel_test(sycl::queue deviceQueue)
                 ret_access[0] &= (dpl::get<0>(c) == 1 && dpl::get<1>(c) == 2.f);
                 ret_access[0] &= (dpl::get<0>(b) == 1 && dpl::get<1>(b) == 2.f);
             });
-        });
+        }).wait();
     }
     return ret;
 }

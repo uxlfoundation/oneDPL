@@ -57,7 +57,7 @@ test(sycl::queue& deviceQueue)
                     ret_acc[0] &= (!dpl::is_sorted(Iter(a), Iter(a + sa)));
                 }
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

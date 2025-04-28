@@ -32,7 +32,7 @@ kernel_test()
                 array_type b = {{0, 1, 2, 3}};
                 a = b;
             });
-        });
+        }).wait();
     }
 }
 

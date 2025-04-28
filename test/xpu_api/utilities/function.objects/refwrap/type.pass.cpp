@@ -58,7 +58,7 @@ kernel_test()
             ret_access[0] &= dpl::is_same<dpl::reference_wrapper<int (C::*)(float*) const volatile>::type,
                                           int (C::*)(float*) const volatile>::value;
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::reference_wrapper and type checks");

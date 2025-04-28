@@ -54,7 +54,7 @@ kernel_test()
                     (void)it;
                 }
             });
-        });
+        }).wait();
     }
 }
 

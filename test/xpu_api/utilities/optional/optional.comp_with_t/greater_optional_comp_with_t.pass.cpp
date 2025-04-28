@@ -79,7 +79,7 @@ kernel_test()
                     static_assert(!(42 > o1));
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

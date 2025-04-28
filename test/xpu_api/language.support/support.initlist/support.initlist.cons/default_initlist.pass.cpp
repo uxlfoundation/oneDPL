@@ -45,7 +45,7 @@ main()
                 std::initializer_list<A> il;
                 acc[0] = (il.size() == 0);
             });
-        });
+        }).wait();
     }
 
     for (dpl::size_t i = 0; i < N; ++i)

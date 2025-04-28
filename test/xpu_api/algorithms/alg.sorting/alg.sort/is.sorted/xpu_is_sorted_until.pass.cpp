@@ -62,7 +62,7 @@ test(sycl::queue& deviceQueue)
                     ret_acc[0] &= (dpl::is_sorted_until(Iter(a), Iter(a + sa)) == Iter(a + 2));
                 }
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

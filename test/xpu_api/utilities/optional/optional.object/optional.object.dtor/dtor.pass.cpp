@@ -71,7 +71,7 @@ kernel_test()
                     }
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

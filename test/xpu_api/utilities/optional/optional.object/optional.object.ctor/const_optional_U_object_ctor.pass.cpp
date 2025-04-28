@@ -44,7 +44,7 @@ kernel_test(const optional<U>& rhs)
                 if (rhs_engaged)
                     ret_access[0] &= (*lhs == *rhs_access[0]);
             });
-        });
+        }).wait();
     }
     return ret;
 }

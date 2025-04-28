@@ -62,7 +62,7 @@ kernel_test()
                     ret_access[0] &= (*o == 42);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

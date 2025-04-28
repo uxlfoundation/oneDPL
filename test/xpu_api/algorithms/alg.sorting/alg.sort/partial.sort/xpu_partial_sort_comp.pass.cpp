@@ -60,7 +60,7 @@ test(sycl::queue& deviceQueue)
                     ret_acc[0] &= (a[0] == 21);
                 }
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

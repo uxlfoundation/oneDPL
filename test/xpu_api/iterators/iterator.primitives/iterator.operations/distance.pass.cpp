@@ -79,7 +79,7 @@ kernel_test()
                     static_assert(constexpr_test(s, s + 10, 10));
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

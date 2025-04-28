@@ -38,7 +38,7 @@ test_constexpr()
                 constexpr Opt opt;
                 static_assert(static_cast<bool>(opt) == false);
             });
-        });
+        }).wait();
     }
 }
 

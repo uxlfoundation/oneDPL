@@ -36,7 +36,7 @@ test_is_not_polymorphic(sycl::queue& deviceQueue)
             static_assert(!dpl::is_polymorphic_v<volatile T>);
             static_assert(!dpl::is_polymorphic_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 template <class KernelName, class T>
@@ -54,7 +54,7 @@ test_is_polymorphic(sycl::queue& deviceQueue)
             static_assert(dpl::is_polymorphic_v<volatile T>);
             static_assert(dpl::is_polymorphic_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 class Empty

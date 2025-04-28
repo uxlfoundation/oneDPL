@@ -38,7 +38,7 @@ test(sycl::queue& deviceQueue)
                 dpl::make_heap(Iter(input), Iter(input + N));
                 ret_acc[0] &= dpl::is_heap(input, input + N);
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

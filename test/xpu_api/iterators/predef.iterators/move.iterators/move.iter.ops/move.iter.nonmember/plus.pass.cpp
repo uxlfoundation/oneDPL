@@ -66,7 +66,7 @@ kernel_test()
                     static_assert(it2 == it3);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

@@ -38,7 +38,7 @@ kernel_test()
             int* p = dpl::get<0>(std::move(t));
             ret_access[0] = (*p == 3);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::get(dpl::tuple<int*>&&) check");

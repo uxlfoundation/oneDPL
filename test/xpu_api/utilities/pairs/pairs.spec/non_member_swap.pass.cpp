@@ -47,7 +47,7 @@ kernel_test()
             ret_access[0] &= (p2.first == 3);
             ret_access[0] &= (p2.second == 4);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::swap(dpl::pair, dpl::pair) check");

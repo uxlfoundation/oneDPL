@@ -49,7 +49,7 @@ kernel_test()
                 moved = dpl::move(copy);
             }
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::ignore check");

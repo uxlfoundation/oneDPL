@@ -114,7 +114,7 @@ kernel_test1(sycl::queue& deviceQueue)
             static_assert(!has_underlying_type_member<dpl::nullptr_t>::value);
 #endif // TEST_STD_VER >= 20 && !_PSTL_ICC_TEST_UNDERLYING_TYPE_BROKEN
         });
-    });
+    }).wait();
 }
 
 // Until C++20 the behaviour of std::underlying_type<T> is undefined when T is not enum
@@ -124,7 +124,7 @@ kernel_test2(sycl::queue& deviceQueue)
 {
     deviceQueue.submit([&](sycl::handler& cgh) {
         cgh.single_task<class KernelTest2>([=]() { static_assert(!has_underlying_type_member<double>::value); });
-    });
+    }).wait();
 }
 #endif // TEST_STD_VER >= 20 && !_PSTL_ICC_TEST_UNDERLYING_TYPE_BROKEN
 

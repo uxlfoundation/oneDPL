@@ -37,7 +37,7 @@ test_rank(sycl::queue& deviceQueue)
             static_assert(dpl::rank_v<volatile T> == A);
             static_assert(dpl::rank_v<const volatile T> == A);
         });
-    });
+    }).wait();
 }
 
 struct Class

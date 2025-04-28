@@ -42,7 +42,7 @@ test(sycl::queue& deviceQueue)
                 r = dpl::find(Iter(ia), Iter(ia + s), 10);
                 ret_acc[0] &= (r == Iter(ia + s));
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

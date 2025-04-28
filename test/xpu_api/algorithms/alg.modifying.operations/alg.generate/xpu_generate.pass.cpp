@@ -40,7 +40,7 @@ test(sycl::queue& deviceQueue)
         deviceQueue.submit([&](sycl::handler& cgh) {
             auto acc_arr = buffer1.get_access<sycl::access::mode::write>(cgh);
             cgh.single_task<Iter>([=]() { dpl::generate(Iter(&acc_arr[0]), Iter(&acc_arr[0] + N), gen_test()); });
-        });
+        }).wait();
     }
     for (size_t idx = 0; idx < N; ++idx)
     {

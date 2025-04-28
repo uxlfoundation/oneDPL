@@ -75,7 +75,7 @@ test(sycl::queue& deviceQueue)
                         out[19] = dpl::reduce(Iter(&in[0]), Iter(&in[0] + 6), 4, std::multiplies<>());
                         out[20] = dpl::reduce(Iter(&in[0]), Iter(&in[0] + 6), 0, [](VT x, VT y) { return x + y + 1; });
                     });
-            });
+            }).wait();
     }
 
     for (size_t idx = 0; idx < 21; ++idx)

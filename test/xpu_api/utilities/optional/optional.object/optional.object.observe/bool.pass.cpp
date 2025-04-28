@@ -42,7 +42,7 @@ kernel_test()
                     static_assert(opt);
                 }
             });
-        });
+        }).wait();
     }
 }
 

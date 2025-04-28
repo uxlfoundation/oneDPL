@@ -127,7 +127,7 @@ main()
 
                 acc[0] &= (i == 33);
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with null_ptr in Kernel");

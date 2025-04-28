@@ -59,7 +59,7 @@ kernel_test()
                 static_assert(!std::is_nothrow_move_constructible<tt5n>::value);
                 static_assert(!std::is_nothrow_move_constructible<tt6n>::value);
             });
-        });
+        }).wait();
     }
 }
 

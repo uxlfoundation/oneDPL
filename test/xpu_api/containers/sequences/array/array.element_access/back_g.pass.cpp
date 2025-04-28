@@ -39,7 +39,7 @@ kernel_test()
                 const int& cri = b.back();
                 ret_access[0] &= (cri == 0);
             });
-        });
+        }).wait();
     }
     return ret;
 }

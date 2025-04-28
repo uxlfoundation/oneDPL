@@ -58,7 +58,7 @@ kernel_test1(sycl::queue& deviceQueue)
             static_assert(!std::is_nothrow_move_assignable<tt5n>::value);
             static_assert(!std::is_nothrow_move_assignable<tt6n>::value);
         });
-    });
+    }).wait();
 }
 
 void
@@ -82,7 +82,7 @@ kernel_test2(sycl::queue& deviceQueue)
             static_assert(!std::is_nothrow_move_assignable<tt4n>::value);
             static_assert(!std::is_nothrow_move_assignable<tt5n>::value);
         });
-    });
+    }).wait();
 }
 
 int

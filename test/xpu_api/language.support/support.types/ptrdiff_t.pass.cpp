@@ -45,7 +45,7 @@ main()
                 static_assert(dpl::is_integral<dpl::ptrdiff_t>::value, "dpl::is_integral<dpl::ptrdiff_t>::value");
                 acc[0] &= (sizeof(dpl::ptrdiff_t) == sizeof(void*));
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with ptrdiff_t in Kernel");

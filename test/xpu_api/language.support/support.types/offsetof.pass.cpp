@@ -39,7 +39,7 @@ main()
         sycl::queue q = TestUtils::get_test_queue();
         q.submit([&](sycl::handler& cgh) {
             cgh.single_task<class KernelTest1>([=]() { ASSERT_NOEXCEPT(offsetof(A, x)); });
-        });
+        }).wait();
     }
 
     return TestUtils::done();

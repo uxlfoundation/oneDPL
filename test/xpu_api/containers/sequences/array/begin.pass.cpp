@@ -42,7 +42,7 @@ main()
                     *i = 55;
                     ret_access[0] &= (c[0] == 55);
                 });
-            });
+            }).wait();
         }
 
         EXPECT_TRUE(ret, "Wrong result of work with dpl::array::begin");

@@ -37,7 +37,7 @@ test_extent(sycl::queue& deviceQueue)
             static_assert(dpl::extent_v<volatile T> == A);
             static_assert(dpl::extent_v<const volatile T> == A);
         });
-    });
+    }).wait();
 }
 
 template <class KernelTest, class T, unsigned A>
@@ -56,7 +56,7 @@ test_extent1(sycl::queue& deviceQueue)
             static_assert(dpl::extent_v<volatile T, 1> == A);
             static_assert(dpl::extent_v<const volatile T, 1> == A);
         });
-    });
+    }).wait();
 }
 
 struct Class

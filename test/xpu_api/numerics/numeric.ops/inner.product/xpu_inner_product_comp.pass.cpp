@@ -71,7 +71,7 @@ test()
                 out[7] = oneapi::dpl::inner_product(Iter1(&in1[0]), Iter1(&in1[0] + 6), Iter2(&in2[0]), 10,
                                                     oneapi::dpl::multiplies<int>(), oneapi::dpl::plus<int>());
             });
-        });
+        }).wait();
     }
     const int ref[8] = {1, 10, 7, 70, 49, 490, 117649, 1176490};
     for (int i = 0; i < 8; ++i)

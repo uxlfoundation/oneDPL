@@ -38,7 +38,7 @@ test_contiguous()
                 for (size_t i = 0; i < c.size(); ++i)
                     ret_acc[0] &= (*(c.begin() + i) == *(dpl::addressof(*c.begin()) + i));
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of contiquous check");

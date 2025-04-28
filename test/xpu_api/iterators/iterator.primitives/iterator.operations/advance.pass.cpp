@@ -94,7 +94,7 @@ kernel_test()
                     static_assert(constepxr_test(s + 5, -5, s));
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

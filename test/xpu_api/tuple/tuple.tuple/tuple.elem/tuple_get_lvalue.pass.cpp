@@ -38,7 +38,7 @@ kernel_test()
             dpl::get<0>(t) = 2;
             ret_access[0] &= (dpl::get<0>(t) == 2);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::get(dpl::tuple) check");

@@ -71,7 +71,7 @@ kernel_test()
                     static_assert(it2 - it1 == -1);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

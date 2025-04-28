@@ -55,7 +55,7 @@ test(sycl::queue& deviceQueue)
                     std::transform(InIter(&acc_arr1[0]), InIter(&acc_arr1[0] + sa), OutIter(&acc_arr2[0]), plusOne());
                 ret_acc[0] = (base(r) == &acc_arr2[0] + sa);
             });
-        });
+        }).wait();
     }
     assert(ret);
     for (size_t idx = 0; idx < sa; ++idx)

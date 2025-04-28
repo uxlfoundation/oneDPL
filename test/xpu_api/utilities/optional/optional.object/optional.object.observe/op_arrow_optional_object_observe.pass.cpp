@@ -64,7 +64,7 @@ kernel_test()
                 ret_access[0] &= (opt->test() == 3);
                 ret_access[0] &= (test() == 3);
             });
-        });
+        }).wait();
     }
     return ret;
 }

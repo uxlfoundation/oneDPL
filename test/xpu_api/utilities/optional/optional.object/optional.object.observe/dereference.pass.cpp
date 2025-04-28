@@ -71,7 +71,7 @@ kernel_test()
                 static_assert((*opt1).test() == 3);
                 static_assert((*std::move(opt1)).test() == 5);
             });
-        });
+        }).wait();
     }
     return ret;
 }

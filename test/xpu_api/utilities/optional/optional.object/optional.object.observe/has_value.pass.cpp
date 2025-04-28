@@ -39,7 +39,7 @@ kernel_test()
                 static_assert(opt.has_value());
             }
         });
-    });
+    }).wait();
 }
 
 int

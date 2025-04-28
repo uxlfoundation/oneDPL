@@ -110,7 +110,7 @@ kernel_test()
                     static_assert(dpl::is_same<It::reference, int&&>::value);
                 }
             });
-        });
+        }).wait();
     }
 }
 

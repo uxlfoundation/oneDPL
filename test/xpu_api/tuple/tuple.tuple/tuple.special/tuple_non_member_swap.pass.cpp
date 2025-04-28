@@ -56,7 +56,7 @@ kernel_test()
                     (dpl::get<0>(t0) == 2 && dpl::get<1>(t0) == 3 && dpl::get<0>(t1) == 0 && dpl::get<1>(t1) == 1);
             }
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::swap check");

@@ -65,7 +65,7 @@ main()
                     static_assert(c.empty());
                 }
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::array::size");

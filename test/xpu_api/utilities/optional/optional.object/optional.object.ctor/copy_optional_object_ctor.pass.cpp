@@ -49,7 +49,7 @@ test1(InitArgs&&... args)
                 if (rhs_engaged)
                     ret_access[0] &= (*lhs == *rhs_access[0]);
             });
-        });
+        }).wait();
     }
     return ret;
 }
@@ -72,7 +72,7 @@ test2()
                 optional<const int> o2(o_access[0]);
                 ret_access[0] &= (*o2 == 42);
             });
-        });
+        }).wait();
     }
     return ret;
 }

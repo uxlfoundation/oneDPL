@@ -46,7 +46,7 @@ test(sycl::queue& deviceQueue)
                                            OutIter(&acc_arr2[0]), dpl::minus<int>());
                 ret_acc[0] = (base(r) == &acc_arr2[0] + sa);
             });
-        });
+        }).wait();
     }
     assert(ret);
     for (size_t idx = 0; idx < sa; ++idx)

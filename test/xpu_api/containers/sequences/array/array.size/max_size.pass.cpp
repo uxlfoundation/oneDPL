@@ -50,7 +50,7 @@ main()
                         ret_acc[0] &= (c.max_size() == 0);
                     }
                 });
-            });
+            }).wait();
         }
 
         EXPECT_TRUE(ret, "Wrong result of work with dpl::array::max/dpl::array::size");

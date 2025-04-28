@@ -43,7 +43,7 @@ template <class InIter, class OutIter, class Test> void test() {
         OutIter r = oneapi::dpl::partial_sum(InIter(&in[0]), InIter(&in[0] + 5),
                                              OutIter(&out[0]));
       });
-    });
+    }).wait();
   }
   int ref[5] = {1, 3, 6, 10, 15};
   for (int i = 0; i < 5; ++i) {

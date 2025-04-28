@@ -33,7 +33,7 @@ test()
 
         q.submit([&](sycl::handler& cgh) {
             cgh.single_task<KernelTest>([=]() { static_assert(dpl::is_same<typename Opt::value_type, T>::value); });
-        });
+        }).wait();
     }
 }
 

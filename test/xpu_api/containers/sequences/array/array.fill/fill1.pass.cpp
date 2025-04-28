@@ -41,7 +41,7 @@ main()
                     ret_acc[0] &= (c[2] == 55);
                 }
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::array::fill");

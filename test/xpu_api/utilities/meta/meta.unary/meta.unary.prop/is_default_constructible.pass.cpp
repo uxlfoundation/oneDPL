@@ -36,7 +36,7 @@ test_is_default_constructible(sycl::queue& deviceQueue)
             static_assert(dpl::is_default_constructible_v<volatile T>);
             static_assert(dpl::is_default_constructible_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 template <class T>
@@ -54,7 +54,7 @@ test_is_not_default_constructible(sycl::queue& deviceQueue)
             static_assert(!dpl::is_default_constructible_v<volatile T>);
             static_assert(!dpl::is_default_constructible_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 class Empty

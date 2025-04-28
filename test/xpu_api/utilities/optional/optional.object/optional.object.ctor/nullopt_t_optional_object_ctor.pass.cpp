@@ -46,7 +46,7 @@ test_constexpr()
                     constexpr test_constexpr_ctor() {}
                 };
             });
-        });
+        }).wait();
     }
 }
 

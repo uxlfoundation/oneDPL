@@ -111,7 +111,7 @@ kernel_test()
                 static_assert(!std::is_nothrow_swappable_v<tt10n&>);
                 static_assert(!std::is_nothrow_swappable_v<tt11n&>);
             });
-        });
+        }).wait();
     }
 }
 

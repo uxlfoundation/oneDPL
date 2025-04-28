@@ -32,7 +32,7 @@ test(sycl::queue& deviceQueue)
         deviceQueue.submit([&](sycl::handler& cgh) {
             auto acc_arr1 = buffer1.get_access<sycl::access::mode::write>(cgh);
             cgh.single_task<Iter>([=]() { dpl::fill_n(Iter(&acc_arr1[0]), N, 100); });
-        });
+        }).wait();
     }
     assert(ret);
     for (size_t idx = 0; idx < N; ++idx)

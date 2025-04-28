@@ -58,7 +58,7 @@ kernelTest()
             static_assert(dpl::is_same<It::reference, A&>::value);
             static_assert(dpl::is_same<It::iterator_category, dpl::forward_iterator_tag>::value);
         });
-    });
+    }).wait();
 }
 
 int

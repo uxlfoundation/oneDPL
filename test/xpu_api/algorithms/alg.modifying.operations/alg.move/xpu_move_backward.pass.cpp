@@ -55,7 +55,7 @@ test(sycl::queue& deviceQueue)
                     dpl::move_backward(InIter(&acc_arr1[0]), InIter(&acc_arr1[0] + N), OutIter(&acc_arr2[0] + N));
                 ret_acc[0] &= (base(r) == &acc_arr2[0]);
             });
-        });
+        }).wait();
     }
     assert(ret);
     for (size_t idx = 0; idx < N; ++idx)

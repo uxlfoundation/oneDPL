@@ -91,7 +91,7 @@ kernel_test()
                     ret_acc[0] &= (c2.size() == 0);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

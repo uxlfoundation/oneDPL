@@ -32,7 +32,7 @@ test()
                 static_assert(dpl::ratio<N, D>::num == eN);
                 static_assert(dpl::ratio<N, D>::den == eD);
             });
-        });
+        }).wait();
     }
 }
 

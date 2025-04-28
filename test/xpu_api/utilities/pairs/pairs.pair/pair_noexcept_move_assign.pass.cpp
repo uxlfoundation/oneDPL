@@ -65,7 +65,7 @@ kernel_test()
 
                 test_non_nothrow_move_assignable<tt3n>();
             });
-        });
+        }).wait();
     }
 }
 

@@ -44,7 +44,7 @@ kernel_test()
             static_assert(dpl::is_same_v<const nullopt_t, decltype(nullopt)>);
             static_assert(test());
         });
-    });
+    }).wait();
 }
 
 int

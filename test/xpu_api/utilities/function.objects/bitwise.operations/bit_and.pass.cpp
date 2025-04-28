@@ -77,7 +77,7 @@ kernel_test()
             ret_access[0] &= (f2(0xFFFFL, 0x58D3) == 0x58D3);
             ret_access[0] &= (f2(0xFFFF, 0x58D3L) == 0x58D3);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::bit_and");

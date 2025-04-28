@@ -39,7 +39,7 @@ kernel_test()
                 ret_access[0] = (*pi == 0);
                 ret_access[0] &= (*pci == 4);
             });
-        });
+        }).wait();
     }
     return ret;
 }

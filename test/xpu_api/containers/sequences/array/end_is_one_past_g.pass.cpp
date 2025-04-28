@@ -39,7 +39,7 @@ kernel_test()
                     ret_access[0] = (e != (b + a.size() - 1));
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

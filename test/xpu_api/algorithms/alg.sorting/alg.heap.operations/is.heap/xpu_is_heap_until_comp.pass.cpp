@@ -53,7 +53,7 @@ test(sycl::queue& deviceQueue)
                 ret_acc[0] &= (dpl::is_heap_until(Iter1(i9), Iter1(i9 + 3), dpl::greater<T>()) == Iter1(i9 + 1));
                 ret_acc[0] &= (dpl::is_heap_until(Iter1(i10), Iter1(i10 + 3), dpl::greater<T>()) == Iter1(i10 + 2));
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

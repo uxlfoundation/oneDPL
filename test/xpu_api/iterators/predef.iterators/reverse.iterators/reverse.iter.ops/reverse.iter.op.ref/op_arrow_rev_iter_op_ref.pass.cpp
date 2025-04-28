@@ -140,7 +140,7 @@ kernel_test()
                     ((void)gC);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

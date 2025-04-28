@@ -59,7 +59,7 @@ kernelTest()
             typedef dpl::iterator_traits<not_an_iterator> It;
             static_assert(!has_value_type<It>::value);
         });
-    });
+    }).wait();
 }
 
 int

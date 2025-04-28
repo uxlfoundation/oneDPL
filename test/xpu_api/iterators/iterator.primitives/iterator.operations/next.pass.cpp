@@ -116,7 +116,7 @@ kernel_test()
                     static_assert(constexpr_test(s, s + 1));
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

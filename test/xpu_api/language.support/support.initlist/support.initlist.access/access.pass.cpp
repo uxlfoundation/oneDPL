@@ -65,7 +65,7 @@ main()
                 acc[2] = (test1.data[1] == 2);
                 acc[3] = (test1.data[2] == 1);
             });
-        });
+        }).wait();
     }
 
     for (dpl::size_t i = 0; i < N; ++i)

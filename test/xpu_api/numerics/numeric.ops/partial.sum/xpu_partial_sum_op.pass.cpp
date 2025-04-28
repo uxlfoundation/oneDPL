@@ -45,7 +45,7 @@ template <class InIter, class OutIter, class Test> void test() {
                                              OutIter(&out[0]),
                                              oneapi::dpl::minus<int>());
       });
-    });
+    }).wait();
   }
   int ref[5] = {1, -1, -4, -8, -13};
   for (int i = 0; i < 5; ++i) {

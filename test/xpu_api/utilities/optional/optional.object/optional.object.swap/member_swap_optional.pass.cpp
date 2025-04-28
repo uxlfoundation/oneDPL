@@ -229,7 +229,7 @@ kernel_test()
                     ret_access[0] &= ((*opt2).nsf == 200);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

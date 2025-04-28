@@ -62,7 +62,7 @@ test(sycl::queue& deviceQueue)
                 ret_acc[0] &= (dpl::is_heap(Iter1(i10), Iter1(i10 + 3)) ==
                                (dpl::is_heap_until(Iter1(i10), Iter1(i10 + 3)) == Iter1(i10 + 3)));
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

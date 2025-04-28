@@ -64,7 +64,7 @@ main()
                     const T* p = c.data();
                 }
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::array::data (const)");

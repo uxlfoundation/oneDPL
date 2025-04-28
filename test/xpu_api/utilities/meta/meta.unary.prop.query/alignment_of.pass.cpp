@@ -42,7 +42,7 @@ test_alignment_of(sycl::queue& deviceQueue)
             static_assert(dpl::alignment_of_v<volatile T> == A);
             static_assert(dpl::alignment_of_v<const volatile T> == A);
         });
-    });
+    }).wait();
 }
 
 struct Class

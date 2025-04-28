@@ -36,7 +36,7 @@ test_is_nothrow_destructible(sycl::queue& deviceQueue)
             static_assert(dpl::is_nothrow_destructible_v<volatile T>);
             static_assert(dpl::is_nothrow_destructible_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 template <class T>
@@ -54,7 +54,7 @@ test_is_not_nothrow_destructible(sycl::queue deviceQueue)
             static_assert(!dpl::is_nothrow_destructible_v<volatile T>);
             static_assert(!dpl::is_nothrow_destructible_v<const volatile T>);
         });
-    });
+    }).wait();
 }
 
 struct PublicDestructor

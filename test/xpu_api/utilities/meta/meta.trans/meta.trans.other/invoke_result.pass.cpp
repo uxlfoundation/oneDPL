@@ -88,7 +88,7 @@ test_result_of(sycl::queue& deviceQueue)
 #endif // TEST_STD_VER
             test_invoke_result<T, U>::call();
         });
-    });
+    }).wait();
 }
 
 template <typename T>
@@ -117,7 +117,7 @@ test_no_result(sycl::queue& deviceQueue)
 #endif // TEST_STD_VER
             test_invoke_no_result<T>::call();
         });
-    });
+    }).wait();
 }
 
 class KernelTest1;

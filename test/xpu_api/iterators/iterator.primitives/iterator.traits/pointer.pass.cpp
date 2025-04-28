@@ -54,7 +54,7 @@ kernelTest()
             ASSERT_SAME_TYPE(It::iterator_concept, dpl::contiguous_iterator_tag);
 #endif
         });
-    });
+    }).wait();
 }
 
 int

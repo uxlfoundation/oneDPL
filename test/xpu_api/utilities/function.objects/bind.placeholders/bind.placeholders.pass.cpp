@@ -52,7 +52,7 @@ kernel_test()
                 auto bf = dpl::bind(instance, 1, 2, 3, dpl::ref(res_access[0]));
                 bf();
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(result == 39, "Error in work with dpl::bind");

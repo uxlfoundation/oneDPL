@@ -66,7 +66,7 @@ kernel_test()
                     static_assert(it1[5] == '6');
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

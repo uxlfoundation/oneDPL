@@ -88,7 +88,7 @@ test_sfinae()
                 // Type constructible from optional
                 assert_assignable<FromOptionalType, dpl::optional<FromOptionalType>&, false>();
             });
-        });
+        }).wait();
     }
 }
 
@@ -137,7 +137,7 @@ test_with_type()
                     ret_access[0] &= (static_cast<bool>(opt) == false);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

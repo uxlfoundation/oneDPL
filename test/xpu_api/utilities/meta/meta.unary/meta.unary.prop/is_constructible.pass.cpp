@@ -199,7 +199,7 @@ kernel_test1(sycl::queue& deviceQueue)
 
             static_assert(dpl::is_constructible<int&&, ExplicitTo<int&&>>::value);
         });
-    });
+    }).wait();
 }
 
 void
@@ -219,7 +219,7 @@ kernel_test2(sycl::queue& deviceQueue)
             test_is_not_constructible<const int&, ExplicitTo<double&&>>();
             test_is_not_constructible<int&&, ExplicitTo<double&&>>();
         });
-    });
+    }).wait();
 }
 
 int

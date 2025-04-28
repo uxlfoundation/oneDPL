@@ -89,7 +89,7 @@ main()
                 test<int>();
                 ret_acc[0] = true;
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with std::tuple_element");

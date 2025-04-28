@@ -43,7 +43,7 @@ kernel_test()
             int i = 100;
             ret_access[0] = test(i);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::reference_wrapper");

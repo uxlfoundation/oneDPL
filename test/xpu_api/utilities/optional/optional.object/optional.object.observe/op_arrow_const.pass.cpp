@@ -108,7 +108,7 @@ kernel_test()
                     static_assert(opt->test() == 1);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

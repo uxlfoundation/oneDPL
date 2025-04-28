@@ -78,7 +78,7 @@ kernel_test()
                 test_constexpr_single_val_ctor<tuple_type, dpl::tuple<short, short>>();
                 test_constexpr_single_val_ctor<dpl::tuple<short, short>, tuple_type>();
             });
-        });
+        }).wait();
     }
 }
 

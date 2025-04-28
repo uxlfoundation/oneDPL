@@ -69,7 +69,7 @@ kernel_test(sycl::queue& deviceQueue)
             ret_access[0] = dpl::is_copy_constructible<Wrap>::value;
             ret_access[0] &= dpl::is_copy_assignable<Wrap>::value;
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with type properties");

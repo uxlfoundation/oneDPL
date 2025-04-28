@@ -189,7 +189,7 @@ kernel_test1(sycl::queue& deviceQueue)
                                   dpl::get<3>(t3) == 4 && dpl::get<4>(t3) == 5);
             }
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::tuple_cat check in kernel_test1");
@@ -234,7 +234,7 @@ kernel_test2(sycl::queue& deviceQueue)
                                   dpl::get<3>(t3) == 1);
             }
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of dpl::tuple_cat check in kernel_test2");

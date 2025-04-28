@@ -59,7 +59,7 @@ main()
                 test<float, 5>();
                 ret_acc[0] = true;
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::tuple_size");

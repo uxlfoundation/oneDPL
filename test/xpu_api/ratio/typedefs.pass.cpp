@@ -45,7 +45,7 @@ test()
                 static_assert(std::peta::num == 1000000000000000ULL && std::peta::den == 1);
                 static_assert(std::exa::num == 1000000000000000000ULL && std::exa::den == 1);
             });
-        });
+        }).wait();
     }
 }
 

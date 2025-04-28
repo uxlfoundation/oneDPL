@@ -30,7 +30,7 @@ test_is_copy_constructible(sycl::queue& deviceQueue)
             static_assert(dpl::is_copy_constructible<T>::value);
             static_assert(dpl::is_copy_constructible_v<T>);
         });
-    });
+    }).wait();
 }
 
 template <class T>
@@ -42,7 +42,7 @@ test_is_not_copy_constructible(sycl::queue& deviceQueue)
             static_assert(!dpl::is_copy_constructible<T>::value);
             static_assert(!dpl::is_copy_constructible_v<T>);
         });
-    });
+    }).wait();
 }
 
 class Empty

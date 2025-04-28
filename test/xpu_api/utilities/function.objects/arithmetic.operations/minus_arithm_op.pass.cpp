@@ -37,7 +37,7 @@ kernel_test()
             const dpl::minus<float> f2;
             ret_access[0] &= (f2(3.f, 2.5f) == 0.5f);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::minus");

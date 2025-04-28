@@ -83,7 +83,7 @@ test(sycl::queue& deviceQueue)
                 dpl::for_each_n(Iter(&arr_acc[0]), 6, mul2<VT>());
                 dpl::for_each_n(Iter(&arr_acc[0]), 6, div2<VT>());
             });
-        });
+        }).wait();
     }
 
     for (size_t idx = 0; idx < 6; ++idx)

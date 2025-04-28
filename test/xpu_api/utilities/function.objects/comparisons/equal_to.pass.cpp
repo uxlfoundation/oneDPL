@@ -61,7 +61,7 @@ kernel_test()
             const dpl::equal_to<float> f2;
             ret_access[0] &= (f2(36, 36.0f));
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::equal_to");

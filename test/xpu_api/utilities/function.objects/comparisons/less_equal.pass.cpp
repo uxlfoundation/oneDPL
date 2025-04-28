@@ -50,7 +50,7 @@ kernel_test()
             ret_access[0] &= (f2(6, 36.0f));
             ret_access[0] &= (f2(6.0f, 36));
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::less_equal");

@@ -63,7 +63,7 @@ test(sycl::queue& deviceQueue)
                     ret_acc[0] &= (std::is_sorted_until(Iter(a), Iter(a + sa), dpl::greater<T>()) == Iter(a + 1));
                 }
             });
-        });
+        }).wait();
     }
     assert(ret);
 }

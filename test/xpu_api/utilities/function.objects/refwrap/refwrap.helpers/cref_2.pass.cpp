@@ -36,7 +36,7 @@ kernel_test()
             dpl::reference_wrapper<const int> r2 = std::cref(r1);
             ret_access[0] = (r2.get() == i);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with const reference");

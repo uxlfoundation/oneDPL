@@ -68,7 +68,7 @@ kernel_test()
                     ret_acc[0] &= (dpl::get<2>(t1) == MoveOnly(1) && dpl::get<2>(t2) == MoveOnly(2));
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

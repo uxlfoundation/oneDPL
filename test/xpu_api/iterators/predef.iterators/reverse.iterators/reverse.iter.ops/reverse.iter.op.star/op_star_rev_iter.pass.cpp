@@ -80,7 +80,7 @@ kernel_test()
                     static_assert(*it2 == p[1]);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

@@ -53,7 +53,7 @@ main()
                     ret_acc[0] &= (i == j);
                 }
             });
-        });
+        }).wait();
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::array::begin / dpl::array::cbegin");

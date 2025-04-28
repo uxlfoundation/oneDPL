@@ -80,7 +80,7 @@ kernel_test()
                 ret_access[0] &= (f(0xFFFF, 0x58D3L) == 0xA72C);
             }
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::bit_xor");

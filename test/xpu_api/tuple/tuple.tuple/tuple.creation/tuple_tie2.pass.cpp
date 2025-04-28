@@ -42,7 +42,7 @@ kernel_test()
                 dpl::tie(y1, y2) = tc;
                 ret_access[0] &= (y1 == 0 && y2 == 0);
             });
-        });
+        }).wait();
     }
     return ret;
 }

@@ -56,7 +56,7 @@ test(Function fnc, const std::vector<ValueType>& args, const char* message)
                 for (size_t i = 0; i < args_count; ++i)
                     out[i] = fnc(in[i]);
             });
-        });
+        }).wait();
     }
 
     // Check results: compare results evaluated in Kernel and on host

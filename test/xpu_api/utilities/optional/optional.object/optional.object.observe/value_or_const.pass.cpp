@@ -93,7 +93,7 @@ kernel_test()
                     ret_access[0] &= (opt.value_or(Y(3)) == 4);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

@@ -236,7 +236,7 @@ kernel_test1(sycl::queue& deviceQueue)
             // Test that we're really variadic in C++11
             static_assert(dpl::is_same<std::common_type<int, int, int, int, int, int, int, int>::type, int>::value);
         });
-    });
+    }).wait();
 }
 
 void
@@ -250,7 +250,7 @@ kernel_test2(sycl::queue& deviceQueue)
             static_assert(dpl::is_same<std::common_type<double, char, long long>::type, double>::value);
             static_assert(dpl::is_same<dpl::common_type_t<double, char, long long>, double>::value);
         });
-    });
+    }).wait();
 }
 
 int

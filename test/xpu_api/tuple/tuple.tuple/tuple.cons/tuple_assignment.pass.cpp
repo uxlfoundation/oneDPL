@@ -51,7 +51,7 @@ kernel_test()
                 dpl::get<0>(tc) = 2;
                 ret_access[0] &= (dpl::get<0>(tf) == 2);
             });
-        });
+        }).wait();
     }
     return ret;
 }

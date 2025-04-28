@@ -44,7 +44,7 @@ kernel_test()
                 ret_access[0] = (!(a < b));
                 ret_access[0] &= (a < c);
             });
-        });
+        }).wait();
     }
     return ret;
 }

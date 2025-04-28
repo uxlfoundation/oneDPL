@@ -36,7 +36,7 @@ main()
                 static_assert(tp == tp);
                 static_assert(!(tp != tp));
             });
-        });
+        }).wait();
     }
 
     return TestUtils::done();

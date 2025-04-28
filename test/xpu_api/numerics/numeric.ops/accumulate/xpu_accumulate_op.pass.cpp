@@ -60,7 +60,7 @@ template <class Iter> void test() {
         out[7] = oneapi::dpl::accumulate(Iter(&in[0]), Iter(&in[0] + 6), 10,
                                          oneapi::dpl::multiplies<int>());
       });
-    });
+    }).wait();
   }
   int ref[8] = {1, 10, 1, 10, 2, 20, 720, 7200};
   // check data

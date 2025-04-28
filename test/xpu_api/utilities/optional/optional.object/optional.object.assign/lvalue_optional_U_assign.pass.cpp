@@ -103,7 +103,7 @@ test_ambigious_assign()
                     }
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }
@@ -153,7 +153,7 @@ kernel_test()
                     ret_access[0] &= (*opt == *opt2);
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }

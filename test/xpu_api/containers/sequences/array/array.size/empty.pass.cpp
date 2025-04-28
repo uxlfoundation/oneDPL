@@ -47,7 +47,7 @@ main()
                         ret_acc[0] &= (c.empty());
                     }
                 });
-            });
+            }).wait();
         }
 
         EXPECT_TRUE(ret, "Wrong result of work with dpl::array::empty");

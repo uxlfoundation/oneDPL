@@ -38,7 +38,7 @@ kernel_test1(sycl::queue& deviceQueue)
             const dpl::plus<float> f2;
             ret_access[0] &= (f2(3, 2.5f) == 5.5f);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::plus(kernel_test1)");
@@ -56,7 +56,7 @@ kernel_test2(sycl::queue& deviceQueue)
             const dpl::plus<double> f3;
             ret_access[0] &= (f3(3.4, 2.5) == 5.9);
         });
-    });
+    }).wait();
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Error in work with dpl::plus (kernel_test2)");

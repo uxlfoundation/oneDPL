@@ -71,7 +71,7 @@ kernel_test()
                     static_assert(*(++dpl::make_reverse_iterator(p + 2)) == '1');
                 }
             });
-        });
+        }).wait();
     }
     return ret;
 }
