@@ -892,6 +892,68 @@ struct __simple_write_to_id
     }
 };
 
+template <typename _Predicate, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
+struct __gen_mask
+{
+    template <typename _InRng>
+    bool
+    operator()(_InRng&& __in_rng, std::size_t __id) const
+    {
+        return __pred((__rng_transform(std::forward<_InRng>(__in_rng)))[__id]);
+    }
+    _Predicate __pred;
+    _RangeTransform __rng_transform;
+};
+
+template <typename _BinaryPredicate>
+struct __gen_unique_mask
+{
+    template <typename _InRng>
+    bool
+    operator()(const _InRng& __in_rng, std::size_t __id) const
+    {
+        // Starting index is offset to 1 for "unique" patterns and 0th element
+        // copy is handled separately, which allows us to do this without
+        // branching each access to protect underflow
+        return !__pred(__in_rng[__id], __in_rng[__id - 1]);
+    }
+    _BinaryPredicate __pred;
+};
+
+template <typename _GenMask>
+struct __gen_count_mask
+{
+    using TempData = __noop_temp_data;
+    template <typename _InRng, typename _SizeType>
+    _SizeType
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
+    {
+        return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
+    }
+    _GenMask __gen_mask;
+};
+
+template <typename _GenMask, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
+struct __gen_expand_count_mask
+{
+    using TempData = __noop_temp_data;
+    template <typename _InRng, typename _SizeType>
+    auto
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
+    {
+        auto __transformed_input = __rng_transform(__in_rng);
+        // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
+        //  zip_iterator which will return a tuple of references when dereferenced. With this explicit type, we copy
+        //  the values of zipped input types rather than their references.
+        using _ElementType = oneapi::dpl::__internal::__value_t<decltype(__transformed_input)>;
+        _ElementType ele = __transformed_input[__id];
+        bool mask = __gen_mask(std::forward<_InRng>(__in_rng), __id);
+        return std::tuple(mask ? _SizeType{1} : _SizeType{0}, mask, ele);
+    }
+    _GenMask __gen_mask;
+    _RangeTransform __rng_transform;
+};
+
 template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
 auto
 __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1,
@@ -1172,68 +1234,6 @@ template <>
 struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>>
     : public __set_symmetric_difference
 {
-};
-
-template <typename _Predicate, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
-struct __gen_mask
-{
-    template <typename _InRng>
-    bool
-    operator()(_InRng&& __in_rng, std::size_t __id) const
-    {
-        return __pred((__rng_transform(std::forward<_InRng>(__in_rng)))[__id]);
-    }
-    _Predicate __pred;
-    _RangeTransform __rng_transform;
-};
-
-template <typename _BinaryPredicate>
-struct __gen_unique_mask
-{
-    template <typename _InRng>
-    bool
-    operator()(const _InRng& __in_rng, std::size_t __id) const
-    {
-        // Starting index is offset to 1 for "unique" patterns and 0th element
-        // copy is handled separately, which allows us to do this without
-        // branching each access to protect underflow
-        return !__pred(__in_rng[__id], __in_rng[__id - 1]);
-    }
-    _BinaryPredicate __pred;
-};
-
-template <typename _GenMask>
-struct __gen_count_mask
-{
-    using TempData = __noop_temp_data;
-    template <typename _InRng, typename _SizeType>
-    _SizeType
-    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
-    {
-        return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
-    }
-    _GenMask __gen_mask;
-};
-
-template <typename _GenMask, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
-struct __gen_expand_count_mask
-{
-    using TempData = __noop_temp_data;
-    template <typename _InRng, typename _SizeType>
-    auto
-    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
-    {
-        auto __transformed_input = __rng_transform(__in_rng);
-        // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
-        //  zip_iterator which will return a tuple of references when dereferenced. With this explicit type, we copy
-        //  the values of zipped input types rather than their references.
-        using _ElementType = oneapi::dpl::__internal::__value_t<decltype(__transformed_input)>;
-        _ElementType ele = __transformed_input[__id];
-        bool mask = __gen_mask(std::forward<_InRng>(__in_rng), __id);
-        return std::tuple(mask ? _SizeType{1} : _SizeType{0}, mask, ele);
-    }
-    _GenMask __gen_mask;
-    _RangeTransform __rng_transform;
 };
 
 struct __get_zeroth_element
