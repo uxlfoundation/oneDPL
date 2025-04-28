@@ -667,7 +667,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 std::ranges::range_difference_t<_R>
 __pattern_count(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj)
 {
-    __count_fn_pred<_T> __pred{__value};
+    oneapi::dpl::__internal::__count_fn_pred<_T, _Proj> __pred{__value, __proj};
     return oneapi::dpl::__internal::__ranges::__pattern_count(__tag, ::std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(::std::forward<_R>(__r)), __pred);
 }

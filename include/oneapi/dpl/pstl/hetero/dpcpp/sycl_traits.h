@@ -122,8 +122,10 @@ struct __upper_bound_impl_fn;
 template <typename InputIterator, typename StrictWeakOrdering, typename _ValueType>
 struct __binary_search_impl_fn;
 
-template <typename _T>
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _T, typename _Proj>
 struct __count_fn_pred;
+#endif
 
 template <typename _ReduceValueType, typename _Compare>
 struct __pattern_min_element_reduce_fn;
@@ -300,11 +302,13 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 {
 };
 
-template <typename _T>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__count_fn_pred, _T)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_T>
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _T, typename _Proj>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__count_fn_pred, _T, _Proj)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_T, _Proj>
 {
 };
+#endif
 
 template <typename _ReduceValueType, typename _Compare>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pattern_min_element_reduce_fn,
@@ -379,20 +383,6 @@ struct __pattern_search_n_fn;
 template <typename _Tp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__ranges::__pattern_search_n_fn, _Tp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
-{
-};
-
-namespace oneapi::dpl::ranges::__internal
-{
-
-template <typename _T>
-struct __count_fn_pred;
-
-} // namespace oneapi::dpl::ranges::__internal
-
-template <typename _T>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::ranges::__internal::__count_fn_pred, _T)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_T>
 {
 };
 
