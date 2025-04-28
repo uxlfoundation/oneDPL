@@ -1092,8 +1092,8 @@ struct __gen_set_op_from_known_balanced_path
 };
 
 //returns iterations consumed, and the number of elements copied
-template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds,
-          typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
+template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds, typename _InRng1,
+          typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
 void
 __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
                                   std::size_t& __idx2, _SizeType __num_eles_min, _TempOutput& __temp_out,
@@ -1214,19 +1214,16 @@ template <typename _SetTag>
 struct __get_set_operation;
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>>
-    : public __set_intersection
+struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>> : public __set_intersection
 {
 };
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>>
-: public __set_difference
+struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>> : public __set_difference
 {
 };
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag<std::true_type>>
-    : public __set_union
+struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag<std::true_type>> : public __set_union
 {
 };
 
