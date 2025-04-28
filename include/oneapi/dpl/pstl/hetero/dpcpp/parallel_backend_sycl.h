@@ -1014,6 +1014,9 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     if (__balanced_path_rng1_diff - 1 == __balanced_path_rng2_diff &&
         (__balanced_path_rng2_diff + 1 <= __rng2_eligible_repeats))
     {
+        // The star offset is set to true if the balanced path is not on the diagonal, but one step forward in the
+        // second set. This is done to ensure that element matches from range 1 and range 2 are processed in matching
+        // pairs by the same work-item.
         __star = true;
         ++__balanced_path_rng2_diff;
     }
