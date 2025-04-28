@@ -195,7 +195,7 @@ struct walk_n_vectors_or_scalars
             using oneapi::dpl::__par_backend_hetero::__vector_walk;
             __vector_walk<_Params::__vector_size>{__n}(__is_full, __idx, __f, std::forward<_Ranges>(__rngs)...);
         }
-        else //if constexpr (__num_ranges == 3)
+        else
         {
             __vector_impl(__is_full, __idx, _Params{}, std::forward<_Ranges>(__rngs)...);
         }
@@ -1124,7 +1124,6 @@ struct __reverse_copy
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
-        using oneapi::dpl::__par_backend_hetero::__vector_store;
         const std::size_t __n = __size;
         oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
