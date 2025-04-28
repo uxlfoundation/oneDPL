@@ -37,7 +37,7 @@ namespace dpl
 namespace __par_backend_hetero
 {
 
-template <bool __can_vectorize_brick, bool __can_brick_process_multiple_iters, typename... _Ranges>
+template <bool __enable_tuning, typename _Brick, typename... _Ranges>
 struct __pfor_params
 {
   private:
@@ -49,14 +49,15 @@ struct __pfor_params
     constexpr static std::uint8_t __max_vector_size = 4;
 
   public:
-    constexpr static bool __b_vectorize = __can_vectorize_brick &&
+    constexpr static bool __b_vectorize = __enable_tuning && _Brick::__can_vectorize &&
                                           (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) &&
                                           __min_type_size < 4;
     // Vectorize for small types, so we generate 128-byte load / stores in a sub-group
     constexpr static std::uint8_t __vector_size =
         __b_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1;
-    constexpr static std::uint8_t __iters_per_item =
-        __can_brick_process_multiple_iters ? __bytes_per_item / (__min_type_size * __vector_size) : 1;
+    constexpr static std::uint8_t __iters_per_item = (__enable_tuning && _Brick::__can_process_multiple_iters)
+                                                         ? __bytes_per_item / (__min_type_size * __vector_size)
+                                                         : 1;
 };
 
 template <typename... Name>
@@ -91,8 +92,7 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
             __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item_id) {
                 // Disable vectorization and multiple iterations per item within the brick to evenly spread work across
                 // compute units.
-                __pfor_params<false /*__can_vectorize_brick*/, false /*__can_brick_process_multiple_iters*/, _Ranges...>
-                    __params;
+                __pfor_params<false /*__enable_tuning*/, _Fp, _Ranges...> __params;
                 const std::size_t __idx = __item_id.get_linear_id();
                 __brick(std::true_type{}, __idx, __params, __rngs...);
             });
@@ -155,7 +155,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     static std::size_t
     __estimate_best_start_size(const _ExecutionPolicy& __exec, _Fp __brick)
     {
-        using __params_t = __pfor_params<_Fp::__can_vectorize, _Fp::__can_process_multiple_iters, _Ranges...>;
+        using __params_t = __pfor_params<true /*__enable_tuning*/, _Fp, _Ranges...>;
         const std::size_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), __max_work_group_size);
         const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec.queue());
@@ -166,7 +166,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     __future<sycl::event>
     operator()(_ExecutionPolicy&& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
-        using __params_t = __pfor_params<_Fp::__can_vectorize, _Fp::__can_process_multiple_iters, _Ranges...>;
+        using __params_t = __pfor_params<true /*__enable_tuning*/, _Fp, _Ranges...>;
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
         const std::size_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), __max_work_group_size);
@@ -216,7 +216,7 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
 
     using __small_submitter = __parallel_for_small_submitter<_ForKernelSmall>;
     using __large_submitter = __parallel_for_large_submitter<_ForKernelLarge>;
-    using __params_t = __pfor_params<_Fp::__can_vectorize, _Fp::__can_process_multiple_iters, _Ranges...>;
+    using __params_t = __pfor_params<true /*__enable_tuning*/, _Fp, _Ranges...>;
     // Compile two kernels: one for small-to-medium inputs and a second for large. This avoids runtime checks within a
     // single kernel that worsen performance for small cases. If the number of iterations of the large submitter is 1,
     // then only compile the basic kernel as the two versions are effectively the same.
