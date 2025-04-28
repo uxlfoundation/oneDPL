@@ -654,8 +654,9 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
 }
 
+//This is a temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <std::uint16_t elements, typename _ValueT>
-struct __set_temp_data
+struct __temp_data_array
 {
     template <typename _ValueT2>
     void
@@ -675,6 +676,8 @@ struct __set_temp_data
     oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
 };
 
+// This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
+// where no temporary register data is needed within reduce then scan kern
 struct __noop_temp_data
 {
     template <typename _ValueT>
@@ -1665,7 +1668,7 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
     using _In2ValueT = oneapi::dpl::__internal::__value_t<_Range2>;
     using _OutValueT = oneapi::dpl::__internal::__value_t<_Range3>;
-    using _TempData = __set_temp_data<__diagonal_spacing, _OutValueT>;
+    using _TempData = __temp_data_array<__diagonal_spacing, _OutValueT>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
     using _ReduceOp = std::plus<_Size>;
 
