@@ -1167,7 +1167,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     bool
     __use_USM_host_allocations() const
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
+//#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
         auto __device = __q.get_device();
         if (!__device.is_gpu())
             return false;
@@ -1176,19 +1176,19 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         if (__device.get_backend() != __dpl_sycl::__level_zero_backend)
             return false;
         return true;
-#else
-        return false;
-#endif
+//#else
+//        return false;
+//#endif
     }
 
     bool
     __use_USM_allocations() const
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+//#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         return __q.get_device().has(sycl::aspect::usm_device_allocations);
-#else
-        return false;
-#endif
+//#else
+//        return false;
+//#endif
     }
 
   public:
@@ -1235,40 +1235,40 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     static auto
     __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n = 0)
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+//#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         return __acc.__get_pointer();
-#else
-        return &__acc[__scratch_n];
-#endif
+//#else
+//        return &__acc[__scratch_n];
+//#endif
     }
 
     template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
     auto
     __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {}) const
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+//#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         if (__use_USM_host && __supports_USM_device)
             return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __result_buf.get(), __prop_list);
         else if (__supports_USM_device)
             return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __scratch_n,
                                                                        __prop_list);
         return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __scratch_n, __prop_list);
-#else
-        return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
-#endif
+//#else
+//        return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
+//#endif
     }
 
     template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
     auto
     __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {}) const
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+//#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         if (__use_USM_host || __supports_USM_device)
             return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __prop_list);
         return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __prop_list);
-#else
-        return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
-#endif
+//#else
+//        return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
+//#endif
     }
 
     _T
