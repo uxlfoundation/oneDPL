@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- balanced_path_unit_tests.pass.cpp -----------------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Copyright (C) Intel Corporation
 //
@@ -21,33 +21,29 @@
 #include _PSTL_TEST_HEADER(algorithm)
 
 #if TEST_DPCPP_BACKEND_PRESENT
-template <typename InputIterator1, typename InputIterator2, typename OutputIterator, typename Compare>
+template <typename ..._Args>
 auto
-call_generic_std_set_alg(oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
-               OutputIterator out, Compare comp)
+std_set(oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>, _Args&&... args)
 {
-    return std::set_intersection(first1, last1, first2, last2, out, comp);
+    return std::set_intersection(std::forward<_Args>(args)...);
 }
-template <typename InputIterator1, typename InputIterator2, typename OutputIterator, typename Compare>
+template <typename ..._Args>
 auto
-call_generic_std_set_alg(oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
-               OutputIterator out, Compare comp)
+std_set(oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>, _Args&&... args)
 {
-    return std::set_difference(first1, last1, first2, last2, out, comp);
+    return std::set_difference(std::forward<_Args>(args)...);
 }
-template <typename InputIterator1, typename InputIterator2, typename OutputIterator, typename Compare>
+template <typename ..._Args>
 auto
-call_generic_std_set_alg(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
-               OutputIterator out, Compare comp)
+std_set(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>, _Args&&... args)
 {
-    return std::set_symmetric_difference(first1, last1, first2, last2, out, comp);
+    return std::set_symmetric_difference(std::forward<_Args>(args)...);
 }
-template <typename InputIterator1, typename InputIterator2, typename OutputIterator, typename Compare>
+template <typename ..._Args>
 auto
-call_generic_std_set_alg(oneapi::dpl::unseq_backend::_UnionTag<std::true_type>, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
-               OutputIterator out, Compare comp)
+std_set(oneapi::dpl::unseq_backend::_UnionTag<std::true_type>, _Args&&... args)
 {
-    return std::set_union(first1, last1, first2, last2, out, comp);
+    return std::set_union(std::forward<_Args>(args)...);
 }
 
 template<typename SetTag>
@@ -63,7 +59,7 @@ bool test_serial_set_op_count(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
-    auto res = call_generic_std_set_alg(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
+    auto res = std_set(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
     if (count != res - v3.begin())
     {
@@ -86,7 +82,7 @@ bool test_serial_set_op_count_and_write(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
-    auto res = call_generic_std_set_alg(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
+    auto res = std_set(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
     if (count != res - v3.begin())
     {
@@ -117,7 +113,7 @@ bool test_serial_set_op_count_and_write2(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
-    auto res = call_generic_std_set_alg(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
+    auto res = std_set(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
     if (count != res - v3.begin())
     {
@@ -148,7 +144,7 @@ bool test_serial_set_op_count_and_write_limited(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 4, 2, 10, __temp_data, std::less<int>());
 
-    auto res = call_generic_std_set_alg(set_tag,v1.begin()+ 4 , v1.begin() + 4 + 5, v2.begin()+2, v2.begin() + 2 + 5, v3.begin(), std::less<int>());
+    auto res = std_set(set_tag,v1.begin()+ 4 , v1.begin() + 4 + 5, v2.begin()+2, v2.begin() + 2 + 5, v3.begin(), std::less<int>());
 
     if (count != res - v3.begin())
     {
@@ -180,7 +176,7 @@ bool test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
-    auto res = call_generic_std_set_alg(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
+    auto res = std_set(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
     if (count != res - v3.begin())
     {
@@ -212,7 +208,7 @@ bool test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
-    auto res = call_generic_std_set_alg(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
+    auto res = std_set(set_tag,v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
     if (count != res - v3.begin())
     {
@@ -263,9 +259,10 @@ test_right_biased_lower_bound()
     return ret;
 }
 
+// Find the merge path intersection for a diagonal as ground truth by walking the path
 template <typename _Rng1, typename _Rng2, typename _Comp>
 auto
-get_serial_merge_path_for_diag(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag_idx, _Comp __comp)
+find_merge_path_intersection(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag_idx, _Comp __comp)
 {
     std::size_t idx1=0;
     std::size_t idx2=0;
@@ -292,9 +289,10 @@ get_serial_merge_path_for_diag(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag_id
     return std::make_tuple(idx1, idx2);
 }
 
+// Find the balanced path intersection for a diagonal as ground truth by walking the path
 template <typename _Rng1, typename _Rng2, typename _Comp>
 auto
-get_serial_balanced_path_for_diag(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag_idx, _Comp __comp)
+find_balanced_path_intersection(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag_idx, _Comp __comp)
 {
     std::size_t idx1=0;
     std::size_t idx2=0;
@@ -354,8 +352,8 @@ test_find_balanced_path_impl(_Rng1 __rng1, _Rng2 __rng2, _Comp __comp)
 {
     for (std::size_t diag_idx = 0; diag_idx < __rng1.size() + __rng2.size(); ++diag_idx)
     {
-        auto [merge_path_idx1, merge_path_idx2] = get_serial_merge_path_for_diag(__rng1, __rng2, diag_idx, __comp);
-        auto [expected_balanced_path_idx1, expected_balanced_path_idx2, expected_star] = get_serial_balanced_path_for_diag(__rng1, __rng2, diag_idx, __comp);
+        auto [merge_path_idx1, merge_path_idx2] = find_merge_path_intersection(__rng1, __rng2, diag_idx, __comp);
+        auto [expected_balanced_path_idx1, expected_balanced_path_idx2, expected_star] = find_balanced_path_intersection(__rng1, __rng2, diag_idx, __comp);
         auto [balanced_path_idx1, balanced_path_idx2, star] = oneapi::dpl::__par_backend_hetero::__find_balanced_path_start_point(__rng1, __rng2, merge_path_idx1, merge_path_idx2, __comp);
         if (balanced_path_idx1 != expected_balanced_path_idx1 || balanced_path_idx2 != expected_balanced_path_idx2 || star != expected_star)
         {
