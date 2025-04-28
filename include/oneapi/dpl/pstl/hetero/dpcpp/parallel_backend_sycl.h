@@ -1293,6 +1293,10 @@ struct __write_to_id_if_else
     _Assign __assign;
 };
 
+// Writes multiple elements from temp data to the output range. The values to write are stored in `__temp_data` from a
+// previous operation, and must be written to the output range in the appropriate location. The zeroth element of `__v`
+// will contain the index of one past the last element to write, and the first element of `__v` will contain the number
+// of elements to write.
 template <typename _Assign>
 struct __write_multiple_to_id
 {
