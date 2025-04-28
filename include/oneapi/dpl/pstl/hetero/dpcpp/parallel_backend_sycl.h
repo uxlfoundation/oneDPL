@@ -1755,7 +1755,7 @@ template <typename _ExecutionPolicy>
 bool
 __can_set_op_write_from_set_b(_ExecutionPolicy&& __exec)
 {
-    return oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec);
+    return oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec.queue());
 }
 
 //------------------------------------------------------------------------
