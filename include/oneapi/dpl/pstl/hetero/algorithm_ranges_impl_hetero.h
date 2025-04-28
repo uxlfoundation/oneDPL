@@ -187,7 +187,7 @@ __pattern_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& 
     auto __f = [__value](auto&& __a) { __a = __value; };
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f,
-                                                            oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+                                                        oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
 
     return {std::ranges::begin(__r) + std::ranges::size(__r)};
 }
@@ -199,7 +199,7 @@ __pattern_generate(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     auto __f = [__gen](auto&& __a) mutable { __a = std::invoke(__gen);};
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f,
-                                                            oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+                                                            oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
 
     return {std::ranges::begin(__r) + std::ranges::size(__r)};
 }
@@ -358,14 +358,11 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
                            std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));
     };
 
-    auto __last1 = std::ranges::begin(__r1) + std::ranges::size(__r1);
-    if(std::ranges::empty(__r2))
-        return std::ranges::borrowed_subrange_t<_R1>(__last1, __last1);
-
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_find_end(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r1), oneapi::dpl::__ranges::views::all_read(__r2), __bin_pred);
 
     auto __it = std::ranges::begin(__r1) + __idx;
+    auto __last1 = std::ranges::begin(__r1) + std::ranges::size(__r1);
     return std::ranges::borrowed_subrange_t<_R1>(__it, __it + (__it == __last1 ? 0 : std::ranges::size(__r2)));
 }
 
@@ -757,7 +754,7 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     auto __n = std::ranges::size(__r);
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_remove_if(__tag, std::forward<_ExecutionPolicy>(__exec),
-                oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)), __pred_1);
+                oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)), __pred_1);
 
     return {std::ranges::begin(__r) + __idx, std::ranges::begin(__r) + __n};
 }
@@ -1161,7 +1158,7 @@ __pattern_mismatch(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
         std::forward<_ExecutionPolicy>(__exec), _Predicate{oneapi::dpl::__internal::__not_pred<__bin_pred_type>(__bin_pred)}, _TagType{},
         oneapi::dpl::__ranges::views::all_read(__r1), oneapi::dpl::__ranges::views::all_read(__r2));
 
-    return {std::ranges::begin(__r1) + __idx, std::ranges::begin(__r2)+ __idx};
+    return {std::ranges::begin(__r1) + __idx, std::ranges::begin(__r2) + __idx};
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
