@@ -1062,6 +1062,289 @@ get_pattern_for_test_sizes()
     return sizes;
 }
 
+namespace __internal
+{
+template <typename _T>
+struct __sycl_usm_free
+{
+    sycl::queue __q;
+
+    void
+    operator()(_T* __memory) const
+    {
+        sycl::free(__memory, __q.get_context());
+    }
+};
+
+template <typename _T, sycl::usm::alloc __alloc_t>
+struct __sycl_usm_alloc
+{
+    sycl::queue __q;
+
+    _T*
+    operator()(::std::size_t __elements) const
+    {
+        if (auto __buf =
+                static_cast<_T*>(sycl::malloc(sizeof(_T) * __elements, __q.get_device(), __q.get_context(), __alloc_t)))
+            return __buf;
+
+        throw std::bad_alloc();
+    }
+};
+} // namespace __internal
+
+template <typename _Accessor>
+struct __usm_or_buffer_accessor
+{
+  private:
+    using _T = std::decay_t<typename _Accessor::value_type>;
+    _Accessor __acc;
+    _T* __ptr = nullptr;
+    bool __usm = false;
+    size_t __offset = 0;
+
+  public:
+    // Buffer accessor
+    __usm_or_buffer_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>* __sycl_buf,
+                             const sycl::property_list& __prop_list)
+        : __acc(*__sycl_buf, __cgh, __prop_list)
+    {
+    }
+    __usm_or_buffer_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>* __sycl_buf, size_t __acc_offset,
+                             const sycl::property_list& __prop_list)
+        : __acc(*__sycl_buf, __cgh, __prop_list), __offset(__acc_offset)
+    {
+    }
+
+    // USM pointer
+    __usm_or_buffer_accessor(sycl::handler&, _T* __usm_buf, const sycl::property_list&)
+        : __ptr(__usm_buf), __usm(true)
+    {
+    }
+    __usm_or_buffer_accessor(sycl::handler&, _T* __usm_buf, size_t __ptr_offset, const sycl::property_list&)
+        : __ptr(__usm_buf), __usm(true), __offset(__ptr_offset)
+    {
+    }
+
+    auto
+    __get_pointer() const // should be cached within a kernel
+    {
+        return __usm ? __ptr + __offset : &__acc[__offset];
+    }
+};
+
+// This base class is provided to allow same-typed shared pointer return values from kernels in
+// a `__future` for keeping alive temporary data, while allowing run-time branches to lead to
+// differently typed temporary storage for kernels. Virtual destructor is required to call
+// derived class destructor when leaving scope.
+struct __result_and_scratch_storage_base
+{
+    virtual ~__result_and_scratch_storage_base() = default;
+    virtual std::size_t
+    __get_data(sycl::event, std::size_t* __p_buf) const = 0;
+};
+
+template <typename _T, std::size_t _NResults = 1>
+struct __result_and_scratch_storage : __result_and_scratch_storage_base
+{
+  private:
+    using __sycl_buffer_t = sycl::buffer<_T, 1>;
+
+    template <sycl::access_mode _AccessMode>
+    using __accessor_t =
+        sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
+
+    mutable sycl::queue __q;
+    std::shared_ptr<_T> __scratch_buf;
+    std::shared_ptr<_T> __result_buf;
+    std::shared_ptr<__sycl_buffer_t> __sycl_buf;
+
+    std::size_t __scratch_n;
+    bool __use_USM_host;
+    bool __supports_USM_device;
+
+    // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a device allocation instead.
+    bool
+    __use_USM_host_allocations() const
+    {
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
+        auto __device = __q.get_device();
+        if (!__device.is_gpu())
+            return false;
+        if (!__device.has(sycl::aspect::usm_host_allocations))
+            return false;
+        if (__device.get_backend() != __dpl_sycl::__level_zero_backend)
+            return false;
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    bool
+    __use_USM_allocations() const
+    {
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+        return __q.get_device().has(sycl::aspect::usm_device_allocations);
+#else
+        return false;
+#endif
+    }
+
+  public:
+    __result_and_scratch_storage(sycl::queue __q_, std::size_t __scratch_n)
+        : __q{__q_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
+          __supports_USM_device{__use_USM_allocations()}
+    {
+        const std::size_t __total_n = _NResults + __scratch_n;
+        // Skip in case this is a dummy container
+        if (__total_n > 0)
+        {
+            if (__use_USM_host && __supports_USM_device)
+            {
+                // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
+                if (__scratch_n > 0)
+                {
+                    __scratch_buf = std::shared_ptr<_T>(
+                        __internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__scratch_n),
+                        __internal::__sycl_usm_free<_T>{__q});
+                }
+                if constexpr (_NResults > 0)
+                {
+                    __result_buf =
+                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::host>{__q}(_NResults),
+                                            __internal::__sycl_usm_free<_T>{__q});
+                }
+            }
+            else if (__supports_USM_device)
+            {
+                // If we don't use host memory, malloc only a single unified device allocation
+                __scratch_buf =
+                    std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__total_n),
+                                        __internal::__sycl_usm_free<_T>{__q});
+            }
+            else
+            {
+                // If we don't have USM support allocate memory here
+                __sycl_buf = std::make_shared<__sycl_buffer_t>(__sycl_buffer_t(__total_n));
+            }
+        }
+    }
+
+    template <typename _Acc>
+    static auto
+    __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n = 0)
+    {
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+        return __acc.__get_pointer();
+#else
+        return &__acc[__scratch_n];
+#endif
+    }
+
+    template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+    auto
+    __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {}) const
+    {
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+        if (__use_USM_host && __supports_USM_device)
+            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __result_buf.get(), __prop_list);
+        else if (__supports_USM_device)
+            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __scratch_n,
+                                                                       __prop_list);
+        return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __scratch_n, __prop_list);
+#else
+        return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
+#endif
+    }
+
+    template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+    auto
+    __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {}) const
+    {
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+        if (__use_USM_host || __supports_USM_device)
+            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __prop_list);
+        return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __prop_list);
+#else
+        return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
+#endif
+    }
+
+    _T
+    __wait_and_get_value(sycl::event __event) const
+    {
+        static_assert(_NResults == 1);
+
+        if (is_USM())
+            __event.wait_and_throw();
+
+        return __get_value();
+    }
+
+    // Note: this member function assumes the result is *ready*, since the __future has already
+    // waited on the relevant event.
+    template <std::size_t _Idx = 0>
+    _T
+    __get_value() const
+    {
+        static_assert(0 <= _Idx && _Idx < _NResults);
+
+        if (__use_USM_host && __supports_USM_device)
+        {
+            return *(__result_buf.get() + _Idx);
+        }
+        else if (__supports_USM_device)
+        {
+            _T __tmp;
+            __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
+            return __tmp;
+        }
+        else
+        {
+            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + _Idx];
+        }
+    }
+
+  private:
+    bool
+    is_USM() const
+    {
+        return __supports_USM_device;
+    }
+
+    template <typename _Type>
+    std::size_t
+    __fill_data(std::pair<_Type, _Type>&& __p, std::size_t* __p_buf) const
+    {
+        __p_buf[0] = __p.first;
+        __p_buf[1] = __p.second;
+        return 2;
+    }
+
+    template <typename _Args>
+    std::size_t
+    __fill_data(_Args&&...) const
+    {
+        assert(!"Unsupported return type");
+        return 0;
+    }
+
+    virtual std::size_t
+    __get_data(sycl::event __event, std::size_t* __p_buf) const override
+    {
+        static_assert(_NResults == 0 || _NResults == 1);
+
+        if (is_USM())
+            __event.wait_and_throw();
+
+        if constexpr (_NResults == 1)
+            return __fill_data(__get_value(), __p_buf);
+        else
+            return 0;
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
