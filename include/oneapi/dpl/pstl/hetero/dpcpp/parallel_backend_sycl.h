@@ -1030,7 +1030,7 @@ struct __gen_set_op_from_known_balanced_path
 };
 
 //returns iterations consumed, and the number of elements copied
-template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds1, bool _CheckBounds2,
+template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds,
           typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
 void
 __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
@@ -1040,12 +1040,13 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
 
-    if constexpr (_CheckBounds1)
+    if constexpr (_CheckBounds)
     {
         if (__idx1 == __in_rng1.size())
         {
             if constexpr (_CopyDiffSetB)
             {
+                // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
                 for (; __idx2 < __in_rng2.size() && __idx < __num_eles_min; ++__idx2, ++__idx)
                 {
                     __temp_out.set(__count, __in_rng2[__idx2]);
@@ -1055,14 +1056,11 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
             __idx = __num_eles_min;
             return;
         }
-    }
-
-    if constexpr (_CheckBounds2)
-    {
         if (__idx2 == __in_rng2.size())
         {
             if constexpr (_CopyDiffSetA)
             {
+                // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
                 for (; __idx1 < __in_rng1.size() && __idx < __num_eles_min; ++__idx1, ++__idx)
                 {
                     __temp_out.set(__count, __in_rng1[__idx1]);
@@ -1128,7 +1126,7 @@ struct __set_generic_operation
             while (__idx < __num_eles_min)
             {
                 // no bounds checking
-                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false, false>(
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false>(
                     __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
             }
         }
@@ -1137,7 +1135,7 @@ struct __set_generic_operation
             while (__idx < __num_eles_min)
             {
                 //bounds check all
-                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true, true>(
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true>(
                     __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
             }
         }
@@ -1145,45 +1143,33 @@ struct __set_generic_operation
     }
 };
 
-struct __set_intersection : __set_generic_operation<true, false, false>
-{
-};
-
-struct __set_difference : __set_generic_operation<false, true, false>
-{
-};
-
-struct __set_union : __set_generic_operation<true, true, true>
-{
-};
-
-struct __set_symmetric_difference : __set_generic_operation<false, true, true>
-{
-};
-
-template <typename _SetTag, typename _Void = void>
-struct __get_set_operation : public __set_intersection
-{
-};
+using __set_intersection = __set_generic_operation<true, false, false>;
+using __set_difference = __set_generic_operation<false, true, false>;
+using __set_union = __set_generic_operation<true, true, true>;
+using __set_symmetric_difference = __set_generic_operation<false, true, true>;
 
 template <typename _SetTag>
-struct __get_set_operation<
-    _SetTag, std::enable_if_t<std::is_same<_SetTag, oneapi::dpl::unseq_backend::_UnionTag<std::true_type>>::value>>
+struct __get_set_operation;
+
+template <>
+struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>>
+    : public __set_intersection
+{
+};
+
+template <>
+struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>>
+: public __set_difference
+{
+};
+template <>
+struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag<std::true_type>>
     : public __set_union
 {
 };
 
-template <typename _SetTag>
-struct __get_set_operation<
-    _SetTag, std::enable_if_t<std::is_same<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>>::value>>
-    : public __set_difference
-{
-};
-
-template <typename _SetTag>
-struct __get_set_operation<
-    _SetTag,
-    std::enable_if_t<std::is_same<_SetTag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>>::value>>
+template <>
+struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>>
     : public __set_symmetric_difference
 {
 };
