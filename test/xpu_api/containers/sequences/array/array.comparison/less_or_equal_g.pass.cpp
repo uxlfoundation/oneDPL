@@ -29,26 +29,24 @@ bool
 kernel_test()
 {
     sycl::queue deviceQueue = TestUtils::get_test_queue();
-
-    using __result_and_scratch_storage_t = TestUtils::__result_and_scratch_storage<bool, 1>;
-    __result_and_scratch_storage_t result_and_scratch(deviceQueue, 0);
-
-    auto event = deviceQueue.submit([&](sycl::handler& cgh) {
-        auto ret_access = result_and_scratch.template __get_result_acc<sycl::access_mode::read_write>(cgh);
-        cgh.single_task<class KernelTest>([=]() {
-            const size_t len = 5;
-            typedef dpl::array<int, len> array_type;
-            array_type a = {{0, 1, 2, 3, 4}};
-            array_type b = {{0, 1, 2, 3, 4}};
-            array_type c = {{0, 1, 2, 3, 7}};
-
-            auto ret_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(ret_access);
-            ret_ptr[0] = ((a <= b));
-            ret_ptr[0] &= (a <= c);
+    bool ret = false;
+    sycl::range<1> numOfItem{1};
+    {
+        sycl::buffer<bool, 1> buffer1(&ret, numOfItem);
+        deviceQueue.submit([&](sycl::handler& cgh) {
+            auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
+            cgh.single_task<class KernelTest>([=]() {
+                const size_t len = 5;
+                typedef dpl::array<int, len> array_type;
+                array_type a = {{0, 1, 2, 3, 4}};
+                array_type b = {{0, 1, 2, 3, 4}};
+                array_type c = {{0, 1, 2, 3, 7}};
+                ret_access[0] = ((a <= b));
+                ret_access[0] &= (a <= c);
+            });
         });
-    });
-
-    return result_and_scratch.__wait_and_get_value(event);
+    }
+    return ret;
 }
 #endif // !_PSTL_TEST_COMPARISON_BROKEN
 
