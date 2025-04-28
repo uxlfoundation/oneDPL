@@ -120,6 +120,11 @@ sycl::queue get_test_queue()
 {
     // create the queue with custom asynchronous exceptions handler
     static sycl::queue my_queue(gpu_selector, async_handler);
+
+    const auto device_name = my_queue.get_device().template get_info<sycl::info::device::name>();
+
+    std::cout << "Running on device: " << device_name << std::endl;
+
     return my_queue;
 }
 
