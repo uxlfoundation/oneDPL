@@ -108,6 +108,13 @@ inline auto&& default_dpcpp_policy =
 #    endif
 #endif     // ONEDPL_FPGA_DEVICE
 
+inline auto gpu_selector =
+#    if TEST_LIBSYCL_VERSION >= 60000
+        sycl::gpu_selector_v;
+#    else
+        sycl::gpu_selector{};
+#    endif
+
 inline
 sycl::queue get_test_queue()
 {
