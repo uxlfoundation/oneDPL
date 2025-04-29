@@ -1665,7 +1665,7 @@ __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__di
 __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
                                 _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag)
 {
-    constexpr std::int32_t __diagonal_spacing = 32;
+    constexpr std::uint16_t __diagonal_spacing = 32;
 
     using _SetOperation = __get_set_operation<_SetTag>;
     using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
