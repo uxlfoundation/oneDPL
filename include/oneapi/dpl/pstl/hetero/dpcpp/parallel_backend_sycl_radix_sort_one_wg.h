@@ -152,7 +152,7 @@ struct __subgroup_radix_sort
     struct __one_group_submitter;
 
     template <typename... _Name>
-    struct __one_group_submitter<__internal::__optional_kernel_name<_Name...>>
+    struct __one_group_submitter<oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
     {
         template <typename _RangeIn, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
         sycl::event

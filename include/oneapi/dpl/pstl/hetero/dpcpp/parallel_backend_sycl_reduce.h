@@ -239,7 +239,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
                const _Size __iters_per_work_item, _ReduceOp __reduce_op, _InitType __init,
                __result_and_scratch_storage<_Tp>&& __scratch_container) const
     {
-        using __result_and_scratch_storage_t = std::decay_t<decltype(__scratch_container)>;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
 
         using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
         auto __transform_pattern =
@@ -248,8 +248,6 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
         auto __reduce_pattern = unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op};
 
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
-
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
 
         auto __event = __exec.queue().submit([&, __n](sycl::handler& __cgh) {
             __cgh.depends_on(__reduce_event);
