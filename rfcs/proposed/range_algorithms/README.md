@@ -3,7 +3,7 @@
 ## Introduction
 Based on statistics (observing C++ code within github.com) for the usage of popular algorithms, the following
 range-based APIs are suggested to be implemented next in oneDPL.
-`fill`, `generate`, `move`, `replace`, `replace_if`, `remove`, `remove_if`, `mismatch`, `minmax_element`, `minmax`,
+`fill`, `move`, `replace`, `replace_if`, `remove`, `remove_if`, `mismatch`, `minmax_element`, `minmax`,
 `min`, `max`, `find_first_of`, `find_end`, `is_sorted_until`
 
 ## Motivations
