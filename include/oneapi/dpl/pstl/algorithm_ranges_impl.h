@@ -599,29 +599,6 @@ __pattern_fill(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-// __pattern_generate
-//---------------------------------------------------------------------------------------------------------------------
-template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _F>
-std::ranges::borrowed_iterator_t<_R>
-__pattern_generate(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _F __gen)
-{
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
-    const auto __first = std::ranges::begin(__r);
-    const auto __last = __first + std::ranges::size(__r);
-    oneapi::dpl::__internal::__pattern_generate(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __gen);
-
-    return {__last};
-}
-
-template <typename _ExecutionPolicy, typename _R, typename _F>
-std::ranges::borrowed_iterator_t<_R>
-__pattern_generate(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _F __gen)
-{
-    return std::ranges::generate(std::forward<_R>(__r), __gen);
-}
-
-//---------------------------------------------------------------------------------------------------------------------
 // pattern_merge
 //---------------------------------------------------------------------------------------------------------------------
 
