@@ -1898,7 +1898,7 @@ struct __min_size_calc
 
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
 template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename _SizeCalc, typename... _Ranges>
-::std::conditional_t<
+std::conditional_t<
     ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
     oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
 __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
@@ -1959,7 +1959,7 @@ __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag, _Executio
 }
 
 template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
-::std::conditional_t<
+std::conditional_t<
     ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
     oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
 __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
