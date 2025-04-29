@@ -25,8 +25,11 @@ might require modifications or new versions.
 - In case of a `device_policy` the projections pointer-to-member and pointer-to-function are not supported, for SYCL backend at least.
 
 ### Test coverage
-- The range of input sizes, underlying element types, and data distributions tested can be reduced if the algorithm shares its implementation with a iterator-based variant which is tested enough.
-  At the same time the range-based implementation may process thye corner cases on high level and don't call a correponsding iterator-based algorithm pattern. Such cases should be tested with the range-based algorithms explicitly.
+- If a range-based algorithm shares its implementation with an iterator-based variant that is sufficiently tested,
+  the range of input sizes, element types, and data distributions tested for the range-based version can be reduced.
+  However, if the range-based algorithm performs any additional processing,
+  such as handling trivial cases before delegating to the shared implementation,
+  those scenarios must be tested explicitly.
 - The algorithms should be called with both small and large data sizes and with all the policies mentioned above.
 - Output data, return type, and value should be checked/compared with the reference result
 computed by the corresponding serial `std::ranges` algorithm or by a custom implemented serial version
