@@ -97,7 +97,7 @@ __parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& _
 
 // TODO: check if it makes sense to move these wrappers out of backend to a common place
 template <typename _ExecutionPolicy, typename _Event, typename _Range1, typename _Range2, typename _BinHashMgr>
-auto
+__future<sycl::event>
 __parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& __exec, const _Event& __init_event,
                      _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
