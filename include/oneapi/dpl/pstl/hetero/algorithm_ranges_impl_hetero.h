@@ -564,21 +564,6 @@ __pattern_is_sorted(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
-template <typename _Predicate>
-struct __pattern_count_transform_fn
-{
-    _Predicate __predicate;
-
-    // int is being implicitly casted to difference_type
-    // otherwise we can only pass the difference_type as a functor template parameter
-    template <typename _TGroupIdx, typename _TAcc>
-    int
-    operator()(_TGroupIdx __gidx, _TAcc __acc) const
-    {
-        return (__predicate(__acc[__gidx]) ? 1 : 0);
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Predicate>
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Predicate __predicate)
@@ -589,7 +574,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
     using _ReduceValueType = oneapi::dpl::__internal::__difference_t<_Range>;
 
     auto __reduce_fn = ::std::plus<_ReduceValueType>{};
-    __pattern_count_transform_fn<_Predicate> __transform_fn{__predicate};
+    oneapi::dpl::__internal::__pattern_count_transform_fn<_Predicate> __transform_fn{__predicate};
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                           ::std::true_type /*is_commutative*/>(
@@ -887,17 +872,6 @@ struct __pattern_min_element_reduce_fn
     }
 };
 
-template <typename _ReduceValueType>
-struct __pattern_min_element_transform_fn
-{
-    template <typename _TGroupIdx, typename _TAcc>
-    _ReduceValueType
-    operator()(_TGroupIdx __gidx, _TAcc __acc) const
-    {
-        return _ReduceValueType{__gidx, __acc[__gidx]};
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
@@ -913,7 +887,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
     // not commutative.
     __pattern_min_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
-    __pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
+    oneapi::dpl::__internal::__pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
     auto __ret_idx =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
@@ -946,38 +920,6 @@ __pattern_min_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 // minmax_element
 //------------------------------------------------------------------------
 
-template <typename _Compare, typename _ReduceValueType>
-struct __pattern_minmax_element_reduce_fn
-{
-    _Compare __comp;
-
-    _ReduceValueType
-    operator()(_ReduceValueType __a, _ReduceValueType __b) const
-    {
-        using ::std::get;
-        auto __chosen_for_min = __a;
-        auto __chosen_for_max = __b;
-
-        if (__comp(get<2>(__b), get<2>(__a)))
-            __chosen_for_min = ::std::move(__b);
-        if (__comp(get<3>(__b), get<3>(__a)))
-            __chosen_for_max = ::std::move(__a);
-        return _ReduceValueType{get<0>(__chosen_for_min), get<1>(__chosen_for_max), get<2>(__chosen_for_min),
-                                get<3>(__chosen_for_max)};
-    }
-};
-
-template <typename _ReduceValueType>
-struct __pattern_minmax_element_transform_fn
-{
-    template <typename _TGroupIdx, typename _TAcc>
-    _ReduceValueType
-    operator()(_TGroupIdx __gidx, _TAcc __acc) const
-    {
-        return _ReduceValueType{__gidx, __gidx, __acc[__gidx], __acc[__gidx]};
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
 ::std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__difference_t<_Range>>
 __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
@@ -993,12 +935,12 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
-    __pattern_minmax_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
+    oneapi::dpl::__internal::__pattern_minmax_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
 
     // TODO: Doesn't work with `zip_iterator`.
     //       In that case the first and the second arguments of `_ReduceValueType` will be
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
-    __pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn;
+    oneapi::dpl::__internal::__pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn;
 
     _ReduceValueType __ret =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
