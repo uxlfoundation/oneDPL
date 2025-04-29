@@ -265,7 +265,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                     __group, __max_end, __dpl_sycl::__maximum<std::size_t>());
 
                 // __wg_segmented_scan is a derivative work and responsible for the third header copyright
-                __val_type __carry_in = oneapi::dpl::internal::__wg_segmented_scan(
+                __val_type __carry_in = oneapi::dpl::__par_backend_hetero::__wg_segmented_scan(
                     __item, __loc_acc, __local_id, __local_id - __closest_seg_id, __accumulator, __identity,
                     __binary_op, __wgroup_size);
 
