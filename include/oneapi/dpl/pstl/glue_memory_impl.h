@@ -216,6 +216,19 @@ get_unvectorized_policy(const _ExecutionPolicy& __exec)
 
 #endif // (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
 
+namespace __internal
+{
+template <typename _ValueType, typename _ReferenceType>
+struct __destroy_fn
+{
+    void
+    operator()(_ReferenceType __val) const
+    {
+        __val.~_ValueType();
+    }
+};
+}; // namespace __internal
+
 // [specialized.destroy]
 
 template <class _ExecutionPolicy, class _ForwardIterator>
@@ -235,7 +248,7 @@ destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __
 #endif
 
         oneapi::dpl::__internal::__pattern_walk1(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first,
-                                                 __last, [](_ReferenceType __val) { __val.~_ValueType(); });
+                                                 __last, __internal::__destroy_fn<_ValueType, _ReferenceType>{});
     }
 }
 
@@ -261,7 +274,7 @@ destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 
         return oneapi::dpl::__internal::__pattern_walk1_n(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
                                                           __first, __n,
-                                                          [](_ReferenceType __val) { __val.~_ValueType(); });
+                                                          __internal::__destroy_fn<_ValueType, _ReferenceType>{});
     }
 }
 

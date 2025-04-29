@@ -457,23 +457,14 @@ struct __brick_fill_n<__hetero_tag<_BackendTag>, _SourceT>
 // min_element, max_element
 //------------------------------------------------------------------------
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare>
-_Iterator
-__pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
-                      _Compare __comp)
+template <typename _ReduceValueType, typename _Compare>
+struct __pattern_min_element_reduce_fn
 {
-    if (__first == __last)
-        return __last;
+    _Compare __comp;
 
-    using _IteratorValueType = typename ::std::iterator_traits<_Iterator>::value_type;
-    using _IndexValueType = ::std::make_unsigned_t<typename ::std::iterator_traits<_Iterator>::difference_type>;
-    using _ReduceValueType = tuple<_IndexValueType, _IteratorValueType>;
-    // Commutativity of the reduction operator depends on the compilation target (see __reduce_fn below);
-    // __spirv_target_conditional postpones deciding on commutativity to the device code where the
-    // target can be correctly tested.
-    using _Commutative = oneapi::dpl::__internal::__spirv_target_conditional</*_SpirvT*/ ::std::false_type,
-                                                                             /*_NonSpirvT*/ ::std::true_type>;
-    auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
+    _ReduceValueType
+    operator()(_ReduceValueType __a, _ReduceValueType __b) const
+    {
         using ::std::get;
         // TODO: Consider removing the non-commutative operator for SPIR-V targets when we see improved performance with the
         // non-sequential load path in transform_reduce.
@@ -500,8 +491,27 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
             }
             return __a;
         }
-    };
-    auto __transform_fn = [](auto __gidx, auto __acc) { return _ReduceValueType{__gidx, __acc[__gidx]}; };
+    }
+};
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare>
+_Iterator
+__pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
+                      _Compare __comp)
+{
+    if (__first == __last)
+        return __last;
+
+    using _IteratorValueType = typename ::std::iterator_traits<_Iterator>::value_type;
+    using _IndexValueType = ::std::make_unsigned_t<typename ::std::iterator_traits<_Iterator>::difference_type>;
+    using _ReduceValueType = tuple<_IndexValueType, _IteratorValueType>;
+    // Commutativity of the reduction operator depends on the compilation target (see __reduce_fn below);
+    // __spirv_target_conditional postpones deciding on commutativity to the device code where the
+    // target can be correctly tested.
+    using _Commutative = oneapi::dpl::__internal::__spirv_target_conditional</*_SpirvT*/ ::std::false_type,
+                                                                             /*_NonSpirvT*/ ::std::true_type>;
+    __pattern_min_element_reduce_fn<_ReduceValueType, _Compare> __reduce_fn{__comp};
+    oneapi::dpl::__internal::__pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
@@ -547,25 +557,12 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
-    auto __reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
-        using ::std::get;
-        auto __chosen_for_min = __a;
-        auto __chosen_for_max = __b;
-
-        if (__comp(get<2>(__b), get<2>(__a)))
-            __chosen_for_min = ::std::move(__b);
-        if (__comp(get<3>(__b), get<3>(__a)))
-            __chosen_for_max = ::std::move(__a);
-        return _ReduceValueType{get<0>(__chosen_for_min), get<1>(__chosen_for_max), get<2>(__chosen_for_min),
-                                get<3>(__chosen_for_max)};
-    };
+    oneapi::dpl::__internal::__pattern_minmax_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
 
     // TODO: Doesn't work with `zip_iterator`.
     //       In that case the first and the second arguments of `_ReduceValueType` will be
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
-    auto __transform_fn = [](auto __gidx, auto __acc) {
-        return _ReduceValueType{__gidx, __gidx, __acc[__gidx], __acc[__gidx]};
-    };
+    oneapi::dpl::__internal::__pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
@@ -655,9 +652,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator 
     auto __reduce_fn = ::std::plus<_ReduceValueType>{};
     // int is being implicitly casted to difference_type
     // otherwise we can only pass the difference_type as a functor template parameter
-    auto __transform_fn = [__predicate](auto __gidx, auto __acc) -> int {
-        return (__predicate(__acc[__gidx]) ? 1 : 0);
-    };
+    oneapi::dpl::__internal::__pattern_count_transform_fn<_Predicate> __transform_fn{__predicate};
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
@@ -1093,6 +1088,32 @@ enum _IsPartitionedReduceType : signed char
     __true_false
 };
 
+template <typename _ReduceValueType>
+struct __pattern_is_partitioned_reduce_fn
+{
+    _IsPartitionedReduceType
+    operator()(_ReduceValueType __a, _ReduceValueType __b) const
+    {
+        _ReduceValueType __table[] = {__broken,     __broken,     __broken,     __broken, __broken,    __all_true,
+                                      __true_false, __true_false, __broken,     __broken, __all_false, __broken,
+                                      __broken,     __broken,     __true_false, __broken};
+        return __table[__a * 4 + __b];
+    }
+};
+
+template <typename _Predicate>
+struct __pattern_is_partitioned_transform_fn
+{
+    _Predicate __predicate;
+
+    template <typename _TGroupIdx, typename _TAcc>
+    _IsPartitionedReduceType
+    operator()(_TGroupIdx __gidx, _TAcc __acc) const
+    {
+        return (__predicate(__acc[__gidx]) ? __all_true : __all_false);
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Predicate>
 bool
 __pattern_is_partitioned(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
@@ -1102,15 +1123,8 @@ __pattern_is_partitioned(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
         return true;
 
     using _ReduceValueType = _IsPartitionedReduceType;
-    auto __reduce_fn = [](_ReduceValueType __a, _ReduceValueType __b) {
-        _ReduceValueType __table[] = {__broken,     __broken,     __broken,     __broken, __broken,    __all_true,
-                                      __true_false, __true_false, __broken,     __broken, __all_false, __broken,
-                                      __broken,     __broken,     __true_false, __broken};
-        return __table[__a * 4 + __b];
-    };
-    auto __transform_fn = [__predicate](auto __gidx, auto __acc) {
-        return (__predicate(__acc[__gidx]) ? __all_true : __all_false);
-    };
+    __pattern_is_partitioned_reduce_fn<_ReduceValueType> __reduce_fn;
+    __pattern_is_partitioned_transform_fn<_Predicate> __transform_fn{__predicate};
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
@@ -1293,6 +1307,16 @@ __pattern_sort(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iter
 // sort_by_key
 //------------------------------------------------------------------------
 
+struct __pattern_sort_by_key_fn
+{
+    template <typename _Arg>
+    auto
+    operator()(const _Arg& __a) const
+    {
+        return std::get<0>(__a);
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Compare,
           typename _LeafSort = std::nullptr_t>
 void
@@ -1306,7 +1330,7 @@ __pattern_sort_by_key(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
     auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
     auto __end = __beg + (__keys_last - __keys_first);
     __stable_sort_with_projection(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end, __comp,
-                                  [](const auto& __a) { return std::get<0>(__a); });
+                                  __pattern_sort_by_key_fn{});
 }
 
 //------------------------------------------------------------------------
@@ -1365,6 +1389,37 @@ __pattern_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 // lexicographical_compare
 //------------------------------------------------------------------------
 
+template <typename _ReduceValueType>
+struct __pattern_lexicographical_compare_reduce_fn
+{
+    auto
+    operator()(_ReduceValueType __a, _ReduceValueType __b) const
+    {
+        bool __is_mismatched = __a != 0;
+        return __a * __is_mismatched + __b * !__is_mismatched;
+    }
+};
+
+template <typename _Compare, typename _ReduceValueType>
+struct __pattern_lexicographical_compare_transform_fn
+{
+    _Compare __comp;
+
+    template <typename _TGroupIdx, typename _TAcc1, typename _TAcc2>
+    _ReduceValueType
+    operator()(_TGroupIdx __gidx, _TAcc1 __acc1, _TAcc2 __acc2) const
+    {
+        auto const& __s1_val = __acc1[__gidx];
+        auto const& __s2_val = __acc2[__gidx];
+
+        ::std::int32_t __is_s1_val_less = __comp(__s1_val, __s2_val);
+        ::std::int32_t __is_s1_val_greater = __comp(__s2_val, __s1_val);
+
+        // 1 if __s1_val <  __s2_val, -1 if __s1_val <  __s2_val, 0 if __s1_val == __s2_val
+        return _ReduceValueType{1 * __is_s1_val_less - 1 * __is_s1_val_greater};
+    }
+};
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Compare>
 bool
 __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first1,
@@ -1379,20 +1434,8 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
     using _Iterator1DifferenceType = typename ::std::iterator_traits<_Iterator1>::difference_type;
     using _ReduceValueType = int32_t;
 
-    auto __reduce_fn = [](_ReduceValueType __a, _ReduceValueType __b) {
-        bool __is_mismatched = __a != 0;
-        return __a * __is_mismatched + __b * !__is_mismatched;
-    };
-    auto __transform_fn = [__comp](auto __gidx, auto __acc1, auto __acc2) {
-        auto const& __s1_val = __acc1[__gidx];
-        auto const& __s2_val = __acc2[__gidx];
-
-        ::std::int32_t __is_s1_val_less = __comp(__s1_val, __s2_val);
-        ::std::int32_t __is_s1_val_greater = __comp(__s2_val, __s1_val);
-
-        // 1 if __s1_val <  __s2_val, -1 if __s1_val <  __s2_val, 0 if __s1_val == __s2_val
-        return _ReduceValueType{1 * __is_s1_val_less - 1 * __is_s1_val_greater};
-    };
+    __pattern_lexicographical_compare_reduce_fn<_ReduceValueType> __reduce_fn;
+    __pattern_lexicographical_compare_transform_fn<_Compare, _ReduceValueType> __transform_fn{__comp};
 
     auto __shared_size = ::std::min(__last1 - __first1, (_Iterator1DifferenceType)(__last2 - __first2));
 
