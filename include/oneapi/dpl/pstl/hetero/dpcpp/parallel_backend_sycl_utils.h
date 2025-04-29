@@ -1028,6 +1028,9 @@ struct __strided_loop
     operator()(/*__is_full*/ std::false_type, _IdxType __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
                _Args&&... __args) const
     {
+        // This operation improves safety by preventing underflow for unsigned types which would otherwise require a
+        // check outside of the __strided_loop body.
+        __idx = std::min<std::size_t>(__idx, __full_range_size);
         // Constrain the number of iterations as much as possible and then pass the knowledge that we are not a full loop to the body operation
         const std::uint8_t __adjusted_iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__full_range_size - __idx, __stride);

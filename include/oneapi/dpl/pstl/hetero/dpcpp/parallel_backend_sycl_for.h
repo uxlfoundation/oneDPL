@@ -185,15 +185,8 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
                     const auto [__idx, __stride, __is_full] =
                         __stride_recommender(__item, __count, __iters_per_work_item, __vector_size, __work_group_size);
                     __strided_loop<__iters_per_work_item> __execute_loop{static_cast<std::size_t>(__count)};
-                    if (__is_full)
-                    {
-                        __execute_loop(std::true_type{}, __idx, __stride, __brick, __params, __rngs...);
-                    }
-                    // If we are not full, then take this branch only if there is work to process.
-                    else if (__idx < __count)
-                    {
-                        __execute_loop(std::false_type{}, __idx, __stride, __brick, __params, __rngs...);
-                    }
+                    __is_full ? __execute_loop(std::true_type{}, __idx, __stride, __brick, __params, __rngs...)
+                              : __execute_loop(std::false_type{}, __idx, __stride, __brick, __params, __rngs...);
                 });
         });
 
