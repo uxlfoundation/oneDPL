@@ -57,13 +57,13 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ===================================== ========== ========== ==========
 ``std::swap``                         Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
-``std::lower_bound``                  Tested     Not tested Tested
+``std::lower_bound``                  Tested                Tested
 ------------------------------------- ---------- ---------- ----------
-``std::upper_bound``                  Tested     Not tested Tested
+``std::upper_bound``                  Tested                Tested
 ------------------------------------- ---------- ---------- ----------
-``std::binary_search``                Tested     Not tested Tested
+``std::binary_search``                Tested                Tested
 ------------------------------------- ---------- ---------- ----------
-``std::equal_range``                  Tested     Not tested Tested
+``std::equal_range``                  Tested                Tested
 ------------------------------------- ---------- ---------- ----------
 ``std::tuple``                        Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
@@ -257,7 +257,7 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ------------------------------------- ---------- ---------- ----------
 ``std::acos``                         Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
-``std::atan``                         Tested     Not tested Tested
+``std::atan``                         Tested                Tested
 ------------------------------------- ---------- ---------- ----------
 ``std::atan2``                        Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
@@ -271,7 +271,7 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ------------------------------------- ---------- ---------- ----------
 ``std::acosh``                        Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
-``std::atanh``                        Tested     Tested     Not tested
+``std::atanh``                        Tested                Tested
 ------------------------------------- ---------- ---------- ----------
 ``std::exp``                          Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
@@ -297,7 +297,7 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ------------------------------------- ---------- ---------- ----------
 ``std::logb``                         Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
-``std::pow``                          Tested     Not tested Tested
+``std::pow``                          Tested                Tested
 ------------------------------------- ---------- ---------- ----------
 ``std::sqrt``                         Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
@@ -343,7 +343,7 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ------------------------------------- ---------- ---------- ----------
 ``std::for_each``                     Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
-``std::find``                         Tested     Tested     Not tested
+``std::find``                         Tested                Tested
 ------------------------------------- ---------- ---------- ----------
 ``std::find_if``                      Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
