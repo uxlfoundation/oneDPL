@@ -25,13 +25,14 @@ might require modifications or new versions.
 - In case of a `device_policy` the projections pointer-to-member and pointer-to-function are not supported, for SYCL backend at least.
 
 ### Test coverage
-- The range of input sizes, underlying element types, and data distributions tested can be reduced if the algorithm shares its implementation with a iterator-based variant which is thoroughly tested
+- The range of input sizes, underlying element types, and data distributions tested can be reduced if the algorithm shares its implementation with a iterator-based variant which is tested enough.
+  At the same time the range-based implementation may process thye corner cases on high level and don't call a correponsding iterator-based algorithm pattern. Such cases should be tested with the range-based algorithms explicitly.
 - The algorithms should be called with both small and large data sizes and with all the policies mentioned above.
 - Output data, return type, and value should be checked/compared with the reference result
 computed by the corresponding serial `std::ranges` algorithm or by a custom implemented serial version
 in case of different semantics.
 - The tests should also call the algorithms with following standard range adapters: `std::ranges::subrange`, `std::span`, `std::views::all`,
   `std::views::iota`, `std::views::transform`, `std::views::reverse`, `std::views::take`, `std::views::drop`
-- The tests should also call the algorithms with default and custom predicates, comporators and projections.
+- The tests should also call the algorithms with default and custom predicates, comparators and projections.
 - In case of a `device_policy` and `std::vector` with USM allocator, the algorithms accept the vector wrapped into `std::ranges::subrange` or `std::span`.
 
