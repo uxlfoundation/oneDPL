@@ -21,7 +21,7 @@ implemented in oneDPL.
 might require modifications or new versions.
 
 ### Implementation limitation
-- In case of a `device_policy` and `std::vector` with `USM` allocator, `std::vector` cannot be passed into algorithm directly by because a `std::vector` is not [SYCL device_copyable](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable). To support  `std::vector` with `USM` allocator `std::vector` should be wrapped into `std::ranges::subrange`.
+- In case of a `device_policy` and `std::vector` with `USM` allocator, `std::vector` cannot be passed into algorithm directly because a `std::vector` is not [SYCL device_copyable](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable). To support  `std::vector` with `USM` allocator `std::vector` should be wrapped into `std::ranges::subrange`.
 - In case of a `device_policy` the projections pointer-to-member and pointer-to-function are not supported, for SYCL backend at least.
 
 ### Test coverage
