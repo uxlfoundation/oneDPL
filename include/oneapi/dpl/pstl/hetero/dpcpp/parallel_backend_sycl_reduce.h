@@ -160,10 +160,9 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
 template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _Size,
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
 __future<sycl::event, __result_and_scratch_storage<_Tp>>
-__parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, const _Size __n,
-                                       const _Size __work_group_size, const _Size __iters_per_work_item,
-                                       _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init,
-                                       _Ranges&&... __rngs)
+__parallel_transform_reduce_small_impl(sycl::queue& __q, const _Size __n, const _Size __work_group_size,
+                                       const _Size __iters_per_work_item, _ReduceOp __reduce_op,
+                                       _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
 {
     using _ReduceKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__reduce_small_kernel<_CustomName>>;
@@ -470,8 +469,8 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
         std::uint16_t __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n_short, __work_group_size);
         __iters_per_work_item = __adjust_iters_per_work_item<__vector_size>(__iters_per_work_item);
         return __parallel_transform_reduce_small_impl<_CustomName, _Tp, _Commutative, __vector_size>(
-            __backend_tag, __q_local, __n_short, __work_group_size_short, __iters_per_work_item, __reduce_op,
-            __transform_op, __init, std::forward<_Ranges>(__rngs)...);
+            __q_local, __n_short, __work_group_size_short, __iters_per_work_item, __reduce_op, __transform_op, __init,
+            std::forward<_Ranges>(__rngs)...);
     }
     // Use two-step tree reduction.
     // First step reduces __work_group_size * __iters_per_work_item_device_kernel elements.
