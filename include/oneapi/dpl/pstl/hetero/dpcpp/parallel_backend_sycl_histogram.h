@@ -477,10 +477,9 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
 };
 template <typename _CustomName, typename _Range1, typename _Range2, typename _BinHashMgr>
 sycl::event
-__histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
-                                           const sycl::event& __init_event, ::std::uint16_t __min_iters_per_work_item,
-                                           ::std::uint16_t __work_group_size, _Range1&& __input, _Range2&& __bins,
-                                           const _BinHashMgr& __binhash_manager)
+__histogram_general_private_global_atomics(sycl::queue& __q, const sycl::event& __init_event,
+                                           ::std::uint16_t __min_iters_per_work_item, ::std::uint16_t __work_group_size,
+                                           _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
     using _global_atomics_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __histo_kernel_private_glocal_atomics<_CustomName>>;
@@ -493,7 +492,7 @@ __histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_bac
 template <typename _CustomName, std::uint16_t __iters_per_work_item, typename _Range1, typename _Range2,
           typename _BinHashMgr>
 __future<sycl::event>
-__parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
+__parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
                                    const sycl::event& __init_event, _Range1&& __input, _Range2&& __bins,
                                    const _BinHashMgr& __binhash_manager)
 {
@@ -533,7 +532,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
         // private copies of the histogram bins in global memory.  No unrolling is taken advantage of here because it
         // is a runtime argument.
         return __future(__histogram_general_private_global_atomics<_CustomName>(
-            __backend_tag, __q, __init_event, __iters_per_work_item, __work_group_size, std::forward<_Range1>(__input),
+            __q, __init_event, __iters_per_work_item, __work_group_size, std::forward<_Range1>(__input),
             std::forward<_Range2>(__bins), __binhash_manager));
     }
 }
