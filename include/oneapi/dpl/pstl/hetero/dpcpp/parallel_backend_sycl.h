@@ -1257,10 +1257,10 @@ template <typename _CustomName, typename _Range1, typename _Range2, typename _Ra
           typename _BinaryPredicate, typename _BinaryOperator>
 __future<sycl::event, __result_and_scratch_storage<
                           oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
-__parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
-                                              sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
-                                              _Range3&& __out_keys, _Range4&& __out_values,
-                                              _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
+__parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
+                                              _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
+                                              _Range4&& __out_values, _BinaryPredicate __binary_pred,
+                                              _BinaryOperator __binary_op)
 {
     // Flags new segments and passes input value through a 2-tuple
     using _GenReduceInput = __gen_red_by_seg_reduce_input<_BinaryPredicate>;
