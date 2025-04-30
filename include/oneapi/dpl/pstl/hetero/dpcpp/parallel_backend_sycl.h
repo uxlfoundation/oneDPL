@@ -2170,8 +2170,8 @@ class __sort_global_kernel;
 
 template <typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare>
 __future<sycl::event>
-__parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
-                             _Merge __merge, _Compare __comp)
+__parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+                             _Range&& __rng, _Merge __merge, _Compare __comp)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -2183,7 +2183,7 @@ __parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _Exe
     sycl::queue __q_local = __exec.queue();
 
     return __parallel_partial_sort_submitter<_GlobalSortKernel, _CopyBackKernel>()(
-        oneapi::dpl::__internal::__device_backend_tag{}, __q_local, ::std::forward<_Range>(__rng), __merge, __comp);
+        __backend_tag, __q_local, ::std::forward<_Range>(__rng), __merge, __comp);
 }
 
 //------------------------------------------------------------------------
@@ -2312,9 +2312,9 @@ struct __parallel_reduce_by_segment_fallback_fn2
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
-__parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
-                                      _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
-                                      _Range4&& __out_values, _BinaryPredicate __binary_pred,
+__parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
+                                      _ExecutionPolicy&& __exec, _Range1&& __keys, _Range2&& __values,
+                                      _Range3&& __out_keys, _Range4&& __out_values, _BinaryPredicate __binary_pred,
                                       _BinaryOperator __binary_op,
                                       /*known_identity=*/std::false_type)
 {
@@ -2353,16 +2353,15 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     // TODO: replace wgroup size with segment size based on platform specifics.
     auto __intermediate_result_end =
         oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
-            oneapi::dpl::__internal::__device_backend_tag{},
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2,
-            __n, __internal::__parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
+            __backend_tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec),
+            __view1, __view2, __n,
+            __internal::__parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
             unseq_backend::__brick_assign_key_position{})
             .get();
 
     //reduce by segment
     oneapi::dpl::__par_backend_hetero::__parallel_for(
-        oneapi::dpl::__internal::__device_backend_tag{},
-        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
+        __backend_tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
         unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n), _Range2>(__binary_op, __n),
         __intermediate_result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx),
@@ -2393,15 +2392,15 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     // the adjacent element (end of a segment). Artificial segments based on wg size are not created.
     auto __result_end =
         oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
-            oneapi::dpl::__internal::__device_backend_tag{},
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec), __view3, __view4,
-            __view3.size(), __internal::__parallel_reduce_by_segment_fallback_fn2<_BinaryPredicate>{__binary_pred},
+            __backend_tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec),
+            __view3, __view4, __view3.size(),
+            __internal::__parallel_reduce_by_segment_fallback_fn2<_BinaryPredicate>{__binary_pred},
             unseq_backend::__brick_assign_key_position{})
             .get();
 
     //reduce by segment
     oneapi::dpl::__par_backend_hetero::__parallel_for(
-        oneapi::dpl::__internal::__device_backend_tag{},
+        __backend_tag,
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
             std::forward<_ExecutionPolicy>(__exec)),
         unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end), _Range4>(
@@ -2416,8 +2415,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
-__parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __keys,
-                             _Range2&& __values, _Range3&& __out_keys, _Range4&& __out_values,
+__parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+                             _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys, _Range4&& __out_values,
                              _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
     // The algorithm reduces values in __values where the
@@ -2441,9 +2440,8 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
         {
             auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
-                oneapi::dpl::__internal::__device_backend_tag{}, __q_local, std::forward<_Range1>(__keys),
-                std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values),
-                __binary_pred, __binary_op);
+                __backend_tag, __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
+                std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
             // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
             // past-the-end iterator pair of segmented reduction.
             return std::get<0>(__res.get()) + 1;
@@ -2451,10 +2449,9 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     }
 #endif
     return __parallel_reduce_by_segment_fallback(
-        oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
-        std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
-        std::forward<_Range4>(__out_values), __binary_pred, __binary_op,
-        oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__keys),
+        std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values),
+        __binary_pred, __binary_op, oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
 }
 
 } // namespace __par_backend_hetero
