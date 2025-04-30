@@ -1932,7 +1932,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     }
     else
     {
-        using _ValueType = std::iterator_traits<_OutputIterator>::value_type;
+        using _ValueType = typename std::iterator_traits<_OutputIterator>::value_type;
 
         // temporary buffer to store intermediate result
         const auto __n2 = __last2 - __first2;
