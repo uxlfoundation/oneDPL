@@ -381,9 +381,8 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 template <typename _CustomName, std::uint16_t __iters_per_work_item, typename _Range1, typename _Range2,
           typename _BinHashMgr>
 sycl::event
-__histogram_general_local_atomics(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
-                                  const sycl::event& __init_event, ::std::uint16_t __work_group_size, _Range1&& __input,
-                                  _Range2&& __bins, const _BinHashMgr& __binhash_manager)
+__histogram_general_local_atomics(sycl::queue& __q, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
+                                  _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
     using _iters_per_work_item_t = ::std::integral_constant<::std::uint16_t, __iters_per_work_item>;
 
@@ -523,8 +522,8 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
              __local_mem_size)
     {
         return __future(__histogram_general_local_atomics<_CustomName, __iters_per_work_item>(
-            __backend_tag, __q, __init_event, __work_group_size, std::forward<_Range1>(__input),
-            std::forward<_Range2>(__bins), __binhash_manager));
+            __q, __init_event, __work_group_size, std::forward<_Range1>(__input), std::forward<_Range2>(__bins),
+            __binhash_manager));
     }
     else // otherwise, use global atomics (private copies per workgroup)
     {
