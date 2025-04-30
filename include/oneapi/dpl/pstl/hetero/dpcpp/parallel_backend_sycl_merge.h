@@ -204,9 +204,9 @@ struct __parallel_merge_submitter;
 template <typename _OutSizeLimit, typename _IdType, typename... _Name>
 struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare>
+    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare>
     __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
-    operator()(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp) const
+    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp) const
     {
         const _IdType __n1 = __rng1.size();
         const _IdType __n2 = __rng2.size();
@@ -214,10 +214,10 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
 
         assert(__n1 > 0 || __n2 > 0);
 
-        _PRINT_INFO_IN_DEBUG_MODE(__exec.queue());
+        _PRINT_INFO_IN_DEBUG_MODE(__q);
 
         // Empirical number of values to process per work-item
-        const _IdType __chunk = __exec.queue().get_device().is_cpu() ? 128 : 4;
+        const _IdType __chunk = __q.get_device().is_cpu() ? 128 : 4;
 
         const _IdType __steps = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk);
 
@@ -228,15 +228,15 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         __result_and_scratch_storage_t* __p_res_storage = nullptr;
 
         if constexpr (_OutSizeLimit{})
-            __p_res_storage = new __result_and_scratch_storage_t(__exec.queue(), 0);
+            __p_res_storage = new __result_and_scratch_storage_t(__q, 0);
         else
             assert(__rng3.size() >= __n1 + __n2);
 
         std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base(
             static_cast<__result_and_scratch_storage_base*>(__p_res_storage));
 
-        auto __event = __exec.queue().submit([&__rng1, &__rng2, &__rng3, __p_res_storage, __comp, __chunk, __steps, __n,
-                                              __n1, __n2](sycl::handler& __cgh) {
+        auto __event = __q.submit([&__rng1, &__rng2, &__rng3, __p_res_storage, __comp, __chunk, __steps, __n, __n1,
+                                   __n2](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
             auto __result_acc = __get_acc(__p_res_storage, __cgh);
 
@@ -299,13 +299,13 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     };
 
     // Calculate nd-range parameters
-    template <typename _ExecutionPolicy, typename _Range1, typename _Range2>
+    template <typename _Range1, typename _Range2>
     nd_range_params
-    eval_nd_range_params(_ExecutionPolicy&& __exec, const _Range1& __rng1, const _Range2& __rng2,
+    eval_nd_range_params(const sycl::queue& __q, const _Range1& __rng1, const _Range2& __rng2,
                          const std::size_t __n) const
     {
         // Empirical number of values to process per work-item
-        const std::uint8_t __chunk = __exec.queue().get_device().is_cpu() ? 128 : 4;
+        const std::uint8_t __chunk = __q.get_device().is_cpu() ? 128 : 4;
 
         const _IdType __steps = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk);
         // TODO required to evaluate this value based on available SLM size for each work-group.
@@ -317,10 +317,10 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     }
 
     // Calculation of split points on each base diagonal
-    template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Compare, typename _Storage>
+    template <typename _Range1, typename _Range2, typename _Compare, typename _Storage>
     sycl::event
-    eval_split_points_for_groups(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _IdType __n,
-                                 _Compare __comp, const nd_range_params& __nd_range_params,
+    eval_split_points_for_groups(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _IdType __n, _Compare __comp,
+                                 const nd_range_params& __nd_range_params,
                                  _Storage& __base_diagonals_sp_global_storage) const
     {
         const _IdType __n1 = __rng1.size();
@@ -328,8 +328,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
         const _IdType __base_diag_chunk = __nd_range_params.steps_between_two_base_diags * __nd_range_params.chunk;
 
-        return __exec.queue().submit([&__rng1, &__rng2, __comp, __nd_range_params, __base_diagonals_sp_global_storage,
-                                      __n1, __n2, __n, __base_diag_chunk](sycl::handler& __cgh) {
+        return __q.submit([&__rng1, &__rng2, __comp, __nd_range_params, __base_diagonals_sp_global_storage, __n1, __n2,
+                           __n, __base_diag_chunk](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2);
             auto __base_diagonals_sp_global_acc =
                 __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::write>(
@@ -353,10 +353,9 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     }
 
     // Process parallel merge
-    template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
-              typename _Storage>
+    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Storage>
     sycl::event
-    run_parallel_merge(const sycl::event& __event, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
+    run_parallel_merge(const sycl::event& __event, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2,
                        _Range3&& __rng3, _Compare __comp, const nd_range_params& __nd_range_params,
                        const _Storage& __base_diagonals_sp_global_storage) const
     {
@@ -364,8 +363,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         const _IdType __n2 = __rng2.size();
         const _IdType __n = std::min<_IdType>(__n1 + __n2, __rng3.size());
 
-        return __exec.queue().submit([&__event, &__rng1, &__rng2, &__rng3, __n, __comp, __nd_range_params,
-                                      __base_diagonals_sp_global_storage, __n1, __n2](sycl::handler& __cgh) {
+        return __q.submit([&__event, &__rng1, &__rng2, &__rng3, __n, __comp, __nd_range_params,
+                           __base_diagonals_sp_global_storage, __n1, __n2](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
             auto __base_diagonals_sp_global_acc =
                 __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
@@ -423,9 +422,9 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     }
 
   public:
-    template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare>
+    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare>
     __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
-    operator()(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp) const
+    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp) const
     {
         const _IdType __n1 = __rng1.size();
         const _IdType __n2 = __rng2.size();
@@ -433,10 +432,10 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
         const _IdType __n = std::min<_IdType>(__n1 + __n2, __rng3.size());
 
-        _PRINT_INFO_IN_DEBUG_MODE(__exec.queue());
+        _PRINT_INFO_IN_DEBUG_MODE(__q);
 
         // Calculate nd-range parameters
-        const nd_range_params __nd_range_params = eval_nd_range_params(__exec, __rng1, __rng2, __n);
+        const nd_range_params __nd_range_params = eval_nd_range_params(__q, __rng1, __rng2, __n);
 
         // Create storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
         using __val_t = _split_point_t<_IdType>;
@@ -444,18 +443,18 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                                              std::integral_constant<std::size_t, 0>>;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<__val_t, _NResults::value>;
         auto __p_base_diagonals_sp_global_storage =
-            new __result_and_scratch_storage_t(__exec, __nd_range_params.base_diag_count + 1);
+            new __result_and_scratch_storage_t(__q, __nd_range_params.base_diag_count + 1);
 
         // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
         std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base(
             static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
 
         // Find split-points on the base diagonals
-        sycl::event __event = eval_split_points_for_groups(__exec, __rng1, __rng2, __n, __comp, __nd_range_params,
+        sycl::event __event = eval_split_points_for_groups(__q, __rng1, __rng2, __n, __comp, __nd_range_params,
                                                            *__p_base_diagonals_sp_global_storage);
 
         // Merge data using split points on each diagonal
-        __event = run_parallel_merge(__event, __exec, __rng1, __rng2, __rng3, __comp, __nd_range_params,
+        __event = run_parallel_merge(__event, __q, __rng1, __rng2, __rng3, __comp, __nd_range_params,
                                      *__p_base_diagonals_sp_global_storage);
 
         return __future{std::move(__event), std::move(__p_result_and_scratch_storage_base)};
@@ -495,6 +494,8 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
 
     using __value_type = oneapi::dpl::__internal::__value_t<_Range3>;
 
+    sycl::queue __q_local = __exec.queue();
+
     const std::size_t __n = std::min<std::size_t>(__rng1.size() + __rng2.size(), __rng3.size());
     if (__n < __get_starting_size_limit_for_large_submitter<__value_type>())
     {
@@ -504,8 +505,8 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
         using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __merge_kernel_name<_CustomName, _WiIndex>>;
         return __parallel_merge_submitter<_OutSizeLimit, _WiIndex, _MergeKernelName>()(
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            std::forward<_Range3>(__rng3), __comp);
+            __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__rng3),
+            __comp);
     }
     else
     {
@@ -517,9 +518,9 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __merge_kernel_name_large<_CustomName, _WiIndex>>;
             return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
-                                                    _MergeKernelName>()(
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                std::forward<_Range3>(__rng3), __comp);
+                                                    _MergeKernelName>()(__q_local, std::forward<_Range1>(__rng1),
+                                                                        std::forward<_Range2>(__rng2),
+                                                                        std::forward<_Range3>(__rng3), __comp);
         }
         else
         {
@@ -529,9 +530,9 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __merge_kernel_name_large<_CustomName, _WiIndex>>;
             return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
-                                                    _MergeKernelName>()(
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                std::forward<_Range3>(__rng3), __comp);
+                                                    _MergeKernelName>()(__q_local, std::forward<_Range1>(__rng1),
+                                                                        std::forward<_Range2>(__rng2),
+                                                                        std::forward<_Range3>(__rng3), __comp);
         }
     }
 }
