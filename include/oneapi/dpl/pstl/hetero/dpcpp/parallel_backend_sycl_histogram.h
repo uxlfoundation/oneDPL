@@ -288,9 +288,9 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
 template <typename _CustomName, std::uint16_t __iters_per_work_item, std::uint8_t __bins_per_work_item,
           typename _Range1, typename _Range2, typename _BinHashMgr>
 sycl::event
-__histogram_general_registers_local_reduction(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
-                                              const sycl::event& __init_event, ::std::uint16_t __work_group_size,
-                                              _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
+__histogram_general_registers_local_reduction(sycl::queue& __q, const sycl::event& __init_event,
+                                              ::std::uint16_t __work_group_size, _Range1&& __input, _Range2&& __bins,
+                                              const _BinHashMgr& __binhash_manager)
 {
     using _iters_per_work_item_t = ::std::integral_constant<::std::uint16_t, __iters_per_work_item>;
 
@@ -514,8 +514,8 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
     {
         return __future(__histogram_general_registers_local_reduction<_CustomName, __iters_per_work_item,
                                                                       __max_work_item_private_bins>(
-            __backend_tag, __q, __init_event, __work_group_size, std::forward<_Range1>(__input),
-            std::forward<_Range2>(__bins), __binhash_manager));
+            __q, __init_event, __work_group_size, std::forward<_Range1>(__input), std::forward<_Range2>(__bins),
+            __binhash_manager));
     }
     // if bins fit into SLM, use local atomics
     else if (__num_bins * sizeof(_local_histogram_type) +
