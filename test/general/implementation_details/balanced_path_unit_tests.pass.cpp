@@ -64,7 +64,7 @@ test_serial_set_op_count(SetTag set_tag)
 
     if (count != res - v3.begin())
     {
-        std::cout << "Failed: count mismatch" << std::endl;
+        std::cout << "Failed: count mismatch, expected " << res - v3.begin() << " got " << count << std::endl;
         return false;
     }
     return true;
@@ -88,7 +88,7 @@ test_serial_set_op_count_and_write(SetTag set_tag)
 
     if (count != res - v3.begin())
     {
-        std::cout << "Failed: count mismatch" << std::endl;
+        std::cout << "Failed: count mismatch, expected " << res - v3.begin() << " got " << count << std::endl;
         return false;
     }
 
@@ -120,7 +120,7 @@ test_serial_set_op_count_and_write2(SetTag set_tag)
 
     if (count != res - v3.begin())
     {
-        std::cout << "Failed: count mismatch" << std::endl;
+        std::cout << "Failed: count mismatch, expected " << res - v3.begin() << " got " << count << std::endl;
         return false;
     }
 
@@ -186,7 +186,7 @@ test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
 
     if (count != res - v3.begin())
     {
-        std::cout << "Failed: count mismatch" << std::endl;
+        std::cout << "Failed: count mismatch, expected " << res - v3.begin() << " got " << count << std::endl;
         return false;
     }
 
@@ -219,7 +219,7 @@ test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
 
     if (count != res - v3.begin())
     {
-        std::cout << "Failed: count mismatch" << std::endl;
+        std::cout << "Failed: count mismatch, expected " << res - v3.begin() << " got " << count << std::endl;
         return false;
     }
 
@@ -424,10 +424,14 @@ test_variety_of_combinations_of_setops(SetTag set_tag)
     EXPECT_TRUE(test_serial_set_op_count(set_tag), "test for serial set_intersection operation returning count only");
     EXPECT_TRUE(test_serial_set_op_count_and_write(set_tag), "test for serial set_intersection operation");
     EXPECT_TRUE(test_serial_set_op_count_and_write2(set_tag), "test for serial set_intersection operation2");
+
+// Test for MS STL, serial set algorithms are returning wrong count for certain inputs
+#if !_PSTL_TEST_SERIAL_SET_ALGS_BROKEN
     EXPECT_TRUE(test_serial_set_op_count_and_write2_large_setA(set_tag),
                 "test for serial set_intersection operation2 large SetA");
     EXPECT_TRUE(test_serial_set_op_count_and_write2_large_setB(set_tag),
                 "test for serial set_intersection operation2 large SetB");
+#endif //!_PSTL_TEST_SERIAL_SET_ALGS_BROKEN
     EXPECT_TRUE(test_serial_set_op_count_and_write_limited(set_tag),
                 "test for serial set_intersection operation limited");
 }
