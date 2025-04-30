@@ -1014,11 +1014,15 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     // Calculate the number of matchable "future" repeats in the second set
     _Index __matchable_forward_ele_rng2 = __balanced_path_intersection_rng2 - __merge_path_rng2;
     _Index __total_matched_rng2 = __balanced_path_intersection_rng2 - __rng2_repeat_start;
-    _Index __balanced_path_intersection_rng1 = __rng1_repeat_start + __total_matched_rng2;
+
+    // Update balanced path intersection for rng1, must account for cases where there are more repeating elements in
+    // rng1 than matched elements of rng2
+    _Index __balanced_path_intersection_rng1 =
+        __rng1_repeat_start + std::max(__total_matched_rng2, __rng1_repeats - __matchable_forward_ele_rng2);
 
     // If we needed to step off the diagonal to find the balanced path, mark the diagonal as "starred"
-    __star = __balanced_path_intersection_rng1 + __balanced_path_intersection_rng2 != __merge_path_rng1 +
-             __merge_path_rng2;
+    __star =
+        __balanced_path_intersection_rng1 + __balanced_path_intersection_rng2 != __merge_path_rng1 + __merge_path_rng2;
 
     return std::make_tuple(__balanced_path_intersection_rng1, __balanced_path_intersection_rng2, __star);
 }
