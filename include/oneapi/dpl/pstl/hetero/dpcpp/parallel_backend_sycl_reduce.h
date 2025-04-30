@@ -230,9 +230,9 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
 {
     template <typename _Size, typename _ReduceOp, typename _InitType>
     __future<sycl::event, __result_and_scratch_storage<_Tp>>
-    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, const sycl::event& __reduce_event,
-               const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
-               _InitType __init, __result_and_scratch_storage<_Tp>&& __scratch_container) const
+    operator()(sycl::queue& __q, const sycl::event& __reduce_event, const _Size __n, const _Size __work_group_size,
+               const _Size __iters_per_work_item, _ReduceOp __reduce_op, _InitType __init,
+               __result_and_scratch_storage<_Tp>&& __scratch_container) const
     {
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
 
@@ -294,8 +294,8 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
     // __n_groups preliminary results from the device kernel.
     return __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative, _VecSize,
                                                                    _ReduceWorkGroupKernel>()(
-        __backend_tag, __q, __reduce_event, __n_groups, __work_group_size, __iters_per_work_item_work_group_kernel,
-        __reduce_op, __init, std::move(__scratch_container));
+        __q, __reduce_event, __n_groups, __work_group_size, __iters_per_work_item_work_group_kernel, __reduce_op,
+        __init, std::move(__scratch_container));
 }
 
 // General implementation using a tree reduction
