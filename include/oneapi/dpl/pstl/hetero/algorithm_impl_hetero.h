@@ -1821,7 +1821,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     // intersection is empty
     if (__first1 == __last1 || __first2 == __last2)
         return __result;
-    if (__par_backend_hetero::__can_set_op_write_from_set_b(__exec))
+    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
     {
         return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
                                        __last2, __result, __comp, unseq_backend::_IntersectionTag<std::true_type>());
@@ -1864,7 +1864,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
-    if (__par_backend_hetero::__can_set_op_write_from_set_b(__exec))
+    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
     {
         return __pattern_hetero_set_op(
             __tag,
@@ -1925,7 +1925,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
 
-    if (__par_backend_hetero::__can_set_op_write_from_set_b(__exec))
+    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
     {
         return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
                                        __last2, __result, __comp, unseq_backend::_UnionTag<std::true_type>());
@@ -2013,7 +2013,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
 
-    if (__par_backend_hetero::__can_set_op_write_from_set_b(__exec))
+    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
     {
         return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
                                        __last2, __result, __comp,
