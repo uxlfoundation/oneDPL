@@ -96,20 +96,22 @@ __device_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Size _
                        _ReducePattern __reduce_pattern, const _AccLocal& __local_mem, _Tmp* __reduce_result_ptr,
                        const _Acc&... __acc)
 {
-    auto __local_idx = __item_id.get_local_id(0);
-    auto __group_idx = __item_id.get_group(0);
-    const _Size __group_size = __item_id.get_local_range().size();
     oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __result;
-    // 1. Initialization (transform part). Fill local memory
-    __transform_pattern(__item_id, __n, __iters_per_work_item, /*global_offset*/ (_Size)0, __is_full, __n_groups,
-                        __result, __acc...);
 
-    const _Size __n_items = __transform_pattern.output_size(__n, __group_size, __iters_per_work_item);
-    // 2. Reduce within work group using local memory
-    __result.__v = __reduce_pattern(__item_id, __n_items, __result.__v, __local_mem);
-    if (__local_idx == 0)
-        __reduce_result_ptr[__group_idx] = __result.__v;
-    __result.__destroy();
+    // 1. Initialization (transform part). Fill local memory
+    if (__transform_pattern(__item_id, __n, __iters_per_work_item, /*global_offset*/ (_Size)0, __is_full, __n_groups,
+                            __result, __acc...))
+    {
+        const auto __local_idx = __item_id.get_local_id(0);
+        const auto __group_idx = __item_id.get_group(0);
+        const _Size __group_size = __item_id.get_local_range().size();
+        const _Size __n_items = __transform_pattern.output_size(__n, __group_size, __iters_per_work_item);
+        // 2. Reduce within work group using local memory
+        __result.__v = __reduce_pattern(__item_id, __n_items, __result.__v, __local_mem);
+        if (__local_idx == 0)
+            __reduce_result_ptr[__group_idx] = __result.__v;
+        __result.__destroy();
+    }
 }
 
 //------------------------------------------------------------------------
