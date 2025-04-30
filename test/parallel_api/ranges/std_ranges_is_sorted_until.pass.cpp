@@ -26,7 +26,8 @@ main()
 
     auto generator = [](auto i) { return i == 42? 0 : i;};
 
-    test_range_algo<0, data_in, generator>{big_sz}(dpl_ranges::is_sorted_until, is_sorted_until_checker, std::ranges::less{});
+    test_range_algo<0, data_in, decltype(generator)>{big_sz}(
+        dpl_ranges::is_sorted_until, is_sorted_until_checker, std::ranges::less{});
 
     test_range_algo<1>{}(dpl_ranges::is_sorted_until, is_sorted_until_checker, std::ranges::less{}, proj);
     test_range_algo<2, P2>{}(dpl_ranges::is_sorted_until, is_sorted_until_checker, std::ranges::less{}, &P2::x);
