@@ -553,8 +553,7 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
 template <typename _CustomName, typename _InRng, typename _OutRng, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
 sycl::event
-__parallel_transform_scan_single_group(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
-                                       _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n,
+__parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, ::std::size_t __n,
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
                                        _Inclusive)
 {
@@ -1034,9 +1033,9 @@ struct __write_to_id_if_else
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
 __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
-__parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                          _Range1&& __in_rng, _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op,
-                          _InitType __init, _BinaryOperation __binary_op, _Inclusive)
+__parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __in_rng,
+                          _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op, _InitType __init,
+                          _BinaryOperation __binary_op, _Inclusive)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -1064,8 +1063,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             if (__group_scan_fits_in_slm<_Type>(__q_local, __n, __n_uniform, __single_group_upper_limit))
             {
                 auto __event = __parallel_transform_scan_single_group<_CustomName>(
-                    __backend_tag, __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __n,
-                    __unary_op, __init, __binary_op, _Inclusive{});
+                    __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __n, __unary_op,
+                    __init, __binary_op, _Inclusive{});
 
                 // Although we do not actually need result storage in this case, we need to construct
                 // a placeholder here to match the return type of the non-single-work-group implementation
