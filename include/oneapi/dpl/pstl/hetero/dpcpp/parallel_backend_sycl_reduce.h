@@ -302,9 +302,8 @@ struct __parallel_transform_reduce_impl
 {
     template <typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
     static __future<sycl::event, __result_and_scratch_storage<_Tp>>
-    submit(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Size __n, _Size __work_group_size,
-           const _Size __iters_per_work_item, _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init,
-           _Ranges&&... __rngs)
+    submit(sycl::queue& __q, _Size __n, _Size __work_group_size, const _Size __iters_per_work_item,
+           _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
     {
         using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
         using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
@@ -428,7 +427,7 @@ struct __parallel_transform_reduce_impl
 template <typename _Tp, typename _Commutative, typename _ExecutionPolicy, typename _ReduceOp, typename _TransformOp,
           typename _InitType, typename... _Ranges>
 __future<sycl::event, __result_and_scratch_storage<_Tp>>
-__parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+__parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                             _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
@@ -508,8 +507,8 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __back
     // Otherwise use a recursive tree reduction with __max_iters_per_work_item __iters_per_work_item.
     const auto __work_group_size_long = static_cast<_Size>(__work_group_size);
     return __parallel_transform_reduce_impl<_CustomName, _Tp, _Commutative, __vector_size>::submit(
-        __backend_tag, __q_local, __n, __work_group_size_long, __max_iters_per_work_item, __reduce_op, __transform_op,
-        __init, std::forward<_Ranges>(__rngs)...);
+        __q_local, __n, __work_group_size_long, __max_iters_per_work_item, __reduce_op, __transform_op, __init,
+        std::forward<_Ranges>(__rngs)...);
 }
 
 } // namespace __par_backend_hetero
