@@ -125,9 +125,8 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
 {
     template <typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
     __future<sycl::event, __result_and_scratch_storage<_Tp>>
-    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, const _Size __n,
-               const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
-               _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs) const
+    operator()(sycl::queue& __q, const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item,
+               _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs) const
     {
         auto __transform_pattern =
             unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{__reduce_op,
@@ -161,16 +160,16 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
 template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _Size,
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
 __future<sycl::event, __result_and_scratch_storage<_Tp>>
-__parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
-                                       const _Size __n, const _Size __work_group_size,
-                                       const _Size __iters_per_work_item, _ReduceOp __reduce_op,
-                                       _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
+__parallel_transform_reduce_small_impl(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, const _Size __n,
+                                       const _Size __work_group_size, const _Size __iters_per_work_item,
+                                       _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init,
+                                       _Ranges&&... __rngs)
 {
     using _ReduceKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__reduce_small_kernel<_CustomName>>;
 
     return __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize, _ReduceKernel>()(
-        __backend_tag, __q, __n, __work_group_size, __iters_per_work_item, __reduce_op, __transform_op, __init,
+        __q, __n, __work_group_size, __iters_per_work_item, __reduce_op, __transform_op, __init,
         std::forward<_Ranges>(__rngs)...);
 }
 
