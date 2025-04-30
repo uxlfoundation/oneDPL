@@ -184,10 +184,9 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
 {
     template <typename _Size, typename _ReduceOp, typename _TransformOp, typename... _Ranges>
     sycl::event
-    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, const _Size __n,
-               const _Size __work_group_size, const _Size __iters_per_work_item, _ReduceOp __reduce_op,
-               _TransformOp __transform_op, __result_and_scratch_storage<_Tp>& __scratch_container,
-               _Ranges&&... __rngs) const
+    operator()(sycl::queue& __q, const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item,
+               _ReduceOp __reduce_op, _TransformOp __transform_op,
+               __result_and_scratch_storage<_Tp>& __scratch_container, _Ranges&&... __rngs) const
     {
         using __scratch_container_t = std::decay_t<decltype(__scratch_container)>;
         auto __transform_pattern =
@@ -270,9 +269,8 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
 template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _Size,
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
 __future<sycl::event, __result_and_scratch_storage<_Tp>>
-__parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
-                                     const _Size __n, const _Size __work_group_size,
-                                     const _Size __iters_per_work_item_device_kernel,
+__parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, const _Size __n,
+                                     const _Size __work_group_size, const _Size __iters_per_work_item_device_kernel,
                                      const _Size __iters_per_work_item_work_group_kernel, _ReduceOp __reduce_op,
                                      _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
 {
@@ -288,8 +286,8 @@ __parallel_transform_reduce_mid_impl(oneapi::dpl::__internal::__device_backend_t
 
     sycl::event __reduce_event =
         __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _VecSize, _ReduceDeviceKernel>()(
-            __backend_tag, __q, __n, __work_group_size, __iters_per_work_item_device_kernel, __reduce_op,
-            __transform_op, __scratch_container, std::forward<_Ranges>(__rngs)...);
+            __q, __n, __work_group_size, __iters_per_work_item_device_kernel, __reduce_op, __transform_op,
+            __scratch_container, std::forward<_Ranges>(__rngs)...);
 
     // __n_groups preliminary results from the device kernel.
     return __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative, _VecSize,
