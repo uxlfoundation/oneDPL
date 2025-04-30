@@ -2100,9 +2100,9 @@ template <typename... _GlobalSortName, typename... _CopyBackName>
 struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_GlobalSortName...>,
                                          __internal::__optional_kernel_name<_CopyBackName...>>
 {
-    template <typename _BackendTag, typename _Range, typename _Merge, typename _Compare>
+    template <typename _Range, typename _Merge, typename _Compare>
     __future<sycl::event>
-    operator()(_BackendTag, sycl::queue& __q, _Range&& __rng, _Merge __merge, _Compare __comp) const
+    operator()(sycl::queue& __q, _Range&& __rng, _Merge __merge, _Compare __comp) const
     {
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
         using _Size = oneapi::dpl::__internal::__difference_t<_Range>;
@@ -2170,8 +2170,8 @@ class __sort_global_kernel;
 
 template <typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare>
 __future<sycl::event>
-__parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                             _Range&& __rng, _Merge __merge, _Compare __comp)
+__parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
+                             _Merge __merge, _Compare __comp)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -2183,7 +2183,7 @@ __parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag __bac
     sycl::queue __q_local = __exec.queue();
 
     return __parallel_partial_sort_submitter<_GlobalSortKernel, _CopyBackKernel>()(
-        __backend_tag, __q_local, ::std::forward<_Range>(__rng), __merge, __comp);
+        __q_local, std::forward<_Range>(__rng), __merge, __comp);
 }
 
 //------------------------------------------------------------------------
