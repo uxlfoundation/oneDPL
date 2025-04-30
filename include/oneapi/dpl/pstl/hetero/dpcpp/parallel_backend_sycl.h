@@ -629,9 +629,8 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
 template <typename _CustomName, typename _Range1, typename _Range2, typename _InitType, typename _LocalScan,
           typename _GroupScan, typename _GlobalScan>
 __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
-__parallel_transform_scan_base(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range1&& __in_rng,
-                               _Range2&& __out_rng, _InitType __init, _LocalScan __local_scan, _GroupScan __group_scan,
-                               _GlobalScan __global_scan)
+__parallel_transform_scan_base(sycl::queue& __q, _Range1&& __in_rng, _Range2&& __out_rng, _InitType __init,
+                               _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan)
 {
     using _PropagateKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__scan_propagate_kernel<_CustomName>>;
@@ -1099,7 +1098,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     _NoOpFunctor __get_data_op;
 
     return __parallel_transform_scan_base<_CustomName>(
-        __backend_tag, __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
+        __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
         // local scan
         unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _NoOpFunctor,
                               _InitType>{__binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op,
@@ -1199,7 +1198,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n);
 
     return __parallel_transform_scan_base<_CustomName>(
-        __backend_tag, __q,
+        __q,
         oneapi::dpl::__ranges::zip_view(
             __in_rng, oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
                           __mask_buf.get_buffer())),
@@ -1446,7 +1445,7 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);
 
     return __par_backend_hetero::__parallel_transform_scan_base<_CustomName>(
-        __backend_tag, __q,
+        __q,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
