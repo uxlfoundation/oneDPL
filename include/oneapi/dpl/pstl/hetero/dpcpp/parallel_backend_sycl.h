@@ -1748,9 +1748,8 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
 {
     template <typename _BrickTag, typename __FoundStateType, typename _Predicate, typename... _Ranges>
     __FoundStateType
-    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _BrickTag __brick_tag,
-               const std::size_t __rng_n, const std::size_t __wgroup_size, const __FoundStateType __init_value,
-               _Predicate __pred, _Ranges&&... __rngs)
+    operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __wgroup_size,
+               const __FoundStateType __init_value, _Predicate __pred, _Ranges&&... __rngs)
     {
         using __result_and_scratch_storage_t = __result_and_scratch_storage<__FoundStateType>;
         __result_and_scratch_storage_t __result_storage{__q, 0};
@@ -1913,8 +1912,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         // Single WG implementation
         __result = __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
-            oneapi::dpl::__internal::__device_backend_tag{}, __q_local, __brick_tag, __rng_n, __wgroup_size,
-            __init_value, __pred, std::forward<_Ranges>(__rngs)...);
+            __q_local, __brick_tag, __rng_n, __wgroup_size, __init_value, __pred, std::forward<_Ranges>(__rngs)...);
     }
     else
     {
