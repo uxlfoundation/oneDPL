@@ -1257,10 +1257,9 @@ template <typename _CustomName, typename _Range1, typename _Range2, typename _Ra
           typename _BinaryPredicate, typename _BinaryOperator>
 __future<sycl::event, __result_and_scratch_storage<
                           oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
-__parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
-                                              _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
-                                              _Range4&& __out_values, _BinaryPredicate __binary_pred,
-                                              _BinaryOperator __binary_op)
+__parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
+                                              _Range3&& __out_keys, _Range4&& __out_values,
+                                              _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
     // Flags new segments and passes input value through a 2-tuple
     using _GenReduceInput = __gen_red_by_seg_reduce_input<_BinaryPredicate>;
@@ -2440,7 +2439,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag __bac
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
         {
             auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
-                __backend_tag, __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
+                __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
                 std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
             // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
             // past-the-end iterator pair of segmented reduction.
