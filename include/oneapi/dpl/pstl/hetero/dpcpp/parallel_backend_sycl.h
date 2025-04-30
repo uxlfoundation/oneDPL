@@ -923,6 +923,70 @@ struct __gen_unique_mask
     _BinaryPredicate __pred;
 };
 
+template <typename _IsOpDifference, typename _Compare>
+struct __gen_set_mask
+{
+    template <typename _InRng>
+    bool
+    operator()(const _InRng& __in_rng, std::size_t __id) const
+    {
+        // First we must extract individual sequences from zip iterator because they may not have the same length,
+        // dereferencing is dangerous
+        auto __set_a = std::get<0>(__in_rng.tuple());    // first sequence
+        auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence
+        auto __set_mask = std::get<2>(__in_rng.tuple()); // mask sequence
+
+        std::size_t __nb = __set_b.size();
+
+        auto __val_a = __set_a[__id];
+
+        auto __res = oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a, __comp);
+
+        bool bres =
+            _IsOpDifference::value; //initialization is true in case of difference operation; false - intersection.
+        if (__res == __nb || __comp(__val_a, __set_b[__res]))
+        {
+            // there is no __val_a in __set_b, so __set_b in the difference {__set_a}/{__set_b};
+        }
+        else
+        {
+            auto __val_b = __set_b[__res];
+
+            //Difference operation logic: if number of duplication in __set_a on left side from __id > total number of
+            //duplication in __set_b then a mask is 1
+
+            //Intersection operation logic: if number of duplication in __set_a on left side from __id <= total number of
+            //duplication in __set_b then a mask is 1
+
+            const std::size_t __count_a_left =
+                __id - oneapi::dpl::__internal::__pstl_left_bound(__set_a, std::size_t{0}, __id, __val_a, __comp) + 1;
+
+            const std::size_t __count_b =
+                oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __val_b, __comp) -
+                oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __val_b, __comp);
+
+            if constexpr (_IsOpDifference::value)
+                bres = __count_a_left > __count_b; /*difference*/
+            else
+                bres = __count_a_left <= __count_b; /*intersection*/
+        }
+        __set_mask[__id] = bres;
+        return bres;
+    }
+    _Compare __comp;
+};
+
+template <std::size_t _EleId>
+struct __extract_range_from_zip
+{
+    template <typename _InRng>
+    auto
+    operator()(const _InRng& __in_rng) const
+    {
+        return std::get<_EleId>(__in_rng.tuple());
+    }
+};
+
 template <typename _GenMask>
 struct __gen_count_mask
 {
@@ -1678,6 +1742,42 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
                                                  std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
                                                  _CopyOp{_ReduceOp{}, __assign});
     }
+}
+
+// This function is currently unused, but may be utilized for small sizes sets at some point in the future.
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+          typename _IsOpDifference>
+__future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
+__parallel_set_reduce_then_scan_set_a_write(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
+                                            sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
+                                            _Compare __comp, _IsOpDifference)
+{
+    // fill in reduce then scan impl
+    using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_IsOpDifference, _Compare>;
+    using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
+    using _MaskPredicate = oneapi::dpl::__internal::__no_op;
+    using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
+    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
+    using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
+    using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
+
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMaskReduce>;
+    using _ReduceOp = std::plus<_Size>;
+    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _ScanRangeTransform>;
+    using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
+
+    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__rng1.size());
+
+    return __parallel_transform_reduce_then_scan<_CustomName>(
+        __backend_tag, __q,
+        oneapi::dpl::__ranges::make_zip_view(
+            std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
+                __mask_buf.get_buffer())),
+        std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp}}, _ReduceOp{},
+        _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
+        _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+        /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
 }
 
 // balanced path
