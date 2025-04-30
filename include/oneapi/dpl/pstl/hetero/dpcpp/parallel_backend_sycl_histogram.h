@@ -492,9 +492,8 @@ __histogram_general_private_global_atomics(sycl::queue& __q, const sycl::event& 
 template <typename _CustomName, std::uint16_t __iters_per_work_item, typename _Range1, typename _Range2,
           typename _BinHashMgr>
 __future<sycl::event>
-__parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
-                                   const sycl::event& __init_event, _Range1&& __input, _Range2&& __bins,
-                                   const _BinHashMgr& __binhash_manager)
+__parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_event, _Range1&& __input,
+                                   _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
     using _private_histogram_type = ::std::uint16_t;
     using _local_histogram_type = ::std::uint32_t;
@@ -539,7 +538,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
 
 template <typename _ExecutionPolicy, typename _Event, typename _Range1, typename _Range2, typename _BinHashMgr>
 __future<sycl::event>
-__parallel_histogram(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
+__parallel_histogram(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                      const _Event& __init_event, _Range1&& __input, _Range2&& __bins,
                      const _BinHashMgr& __binhash_manager)
 {
@@ -550,14 +549,12 @@ __parallel_histogram(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     if (__input.size() < 1048576) // 2^20
     {
         return __parallel_histogram_select_kernel<_CustomName, /*iters_per_workitem = */ 4>(
-            __backend_tag, __q_local, __init_event, std::forward<_Range1>(__input), std::forward<_Range2>(__bins),
-            __binhash_manager);
+            __q_local, __init_event, std::forward<_Range1>(__input), std::forward<_Range2>(__bins), __binhash_manager);
     }
     else
     {
         return __parallel_histogram_select_kernel<_CustomName, /*iters_per_workitem = */ 32>(
-            __backend_tag, __q_local, __init_event, std::forward<_Range1>(__input), std::forward<_Range2>(__bins),
-            __binhash_manager);
+            __q_local, __init_event, std::forward<_Range1>(__input), std::forward<_Range2>(__bins), __binhash_manager);
     }
 }
 
