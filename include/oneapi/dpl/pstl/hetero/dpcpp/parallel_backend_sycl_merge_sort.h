@@ -785,17 +785,22 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
     return __merge_sort<_CustomName, _IndexT>(__q, std::forward<_Range>(__rng), __comp, __leaf);
 };
 
-template <typename _CustomName, typename _Range, typename _Compare>
+template <typename _ExecutionPolicy, typename _Range, typename _Compare>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
-__parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range&& __rng, _Compare __comp)
+__parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
+                     _Compare __comp)
 {
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
     if (__rng.size() <= std::numeric_limits<std::uint32_t>::max())
     {
-        return __submit_selecting_leaf<_CustomName, std::uint32_t>(__q, std::forward<_Range>(__rng), __comp);
+        return __submit_selecting_leaf<_CustomName, std::uint32_t>(__q_local, std::forward<_Range>(__rng), __comp);
     }
     else
     {
-        return __submit_selecting_leaf<_CustomName, std::uint64_t>(__q, std::forward<_Range>(__rng), __comp);
+        return __submit_selecting_leaf<_CustomName, std::uint64_t>(__q_local, std::forward<_Range>(__rng), __comp);
     }
 }
 

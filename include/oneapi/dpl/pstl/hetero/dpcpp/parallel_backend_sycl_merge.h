@@ -484,13 +484,17 @@ __get_starting_size_limit_for_large_submitter<int>()
     return 16 * 1'048'576; // 16 MB
 }
 
-template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _OutSizeLimit = std::false_type>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
-__parallel_merge(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2,
-                 _Range3&& __rng3, _Compare __comp, _OutSizeLimit = {})
+__parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
+                 _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _OutSizeLimit = {})
 {
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
     using __value_type = oneapi::dpl::__internal::__value_t<_Range3>;
+
+    sycl::queue __q_local = __exec.queue();
 
     const std::size_t __n = std::min<std::size_t>(__rng1.size() + __rng2.size(), __rng3.size());
     if (__n < __get_starting_size_limit_for_large_submitter<__value_type>())
@@ -501,7 +505,8 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q
         using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __merge_kernel_name<_CustomName, _WiIndex>>;
         return __parallel_merge_submitter<_OutSizeLimit, _WiIndex, _MergeKernelName>()(
-            __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__rng3), __comp);
+            __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__rng3),
+            __comp);
     }
     else
     {
@@ -513,7 +518,7 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __merge_kernel_name_large<_CustomName, _WiIndex>>;
             return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
-                                                    _MergeKernelName>()(__q, std::forward<_Range1>(__rng1),
+                                                    _MergeKernelName>()(__q_local, std::forward<_Range1>(__rng1),
                                                                         std::forward<_Range2>(__rng2),
                                                                         std::forward<_Range3>(__rng3), __comp);
         }
@@ -525,7 +530,7 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __merge_kernel_name_large<_CustomName, _WiIndex>>;
             return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
-                                                    _MergeKernelName>()(__q, std::forward<_Range1>(__rng1),
+                                                    _MergeKernelName>()(__q_local, std::forward<_Range1>(__rng1),
                                                                         std::forward<_Range2>(__rng2),
                                                                         std::forward<_Range3>(__rng3), __comp);
         }

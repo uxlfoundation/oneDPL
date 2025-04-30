@@ -52,7 +52,7 @@ namespace oneapi
 {
 namespace dpl
 {
-namespace internal
+namespace __par_backend_hetero
 {
 
 // This function is responsible for performing an exclusive segmented scan between work items in shared local memory.
@@ -105,11 +105,12 @@ struct __sycl_scan_by_segment_impl
     template <typename... _Name>
     using _SegScanPrefixPhase = __seg_scan_prefix_kernel<__is_inclusive, _Name...>;
 
-    template <typename _BackendTag, typename _Range1, typename _Range2, typename _Range3, typename _BinaryPredicate,
-              typename _BinaryOperator, typename _T>
+    template <typename _Range1, typename _Range2, typename _Range3, typename _BinaryPredicate, typename _BinaryOperator,
+              typename _T>
     void
-    operator()(_BackendTag, sycl::queue& __q, _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
-               _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init, _T __identity)
+    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
+               _Range3&& __out_values, _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init,
+               _T __identity)
     {
         using _SegScanWgKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             _SegScanWgPhase, _CustomName, _Range1, _Range2, _Range3, _BinaryPredicate, _BinaryOperator>;
@@ -142,7 +143,7 @@ struct __sycl_scan_by_segment_impl
                       oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_scan_prefix_kernel)});
 #endif
 
-        ::std::size_t __n_groups = __internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);
+        std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);
 
         auto __partials = oneapi::dpl::__par_backend_hetero::__buffer<__val_type>(__n_groups).get_buffer();
 
@@ -361,12 +362,32 @@ struct __sycl_scan_by_segment_impl
     }
 };
 
+template <bool __is_inclusive, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
+          typename _BinaryPredicate, typename _BinaryOperator, typename _T>
+void
+__parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __keys,
+                           _Range2&& __values, _Range3&& __out_values, _BinaryPredicate __binary_pred,
+                           _BinaryOperator __binary_op, _T __init, _T __identity)
+{
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
+    __sycl_scan_by_segment_impl<_CustomName, __is_inclusive>()(
+        oneapi::dpl::__internal::__device_backend_tag{}, __q_local, std::forward<_Range1>(__keys),
+        std::forward<_Range2>(__values), std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init,
+        __identity);
+}
+} //namespace __par_backend_hetero
+
+namespace __internal
+{
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename T, typename BinaryPredicate, typename Operator, typename Inclusive>
 OutputIterator
-__scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
-                              InputIterator1 last1, InputIterator2 first2, OutputIterator result, T init,
-                              BinaryPredicate binary_pred, Operator binary_op, Inclusive)
+__pattern_scan_by_segment(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
+                          InputIterator1 last1, InputIterator2 first2, OutputIterator result, T init,
+                          BinaryPredicate binary_pred, Operator binary_op, Inclusive)
 {
     const auto n = ::std::distance(first1, last1);
 
@@ -387,18 +408,13 @@ __scan_by_segment_impl_common(__internal::__hetero_tag<_BackendTag>, Policy&& po
 
     constexpr iter_value_t identity = unseq_backend::__known_identity<Operator, iter_value_t>;
 
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<Policy>;
-
-    sycl::queue __q_local = policy.queue();
-
-    __sycl_scan_by_segment_impl<_CustomName, Inclusive::value>{}(_BackendTag{}, __q_local, key_buf.all_view(),
-                                                                 value_buf.all_view(), value_output_buf.all_view(),
-                                                                 binary_pred, binary_op, init, identity);
-
+    __bknd::__parallel_scan_by_segment<Inclusive::value>(
+        _BackendTag{}, std::forward<Policy>(policy), key_buf.all_view(), value_buf.all_view(),
+        value_output_buf.all_view(), binary_pred, binary_op, init, identity);
     return result + n;
 }
 
-} // namespace internal
+} // namespace __internal
 } // namespace dpl
 } // namespace oneapi
 #endif

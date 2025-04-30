@@ -374,31 +374,11 @@ namespace oneapi::dpl::__internal::__ranges
 template <typename _Tp>
 struct __pattern_search_n_fn;
 
-template <typename _Predicate>
-struct __pattern_count_transform_fn;
-
-template <typename _Compare, typename _ReduceValueType>
-struct __pattern_minmax_element_reduce_fn;
-
 } // namespace oneapi::dpl::__internal::__ranges
 
 template <typename _Tp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__ranges::__pattern_search_n_fn, _Tp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
-{
-};
-
-template <typename _Predicate>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__ranges::__pattern_count_transform_fn,
-                                                       _Predicate)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
-{
-};
-
-template <typename _Compare, typename _ReduceValueType>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__internal::__ranges::__pattern_minmax_element_reduce_fn, _Compare, _ReduceValueType)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _ReduceValueType>
 {
 };
 
