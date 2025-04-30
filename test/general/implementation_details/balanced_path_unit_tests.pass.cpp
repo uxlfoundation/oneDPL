@@ -174,7 +174,7 @@ test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
 {
     // Test for set operation with serial policy
     std::cout << "Test for set operation with count and write" << std::endl;
-    std::vector<int> v1 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0};
+    std::vector<int> v1 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2};
     std::vector<int> v2 = {1};
     std::vector<int> v3(v1.size() + v2.size());
 
@@ -208,7 +208,7 @@ test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
     // Test for set operation with serial policy
     std::cout << "Test for set operation with count and write" << std::endl;
     std::vector<int> v1 = {1};
-    std::vector<int> v2 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0};
+    std::vector<int> v2 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2};
     std::vector<int> v3(v1.size() + v2.size());
 
     oneapi::dpl::__par_backend_hetero::__temp_data_array<10, int> __temp_data{};

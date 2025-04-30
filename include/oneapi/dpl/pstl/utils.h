@@ -27,6 +27,7 @@
 #include <type_traits>
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "hetero/dpcpp/sycl_defs.h"
