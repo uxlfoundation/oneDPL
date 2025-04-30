@@ -79,13 +79,13 @@ struct __parallel_for_small_submitter;
 template <typename... _Name>
 struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
+    template <typename _Fp, typename _Index, typename... _Ranges>
     __future<sycl::event>
-    operator()(_ExecutionPolicy&& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
-        _PRINT_INFO_IN_DEBUG_MODE(__exec.queue());
-        auto __event = __exec.queue().submit([__rngs..., __brick, __count](sycl::handler& __cgh) {
+        _PRINT_INFO_IN_DEBUG_MODE(__q);
+        auto __event = __q.submit([__rngs..., __brick, __count](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
@@ -151,27 +151,27 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 
     // Once there is enough work to launch a group on each compute unit with our chosen __iters_per_item,
     // then we should start using this code path.
-    template <typename _ExecutionPolicy, typename _Fp, typename... _Ranges>
+    template <typename _Fp, typename... _Ranges>
     static std::size_t
-    __estimate_best_start_size(const _ExecutionPolicy& __exec, _Fp __brick)
+    __estimate_best_start_size(const sycl::queue& __q, _Fp __brick)
     {
         using __params_t = __pfor_params<true /*__enable_tuning*/, _Fp, _Ranges...>;
         const std::size_t __work_group_size =
-            oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), __max_work_group_size);
-        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__exec.queue());
+            oneapi::dpl::__internal::__max_work_group_size(__q, __max_work_group_size);
+        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__q);
         return __work_group_size * __params_t::__iters_per_item * __max_cu;
     }
 
-    template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
+    template <typename _Fp, typename _Index, typename... _Ranges>
     __future<sycl::event>
-    operator()(_ExecutionPolicy&& __exec, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         using __params_t = __pfor_params<true /*__enable_tuning*/, _Fp, _Ranges...>;
         assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
         const std::size_t __work_group_size =
-            oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), __max_work_group_size);
-        _PRINT_INFO_IN_DEBUG_MODE(__exec.queue());
-        auto __event = __exec.queue().submit([__rngs..., __brick, __work_group_size, __count](sycl::handler& __cgh) {
+            oneapi::dpl::__internal::__max_work_group_size(__q, __max_work_group_size);
+        _PRINT_INFO_IN_DEBUG_MODE(__q);
+        auto __event = __q.submit([__rngs..., __brick, __work_group_size, __count](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             constexpr std::uint8_t __iters_per_work_item = __params_t::__iters_per_item;
@@ -207,6 +207,8 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     using _ForKernelLarge =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__parallel_for_large_kernel<_CustomName>>;
 
+    sycl::queue __q_local = __exec.queue();
+
     using __small_submitter = __parallel_for_small_submitter<_ForKernelSmall>;
     using __large_submitter = __parallel_for_large_submitter<_ForKernelLarge>;
     using __params_t = __pfor_params<true /*__enable_tuning*/, _Fp, _Ranges...>;
@@ -215,15 +217,12 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     // then only compile the basic kernel as the two versions are effectively the same.
     if constexpr (__params_t::__iters_per_item > 1 || __params_t::__vector_size > 1)
     {
-        if (__count >=
-            __large_submitter::template __estimate_best_start_size<_ExecutionPolicy, _Fp, _Ranges...>(__exec, __brick))
+        if (__count >= __large_submitter::template __estimate_best_start_size<_Fp, _Ranges...>(__q_local, __brick))
         {
-            return __large_submitter{}(std::forward<_ExecutionPolicy>(__exec), __brick, __count,
-                                       std::forward<_Ranges>(__rngs)...);
+            return __large_submitter{}(__q_local, __brick, __count, std::forward<_Ranges>(__rngs)...);
         }
     }
-    return __small_submitter{}(std::forward<_ExecutionPolicy>(__exec), __brick, __count,
-                               std::forward<_Ranges>(__rngs)...);
+    return __small_submitter{}(__q_local, __brick, __count, std::forward<_Ranges>(__rngs)...);
 }
 
 } // namespace __par_backend_hetero

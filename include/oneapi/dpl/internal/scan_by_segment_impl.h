@@ -96,7 +96,7 @@ class __seg_scan_wg_kernel;
 template <bool __is_inclusive, typename... Name>
 class __seg_scan_prefix_kernel;
 
-template <bool __is_inclusive>
+template <typename _CustomName, bool __is_inclusive>
 struct __sycl_scan_by_segment_impl
 {
     template <typename... _Name>
@@ -105,20 +105,17 @@ struct __sycl_scan_by_segment_impl
     template <typename... _Name>
     using _SegScanPrefixPhase = __seg_scan_prefix_kernel<__is_inclusive, _Name...>;
 
-    template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
-              typename _BinaryPredicate, typename _BinaryOperator, typename _T>
+    template <typename _Range1, typename _Range2, typename _Range3, typename _BinaryPredicate, typename _BinaryOperator,
+              typename _T>
     void
-    operator()(_BackendTag, _ExecutionPolicy&& __exec, _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
-               _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init, _T __identity)
+    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
+               _Range3&& __out_values, _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init,
+               _T __identity)
     {
-        using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
         using _SegScanWgKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-            _SegScanWgPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _BinaryPredicate,
-            _BinaryOperator>;
+            _SegScanWgPhase, _CustomName, _Range1, _Range2, _Range3, _BinaryPredicate, _BinaryOperator>;
         using _SegScanPrefixKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-            _SegScanPrefixPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _BinaryPredicate,
-            _BinaryOperator>;
+            _SegScanPrefixPhase, _CustomName, _Range1, _Range2, _Range3, _BinaryPredicate, _BinaryOperator>;
 
         using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
 
@@ -129,21 +126,21 @@ struct __sycl_scan_by_segment_impl
 
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-        std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), (std::size_t)2048);
+        std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)2048);
 
         // We require 2 * sizeof(__val_type) * __wgroup_size of SLM for the work group segmented scan. We add
         // an additional sizeof(__val_type) * __wgroup_size requirement to ensure sufficient SLM for the group algorithms.
-        __wgroup_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(__exec.queue(), 3 * sizeof(__val_type),
-                                                                                __wgroup_size);
+        __wgroup_size =
+            oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, 3 * sizeof(__val_type), __wgroup_size);
 
 #if _ONEDPL_COMPILE_KERNEL
         auto __seg_scan_wg_kernel =
-            __par_backend_hetero::__internal::__kernel_compiler<_SegScanWgKernel>::__compile(__exec.queue());
+            __par_backend_hetero::__internal::__kernel_compiler<_SegScanWgKernel>::__compile(__q);
         auto __seg_scan_prefix_kernel =
-            __par_backend_hetero::__internal::__kernel_compiler<_SegScanPrefixKernel>::__compile(__exec.queue());
-        __wgroup_size = ::std::min(
-            {__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __seg_scan_wg_kernel),
-             oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __seg_scan_prefix_kernel)});
+            __par_backend_hetero::__internal::__kernel_compiler<_SegScanPrefixKernel>::__compile(__q);
+        __wgroup_size =
+            std::min({__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_scan_wg_kernel),
+                      oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_scan_prefix_kernel)});
 #endif
 
         std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);
@@ -154,7 +151,7 @@ struct __sycl_scan_by_segment_impl
         auto __seg_ends = oneapi::dpl::__par_backend_hetero::__buffer<bool>(__n_groups).get_buffer();
 
         // 1. Work group reduction
-        auto __wg_scan = __exec.queue().submit([&](sycl::handler& __cgh) {
+        auto __wg_scan = __q.submit([&](sycl::handler& __cgh) {
             auto __partials_acc = __partials.template get_access<sycl::access_mode::write>(__cgh);
             auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::write>(__cgh);
 
@@ -254,8 +251,7 @@ struct __sycl_scan_by_segment_impl
         });
 
         // 2. Apply work group carry outs, calculate output indices, and load results into correct indices.
-        __exec.queue()
-            .submit([&](sycl::handler& __cgh) {
+        __q.submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_values);
 
                 auto __partials_acc = __partials.template get_access<sycl::access_mode::read>(__cgh);
@@ -373,10 +369,14 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
                            _Range2&& __values, _Range3&& __out_values, _BinaryPredicate __binary_pred,
                            _BinaryOperator __binary_op, _T __init, _T __identity)
 {
-    __sycl_scan_by_segment_impl<__is_inclusive>()(oneapi::dpl::__internal::__device_backend_tag{},
-                                                  std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__keys),
-                                                  std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
-                                                  __binary_pred, __binary_op, __init, __identity);
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
+    __sycl_scan_by_segment_impl<_CustomName, __is_inclusive>()(
+        oneapi::dpl::__internal::__device_backend_tag{}, __q_local, std::forward<_Range1>(__keys),
+        std::forward<_Range2>(__values), std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init,
+        __identity);
 }
 } //namespace __par_backend_hetero
 
