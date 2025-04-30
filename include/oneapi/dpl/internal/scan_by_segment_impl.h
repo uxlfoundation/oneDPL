@@ -105,7 +105,7 @@ struct __sycl_scan_by_segment_impl
     template <typename... _Name>
     using _SegScanPrefixPhase = __seg_scan_prefix_kernel<__is_inclusive, _Name...>;
 
-    template <typename _BackendTag, typename _Range1, typename _Range2, typename _Range3, typename _BinaryPredicate,
+    template <typename _Range1, typename _Range2, typename _Range3, typename _BinaryPredicate,
               typename _BinaryOperator, typename _T>
     void
     operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
