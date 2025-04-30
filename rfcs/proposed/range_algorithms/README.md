@@ -30,7 +30,11 @@ might require modifications or new versions.
   However, if the range-based algorithm performs any additional processing,
   such as handling trivial cases before delegating to the shared implementation,
   those scenarios must be tested explicitly.
-- The algorithms should be called with both small and large data sizes and with all the policies mentioned above.
+- The algorithms should be called with both small and large sizes.
+  Usually, the algorithms have a general implementation, and a specialized implementation for small sizes.
+  The definition of small and large depends on a certain algorithm and a policy it is used with.
+  Small can be 256 elements or less.
+  The magnitude of large can be 10^3 elements for `seq` and `unseq`, 10^6 for `par` and `par_unseq`, and 10^7 for `device_policy` to maximize parallelism.
 - Output data, return type, and value should be checked/compared with the reference result
 computed by the corresponding serial `std::ranges` algorithm or by a custom implemented serial version
 in case of different semantics.
