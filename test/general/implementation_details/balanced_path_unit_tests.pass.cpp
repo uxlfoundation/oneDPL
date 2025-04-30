@@ -402,17 +402,17 @@ test_find_balanced_path()
     //                     0  1  2  3  4  5  6  7  8
     std::vector<int> v4 = {5, 7, 7, 8, 9, 9, 9, 9, 9};
     bool ret = test_find_balanced_path_impl(v1, v2, std::less<int>());
-    ret += test_find_balanced_path_impl(v2, v1, std::less<int>());
-    ret += test_find_balanced_path_impl(v3, v4, std::less<int>());
-    ret += test_find_balanced_path_impl(v4, v3, std::less<int>());
-    ret += test_find_balanced_path_impl(v1, v4, std::less<int>());
-    ret += test_find_balanced_path_impl(v4, v1, std::less<int>());
-    ret += test_find_balanced_path_impl(v1, v3, std::less<int>());
-    ret += test_find_balanced_path_impl(v3, v1, std::less<int>());
-    ret += test_find_balanced_path_impl(v2, v4, std::less<int>());
-    ret += test_find_balanced_path_impl(v4, v2, std::less<int>());
-    ret += test_find_balanced_path_impl(v2, v3, std::less<int>());
-    ret += test_find_balanced_path_impl(v3, v2, std::less<int>());
+    ret &= test_find_balanced_path_impl(v2, v1, std::less<int>());
+    ret &= test_find_balanced_path_impl(v3, v4, std::less<int>());
+    ret &= test_find_balanced_path_impl(v4, v3, std::less<int>());
+    ret &= test_find_balanced_path_impl(v1, v4, std::less<int>());
+    ret &= test_find_balanced_path_impl(v4, v1, std::less<int>());
+    ret &= test_find_balanced_path_impl(v1, v3, std::less<int>());
+    ret &= test_find_balanced_path_impl(v3, v1, std::less<int>());
+    ret &= test_find_balanced_path_impl(v2, v4, std::less<int>());
+    ret &= test_find_balanced_path_impl(v4, v2, std::less<int>());
+    ret &= test_find_balanced_path_impl(v2, v3, std::less<int>());
+    ret &= test_find_balanced_path_impl(v3, v2, std::less<int>());
 
     return ret;
 }
