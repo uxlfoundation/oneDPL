@@ -459,20 +459,26 @@ struct transform_reduce
             __res.__v = __binary_op(__res.__v, __unary_op(__start_idx + __idx, __acc...));
     }
 
+    // Return bool: true, if data has been processed, false - otherwise
     template <typename _NDItemId, typename _Size, typename _Res, typename... _Acc>
-    void
+    bool
     operator()(const _NDItemId& __item_id, const _Size& __n, const _Size& __iters_per_work_item,
                const _Size& __global_offset, const bool __is_full, const _Size __n_groups, _Res& __res,
                const _Acc&... __acc) const
     {
         const _Size __global_idx = __item_id.get_global_id(0);
+
         // Check if there is any work to do
         if (__global_idx >= __n)
-            return;
+        {
+            // No data processed - return false
+            return false;
+        }
+
         if (__iters_per_work_item == 1)
         {
             __res.__setup(__unary_op(__global_idx, __acc...));
-            return;
+            return true;
         }
         const _Size __local_range = __item_id.get_local_range(0);
         const _Size __no_vec_ops = __iters_per_work_item / _VecSize;
@@ -542,6 +548,8 @@ struct transform_reduce
             const _Size __adjusted_global_id_plus_one = __adjusted_global_id + 1;
             scalar_reduction_remainder(__adjusted_global_id_plus_one, __adjusted_n, __res, __acc...);
         }
+
+        return true;
     }
 
     template <typename _Size>
