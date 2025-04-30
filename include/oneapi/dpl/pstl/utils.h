@@ -622,7 +622,7 @@ _Size1
 __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
 {
     auto __n = __last - __first;
-    _Size1 __shift_right_div = 10; // divide by 2^10 = 1024
+    std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
     _Size1 __it = 0;
     _Size1 __cur_idx = 0;
 

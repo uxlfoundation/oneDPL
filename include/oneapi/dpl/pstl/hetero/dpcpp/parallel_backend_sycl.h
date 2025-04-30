@@ -1036,7 +1036,7 @@ struct __gen_set_balanced_path
     using TempData = __noop_temp_data;
     template <typename _InRng, typename _IndexT>
     std::uint16_t
-    operator()(const _InRng& __in_rng, _IndexT __id, __noop_temp_data& __temp_data) const
+    operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data) const
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -1057,7 +1057,9 @@ struct __gen_set_balanced_path
         auto [__rng1_balanced_pos, __rng2_balanced_pos, __star_offset] =
             __find_balanced_path_start_point(__rng1, __rng2, __rng1_pos, __rng2_pos, __comp);
 
-        //use sign bit to represent star offset
+        // Use sign bit to represent star offset. Temp storage is a signed type equal to the difference_type of the
+        // input iterator range. The index will fit into the positive portion of the type, so the sign may be used to
+        // indicate the star offset.
         __rng1_temp_diag[__id] = __rng1_balanced_pos * (__star_offset ? -1 : 1);
 
         _SizeType __eles_to_process = std::min(__diagonal_spacing - (__star_offset ? _SizeType{1} : _SizeType{0}),
@@ -1109,7 +1111,7 @@ struct __gen_set_op_from_known_balanced_path
     _Compare __comp;
 };
 
-//returns iterations consumed, and the number of elements copied
+// Returns by reference: iterations consumed, and the number of elements copied to temp output
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds, typename _InRng1,
           typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
 void
@@ -1686,7 +1688,8 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     const std::int32_t __num_diagonals =
         oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size() + __rng2.size(), __diagonal_spacing);
 
-    //should be safe to use the type of the range size as the temporary type. Use sign bit as a flag for the star
+    // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
+    // portion of the range so star flag can use sign bit.
     using _TemporaryType = decltype(__rng1.size());
     //TODO: limit to diagonals per block, and only write to a block based index of temporary data
     oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
