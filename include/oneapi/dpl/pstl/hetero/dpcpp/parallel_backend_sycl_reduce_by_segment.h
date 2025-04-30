@@ -98,17 +98,15 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     using _SegReduceCountKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-        _SegReduceCountPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate,
-        _BinaryOperator>;
+        _SegReduceCountPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
     using _SegReduceOffsetKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-        _SegReduceOffsetPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate,
-        _BinaryOperator>;
+        _SegReduceOffsetPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
     using _SegReduceWgKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-        _SegReduceWgPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate,
-        _BinaryOperator>;
+        _SegReduceWgPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
     using _SegReducePrefixKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-        _SegReducePrefixPhase, _CustomName, _ExecutionPolicy, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate,
-        _BinaryOperator>;
+        _SegReducePrefixPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
+
+    sycl::queue __q_local = __exec.queue();
 
     using __diff_type = oneapi::dpl::__internal::__difference_t<_Range3>;
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
@@ -116,32 +114,32 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     const std::size_t __n = __keys.size();
 
-    constexpr std::uint16_t __vals_per_item =
-        16; // Each work item serially processes 16 items. Best observed performance on gpu
+    // Each work item serially processes 16 items. Best observed performance on gpu
+    constexpr std::uint16_t __vals_per_item = 16;
 
     // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
     // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-    std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec.queue(), (std::size_t)2048);
+    std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__q_local, (std::size_t)2048);
 
     // adjust __wgroup_size according to local memory limit. Double the requirement on __val_type due to sycl group algorithm's use
     // of SLM.
     __wgroup_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(
-        __exec.queue(), sizeof(__key_type) + 2 * sizeof(__val_type), __wgroup_size);
+        __q_local, sizeof(__key_type) + 2 * sizeof(__val_type), __wgroup_size);
 
 #if _ONEDPL_COMPILE_KERNEL
     auto __seg_reduce_count_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceCountKernel>::__compile(__exec.queue());
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceCountKernel>::__compile(__q_local);
     auto __seg_reduce_offset_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceOffsetKernel>::__compile(__exec.queue());
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceOffsetKernel>::__compile(__q_local);
     auto __seg_reduce_wg_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceWgKernel>::__compile(__exec.queue());
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReduceWgKernel>::__compile(__q_local);
     auto __seg_reduce_prefix_kernel =
-        __par_backend_hetero::__internal::__kernel_compiler<_SegReducePrefixKernel>::__compile(__exec.queue());
+        __par_backend_hetero::__internal::__kernel_compiler<_SegReducePrefixKernel>::__compile(__q_local);
     __wgroup_size = std::min(
-        {__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __seg_reduce_count_kernel),
-         oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __seg_reduce_offset_kernel),
-         oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __seg_reduce_wg_kernel),
-         oneapi::dpl::__internal::__kernel_work_group_size(__exec.queue(), __seg_reduce_prefix_kernel)});
+        {__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_count_kernel),
+         oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_offset_kernel),
+         oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_wg_kernel),
+         oneapi::dpl::__internal::__kernel_work_group_size(__q_local, __seg_reduce_prefix_kernel)});
 #endif
 
     std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);
@@ -158,7 +156,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     auto __seg_ends_scanned = oneapi::dpl::__par_backend_hetero::__buffer<__diff_type>(__n_groups).get_buffer();
 
     // 1. Count the segment ends in each workgroup
-    auto __seg_end_identification = __exec.queue().submit([&](sycl::handler& __cgh) {
+    auto __seg_end_identification = __q_local.submit([&](sycl::handler& __cgh) {
         oneapi::dpl::__ranges::__require_access(__cgh, __keys);
         auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::write>(__cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
@@ -195,7 +193,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     });
 
     // 1.5 Small single-group kernel
-    auto __single_group_scan = __exec.queue().submit([&](sycl::handler& __cgh) {
+    auto __single_group_scan = __q_local.submit([&](sycl::handler& __cgh) {
         __cgh.depends_on(__seg_end_identification);
         auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::read>(__cgh);
         auto __seg_ends_scan_acc = __seg_ends_scanned.template get_access<sycl::access_mode::read_write>(__cgh);
@@ -215,7 +213,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     });
 
     // 2. Work group reduction
-    auto __wg_reduce = __exec.queue().submit([&](sycl::handler& __cgh) {
+    auto __wg_reduce = __q_local.submit([&](sycl::handler& __cgh) {
         __cgh.depends_on(__single_group_scan);
         oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_keys, __out_values, __values);
 
@@ -332,7 +330,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     });
 
     // 3. Apply inter work-group aggregates
-    __exec.queue()
+    __q_local
         .submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_keys, __out_values);
 
