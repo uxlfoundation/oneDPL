@@ -839,11 +839,10 @@ template <typename _CustomName, typename _InRng, typename _OutRng, typename _Gen
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
           typename _Inclusive, typename _IsUniquePattern>
 __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
-__parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
-                                      _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
-                                      _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
-                                      _ScanInputTransform __scan_input_transform, _WriteOp __write_op, _InitType __init,
-                                      _Inclusive, _IsUniquePattern)
+__parallel_transform_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng,
+                                      _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
+                                      _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
+                                      _WriteOp __write_op, _InitType __init, _Inclusive, _IsUniquePattern)
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<_CustomName>>;
