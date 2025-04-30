@@ -1001,28 +1001,26 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     }
     _Index __total_repeats = __rng1_repeats + __rng2_repeats_bck;
 
-    _Index __fwd_search_count = std::max(__total_repeats / 2, __rng2_repeats_bck);
-    _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count + 1, __rng2.size());
+    // Calculate the number of "unmatched" repeats in the first set, add one and divide by two to round up for a
+    // possible star diagonal.
+    _Index __fwd_search_count = (__rng1_repeats - __rng2_repeats_bck + 1) / 2;
 
-    _Index __rng2_repeat_end =
+    // Calculate the max location to search in the second set for future repeats, limiting to the edge of the range
+    _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2.size());
+
+    _Index __balanced_path_intersection_rng2 =
         oneapi::dpl::__internal::__pstl_upper_bound(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
 
-    _Index __rng2_eligible_repeats = __rng2_repeat_end - __rng2_repeat_start;
-    _Index __balanced_path_rng2_diff = std::min(__rng2_eligible_repeats, __fwd_search_count);
-    _Index __balanced_path_rng1_diff = __total_repeats - __balanced_path_rng2_diff;
+    // Calculate the number of matchable "future" repeats in the second set
+    _Index __matchable_forward_ele_rng2 = __balanced_path_intersection_rng2 - __merge_path_rng2;
+    _Index __total_matched_rng2 = __balanced_path_intersection_rng2 - __rng2_repeat_start;
+    _Index __balanced_path_intersection_rng1 = __rng1_repeat_start + __total_matched_rng2;
 
-    if (__balanced_path_rng1_diff - 1 == __balanced_path_rng2_diff &&
-        (__balanced_path_rng2_diff + 1 <= __rng2_eligible_repeats))
-    {
-        // The star offset is set to true if the balanced path is not on the diagonal, but one step forward in the
-        // second set. This is done to ensure that element matches from range 1 and range 2 are processed in matching
-        // pairs by the same work-item.
-        __star = true;
-        ++__balanced_path_rng2_diff;
-    }
+    // If we needed to step off the diagonal to find the balanced path, mark the diagonal as "starred"
+    __star = __balanced_path_intersection_rng1 + __balanced_path_intersection_rng2 != __merge_path_rng1 +
+             __merge_path_rng2;
 
-    return std::make_tuple(__rng1_repeat_start + __balanced_path_rng1_diff,
-                           __rng2_repeat_start + __balanced_path_rng2_diff, __star);
+    return std::make_tuple(__balanced_path_intersection_rng1, __balanced_path_intersection_rng2, __star);
 }
 
 // Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
