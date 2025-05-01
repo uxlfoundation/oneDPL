@@ -24,7 +24,9 @@ main()
 
     auto is_sorted_until_checker = TEST_PREPARE_CALLABLE(std::ranges::is_sorted_until);
 
-    test_range_algo<0>{big_sz}(dpl_ranges::is_sorted_until, is_sorted_until_checker, std::ranges::less{});
+    auto generator = [](auto i) { return i == 42? 0 : i;};
+    test_range_algo<0, int, data_in, decltype(generator)>{big_sz}(
+        dpl_ranges::is_sorted_until, is_sorted_until_checker, std::ranges::less{});
     test_range_algo<1>{}(dpl_ranges::is_sorted_until, is_sorted_until_checker, std::ranges::less{}, proj);
     test_range_algo<2, P2>{}(dpl_ranges::is_sorted_until, is_sorted_until_checker, std::ranges::less{}, &P2::x);
     test_range_algo<3, P2>{}(dpl_ranges::is_sorted_until, is_sorted_until_checker, std::ranges::less{}, &P2::proj);
