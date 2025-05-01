@@ -1327,7 +1327,7 @@ __pattern_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
     if (_DifferenceType(1) < __n)
     {
         __par_backend::__buffer<bool> __mask_buf(__n);
-        return __internal::__except_handler([__n, __first, __result, __pred, &__mask_buf]() {
+        return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf]() {
             bool* __mask = __mask_buf.get();
             _DifferenceType __m{};
             __par_backend::__parallel_strict_scan(
@@ -1608,7 +1608,7 @@ __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
         __par_backend::__buffer<bool> __mask_buf(__n);
         if (_DifferenceType(2) < __n)
         {
-            return __internal::__except_handler([__n, __first, __result, __pred, &__mask_buf]() {
+            return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf]() {
                 bool* __mask = __mask_buf.get();
                 _DifferenceType __m{};
                 __par_backend::__parallel_strict_scan(
@@ -2364,7 +2364,7 @@ __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
     if (_DifferenceType(1) < __n)
     {
         __par_backend::__buffer<bool> __mask_buf(__n);
-        return __internal::__except_handler([__n, __first, __out_true, __out_false, __pred, &__mask_buf]() {
+        return __internal::__except_handler([&__exec, __n, __first, __out_true, __out_false, __pred, &__mask_buf]() {
             bool* __mask = __mask_buf.get();
             _ReturnType __m{};
             __par_backend::__parallel_strict_scan(
@@ -3290,7 +3290,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
     __par_backend::__buffer<_T> __buf(__size_func(__n1, __n2));
 
-    return __internal::__except_handler([__n1, __first1, __last1, __first2, __last2, __result, __comp,
+    return __internal::__except_handler([&__exec, __n1, __first1, __last1, __first2, __last2, __result, __comp,
                                          __size_func, __set_op, &__buf]() {
         auto __tmp_memory = __buf.get();
         _DifferenceType __m{};
