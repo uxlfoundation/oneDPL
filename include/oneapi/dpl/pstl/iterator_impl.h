@@ -827,8 +827,7 @@ class permutation_iterator
     friend auto
     is_onedpl_indirectly_device_accessible_iterator(const permutation_iterator&)
         -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<SourceIterator>,
-                            oneapi::dpl::is_indirectly_device_accessible<
-                                typename oneapi::dpl::permutation_iterator<SourceIterator, _Permutation>::IndexMap>>;
+                            oneapi::dpl::is_indirectly_device_accessible<permutation_iterator::IndexMap>>;
 
   private:
     SourceIterator my_source_it;
