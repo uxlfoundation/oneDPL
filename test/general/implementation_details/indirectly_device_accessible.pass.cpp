@@ -22,7 +22,6 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 
-
 struct simple_iterator
 {
     using iterator_category = std::random_access_iterator_tag;
@@ -158,13 +157,12 @@ struct simple_indirectly_device_accessible_iterator : public simple_iterator
     simple_indirectly_device_accessible_iterator(int start = 0) : simple_iterator(start) {}
 };
 
-struct simple_explicitly_not_indirectly_device_accessible_iterator: public simple_iterator
+struct simple_explicitly_not_indirectly_device_accessible_iterator : public simple_iterator
 {
     using is_passed_directly = std::false_type;
 
     simple_explicitly_not_indirectly_device_accessible_iterator(int start = 0) : simple_iterator(start) {}
 };
-
 
 namespace custom_user
 {
@@ -179,95 +177,112 @@ struct base_strided_iterator
 
     base_strided_iterator(BaseIter base, int stride) : base(base), stride(stride) {}
 
-    reference operator*() const
+    reference
+    operator*() const
     {
         return *base;
     }
 
-    base_strided_iterator& operator++()
+    base_strided_iterator&
+    operator++()
     {
         std::advance(base, stride);
         return *this;
     }
 
-    base_strided_iterator operator++(int)
+    base_strided_iterator
+    operator++(int)
     {
         base_strided_iterator tmp = *this;
         ++(*this);
         return tmp;
     }
 
-    base_strided_iterator& operator--()
+    base_strided_iterator&
+    operator--()
     {
         std::advance(base, -stride);
         return *this;
     }
 
-    base_strided_iterator operator--(int)
+    base_strided_iterator
+    operator--(int)
     {
         base_strided_iterator tmp = *this;
         --(*this);
         return tmp;
     }
 
-    base_strided_iterator operator+(difference_type n) const
+    base_strided_iterator
+    operator+(difference_type n) const
     {
         return base_strided_iterator(std::next(base, n * stride), stride);
     }
 
-    base_strided_iterator operator-(difference_type n) const
+    base_strided_iterator
+    operator-(difference_type n) const
     {
         return base_strided_iterator(std::prev(base, n * stride), stride);
     }
 
-    difference_type operator-(const base_strided_iterator& other) const
+    difference_type
+    operator-(const base_strided_iterator& other) const
     {
         return (base - other.base) / stride;
     }
 
-    base_strided_iterator& operator+=(difference_type n)
+    base_strided_iterator&
+    operator+=(difference_type n)
     {
         std::advance(base, n * stride);
         return *this;
     }
 
-    base_strided_iterator& operator-=(difference_type n)
+    base_strided_iterator&
+    operator-=(difference_type n)
     {
         std::advance(base, -n * stride);
         return *this;
     }
 
-    reference operator[](difference_type n) const
+    reference
+    operator[](difference_type n) const
     {
         return *(base + n * stride);
     }
 
-    friend bool operator==(const base_strided_iterator& a, const base_strided_iterator& b)
+    friend bool
+    operator==(const base_strided_iterator& a, const base_strided_iterator& b)
     {
         return a.base == b.base;
     }
 
-    friend bool operator!=(const base_strided_iterator& a, const base_strided_iterator& b)
+    friend bool
+    operator!=(const base_strided_iterator& a, const base_strided_iterator& b)
     {
         return !(a == b);
     }
 
-    friend bool operator<(const base_strided_iterator& a, const base_strided_iterator& b)
+    friend bool
+    operator<(const base_strided_iterator& a, const base_strided_iterator& b)
     {
         return a.base < b.base;
     }
 
-    friend bool operator<=(const base_strided_iterator& a, const base_strided_iterator& b)
+    friend bool
+    operator<=(const base_strided_iterator& a, const base_strided_iterator& b)
     {
         return a.base <= b.base;
     }
 
-    friend bool operator>(const base_strided_iterator& a, const base_strided_iterator& b)
+    friend bool
+    operator>(const base_strided_iterator& a, const base_strided_iterator& b)
     {
         return a.base > b.base;
     }
 
-    friend bool operator>=(const base_strided_iterator& a, const base_strided_iterator& b)
+    friend bool
+    operator>=(const base_strided_iterator& a, const base_strided_iterator& b)
     {
         return a.base >= b.base;
     }
@@ -284,7 +299,8 @@ struct first_strided_iterator : public base_strided_iterator<BaseIter>
 };
 
 template <typename BaseIter>
-auto is_onedpl_indirectly_device_accessible_iterator(const first_strided_iterator<BaseIter>&)
+auto
+is_onedpl_indirectly_device_accessible_iterator(const first_strided_iterator<BaseIter>&)
 {
     return oneapi::dpl::is_indirectly_device_accessible<BaseIter>{};
 }
@@ -296,14 +312,16 @@ struct second_strided_iterator : public base_strided_iterator<BaseIter>
 };
 
 template <typename BaseIter>
-auto is_onedpl_indirectly_device_accessible_iterator(const second_strided_iterator<BaseIter>&)
+auto
+is_onedpl_indirectly_device_accessible_iterator(const second_strided_iterator<BaseIter>&)
     -> decltype(oneapi::dpl::is_indirectly_device_accessible<BaseIter>{});
 
 template <typename BaseIter>
 struct third_strided_iterator : public base_strided_iterator<BaseIter>
 {
     third_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
-    friend auto is_onedpl_indirectly_device_accessible_iterator(const third_strided_iterator<BaseIter>&)
+    friend auto
+    is_onedpl_indirectly_device_accessible_iterator(const third_strided_iterator<BaseIter>&)
     {
         return oneapi::dpl::is_indirectly_device_accessible<BaseIter>{};
     }
@@ -313,7 +331,8 @@ template <typename BaseIter>
 struct fourth_strided_iterator : public base_strided_iterator<BaseIter>
 {
     fourth_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
-    friend auto is_onedpl_indirectly_device_accessible_iterator(const fourth_strided_iterator<BaseIter>&)
+    friend auto
+    is_onedpl_indirectly_device_accessible_iterator(const fourth_strided_iterator<BaseIter>&)
         -> oneapi::dpl::is_indirectly_device_accessible<BaseIter>;
 };
 
@@ -324,20 +343,17 @@ void
 test_with_base_iterator()
 {
     //test assumption about base iterator device accessible content iterator
-    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<BaseIter> ==
-                      base_indirectly_device_accessible,
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<BaseIter> == base_indirectly_device_accessible,
                   "is_onedpl_indirectly_device_accessible_iterator is not working correctly for base iterator");
 
     // test wrapping base in transform_iterator
     using TransformIter = oneapi::dpl::transform_iterator<BaseIter, TestUtils::noop_device_copyable>;
-    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<TransformIter> ==
-                      base_indirectly_device_accessible,
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<TransformIter> == base_indirectly_device_accessible,
                   "is_onedpl_indirectly_device_accessible_iterator is not working correctly for transform iterator");
 
     // test wrapping base in permutation_iterator with counting iter
     using PermutationIter = oneapi::dpl::permutation_iterator<BaseIter, oneapi::dpl::counting_iterator<std::int32_t>>;
-    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<PermutationIter> ==
-                      base_indirectly_device_accessible,
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<PermutationIter> == base_indirectly_device_accessible,
                   "is_onedpl_indirectly_device_accessible_iterator is not working correctly for permutation iterator");
 
     // test wrapping base in permutation_iter with functor
@@ -354,22 +370,19 @@ test_with_base_iterator()
 
     // test wrapping base in zip_iterator with counting_iterator first
     using ZipIterCounting = oneapi::dpl::zip_iterator<oneapi::dpl::counting_iterator<std::int32_t>, BaseIter>;
-    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<ZipIterCounting> ==
-                      base_indirectly_device_accessible,
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<ZipIterCounting> == base_indirectly_device_accessible,
                   "is_onedpl_indirectly_device_accessible_iterator is not working correctly for zip iterator with "
                   "counting iterator first");
 
     // test wrapping base in zip_iterator with counting_iterator second
     using ZipIterCounting2 = oneapi::dpl::zip_iterator<BaseIter, oneapi::dpl::counting_iterator<std::int32_t>>;
-    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<ZipIterCounting2> ==
-                      base_indirectly_device_accessible,
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<ZipIterCounting2> == base_indirectly_device_accessible,
                   "is_onedpl_indirectly_device_accessible_iterator is not working correctly for zip iterator with "
                   "counting iterator first");
 
     // test wrapping base in reverse_iterator
     using ReverseIter = std::reverse_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<ReverseIter> ==
-                      base_indirectly_device_accessible,
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<ReverseIter> == base_indirectly_device_accessible,
                   "is_onedpl_indirectly_device_accessible_iterator is not working correctly for reverse iterator");
 
     // test custom user first strided iterator with normal ADL function
@@ -387,8 +400,7 @@ test_with_base_iterator()
 
     // test custom user first strided iterator with hidden friend ADL function
     using ThirdStridedIter = custom_user::third_strided_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<ThirdStridedIter> ==
-                      base_indirectly_device_accessible,
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<ThirdStridedIter> == base_indirectly_device_accessible,
                   "is_onedpl_indirectly_device_accessible_iterator is not working correctly for custom user strided "
                   "iterator with hidden friend ADL function");
 
