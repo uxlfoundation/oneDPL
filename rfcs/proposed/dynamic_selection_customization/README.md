@@ -32,18 +32,18 @@ type `T` satisfies the *Backend* contract if given,
 
 | Use Case | Description |
 | --------------------- | -------- |
-| Default Backend | User only provides universe, no custom backend at all. |
-| Uninstrumented Backend | User defines small part of backend: `wait_type`, `submission_group`. Better waiting support. |
-| Instrumented Backend | User provides instrumentation for reporting |
+| Default Backend | No custom backend at all. |
+| Uninstrumented Backend | Backend overrides a small part of default backend: `wait_type`, `submission_group`, for better waiting support. |
+| Instrumented Backend | Backend includes instrumentation for reporting |
 
-We remind readers of this proposal that the requirements of *Submission* and *Selection* objects are provided in
+The requirements of *Submission* and *Selection* objects are provided in
 [the current design description](https://github.com/uxlfoundation/oneDPL/tree/main/rfcs/experimental/dynamic_selection).
 
 ### Default Backend
 
 For policies that require no reporting of `execution_info`, it should be simple to use a new resource type,
-perhaps even without writing a custom backend. For example, what if we want to round-robin through pointers to
-queues instead of queues. 
+perhaps even without writing a custom backend. Below is an example that uses round-robin to rotate through
+through pointers to queues.
 
 ```cpp
     sycl::queue q1, q2;
@@ -65,7 +65,7 @@ queues instead of queues.
 
 #### submit
 
-The main role that `submit` plays is to add instrumentation around the call to `f`.
+The main role that `submit` plays in a backend is to add instrumentation around the call to `f`.
 Experience has shown us that most backends perform four basic steps in their implementation
 of the `submit` function:
 
@@ -76,12 +76,14 @@ of the `submit` function:
 
 If a backend writer doesn't care if their backend works with policies that require reporting, then
 they can use a default implementation of submit that simply calls `f` and returns the backends *Submission*
-object. A *Submission* object must support `s.wait()` and `s.unwrap`. A default backend cannot meaningfully
+object. 
+
+A *Submission* object must support `s.wait()` and `s.unwrap`. A default backend cannot meaningfully
 implement `wait` on an arbitrary type, but could easily wrap a type, such as `sycl::queue` or `tbb::task_group`
 that provides a `wait` member function and call that `wait` member function if it finds it, and in other cases
-provide an empty `wrap` function. `s.unwrap` can return whatever was returned by the user's function. Our simple
-example above returns a `sycl::queue` from its function and so a default backend can easily synthesize a meaningful
-*Submission* type from it, since `q.wait()` is valid.
+provide an empty `s.wait` function. `s.unwrap` usually returns what was returned by the user's function `f`.
+Our simple example above returns a `sycl::queue` from its function and so a default backend can easily synthesize
+a meaningful *Submission* type from it, with `s.wait` calling `q.wait()` and `s.unwrap` returning the queue.
 
 #### get_resources
 
@@ -101,11 +103,12 @@ for an arbitrary backend resource, this function will likely need to return a du
 It may be possible that a backend writer wants to do a little bit of work, so that `get_submission_group` works
 properly, and/or that there is a meaningful *Submission* type defined, and/or there is a default set of resources
 defined even when called with no explicit universe. But, they may not want to go through the effort of
-implementing the reporting mechanism. In that case, we should define a way to customize the default
-backend for the resource type in a way to opt-in to only those parts that should be customized.
+implementing the reporting mechanisms needed to work with all policies. In that case, we should define a way
+to customize the default backend for the resource type while falling back to default behaviors for functions
+that are unimportant to the backend writer.
 
-For example, we may round-robin through pointers to queues, have a default set of resources
-and/or wait on the submission group:
+For example, a backend that defines `get_resources`, `get_submission_group` and appropriate *Submission* type,
+results in added functionality:
 
 ```cpp
     ex::round_robin_policy<sycl::queue*> p;
@@ -146,7 +149,8 @@ functions `instrument_before` and `instrument_after` that can be used to opt-in 
 in a backend. A backend writer will not need to fully define `submit` but instead only write the
 code to set up and reporting needed for the backend.
 
-For example, we may using auto-tune for pointers to queues:
+For example, we may using auto-tune for pointers to queues if the instrumentation related
+functionality is defined in the backend:
 
 ```cpp
     sycl::queue q1, q2;
