@@ -300,7 +300,7 @@ __pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomA
 
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_strict_scan(
-            __backend_tag{}, __n, __init,
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, __init,
             [__first, __unary_op, __binary_op, __result](_DifferenceType __i, _DifferenceType __len) {
                 return __internal::__brick_transform_scan(__first + __i, __first + (__i + __len), __result + __i,
                                                           __unary_op, _Tp{}, __binary_op, _Inclusive(), _IsVector{})
