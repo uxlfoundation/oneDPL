@@ -415,13 +415,15 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
         using _histogram_index_type = ::std::int32_t;
 
-        auto __global_mem_size = __q.get_device().template get_info<sycl::info::device::global_mem_size>();
-        const ::std::size_t __max_segments =
-            ::std::min(__global_mem_size / (__num_bins * sizeof(_bin_type)),
-                       oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __min_iters_per_work_item));
-        const ::std::size_t __iters_per_work_item =
+        const std::uint64_t __global_mem_size = __q.get_device().get_info<sycl::info::device::global_mem_size>();
+        const std::uint64_t __max_groups =
+            oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __min_iters_per_work_item);
+        const std::uint64_t __max_segments =
+            std::min(__global_mem_size / (__num_bins * sizeof(_bin_type)), __max_groups);
+
+        const std::size_t __iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __max_segments * __work_group_size);
-        ::std::size_t __segments =
+        const std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
 
         auto __private_histograms =
