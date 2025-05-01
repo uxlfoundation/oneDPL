@@ -416,7 +416,8 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
         using _histogram_index_type = ::std::int32_t;
 
         const std::uint64_t __global_mem_size = __q.get_device().get_info<sycl::info::device::global_mem_size>();
-        const auto __max_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __min_iters_per_work_item);
+        const auto __max_groups =
+            oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __min_iters_per_work_item);
         const std::size_t __max_segments = std::min<std::common_type_t<std::uint64_t, decltype(__max_groups)>>(
             __global_mem_size / (__num_bins * sizeof(_bin_type)), __max_groups);
 
