@@ -135,7 +135,7 @@ template <typename _F>
 struct walk_n_vectors_or_scalars
 {
   private:
-    _F __f;
+    mutable _F __f;
     std::size_t __n;
     template <typename _IsFull, typename _Params, typename _InRng, typename _OutRng,
               std::enable_if_t<_Params::__b_vectorize, int> = 0>
