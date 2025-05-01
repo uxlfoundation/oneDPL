@@ -61,7 +61,7 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
     {
         assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
             __rngs.size())...}) > 0);
-        assert(__count> 0);
+        assert(__count > 0);
 
         _PRINT_INFO_IN_DEBUG_MODE(__q);
         auto __event = __q.submit([&__rngs..., &__brick, __count](sycl::handler& __cgh) {
