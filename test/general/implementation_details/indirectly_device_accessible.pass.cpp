@@ -22,200 +22,254 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 
-struct simple_indirectly_device_accessible_iterator
+
+struct simple_iterator
 {
-    using iterator_category = std::input_iterator_tag;
+    using iterator_category = std::random_access_iterator_tag;
     using value_type = int;
     using difference_type = std::ptrdiff_t;
     using pointer = int*;
     using reference = int&;
 
+    using is_passed_directly = std::false_type;
+
+    simple_iterator(int start = 0) : value(start) {}
+
+    int
+    operator*() const
+    {
+        return value;
+    }
+
+    simple_iterator&
+    operator++()
+    {
+        ++value;
+        return *this;
+    }
+
+    simple_iterator
+    operator++(int)
+    {
+        simple_iterator tmp = *this;
+        ++(*this);
+        return tmp;
+    }
+
+    simple_iterator&
+    operator--()
+    {
+        --value;
+        return *this;
+    }
+
+    simple_iterator
+    operator--(int)
+    {
+        simple_iterator tmp = *this;
+        --(*this);
+        return tmp;
+    }
+
+    simple_iterator
+    operator+(int i) const
+    {
+        return simple_iterator(value + i);
+    }
+
+    simple_iterator
+    operator-(int i) const
+    {
+        return simple_iterator(value - i);
+    }
+
+    difference_type
+    operator-(const simple_iterator& other) const
+    {
+        return value - other.value;
+    }
+
+    simple_iterator&
+    operator+=(int i)
+    {
+        value += i;
+        return *this;
+    }
+
+    simple_iterator&
+    operator-=(int i)
+    {
+        value -= i;
+        return *this;
+    }
+
+    int
+    operator[](int i) const
+    {
+        return value + i;
+    }
+
+    friend bool
+    operator==(const simple_iterator& a, const simple_iterator& b)
+    {
+        return a.value == b.value;
+    }
+
+    friend bool
+    operator!=(const simple_iterator& a, const simple_iterator& b)
+    {
+        return !(a == b);
+    }
+
+    friend bool
+    operator<(const simple_iterator& a, const simple_iterator& b)
+    {
+        return a.value < b.value;
+    }
+
+    friend bool
+    operator<=(const simple_iterator& a, const simple_iterator& b)
+    {
+        return a.value <= b.value;
+    }
+
+    friend bool
+    operator>(const simple_iterator& a, const simple_iterator& b)
+    {
+        return a.value > b.value;
+    }
+
+    friend bool
+    operator>=(const simple_iterator& a, const simple_iterator& b)
+    {
+        return a.value >= b.value;
+    }
+
+  private:
+    int value;
+};
+
+using simple_implicitly_not_indirectly_device_accessible_iterator = simple_iterator;
+
+struct simple_indirectly_device_accessible_iterator : public simple_iterator
+{
     using is_passed_directly = std::true_type;
 
-    simple_indirectly_device_accessible_iterator(int start = 0) : value(start) {}
-
-    int
-    operator*() const
-    {
-        return value;
-    }
-
-    simple_indirectly_device_accessible_iterator&
-    operator++()
-    {
-        ++value;
-        return *this;
-    }
-
-    simple_indirectly_device_accessible_iterator
-    operator++(int)
-    {
-        simple_indirectly_device_accessible_iterator tmp = *this;
-        ++(*this);
-        return tmp;
-    }
-
-    friend bool
-    operator==(const simple_indirectly_device_accessible_iterator& a,
-               const simple_indirectly_device_accessible_iterator& b)
-    {
-        return a.value == b.value;
-    }
-
-    friend bool
-    operator!=(const simple_indirectly_device_accessible_iterator& a,
-               const simple_indirectly_device_accessible_iterator& b)
-    {
-        return !(a == b);
-    }
-
-  private:
-    int value;
+    simple_indirectly_device_accessible_iterator(int start = 0) : simple_iterator(start) {}
 };
 
-struct simple_explicitly_not_indirectly_device_accessible_iterator
+struct simple_explicitly_not_indirectly_device_accessible_iterator: public simple_iterator
 {
-    using iterator_category = std::input_iterator_tag;
-    using value_type = int;
-    using difference_type = std::ptrdiff_t;
-    using pointer = int*;
-    using reference = int&;
-
     using is_passed_directly = std::false_type;
 
-    simple_explicitly_not_indirectly_device_accessible_iterator(int start = 0) : value(start) {}
-
-    int
-    operator*() const
-    {
-        return value;
-    }
-
-    simple_explicitly_not_indirectly_device_accessible_iterator&
-    operator++()
-    {
-        ++value;
-        return *this;
-    }
-
-    simple_explicitly_not_indirectly_device_accessible_iterator
-    operator++(int)
-    {
-        simple_explicitly_not_indirectly_device_accessible_iterator tmp = *this;
-        ++(*this);
-        return tmp;
-    }
-
-    friend bool
-    operator==(const simple_explicitly_not_indirectly_device_accessible_iterator& a,
-               const simple_explicitly_not_indirectly_device_accessible_iterator& b)
-    {
-        return a.value == b.value;
-    }
-
-    friend bool
-    operator!=(const simple_explicitly_not_indirectly_device_accessible_iterator& a,
-               const simple_explicitly_not_indirectly_device_accessible_iterator& b)
-    {
-        return !(a == b);
-    }
-
-  private:
-    int value;
+    simple_explicitly_not_indirectly_device_accessible_iterator(int start = 0) : simple_iterator(start) {}
 };
 
-struct simple_implicitly_not_indirectly_device_accessible_iterator
-{
-    using iterator_category = std::input_iterator_tag;
-    using value_type = int;
-    using difference_type = std::ptrdiff_t;
-    using pointer = int*;
-    using reference = int&;
-
-    using is_passed_directly = std::false_type;
-
-    simple_implicitly_not_indirectly_device_accessible_iterator(int start = 0) : value(start) {}
-
-    int
-    operator*() const
-    {
-        return value;
-    }
-
-    simple_implicitly_not_indirectly_device_accessible_iterator&
-    operator++()
-    {
-        ++value;
-        return *this;
-    }
-
-    simple_implicitly_not_indirectly_device_accessible_iterator
-    operator++(int)
-    {
-        simple_implicitly_not_indirectly_device_accessible_iterator tmp = *this;
-        ++(*this);
-        return tmp;
-    }
-
-    friend bool
-    operator==(const simple_implicitly_not_indirectly_device_accessible_iterator& a,
-               const simple_implicitly_not_indirectly_device_accessible_iterator& b)
-    {
-        return a.value == b.value;
-    }
-
-    friend bool
-    operator!=(const simple_implicitly_not_indirectly_device_accessible_iterator& a,
-               const simple_implicitly_not_indirectly_device_accessible_iterator& b)
-    {
-        return !(a == b);
-    }
-
-  private:
-    int value;
-};
 
 namespace custom_user
 {
 template <typename BaseIter>
 struct base_strided_iterator
 {
-    using iterator_category = std::input_iterator_tag;
+    using iterator_category = std::random_access_iterator_tag;
     using value_type = typename std::iterator_traits<BaseIter>::value_type;
+    using difference_type = typename std::iterator_traits<BaseIter>::difference_type;
+    using pointer = typename std::iterator_traits<BaseIter>::pointer;
+    using reference = typename std::iterator_traits<BaseIter>::reference;
 
     base_strided_iterator(BaseIter base, int stride) : base(base), stride(stride) {}
 
-    int
-    operator*() const
+    reference operator*() const
     {
         return *base;
     }
 
-    base_strided_iterator&
-    operator++()
+    base_strided_iterator& operator++()
     {
         std::advance(base, stride);
         return *this;
     }
 
-    base_strided_iterator
-    operator++(int)
+    base_strided_iterator operator++(int)
     {
         base_strided_iterator tmp = *this;
         ++(*this);
         return tmp;
     }
 
-    friend bool
-    operator==(const base_strided_iterator& a, const base_strided_iterator& b)
+    base_strided_iterator& operator--()
+    {
+        std::advance(base, -stride);
+        return *this;
+    }
+
+    base_strided_iterator operator--(int)
+    {
+        base_strided_iterator tmp = *this;
+        --(*this);
+        return tmp;
+    }
+
+    base_strided_iterator operator+(difference_type n) const
+    {
+        return base_strided_iterator(std::next(base, n * stride), stride);
+    }
+
+    base_strided_iterator operator-(difference_type n) const
+    {
+        return base_strided_iterator(std::prev(base, n * stride), stride);
+    }
+
+    difference_type operator-(const base_strided_iterator& other) const
+    {
+        return (base - other.base) / stride;
+    }
+
+    base_strided_iterator& operator+=(difference_type n)
+    {
+        std::advance(base, n * stride);
+        return *this;
+    }
+
+    base_strided_iterator& operator-=(difference_type n)
+    {
+        std::advance(base, -n * stride);
+        return *this;
+    }
+
+    reference operator[](difference_type n) const
+    {
+        return *(base + n * stride);
+    }
+
+    friend bool operator==(const base_strided_iterator& a, const base_strided_iterator& b)
     {
         return a.base == b.base;
     }
 
-    friend bool
-    operator!=(const base_strided_iterator& a, const base_strided_iterator& b)
+    friend bool operator!=(const base_strided_iterator& a, const base_strided_iterator& b)
     {
         return !(a == b);
+    }
+
+    friend bool operator<(const base_strided_iterator& a, const base_strided_iterator& b)
+    {
+        return a.base < b.base;
+    }
+
+    friend bool operator<=(const base_strided_iterator& a, const base_strided_iterator& b)
+    {
+        return a.base <= b.base;
+    }
+
+    friend bool operator>(const base_strided_iterator& a, const base_strided_iterator& b)
+    {
+        return a.base > b.base;
+    }
+
+    friend bool operator>=(const base_strided_iterator& a, const base_strided_iterator& b)
+    {
+        return a.base >= b.base;
     }
 
   private:
@@ -230,8 +284,7 @@ struct first_strided_iterator : public base_strided_iterator<BaseIter>
 };
 
 template <typename BaseIter>
-auto
-is_onedpl_indirectly_device_accessible_iterator(const first_strided_iterator<BaseIter>&)
+auto is_onedpl_indirectly_device_accessible_iterator(const first_strided_iterator<BaseIter>&)
 {
     return oneapi::dpl::is_indirectly_device_accessible<BaseIter>{};
 }
@@ -243,16 +296,14 @@ struct second_strided_iterator : public base_strided_iterator<BaseIter>
 };
 
 template <typename BaseIter>
-auto
-is_onedpl_indirectly_device_accessible_iterator(const second_strided_iterator<BaseIter>&)
+auto is_onedpl_indirectly_device_accessible_iterator(const second_strided_iterator<BaseIter>&)
     -> decltype(oneapi::dpl::is_indirectly_device_accessible<BaseIter>{});
 
 template <typename BaseIter>
 struct third_strided_iterator : public base_strided_iterator<BaseIter>
 {
     third_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
-    friend auto
-    is_onedpl_indirectly_device_accessible_iterator(const third_strided_iterator<BaseIter>&)
+    friend auto is_onedpl_indirectly_device_accessible_iterator(const third_strided_iterator<BaseIter>&)
     {
         return oneapi::dpl::is_indirectly_device_accessible<BaseIter>{};
     }
@@ -262,8 +313,7 @@ template <typename BaseIter>
 struct fourth_strided_iterator : public base_strided_iterator<BaseIter>
 {
     fourth_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
-    friend auto
-    is_onedpl_indirectly_device_accessible_iterator(const fourth_strided_iterator<BaseIter>&)
+    friend auto is_onedpl_indirectly_device_accessible_iterator(const fourth_strided_iterator<BaseIter>&)
         -> oneapi::dpl::is_indirectly_device_accessible<BaseIter>;
 };
 
