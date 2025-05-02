@@ -770,7 +770,8 @@ class __future : private std::tuple<_Args...>
     }
 
   public:
-    __future(_Event __e, _Args... __args) : std::tuple<_Args...>(__args...), __my_event(__e) {}
+    template<typename... _UArgs>
+    __future(_Event __e, _UArgs&&... __args) : std::tuple<_Args...>(std::forward<_UArgs>(__args)...), __my_event(__e) {}
     __future(_Event __e, std::tuple<_Args...> __t) : std::tuple<_Args...>(__t), __my_event(__e) {}
 
     auto

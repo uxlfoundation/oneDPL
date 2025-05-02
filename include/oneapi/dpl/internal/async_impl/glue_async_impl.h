@@ -97,8 +97,8 @@ sort_async(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Comp
 
     wait_for_all(std::forward<_Events>(__dependencies)...);
 
-    return oneapi::dpl::__internal::__pattern_stable_sort_async(
-        __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __comp);
+    return oneapi::dpl::__internal::__pattern_stable_sort_async(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+                                                                __first, __last, __comp);
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator, class... _Events,

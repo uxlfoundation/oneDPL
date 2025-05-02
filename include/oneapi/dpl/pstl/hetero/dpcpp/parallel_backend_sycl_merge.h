@@ -450,8 +450,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         __event = run_parallel_merge(__event, __q, __rng1, __rng2, __rng3, __comp, __nd_range_params,
                                      *__p_base_diagonals_sp_global_storage);
 
-        return __future{std::move(__event), std::unique_ptr<__result_and_scratch_storage_base>{
-                                                __p_base_diagonals_sp_global_storage}};
+        return __future{std::move(__event),
+                        std::unique_ptr<__result_and_scratch_storage_base>{__p_base_diagonals_sp_global_storage}};
     }
 };
 
