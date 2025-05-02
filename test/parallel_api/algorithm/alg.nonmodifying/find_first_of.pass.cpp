@@ -119,7 +119,7 @@ main()
 #if !ONEDPL_FPGA_DEVICE
     test<std::uint16_t>(::std::not_equal_to<std::uint16_t>());
 #endif
-    test<float64_t>([](const float64_t x, const float64_t y) { return x * x == y * y; }); // KSATODO move lambda out
+    test<float64_t>([](const float64_t x, const float64_t y) { return x * x == y * y; });
 
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 
