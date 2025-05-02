@@ -115,10 +115,10 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__serial_backend_tag, _Exec
     return __reduce(__first, __last, __init);
 }
 
-template <typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
+template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
-__parallel_strict_scan(oneapi::dpl::__internal::__serial_backend_tag, _Index __n, _Tp __initial, _Rp __reduce,
-                       _Cp __combine, _Sp __scan, _Ap __apex)
+__parallel_strict_scan(oneapi::dpl::__internal::__serial_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
+                       _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
     _Tp __sum = __initial;
     if (__n)
