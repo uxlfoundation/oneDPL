@@ -26,7 +26,7 @@ int
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
-    auto test = [](){ // KSATODO move lambda out?
+    auto test = [](){
         int a[4] = {0, 0, 0, 0};
         auto res = std::ranges::subrange(a, a+4) | std::ranges::views::transform([](auto v) { return v + 1;});
         return res[0] == 1 && res[1] == 1 && res[2] == 1 && res[3] == 1 && *(res.begin() + 2) == 1 &&
