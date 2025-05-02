@@ -133,22 +133,75 @@ test_merge_by_type(Generator1 generator1, Generator2 generator2, size_t start_si
     }
 }
 
+template <typename T>
+struct L1
+{
+    T operator()(T v) const
+    {
+        return (v % 2 == 0 ? v : -v) * 3;
+    }
+};
+
+template <typename T>
+struct L2
+{
+    T operator()(T v) const
+    {
+        return v * 2;
+    }
+};
+
+template <typename T, typename TResult>
+struct L3
+{
+    TResult operator()(T v) const
+    {
+        return TResult(v);
+    }
+};
+
+template <typename T, typename TResult>
+struct L4
+{
+    TResult operator()(T v) const
+    {
+        return TResult(v - 100);
+    }
+};
+
+template <typename T>
+struct L5
+{
+    auto operator()(T v) const
+    {
+        return Wrapper<std::int16_t>(v % 100);
+    }
+};
+
+template <typename T>
+struct L6
+{
+    auto operator()(T v) const
+    {
+        return Wrapper<std::int16_t>(v % 10);
+    }
+};
+
+
 template <typename FStep>
 void
 test_merge_by_type(size_t start_size, size_t max_size, FStep fstep)
 {
-     // KSATODO move lambda out
-    test_merge_by_type<std::int32_t>([](size_t v) { return (v % 2 == 0 ? v : -v) * 3; }, [](size_t v) { return v * 2; }, start_size, max_size, fstep);
+    test_merge_by_type<std::int32_t>(L1<std::size_t>{}, L2<std::size_t>{}, start_size, max_size, fstep);
 #if !ONEDPL_FPGA_DEVICE
-     // KSATODO move lambda out
-    test_merge_by_type<float64_t>([](size_t v) { return float64_t(v); }, [](size_t v) { return float64_t(v - 100); }, start_size, max_size, fstep);
+    test_merge_by_type<float64_t>(L3<std::size_t, std::float64_t>{}, L4<std::size_t, std::float64_t>{}, start_size, max_size, fstep);
 #endif
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     // Wrapper has atomic increment in ctor. It's not allowed in kernel
      // KSATODO move lambda out
-    test_merge_by_type<Wrapper<std::int16_t>>([](size_t v) { return Wrapper<std::int16_t>(v % 100); },
-                                              [](size_t v) { return Wrapper<std::int16_t>(v % 10); },
+    test_merge_by_type<Wrapper<std::int16_t>>(L5<std::size_t>{},
+                                              L6<std::size_t>{},
                                               start_size, max_size, fstep);
 #endif
 }
