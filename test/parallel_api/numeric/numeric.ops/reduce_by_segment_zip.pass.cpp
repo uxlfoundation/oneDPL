@@ -25,13 +25,14 @@
 
 #include <functional>
 #include <iostream>
+#include <tuple>
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "support/sycl_alloc_utils.h"
 
-template <sycl::usm::alloc alloc_type, typename KernelName>
+template <sycl::usm::alloc alloc_type, std::size_t KernelIdx, typename BinaryOp>
 void
-test_with_usm()
+test_with_usm(BinaryOp binary_op)
 {
     sycl::queue q = TestUtils::get_test_queue();
 
@@ -71,12 +72,13 @@ test_with_usm()
     auto begin_vals_in = oneapi::dpl::make_zip_iterator(d_values1, d_values2);
     auto begin_keys_out= oneapi::dpl::make_zip_iterator(d_output_keys1, d_output_keys2);
     auto begin_vals_out= oneapi::dpl::make_zip_iterator(d_output_values1, d_output_values2);
-
+    auto policy = TestUtils::make_device_policy<
+        TestUtils::unique_kernel_name<BinaryOp, KernelIdx>>(q);
     //run reduce_by_segment algorithm 
     auto new_last = oneapi::dpl::reduce_by_segment(
-        TestUtils::make_device_policy<KernelName>(q), begin_keys_in,
+        policy, begin_keys_in,
         end_keys_in, begin_vals_in, begin_keys_out, begin_vals_out,
-       ::std::equal_to<>(), TestUtils::TupleAddFunctor());
+        std::equal_to<>(), binary_op);
 
     //retrieve result on the host and check the result
     dt_helper5.retrieve_data(output_keys1);
@@ -109,9 +111,9 @@ test_with_usm()
     EXPECT_EQ_N(exp_values2, output_values2, n, "wrong values2 from reduce_by_segment");
 }
 
-template <typename KernelName>
+template <std::size_t KernelIdx, typename BinaryOp>
 void
-test_zip_with_discard()
+test_zip_with_discard(BinaryOp binary_op)
 {
     constexpr sycl::usm::alloc alloc_type = sycl::usm::alloc::device;
     sycl::queue q = TestUtils::get_test_queue();
@@ -146,11 +148,13 @@ test_zip_with_discard()
     auto begin_vals_in = oneapi::dpl::make_zip_iterator(d_values1, d_values2);
     auto begin_keys_out = oneapi::dpl::make_zip_iterator(d_output_keys, oneapi::dpl::discard_iterator());
     auto begin_vals_out = oneapi::dpl::make_zip_iterator(oneapi::dpl::discard_iterator(), d_output_values);
+    auto policy = TestUtils::make_device_policy<
+        TestUtils::unique_kernel_name<BinaryOp, KernelIdx>>(q);
 
     //run reduce_by_segment algorithm
-    auto new_last = oneapi::dpl::reduce_by_segment(TestUtils::make_device_policy<KernelName>(q), begin_keys_in,
+    auto new_last = oneapi::dpl::reduce_by_segment(policy, begin_keys_in,
                                                    end_keys_in, begin_vals_in, begin_keys_out, begin_vals_out,
-                                                   std::equal_to<>(), TestUtils::TupleAddFunctor());
+                                                   std::equal_to<>(), binary_op);
 
     //retrieve result on the host and check the result
     dt_helper5.retrieve_data(output_keys);
@@ -167,12 +171,16 @@ test_zip_with_discard()
 int main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    // Run tests for USM shared memory
-    test_with_usm<sycl::usm::alloc::shared, class KernelName1>();
-    // Run tests for USM device memory
-    test_with_usm<sycl::usm::alloc::device, class KernelName2>();
+    auto run_test_with_op = [](auto binary_op) {
+        // Run tests for USM shared memory
+        test_with_usm<sycl::usm::alloc::shared, 0>(binary_op);
+        // Run tests for USM device memory
+        test_with_usm<sycl::usm::alloc::device, 1>(binary_op);
 
-    test_zip_with_discard<class KernelName3>();
+        test_zip_with_discard<2>(binary_op);
+    };
+    run_test_with_op(TestUtils::TupleAddFunctor1{});
+    run_test_with_op(TestUtils::TupleAddFunctor2{});
 #endif
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);

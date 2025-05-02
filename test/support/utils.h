@@ -861,7 +861,7 @@ struct MaxAbsFunctor<MatrixPoint<_Tp>>
     }
 };
 
-struct TupleAddFunctor
+struct TupleAddFunctor1
 {
     template <typename Tup1, typename Tup2>
     auto
@@ -869,6 +869,22 @@ struct TupleAddFunctor
     {
         using ::std::get;
         Tup1 tup_sum = ::std::make_tuple(get<0>(lhs) + get<0>(rhs), get<1>(lhs) + get<1>(rhs));
+        return tup_sum;
+    }
+};
+
+// Exercise an explicit return of std::tuple to check for issues related to ambiguous return types between
+// oneapi::dpl::__internal::tuple and std::tuple
+struct TupleAddFunctor2
+{
+    template <typename Tup1, typename Tup2>
+    auto
+    operator()(const Tup1& lhs, const Tup2& rhs) const
+    {
+        using std::get;
+        using return_t =
+            std::tuple<decltype(get<0>(lhs) + get<0>(rhs)), decltype(get<1>(lhs) + get<1>(rhs))>;
+        return_t tup_sum{get<0>(lhs) + get<0>(rhs), get<1>(lhs) + get<1>(rhs)};
         return tup_sum;
     }
 };

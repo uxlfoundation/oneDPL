@@ -1331,7 +1331,7 @@ __pattern_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
             bool* __mask = __mask_buf.get();
             _DifferenceType __m{};
             __par_backend::__parallel_strict_scan(
-                __backend_tag{}, __n, _DifferenceType(0),
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
                 [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
                     return __internal::__brick_calc_mask_1<_DifferenceType>(__first + __i, __first + (__i + __len),
                                                                             __mask + __i, __pred, _IsVector{})
@@ -1488,7 +1488,7 @@ __remove_elements(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
         _DifferenceType __m{};
         // 2. Elements that doesn't satisfy pred are moved to result
         __par_backend::__parallel_strict_scan(
-            __backend_tag{}, __n, _DifferenceType(0),
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
             [__mask](_DifferenceType __i, _DifferenceType __len) {
                 return __internal::__brick_count(
                     __mask + __i, __mask + __i + __len, [](bool __val) { return __val; }, _IsVector{});
@@ -1612,7 +1612,7 @@ __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
                 bool* __mask = __mask_buf.get();
                 _DifferenceType __m{};
                 __par_backend::__parallel_strict_scan(
-                    __backend_tag{}, __n, _DifferenceType(0),
+                    __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
                     [=](_DifferenceType __i, _DifferenceType __len) -> _DifferenceType { // Reduce
                         _DifferenceType __extra = 0;
                         if (__i == 0)
@@ -2368,7 +2368,8 @@ __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
             bool* __mask = __mask_buf.get();
             _ReturnType __m{};
             __par_backend::__parallel_strict_scan(
-                __backend_tag{}, __n, ::std::make_pair(_DifferenceType(0), _DifferenceType(0)),
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n,
+                std::make_pair(_DifferenceType(0), _DifferenceType(0)),
                 [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
                     return __internal::__brick_calc_mask_1<_DifferenceType>(__first + __i, __first + (__i + __len),
                                                                             __mask + __i, __pred, _IsVector{});
@@ -3300,8 +3301,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
                                                                   __result + __s.__pos, _IsVector{});
         };
         __par_backend::__parallel_strict_scan(
-            __backend_tag{}, __n1, _SetRange{0, 0, 0},        //-1, 0},
-            [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n1, _SetRange{0, 0, 0}, //-1, 0},
+            [=](_DifferenceType __i, _DifferenceType __len) {                                  // Reduce
                 //[__b; __e) - a subrange of the first sequence, to reduce
                 _RandomAccessIterator1 __b = __first1 + __i, __e = __first1 + (__i + __len);
 
