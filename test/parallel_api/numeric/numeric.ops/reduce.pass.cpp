@@ -105,14 +105,14 @@ int
 main()
 {
     // Test for popular types
-    test_long_form(42, ::std::plus<std::int32_t>(), [](std::int32_t x) { return x; }); // KSATODO move lambda out
-    test_long_form(42.0, ::std::plus<float64_t>(), [](float64_t x) { return x; }); // KSATODO move lambda out
+    test_long_form(42, ::std::plus<std::int32_t>(), [](std::int32_t x) { return x; });
+    test_long_form(42.0, ::std::plus<float64_t>(), [](float64_t x) { return x; });
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     // Test for strict types
     // Creation of temporary buffer from const iterators requires default ctor of Number
     // TODO: fix it
-    test_long_form<Number>(Number(42, OddTag()), Add(OddTag()), [](std::int32_t x) { return Number(x, OddTag()); }); // KSATODO move lambda out
+    test_long_form<Number>(Number(42, OddTag()), Add(OddTag()), [](std::int32_t x) { return Number(x, OddTag()); });
 #endif
 
     // Short forms are just facade for long forms, so just test with a single type.
