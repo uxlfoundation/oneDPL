@@ -16,6 +16,8 @@
 #ifndef _TEST_BESSEL_H
 #define _TEST_BESSEL_H
 
+#define __STDCPP_WANT_MATH_SPEC_FUNCS__ 1
+
 #ifdef __SYCL_DEVICE_ONLY__
 
 // Required to define these before all includes
@@ -35,8 +37,6 @@ namespace std
 };
 
 #endif // __SYCL_DEVICE_ONLY__
-
-#define __STDCPP_WANT_MATH_SPEC_FUNCS__ 1
 
 #include "test_complex.h"
 #include "specfun_testcase.h"
