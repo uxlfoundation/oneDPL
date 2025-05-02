@@ -163,16 +163,16 @@ test(T trash, Convert convert)
 int
 main()
 {
-    test<std::int32_t>(-666, [](size_t j) { return std::int32_t(j); }); // KSATODO move lambda out
-    test<float64_t>(-666.0, [](size_t j) { return float64_t(j); }); // KSATODO move lambda out
+    test<std::int32_t>(-666, [](size_t j) { return std::int32_t(j); });
+    test<float64_t>(-666.0, [](size_t j) { return float64_t(j); });
 
-    test<std::uint16_t>(42, [](size_t j) { return std::uint16_t(j); }); // KSATODO move lambda out
-    test<std::uint8_t>(42, [](size_t j) { return std::uint8_t(j); }); // KSATODO move lambda out
+    test<std::uint16_t>(42, [](size_t j) { return std::uint16_t(j); });
+    test<std::uint8_t>(42, [](size_t j) { return std::uint8_t(j); });
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     /*TODO: copy support of a class with no default constructor*/
-    test<Wrapper<float64_t>>(Wrapper<float64_t>(-666.0), [](std::int32_t j) { return Wrapper<float64_t>(j); }); // KSATODO move lambda out
-    test<Number>(Number(42, OddTag()), [](std::int32_t j) { return Number(j, OddTag()); }); // KSATODO move lambda out
+    test<Wrapper<float64_t>>(Wrapper<float64_t>(-666.0), [](std::int32_t j) { return Wrapper<float64_t>(j); });
+    test<Number>(Number(42, OddTag()), [](std::int32_t j) { return Number(j, OddTag()); });
 #endif
 
     return done();
