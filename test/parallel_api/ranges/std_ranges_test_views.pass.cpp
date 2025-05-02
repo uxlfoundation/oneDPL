@@ -25,7 +25,7 @@ main()
     const int n = medium_size;
 
     //transform view
-    test_range_algo<0>{n}.test_view(std::views::transform([](const auto a) { return a*2; }), // KSATODO move lambda out??
+    test_range_algo<0>{n}.test_view(std::views::transform([](const auto a) { return a*2; }),
         dpl_ranges::find_if, std::ranges::find_if, pred, proj);
 
     //reverse view
