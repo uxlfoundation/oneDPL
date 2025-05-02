@@ -47,7 +47,7 @@ main()
 
         res1 = is_sorted(exec, all_view(A));
         res2 = is_sorted(make_new_policy<new_kernel_name<Policy, 0>>(exec), B);
-        res3 = is_sorted(make_new_policy<new_kernel_name<Policy, 1>>(exec), A, [](auto a, auto b) { return a > b;}); // KSATODO move lambda out?
+        res3 = is_sorted(make_new_policy<new_kernel_name<Policy, 1>>(exec), A, [](auto a, auto b) { return a > b;});
     }
 
     //check result
