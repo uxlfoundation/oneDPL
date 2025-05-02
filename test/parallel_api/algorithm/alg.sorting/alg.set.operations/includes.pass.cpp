@@ -127,9 +127,9 @@ test_includes(Compare compare)
 int
 main()
 {
-    test_includes<float64_t, float64_t>([](const float64_t x, const float64_t y){ return x > y; }); // KSATODO move lambda out
+    test_includes<float64_t, float64_t>([](const float64_t x, const float64_t y){ return x > y; });
 #if !TEST_DPCPP_BACKEND_PRESENT
-    test_includes<Num<std::int64_t>, Num<std::int32_t>>([](const Num<std::int64_t>& x, const Num<std::int32_t>& y) { return x < y; }); // KSATODO move lambda out
+    test_includes<Num<std::int64_t>, Num<std::int32_t>>([](const Num<std::int64_t>& x, const Num<std::int32_t>& y) { return x < y; });
 #endif
 
     return done();
