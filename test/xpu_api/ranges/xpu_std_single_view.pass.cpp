@@ -26,7 +26,7 @@ int
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
-    auto test = [](){ // KSATODO move lambda out?
+    auto test = [](){
         auto res = std::ranges::views::single(1);
         return res.size() == 1 && res[0] == 1 && *res.begin() == 1 && res.end() - res.begin() == 1 && *res.data() == 1;
     };
