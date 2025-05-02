@@ -76,7 +76,7 @@ main()
         B.set_write_back(true);
 
         sort(make_new_policy<new_kernel_name<Policy, 1>>(exec), zip_view(views::all(A), views::all(B)), ::std::less{},
-             [](const auto& a) { return ::std::get<1>(a); }); // KSATODO move lambda out?
+             [](const auto& a) { return ::std::get<1>(a); });
     }
     bool res3 = ::std::is_sorted(values.begin(), values.end(), ::std::less{});
     EXPECT_TRUE(res3, "wrong effect from 'sort by key'");
