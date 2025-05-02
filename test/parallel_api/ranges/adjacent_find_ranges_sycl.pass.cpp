@@ -46,7 +46,7 @@ main()
         auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
 
         res1 = adjacent_find(exec1, views::all_read(A));
-        res2 = adjacent_find(exec2, A, [](auto a, auto b) {return a == b;}); // KSATODO move lambda out?
+        res2 = adjacent_find(exec2, A, [](auto a, auto b) {return a == b;});
     }
 
     //check result
