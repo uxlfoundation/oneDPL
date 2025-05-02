@@ -79,7 +79,7 @@ DEFINE_TEST(test_for_each_structured_binding)
         typedef typename std::iterator_traits<Iterator1>::value_type T1;
 
         auto value = T1(6);
-        auto f = [](T1& val) { ++val; };
+        auto f = [](T1& val) { ++val; }; // KSATODO move lambda out
         std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
