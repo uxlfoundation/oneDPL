@@ -53,10 +53,19 @@ struct test_adjacent_find_predicate
 };
 
 template <typename T>
+struct CustomPred
+{
+    bool operator()(T x, T y)
+    {
+        return (x - y) * (x - y) == 4;
+    }
+};
+
+template <typename T>
 void
 test_adjacent_find_by_type()
 {
-    auto custom_pred = [](T x, T y){return (x - y)*(x - y) == 4; }; // KSATODO move lambda out
+    CustomPred<T> custom_pred;
     size_t counts[] = {2, 3, 500};
     for (std::int32_t c = 0; c < const_size(counts); ++c)
     {
