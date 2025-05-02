@@ -4126,7 +4126,7 @@ __pattern_mismatch(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                    _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                    _Predicate __pred)
 {
-    if(__last1 - __first1 == 0 || __last2 - __first2 == 0)
+    if (__last1 - __first1 == 0 || __last2 - __first2 == 0)
         return {__first1, __first2};
 
     return __internal::__except_handler([&]() {

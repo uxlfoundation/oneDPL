@@ -241,7 +241,7 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& 
     if (__rng1.size() != __rng2.size())
         return false;
 
-    if(__rng1.empty())
+    if (__rng1.empty())
         return true; //both sequences are empty
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<equal_predicate<_Pred>>;
@@ -339,8 +339,8 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
           typename _Proj2>
 auto
-__pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
-                        _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
+                   _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __bin_pred = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) {
         return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
@@ -396,7 +396,7 @@ __pattern_find_first_of(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __ex
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_find_first_of(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r1), oneapi::dpl::__ranges::views::all_read(__r2), __bin_pred);
 
-return {std::ranges::begin(__r1) + __idx};
+    return {std::ranges::begin(__r1) + __idx};
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
@@ -738,16 +738,17 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 std::ranges::borrowed_subrange_t<_R>
 __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    auto __pred_1 = [__pred, __proj](auto&& __val)
-        { return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
+    auto __pred_1 = [__pred, __proj](auto&& __val) {
+        return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));
+    };
 
     auto __n = std::ranges::size(__r);
-    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_remove_if(__tag, std::forward<_ExecutionPolicy>(__exec),
-                oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)), __pred_1);
+    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_remove_if(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)),
+        __pred_1);
 
     return {std::ranges::begin(__r) + __idx, std::ranges::begin(__r) + __n};
 }
-
 
 template<typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
@@ -758,7 +759,6 @@ __pattern_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRa
         oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__r)),
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 }
-
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
@@ -1016,9 +1016,8 @@ __pattern_min_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 {
     __pattern_transform_binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
 
-    const auto __idx = 
-        oneapi::dpl::__internal::__ranges::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
+    const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_min_element(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
 
     return {std::ranges::begin(__r) + __idx};
 }
@@ -1031,7 +1030,7 @@ __pattern_min(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& _
         std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
         std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
 
-    [[maybe_unused]] const auto& [__idx, __val] = 
+    [[maybe_unused]] const auto& [__idx, __val] =
         __pattern_min_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
 
@@ -1097,7 +1096,8 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 std::pair<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_R>>
-__pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+__pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp,
+                         _Proj __proj)
 {
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
         std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
@@ -1128,11 +1128,13 @@ __pattern_minmax(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
     return {__min, __max};
 }
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
+          typename _Proj2>
 std::pair<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>>
-__pattern_mismatch(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_mismatch(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
+                   _Proj1 __proj1, _Proj2 __proj2)
 {
-    if(std::ranges::empty(__r1) || std::ranges::empty(__r2))
+    if (std::ranges::empty(__r1) || std::ranges::empty(__r2))
         return {std::ranges::begin(__r1), std::ranges::begin(__r2)};
 
     auto __bin_pred = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) {

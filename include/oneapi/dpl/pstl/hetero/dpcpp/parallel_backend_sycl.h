@@ -1902,12 +1902,12 @@ std::conditional_t<
     ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
     oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
 __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
-                   _BrickTag __brick_tag, _SizeCalc __sz_calc, _Ranges&&... __rngs)
+                        _BrickTag __brick_tag, _SizeCalc __sz_calc, _Ranges&&... __rngs)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
-    
+
     const auto __rng_n = __sz_calc(__rngs...);
 
     assert(__rng_n > 0);
@@ -1975,7 +1975,7 @@ std::conditional_t<
     ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
     oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
 __parallel_find_or_min_size(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
-                   _BrickTag __brick_tag, _Ranges&&... __rngs)
+                            _BrickTag __brick_tag, _Ranges&&... __rngs)
 {
     return __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag{},
         std::forward<_ExecutionPolicy>(__exec), __f, __brick_tag, __min_size_calc<_Ranges...>{},

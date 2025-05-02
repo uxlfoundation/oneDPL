@@ -825,14 +825,16 @@ struct __swap_ranges_fn
     }
 };
 
-template<typename _T>
-auto __get_last_arg(_T __t)
+template <typename _T>
+auto
+__get_last_arg(_T __t)
 {
     return __t;
 }
 
-template<typename _T, typename... _Rest>
-auto __get_last_arg(_T, _Rest... __args)
+template <typename _T, typename... _Rest>
+auto
+__get_last_arg(_T, _Rest... __args)
 {
     return __get_last_arg(__args...);
 }
