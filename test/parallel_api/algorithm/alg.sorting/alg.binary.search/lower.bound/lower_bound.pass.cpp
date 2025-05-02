@@ -49,6 +49,16 @@ DEFINE_TEST(test_lower_bound)
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
+
+    template <typename ValueT>
+    struct LessPred
+    {
+        bool operator()(ValueT first, ValueT second) const
+        {
+            return first < second;
+        }
+    };
+
     // specialization for hetero policy
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     ::std::enable_if_t<oneapi::dpl::__internal::__is_hetero_execution_policy_v<::std::decay_t<Policy>> &&
@@ -77,8 +87,7 @@ DEFINE_TEST(test_lower_bound)
 
         // call algorithm with comparator
         auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
-        auto res2 = oneapi::dpl::lower_bound(new_policy2, first, last, value_first, value_last, result_first,
-                                             [](ValueT first, ValueT second) { return first < second; }); // KSATODO move lambda out
+        auto res2 = oneapi::dpl::lower_bound(new_policy2, first, last, value_first, value_last, result_first, LessPred<ValueT>{});
         exec.queue().wait_and_throw();
 
         EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, device policy");
