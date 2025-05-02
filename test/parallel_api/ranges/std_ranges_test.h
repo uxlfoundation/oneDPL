@@ -76,18 +76,18 @@ enum TestDataMode
     data_in_in_out_lim
 };
 
-auto f_mutuable = [](auto&& val) { return val *= val; }; // KSATODO move lambda out?
-auto proj_mutuable = [](auto&& val) { return val *= 2; }; // KSATODO move lambda out?
+auto f_mutuable = [](auto&& val) { return val *= val; };
+auto proj_mutuable = [](auto&& val) { return val *= 2; };
 
-auto f = [](auto&& val) { return val * val; }; // KSATODO move lambda out?
-auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; }; // KSATODO move lambda out?
-auto proj = [](auto&& val){ return val * 2; }; // KSATODO move lambda out?
-auto pred = [](auto&& val) { return val == 5; }; // KSATODO move lambda out?
-auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; }; // KSATODO move lambda out?
+auto f = [](auto&& val) { return val * val; };
+auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
+auto proj = [](auto&& val){ return val * 2; };
+auto pred = [](auto&& val) { return val == 5; };
+auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
 
-auto pred1 = [](auto&& val) -> decltype(auto) { return val > 0; }; // KSATODO move lambda out?
-auto pred2 = [](auto&& val) -> decltype(auto) { return val == 4; }; // KSATODO move lambda out?
-auto pred3 = [](auto&& val) -> decltype(auto) { return val < 0; }; // KSATODO move lambda out?
+auto pred1 = [](auto&& val) -> decltype(auto) { return val > 0; };
+auto pred2 = [](auto&& val) -> decltype(auto) { return val == 4; };
+auto pred3 = [](auto&& val) -> decltype(auto) { return val < 0; };
 
 struct P2
 {
