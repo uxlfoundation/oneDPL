@@ -76,13 +76,13 @@ main()
 {
     // Note that the "hit" and "miss" functions here avoid overflow issues.
 #if !TEST_DPCPP_BACKEND_PRESENT
-    test<Number>(Weird(42, OddTag()), [](std::int32_t) { return Number(42, OddTag()); }, // hit // KSATODO move lambda out
-                 [](std::int32_t j) { return Number(j == 42 ? 0 : j, OddTag()); });      // miss // KSATODO move lambda out
+    test<Number>(Weird(42, OddTag()), [](std::int32_t) { return Number(42, OddTag()); }, // hit
+                 [](std::int32_t j) { return Number(j == 42 ? 0 : j, OddTag()); });      // miss
 #endif
 
     // Test with value that is equal to two different bit patterns (-0.0 and 0.0)
-    test<float32_t>(-0.0, [](std::int32_t j) { return j & 1 ? 0.0 : -0.0; }, // hit // KSATODO move lambda out
-                    [](std::int32_t j) { return j == 0 ? ~j : j; });         // miss // KSATODO move lambda out
+    test<float32_t>(-0.0, [](std::int32_t j) { return j & 1 ? 0.0 : -0.0; }, // hit
+                    [](std::int32_t j) { return j == 0 ? ~j : j; });         // miss
 
 
     return done();
