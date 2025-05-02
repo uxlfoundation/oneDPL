@@ -79,18 +79,18 @@ main()
 
     ////////////////////////////////////////////////////////
     // float nearbyint(float arg);
-    auto f_nearbyint_float = [](float arg) -> float { return oneapi::dpl::nearbyint(arg); }; // KSATODO move lambda out?
+    auto f_nearbyint_float = [](float arg) -> float { return oneapi::dpl::nearbyint(arg); };
     const std::vector<float> f_args_float = {+2.3, +2.5, +3.5, -2.3, -2.5, -3.5};
     test<TestUtils::unique_kernel_name<Test, 1>>(f_nearbyint_float, f_args_float, "float nearbyint(float)");
 
     ////////////////////////////////////////////////////////
     // float nearbyintf(float arg);
-    auto f_nearbyintf_float = [](float arg) -> float { return oneapi::dpl::nearbyintf(arg); }; // KSATODO move lambda out?
+    auto f_nearbyintf_float = [](float arg) -> float { return oneapi::dpl::nearbyintf(arg); };
     test<TestUtils::unique_kernel_name<Test, 11>>(f_nearbyintf_float, f_args_float, "float nearbyintf(float)");
 
     ////////////////////////////////////////////////////////
     // double nearbyint(double arg);
-    auto f_nearbyint_double = [](double arg) -> double { return oneapi::dpl::nearbyint(arg); }; // KSATODO move lambda out?
+    auto f_nearbyint_double = [](double arg) -> double { return oneapi::dpl::nearbyint(arg); };
     const std::vector<double> f_args_double = {+2.3, +2.5, +3.5, -2.3, -2.5, -3.5};
     test<TestUtils::unique_kernel_name<Test, 2>>(f_nearbyint_double, f_args_double, "double nearbyint(double)");
 
