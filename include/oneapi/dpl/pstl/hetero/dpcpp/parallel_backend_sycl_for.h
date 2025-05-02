@@ -200,6 +200,26 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     }
 };
 
+template <typename _Brick>
+struct __has_pfor_brick_members
+{
+  private:
+    template <typename _F>
+    static auto
+    test(int) -> decltype(std::bool_constant<_F::__can_vectorize>{},
+                          std::bool_constant<_F::__can_process_multiple_iters>{}, std::true_type{});
+
+    template <typename>
+    static std::false_type
+    test(...);
+
+  public:
+    constexpr static bool value = decltype(test<_Brick>(0))::value;
+};
+
+template <typename Brick>
+inline constexpr bool __has_pfor_brick_members_v = __has_pfor_brick_members<Brick>::value;
+
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
 //for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
 template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
@@ -207,6 +227,9 @@ __future<sycl::event>
 __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Fp __brick, _Index __count,
                _Ranges&&... __rngs)
 {
+    static_assert(__has_pfor_brick_members_v<_Fp>,
+                  "The brick provided to __parallel_for must define static constexpr bool members __can_vectorize and "
+                  "__can_process_multiple_iters.");
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _ForKernelSmall =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__parallel_for_small_kernel<_CustomName>>;
