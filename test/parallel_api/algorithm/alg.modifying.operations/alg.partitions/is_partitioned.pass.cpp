@@ -85,13 +85,13 @@ struct test_non_const
 int
 main()
 {
-    test<float64_t>([](const float64_t x) { return x < 0; }); // KSATODO move lambda out
-    test<std::int32_t>([](const std::int32_t x) { return x > 1000; }); // KSATODO move lambda out
-    test<std::uint16_t>([](const std::uint16_t x) { return x % 5 < 3; }); // KSATODO move lambda out
+    test<float64_t>([](const float64_t x) { return x < 0; });
+    test<std::int32_t>([](const std::int32_t x) { return x > 1000; });
+    test<std::uint16_t>([](const std::uint16_t x) { return x % 5 < 3; });
 
 #if !TEST_DPCPP_BACKEND_PRESENT && !_PSTL_ICC_18_TEST_EARLY_EXIT_MONOTONIC_RELEASE_BROKEN &&               \
     !_PSTL_ICC_19_TEST_IS_PARTITIONED_RELEASE_BROKEN
-    test<LocalWrapper<float64_t>>([](const LocalWrapper<float64_t>&) { return true; }); // KSATODO move lambda out
+    test<LocalWrapper<float64_t>>([](const LocalWrapper<float64_t>&) { return true; });
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const>());
 #endif
 
