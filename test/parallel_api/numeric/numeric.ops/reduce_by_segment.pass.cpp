@@ -230,6 +230,16 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
     }
 };
 
+struct FlagPred
+{
+    template <typename T>
+    bool operator()(const T& a, const T& b) const
+    {
+        using KeyT = std::decay_t<decltype(b)>;
+        return b != KeyT(1);
+    }
+};
+
 #if TEST_DPCPP_BACKEND_PRESENT
 template <sycl::usm::alloc alloc_type, typename KernelName, typename T>
 void
@@ -260,10 +270,8 @@ test_flag_pred()
     T val_res_head_on_host[n] = {};
 
     prepare_data(n, key_head_on_host, val_head_on_host, key_res_head_on_host, val_res_head_on_host);
-    auto flag_pred = [](const auto& a, const auto& b) { // KSATODO move lambda out
-        using KeyT = ::std::decay_t<decltype(b)>;
-        return b != KeyT(1);
-    };
+    FlagPred flag_pred;
+
     // allocate USM memory and copying data to USM shared/device memory
     TestUtils::usm_data_transfer<alloc_type, T> dt_helper1(q, std::begin(key_head_on_host),     std::end(key_head_on_host));
     TestUtils::usm_data_transfer<alloc_type, T> dt_helper2(q, std::begin(val_head_on_host),     std::end(val_head_on_host));
