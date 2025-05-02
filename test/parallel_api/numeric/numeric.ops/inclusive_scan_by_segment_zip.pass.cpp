@@ -69,7 +69,7 @@ test_with_usm()
     oneapi::dpl::inclusive_scan_by_segment(
         TestUtils::make_device_policy<KernelName>(q), begin_keys_in,
         end_keys_in, begin_vals_in, begin_vals_out,
-        ::std::equal_to<>(), TestUtils::TupleAddFunctor());
+        std::equal_to<>(), TestUtils::TupleAddFunctor1());
 
     //retrieve result on the host and check the result
     dt_helper5.retrieve_data(output_values1);

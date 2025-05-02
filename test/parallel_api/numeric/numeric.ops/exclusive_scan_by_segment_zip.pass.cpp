@@ -68,8 +68,8 @@ test_with_usm()
     //run exclusive_scan_by_segment algorithm 
     oneapi::dpl::exclusive_scan_by_segment(
         TestUtils::make_device_policy<KernelName>(q), begin_keys_in,
-        end_keys_in, begin_vals_in, begin_vals_out, ::std::make_tuple(int(1), int(1)),
-        ::std::equal_to<>(), TestUtils::TupleAddFunctor());
+        end_keys_in, begin_vals_in, begin_vals_out, std::make_tuple(int(1), int(1)),
+        std::equal_to<>(), TestUtils::TupleAddFunctor1());
 
     //retrieve result on the host and check the result
     dt_helper5.retrieve_data(output_values1);
