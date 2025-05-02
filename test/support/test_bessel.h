@@ -36,6 +36,8 @@ namespace std
 
 #endif // __SYCL_DEVICE_ONLY__
 
+#define __STDCPP_WANT_MATH_SPEC_FUNCS__ 1
+
 #include "test_complex.h"
 #include "specfun_testcase.h"
 
