@@ -119,21 +119,21 @@ struct test_non_const
 int
 main()
 {
-    test<std::int32_t>([](size_t j) { return j / 3; }, // KSATODO move lambda out
-                  [](const std::int32_t& val1, const std::int32_t& val2) { return val1 * val1 == val2 * val2; }); // KSATODO move lambda out
+    test<std::int32_t>([](size_t j) { return j / 3; },
+                  [](const std::int32_t& val1, const std::int32_t& val2) { return val1 * val1 == val2 * val2; });
 #if !ONEDPL_FPGA_DEVICE
-    test<float64_t>([](size_t) { return float64_t(1); }, // KSATODO move lambda out
-                    [](const float64_t& val1, const float64_t& val2) { return val1 != val2; }); // KSATODO move lambda out
+    test<float64_t>([](size_t) { return float64_t(1); },
+                    [](const float64_t& val1, const float64_t& val2) { return val1 != val2; });
 #endif
 
 #if !TEST_DPCPP_BACKEND_PRESENT
-    test<LocalWrapper<std::uint32_t>>([](size_t j) { return LocalWrapper<std::uint32_t>(j); }, // KSATODO move lambda out
-                                 [](const LocalWrapper<std::uint32_t>& val1, const LocalWrapper<std::uint32_t>& val2) { // KSATODO move lambda out
+    test<LocalWrapper<std::uint32_t>>([](size_t j) { return LocalWrapper<std::uint32_t>(j); },
+                                 [](const LocalWrapper<std::uint32_t>& val1, const LocalWrapper<std::uint32_t>& val2) {
                                      return val1.my_val != val2.my_val;
                                  });
     test<MemoryChecker>(
-        [](::std::size_t idx){ return MemoryChecker{::std::int32_t(idx / 3)}; }, // KSATODO move lambda out
-        [](const MemoryChecker& val1, const MemoryChecker& val2){ return val1.value() == val2.value(); }); // KSATODO move lambda out
+        [](::std::size_t idx){ return MemoryChecker{::std::int32_t(idx / 3)}; },
+        [](const MemoryChecker& val1, const MemoryChecker& val2){ return val1.value() == val2.value(); });
     EXPECT_TRUE(MemoryChecker::alive_objects() == 0, "wrong effect from unique: number of ctor and dtor calls is not equal");
 #endif
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
