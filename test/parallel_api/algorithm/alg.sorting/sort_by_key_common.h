@@ -235,12 +235,22 @@ test_with_buffers(sycl::queue& q, Size n, StabilityTag stability_tag, Compare...
     check_sort(keys.begin(), vals.begin(), origin_keys.begin(), origin_vals.begin(), n, n, StableSortTag{}, compare...);
 }
 
+struct CustomGreat
+{
+    template <typename T>
+    bool
+    operator()(const T& lhs, const T& rhs) const
+    {
+        return lhs > rhs;
+    }
+};
+
 template <typename StabilityTag>
 void
 test_device_policy(StabilityTag stability_tag)
 {
     sycl::queue q = TestUtils::get_test_queue();
-    auto custom_greater = [](const auto& lhs, const auto& rhs) { return lhs > rhs; }; // Cover merge-sort from device backend // KSATODO move lambda out
+    CustomGreat custom_greater; // Cover merge-sort from device backend
 
     test_with_usm<std::int16_t, float, sycl::usm::alloc::shared, 1>(q, large_size, stability_tag, std::greater{});
     test_with_usm<std::uint32_t, std::uint32_t, sycl::usm::alloc::device, 2>(q, large_size, stability_tag);
