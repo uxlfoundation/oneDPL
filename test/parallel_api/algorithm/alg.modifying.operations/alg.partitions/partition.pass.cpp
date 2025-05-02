@@ -131,14 +131,13 @@ struct test_non_const_partition
 int
 main()
 {
-    test_by_type<std::int32_t>([](std::int32_t i) { return i; }, [](std::int32_t) { return true; }); // KSATODO move lambda out
-    test_by_type<float64_t>([](std::int32_t i) { return -i; }, [](const float64_t x) { return x < 0; }); // KSATODO move lambda out
+    test_by_type<std::int32_t>([](std::int32_t i) { return i; }, [](std::int32_t) { return true; });
+    test_by_type<float64_t>([](std::int32_t i) { return -i; }, [](const float64_t x) { return x < 0; });
 #if !ONEDPL_FPGA_DEVICE
-    test_by_type<std::int64_t>([](std::int32_t i) { return i + 1; }, [](std::int64_t x) { return x % 3 == 0; }); // KSATODO move lambda out
+    test_by_type<std::int64_t>([](std::int32_t i) { return i + 1; }, [](std::int64_t x) { return x % 3 == 0; });
 #endif
 
 #if !TEST_DPCPP_BACKEND_PRESENT
-     // KSATODO move lambda out
     test_by_type<DataType<float32_t>>([](std::int32_t i) { return DataType<float32_t>(2 * i + 1); },
                                       [](const DataType<float32_t>& x) { return x.get_val() < 0; });
 #endif
