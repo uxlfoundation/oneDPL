@@ -179,7 +179,7 @@ main()
 #endif
 
     test_partial_sort<std::int32_t>(
-        [](std::int32_t x, std::int32_t y) { return x > y; }); // Reversed so accidental use of < will be detected. // KSATODO move lambda out
+        [](std::int32_t x, std::int32_t y) { return x > y; }); // Reversed so accidental use of < will be detected.
 
     test_algo_basic_single<std::int32_t>(run_for_rnd<test_non_const<std::int32_t>>());
 
