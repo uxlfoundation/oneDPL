@@ -1,4 +1,4 @@
-# Simplified Customization of Backends and Policies for Dynamic Selection
+# Simplified Customization of Backends for Dynamic Selection
 
 Dynamic Selection is a Technology Preview feature 
 [documented in the oneDPL Developer Guide](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/dynamic-selection-api.html)
@@ -11,8 +11,7 @@ and requires some (unecessarily) verbose code.
 
 ## Current backend design
 
-A backend defines resource types and implements reporting that is requireed by
-a policy.
+A backend defines resource types and implements reporting that is requireed by a policy.
 
 As described in [the current design](https://github.com/uxlfoundation/oneDPL/tree/main/rfcs/experimental/dynamic_selection),
 type `T` satisfies the *Backend* contract if given,
@@ -22,170 +21,208 @@ type `T` satisfies the *Backend* contract if given,
 - `s` is of type `S` and satisfies *Selection* and `is_same_v<resource_t<S>, resource_t<T>>` is `true`
 - `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
 
-| Required Member Function | Description |
+| Functions and Traits  | Description |
 | --------------------- | ----------- |
-| `submit(s, f, args…)` | Returns an object that satisfies *Submission*. The function invokes `f` but does not wait for the `wait_t<T>` object returned by it. |
-| `get_resources()` | Returns a `std::vector<resource_t<T>>`. |
-| `get_submission_group()` | Returns an object that has a member function `void wait()`. Calling this `wait` function blocks until all previous submissions to this backend are complete. |
+| `resource_t<T>` | Backend trait for the resource type. |
+| `wait_t<T>`     | Backend trait for type that is expected to be returned by the user function |
+| `b.submit(s, f, args…)` | Invokes `f` with the resource from the *Selection* and the `args`. Does not wait for the `wait_t<T>` object returned by `f`. Returns an object that satisfies *Submission*. |
+| *Submission* type   | `b.submit(s, f, args…)` returns a type that must define two member functions, `wait()` and `unwrap`. |
+| `b.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
+| `b.get_submission_group()` | Returns an object that has a member function `void wait()`. Calling this `wait` function blocks until all previous submissions to this backend are complete. |
+| `lazy_report_v<T>` | `true` if the backend requires a call to `lazy_report` to trigger reporting of `execution_info` back to the policy |
+| `b.lazy_report()`  | An optional function, only needed if `lazy_report_v<T>` is `true`. Is invoked by the policy before making a selection. |
 
-## Use Cases to Improve for Backends
+Currently, these functions and traits (except the `lazy_report` function) must be implemented in each backend. The experimental backend
+for SYCL queues is a bit more than 250 lines of code. With sensible defaults, this proposal aims to simplify backend writing to
+open up Dynamic Selection to more use cases.
 
-| Use Case | Description |
-| --------------------- | -------- |
-| Default Backend | No custom backend at all. |
-| Uninstrumented Backend | Backend overrides a small part of default backend: `wait_type`, `submission_group`, for better waiting support. |
-| Instrumented Backend | Backend includes instrumentation for reporting |
+## An overview of the proposal
 
-The requirements of *Submission* and *Selection* objects are provided in
-[the current design description](https://github.com/uxlfoundation/oneDPL/tree/main/rfcs/experimental/dynamic_selection).
+This document proposes that there is a default backend that can be used with any resource type to get
+sensible default functionaility. In addition, custom backends can be created when needed by mixing in
+default functionality with specialized functionality. 
 
-### Default Backend
+### Proposed Defaults
 
-For policies that require no reporting of `execution_info`, it should be simple to use a new resource type,
-perhaps even without writing a custom backend. Below is an example that uses round-robin to rotate through
-through pointers to queues.
+In the following subsections, we describe each
+of the functions and traits described in the [Current backend design](#current-backend-design) and
+describe the proposed default implementation and the implications of the defaults.
+
+#### Default `resource_t<T>` 
+
+Policies contain a backend and current policies are either default constructed/initialized or
+constructed/initialized with a `std::vector<Resouce>` of resources. When a vector is passed
+to the constructor, the type of the resource can be deduced and used as a template argument
+when constructing the backend. When a policy is default constructed, the resource type can be made
+a manditory template argument and this can be used to set the resource type in the backend.
+
+Is it therefore becomes unnecessary to explicitly provide the resource type in the default backend.
+For example, in the code below a `round_robin_policy` is constructed by passing a vector of
+pointers to `tbb::task_group`.  The type of the resource `tbb::task_group *` can be deduce and
+passed as a template argument to the default backend. 
 
 ```cpp
-    sycl::queue q1, q2;
-    ex::round_robin_policy p{ { &q1, &q2 } };
-
-    auto s1 = onedpl::dpl::experimental::submit(p, [](sycl::queue *qp) -> sycl::queue {
-        qp->submit(/*...*/);
-        return *q;
-    }
-
-    auto s2 = onedpl::dpl::experimental::submit(p, [](sycl::queue *qp) -> sycl::queue {
-        qp->submit(/*...*/);
-        return *q;
-    }
-
-    wait(s1);
-    wait(s2);
+    tbb::task_group t1, t2;
+    ex::round_robin_policy p{ { &t1, &t2 } };
 ```
 
-#### submit
+If the policy is default constructed or constructed for deferred initialization, the
+resource type must be given explicitly.
+
+```cpp
+    ex::round_robin_policy<tbb::task_group*> p1{ };
+    ex::round_robin_policy<tbb::task_group*> p2{ deferred_initialization_t };
+```
+#### Default `wait_t<T>`
+
+The `wait_t<T>` can only be deduced at the time a user function is passed to submit since
+it is the type returned by the user's function. There is no way to generally determine a
+`wait_t<T>` from an arbitrary `resource_t<T>` and therefore the default backend cannot
+provide a meaningful `wait_t<T>`.
+
+#### Default `b.submit(s, f, args…)`
 
 The main role that `submit` plays in a backend is to add instrumentation around the call to `f`.
 Experience has shown us that most backends perform four basic steps in their implementation
 of the `submit` function:
 
 1. Do any setup needed for implementing reporting before calling `f`.
-2. The function `f` is called.
+2. The function `f` is called and it return value captured.
 3. Do any setup needed for implementing reporting after calling `f`, perhaps using what was returned by `f`.
 4. The *Submission* object, which typically wraps what is returned by `f`, is constructed and returned.
 
-If a backend writer doesn't care if their backend works with policies that require reporting, then
-they can use a default implementation of submit that simply calls `f` and returns the backends *Submission*
-object. 
+It is not possible for a default backend to properly instrument execution for an unkown resource type to provide
+reporting of `task_time`, `task_submission` and `task_completion`. And so a default implementation
+cannot provide useful implementations for step 1 and 3. However, it can provide more finer-grained hooks
+that can be overridden to provide steps 1 and 3, without requiring a custom backend to reimplemnted the entire
+four step pattern.
 
-A *Submission* object must support `s.wait()` and `s.unwrap`. A default backend cannot meaningfully
-implement `wait` on an arbitrary type, but could easily wrap a type, such as `sycl::queue` or `tbb::task_group`
-that provides a `wait` member function and call that `wait` member function if it finds it, and in other cases
-provide an empty `s.wait` function. `s.unwrap` usually returns what was returned by the user's function `f`.
-Our simple example above returns a `sycl::queue` from its function and so a default backend can easily synthesize
-a meaningful *Submission* type from it, with `s.wait` calling `q.wait()` and `s.unwrap` returning the queue.
-
-#### get_resources
-
-The `get_resources` function can default to returning the vector that is passed to the policy, and
-then down to the backend's constructor. A policy that is created with a default constructor will
-have no resources in this case.
-
-#### get_submission_group
-
-The `get_submission_group` is not easily implemented in a meaningful way. It must return a type that
-defines a member function `wait`. But since there is no way to know how to wait on all previous submissions
-for an arbitrary backend resource, this function will likely need to return a dummy type or 
-`get_submission_group` be undefined for the default backend.
-
-### Uninstrumented Backend
-
-It may be possible that a backend writer wants to do a little bit of work, so that `get_submission_group` works
-properly, and/or that there is a meaningful *Submission* type defined, and/or there is a default set of resources
-defined even when called with no explicit universe. But, they may not want to go through the effort of
-implementing the reporting mechanisms needed to work with all policies. In that case, we should define a way
-to customize the default backend for the resource type while falling back to default behaviors for functions
-that are unimportant to the backend writer.
-
-For example, a backend that defines `get_resources`, `get_submission_group` and appropriate *Submission* type,
-results in added functionality:
-
-```cpp
-    ex::round_robin_policy<sycl::queue*> p;
-
-    auto r = p.get_resources(); // returns some meaningful default set
-
-    auto s1 = onedpl::dpl::experimental::submit(p, [](sycl::queue *qp) -> sycl::queue {
-        qp->submit(/*...*/);
-        return *q;
-    }
-
-    auto s2 = onedpl::dpl::experimental::submit(p, [](sycl::queue *qp) -> sycl::queue {
-        qp->submit(/*...*/);
-        return *q;
-    }
-
-    wait(p.get_submission_group());
-```
-
-#### submit
-
-See [Default Backend](#default-backend).
-
-#### get_resources
-
-Can opt-in to defining a `get_resources` function that will determine a useful universe of resources even if
-the backend was default constructed. For example, a SYCL backend might use `get_devices`.
-
-#### get_submission_group
-
-Can opt-in to defining a `get_submission_group` function that will return a non dummy type.
-
-### Instrumented Backend
-
-As desribed in the [Default backend](#default-backend) section, the `submit` function generally
-performs four steps, two of which are related to instrumentation. We proposed adding two new
-functions `instrument_before` and `instrument_after` that can be used to opt-in to instrumentation
-in a backend. A backend writer will not need to fully define `submit` but instead only write the
-code to set up and reporting needed for the backend.
-
-For example, we may using auto-tune for pointers to queues if the instrumentation related
-functionality is defined in the backend:
-
-```cpp
-    sycl::queue q1, q2;
-    ex::auto_tune_policy p{ { &q1, &q2 } };
-
-   for (int i = 0; i < 100; ++i) {
-        auto s = onedpl::dpl::experimental::submit(p, [](sycl::queue *qp) -> sycl::queue {
-            qp->submit(/*...*/);
-            return *q;
-        }
-        wait(s);
-   }
-```
-
-#### submit
+We propose that the default backend provide a `submit` function that implements the four step pattern
+but also calls `instrument_before_impl` and `instrument_after_impl` functions that can be overridden
+to add instrumentation by backends that need it.
 
 ```cpp
     template <typename SelectionHandle, typename Function, typename... Args>
     auto submit(SelectionHandle s, Function&& f, Args&&... args) {
-        instrument_before(s); // do insrumentation before calling `f`
+        instrument_before_impl(s); // do insrumentation before calling `f`
 
-        return instrument_after( // do insrumentation before calling `f`, and create Submission type
+        return instrument_after_impl( // do insrumentation before calling `f`, and create Submission type
             s,
             std::forward<Function>(f)(unwrap(s), std::forward<Args>(args)...) // call f
         );
     }
 ```
 
-#### get_resources and get_submission_group
+#### Default *Submission* type
 
-An instrumented backend, can independently opt-in to customizing other functions to better
-support `get_submission_group`, `get_resources` and to define the *Submission* type.
-See [Uninstrumented Backend](#uninstrumented-backend).
+A *Submission* object must support `s.wait()` and `s.unwrap`. A default backend cannot meaningfully
+implement `wait` on an arbitrary type, but can wrap a type, such as `sycl::queue` or `tbb::task_group`
+that provides a `wait` member function itself and call that `wait` member function if it finds it.
+`s.unwrap` can return what was return by the user's function `f`.
 
-## Backend Customization Approach
+A possible default implementation of a *Submission* object is shown below:
+
+```cpp
+    template<typename UserWaitType>
+    class default_submission
+    {
+        UserWaitType w_;
+    public:
+        default_submission(const UserWaitType& w) : w_{w} {}
+        void wait() { 
+            if constexpr (has_wait_v<UserWaitType>) {
+                w_.wait();
+            } 
+        }
+        UserWaitType unwrap() { return w_; }
+    };
+```
+
+Uses such a default would support some useful use cases.
+
+```cpp
+    tbb::task_group t1, t2;
+
+    // constructs backend with std::vector<tbb::task_group*>{ &t1, &t2 }
+    ex::round_robin_policy p{ { &t1, &t2 } };
+
+    auto s = ex::submit(p, 
+                        [](tbb::task_group* t) {
+                          struct WaitType {
+                            task_group *t;
+                            void wait() { t->wait(); }
+                            task_group* unwrap() { return t; }
+                          };
+
+                          t->run(/* something */);
+
+                          return WaitType(t);
+                        });
+    ex::wait(s);
+```
+
+In the above code, no special backend is written for `tbb::task_group*`, but
+a policy can be created with a given set of resources that is can be used to submit
+and wait on a submission.
+
+#### Default `b.get_resources()`
+
+The `get_resources` function returns the set of resources managed by the backend. If a policy is
+constructed with a `std::vector<T>`, then `resource_t<Backend>` is `T` and the function
+`get_resources` can return the vector that was passed to the policy constructor, which in turn,
+is used to construct the backend.
+
+```cpp
+    tbb::task_group t1, t2;
+
+    // constructs backend with std::vector<tbb::task_group*>{ &t1, &t2 }
+    ex::round_robin_policy p{ { &t1, &t2 } };
+
+    // returns a std::vector<tbb::task_group*>{ &t1, &t2 }
+    // because backend returns the vector it was constructed with
+     auto v = p.get_resources();
+```
+
+However, a default constructed policy has no information about what set makes sense for
+an arbitrary resource type. And so `get_resources` will return an empty vector.
+
+```cpp
+    ex::round_robin_policy<tbb::task_group*> p1{ };
+
+    // v is empty
+     auto v = p.get_resources();
+```
+
+#### Default `b.get_submission_group()`
+
+The function `get_submission_group()` is used by a policy's `get_submission_group()` function
+to return an object that has a member function `void wait()`. A call to `wait` blocks until all
+incomplete submissions are done.
+
+There is no wait for a default backend to implement a type that waits for all submission to a set
+of arbitrary resource types. There are several possible alternatives including:
+
+* Return a submission group that has an empty `wait` function.
+* Return a submission group that throws an exception if it is waited on.
+* Calls to `get_submission_group` fail to compile when the default backend is used.
+
+This proposal recommends the last suggestion.
+
+```cpp
+    tbb::task_group t1, t2;
+
+    // constructs backend with std::vector<tbb::task_group*>{ &t1, &t2 }
+    ex::round_robin_policy p{ { &t1, &t2 } };
+
+    auto g = p.get_submission_group(); // fails to compile
+```
+
+#### Default `lazy_report_v<T>`
+
+The default backend, which does not provide any reporting support at all, will
+have `lazy_report_v<T>` as `false`.
+
+## How to customize for specific resource types
 
 We proposed using a CRTP (Curiously Recurring Template Pattern) to define backends since this
 will allow developers to flexibly mix-in functionaility from the base. We decided against free
@@ -193,18 +230,18 @@ functions or customization points, because we found that most backends require s
 to be maintained (such as the universe) and accessing that state is easiest from within a backend
 object. We also think that static polymorphism is sufficient.
 
-The base will provide common-sense default behaviours but a backend can selectively customization behaviours
-via static polymorphism. The base class will provide default implementations of `get_resources` (returning
-the vector passed to the constructor), `get_submission_group` (returning a dummy type) and `submit`. 
-There will be protected `_impl` functions that can be overridden in the derived classes to change the 
-default behaviors.
+The base will provide the common-sense default behaviours described [above](#default-backend) but
+then functionaility can be selectively customized using static polymorphism. The base class will
+provide default implementations of `get_resources` (returning the vector passed to the constructor),
+`get_submission_group` (but will fail to compile if invoked) and `submit`. There will be protected
+`_impl` functions that can be overridden in the derived classes to change the default behaviors.
 
-There will also be a struct `scratch_t` that can be used to provide space in a *Selection* needed by
-the backend for reporting. For example, space to store a beginning time in `instrument_before` and
-ending event in `instrument_after` and so on. `scratch_t` is a template that will receives
-`execution_info` parameters and so can be specialized for a backend to only include the space needed
-by the policy that uses it. For example, a backend can choose to only include space for a
-beginning time if the policy requires reporting of `execution_info::task_time`.
+There is also a struct `scratch_t` that can be defined by backends to provide space in a policies
+*Selection* object needed by the backend for reporting. For example, space to store a beginning time
+in `instrument_before_impl` and ending event in `instrument_after_impl` and so on. `scratch_t` is a
+template receives `execution_info` parameters and so can be specialized by a backend to only include
+the space needed for the reporting requested by the policy. For example, a backend can choose to only
+include space for a beginning time if the policy only requires reporting of `execution_info::task_time`.
 
 Show below is a sketch of a `backend_base`:
 
@@ -250,22 +287,33 @@ Show below is a sketch of a `backend_base`:
         std::vector<resource_type> resources_;
 
         template <typename SelectionHandle, typename Function, typename... Args>
-        auto submit_impl(SelectionHandle s, Function&& f, Args&&... args);
+        auto submit_impl(SelectionHandle s, Function&& f, Args&&... args) {
+        {
+            static_cast<Backend*>(this)->instrument_before_impl(s);
+            return static_cast<Backend*>(this)->instrument_after_impl(
+                s, 
+                std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), 
+                                          std::forward<Args>(args)...)
+            );
+        }
 
         template <typename SelectionHandle>
-        void instrument_before_impl(SelectionHandle s);
+        void instrument_before_impl(SelectionHandle s) { }
 
         template <typename SelectionHandle, typename WaitType>
-        auto instrument_after_impl(SelectionHandle s, WaitType w);
+        auto instrument_after_impl(SelectionHandle s, WaitType w) {
+            return default_submission{w};
+        }
 
-        std::vector<resource_type> get_resources_impl() const noexcept;
-
-        auto get_submission_group_impl();
+        std::vector<resource_type> get_resources_impl() const noexcept {
+            return resources_;
+        }
 
     };
 ```
 
-We expect to provide a catch-all [default backend](#default-backend) for uncustomized resource types:
+We also propose to provide a catch-all [default backend](#default-backend) for uncustomized resource
+types:
 
 ```cpp
     // A general default backend for ResourceType
@@ -276,147 +324,36 @@ We expect to provide a catch-all [default backend](#default-backend) for uncusto
     };
 ```
 
-#### The Default submit
-
-The default implementation therefore eliminates the need to implement `submit` for backends that
-follow the usual four step pattern. Instead, backends can optionally implement `instrument_before` 
-and `instrument_after`.  The code snippet below shows how this pattern might be implemented in the
-`submit_impl` by calling `instrument_before_impl` and `instrument_after_impl`.  The `async_waiter`
-type in the base class is the *Submission* type and wraps a type that must provide a `wait` function
-(for example `sycl::queue` or `tbb::task_group`).
+A backend that relies on the defaults but overrides some functionality can then specialize the
+default backend for the type. For example, the existing SYCL backend can be implemented as:
 
 ```cpp
-    template<typename ResourceType, typename Backend>
-    class backend_base
-    {
-        // ...
-
-    protected:
-
-        // default submit implements the usual pattern
-        template <typename SelectionHandle, typename Function, typename... Args>
-        auto submit_impl(SelectionHandle s, Function&& f, Args&&... args)
-        {
-            static_cast<Backend*>(this)->instrument_before_impl(s);
-            return static_cast<Backend*>(this)->instrument_after_impl(
-                s, 
-                std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), 
-                                          std::forward<Args>(args)...)
-            );
-        }
-
-        // by default no instrumentation before the call
-        template <typename SelectionHandle>
-        void instrument_before_impl(SelectionHandle /*s*/) { }
-
-        // by default no instrumentation after the call
-        // But it returns the wait_type 
-        template <typename SelectionHandle, typename WaitType>
-        auto instrument_after_impl(SelectionHandle /*s*/, WaitType w)
-        {
-            return async_waiter{w}; // async_waiter is described below
-        }
-    
-    private:
-
-        class async_waiter
-        {
-            wait_type w_;
-        public:
-            async_waiter(wait_type w) : w_{w} {}
-            void wait() { w_.wait(); }
-            wait_type unwrap() { return w_; }
-        };
-
-        // ...
-    };
-```
-
-#### The Default get_resources
-
-For many cases, backends hold the set of resources that are passed to their
-constructors and then return that set when `get_resouces` is called. The
-default implementation in the base class therefore takes that approach:
-
-```cpp
-    template<typename ResourceType, typename Backend>
-    class backend_base
-    {
-        // ...
-
-    protected:
-        // default returns the vector of resources
-        resource_container_t get_resources_impl() const noexcept {
-            return resources_;
-        }
-
-        std::vector<resource_type> resources_;
-    };
-```
-
-If a backend wants to provide a set of resources for a policy/backend that
-uses default construction, they can override this function in their derived
-type to determine that default set.
-
-#### Customizing get_submission_group
-
-As mentioned earlier there is not a generally helpful default implementation of `get_submission_group`,
-but since some backends may want to skip this functionality, we propose a default implementation
-that proves an empty implementation.
-
-```cpp
-    template<typename ResourceType, typename Backend>
-    class backend_base
-    {
-        // ...
-
-    protected:
-        // default returns an empty submission group
-        auto get_submission_group_impl()
-        {
-            return submission_group{};
-        }
-
-    private:
-
-        class submission_group
-        {
-        public:
-            void wait() {
-            }
-        };
-    };
-```
-
-One possible alternative is to iterate over the resources and call `wait` on
-each resource. This might work for some cases such as `sycl::queue` and
-`tbb::task_group`.  Another alternative is to capture all *Submission* objects
-returned by `submit` and iterate over those. 
-
-#### Default scratch space
-
-In the base class, there is a struct `scratch_t`. To implement reporting, a backend
-may need per-selection scratch space to store values. For example, a beginning time,
-a `sycl::event`, etc. These will often be set during `instrument_before` or
-`instrument_after` and then read later, perhaps in `lazy_report`. The `scratch_t`
-defined by a backend is added to the *Selection* type created by the policy for 
-use by the backend.
-
-Policies include the space using a backend trait only for the `execution_info` types
-that they need:
-
-```cpp
-// within oneapi::dpl::experimental
-namespace backend_traits
+template< >
+class default_backend<sycl::queue> : public backend_base<sycl::queue, default_backend<sycl::queue>>
 {
-    template <typename Backend, typename ...Req>
-    inline constexpr bool scratch_space_v = internal::has_scratch_space<Backend, Req...>::value;
-
-    template <typename Backend, typename ...Req>
-    using selection_scratch_t = typename scratch_trait_t_impl<Backend, backend_traits::scratch_space_v<Backend, Req...>,Req...>::type;
-} //namespace backend_traits
+  //* override as needed
+};
 ```
 
+And the use of this SYCL backend by a policy, such as `round_robin_policy` is implemented by a policy
+as:
+
+```cpp
+template <typename ResourceType = sycl::queue, typename Backend = default_backend<sycl::queue>>
+struct round_robin_policy
+{
+    // policy implementation
+};
+```
+
+The result is that round-robin policy still default to the SYCL backend, which is implemented using
+a specialization of teh default backed:
+
+```cpp
+    // uses ResourceType = sycl::queue and Backend = default_backend<sycl::queue>
+    // and default_backend<sycl::queue> inherits from backend_base<sycl::queue, default_backend<sycl::queue>>
+    round_robin_policy p;
+```
 ## Backend Examples
 
 ### Default Backend for NUMA Nodes
@@ -458,7 +395,7 @@ namespace backend_traits
         s.wait(); // not waiting in correct arena though...
 ```
 
-### Uninstrumented Custom Backend for NUMA Nodes
+### Custom Backend for NUMA Nodes but no instrumentation
 
 ```cpp
     using pair_t = std::pair<tbb::task_arena*, tbb::task_group*>
