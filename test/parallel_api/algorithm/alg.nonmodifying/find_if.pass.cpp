@@ -54,11 +54,22 @@ struct test_find_if_not
     }
 };
 
+template <typename T, typename Predicate>
+struct NotPred
+{
+    Predicate pred;
+
+    auto operator()(T x) const
+    {
+        return !pred(x);
+    }
+};
+
 template <typename T, typename Predicate, typename Hit, typename Miss>
 void
 test(Predicate pred, Hit hit, Miss miss)
 {
-    auto not_pred = [pred](T x) { return !pred(x); }; // KSATODO move lambda out
+    NotPred<T, Predicate> not_pred{pred};
     // Try sequences of various lengths.
     for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
@@ -82,17 +93,24 @@ test(Predicate pred, Hit hit, Miss miss)
     }
 }
 
+template <typename T>
+struct IsEven
+{
+    bool
+    operator(T v) const
+    {
+        std::uint32_t i = (std::uint32_t)v;
+        return i % 2 == 0;
+    }
+};
+
 struct test_non_const_find_if
 {
     template <typename Policy, typename Iterator>
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) { // KSATODO move lambda out
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-
+        IsEven<std::float64_t> is_even;
         find_if(exec, iter, iter, non_const(is_even));
     }
 };
@@ -103,11 +121,7 @@ struct test_non_const_find_if_not
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) { // KSATODO move lambda out
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-
+        IsEven<std::float64_t> is_even;
         find_if_not(exec, iter, iter, non_const(is_even));
     }
 };
