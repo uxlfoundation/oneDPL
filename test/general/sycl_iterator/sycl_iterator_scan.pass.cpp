@@ -71,6 +71,16 @@ DEFINE_TEST(test_remove_if)
 {
     DEFINE_TEST_CONSTRUCTOR(test_remove_if, 2.0f, 0.65f)
 
+    template <typename T1>
+    struct CheckState
+    {
+        Size pos;
+        bool operator()(T1 x) const
+        {
+            return x == T1(222 + pos);
+        }
+    };
+
     template <typename Policy, typename Iterator, typename Size>
     void
     operator()(Policy&& exec, Iterator first, Iterator last, Size n)
@@ -83,8 +93,7 @@ DEFINE_TEST(test_remove_if)
         host_keys.update_data();
 
         auto pos = (last - first) / 2;
-        auto res1 = ::std::remove_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last,
-                                   [=](T1 x) { return x == T1(222 + pos); }); // KSATODO move lambda out
+        auto res1 = ::std::remove_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, CheckState<T1>{pos});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last - 1, "wrong result from remove_if");
@@ -109,6 +118,16 @@ DEFINE_TEST(test_unique)
 {
     DEFINE_TEST_CONSTRUCTOR(test_unique, 2.0f, 0.65f)
 
+    template <typename IteratorValueType>
+    struct IsEq
+    {
+        bool
+        operator()(IteratorValueType a, IteratorValueType b) const
+        {
+            return a == b;
+        }
+    };
+
     template <typename Policy, typename Iterator, typename Size>
     void
     operator()(Policy&& exec, Iterator first, Iterator last, Size n)
@@ -123,8 +142,7 @@ DEFINE_TEST(test_unique)
         host_keys.update_data();
 
         // invoke
-        auto f = [](IteratorValueType a, IteratorValueType b) { return a == b; }; // KSATODO move lambda out
-        auto result_last = ::std::unique(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, f);
+        auto result_last = ::std::unique(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, IsEq<IteratorValueType>{});
         wait_and_throw(exec);
 
         auto result_size = result_last - first;
@@ -159,6 +177,15 @@ DEFINE_TEST(test_partition)
 {
     DEFINE_TEST_CONSTRUCTOR(test_partition, 2.0f, 0.65f)
 
+    template <typename IteratorValueType>
+    struct IsMultipleOf3And2
+    {
+        bool operator(IteratorValueType value) const
+        {
+            return (value % 3 == 0) && (value % 2 == 0);
+        }
+    };
+
     template <typename Policy, typename Iterator, typename Size>
     void
     operator()(Policy&& exec, Iterator first, Iterator last, Size n)
@@ -172,7 +199,7 @@ DEFINE_TEST(test_partition)
         host_keys.update_data();
 
         // invoke partition
-        auto unary_op = [](IteratorValueType value) { return (value % 3 == 0) && (value % 2 == 0); }; // KSATODO move lambda out
+        auto unary_op = IsMultipleOf3And2<IteratorValueType>{};
         auto res = ::std::partition(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, unary_op);
         wait_and_throw(exec);
 
@@ -202,6 +229,26 @@ DEFINE_TEST(test_transform_inclusive_scan)
 {
     DEFINE_TEST_CONSTRUCTOR(test_transform_inclusive_scan, 2.0f, 0.65f)
 
+    template <typename T1>
+    struct Mult2
+    {
+        T1
+        operator()(T1 x) const
+        {
+            return x * 2;
+        }
+    };
+
+    template <typename T1>
+    struct TransformOp
+    {
+        T1
+        operator()(T1 x) const
+        {
+            return x * 2;
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Size n)
@@ -215,9 +262,7 @@ DEFINE_TEST(test_transform_inclusive_scan)
         ::std::fill(host_keys.get(), host_keys.get() + n, T1(1));
         host_keys.update_data();
 
-        auto res1 = ::std::transform_inclusive_scan(
-            make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, ::std::plus<T1>(),
-            [](T1 x) { return x * 2; }, value); // KSATODO move lambda out
+        auto res1 = std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, std::plus<T1>(), Mult2<T1>{}, value);
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from transform_inclusive_scan_1");
@@ -237,8 +282,7 @@ DEFINE_TEST(test_transform_inclusive_scan)
         }
 
         // without initial value
-        auto res2 = ::std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1,
-                                                    first2, ::std::plus<T1>(), [](T1 x) { return x * 2; }); // KSATODO move lambda out
+        auto res2 = ::std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2, std::plus<T1>(), TransformOp<T1>{});
         EXPECT_TRUE(res2 == last2, "wrong result from transform_inclusive_scan_2");
 
         retrieve_data(host_keys, host_vals);
@@ -261,6 +305,15 @@ DEFINE_TEST(test_transform_exclusive_scan)
 {
     DEFINE_TEST_CONSTRUCTOR(test_transform_exclusive_scan, 2.0f, 0.65f)
 
+    template <typename T1>
+    struct TransformOp
+    {
+        T1 operator()(T1 x)
+        {
+            return x * 2;
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Size n)
@@ -273,9 +326,7 @@ DEFINE_TEST(test_transform_exclusive_scan)
         ::std::fill(host_keys.get(), host_keys.get() + n, T1(1));
         host_keys.update_data();
 
-        auto res1 =
-            ::std::transform_exclusive_scan(make_new_policy<new_kernel_name<Policy, 2>>(exec), first1, last1, first2,
-                                          T1{}, ::std::plus<T1>(), [](T1 x) { return x * 2; }); // KSATODO move lambda out
+        auto res1 = std::transform_exclusive_scan(make_new_policy<new_kernel_name<Policy, 2>>(exec), first1, last1, first2, T1{}, std::plus<T1>(), TransformOp<T1>{});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from transform_exclusive_scan");
@@ -299,6 +350,26 @@ DEFINE_TEST(test_copy_if)
 {
     DEFINE_TEST_CONSTRUCTOR(test_copy_if, 2.0f, 0.65f)
 
+    template <typename T1>
+    struct GreatThenMinusOne
+    {
+        bool
+        operator()(T1 x) const
+        {
+            return x > -1;
+        }
+    };
+
+    template <typename T1>
+    struct IsNotMultipleOfTwo
+    {
+        bool
+        operator()(T1 x) const
+        {
+            return x % 2 == 1;
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Size n)
@@ -311,8 +382,7 @@ DEFINE_TEST(test_copy_if)
         ::std::iota(host_keys.get(), host_keys.get() + n, T1(222));
         host_keys.update_data();
 
-        auto res1 = ::std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2,
-                                   [](T1 x) { return x > -1; }); // KSATODO move lambda out
+        auto res1 = std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, GreatThenMinusOne<T1>{});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from copy_if_1");
@@ -329,8 +399,7 @@ DEFINE_TEST(test_copy_if)
             EXPECT_TRUE(host_first2[i] == exp, "wrong effect from copy_if_1");
         }
 
-        auto res2 = ::std::copy_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2,
-                                 [](T1 x) { return x % 2 == 1; }); // KSATODO move lambda out
+        auto res2 = std::copy_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2, IsNotMultipleOfTwo<T1>{});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res2 == first2 + (last2 - first2) / 2, "wrong result from copy_if_2");
@@ -353,6 +422,16 @@ DEFINE_TEST(test_unique_copy)
 {
     DEFINE_TEST_CONSTRUCTOR(test_unique_copy, 2.0f, 0.65f)
 
+    template <typename Iterator1ValueType>
+    struct IsEq
+    {
+        bool
+        operator()(Iterator1ValueType a, Iterator1ValueType b) const
+        {
+            return a == b;
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 /* last2 */, Size n)
@@ -369,7 +448,7 @@ DEFINE_TEST(test_unique_copy)
         update_data(host_keys, host_vals);
 
         // invoke
-        auto f = [](Iterator1ValueType a, Iterator1ValueType b) { return a == b; }; // KSATODO move lambda out
+        auto f = IsEq<Iterator1ValueType>{};
         auto result_first = first2;
         auto result_last =
             ::std::unique_copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, result_first, f);
@@ -406,6 +485,17 @@ DEFINE_TEST(test_partition_copy)
 {
     DEFINE_TEST_CONSTRUCTOR(test_partition_copy, 2.0f, 0.65f)
 
+    template <typename Iterator1ValueType>
+    struct IsMultipleOf3And2
+    {
+        template <typename T1>
+        bool
+        operator()(T1 x) const
+        {
+            return (x % 3 == 0) && (x % 2 == 0);
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 /* last2 */, Iterator3 first3,
@@ -418,7 +508,7 @@ DEFINE_TEST(test_partition_copy)
         using Iterator1ValueType = typename ::std::iterator_traits<Iterator1>::value_type;
         using Iterator2ValueType = typename ::std::iterator_traits<Iterator2>::value_type;
         using Iterator3ValueType = typename ::std::iterator_traits<Iterator3>::value_type;
-        auto f = [](Iterator1ValueType value) { return (value % 3 == 0) && (value % 2 == 0); }; // KSATODO move lambda out
+        auto f = IsMultipleOf3And2<Iterator1ValueType>{};
 
         // init
         ::std::iota(host_keys.get(), host_keys.get() + n, Iterator1ValueType{0});
