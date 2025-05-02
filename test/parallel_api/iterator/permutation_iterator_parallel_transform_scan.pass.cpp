@@ -31,6 +31,15 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
             *it = (n - index) % 2 ? 0 : 1;
     }
 
+    template <typename TestValueType>
+    struct IsGreatThenZero
+    {
+        bool operator()(TestValueType val) const
+        {
+            return val > 0;
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
@@ -54,7 +63,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
                     dpl::copy(exec, permItBegin, permItEnd, sourceData.begin());
                     wait_and_throw(exec);
 
-                    const auto op = [](TestValueType val) { return val > 0; }; // KSATODO move lambda out
+                    const IsGreatThenZero<TestValueType> op;
 
                     auto itEndNewRes = dpl::remove_if(exec, permItBegin, permItEnd, op);
                     wait_and_throw(exec);
