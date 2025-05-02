@@ -32,7 +32,7 @@ main()
 #if _ENABLE_RANGES_TESTING
     constexpr int max_n = 10;
     constexpr int new_val = -1;
-    auto pred = [](auto i) { return i % 2 == 0; }; // KSATODO move lambda out?
+    auto pred = [](auto i) { return i % 2 == 0; };
 
     using namespace oneapi::dpl::experimental::ranges;
 
