@@ -729,7 +729,7 @@ struct __deferrable_mode
 {
 };
 
-//A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
+//A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __result_and_scratch_storage>
 //Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
 template <typename _Event, typename... _Args>
 class __future : private std::tuple<_Args...>
