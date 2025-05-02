@@ -35,7 +35,7 @@ main()
     int data1[max_n], data2[max_n];
 
     int init = 100;
-    auto lambda = [](auto i) { return i * i; }; // KSATODO move lambda out?
+    auto lambda = [](auto i) { return i * i; };
     {
         sycl::buffer<int> A(data, sycl::range<1>(max_n));
         sycl::buffer<int> B1(data1, sycl::range<1>(max_n));
