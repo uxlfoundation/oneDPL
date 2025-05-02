@@ -332,6 +332,24 @@ test_set(Compare compare, bool comp_flag)
     }
 }
 
+template <typename T>
+struct LessOp
+{
+    bool operator()(const T& x, const T& y) const
+    {
+        return x < y;
+    }
+};
+
+template <typename T>
+struct ValueLessOp
+{
+    bool operator()(const T& val1, const T& val2) const
+    {
+        return val1.value() < val2.value();
+    }
+};
+
 template <template <typename T> typename TestType>
 void
 run_test_set()
@@ -349,11 +367,9 @@ run_test_set()
 #endif // !ONEDPL_FPGA_DEVICE
 
 #if !TEST_DPCPP_BACKEND_PRESENT
-    test_set<TestType, Num<std::int64_t>, Num<std::int32_t>>(
-        [](const Num<std::int64_t>& x, const Num<std::int32_t>& y) { return x < y; }, true); // KSATODO move lambda out
+    test_set<TestType, Num<std::int64_t>, Num<std::int32_t>>(LessOp<Num<std::int32_t>>{}, true);
 
-    test_set<TestType, MemoryChecker, MemoryChecker>(
-        [](const MemoryChecker& val1, const MemoryChecker& val2) -> bool { return val1.value() < val2.value(); }, true); // KSATODO move lambda out
+    test_set<TestType, MemoryChecker, MemoryChecker>(ValueLessOp<MemoryChecker>{}, true);
     EXPECT_TRUE(MemoryChecker::alive_objects() == 0,
                 "wrong effect from set algorithms: number of ctor and dtor calls is not equal");
 #endif // !TEST_DPCPP_BACKEND_PRESENT
