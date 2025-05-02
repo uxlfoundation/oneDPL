@@ -34,7 +34,7 @@ int main()
     test_sort<TestUtils::float32_t>(SortTestConfig{cfg, "float, device"}, sizes, Device<0>{},
                                     Converter<TestUtils::float32_t>{});
 
-    auto sycl_half_convert = [](size_t k, size_t val) { // KSATODO move lambda out?
+    auto sycl_half_convert = [](size_t k, size_t val) {
         constexpr std::uint16_t mask = 0xFFFFu;
         std::uint16_t raw = std::uint16_t(val & mask);
         // Avoid NaN values, because they need a custom comparator due to: (x < NaN = false) and (NaN < x = false).
