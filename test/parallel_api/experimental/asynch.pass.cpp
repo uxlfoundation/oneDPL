@@ -47,11 +47,11 @@ void test1_with_buffers()
                                                             7); // y = [7..7]
         auto my_policy2 = TestUtils::make_device_policy<class ForEach1>(my_policy);
         auto res_2a = oneapi::dpl::experimental::for_each_async(
-            my_policy2, oneapi::dpl::begin(x), oneapi::dpl::end(x), [](int& e) { ++e; }, res_1a); // x = [1..n] // KSATODO move lambda out?
+            my_policy2, oneapi::dpl::begin(x), oneapi::dpl::end(x), [](int& e) { ++e; }, res_1a); // x = [1..n]
         auto my_policy3 = TestUtils::make_device_policy<class Transform1>(my_policy);
         auto res_2b = oneapi::dpl::experimental::transform_async(
             my_policy3, oneapi::dpl::begin(y), oneapi::dpl::end(y), oneapi::dpl::begin(y),
-            [](const int& e) { return e / 2; }, // KSATODO move lambda out?
+            [](const int& e) { return e / 2; },
             res_1b); // y = [3..3]
 
         auto my_policy4 = TestUtils::make_device_policy<class Transform2>(my_policy);
@@ -66,10 +66,10 @@ void test1_with_buffers()
         auto my_policy6 = TestUtils::make_device_policy<class Reduce2>(my_policy);
         auto beta =
             oneapi::dpl::experimental::transform_reduce_async(my_policy6, oneapi::dpl::begin(z), oneapi::dpl::end(z), 0,
-                                                              std::plus<int>(), [=](int e) { return alpha * e; }); // KSATODO move lambda out?
+                                                              std::plus<int>(), [=](int e) { return alpha * e; });
 
         auto my_policy7 = TestUtils::make_device_policy<class Scan>(my_policy);
-        auto gamma = oneapi::dpl::experimental::transform_inclusive_scan_async(my_policy6, oneapi::dpl::begin(x), oneapi::dpl::end(x),oneapi::dpl::begin(y), std::plus<int>(), [](auto x) { return x * 10; }, 0); // KSATODO move lambda out?
+        auto gamma = oneapi::dpl::experimental::transform_inclusive_scan_async(my_policy6, oneapi::dpl::begin(x), oneapi::dpl::end(x),oneapi::dpl::begin(y), std::plus<int>(), [](auto x) { return x * 10; }, 0);
 
         auto my_policy8 = TestUtils::make_device_policy<class Sort>(my_policy);
         auto delta = oneapi::dpl::experimental::sort_async(my_policy8, oneapi::dpl::begin(y), oneapi::dpl::end(y), std::greater<int>(), gamma);
@@ -111,7 +111,7 @@ void test2_with_buffers()
                                                                 oneapi::dpl::begin(x)); // x = [1..n]
         auto alpha = 1.0f;
         auto my_policy6 = TestUtils::make_device_policy<class Scan2a>(my_policy);
-        auto beta = oneapi::dpl::experimental::transform_inclusive_scan_async(my_policy6, oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y), std::plus<float>(), [=](auto x) { return x * alpha; }, 0.0f, res_1a); // KSATODO move lambda out?
+        auto beta = oneapi::dpl::experimental::transform_inclusive_scan_async(my_policy6, oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y), std::plus<float>(), [=](auto x) { return x * alpha; }, 0.0f, res_1a);
         
         auto my_policy1 = TestUtils::make_device_policy<class Fill2a>(my_policy);
         auto res_1b = oneapi::dpl::experimental::fill_async(my_policy1, oneapi::dpl::begin(x), oneapi::dpl::end(x),
