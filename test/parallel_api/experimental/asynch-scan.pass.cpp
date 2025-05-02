@@ -45,18 +45,18 @@ test_with_buffers()
 
         // transform inclusive (2 overloads)
         auto my_policy1 = TestUtils::make_device_policy<class Scan1>(my_policy);
-        auto alpha = dpl::experimental::transform_inclusive_scan_async(my_policy1, dpl::begin(x), dpl::end(x), dpl::begin(y), std::plus<int>(), [](auto x) { return x * 10; }); // KSATODO move lambda out?
+        auto alpha = dpl::experimental::transform_inclusive_scan_async(my_policy1, dpl::begin(x), dpl::end(x), dpl::begin(y), std::plus<int>(), [](auto x) { return x * 10; });
         auto result1 = alpha.get().get_buffer().get_host_access(sycl::read_only)[n-1];
         EXPECT_TRUE(result1 == (expected1 * 10), "wrong effect from async scan test (Ia) with sycl buffer");
 
         auto my_policy2 = TestUtils::make_device_policy<class Scan2>(my_policy);
-        auto fut1b = dpl::experimental::transform_inclusive_scan_async(my_policy2, dpl::begin(x), dpl::end(x), dpl::begin(y), std::plus<int>(), [](auto x) { return x * 10; }, 1); // KSATODO move lambda out?
+        auto fut1b = dpl::experimental::transform_inclusive_scan_async(my_policy2, dpl::begin(x), dpl::end(x), dpl::begin(y), std::plus<int>(), [](auto x) { return x * 10; }, 1);
         auto result1b = fut1b.get().get_buffer().get_host_access(sycl::read_only)[n-1];
         EXPECT_TRUE(result1b == (expected1 * 10 + 1), "wrong effect from async scan test (Ib) with sycl buffer");
 
         // transform exclusive
         auto my_policy3 = TestUtils::make_device_policy<class Scan3>(my_policy);
-        auto beta = dpl::experimental::transform_exclusive_scan_async(my_policy3, dpl::begin(x), dpl::end(x), dpl::begin(y), 0, std::plus<int>(), [](auto x) { return x * 10; }); // KSATODO move lambda out?
+        auto beta = dpl::experimental::transform_exclusive_scan_async(my_policy3, dpl::begin(x), dpl::end(x), dpl::begin(y), 0, std::plus<int>(), [](auto x) { return x * 10; });
         auto result2 = beta.get().get_buffer().get_host_access(sycl::read_only)[n-1];
         EXPECT_TRUE(result2 == expected2 * 10, "wrong effect from async scan test (II) with sycl buffer");
 
