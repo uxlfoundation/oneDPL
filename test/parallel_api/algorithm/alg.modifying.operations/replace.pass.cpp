@@ -145,17 +145,24 @@ test(Pred pred)
 }
 
 template <typename T>
+struct IsEven
+{
+    bool
+    operator(T v) const
+    {
+        std::uint32_t i = (std::uint32_t)v;
+        return i % 2 == 0;
+    }
+};
+
+template <typename T>
 struct test_non_const
 {
     template <typename Policy, typename Iterator>
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) { // KSATODO move lambda out
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-
+        auto is_even = IsEven<std::float64_t>{};
         replace_if(exec, iter, iter, non_const(is_even), T(0));
     }
 };
