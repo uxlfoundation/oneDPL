@@ -33,8 +33,8 @@ main()
 #if _ENABLE_RANGES_TESTING
     using T = int;
 
-    auto lambda1 = [](T val) -> bool { return val % 2 == 0; }; // KSATODO move lambda out?
-    auto lambda2 = [](T val) -> bool { return val % 3 == 0; }; // KSATODO move lambda out?
+    auto lambda1 = [](T val) -> bool { return val % 2 == 0; };
+    auto lambda2 = [](T val) -> bool { return val % 3 == 0; };
     ::std::vector<T> data = {2, 5, 2, 4, 2, 0, 6, -7, 7, 3};
 
     ::std::vector<T> in(data);
