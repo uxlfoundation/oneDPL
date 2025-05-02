@@ -77,24 +77,13 @@ test(size_t bits)
     }
 }
 
-template <typename T>
-struct IsEven
-{
-    bool
-    operator(T v) const
-    {
-        std::uint32_t i = (std::uint32_t)v;
-        return i % 2 == 0;
-    }
-};
-
 struct test_non_const
 {
     template <typename Policy, typename Iterator>
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        IsEven<std::float64_t> is_even;
+        TestUtils::IsEven<std::float64_t> is_even;
         none_of(exec, iter, iter, non_const(is_even));
     }
 };

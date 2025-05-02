@@ -60,24 +60,13 @@ struct LocalWrapper
     T my_val;
 };
 
-template <typename T>
-struct IsEven
-{
-    bool
-    operator(T v) const
-    {
-        std::uint32_t i = (std::uint32_t)v;
-        return i % 2 == 0;
-    }
-};
-
 struct test_non_const
 {
     template <typename Policy, typename Iterator>
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = IsEven<std::float64_t>{};
+        auto is_even = TestUtils::IsEven<std::float64_t>{};
         is_partitioned(exec, iter, iter, non_const(is_even));
     }
 };

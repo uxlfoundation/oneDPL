@@ -87,24 +87,13 @@ test(UnaryPred pred)
     }
 }
 
-template <typename T>
-struct IsEven
-{
-    bool
-    operator(T v) const
-    {
-        std::uint32_t i = (std::uint32_t)v;
-        return i % 2 == 0;
-    }
-};
-
 struct test_non_const
 {
     template <typename Policy, typename InputIterator, typename OutputInterator>
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = IsEven<std::float64_t>{};
+        auto is_even = TestUtils::IsEven<std::float64_t>{};
         partition_copy(exec, input_iter, input_iter, out_iter, out_iter, non_const(is_even));
     }
 };

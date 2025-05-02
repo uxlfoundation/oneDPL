@@ -197,24 +197,13 @@ test(T trash, Predicate pred, Convert convert, bool check_weakness = true)
     }
 }
 
-template <typename T>
-struct IsEven
-{
-    bool
-    operator(T v) const
-    {
-        std::uint32_t i = (std::uint32_t)v;
-        return i % 2 == 0;
-    }
-};
-
 struct test_non_const_copy_if
 {
     template <typename Policy, typename InputIterator, typename OutputInterator>
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = IsEven<std::float64_t>{};
+        auto is_even = TestUtils::IsEven<std::float64_t>{};
         copy_if(exec, input_iter, input_iter, out_iter, non_const(is_even));
     }
 };
@@ -225,7 +214,7 @@ struct test_non_const_remove_copy_if
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = IsEven<std::float64_t>{};
+        auto is_even = TestUtils::IsEven<std::float64_t>{};
         remove_copy_if(exec, input_iter, input_iter, out_iter, non_const(is_even));
     }
 };

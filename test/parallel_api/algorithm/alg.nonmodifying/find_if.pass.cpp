@@ -93,24 +93,13 @@ test(Predicate pred, Hit hit, Miss miss)
     }
 }
 
-template <typename T>
-struct IsEven
-{
-    bool
-    operator(T v) const
-    {
-        std::uint32_t i = (std::uint32_t)v;
-        return i % 2 == 0;
-    }
-};
-
 struct test_non_const_find_if
 {
     template <typename Policy, typename Iterator>
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        IsEven<std::float64_t> is_even;
+        TestUtils::IsEven<std::float64_t> is_even;
         find_if(exec, iter, iter, non_const(is_even));
     }
 };
@@ -121,7 +110,7 @@ struct test_non_const_find_if_not
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        IsEven<std::float64_t> is_even;
+        TestUtils::IsEven<std::float64_t> is_even;
         find_if_not(exec, iter, iter, non_const(is_even));
     }
 };

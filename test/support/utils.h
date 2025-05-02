@@ -1062,6 +1062,17 @@ get_pattern_for_test_sizes()
     return sizes;
 }
 
+template <typename T>
+struct IsEven
+{
+    bool
+    operator(T v) const
+    {
+        std::uint32_t i = (std::uint32_t)v;
+        return i % 2 == 0;
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
