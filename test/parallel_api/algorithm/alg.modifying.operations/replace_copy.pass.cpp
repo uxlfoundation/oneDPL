@@ -98,17 +98,24 @@ test(T trash, const T& old_value, const T& new_value, Predicate pred, Convert co
 }
 
 template <typename T>
+struct IsEven
+{
+    bool
+    operator(T v) const
+    {
+        std::uint32_t i = (std::uint32_t)v;
+        return i % 2 == 0;
+    }
+};
+
+template <typename T>
 struct test_non_const
 {
     template <typename Policy, typename InputIterator, typename OutputInterator>
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = [&](float64_t v) { // KSATODO move lambda out
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-
+        auto is_even = IsEven<std::float64_t>{};
         replace_copy_if(exec, input_iter, input_iter, out_iter, non_const(is_even), T(0));
     }
 };
