@@ -199,7 +199,6 @@ test_merge_by_type(size_t start_size, size_t max_size, FStep fstep)
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     // Wrapper has atomic increment in ctor. It's not allowed in kernel
-     // KSATODO move lambda out
     test_merge_by_type<Wrapper<std::int16_t>>(L5<std::size_t>{},
                                               L6<std::size_t>{},
                                               start_size, max_size, fstep);
@@ -239,14 +238,14 @@ main()
     const size_t start_size_small = 0;
 #endif
     const size_t max_size_small = 100000;
-    auto fstep_small = [](std::size_t size){ return size <= 16 ? size + 1 : size_t(3.1415 * size);}; // KSATODO move lambda out
+    auto fstep_small = [](std::size_t size){ return size <= 16 ? size + 1 : size_t(3.1415 * size);};
     test_merge_by_type(start_size_small, max_size_small, fstep_small);
 
     // Large data sizes
 #if TEST_DPCPP_BACKEND_PRESENT
     const size_t start_size_large = 4'000'000;
     const size_t max_size_large = 8'000'000;
-    auto fstep_large = [](std::size_t size){ return size + 2'000'000; }; // KSATODO move lambda out
+    auto fstep_large = [](std::size_t size){ return size + 2'000'000; };
     test_merge_by_type(start_size_large, max_size_large, fstep_large);
 #endif
 
@@ -260,10 +259,10 @@ main()
     std::vector<T> b = { {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1} };
     std::vector<T> merged(a.size() + b.size());
 
-    auto comp = [](auto a, auto b) { return std::get<0>(b) < std::get<0>(a); }; //greater by key // KSATODO move lambda out
+    auto comp = [](auto a, auto b) { return std::get<0>(b) < std::get<0>(a); }; //greater by key
 
     invoke_on_all_policies<100>()(test_merge_tuple(), a.begin(), a.end(), b.cbegin(), b.cend(), merged.begin(), comp,
-        [&]() // KSATODO move lambda out
+        [&]()
         {
             std::int32_t sum1 = 0; //a sum of the first a.size() values, should be 2*a.size()
             std::int32_t sum2 = 0; //a sum of the second b.size() values, should be 1*b.size()
