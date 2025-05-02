@@ -33,7 +33,7 @@ main()
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     int data2[max_n];
 
-    auto lambda1 = [](auto i) { return i * i; }; // KSATODO move lambda out?
+    auto lambda1 = [](auto i) { return i * i; };
 
     using namespace oneapi::dpl::experimental::ranges;
 
