@@ -259,6 +259,42 @@ DEFINE_TEST(test_count)
     }
 };
 
+template <typename ValueType>
+struct MultipleOf10
+{
+    bool operator()(const ValueType& x) const
+    {
+        return x % 10 == 0;
+    }
+};
+
+template <typename ValueType>
+struct GreatThen10
+{
+    bool operator()(const ValueType& x) const
+    {
+        return x > 10;
+    }
+};
+
+template <typename ValueType>
+struct LessThen10
+{
+    bool operator()(const ValueType& x) const
+    {
+        return x < 10;
+    }
+};
+
+template <typename ValueType>
+struct IsOdd
+{
+    bool operator()(const ValueType& x) const
+    {
+        return value % 2 != 0;
+    }
+};
+
 DEFINE_TEST(test_count_if)
 {
     DEFINE_TEST_CONSTRUCTOR(test_count_if, 2.0f, 0.80f)
@@ -278,8 +314,7 @@ DEFINE_TEST(test_count_if)
 
         // check when arbitrary should be counted
         ReturnType expected = (n - 1) / 10 + 1;
-        ReturnType result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last,
-                                            [](ValueType const& value) { return value % 10 == 0; }); // KSATODO move lambda out
+        ReturnType result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, MultipleOf10<ValueType>{});
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #1 arbitrary to count)");
@@ -289,8 +324,7 @@ DEFINE_TEST(test_count_if)
 
         // check when none should be counted
         expected = 0;
-        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first, last,
-                                 [](ValueType const& value) { return value > 10; }); // KSATODO move lambda out
+        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first, last, GreatThen10<ValueType>{});
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #2 none to count)");
@@ -300,8 +334,7 @@ DEFINE_TEST(test_count_if)
 
         // check when all should be counted
         expected = n;
-        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), first, last,
-                                 [](ValueType const& value) { return value < 10; }); // KSATODO move lambda out
+        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), first, last, less_than);
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #3 all to count)");
@@ -326,8 +359,8 @@ DEFINE_TEST(test_is_partitioned)
         if (n < 2)
             return;
 
-        auto less_than = [](const ValueType& value) -> bool { return value < 10; }; // KSATODO move lambda out
-        auto is_odd = [](const ValueType& value) -> bool { return value % 2; }; // KSATODO move lambda out
+        auto less_than = LessThen10<ValueType>{};
+        auto is_odd = IsOdd<ValueType>{};
 
         bool expected_bool_less_then = false;
         bool expected_bool_is_odd = false;
@@ -386,6 +419,16 @@ DEFINE_TEST(test_transform_reduce_binary)
     }
 };
 
+template <typename ValueType>
+struct LessThen
+{
+    bool
+    oeprator()(const ValueType& x, const ValueType& y) const
+    {
+        return x < y;
+    }
+};
+
 // TODO: move unique cases to test_lexicographical_compare
 DEFINE_TEST(test_lexicographical_compare)
 {
@@ -411,7 +454,7 @@ DEFINE_TEST(test_lexicographical_compare)
             update_data(host_keys, host_vals);
         }
 
-        auto comp = [](ValueType const& first, ValueType const& second) { return first < second; }; // KSATODO move lambda out
+        auto comp = LessThen<ValueType>{};
 
         // CHECK 1.1: S1 == S2 && len(S1) == len(S2)
         bool is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1,
