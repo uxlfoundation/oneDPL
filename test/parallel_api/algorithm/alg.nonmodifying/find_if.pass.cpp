@@ -131,13 +131,13 @@ main()
 {
 #if !TEST_DPCPP_BACKEND_PRESENT
     // Note that the "hit" and "miss" functions here avoid overflow issues.
-    test<Number>(IsMultiple(5, OddTag()), [](std::int32_t j) { return Number(j - j % 5, OddTag()); }, // hit // KSATODO move lambda out
-                 [](std::int32_t j) { return Number(j % 5 == 0 ? j ^ 1 : j, OddTag()); });            // miss // KSATODO move lambda out
+    test<Number>(IsMultiple(5, OddTag()), [](std::int32_t j) { return Number(j - j % 5, OddTag()); }, // hit
+                 [](std::int32_t j) { return Number(j % 5 == 0 ? j ^ 1 : j, OddTag()); });            // miss
 #endif
 
     // Try type for which algorithm can really be vectorized.
-    test<float32_t>([](float32_t x) { return x >= 0; }, [](float32_t j) { return j * j; }, // KSATODO move lambda out
-                    [](float32_t j) { return -1 - j * j; }); // KSATODO move lambda out
+    test<float32_t>([](float32_t x) { return x >= 0; }, [](float32_t j) { return j * j; },
+                    [](float32_t j) { return -1 - j * j; });
 
 #ifdef _PSTL_TEST_FIND_IF
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const_find_if>());
