@@ -61,7 +61,7 @@ void test_simple_copy(size_t buffer_size)
     auto sycl_result_begin = test_base_data.get_start_from(UDTKind::eVals);
 
     // 3. run algorithms
-    auto transformation = [](int item) { return item + 1; }; // KSATODO move lambda out
+    auto transformation = [](int item) { return item + 1; };
 
     auto tr_sycl_source_begin = oneapi::dpl::make_transform_iterator(sycl_source_begin, transformation);
     auto tr_sycl_source_end = tr_sycl_source_begin + buffer_size;
@@ -95,7 +95,7 @@ void test_ignore_copy(size_t buffer_size)
 
     // 3. run algorithms
 
-    auto transformation = [](int) { return ::std::ignore; }; // KSATODO move lambda out
+    auto transformation = [](int) { return ::std::ignore; };
 
     auto tr_sycl_result_begin = oneapi::dpl::make_transform_iterator(sycl_result_begin, transformation);
 
@@ -126,7 +126,7 @@ void test_multi_transform_copy(size_t buffer_size)
 
     // 3. run algorithms
 
-    auto transformation = [](int item) { return item + 1; }; // KSATODO move lambda out
+    auto transformation = [](int item) { return item + 1; };
 
     auto tr_sycl_source_begin = oneapi::dpl::make_transform_iterator(sycl_source_begin, transformation);
     auto tr2_sycl_source_begin = oneapi::dpl::make_transform_iterator(tr_sycl_source_begin, transformation);
