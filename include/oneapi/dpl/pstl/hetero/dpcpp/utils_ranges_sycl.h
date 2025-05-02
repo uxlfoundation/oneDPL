@@ -226,8 +226,7 @@ inline constexpr bool is_sycl_or_hetero_iterator_v = is_sycl_or_hetero_iterator<
 
 template <typename _Iter>
 using __is_passed_directly_device_ready =
-    std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Iter>, sycl::is_device_copyable<_Iter>,
-                     oneapi::dpl::__internal::__is_random_access_iterator<_Iter>>;
+    std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Iter>, sycl::is_device_copyable<_Iter>>;
 
 template <typename _Iter>
 inline constexpr bool __is_passed_directly_device_ready_v = __is_passed_directly_device_ready<_Iter>::value;
