@@ -154,16 +154,16 @@ int
 main()
 {
     test_by_type<std::int32_t>(42, ::std::plus<std::int32_t>(), ::std::multiplies<std::int32_t>(), ::std::negate<std::int32_t>(),
-                          [](::std::size_t) -> std::int32_t { return std::int32_t(rand() % 1000); }); // KSATODO move lambda out
+                          [](::std::size_t) -> std::int32_t { return std::int32_t(rand() % 1000); });
     test_by_type<std::int64_t>(0, [](const std::int64_t& a, const std::int64_t& b) -> std::int64_t { return a | b; }, XOR(),
-                          [](const std::int64_t& x) -> std::int64_t { return x * 2; }, // KSATODO move lambda out
-                          [](::std::size_t) -> std::int64_t { return std::int64_t(rand() % 1000); }); // KSATODO move lambda out
+                          [](const std::int64_t& x) -> std::int64_t { return x * 2; },
+                          [](::std::size_t) -> std::int64_t { return std::int64_t(rand() % 1000); });
     test_by_type<float32_t>(1.0f, ::std::multiplies<float32_t>(),
-                            [](const float32_t& a, const float32_t& b) -> float32_t { return a + b; }, // KSATODO move lambda out
-                            [](const float32_t& x) -> float32_t { return x + 2; }, // KSATODO move lambda out
-                            [](::std::size_t) -> float32_t { return rand() % 1000; }); // KSATODO move lambda out
+                            [](const float32_t& a, const float32_t& b) -> float32_t { return a + b; },
+                            [](const float32_t& x) -> float32_t { return x + 2; },
+                            [](::std::size_t) -> float32_t { return rand() % 1000; });
     test_by_type<MyClass>(MyClass(), ::std::plus<MyClass>(), ::std::multiplies<MyClass>(),
-        [](const MyClass& x) { return MyClass(-x.my_field); }, // KSATODO move lambda out
-        [](::std::size_t) -> MyClass { return MyClass(rand() % 1000); }); // KSATODO move lambda out
+        [](const MyClass& x) { return MyClass(-x.my_field); },
+        [](::std::size_t) -> MyClass { return MyClass(rand() % 1000); });
     return done();
 }
