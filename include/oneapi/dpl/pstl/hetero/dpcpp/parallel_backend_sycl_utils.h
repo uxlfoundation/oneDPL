@@ -826,6 +826,9 @@ class __future : private std::tuple<_Args...>
         return __future<_Event, _T, _Args...>(__my_event, new_tuple);
     }
 };
+// Deduction guide for __future
+template<typename _Event, typename... _UArgs>
+__future(_Event, _UArgs&&...) -> __future<_Event, std::remove_cv_t<std::remove_reference_t<_UArgs>>...>;
 
 // Invoke a callable and pass a compile-time integer based on a provided run-time integer.
 // The compile-time integer that will be provided to the callable is defined as the smallest
