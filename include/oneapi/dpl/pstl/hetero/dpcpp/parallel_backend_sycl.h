@@ -848,7 +848,8 @@ struct __red_by_seg_op
 template <typename _BinaryPred>
 struct __write_red_by_seg
 {
-    template <typename _OutRng, typename _Tup, typename _TempData>
+    using _TempData = __noop_temp_data;
+    template <typename _OutRng, typename _Tup>
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
     {
@@ -882,7 +883,8 @@ struct __write_red_by_seg
 
 struct __simple_write_to_id
 {
-    template <typename _OutRng, typename _ValueType, typename _TempData>
+    using _TempData = __noop_temp_data;
+    template <typename _OutRng, typename _ValueType>
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
     {
@@ -1330,7 +1332,8 @@ struct __get_zeroth_element
 template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    using _TempData = __noop_temp_data;
+    template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
@@ -1348,7 +1351,8 @@ struct __write_to_id_if
 template <typename _Assign>
 struct __write_to_id_if_else
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    using _TempData = __noop_temp_data;
+    template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
