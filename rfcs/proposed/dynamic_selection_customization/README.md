@@ -225,7 +225,7 @@ have `lazy_report_v<T>` as `false`.
 ## How to customize for specific resource types
 
 We proposed using a CRTP (Curiously Recurring Template Pattern) to define backends since this
-will allow developers to flexibly mix-in functionaility from the base. We decided against free
+will allow developers to flexibly mix-in functionality from the base. We decided against free
 functions or customization points, because we found that most backends require some kind of state
 to be maintained (such as the universe) and accessing that state is easiest from within a backend
 object. We also think that static polymorphism is sufficient.
