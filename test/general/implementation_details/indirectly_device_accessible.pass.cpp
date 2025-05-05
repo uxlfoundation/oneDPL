@@ -148,20 +148,23 @@ struct simple_iterator
     int value;
 };
 
-using simple_implicitly_not_indirectly_device_accessible_iterator = simple_iterator;
+//IDA= indirectly_device_accessible
+using implicit_non_IDA_iter = simple_iterator;
 
-struct simple_indirectly_device_accessible_iterator : public simple_iterator
+//IDA= indirectly_device_accessible
+struct IDA_iter : public simple_iterator
 {
     using is_passed_directly = std::true_type;
 
-    simple_indirectly_device_accessible_iterator(int start = 0) : simple_iterator(start) {}
+    IDA_iter(int start = 0) : simple_iterator(start) {}
 };
 
-struct simple_explicitly_not_indirectly_device_accessible_iterator : public simple_iterator
+//IDA= indirectly_device_accessible
+struct explicit_non_IDA_iterator : public simple_iterator
 {
     using is_passed_directly = std::false_type;
 
-    simple_explicitly_not_indirectly_device_accessible_iterator(int start = 0) : simple_iterator(start) {}
+    explicit_non_IDA_iterator(int start = 0) : simple_iterator(start) {}
 };
 
 namespace custom_user
@@ -433,13 +436,13 @@ main()
                             decltype(vec.begin())>();
 
     // custom iter type with legacy is_passed_directly trait defined
-    test_with_base_iterator<true, simple_indirectly_device_accessible_iterator>();
+    test_with_base_iterator<true, IDA_iter>();
 
     // custom iter type with explicit is_passed_directly trait defined as false
-    test_with_base_iterator<false, simple_explicitly_not_indirectly_device_accessible_iterator>();
+    test_with_base_iterator<false, explicit_non_IDA_iterator>();
 
     // custom iter type implicitly not device accessible content iterator
-    test_with_base_iterator<false, simple_implicitly_not_indirectly_device_accessible_iterator>();
+    test_with_base_iterator<false, implicit_non_IDA_iter>();
 
     // std vector with normal allocator
     std::vector<int> vec2(10);
