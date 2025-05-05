@@ -339,7 +339,7 @@ And the use of this SYCL backend by a policy, such as `round_robin_policy` is im
 as:
 
 ```cpp
-template <typename ResourceType = sycl::queue, typename Backend = default_backend<sycl::queue>>
+template <typename ResourceType = sycl::queue, typename Backend = default_backend<ResourceType>>
 struct round_robin_policy
 {
     // policy implementation
