@@ -825,6 +825,36 @@ struct __swap_ranges_fn
     }
 };
 
+template <typename _T>
+auto
+__get_last_arg(_T __t)
+{
+    return __t;
+}
+
+template <typename _T, typename... _Rest>
+auto
+__get_last_arg(_T, _Rest... __args)
+{
+    return __get_last_arg(__args...);
+}
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _T, typename _Proj>
+struct __count_fn_pred
+{
+    _T __value;
+    _Proj __proj;
+
+    template <typename _TValue>
+    auto
+    operator()(_TValue&& __val) const
+    {
+        return std::ranges::equal_to{}(std::invoke(__proj, std::forward<_TValue>(__val)), __value);
+    }
+};
+#endif
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi

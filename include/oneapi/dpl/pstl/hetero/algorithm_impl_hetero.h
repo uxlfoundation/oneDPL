@@ -1639,7 +1639,7 @@ void
 __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last)
 {
     auto __n = __last - __first;
-    if (__n <= 0)
+    if (__n <= 1)
         return;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
