@@ -1066,7 +1066,7 @@ template <typename T>
 struct IsEven
 {
     bool
-    operator(T v) const
+    operator()(T v) const
     {
         std::uint32_t i = (std::uint32_t)v;
         return i % 2 == 0;
