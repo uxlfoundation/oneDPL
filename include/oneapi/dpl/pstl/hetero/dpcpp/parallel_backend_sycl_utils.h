@@ -807,7 +807,7 @@ class __future : private std::tuple<_Args...>
         {
             using __temporary_data_t = std::shared_ptr<__result_and_scratch_storage_base>;
             using __last_element_t = std::decay_t<std::tuple_element_t<__size_of_tuple - 1, decltype(*this)>>;
-            if (std::is_same_v<__last_element_t, __temporary_data_t>)
+            if constexpr (std::is_same_v<__last_element_t, __temporary_data_t>)
             {
                 wait();
             }
