@@ -2843,8 +2843,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
-        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n), _Range2>(__binary_op, __n),
-        __intermediate_result_end,
+        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n)>(__binary_op, __n), __intermediate_result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx),
                                                 __intermediate_result_end),
         std::forward<_Range2>(__values), oneapi::dpl::__ranges::views::all_write(__tmp_out_values))
@@ -2884,7 +2883,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
             std::forward<_ExecutionPolicy>(__exec)),
-        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end), _Range4>(
+        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end)>(
             __binary_op, __intermediate_result_end),
         __result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx), __result_end),
