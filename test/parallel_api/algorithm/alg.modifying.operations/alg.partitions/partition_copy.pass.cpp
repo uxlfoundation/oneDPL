@@ -93,7 +93,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = TestUtils::IsEven<std::float64_t>{};
+        auto is_even = TestUtils::IsEven<float64_t>{};
         partition_copy(exec, input_iter, input_iter, out_iter, out_iter, non_const(is_even));
     }
 };

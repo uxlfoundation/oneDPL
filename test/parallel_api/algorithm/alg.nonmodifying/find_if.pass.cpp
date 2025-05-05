@@ -99,7 +99,7 @@ struct test_non_const_find_if
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        TestUtils::IsEven<std::float64_t> is_even;
+        TestUtils::IsEven<float64_t> is_even;
         find_if(exec, iter, iter, non_const(is_even));
     }
 };
@@ -110,7 +110,7 @@ struct test_non_const_find_if_not
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        TestUtils::IsEven<std::float64_t> is_even;
+        TestUtils::IsEven<float64_t> is_even;
         find_if_not(exec, iter, iter, non_const(is_even));
     }
 };

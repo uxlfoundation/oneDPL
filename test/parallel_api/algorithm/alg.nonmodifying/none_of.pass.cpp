@@ -83,7 +83,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        TestUtils::IsEven<std::float64_t> is_even;
+        TestUtils::IsEven<float64_t> is_even;
         none_of(exec, iter, iter, non_const(is_even));
     }
 };

@@ -116,7 +116,7 @@ struct test_non_const_stable_partition
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = TestUtils::IsEven<std::float64_t>{};
+        auto is_even = TestUtils::IsEven<float64_t>{};
         stable_partition(exec, iter, iter, non_const(is_even));
     }
 };

@@ -194,7 +194,7 @@ test_merge_by_type(size_t start_size, size_t max_size, FStep fstep)
 {
     test_merge_by_type<std::int32_t>(L1<std::size_t>{}, L2<std::size_t>{}, start_size, max_size, fstep);
 #if !ONEDPL_FPGA_DEVICE
-    test_merge_by_type<float64_t>(L3<std::size_t, std::float64_t>{}, L4<std::size_t, std::float64_t>{}, start_size, max_size, fstep);
+    test_merge_by_type<float64_t>(L3<std::size_t, float64_t>{}, L4<std::size_t, float64_t>{}, start_size, max_size, fstep);
 #endif
 
 #if !TEST_DPCPP_BACKEND_PRESENT

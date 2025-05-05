@@ -104,7 +104,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = TestUtils::IsEven<std::float64_t>{};
+        auto is_even = TestUtils::IsEven<float64_t>{};
         replace_copy_if(exec, input_iter, input_iter, out_iter, non_const(is_even), T(0));
     }
 };
