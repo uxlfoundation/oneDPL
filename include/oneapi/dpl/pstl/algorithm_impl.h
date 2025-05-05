@@ -117,7 +117,7 @@ void
 __brick_walk1(_RandomAccessIterator __first, _RandomAccessIterator __last, _Function __f,
               /*vector=*/::std::true_type)
 {
-    __unseq_backend::__simd_walk_1(__first, __last - __first, __f);
+    __unseq_backend::__simd_walk_n(__last - __first, __f, __first);
 }
 
 template <class _DifferenceType, class _Function>
@@ -217,7 +217,7 @@ _RandomAccessIterator
 __brick_walk1_n(_RandomAccessIterator __first, _DifferenceType __n, _Function __f,
                 /*vectorTag=*/::std::true_type)
 {
-    return __unseq_backend::__simd_walk_1(__first, __n, __f);
+    return __unseq_backend::__simd_walk_n(__n, __f, __first);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Function>
@@ -284,7 +284,7 @@ __brick_walk2(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _
               _Function __f,
               /*vector=*/::std::true_type) noexcept
 {
-    return __unseq_backend::__simd_walk_2(__first1, __last1 - __first1, __first2, __f);
+    return __unseq_backend::__simd_walk_n(__last1 - __first1, __f, __first1, __first2);
 }
 
 template <class _ForwardIterator1, class _Size, class _ForwardIterator2, class _Function>
@@ -302,7 +302,7 @@ _RandomAccessIterator2
 __brick_walk2_n(_RandomAccessIterator1 __first1, _Size __n, _RandomAccessIterator2 __first2, _Function __f,
                 /*vector=*/::std::true_type) noexcept
 {
-    return __unseq_backend::__simd_walk_2(__first1, __n, __first2, __f);
+    return __unseq_backend::__simd_walk_n(__n, __f, __first1, __first2);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function>
@@ -489,7 +489,7 @@ _RandomAccessIterator3
 __brick_walk3(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
               _RandomAccessIterator3 __first3, _Function __f, /*vector=*/::std::true_type) noexcept
 {
-    return __unseq_backend::__simd_walk_3(__first1, __last1 - __first1, __first2, __first3, __f);
+    return __unseq_backend::__simd_walk_n(__last1 - __first1, __f, __first1, __first2, __first3);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _ForwardIterator3,
@@ -625,6 +625,9 @@ __pattern_equal(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _Ran
 {
     if (__last1 - __first1 != __last2 - __first2)
         return false;
+
+    if (__last1 - __first1 == 0)
+        return true;
 
     return __internal::__except_handler([&]() {
         return !__internal::__parallel_or(
@@ -1663,11 +1666,12 @@ __brick_reverse(_RandomAccessIterator __first, _RandomAccessIterator __last,
     typedef typename ::std::iterator_traits<_RandomAccessIterator>::reference _ReferenceType;
 
     const auto __n = (__last - __first) / 2;
-    __unseq_backend::__simd_walk_2(__first, __n, ::std::reverse_iterator<_RandomAccessIterator>(__last),
+    __unseq_backend::__simd_walk_n(__n,
                                    [](_ReferenceType __x, _ReferenceType __y) {
                                        using ::std::swap;
                                        swap(__x, __y);
-                                   });
+                                   },
+                                   __first, std::reverse_iterator<_RandomAccessIterator>(__last));
 }
 
 // this brick is called in parallel version, so we can use iterator arithmetic
@@ -1691,11 +1695,12 @@ __brick_reverse(_RandomAccessIterator __first, _RandomAccessIterator __last, _Ra
 {
     typedef typename ::std::iterator_traits<_RandomAccessIterator>::reference _ReferenceType;
 
-    __unseq_backend::__simd_walk_2(__first, __last - __first, ::std::reverse_iterator<_RandomAccessIterator>(__d_last),
+    __unseq_backend::__simd_walk_n(__last - __first,
                                    [](_ReferenceType __x, _ReferenceType __y) {
                                        using ::std::swap;
                                        swap(__x, __y);
-                                   });
+                                   },
+                                   __first, std::reverse_iterator<_RandomAccessIterator>(__d_last));
 }
 
 template <class _Tag, class _ExecutionPolicy, class _BidirectionalIterator>
@@ -1747,8 +1752,9 @@ __brick_reverse_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __la
     typedef typename ::std::iterator_traits<_RandomAccessIterator1>::reference _ReferenceType1;
     typedef typename ::std::iterator_traits<_RandomAccessIterator2>::reference _ReferenceType2;
 
-    return __unseq_backend::__simd_walk_2(::std::reverse_iterator<_RandomAccessIterator1>(__last), __last - __first,
-                                          __d_first, [](_ReferenceType1 __x, _ReferenceType2 __y) { __y = __x; });
+    return __unseq_backend::__simd_walk_n(__last - __first,
+        [](_ReferenceType1 __x, _ReferenceType2 __y) { __y = __x; },
+        std::reverse_iterator<_RandomAccessIterator1>(__last), __d_first);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _BidirectionalIterator, class _OutputIterator>
@@ -4120,6 +4126,9 @@ __pattern_mismatch(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                    _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                    _Predicate __pred)
 {
+    if (__last1 - __first1 == 0 || __last2 - __first2 == 0)
+        return {__first1, __first2};
+
     return __internal::__except_handler([&]() {
         auto __n = ::std::min(__last1 - __first1, __last2 - __first2);
         auto __result = __internal::__parallel_find(
@@ -4311,16 +4320,18 @@ __brick_shift_left(_ForwardIterator __first, _ForwardIterator __last,
     //1. n >= size/2; there is enough memory to 'total' parallel (SIMD) copying
     if (__n >= __mid)
     {
-        __unseq_backend::__simd_walk_2(__first + __n, __size_res, __first,
-                                       [](_ReferenceType __x, _ReferenceType __y) { __y = ::std::move(__x); });
+        __unseq_backend::__simd_walk_n(__size_res,
+                                       [](_ReferenceType __x, _ReferenceType __y) { __y = ::std::move(__x); },
+                                       __first + __n, __first);
     }
     else //2. n < size/2; there is not enough memory to parallel (SIMD) copying; doing SIMD copying by n elements
     {
         for (auto __k = __n; __k < __size; __k += __n)
         {
             auto __end = ::std::min(__k + __n, __size);
-            __unseq_backend::__simd_walk_2(__first + __k, __end - __k, __first + __k - __n,
-                                           [](_ReferenceType __x, _ReferenceType __y) { __y = ::std::move(__x); });
+            __unseq_backend::__simd_walk_n(__end - __k,
+                                           [](_ReferenceType __x, _ReferenceType __y) { __y = ::std::move(__x); },
+                                           __first + __k, __first + __k - __n);
         }
     }
 
