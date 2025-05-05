@@ -316,7 +316,7 @@ class counting_iterator
     }
 
     friend std::true_type
-    is_onedpl_indirectly_device_accessible_iterator(const counting_iterator&);
+    is_onedpl_indirectly_device_accessible_iterator(counting_iterator);
 
   private:
     _Ip __my_counter_;
@@ -451,7 +451,7 @@ class zip_iterator
     }
 
     friend auto
-    is_onedpl_indirectly_device_accessible_iterator(const zip_iterator&)
+    is_onedpl_indirectly_device_accessible_iterator(zip_iterator)
         -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Types>...>;
 
   private:
@@ -631,7 +631,7 @@ class transform_iterator
         return __my_unary_func_;
     }
     friend auto
-    is_onedpl_indirectly_device_accessible_iterator(const transform_iterator&)
+    is_onedpl_indirectly_device_accessible_iterator(transform_iterator)
         -> oneapi::dpl::is_indirectly_device_accessible<_Iter>;
 };
 
@@ -825,7 +825,7 @@ class permutation_iterator
     }
 
     friend auto
-    is_onedpl_indirectly_device_accessible_iterator(const permutation_iterator&)
+    is_onedpl_indirectly_device_accessible_iterator(permutation_iterator)
         -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<SourceIterator>,
                             oneapi::dpl::is_indirectly_device_accessible<permutation_iterator::IndexMap>>;
 
@@ -992,7 +992,7 @@ class discard_iterator
     }
 
     friend std::true_type
-    is_onedpl_indirectly_device_accessible_iterator(const discard_iterator&);
+    is_onedpl_indirectly_device_accessible_iterator(discard_iterator);
 
   private:
     difference_type __my_position_;

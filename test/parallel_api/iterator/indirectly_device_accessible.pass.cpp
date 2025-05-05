@@ -303,7 +303,7 @@ struct first_strided_iterator : public base_strided_iterator<BaseIter>
 
 template <typename BaseIter>
 auto
-is_onedpl_indirectly_device_accessible_iterator(const first_strided_iterator<BaseIter>&)
+is_onedpl_indirectly_device_accessible_iterator(first_strided_iterator<BaseIter>)
 {
     return oneapi::dpl::is_indirectly_device_accessible<BaseIter>{};
 }
@@ -316,7 +316,7 @@ struct second_strided_iterator : public base_strided_iterator<BaseIter>
 
 template <typename BaseIter>
 auto
-is_onedpl_indirectly_device_accessible_iterator(const second_strided_iterator<BaseIter>&)
+is_onedpl_indirectly_device_accessible_iterator(second_strided_iterator<BaseIter>)
     -> decltype(oneapi::dpl::is_indirectly_device_accessible<BaseIter>{});
 
 template <typename BaseIter>
@@ -324,7 +324,7 @@ struct third_strided_iterator : public base_strided_iterator<BaseIter>
 {
     third_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
     friend auto
-    is_onedpl_indirectly_device_accessible_iterator(const third_strided_iterator<BaseIter>&)
+    is_onedpl_indirectly_device_accessible_iterator(third_strided_iterator<BaseIter>)
     {
         return oneapi::dpl::is_indirectly_device_accessible<BaseIter>{};
     }
@@ -335,7 +335,7 @@ struct fourth_strided_iterator : public base_strided_iterator<BaseIter>
 {
     fourth_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
     friend auto
-    is_onedpl_indirectly_device_accessible_iterator(const fourth_strided_iterator<BaseIter>&)
+    is_onedpl_indirectly_device_accessible_iterator(fourth_strided_iterator<BaseIter>)
         -> oneapi::dpl::is_indirectly_device_accessible<BaseIter>;
 };
 
