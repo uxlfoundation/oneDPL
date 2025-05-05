@@ -1823,7 +1823,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
         return __result;
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
     {
-        return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+        return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
                                        __last2, __result, __comp, unseq_backend::_IntersectionTag<std::true_type>());
     }
     return __pattern_hetero_set_op(
@@ -1874,7 +1874,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     }
     else
     {
-        return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+        return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
                                        __last2, __result, __comp, unseq_backend::_DifferenceTag<std::false_type>());
     }
 }
@@ -1927,7 +1927,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
     {
-        return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+        return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
                                        __last2, __result, __comp, unseq_backend::_UnionTag<std::true_type>());
     }
     else
@@ -1950,7 +1950,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         return oneapi::dpl::__internal::__pattern_merge(
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_2>(
-                ::std::forward<_ExecutionPolicy>(__exec)),
+                std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __buf, __buf + __n_diff, __result, __comp);
     }
 }
@@ -2015,13 +2015,13 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
 
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
     {
-        return __pattern_hetero_set_op(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+        return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
                                        __last2, __result, __comp,
                                        unseq_backend::_SymmetricDifferenceTag<std::true_type>());
     }
     else
     {
-        typedef typename ::std::iterator_traits<_OutputIterator>::value_type _ValueType;
+        typedef typename std::iterator_traits<_OutputIterator>::value_type _ValueType;
 
         // temporary buffers to store intermediate result
         const auto __n1 = __last1 - __first1;
@@ -2050,7 +2050,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             __buf_2;
 
         //3. Merge the differences
-        return oneapi::dpl::__internal::__pattern_merge(__tag, ::std::forward<_ExecutionPolicy>(__exec), __buf_1,
+        return oneapi::dpl::__internal::__pattern_merge(__tag, std::forward<_ExecutionPolicy>(__exec), __buf_1,
                                                         __buf_1 + __n_diff_1, __buf_2, __buf_2 + __n_diff_2, __result,
                                                         __comp);
     }
