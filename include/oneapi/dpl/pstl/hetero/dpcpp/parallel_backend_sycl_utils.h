@@ -809,6 +809,7 @@ class __future : private std::tuple<_Args...>
             using __last_element_t = std::decay_t<std::tuple_element_t<__size_of_tuple - 1, decltype(*this)>>;
             if constexpr (std::is_same_v<__last_element_t, __temporary_data_t>)
             {
+                // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
                 wait();
             }
         }
