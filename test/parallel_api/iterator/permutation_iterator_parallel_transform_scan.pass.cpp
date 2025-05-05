@@ -23,18 +23,10 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
 {
     DEFINE_TEST_PERM_IT_CONSTRUCTOR(test_remove_if, 1.0f, 1.0f)
 
-    template <typename TIterator, typename Size>
-    void generate_data(TIterator itBegin, TIterator itEnd, Size n)
-    {
-        Size index = 0;
-        for (auto it = itBegin; it != itEnd; ++it, ++index)
-            *it = (n - index) % 2 ? 0 : 1;
-    }
-
-    template <typename TestValueType>
+    template <typename TTestValueType>
     struct IsGreatThenZero
     {
-        bool operator()(TestValueType val) const
+        bool operator()(TTestValueType val) const
         {
             return val > 0;
         }
@@ -45,11 +37,14 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
     {
         Policy exec;
         Size n;
+        TestDataTransfer<UDTKind::eKeys, Size>& host_keys;
 
         template <typename TPermutationIterator>
         void
         operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
         {
+            const auto host_keys_ptr = host_keys.get();
+
             const auto testing_n = permItEnd - permItBegin;
 
             // Fill full source data set (not only values iterated by permutation iterator)
@@ -82,6 +77,14 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
             EXPECT_EQ(newSizeExpected, newSizeResult, "Wrong result size after dpl::remove_if");
             EXPECT_EQ_N(expectedRemoveIf.begin(), resultRemoveIf.begin(), newSizeExpected, "Wrong result after dpl::remove_if");
         }
+
+        template <typename TIterator>
+        void generate_data(TIterator itBegin, TIterator itEnd, Size n) const
+        {
+            Size index = 0;
+            for (auto it = itBegin; it != itEnd; ++it, ++index)
+                *it = (n - index) % 2 ? 0 : 1;
+        }
     };
 
     template <typename Policy, typename Iterator1, typename Size>
@@ -91,10 +94,9 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
         if constexpr (is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>)
         {
             TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);     // source data for remove_if
-            const auto host_keys_ptr = host_keys.get();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementation<Policy, Size>{exec, n});
+                TestImlementation<Policy, Size>{exec, n, host_keys});
         }
     }
 };
