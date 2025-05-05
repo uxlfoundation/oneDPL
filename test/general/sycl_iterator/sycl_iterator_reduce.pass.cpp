@@ -291,7 +291,7 @@ struct IsOdd
 {
     bool operator()(const ValueType& x) const
     {
-        return value % 2 != 0;
+        return x % 2 != 0;
     }
 };
 
@@ -334,7 +334,7 @@ DEFINE_TEST(test_count_if)
 
         // check when all should be counted
         expected = n;
-        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), first, last, less_than);
+        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), first, last, LessThen10<ValueType>{});
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #3 all to count)");
@@ -423,7 +423,7 @@ template <typename ValueType>
 struct LessThen
 {
     bool
-    oeprator()(const ValueType& x, const ValueType& y) const
+    operator()(const ValueType& x, const ValueType& y) const
     {
         return x < y;
     }
