@@ -315,8 +315,7 @@ struct second_strided_iterator : public base_strided_iterator<BaseIter>
 };
 
 template <typename BaseIter>
-auto
-is_onedpl_indirectly_device_accessible_iterator(second_strided_iterator<BaseIter>)
+auto is_onedpl_indirectly_device_accessible_iterator(second_strided_iterator<BaseIter>)
     -> decltype(oneapi::dpl::is_indirectly_device_accessible<BaseIter>{});
 
 template <typename BaseIter>
@@ -334,8 +333,7 @@ template <typename BaseIter>
 struct fourth_strided_iterator : public base_strided_iterator<BaseIter>
 {
     fourth_strided_iterator(BaseIter base, int stride) : base_strided_iterator<BaseIter>(base, stride) {}
-    friend auto
-    is_onedpl_indirectly_device_accessible_iterator(fourth_strided_iterator<BaseIter>)
+    friend auto is_onedpl_indirectly_device_accessible_iterator(fourth_strided_iterator<BaseIter>)
         -> oneapi::dpl::is_indirectly_device_accessible<BaseIter>;
 };
 
@@ -383,16 +381,10 @@ test_with_base_iterator()
                   "is_indirectly_device_accessible is not working correctly for oneapi::dpl::zip_iterator with "
                   "oneapi::dpl::counting_iterator as second element");
 
-    // test wrapping base in reverse_iterator
-    using ReverseIter = std::reverse_iterator<BaseIter>;
-    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<ReverseIter> == base_indirectly_device_accessible,
-                  "is_indirectly_device_accessible is not working correctly for oneapi::dpl::reverse_iterator");
-
     // test custom user first strided iterator with normal ADL function
     using FirstStridedIter = custom_user::first_strided_iterator<BaseIter>;
-    static_assert(
-        oneapi::dpl::is_indirectly_device_accessible_v<FirstStridedIter> == base_indirectly_device_accessible,
-        "is_indirectly_device_accessible is not working correctly for custom user strided iterator");
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<FirstStridedIter> == base_indirectly_device_accessible,
+                  "is_indirectly_device_accessible is not working correctly for custom user strided iterator");
 
     // test custom user second strided iterator (no body for is_onedpl_indirectly_device_accessible_iterator)
     using SecondStridedIter = custom_user::second_strided_iterator<BaseIter>;
@@ -415,6 +407,16 @@ test_with_base_iterator()
                   "iterator with hidden friend ADL function without a body");
 }
 
+template <bool base_indirectly_device_accessible, typename BaseIter>
+void
+test_base_with_reverse_iter()
+{
+    // test wrapping base in reverse_iterator
+    using ReverseIter = std::reverse_iterator<BaseIter>;
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<ReverseIter> == base_indirectly_device_accessible,
+                  "is_indirectly_device_accessible is not working correctly for std::reverse_iterator");
+}
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
@@ -424,9 +426,11 @@ main()
 #if TEST_DPCPP_BACKEND_PRESENT
     // counting_iterator
     test_with_base_iterator<true, oneapi::dpl::counting_iterator<std::int32_t>>();
+    test_base_with_reverse_iter<true, oneapi::dpl::counting_iterator<std::int32_t>>();
 
     // pointer (USM assumed)
     test_with_base_iterator<true, int*>();
+    test_base_with_reverse_iter<true, int*>();
 
     // create a usm allocated vector
     sycl::queue q;
@@ -434,19 +438,26 @@ main()
     std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>> vec(alloc);
     test_with_base_iterator<TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(vec.begin())>,
                             decltype(vec.begin())>();
+    test_base_with_reverse_iter<
+        TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(vec.begin())>,
+        decltype(vec.begin())>();
 
     // custom iter type with legacy is_passed_directly trait defined
     test_with_base_iterator<true, IDA_iter>();
+    test_base_with_reverse_iter<true, IDA_iter>();
 
     // custom iter type with explicit is_passed_directly trait defined as false
     test_with_base_iterator<false, explicit_non_IDA_iterator>();
+    test_base_with_reverse_iter<false, explicit_non_IDA_iterator>();
 
     // custom iter type implicitly not device accessible content iterator
     test_with_base_iterator<false, implicit_non_IDA_iter>();
+    test_base_with_reverse_iter<false, implicit_non_IDA_iter>();
 
     // std vector with normal allocator
     std::vector<int> vec2(10);
     test_with_base_iterator<false, decltype(vec2.begin())>();
+    test_base_with_reverse_iter<false, decltype(vec2.begin())>();
 
     // test discard_iterator
     static_assert(oneapi::dpl::is_indirectly_device_accessible_v<oneapi::dpl::discard_iterator> == true,
@@ -458,6 +469,7 @@ main()
     static_assert(oneapi::dpl::is_indirectly_device_accessible_v<decltype(buffer_wrapper)> == true,
                   "is_indirectly_device_accessible is not working correctly for return type of oneapi::dpl::begin()");
     test_with_base_iterator<true, decltype(buffer_wrapper)>();
+    // Do not test with reverse_iterator, because buffer_wrapper is not a random access iterator
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
