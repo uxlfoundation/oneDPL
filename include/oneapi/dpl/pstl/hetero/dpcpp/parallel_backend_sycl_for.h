@@ -83,9 +83,13 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
     __future<sycl::event>
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
-        assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
+        assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
+                   __rngs.size())...}) > 0);
+        assert(__count > 0);
+
         _PRINT_INFO_IN_DEBUG_MODE(__q);
         auto __event = __q.submit([__rngs..., __brick, __count](sycl::handler& __cgh) {
+
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
@@ -228,8 +232,12 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
                _Ranges&&... __rngs)
 {
     static_assert(__has_pfor_brick_members_v<_Fp>,
-                  "The brick provided to __parallel_for must define static constexpr bool members __can_vectorize and "
+                  "The brick provided to __parallel_for must define static bool members __can_vectorize and "
                   "__can_process_multiple_iters.");
+    assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
+               __rngs.size())...}) > 0);
+    assert(__count > 0);
+
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _ForKernelSmall =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__parallel_for_small_kernel<_CustomName>>;

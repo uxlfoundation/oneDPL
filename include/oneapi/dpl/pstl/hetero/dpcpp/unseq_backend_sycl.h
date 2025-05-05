@@ -135,6 +135,7 @@ template <typename _F>
 struct walk_n_vectors_or_scalars
 {
   private:
+    //'mutable' is to relax the requirements for a user functor/lambda type operator() may be non-const
     mutable _F __f;
     std::size_t __n;
     template <typename _IsFull, typename _Params, typename _InRng, typename _OutRng,
@@ -532,11 +533,11 @@ struct single_match_pred_by_idx
 {
     _Pred __pred;
 
-    template <typename _Idx, typename _Acc>
+    template <typename _Idx, typename... _Acc>
     bool
-    operator()(const _Idx __shifted_idx, _Acc& __acc) const
+    operator()(const _Idx __shifted_idx, const _Acc&... __acc) const
     {
-        return __pred(__shifted_idx, __acc);
+        return __pred(__shifted_idx, __acc...);
     }
 };
 

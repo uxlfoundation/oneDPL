@@ -797,6 +797,7 @@ struct __red_by_seg_op
     operator()(const _Tup1& __lhs_tup, const _Tup2& __rhs_tup) const
     {
         using std::get;
+        using _OpReturnType = decltype(__binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         // The left-hand side has processed elements from the same segment, so update the reduction value.
         if (get<0>(__rhs_tup) == 0)
         {
@@ -804,7 +805,8 @@ struct __red_by_seg_op
                                                        __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         }
         // We are looking at elements from a previous segment so just update the output index.
-        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup), get<1>(__rhs_tup));
+        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup),
+                                                   _OpReturnType{get<1>(__rhs_tup)});
     }
     _BinaryOp __binary_op;
 };
@@ -1492,14 +1494,14 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _
 //------------------------------------------------------------------------
 
 // Tag for __parallel_find_or to find the first element that satisfies predicate
-template <typename _RangeType>
+template <typename... _Ranges>
 struct __parallel_find_forward_tag
 {
 // FPGA devices don't support 64-bit atomics
 #if _ONEDPL_FPGA_DEVICE
     using _AtomicType = uint32_t;
 #else
-    using _AtomicType = oneapi::dpl::__internal::__difference_t<_RangeType>;
+    using _AtomicType = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
 #endif
 
     using _LocalResultsReduceOp = __dpl_sycl::__minimum<_AtomicType>;
@@ -1873,19 +1875,41 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     }
 };
 
+template <typename... _Ranges>
+struct __first_size_calc
+{
+    auto
+    operator()(const _Ranges&... __rngs) const
+    {
+        return oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
+    }
+};
+
+template <typename... _Ranges>
+struct __min_size_calc
+{
+    auto
+    operator()(const _Ranges&... __rngs) const
+    {
+        using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+        return std::min({_Size(__rngs.size())...});
+    }
+};
+
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
-template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
-::std::conditional_t<
+template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename _SizeCalc, typename... _Ranges>
+std::conditional_t<
     ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
     oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
-__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
-                   _BrickTag __brick_tag, _Ranges&&... __rngs)
+__parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                        _BrickTag __brick_tag, _SizeCalc __sz_calc, _Ranges&&... __rngs)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
 
-    auto __rng_n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
+    const auto __rng_n = __sz_calc(__rngs...);
+
     assert(__rng_n > 0);
 
     // Evaluate the amount of work-groups and work-group size
@@ -1932,6 +1956,30 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         return __result != __init_value;
     else
         return __result != __init_value ? __result : __rng_n;
+}
+
+template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
+std::conditional_t<
+    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
+    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
+__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                   _BrickTag __brick_tag, _Ranges&&... __rngs)
+{
+    return __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag{},
+        std::forward<_ExecutionPolicy>(__exec), __f, __brick_tag, __first_size_calc<_Ranges...>{},
+        std::forward<_Ranges>(__rngs)...);
+}
+
+template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
+std::conditional_t<
+    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
+    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
+__parallel_find_or_min_size(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                            _BrickTag __brick_tag, _Ranges&&... __rngs)
+{
+    return __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag{},
+        std::forward<_ExecutionPolicy>(__exec), __f, __brick_tag, __min_size_calc<_Ranges...>{},
+        std::forward<_Ranges>(__rngs)...);
 }
 
 // parallel_or - sync pattern
@@ -2326,13 +2374,15 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       _BinaryOperator __binary_op,
                                       /*known_identity=*/std::false_type)
 {
+    const auto __n = __keys.size();
+    assert(__n > 0);
+
     using __diff_type = oneapi::dpl::__internal::__difference_t<_Range1>;
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
 
     sycl::queue __q_local = __exec.queue();
 
-    const auto __n = __keys.size();
     // Round 1: reduce with extra indices added to avoid long segments
     // TODO: At threshold points check if the key is equal to the key at the previous threshold point, indicating a long sequence.
     // Skip a round of copy_if and reduces if there are none.

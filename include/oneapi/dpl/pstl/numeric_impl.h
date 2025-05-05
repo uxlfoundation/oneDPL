@@ -284,7 +284,7 @@ __pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _OutputIterator,
           class _UnaryOperation, class _Tp, class _BinaryOperation, class _Inclusive>
 ::std::enable_if_t<::std::is_floating_point_v<_Tp>, _OutputIterator>
-__pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator __first,
+__pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
                          _RandomAccessIterator __last, _OutputIterator __result, _UnaryOperation __unary_op, _Tp __init,
                          _BinaryOperation __binary_op, _Inclusive)
 {
@@ -300,7 +300,7 @@ __pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomA
 
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_strict_scan(
-            __backend_tag{}, __n, __init,
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, __init,
             [__first, __unary_op, __binary_op, __result](_DifferenceType __i, _DifferenceType __len) {
                 return __internal::__brick_transform_scan(__first + __i, __first + (__i + __len), __result + __i,
                                                           __unary_op, _Tp{}, __binary_op, _Inclusive(), _IsVector{})
@@ -369,9 +369,9 @@ __brick_adjacent_difference(_RandomAccessIterator1 __first, _RandomAccessIterato
 
     auto __n = __last - __first;
     *__d_first = *__first;
-    return __unseq_backend::__simd_walk_3(
-        __first + 1, __n - 1, __first, __d_first + 1,
-        [&__op](_ReferenceType1 __x, _ReferenceType1 __y, _ReferenceType2 __z) { __z = __op(__x, __y); });
+    return __unseq_backend::__simd_walk_n(__n - 1,
+        [&__op](_ReferenceType1 __x, _ReferenceType1 __y, _ReferenceType2 __z) { __z = __op(__x, __y); },
+        __first + 1, __first, __d_first + 1);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _BinaryOperation>
