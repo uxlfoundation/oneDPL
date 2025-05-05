@@ -730,6 +730,7 @@ struct __deferrable_mode
 {
 };
 
+
 //A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
 //Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
 template <typename _Event, typename... _Args>
@@ -766,7 +767,7 @@ class __event_with_keepalive_base : private std::tuple<_Args...>
     _T
     __wait_and_get_value(const _T& __val)
     {
-        wait_and_throw();
+        __wait_and_throw();
         return __val;
     }
 
@@ -782,7 +783,7 @@ class __event_with_keepalive_base : private std::tuple<_Args...>
     operator _Event() const { return event(); }
 
     void
-    wait_and_throw()
+    __wait_and_throw()
     {
         __my_event.wait_and_throw();
     }
@@ -790,14 +791,14 @@ class __event_with_keepalive_base : private std::tuple<_Args...>
     void
     wait()
     {
-        wait_and_throw();
+        __wait_and_throw();
     }
     template <typename _WaitModeTag>
     void
     wait(_WaitModeTag)
     {
         if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
-            wait_and_throw();
+            __wait_and_throw();
         else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
             __checked_deferrable_wait();
     }
@@ -816,18 +817,9 @@ class __event_with_keepalive_base : private std::tuple<_Args...>
 #endif
     }
 
+    template <typename _T>
     auto
-    get()
-    {
-        if constexpr (sizeof...(_Args) > 0)
-        {
-            auto& __val = std::get<0>(*this);
-            return __wait_and_get_value(__val);
-        }
-        else
-            wait_and_throw();
-    }
-
+    __make_future(_T __t) const;
 
 };
 
@@ -879,8 +871,22 @@ class __future : private __event_with_keepalive_base<_Event, _Args...>
         auto new_tuple = std::tuple_cat(new_val, (std::tuple<_Args...>)*this);
         return __future<_Event, _T, _Args...>(__my_event, new_tuple);
     }
-};
 
+    template <std::uint8_t __values_to_return = sizeof...(_Args), std::uint8_t __value_start = 0>
+    auto
+    get()
+    {
+        static_assert(__value_start + __values_to_return <= sizeof...(_Args), "Incorrect number of values to return");
+
+        if constexpr (sizeof...(_Args) > 0)
+        {
+            auto& __val = std::get<0>(*this);
+            return __wait_and_get_value(__val);
+        }
+        else
+            __wait_and_throw();
+    }
+};
 
 // Invoke a callable and pass a compile-time integer based on a provided run-time integer.
 // The compile-time integer that will be provided to the callable is defined as the smallest
