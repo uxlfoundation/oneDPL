@@ -62,7 +62,7 @@ DEFINE_TEST_PERM_IT(test_partial_sort, PermItIndexTag)
 
         template <typename TIterator>
         void
-        check_results(TIterator itBegin, TIterator itEnd)
+        check_results(TIterator itBegin, TIterator itEnd) const
         {
             const auto result = std::is_sorted(oneapi::dpl::execution::par_unseq, itBegin, itEnd);
             EXPECT_TRUE(result, "Wrong partial_sort data results");
