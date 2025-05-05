@@ -134,8 +134,8 @@ template <typename InputIterator, typename OutputIterator, typename OutputIterat
         ::std::fill_n(out_first, n, trash);
 
         // Run remove_copy_if
-        [[maybe_unused]] auto i = remove_copy_if(first, last, expected_first, TransformOp<T>{pred});
-        auto k = remove_copy_if(exec, first, last, out_first, TransformOp<T>{pred});
+        [[maybe_unused]] auto i = remove_copy_if(first, last, expected_first, TransformOp<T, Predicate>{pred});
+        auto k = remove_copy_if(exec, first, last, out_first, TransformOp<T, Predicate>{pred});
 #if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong remove_copy_if effect");
         for (size_t j = 0; j < GuardSize; ++j)
