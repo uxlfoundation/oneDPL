@@ -475,7 +475,7 @@ struct __get_sycl_range
 
     //specialization for permutation_iterator using sycl_iterator as source
     template <sycl::access::mode _LocalAccMode, typename _It, typename _Map,
-              ::std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_It>, int> = 0>
+              std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_It>, int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_It, _Map> __first,
                          oneapi::dpl::permutation_iterator<_It, _Map> __last)
@@ -573,8 +573,8 @@ struct __get_sycl_range
     template <sycl::access::mode _LocalAccMode, typename _Iter>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
-        -> ::std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
-                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
+        -> std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
+                            __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
     {
         assert(__first < __last);
         using value_type = val_t<_Iter>;

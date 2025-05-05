@@ -82,7 +82,7 @@ struct __is_legacy_passed_directly : std::false_type
 };
 
 template <typename _Iter>
-struct __is_legacy_passed_directly<_Iter, ::std::enable_if_t<_Iter::is_passed_directly::value>> : std::true_type
+struct __is_legacy_passed_directly<_Iter, std::enable_if_t<_Iter::is_passed_directly::value>> : std::true_type
 {
 };
 
