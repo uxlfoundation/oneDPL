@@ -31,12 +31,42 @@ DEFINE_TEST_PERM_IT(test_sort, PermItIndexTag)
             *it = n - index;
     }
 
-    template <typename TIterator>
-    void check_results(TIterator itBegin, TIterator itEnd)
+    template <typename Policy, typename Size>
+    struct TestImlementation
     {
-        const auto result = std::is_sorted(itBegin, itEnd);
-        EXPECT_TRUE(result, "Wrong sort data results");
-    }
+        Policy exec;
+        Size n;
+
+        template <typename TPermutationIterator>
+        void
+        operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        {
+            const auto testing_n = permItEnd - permItBegin;
+
+            // Fill full source data set (not only values iterated by permutation iterator)
+            generate_data(host_keys_ptr, host_keys_ptr + n, n);
+            host_keys.update_data();
+
+            dpl::sort(exec, permItBegin, permItEnd);
+            wait_and_throw(exec);
+
+            // Copy data back
+            std::vector<TestValueType> resultTest(testing_n);
+            dpl::copy(exec, permItBegin, permItEnd, resultTest.begin());
+            wait_and_throw(exec);
+
+            // Check results
+            check_results(resultTest.begin(), resultTest.end());
+        }
+
+        template <typename TIterator>
+        void
+        check_results(TIterator itBegin, TIterator itEnd)
+        {
+            const auto result = std::is_sorted(itBegin, itEnd);
+            EXPECT_TRUE(result, "Wrong sort data results");
+        }
+    };
 
     template <typename Policy, typename Iterator1, typename Size>
     void
@@ -48,25 +78,7 @@ DEFINE_TEST_PERM_IT(test_sort, PermItIndexTag)
             const auto host_keys_ptr = host_keys.get();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin, auto permItEnd) // KSATODO move lambda out?
-                {
-                    const auto testing_n = permItEnd - permItBegin;
-
-                    // Fill full source data set (not only values iterated by permutation iterator)
-                    generate_data(host_keys_ptr, host_keys_ptr + n, n);
-                    host_keys.update_data();
-
-                    dpl::sort(exec, permItBegin, permItEnd);
-                    wait_and_throw(exec);
-
-                    // Copy data back
-                    std::vector<TestValueType> resultTest(testing_n);
-                    dpl::copy(exec, permItBegin, permItEnd, resultTest.begin());
-                    wait_and_throw(exec);
-
-                    // Check results
-                    check_results(resultTest.begin(), resultTest.end());
-                });
+                TestImlementation<Policy, Size>{exec, n});
         }
     }
 };
