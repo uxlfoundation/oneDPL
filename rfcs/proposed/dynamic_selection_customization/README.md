@@ -80,6 +80,9 @@ it is the type returned by the user's function. There is no way to generally det
 `wait_t<T>` from an arbitrary `resource_t<T>` and therefore the default backend cannot
 provide a meaningful `wait_t<T>`.
 
+We propose removing the `wait_t<T>` from policy traits. We do not think it is useful for
+generic code anyway.
+
 #### Default `b.submit(s, f, args…)`
 
 The main role that `submit` plays in a backend is to add instrumentation around the call to `f`.
@@ -104,12 +107,9 @@ to add instrumentation by backends that need it.
 ```cpp
     template <typename SelectionHandle, typename Function, typename... Args>
     auto submit(SelectionHandle s, Function&& f, Args&&... args) {
-        instrument_before_impl(s); // do insrumentation before calling `f`
-
-        return instrument_after_impl( // do insrumentation before calling `f`, and create Submission type
-            s,
-            std::forward<Function>(f)(unwrap(s), std::forward<Args>(args)...) // call f
-        );
+        instrument_before_impl(s); // do insrumentation before calling `f`, step 1
+        auto w = std::forward<Function>(f)(unwrap(s), std::forward<Args>(args)...); // step 2
+        return instrument_after_impl( s, w ); // steps 3 & 4
     }
 ```
 
@@ -202,19 +202,62 @@ incomplete submissions are done.
 There is no wait for a default backend to implement a type that waits for all submission to a set
 of arbitrary resource types. There are several possible alternatives including:
 
+* Return a submission group that calls `wait` on all of the resources in the backend if `r.wait()` is valid and throws an exception otherwise.
 * Return a submission group that has an empty `wait` function.
 * Return a submission group that throws an exception if it is waited on.
 * Calls to `get_submission_group` fail to compile when the default backend is used.
 
-This proposal recommends the last suggestion.
+This proposal recommends the first suggestion.
+
+With that approach, the following example throws an exception:
 
 ```cpp
     tbb::task_group t1, t2;
 
-    // constructs backend with std::vector<tbb::task_group*>{ &t1, &t2 }
-    ex::round_robin_policy p{ { &t1, &t2 } };
+    ex::round_robin_policy<tbb::task_group*> p{ { &t1, &t2 } };
 
-    auto g = p.get_submission_group(); // fails to compile
+    auto g = p.get_submission_group();
+    try {
+        ex::wait(g);
+    } catch (std::logic_error& e) {
+        std::cout << "Failed as expected: " << e.what() << "\n";
+    }
+```
+
+But the next example completes without an exception since the resource type, tpw,
+provides a wait function.
+
+```cpp
+    struct tpw {
+        tbb::task_group *tg;
+        void wait() { tg->wait(); }
+    };
+
+    ex::round_robin_policy<tpw> p2{ { tpw{&t1}, tpw{&t2} } };
+    auto g2 = p2.get_submission_group();
+    ex::wait(g2);
+    std::printf("Ok\n");
+```
+
+```cpp
+    class default_submission_group
+    {
+    std::vector<ResourceType>& r_;
+    
+    public:
+        default_submission_group(std::vector<ResourceType>& r) : r_(r) {}
+
+        void
+        wait()
+        {
+        if constexpr (has_wait<ResourceType>::value) {
+            for (auto& r : r_) 
+                r.wait();
+        } else {
+            throw std::logic_error("wait called on unsupported submission_group.");
+        }
+        }
+    };
 ```
 
 #### Default `lazy_report_v<T>`
@@ -273,11 +316,6 @@ Show below is a sketch of a `backend_base`:
             return static_cast<Backend*>(this)->get_submission_group();
         }
 
-        template <typename SelectionHandle, typename Function, typename... Args>
-        auto submit(SelectionHandle s, Function&& f, Args&&... args) {
-            return static_cast<Backend*>(this)->submit_impl(s, f, std::forward<Args>(args)...);
-        }
-
     protected:
 
         //
@@ -309,6 +347,11 @@ Show below is a sketch of a `backend_base`:
             return resources_;
         }
 
+        auto
+        get_submission_group_impl() {
+            return default_submission_group{resources_};
+        }
+
     };
 ```
 
@@ -324,8 +367,8 @@ types:
     };
 ```
 
-A backend that relies on the defaults but overrides some functionality can then specialize the
-default backend for the type. For example, the existing SYCL backend can be implemented as:
+A backend that is in the `oneapi::dpl` namespace that relies on the defaults but overrides some functionality
+can specialize the default backend for the type. For example, the existing SYCL backend can be implemented as:
 
 ```cpp
 template< >
@@ -342,7 +385,7 @@ as:
 template <typename ResourceType = sycl::queue, typename Backend = default_backend<ResourceType>>
 struct round_robin_policy
 {
-    // policy implementation
+    // policy implementation not shown here
 };
 ```
 
@@ -354,83 +397,163 @@ a specialization of teh default backed:
     // and default_backend<sycl::queue> inherits from backend_base<sycl::queue, default_backend<sycl::queue>>
     round_robin_policy p;
 ```
+
+A third-party can create a custom backend by using the `backend_base`:
+
+```cpp
+namespace third_party {
+    class custom_resource {
+        // implementation
+    };
+
+    class custom_backend : public oneapi::dpl::experimental::backend_base<custom_resource, custom_backend> {
+        // override _impl functions as desired
+    };
+}
+```
+
+A round-robin policy using such a custom resource and policy would be define as shown:
+
+```cpp
+    round_robin_policy<third_party::custom_resource, third_party::custom_backend> p;
+```
+
 ## Backend Examples
 
-### Default Backend for NUMA Nodes
+### Using the Default Backend with a new Resource Type
+
+In the following example, the resource type is `std::pair<tbb::task_arena *, tbb::task_group *>`.
+A `tbb::task_arena` represents something like a thread pool, a place where work can be submitted
+and executed by threads. A `tbb::task_group` represents a group of tasks that can be waited on
+as a group. Below, only the default backend is used, there is no additional backend that is
+customized for `std::pair<tbb::task_arena *, tbb::task_group *>`:
+
+```cpp
+    namespace ex = oneapi::dpl::experimental;
+
+    using pair_t = std::pair<tbb::task_arena *, tbb::task_group *>;
+
+    // create pairs of arenas and task_groups, one per numa node
+    std::vector<tbb::numa_node_id> numa_nodes = tbb::info::numa_nodes();
+    std::vector<pair_t> pairs;
+
+    for (int i = 0; i < numa_nodes.size(); i++) {
+        pairs.emplace_back(pair_t(new tbb::task_arena{tbb::task_arena::constraints(numa_nodes[i]), 0},
+                               new tbb::task_group{}) );
+    }
+    // end creating default arenas and groups
+
+    ex::round_robin_policy<pair_t> rr{ pairs };
+
+    // helper struct for waiting on the work in the pair
+    struct WaitType {
+        pair_t pair;
+        void wait() { pair.first->execute([this]() { pair.second->wait(); }); }
+    };
+    std::vector<WaitType> submissions;
+
+    for (auto i : numa_nodes) {
+        auto w = ex::submit( rr, 
+                             [](pair_t p) {
+                                p.first->enqueue(p.second->defer([]() { std::printf("o\n"); }));
+                                return WaitType{ p };
+                             }
+                            );
+        submissions.emplace_back(w.unwrap());
+    }
+
+    for (auto& s : submissions)
+        ex::wait(s);
+}
+```
+
+In this example, we can see that the user has to manual construct a vector of
+resources and pass it to the policy (which in turn passes it to the default
+backend). There is no obvious way to wait on this pair of pointers and so
+the user also needs to define a `WaitType` in their code and return that
+from the user body passed to `submit`.  The default backend also cannot create
+a reasonable `submission_group` for this type and so the code manually collects
+each submission in a vector and then iterates over this vector to wait on each
+submission.
+
+Even those this code is verbose, it required zero lines of backend code to be
+written and still allowed the logic of round-robin policy to be used for
+selection and submission.
+
+### An Example Custom NUMA Resource and Backend (no instrumentation yet)
+
+The code below shows a custom resource type `ArenaAndGroup` that combines a
+`tbb::task_arena` and `tbb::task_group`, providing functions to submit work
+ to the pair, `run`, and a function to wait on the pair, `wait`.
+
+```cpp
+namespace numa {
+    class ArenaAndGroup {
+        tbb::task_arena *a_;
+        tbb::task_group *tg_;
+    public:
+        ArenaAndGroup(tbb::task_arena *a, tbb::task_group *tg) : a_(a), tg_(tg) {}
+      
+        template<typename F>
+        auto run(F&& f) {
+            a_->enqueue(tg_->defer([&]() { std::forward<F>(f)(); }));
+            return *this;
+        }
+
+        void wait() { 
+            a_->execute([this]() { tg_->wait(); }); 
+        }
+
+        void clear() { delete a_; delete tg_; }
+    };
+}
+```
+
+We can create a `numa_backend` for this type outside of the
+`oneapi::dpl::experimental` namespace by inheriting from `backend_base`
+and provide a default constructor:
+
+```cpp
+namespace numa {
+    class numa_backend : public ex::backend_base<ArenaAndGroup, numa_backend> {
+    public:
+        using resource_type = ArenaAndGroup;
+        using my_base = backend_base<ArenaAndGroup, numa_backend>;
+        numa_backend() : my_base(), owns_groups_(true) { 
+            std::vector<tbb::numa_node_id> numa_nodes = tbb::info::numa_nodes();
+            for (int i = 0; i < numa_nodes.size(); i++) {
+                resources_.emplace_back( ArenaAndGroup(new tbb::task_arena{tbb::task_arena::constraints(numa_nodes[i]), 0},
+                                                       new tbb::task_group{}) );
+            }
+        }
+
+        numa_backend(const std::vector<ArenaAndGroup>& u) : my_base(u) {  }
+
+        ~numa_backend() {
+            if (owns_groups_)
+                for (auto& r : resources_) 
+                    r.clear();
+        }
+
+    private:
+        bool owns_groups_ = false;
+    };
+}
+```
+
+With less than 25 lines of code, we now have a backend that simplifies the use of the `ArenaAndGroup` resource:
 
 ```cpp
     std::vector<tbb::numa_node_id> numa_nodes = tbb::info::numa_nodes();
 
-    std::vector<tbb::task_arena> arenas(numa_nodes.size());
-    std::vector<tbb::task_group> groups(numa_nodes.size());
-    using pair_t = std::pair<tbb::task_arena*, tbb::task_group*>
-    struct wait_type {
-        tbb::task_group &tg_;
-        void wait() { tg_.wait(); }
-    };
-    std::vector<pair_t> pairs(numa_nodes.size());
-
-    for (int i = 0; i < numa_nodes.size(); i++) {
-        arenas[i].initialize(tbb::task_arena::constraints(numa_nodes[i]), 0);
-        pairs.emplace_back(&arena[i], &group[i]);
-    }
-
-    ex::round_robin_policy<pair_t> rr{ pairs };
-
-    std::vector<wait_type> submissions;
-
-    for (auto i : numa_nodes)
-        w.emplace_back(
-            onedpl::dpl::experimental::submit(rr, [](pair_t p) {
-                p.first->enqueue(
-                    p.second->defer([] { 
-                        tbb::parallel_for( /*... */);
-                    })
-                );
-                return wait_type{ *p.second };
-            });
+    ex::round_robin_policy<numa::ArenaAndGroup, numa::numa_backend> rr{ };
+    for (auto i : numa_nodes) {
+        ex::submit(rr, 
+            [](numa::ArenaAndGroup ag) { 
+                ag.run([]() { std::printf("o\n"); });
+                return ag; }
         );
-
-    for (auto& s : submissions)
-        s.wait(); // not waiting in correct arena though...
-```
-
-### Custom Backend for NUMA Nodes but no instrumentation
-
-```cpp
-    using pair_t = std::pair<tbb::task_arena*, tbb::task_group*>
-    ex::round_robin_policy<pair_t> rr{ };
-
-    for (int i = 0; i < 100; ++i) {
-        onedpl::dpl::experimental::submit(rr, [](pair_t p) {
-            p.first->enqueue(
-                p.second->defer([] { 
-                    tbb::parallel_for( /*... */);
-                })
-            );
-            return p;
-        });
     }
-
-    wait(rr.get_submission_group());
+    ex::wait(rr.get_submission_group());
 ```
 
-### Instrumented Custom Backend for NUMA Nodes
-
-```cpp
-    using pair_t = std::pair<tbb::task_arena*, tbb::task_group*>
-    ex::auto_tune_policy<pair_t> rr{ };
-
-    for (int i = 0; i < 100; ++i) {
-        onedpl::dpl::experimental::submit(rr, [](pair_t p) {
-            p.first->enqueue(
-                p.second->defer([] { 
-                    tbb::parallel_for( /*... */);
-                })
-            );
-            return p;
-        });
-    }
-
-    wait(rr.get_submission_group());
-```
