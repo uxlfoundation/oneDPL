@@ -40,6 +40,50 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
         }
     };
 
+    template <typename Policy, typename Size>
+    struct TestImlementation
+    {
+        Policy exec;
+        Size n;
+
+        template <typename TPermutationIterator>
+        void
+        operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        {
+            const auto testing_n = permItEnd - permItBegin;
+
+            // Fill full source data set (not only values iterated by permutation iterator)
+            generate_data(host_keys_ptr, host_keys_ptr + n, n);
+            host_keys.update_data();
+
+            // Copy source data back
+            std::vector<TestValueType> sourceData(testing_n);
+            dpl::copy(exec, permItBegin, permItEnd, sourceData.begin());
+            wait_and_throw(exec);
+
+            const IsGreatThenZero<TestValueType> op;
+
+            auto itEndNewRes = dpl::remove_if(exec, permItBegin, permItEnd, op);
+            wait_and_throw(exec);
+
+            const auto newSizeResult = itEndNewRes - permItBegin;
+
+            // Copy modified data back
+            std::vector<TestValueType> resultRemoveIf(newSizeResult);
+            dpl::copy(exec, permItBegin, itEndNewRes, resultRemoveIf.begin());
+            wait_and_throw(exec);
+
+            // Eval expected result
+            auto expectedRemoveIf = sourceData;
+            auto itEndNewExpected = ::std::remove_if(expectedRemoveIf.begin(), expectedRemoveIf.end(), op);
+            const auto newSizeExpected = itEndNewExpected - expectedRemoveIf.begin();
+
+            // Check results
+            EXPECT_EQ(newSizeExpected, newSizeResult, "Wrong result size after dpl::remove_if");
+            EXPECT_EQ_N(expectedRemoveIf.begin(), resultRemoveIf.begin(), newSizeExpected, "Wrong result after dpl::remove_if");
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
@@ -50,40 +94,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
             const auto host_keys_ptr = host_keys.get();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin, auto permItEnd) // KSATODO move lambda out?
-                {
-                    const auto testing_n = permItEnd - permItBegin;
-
-                    // Fill full source data set (not only values iterated by permutation iterator)
-                    generate_data(host_keys_ptr, host_keys_ptr + n, n);
-                    host_keys.update_data();
-
-                    // Copy source data back
-                    std::vector<TestValueType> sourceData(testing_n);
-                    dpl::copy(exec, permItBegin, permItEnd, sourceData.begin());
-                    wait_and_throw(exec);
-
-                    const IsGreatThenZero<TestValueType> op;
-
-                    auto itEndNewRes = dpl::remove_if(exec, permItBegin, permItEnd, op);
-                    wait_and_throw(exec);
-
-                    const auto newSizeResult = itEndNewRes - permItBegin;
-
-                    // Copy modified data back
-                    std::vector<TestValueType> resultRemoveIf(newSizeResult);
-                    dpl::copy(exec, permItBegin, itEndNewRes, resultRemoveIf.begin());
-                    wait_and_throw(exec);
-
-                    // Eval expected result
-                    auto expectedRemoveIf = sourceData;
-                    auto itEndNewExpected = ::std::remove_if(expectedRemoveIf.begin(), expectedRemoveIf.end(), op);
-                    const auto newSizeExpected = itEndNewExpected - expectedRemoveIf.begin();
-
-                    // Check results
-                    EXPECT_EQ(newSizeExpected, newSizeResult, "Wrong result size after dpl::remove_if");
-                    EXPECT_EQ_N(expectedRemoveIf.begin(), resultRemoveIf.begin(), newSizeExpected, "Wrong result after dpl::remove_if");
-                });
+                TestImlementation<Policy, Size>{exec, n});
         }
     }
 };
