@@ -799,6 +799,19 @@ class __future : private std::tuple<_Args...>
     {
 #if !ONEDPL_ALLOW_DEFERRED_WAITING
         wait();
+#else
+        constexpr std::size_t __size_of_tuple = std::tuple_size_v<decltype(*this)>;
+
+        // __result_and_scratch_storage is the last element of the tuple if it exist
+        if constexpr (__size_of_tuple > 1)
+        {
+            using __temporary_data_t = std::shared_ptr<__result_and_scratch_storage_base>;
+            using __last_element_t = std::decay_t<std::tuple_element_t<__size_of_tuple - 1, decltype(*this)>>;
+            if (std::is_same_v<__last_element_t, __temporary_data_t>)
+            {
+                wait();
+            }
+        }
 #endif
     }
 
