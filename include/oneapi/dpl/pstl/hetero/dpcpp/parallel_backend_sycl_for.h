@@ -231,9 +231,10 @@ __future<sycl::event>
 __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Fp __brick, _Index __count,
                _Ranges&&... __rngs)
 {
-    static_assert(__has_pfor_brick_members_v<_Fp>,
-                  "The brick provided to __parallel_for must define static bool members __can_vectorize and "
-                  "__can_process_multiple_iters.");
+    static_assert(
+        __has_pfor_brick_members_v<_Fp>,
+        "The brick provided to __parallel_for must define const / constexpr static bool members __can_vectorize and "
+        "__can_process_multiple_iters which must be evaluated at compile time.");
     assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
                __rngs.size())...}) > 0);
     assert(__count > 0);
