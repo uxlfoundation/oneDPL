@@ -1295,7 +1295,7 @@ __stable_sort_with_projection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
 
     __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                  __buf.all_view(), __comp, __proj)
-        .wait(); // Calls wait() here because we should extend the life-time of temporary data inside __future instance
+        .__deferrable_wait(); // __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare,
