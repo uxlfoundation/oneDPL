@@ -28,6 +28,70 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
         ::std::iota(itBegin, itEnd, initVal);
     }
 
+    template <typename Policy, typename Size>
+    struct TestImlementationLevel1
+    {
+        Policy exec;
+        Size n;
+        std::vector<TestValueType>& srcData1;
+
+        template <typename TPermutationIterator>
+        void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd2) const
+        {
+            const auto testing_n2 = permItEnd2 - permItBegin;
+
+            //ensure list is sorted (not necessarily true after permutation)
+            dpl::sort(exec2, permItBegin, permItEnd2);
+            wait_and_throw(exec2);
+
+            const auto resultEnd = dpl::merge(exec, permItBegin, permItEnd, permItBegin, permItEnd2, first3);
+            wait_and_throw(exec);
+            const auto resultSize = resultEnd - first3;
+
+            // Copy data back
+            std::vector<TestValueType> srcData2(testing_n2);
+            dpl::copy(exec2, permItBegin, permItEnd2, srcData2.begin());
+            wait_and_throw(exec2);
+
+            std::vector<TestValueType> mergedDataResult(resultSize);
+            dpl::copy(exec3, first3, resultEnd, mergedDataResult.begin());
+            wait_and_throw(exec3);
+
+            // Check results
+            std::vector<TestValueType> mergedDataExpected(testing_n1 + testing_n2);
+            auto expectedEnd = std::merge(srcData1.begin(), srcData1.end(), srcData2.begin(), srcData2.end(), mergedDataExpected.begin());
+            const auto expectedSize = expectedEnd - mergedDataExpected.begin();
+            EXPECT_EQ(expectedSize, resultSize, "Wrong size from dpl::merge");
+            EXPECT_EQ_N(mergedDataExpected.begin(), mergedDataResult.begin(), expectedSize, "Wrong result of dpl::merge");
+        }
+    };
+
+    template <typename Policy, typename Iterator1, typename Size>
+    struct TestImlementationLevel0
+    {
+        Policy exec;
+        Size n;
+        Iterator1 first1;
+
+        template <typename TPermutationIterator>
+        void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        {
+            const auto testing_n1 = permItEnd - permItBegin;
+
+            //ensure list is sorted (not necessarily true after permutation)
+            dpl::sort(exec, permItBegin, permItEnd);
+            wait_and_throw(exec);
+
+            // Copy data back
+            std::vector<TestValueType> srcData1(testing_n1);
+            dpl::copy(exec, permItBegin, permItEnd, srcData1.begin());
+            wait_and_throw(exec);
+
+            test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
+                TestImlementationLevel1<Policy, Size>{exec, n, srcData1});
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Iterator3 first3, Iterator3 last3, Size n)
@@ -59,49 +123,7 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
             assert(::std::distance(first3, last3) >= ::std::distance(first1, last1) + ::std::distance(first2, last2));
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin1, auto permItEnd1) // KSATODO move lambda out?
-                {
-                    const auto testing_n1 = permItEnd1 - permItBegin1;
-
-                    //ensure list is sorted (not necessarily true after permutation)
-                    dpl::sort(exec1, permItBegin1, permItEnd1);
-                    wait_and_throw(exec1);
-
-                    // Copy data back
-                    std::vector<TestValueType> srcData1(testing_n1);
-                    dpl::copy(exec1, permItBegin1, permItEnd1, srcData1.begin());
-                    wait_and_throw(exec1);
-
-                    test_through_permutation_iterator<Iterator2, Size, PermItIndexTag>{first2, n}(
-                        [&](auto permItBegin2, auto permItEnd2) // KSATODO move lambda out?
-                        {
-                            const auto testing_n2 = permItEnd2 - permItBegin2;
-
-                            //ensure list is sorted (not necessarily true after permutation)
-                            dpl::sort(exec2, permItBegin2, permItEnd2);
-                            wait_and_throw(exec2);
-
-                            const auto resultEnd = dpl::merge(exec, permItBegin1, permItEnd1, permItBegin2, permItEnd2, first3);
-                            wait_and_throw(exec);
-                            const auto resultSize = resultEnd - first3;
-
-                            // Copy data back
-                            std::vector<TestValueType> srcData2(testing_n2);
-                            dpl::copy(exec2, permItBegin2, permItEnd2, srcData2.begin());
-                            wait_and_throw(exec2);
-
-                            std::vector<TestValueType> mergedDataResult(resultSize);
-                            dpl::copy(exec3, first3, resultEnd, mergedDataResult.begin());
-                            wait_and_throw(exec3);
-
-                            // Check results
-                            std::vector<TestValueType> mergedDataExpected(testing_n1 + testing_n2);
-                            auto expectedEnd = std::merge(srcData1.begin(), srcData1.end(), srcData2.begin(), srcData2.end(), mergedDataExpected.begin());
-                            const auto expectedSize = expectedEnd - mergedDataExpected.begin();
-                            EXPECT_EQ(expectedSize, resultSize, "Wrong size from dpl::merge");
-                            EXPECT_EQ_N(mergedDataExpected.begin(), mergedDataResult.begin(), expectedSize, "Wrong result of dpl::merge");
-                        });
-                });
+                TestImlementationLevel0<Policy, Iterator1, Size>{exec, n, first1});
         }
     }
 };
