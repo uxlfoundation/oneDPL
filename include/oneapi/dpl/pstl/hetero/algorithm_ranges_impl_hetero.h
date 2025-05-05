@@ -928,7 +928,7 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     if (__rng.size() >= 2)
         __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                      ::std::forward<_Range>(__rng), __comp, __proj)
-            .__deferrable_wait();
+            .__deferrable_wait(); // __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
