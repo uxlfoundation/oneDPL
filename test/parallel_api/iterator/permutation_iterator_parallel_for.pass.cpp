@@ -45,6 +45,42 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
         ::std::fill(itBegin, itEnd, TestValueType{});
     }
 
+    template <typename Policy, typename Size>
+    struct TestImlementation
+    {
+        Policy exec;
+        Size n;
+
+        template <typename TPermutationIterator>
+        void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        {
+            const auto testing_n = permItEnd - permItBegin;
+
+            clear_output_data(host_vals_ptr, host_vals_ptr + n);
+            host_vals.update_data();
+
+            auto itResultEnd = dpl::transform(exec, permItBegin, permItEnd, first2, TransformOp{});
+            wait_and_throw(exec);
+
+            const auto resultSize = itResultEnd - first2;
+
+            // Copy data back
+            std::vector<TestValueType> sourceData(testing_n);
+            dpl::copy(exec1, permItBegin, permItEnd, sourceData.begin());
+            wait_and_throw(exec1);
+            std::vector<TestValueType> transformedDataResult(testing_n);
+            dpl::copy(exec2, first2, itResultEnd, transformedDataResult.begin());
+            wait_and_throw(exec2);
+
+            // Check results
+            std::vector<TestValueType> transformedDataExpected(testing_n);
+            const auto itExpectedEnd = ::std::transform(sourceData.begin(), sourceData.end(), transformedDataExpected.begin(), TransformOp{});
+            const auto expectedSize = itExpectedEnd - transformedDataExpected.begin();
+            EXPECT_EQ(expectedSize, resultSize, "Wrong size from dpl::transform");
+            EXPECT_EQ_N(transformedDataExpected.begin(), transformedDataResult.begin(), expectedSize, "Wrong result of dpl::transform");
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Size n)
@@ -65,33 +101,7 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin, auto permItEnd) // KSATODO move lambda out?
-                {
-                    const auto testing_n = permItEnd - permItBegin;
-
-                    clear_output_data(host_vals_ptr, host_vals_ptr + n);
-                    host_vals.update_data();
-
-                    auto itResultEnd = dpl::transform(exec, permItBegin, permItEnd, first2, TransformOp{});
-                    wait_and_throw(exec);
-
-                    const auto resultSize = itResultEnd - first2;
-
-                    // Copy data back
-                    std::vector<TestValueType> sourceData(testing_n);
-                    dpl::copy(exec1, permItBegin, permItEnd, sourceData.begin());
-                    wait_and_throw(exec1);
-                    std::vector<TestValueType> transformedDataResult(testing_n);
-                    dpl::copy(exec2, first2, itResultEnd, transformedDataResult.begin());
-                    wait_and_throw(exec2);
-
-                    // Check results
-                    std::vector<TestValueType> transformedDataExpected(testing_n);
-                    const auto itExpectedEnd = ::std::transform(sourceData.begin(), sourceData.end(), transformedDataExpected.begin(), TransformOp{});
-                    const auto expectedSize = itExpectedEnd - transformedDataExpected.begin();
-                    EXPECT_EQ(expectedSize, resultSize, "Wrong size from dpl::transform");
-                    EXPECT_EQ_N(transformedDataExpected.begin(), transformedDataResult.begin(), expectedSize, "Wrong result of dpl::transform");
-                });
+                TestImlementation<Policy, Size>{exec, n});
         }
     }
 };
