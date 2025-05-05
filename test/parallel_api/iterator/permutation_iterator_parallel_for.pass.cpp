@@ -39,23 +39,23 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             *it = n - index;
     }
 
-    template <typename TIterator>
-    void clear_output_data(TIterator itBegin, TIterator itEnd)
-    {
-        ::std::fill(itBegin, itEnd, TestValueType{});
-    }
-
-    template <typename Policy, typename Size>
+    template <typename Policy, typename Size, typename THostVals, typename Iterator2>
     struct TestImlementation
     {
         Policy exec;
         Size n;
+        THostVals& host_vals;
+        Iterator2 first2;
 
         template <typename TPermutationIterator>
         void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
         {
+            auto exec1 = TestUtils::create_new_policy_idx<0>(exec);
+            auto exec2 = TestUtils::create_new_policy_idx<1>(exec);
+
             const auto testing_n = permItEnd - permItBegin;
 
+            const auto host_vals_ptr = host_vals.get();
             clear_output_data(host_vals_ptr, host_vals_ptr + n);
             host_vals.update_data();
 
@@ -79,6 +79,12 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             EXPECT_EQ(expectedSize, resultSize, "Wrong size from dpl::transform");
             EXPECT_EQ_N(transformedDataExpected.begin(), transformedDataResult.begin(), expectedSize, "Wrong result of dpl::transform");
         }
+
+        template <typename TIterator>
+        void clear_output_data(TIterator itBegin, TIterator itEnd) const
+        {
+            std::fill(itBegin, itEnd, TestValueType{});
+        }
     };
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
@@ -87,21 +93,17 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
     {
         if constexpr (is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>)
         {
-            auto exec1 = TestUtils::create_new_policy_idx<0>(exec);
-            auto exec2 = TestUtils::create_new_policy_idx<1>(exec);
-
             TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);     // source data for transform
             TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);     // result data of transform
 
             const auto host_keys_ptr = host_keys.get();
-            const auto host_vals_ptr = host_vals.get();
 
             // Fill full source data set (not only values iterated by permutation iterator)
             generate_data(host_keys_ptr, host_keys_ptr + n, n);
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementation<Policy, Size>{exec, n});
+                TestImlementation<Policy, Size, decltype(host_vals), Iterator2>{exec, n, host_vals, first2});
         }
     }
 };
