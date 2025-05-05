@@ -11,7 +11,7 @@ and requires some (unecessarily) verbose code.
 
 ## Current backend design
 
-A backend defines resource types and implements reporting that is requireed by a policy.
+A backend defines resource types and implements reporting that is required by a policy.
 
 As described in [the current design](https://github.com/uxlfoundation/oneDPL/tree/main/rfcs/experimental/dynamic_selection),
 type `T` satisfies the *Backend* contract if given,
