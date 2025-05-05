@@ -28,14 +28,15 @@ DEFINE_TEST_PERM_IT(test_find, PermItIndexTag)
         ::std::iota(itBegin, itEnd, initVal);
     }
 
-    template <typename Policy, typename Iterator1, typename Size>
+    template <typename Policy, typename Size>
     struct TestImlementation
     {
         Policy exec;
         Size n;
 
+        template <typename TIterator>
         void
-        operator()(Iterator1 first1, Iterator1 last1) const
+        operator()(TIterator permItBegin, TIterator permItEnd) const
         {
             const auto testing_n = permItEnd - permItBegin;
             if (testing_n >= 2)
@@ -75,7 +76,7 @@ DEFINE_TEST_PERM_IT(test_find, PermItIndexTag)
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementation<Policy, Iterator1, Size>{exec, n});
+                TestImlementation<Policy, Size>{exec, n});
         }
     }
 };
