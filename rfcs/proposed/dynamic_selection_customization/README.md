@@ -58,7 +58,7 @@ a manditory template argument and this can be used to set the resource type in t
 
 Is it therefore becomes unnecessary to explicitly provide the resource type in the default backend.
 For example, in the code below a `round_robin_policy` is constructed by passing a vector of
-pointers to `tbb::task_group`.  The type of the resource `tbb::task_group *` can be deduce and
+pointers to `tbb::task_group`.  The type of the resource `tbb::task_group *` can be deduced and
 passed as a template argument to the default backend. 
 
 ```cpp
