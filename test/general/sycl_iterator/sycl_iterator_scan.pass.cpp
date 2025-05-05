@@ -71,7 +71,7 @@ DEFINE_TEST(test_remove_if)
 {
     DEFINE_TEST_CONSTRUCTOR(test_remove_if, 2.0f, 0.65f)
 
-    template <typename T1>
+    template <typename T1, typename Size>
     struct CheckState
     {
         Size pos;
@@ -93,7 +93,7 @@ DEFINE_TEST(test_remove_if)
         host_keys.update_data();
 
         auto pos = (last - first) / 2;
-        auto res1 = ::std::remove_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, CheckState<T1>{pos});
+        auto res1 = ::std::remove_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, CheckState<T1, Size>{pos});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last - 1, "wrong result from remove_if");
@@ -180,7 +180,7 @@ DEFINE_TEST(test_partition)
     template <typename IteratorValueType>
     struct IsMultipleOf3And2
     {
-        bool operator(IteratorValueType value) const
+        bool operator()(IteratorValueType value) const
         {
             return (value % 3 == 0) && (value % 2 == 0);
         }
@@ -308,7 +308,7 @@ DEFINE_TEST(test_transform_exclusive_scan)
     template <typename T1>
     struct TransformOp
     {
-        T1 operator()(T1 x)
+        T1 operator()(T1 x) const
         {
             return x * 2;
         }
