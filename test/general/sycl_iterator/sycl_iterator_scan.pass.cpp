@@ -93,7 +93,7 @@ DEFINE_TEST(test_remove_if)
         host_keys.update_data();
 
         auto pos = (last - first) / 2;
-        auto res1 = ::std::remove_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, CheckState<T1, Size>{pos});
+        auto res1 = ::std::remove_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, CheckState<T1, decltype(pos)>{pos});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last - 1, "wrong result from remove_if");
