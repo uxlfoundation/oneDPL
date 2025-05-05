@@ -107,7 +107,7 @@ struct sycl_iterator
         return *this - it < 0;
     }
 
-    // This function is required for types for which oneapi::dpl::__ranges::is_sycl_or_hetero_iterator = true to ensure
+    // This function is required for types for which oneapi::dpl::__ranges::is_hetero_iterator = true to ensure
     // proper handling by oneapi::dpl::__ranges::__get_sycl_range
     sycl::buffer<T, dim, Allocator>
     get_buffer() const
@@ -115,7 +115,7 @@ struct sycl_iterator
         return buffer;
     }
 
-    // This function is required for types for which oneapi::dpl::__ranges::is_sycl_or_hetero_iterator = true to ensure
+    // This function is required for types for which oneapi::dpl::__ranges::is_hetero_iterator = true to ensure
     // proper handling by oneapi::dpl::__ranges::__get_sycl_range
     Size
     get_idx() const

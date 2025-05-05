@@ -219,10 +219,10 @@ struct is_hetero_legacy_trait<Iter, ::std::enable_if_t<Iter::is_hetero::value>> 
 };
 
 template <typename Iter>
-using is_sycl_or_hetero_iterator = std::disjunction<is_sycl_iterator<Iter>, is_hetero_legacy_trait<Iter>>;
+using is_hetero_iterator = std::disjunction<is_sycl_iterator<Iter>, is_hetero_legacy_trait<Iter>>;
 
 template <typename Iter>
-inline constexpr bool is_sycl_or_hetero_iterator_v = is_sycl_or_hetero_iterator<Iter>::value;
+inline constexpr bool is_hetero_iterator_v = is_hetero_iterator<Iter>::value;
 
 template <typename _Iter>
 using __is_passed_directly_device_ready =
@@ -239,9 +239,10 @@ struct is_temp_buff : ::std::false_type
 };
 
 template <typename _Iter>
-struct is_temp_buff<
-    _Iter, std::enable_if_t<!oneapi::dpl::__ranges::is_sycl_or_hetero_iterator_v<_Iter> && !std::is_pointer_v<_Iter> &&
-                            !oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>>> : std::true_type
+struct is_temp_buff<_Iter,
+                    std::enable_if_t<!oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> && !std::is_pointer_v<_Iter> &&
+                                     !oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>>>
+    : std::true_type
 {
 };
 
@@ -474,7 +475,7 @@ struct __get_sycl_range
 
     //specialization for permutation_iterator using sycl_iterator as source
     template <sycl::access::mode _LocalAccMode, typename _It, typename _Map,
-              ::std::enable_if_t<oneapi::dpl::__ranges::is_sycl_or_hetero_iterator_v<_It>, int> = 0>
+              ::std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_It>, int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_It, _Map> __first,
                          oneapi::dpl::permutation_iterator<_It, _Map> __last)
@@ -482,7 +483,7 @@ struct __get_sycl_range
         auto __n = __last - __first;
         assert(__n > 0);
 
-        // Types for which oneapi::dpl::__ranges::is_sycl_or_hetero_iterator_v = true should have both:
+        // Types for which oneapi::dpl::__ranges::is_hetero_iterator_v = true should have both:
         //  "get_buffer()" to return the buffer they are base upon and
         //  "get_idx()" to return the buffer offset
 
@@ -502,7 +503,7 @@ struct __get_sycl_range
 
     //specialization for permutation_iterator using USM pointer or direct pass object as source
     template <sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
-              std::enable_if_t<!oneapi::dpl::__ranges::is_sycl_or_hetero_iterator_v<_Iter> &&
+              std::enable_if_t<!oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> &&
                                    oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
                                int> = 0>
     auto
@@ -522,7 +523,7 @@ struct __get_sycl_range
     // specialization for general case, permutation_iterator with base iterator that is not sycl_iterator or
     // device accessible content iterators.
     template <sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
-              std::enable_if_t<!oneapi::dpl::__ranges::is_sycl_or_hetero_iterator_v<_Iter> &&
+              std::enable_if_t<!oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> &&
                                    !oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
                                int> = 0>
     auto
@@ -572,13 +573,13 @@ struct __get_sycl_range
     template <sycl::access::mode _LocalAccMode, typename _Iter>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
-        -> ::std::enable_if_t<oneapi::dpl::__ranges::is_sycl_or_hetero_iterator_v<_Iter>,
+        -> ::std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
                               __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
     {
         assert(__first < __last);
         using value_type = val_t<_Iter>;
 
-        // Types for which oneapi::dpl::__ranges::is_sycl_or_hetero_iterator_v = true should have both:
+        // Types for which oneapi::dpl::__ranges::is_hetero_iterator_v = true should have both:
         //  "get_buffer()" to return the buffer they are base upon and
         //  "get_idx()" to return the buffer offset
 
