@@ -145,6 +145,73 @@ __pattern_find_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&,
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// __pattern_find_first_of
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
+          typename _Proj2>
+auto
+__pattern_find_first_of(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                        _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __bin_pred = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) {
+        return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
+                           std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));
+    };
+
+    return std::ranges::borrowed_iterator_t<_R1>(oneapi::dpl::__internal::__pattern_find_first_of(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
+        std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
+        std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred));
+}
+
+template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
+auto
+__pattern_find_first_of(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                        _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return std::ranges::find_first_of(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_find_end
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
+          typename _Proj2>
+auto
+__pattern_find_end(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred, _Proj1 __proj1,
+                   _Proj2 __proj2)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __bin_pred = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) {
+        return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
+                           std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));
+    };
+
+    auto __last1 = std::ranges::begin(__r1) + std::ranges::size(__r1);
+    if (std::ranges::empty(__r2))
+        return std::ranges::borrowed_subrange_t<_R1>(__last1, __last1);
+
+    auto __it = oneapi::dpl::__internal::__pattern_find_end(__tag,
+        std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1), __last1, std::ranges::begin(__r2),
+        std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred);
+
+    return std::ranges::borrowed_subrange_t<_R1>(__it, __it + (__it == __last1 ? 0 : std::ranges::size(__r2)));
+}
+
+template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
+auto
+__pattern_find_end(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                   _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return std::ranges::find_end(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // pattern_any_of
 //---------------------------------------------------------------------------------------------------------------------
 
@@ -278,6 +345,30 @@ __pattern_count_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// pattern_count
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _T, typename _Proj>
+std::ranges::range_difference_t<_R>
+__pattern_count(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    oneapi::dpl::__internal::__count_fn_pred<_T, _Proj> __pred{__value, __proj};
+
+    return oneapi::dpl::__internal::__pattern_count(__tag, std::forward<_ExecutionPolicy>(__exec),
+        std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r), __pred);
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _T, typename _Proj>
+std::ranges::range_difference_t<_R>
+__pattern_count(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, const _T& __value,
+                _Proj __proj)
+{
+    return std::ranges::count(std::forward<_R>(__r), __value, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // pattern_equal
 //---------------------------------------------------------------------------------------------------------------------
 template<typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
@@ -370,10 +461,8 @@ __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
         std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
 
-    auto __res = oneapi::dpl::__internal::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+    return oneapi::dpl::__internal::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
-
-    return std::ranges::borrowed_iterator_t<_R>(__res);
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
@@ -381,6 +470,57 @@ auto
 __pattern_min_element(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
 {
     return std::ranges::min_element(std::forward<_R>(__r), __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// pattern_min
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+std::ranges::range_value_t<_R>
+__pattern_min(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    return *__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// pattern_minmax_element
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+auto
+__pattern_minmax_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
+        std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
+
+    return oneapi::dpl::__internal::__pattern_minmax_element(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+        std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+auto
+__pattern_minmax_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp,
+                         _Proj __proj)
+{
+    return std::ranges::minmax_element(std::forward<_R>(__r), __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_minmax
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
+std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>
+__pattern_minmax(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    auto [__it_min, __it_max] =
+        __pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+
+    return {*__it_min, *__it_max};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -440,6 +580,29 @@ __pattern_copy_if_ranges(__serial_tag</*IsVector*/std::false_type>, _ExecutionPo
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// __pattern_fill
+//---------------------------------------------------------------------------------------------------------------------
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _T>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    const auto __first = std::ranges::begin(__r);
+    const auto __last = __first + std::ranges::size(__r);
+    oneapi::dpl::__internal::__pattern_fill(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __value);
+
+    return {__last};
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _T>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, const _T& __value)
+{
+    return std::ranges::fill(std::forward<_R>(__r), __value);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // pattern_merge
 //---------------------------------------------------------------------------------------------------------------------
 
@@ -479,6 +642,83 @@ __pattern_merge(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _
                                             __it_out, __n_out, __comp_2);
 
     return __return_type{__res.second, __res.first, __it_out + __n_out};
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_mismatch
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
+          typename _Proj2>
+auto
+__pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred, _Proj1 __proj1,
+                   _Proj2 __proj2)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __bin_pred = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) {
+        return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
+                           std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));
+    };
+
+    return oneapi::dpl::__internal::__pattern_mismatch(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
+        std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
+        std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred);
+}
+
+template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
+auto
+__pattern_mismatch(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Pred __pred,
+                   _Proj1 __proj1, _Proj2 __proj2)
+{
+    return std::ranges::mismatch(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_remove_if
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
+auto
+__pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
+{
+    auto __pred_1 = [__pred, __proj](auto&& __val) {
+        return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));
+    };
+
+    auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
+
+    auto __it = oneapi::dpl::__internal::__pattern_remove_if(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                             std::ranges::begin(__r), __end, __pred_1);
+
+    return std::ranges::borrowed_subrange_t<_R>(__it, __end);
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
+auto
+__pattern_remove_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
+                    _Proj __proj)
+{
+    return std::ranges::remove_if(std::forward<_R>(__r), __pred, __proj);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+void
+__pattern_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r)
+{
+    auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
+    oneapi::dpl::__internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec),
+                                                   std::ranges::begin(__r), __end, std::ranges::begin(__out_r),
+                                                   oneapi::dpl::__internal::__brick_move<decltype(__tag)>{});
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+void
+__pattern_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _InRange&& __r,
+               _OutRange&& __out_r)
+{
+    std::ranges::move(std::forward<_InRange>(__r), std::forward<_OutRange>(__out_r));
 }
 
 } // namespace __ranges

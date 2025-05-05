@@ -15,18 +15,13 @@
 
 #include "std_ranges_test.h"
 
-std::int32_t
-main()
-{
 #if _ENABLE_STD_RANGES_TESTING
-    using namespace test_std_ranges;
-    namespace dpl_ranges = oneapi::dpl::ranges;
-
-    //A checker below modifies a return type; a range based version with policy has another return type.
-    auto merge_checker = [](std::ranges::random_access_range auto&& r_1,
-                                       std::ranges::random_access_range auto&& r_2,
-                                       std::ranges::random_access_range auto&& r_out, auto comp, auto proj1,
-                                       auto proj2)
+//A checker below modifies a return type; a range based version with policy has another return type.
+struct merge_checker_fn
+{
+    template<std::ranges::random_access_range _R1, std::ranges::random_access_range _R2, std::ranges::random_access_range _ROut,
+    typename Comp  = std::ranges::less, typename Proj1 = std::identity, typename Proj2 = std::identity>
+    auto operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
     {
         using ret_type = std::ranges::merge_result<std::ranges::borrowed_iterator_t<decltype(r_1)>,
             std::ranges::borrowed_iterator_t<decltype(r_2)>, std::ranges::borrowed_iterator_t<decltype(r_out)>>;
@@ -66,7 +61,16 @@ main()
         }
 
         return ret_type{it_1, it_2, it_out};
-    };
+    }
+} merge_checker;
+#endif //_ENABLE_STD_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_STD_RANGES_TESTING
+    using namespace test_std_ranges;
+    namespace dpl_ranges = oneapi::dpl::ranges;
 
     test_range_algo<0, int, data_in_in_out_lim>{big_sz}(dpl_ranges::merge, merge_checker, std::ranges::less{}, std::identity{}, std::identity{});
 
@@ -77,6 +81,8 @@ main()
     test_range_algo<4, int, data_in_in_out_lim>{}(dpl_ranges::merge, merge_checker, std::ranges::greater{}, proj, proj);
     test_range_algo<5, P2, data_in_in_out_lim>{}(dpl_ranges::merge, merge_checker, std::ranges::greater{}, &P2::x, &P2::x);
     test_range_algo<6, P2, data_in_in_out_lim>{}(dpl_ranges::merge, merge_checker, std::ranges::greater{}, &P2::proj, &P2::proj);
+
+    test_range_algo<7, int, data_in_in_out_lim>{}(dpl_ranges::merge, merge_checker);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
