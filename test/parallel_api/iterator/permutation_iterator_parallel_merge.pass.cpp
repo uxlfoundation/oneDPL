@@ -38,6 +38,9 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
         template <typename TPermutationIterator>
         void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd2) const
         {
+            auto exec2 = TestUtils::create_new_policy_idx<1>(exec);
+            auto exec3 = TestUtils::create_new_policy_idx<2>(exec);
+
             const auto testing_n2 = permItEnd2 - permItBegin;
 
             //ensure list is sorted (not necessarily true after permutation)
@@ -76,16 +79,18 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
         template <typename TPermutationIterator>
         void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
         {
+            auto exec1 = TestUtils::create_new_policy_idx<0>(exec);
+
             const auto testing_n1 = permItEnd - permItBegin;
 
             //ensure list is sorted (not necessarily true after permutation)
-            dpl::sort(exec, permItBegin, permItEnd);
-            wait_and_throw(exec);
+            dpl::sort(exec1, permItBegin, permItEnd);
+            wait_and_throw(exec1);
 
             // Copy data back
             std::vector<TestValueType> srcData1(testing_n1);
-            dpl::copy(exec, permItBegin, permItEnd, srcData1.begin());
-            wait_and_throw(exec);
+            dpl::copy(exec1, permItBegin, permItEnd, srcData1.begin());
+            wait_and_throw(exec1);
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
                 TestImlementationLevel1<Policy, Size>{exec, n, srcData1});
