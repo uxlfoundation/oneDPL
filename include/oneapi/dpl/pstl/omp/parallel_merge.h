@@ -28,6 +28,13 @@ namespace __omp_backend
 template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _RandomAccessIterator3,
           typename _Compare, typename _LeafMerge>
 void
+__make_parallel_merge_leaf_tasks(_RandomAccessIterator1 __xm, _RandomAccessIterator2 __ym, _RandomAccessIterator1 __xs,
+                                 _RandomAccessIterator1 __xe, _RandomAccessIterator2 __ys, _RandomAccessIterator2 __ye,
+                                 _RandomAccessIterator3 __zs, _Compare __comp, _LeafMerge __leaf_merge);
+
+template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _RandomAccessIterator3,
+          typename _Compare, typename _LeafMerge>
+void
 __parallel_merge_body(std::size_t __size_x, std::size_t __size_y, _RandomAccessIterator1 __xs,
                       _RandomAccessIterator1 __xe, _RandomAccessIterator2 __ys, _RandomAccessIterator2 __ye,
                       _RandomAccessIterator3 __zs, _Compare __comp, _LeafMerge __leaf_merge)
@@ -39,20 +46,29 @@ __parallel_merge_body(std::size_t __size_x, std::size_t __size_y, _RandomAccessI
         return;
     }
 
-    _RandomAccessIterator1 __xm;
-    _RandomAccessIterator2 __ym;
-
     if (__size_x < __size_y)
     {
-        __ym = __ys + (__size_y / 2);
-        __xm = std::upper_bound(__xs, __xe, *__ym, __comp);
+        _RandomAccessIterator2 __ym = __ys + (__size_y / 2);
+        __make_parallel_merge_leaf_tasks(::std::upper_bound(__xs, __xe, *__ym, __comp),
+                                         __ym, __xs, __xe, __ys, __ye, __zs,
+                                         __comp, __leaf_merge);
     }
     else
     {
-        __xm = __xs + (__size_x / 2);
-        __ym = std::lower_bound(__ys, __ye, *__xm, __comp);
+        _RandomAccessIterator1 __xm = __xs + (__size_x / 2);
+        __make_parallel_merge_leaf_tasks(__xm, ::std::lower_bound(__ys, __ye, *__xm, __comp),
+                                         __xs, __xe, __ys, __ye, __zs,
+                                         __comp, __leaf_merge);
     }
+}
 
+template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _RandomAccessIterator3,
+          typename _Compare, typename _LeafMerge>
+void
+__make_parallel_merge_leaf_tasks(_RandomAccessIterator1 __xm, _RandomAccessIterator2 __ym, _RandomAccessIterator1 __xs,
+                                 _RandomAccessIterator1 __xe, _RandomAccessIterator2 __ys, _RandomAccessIterator2 __ye,
+                                 _RandomAccessIterator3 __zs, _Compare __comp, _LeafMerge __leaf_merge)
+{
     auto __zm = __zs + (__xm - __xs) + (__ym - __ys);
 
     _PSTL_PRAGMA(omp task untied mergeable default(none)
