@@ -29,6 +29,37 @@ DEFINE_TEST_PERM_IT(test_find, PermItIndexTag)
     }
 
     template <typename Policy, typename Iterator1, typename Size>
+    struct TestImlementation
+    {
+        Policy exec;
+        Size n;
+
+        void
+        operator()(Iterator1 first1, Iterator1 last1) const
+        {
+            const auto testing_n = permItEnd - permItBegin;
+            if (testing_n >= 2)
+            {
+                // Get value to find: the second value
+                std::vector<TestValueType> valueToFind(1);
+                dpl::copy(exec, permItBegin + 1, permItBegin + 2, valueToFind.begin());
+                wait_and_throw(exec);
+
+                const auto result = dpl::find(exec, permItBegin, permItEnd, valueToFind[0]);
+                wait_and_throw(exec);
+
+                EXPECT_TRUE(result != permItEnd, "Wrong result of dpl::find");
+
+                // Copy data back
+                std::vector<TestValueType> foundVal(1);
+                dpl::copy(exec, result, result + 1, foundVal.begin());
+                wait_and_throw(exec);
+                EXPECT_EQ(foundVal[0], valueToFind[0], "Incorrect value was found in dpl::find");
+            }
+        }
+    };
+
+    template <typename Policy, typename Iterator1, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
     {
@@ -44,29 +75,7 @@ DEFINE_TEST_PERM_IT(test_find, PermItIndexTag)
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin, auto permItEnd) // KSATODO move lambda out?
-                {
-                    const auto testing_n = permItEnd - permItBegin;
-
-                    if (testing_n >= 2)
-                    {
-                        // Get value to find: the second value
-                        std::vector<TestValueType> valueToFind(1);
-                        dpl::copy(exec, permItBegin + 1, permItBegin + 2, valueToFind.begin());
-                        wait_and_throw(exec);
-
-                        const auto result = dpl::find(exec, permItBegin, permItEnd, valueToFind[0]);
-                        wait_and_throw(exec);
-
-                        EXPECT_TRUE(result != permItEnd, "Wrong result of dpl::find");
-
-                        // Copy data back
-                        std::vector<TestValueType> foundVal(1);
-                        dpl::copy(exec, result, result + 1, foundVal.begin());
-                        wait_and_throw(exec);
-                        EXPECT_EQ(foundVal[0], valueToFind[0], "Incorrect value was found in dpl::find");
-                    }
-                });
+                TestImlementation<Policy, Iterator1, Size>{exec, n});
         }
     }
 };
