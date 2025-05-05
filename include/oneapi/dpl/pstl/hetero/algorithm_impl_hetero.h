@@ -1237,7 +1237,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
 
         __par_backend_hetero::__parallel_merge(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp)
-            .__checked_deferrable_wait(); // __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+            .__checked_deferrable_wait();
     }
     return __d_first + __n;
 }
@@ -1295,7 +1295,7 @@ __stable_sort_with_projection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
 
     __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                  __buf.all_view(), __comp, __proj)
-        .__checked_deferrable_wait(); // __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+        .__checked_deferrable_wait();
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare,
