@@ -791,14 +791,20 @@ class __future : private std::tuple<_Args...>
         if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
             wait();
         else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
-            __deferrable_wait();
+            __checked_deferrable_wait();
     }
 
     void
-    __deferrable_wait()
+    __checked_deferrable_wait()
     {
 #if !ONEDPL_ALLOW_DEFERRED_WAITING
         wait();
+#else
+        if constexpr (sizeof...(_Args) > 0)
+        {
+            // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
+            wait();
+        }
 #endif
     }
 
