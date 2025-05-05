@@ -28,6 +28,30 @@ DEFINE_TEST_PERM_IT(test_is_heap, PermItIndexTag)
         ::std::iota(itBegin, itEnd, initVal);
     }
 
+    template <typename Policy, typename Size>
+    struct TestImlementation
+    {
+        Policy exec;
+        Size n;
+
+        template <typename TPermutationIterator>
+        void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        {
+            const auto testing_n = permItEnd - permItBegin;
+
+            const auto resultIsHeap = dpl::is_heap(exec, permItBegin, permItEnd);
+            wait_and_throw(exec);
+
+            // Copy data back
+            std::vector<TestValueType> expected(testing_n);
+            dpl::copy(exec, permItBegin, permItEnd, expected.begin());
+            wait_and_throw(exec);
+
+            const auto expectedIsHeap = std::is_heap(expected.begin(), expected.end());
+            EXPECT_EQ(expectedIsHeap, resultIsHeap, "Wrong result of dpl::is_heap");
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
@@ -46,21 +70,7 @@ DEFINE_TEST_PERM_IT(test_is_heap, PermItIndexTag)
                 host_keys.update_data();
 
                 test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                    [&](auto permItBegin, auto permItEnd) // KSATODO move lambda out?
-                    {
-                        const auto testing_n = permItEnd - permItBegin;
-
-                        const auto resultIsHeap = dpl::is_heap(exec, permItBegin, permItEnd);
-                        wait_and_throw(exec);
-
-                        // Copy data back
-                        std::vector<TestValueType> expected(testing_n);
-                        dpl::copy(exec, permItBegin, permItEnd, expected.begin());
-                        wait_and_throw(exec);
-
-                        const auto expectedIsHeap = std::is_heap(expected.begin(), expected.end());
-                        EXPECT_EQ(expectedIsHeap, resultIsHeap, "Wrong result of dpl::is_heap");
-                    });
+                    TestImlementation<Policy, Size>{exec, n});
             }
         }
     }
