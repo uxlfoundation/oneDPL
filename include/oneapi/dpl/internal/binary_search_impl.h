@@ -208,7 +208,7 @@ lower_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
                            __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::lower_bound>{
                                comp, size, use_32bit_indexing},
                            value_size, zip_vw)
-        .__deferrable_wait();
+        .__checked_deferrable_wait();
     return result + value_size;
 }
 
@@ -240,7 +240,7 @@ upper_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
                            __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::upper_bound>{
                                comp, size, use_32bit_indexing},
                            value_size, zip_vw)
-        .__deferrable_wait();
+        .__checked_deferrable_wait();
     return result + value_size;
 }
 
@@ -272,7 +272,7 @@ binary_search_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, Input
                            __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::binary_search>{
                                comp, size, use_32bit_indexing},
                            value_size, zip_vw)
-        .__deferrable_wait();
+        .__checked_deferrable_wait();
     return result + value_size;
 }
 

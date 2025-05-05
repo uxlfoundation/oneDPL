@@ -1226,11 +1226,26 @@ struct __rotate_copy
 //------------------------------------------------------------------------
 // brick_set_op for difference and intersection operations
 //------------------------------------------------------------------------
+
+template <typename _IsOneShot>
 struct _IntersectionTag : public ::std::false_type
 {
+    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
 };
+template <typename _IsOneShot>
 struct _DifferenceTag : public ::std::true_type
 {
+    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
+};
+template <typename _IsOneShot>
+struct _UnionTag : public std::true_type
+{
+    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
+};
+template <typename _IsOneShot>
+struct _SymmetricDifferenceTag : public std::true_type
+{
+    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
 };
 
 template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>

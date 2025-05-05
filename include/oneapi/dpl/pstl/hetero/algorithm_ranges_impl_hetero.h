@@ -62,7 +62,7 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
             unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
             std::forward<_Ranges>(__rngs)...)
-            .__deferrable_wait();
+            .__checked_deferrable_wait();
     }
     return __n;
 }
@@ -192,7 +192,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
             unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng1, __rng2)
-            .__deferrable_wait();
+            .__checked_deferrable_wait();
         return __n;
     }
     const std::size_t __n = __rng2.size();
@@ -200,7 +200,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
         unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng2, __rng1)
-        .__deferrable_wait();
+        .__checked_deferrable_wait();
     return __n;
 }
 
@@ -901,7 +901,7 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     if (__rng.size() >= 2)
         __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                      ::std::forward<_Range>(__rng), __comp, __proj)
-            .__deferrable_wait();
+            .__checked_deferrable_wait();
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
