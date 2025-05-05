@@ -1237,7 +1237,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
 
         __par_backend_hetero::__parallel_merge(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp)
-            .__deferrable_wait(); // __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+            .wait(); // Calls wait() here because we should extend the life-time of temporary data inside __future instance
     }
     return __d_first + __n;
 }
