@@ -195,12 +195,11 @@ template <typename T>
 struct is_indirectly_device_accessible
     : decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible(std::declval<T>()))
 {
-    static_assert(
-        std::is_same_v<decltype(decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible(
-                           std::declval<T>()))::value),
-                       const bool>,
-        "Return type of is_onedpl_indirectly_device_accessible does not have the characteristics of a "
-        "bool_constant");
+    static_assert(std::is_same_v<decltype(decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible(
+                                     std::declval<T>()))::value),
+                                 const bool>,
+                  "Return type of is_onedpl_indirectly_device_accessible does not have the characteristics of a "
+                  "bool_constant");
 };
 
 template <typename T>
