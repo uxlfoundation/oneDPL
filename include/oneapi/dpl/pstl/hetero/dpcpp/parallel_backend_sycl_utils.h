@@ -533,6 +533,11 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
         mutable sycl::queue __q;
 
+        // Declare as const to avoid accidental modification and copy/move operations
+        const std::size_t __scratch_n = 0;
+        const bool __use_USM_host = false;
+        const bool __supports_USM_device = false;
+
         template <sycl::usm::alloc __alloc_t>
         using __usm_buffer_custom_allocator_t = __internal::__sycl_usm_alloc<_T, __alloc_t>;
         using __usm_buffer_custom_deleter_t   = __internal::__sycl_usm_free<_T>;
@@ -544,11 +549,6 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         __usm_buffer_ptr_t  __scratch_buf;
         __usm_buffer_ptr_t  __result_buf;
         __sycl_buffer_ptr_t __sycl_buf;
-
-        // Declare as const to avoid accidental modification and copy/move operations
-        const std::size_t __scratch_n;
-        const bool __use_USM_host;
-        const bool __supports_USM_device;
 
       public:
 
