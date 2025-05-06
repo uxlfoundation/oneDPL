@@ -272,7 +272,8 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
         // We should return the same thing in the second param of __future for compatibility
         // with the returning value in __parallel_merge_submitter_large::operator()
-        return __future{std::move(__event), std::move(__p_result_and_scratch_storage_base)};
+        return __future<sycl::event, __result_and_scratch_storage_base_ptr_t>{
+            std::move(__event), std::move(__p_result_and_scratch_storage_base)};
     }
 
   private:
@@ -472,7 +473,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         __event = run_parallel_merge(__event, __q, __rng1, __rng2, __rng3, __comp, __proj1, __proj2, __nd_range_params,
                                      *__p_base_diagonals_sp_global_storage);
 
-        return __future{std::move(__event), std::move(__p_result_and_scratch_storage_base)};
+        return __future<sycl::event, __result_and_scratch_storage_base_ptr_t>{
+            std::move(__event), std::move(__p_result_and_scratch_storage_base)};
     }
 };
 
