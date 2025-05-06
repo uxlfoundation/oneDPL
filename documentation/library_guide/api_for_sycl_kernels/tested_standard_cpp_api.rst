@@ -452,15 +452,15 @@ C++ Standard API                      libstdc++  libc++     MSVC
 
 The testing was conducted for the following versions of the C++ standard libraries, with the help of the listed compilers:
 
-================================== ============================================= =============================================
-SYCL Compiler                      Standard C++ Library                          Standard C++ Library Version
-================================== ============================================= =============================================
-Intel® oneAPI DPC++/C++ Compiler   libstdc++ (GNU)                               Provided with GCC* 8.4.0, GCC 9.3.0,
-                                                                                 GCC 11.4.0, GCC 13.2.0
----------------------------------- --------------------------------------------- ---------------------------------------------
-Intel® oneAPI DPC++/C++ Compiler   Microsoft Visual C++* (MSVC) Standard Library Provided with Microsoft Visual Studio 2019
-                                                                                 and Microsoft Visual Studio 2022.
----------------------------------- --------------------------------------------- ---------------------------------------------
-AdaptiveCpp                        libc++ (LLVM)                                 Provided with Clang* 18.1, Clang 19.1,
-                                                                                 Clang 20.1
-================================== ============================================= =============================================
+============================================= ============================================= ==================================
+Standard C++ Library                          Standard C++ Library Version                  SYCL Compiler Used
+============================================= ============================================= ==================================
+libstdc++ (GNU)                               Provided with GCC* 8.4.0, GCC 9.3.0,          Intel® oneAPI DPC++/C++ Compiler
+                                              GCC 11.4.0, GCC 13.2.0
+--------------------------------------------- --------------------------------------------- ----------------------------------
+Microsoft Visual C++* (MSVC) Standard Library Provided with Microsoft Visual Studio 2019    Intel® oneAPI DPC++/C++ Compiler 
+                                              and Microsoft Visual Studio 2022.
+--------------------------------------------- --------------------------------------------- ----------------------------------
+libc++ (LLVM)                                 Provided with Clang* 18.1, Clang 19.1,        AdaptiveCpp
+                                              Clang 20.1
+============================================= ============================================= ==================================
