@@ -521,145 +521,258 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
   private:
 
-    template <sycl::access_mode _AccessMode>
-    using __accessor_t =
-        sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
-
-    mutable sycl::queue __q;
-
-    template <sycl::usm::alloc __alloc_t>
-    using __usm_buffer_custom_allocator_t = __internal::__sycl_usm_alloc<_T, __alloc_t>;
-    using __usm_buffer_custom_deleter_t   = __internal::__sycl_usm_free<_T>;
-    using __usm_buffer_ptr_t              = std::unique_ptr<_T, __usm_buffer_custom_deleter_t>;
-
-    using __sycl_buffer_t = sycl::buffer<_T, 1>;
-    using __sycl_buffer_ptr_t = std::unique_ptr<__sycl_buffer_t>;
-
-    __usm_buffer_ptr_t  __scratch_buf;
-    __usm_buffer_ptr_t  __result_buf;
-    __sycl_buffer_ptr_t __sycl_buf;
-
-    std::size_t __scratch_n;
-    bool __use_USM_host;
-    bool __supports_USM_device;
-
-    // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a device allocation instead.
-    bool
-    __use_USM_host_allocations() const
+    // struct __result_and_scratch_storage_impl - internal implementation of result and scratch storage
+    // for support of pimpl-implementation pattern
+    struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
-        auto __device = __q.get_device();
-        if (!__device.is_gpu())
-            return false;
-        if (!__device.has(sycl::aspect::usm_host_allocations))
-            return false;
-        if (__device.get_backend() != __dpl_sycl::__level_zero_backend)
-            return false;
-        return true;
-#else
-        return false;
-#endif
-    }
+      protected:
 
-    bool
-    __use_USM_allocations() const
-    {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-        return __q.get_device().has(sycl::aspect::usm_device_allocations);
-#else
-        return false;
-#endif
-    }
+        template <sycl::access_mode _AccessMode>
+        using __accessor_t =
+            sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
 
-  public:
-    __result_and_scratch_storage(sycl::queue __q_, std::size_t __scratch_n)
-        : __q{__q_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
-          __supports_USM_device{__use_USM_allocations()}
-    {
-        const std::size_t __total_n = _NResults + __scratch_n;
-        // Skip in case this is a dummy container
-        if (__total_n > 0)
+        mutable sycl::queue __q;
+
+        template <sycl::usm::alloc __alloc_t>
+        using __usm_buffer_custom_allocator_t = __internal::__sycl_usm_alloc<_T, __alloc_t>;
+        using __usm_buffer_custom_deleter_t   = __internal::__sycl_usm_free<_T>;
+        using __usm_buffer_ptr_t              = std::unique_ptr<_T, __usm_buffer_custom_deleter_t>;
+
+        using __sycl_buffer_t = sycl::buffer<_T, 1>;
+        using __sycl_buffer_ptr_t = std::unique_ptr<__sycl_buffer_t>;
+
+        __usm_buffer_ptr_t  __scratch_buf;
+        __usm_buffer_ptr_t  __result_buf;
+        __sycl_buffer_ptr_t __sycl_buf;
+
+        // Declare as const to avoid accidental modification and copy/move operations
+        const std::size_t __scratch_n;
+        const bool __use_USM_host;
+        const bool __supports_USM_device;
+
+      public:
+
+        __result_and_scratch_storage_impl(sycl::queue&& __q_, std::size_t __scratch_n)
+            : __q{std::move(__q_)}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
+              __supports_USM_device{__use_USM_allocations()}
         {
+            const std::size_t __total_n = _NResults + __scratch_n;
+            // Skip in case this is a dummy container
+            if (__total_n > 0)
+            {
+                if (__use_USM_host && __supports_USM_device)
+                {
+                    // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
+                    if (__scratch_n > 0)
+                    {
+                        __scratch_buf =
+                            __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{__q}(__scratch_n),
+                                               __usm_buffer_custom_deleter_t{__q});
+                    }
+                    if constexpr (_NResults > 0)
+                    {
+                        __result_buf =
+                            __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::host>{__q}(_NResults),
+                                               __usm_buffer_custom_deleter_t{__q});
+                    }
+                }
+                else if (__supports_USM_device)
+                {
+                    // If we don't use host memory, malloc only a single unified device allocation
+                    __scratch_buf =
+                        __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{__q}(__total_n),
+                                           __usm_buffer_custom_deleter_t{__q});
+                }
+                else
+                {
+                    // If we don't have USM support allocate memory here
+                    __sycl_buf = std::make_unique<__sycl_buffer_t>(__sycl_buffer_t(__total_n));
+                }
+            }
+        }
+
+        template <typename _Acc>
+        static auto
+        __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n)
+        {
+    #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+            return __acc.__get_pointer();
+    #else
+            return &__acc[__scratch_n];
+    #endif
+        }
+
+        template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+        auto
+        __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
+        {
+    #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+            if (__use_USM_host && __supports_USM_device)
+                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __result_buf.get(), __prop_list);
+            else if (__supports_USM_device)
+                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __scratch_n,
+                                                                           __prop_list);
+            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __scratch_n, __prop_list);
+    #else
+            return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
+    #endif
+        }
+
+        template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+        auto
+        __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
+        {
+    #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+            if (__use_USM_host || __supports_USM_device)
+                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __prop_list);
+            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __prop_list);
+    #else
+            return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
+    #endif
+        }
+
+        _T
+        __wait_and_get_value(sycl::event&& __event) const
+        {
+            static_assert(_NResults == 1);
+
+            if (is_USM())
+                __event.wait_and_throw();
+
+            return __get_value();
+        }
+
+        // Note: this member function assumes the result is *ready*, since the __future has already
+        // waited on the relevant event.
+        template <std::size_t _Idx = 0>
+        _T
+        __get_value() const
+        {
+            static_assert(0 <= _Idx && _Idx < _NResults);
+
             if (__use_USM_host && __supports_USM_device)
             {
-                // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
-                if (__scratch_n > 0)
-                {
-                    __scratch_buf =
-                        __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{__q}(__scratch_n),
-                                           __usm_buffer_custom_deleter_t{__q});
-                }
-                if constexpr (_NResults > 0)
-                {
-                    __result_buf =
-                        __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::host>{__q}(_NResults),
-                                           __usm_buffer_custom_deleter_t{__q});
-                }
+                return *(__result_buf.get() + _Idx);
             }
             else if (__supports_USM_device)
             {
-                // If we don't use host memory, malloc only a single unified device allocation
-                __scratch_buf =
-                    __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{__q}(__total_n),
-                                       __usm_buffer_custom_deleter_t{__q});
+                _T __tmp;
+                __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
+                return __tmp;
             }
             else
             {
-                // If we don't have USM support allocate memory here
-                __sycl_buf = std::make_unique<__sycl_buffer_t>(__sycl_buffer_t(__total_n));
+                return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + _Idx];
             }
         }
+
+    // __result_and_scratch_storage_base
+    public:
+
+        virtual std::size_t
+        __get_data(sycl::event __event, std::size_t* __p_buf) const override
+        {
+            static_assert(_NResults == 0 || _NResults == 1);
+
+            if (is_USM())
+                __event.wait_and_throw();
+
+            if constexpr (_NResults == 1)
+                return __fill_data(__get_value(), __p_buf);
+            else
+                return 0;
+        }
+
+    private:
+
+        // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a device allocation instead.
+        bool
+        __use_USM_host_allocations() const
+        {
+    #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
+            auto __device = __q.get_device();
+            if (!__device.is_gpu())
+                return false;
+            if (!__device.has(sycl::aspect::usm_host_allocations))
+                return false;
+            if (__device.get_backend() != __dpl_sycl::__level_zero_backend)
+                return false;
+            return true;
+    #else
+            return false;
+    #endif
+        }
+
+        bool
+        __use_USM_allocations() const
+        {
+    #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+            return __q.get_device().has(sycl::aspect::usm_device_allocations);
+    #else
+            return false;
+    #endif
+        }
+
+        bool
+        is_USM() const
+        {
+            return __supports_USM_device;
+        }
+
+        template <typename _Type>
+        std::size_t
+        __fill_data(std::pair<_Type, _Type>&& __p, std::size_t* __p_buf) const
+        {
+            __p_buf[0] = __p.first;
+            __p_buf[1] = __p.second;
+            return 2;
+        }
+
+        template <typename _Args>
+        std::size_t
+        __fill_data(_Args&&...) const
+        {
+            assert(!"Unsupported return type");
+            return 0;
+        }
+    };
+
+    using __result_and_scratch_storage_data_ptr_t = std::unique_ptr<__result_and_scratch_storage_impl>;
+
+    __result_and_scratch_storage_data_ptr_t __impl;
+
+  public:
+
+    __result_and_scratch_storage(sycl::queue __q_, std::size_t __scratch_n)
+        : __impl(std::make_unique<__result_and_scratch_storage_impl>(std::move(__q_), __scratch_n))
+    {
     }
 
     template <typename _Acc>
     static auto
-    __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n = 0)
+    __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, std::size_t __scratch_n = 0)
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-        return __acc.__get_pointer();
-#else
-        return &__acc[__scratch_n];
-#endif
+        return __result_and_scratch_storage_impl::__get_usm_or_buffer_accessor_ptr(__acc, __scratch_n);
     }
 
     template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
     auto
     __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {}) const
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-        if (__use_USM_host && __supports_USM_device)
-            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __result_buf.get(), __prop_list);
-        else if (__supports_USM_device)
-            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __scratch_n,
-                                                                       __prop_list);
-        return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __scratch_n, __prop_list);
-#else
-        return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
-#endif
+        return __impl->__get_result_acc(__cgh, __prop_list);
     }
 
     template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
     auto
     __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {}) const
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-        if (__use_USM_host || __supports_USM_device)
-            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __prop_list);
-        return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __prop_list);
-#else
-        return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
-#endif
+        return __impl->__get_scratch_acc(__cgh, __prop_list);
     }
 
     _T
     __wait_and_get_value(sycl::event __event) const
     {
-        static_assert(_NResults == 1);
-
-        if (is_USM())
-            __event.wait_and_throw();
-
-        return __get_value();
+        return __impl->__wait_and_get_value(std::move(__event));
     }
 
     // Note: this member function assumes the result is *ready*, since the __future has already
@@ -668,60 +781,16 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     _T
     __get_value() const
     {
-        static_assert(0 <= _Idx && _Idx < _NResults);
-
-        if (__use_USM_host && __supports_USM_device)
-        {
-            return *(__result_buf.get() + _Idx);
-        }
-        else if (__supports_USM_device)
-        {
-            _T __tmp;
-            __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
-            return __tmp;
-        }
-        else
-        {
-            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + _Idx];
-        }
+        return __impl->template __get_value<_Idx>();
     }
 
-  private:
-    bool
-    is_USM() const
-    {
-        return __supports_USM_device;
-    }
-
-    template <typename _Type>
-    std::size_t
-    __fill_data(std::pair<_Type, _Type>&& __p, std::size_t* __p_buf) const
-    {
-        __p_buf[0] = __p.first;
-        __p_buf[1] = __p.second;
-        return 2;
-    }
-
-    template <typename _Args>
-    std::size_t
-    __fill_data(_Args&&...) const
-    {
-        assert(!"Unsupported return type");
-        return 0;
-    }
+// __result_and_scratch_storage_base
+  public:
 
     virtual std::size_t
     __get_data(sycl::event __event, std::size_t* __p_buf) const override
     {
-        static_assert(_NResults == 0 || _NResults == 1);
-
-        if (is_USM())
-            __event.wait_and_throw();
-
-        if constexpr (_NResults == 1)
-            return __fill_data(__get_value(), __p_buf);
-        else
-            return 0;
+        return __impl->__get_data(__event, __p_buf);
     }
 };
 
