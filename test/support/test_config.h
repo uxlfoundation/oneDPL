@@ -229,8 +229,6 @@
 #define _PSTL_CLANG_TEST_COMPLEX_ATAN_IS_CASE_BROKEN __clang__
 #define _PSTL_CLANG_TEST_COMPLEX_SIN_IS_CASE_BROKEN __clang__
 
-#define _PSTL_TEST_SERIAL_SET_ALGS_BROKEN (_MSVC_STL_VERSION && __INTEL_LLVM_COMPILER)
-
 #define TEST_DYNAMIC_SELECTION_AVAILABLE (TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER >= 20230000)
 
 // oneAPI DPC++ compiler in 2023.2 release build crashes during optimization of reduce_by_segment.pass.cpp
