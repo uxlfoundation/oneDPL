@@ -740,9 +740,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
     };
 
-    using __result_and_scratch_storage_data_ptr_t = std::unique_ptr<__result_and_scratch_storage_impl>;
-
-    __result_and_scratch_storage_data_ptr_t __impl;
+    // Pointer to internal implementation of of result and scratch storage
+    std::unique_ptr<__result_and_scratch_storage_impl> __impl;
 
   public:
 
