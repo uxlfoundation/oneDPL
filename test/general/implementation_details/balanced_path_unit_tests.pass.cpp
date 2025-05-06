@@ -178,7 +178,7 @@ test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
     std::vector<int> v2 = {1};
     std::vector<int> v3(v1.size() + v2.size());
 
-    oneapi::dpl::__par_backend_hetero::__temp_data_array<10, int> __temp_data{};
+    oneapi::dpl::__par_backend_hetero::__temp_data_array<20, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
@@ -211,7 +211,7 @@ test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
     std::vector<int> v2 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2};
     std::vector<int> v3(v1.size() + v2.size());
 
-    oneapi::dpl::__par_backend_hetero::__temp_data_array<10, int> __temp_data{};
+    oneapi::dpl::__par_backend_hetero::__temp_data_array<20, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
@@ -426,12 +426,10 @@ test_variety_of_combinations_of_setops(SetTag set_tag)
     EXPECT_TRUE(test_serial_set_op_count_and_write2(set_tag), "test for serial set_intersection operation2");
 
 // Test for MS STL, serial set algorithms are returning wrong count for certain inputs
-#if !_PSTL_TEST_SERIAL_SET_ALGS_BROKEN
     EXPECT_TRUE(test_serial_set_op_count_and_write2_large_setA(set_tag),
                 "test for serial set_intersection operation2 large SetA");
     EXPECT_TRUE(test_serial_set_op_count_and_write2_large_setB(set_tag),
                 "test for serial set_intersection operation2 large SetB");
-#endif //!_PSTL_TEST_SERIAL_SET_ALGS_BROKEN
     EXPECT_TRUE(test_serial_set_op_count_and_write_limited(set_tag),
                 "test for serial set_intersection operation limited");
 }
