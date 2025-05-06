@@ -520,16 +520,24 @@ template <typename _T, std::size_t _NResults = 1>
 struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
   private:
-    using __sycl_buffer_t = sycl::buffer<_T, 1>;
 
     template <sycl::access_mode _AccessMode>
     using __accessor_t =
         sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
 
     mutable sycl::queue __q;
-    std::shared_ptr<_T> __scratch_buf;
-    std::shared_ptr<_T> __result_buf;
-    std::shared_ptr<__sycl_buffer_t> __sycl_buf;
+
+    template <sycl::usm::alloc __alloc_t>
+    using __usm_buffer_custom_allocator_t = __internal::__sycl_usm_alloc<_T, __alloc_t>;
+    using __usm_buffer_custom_deleter_t   = __internal::__sycl_usm_free<_T>;
+    using __usm_buffer_ptr_t              = std::unique_ptr<_T, __usm_buffer_custom_deleter_t>;
+
+    using __sycl_buffer_t = sycl::buffer<_T, 1>;
+    using __sycl_buffer_ptr_t = std::unique_ptr<__sycl_buffer_t>;
+
+    __usm_buffer_ptr_t  __scratch_buf;
+    __usm_buffer_ptr_t  __result_buf;
+    __sycl_buffer_ptr_t __sycl_buf;
 
     std::size_t __scratch_n;
     bool __use_USM_host;
@@ -577,28 +585,28 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                 // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
                 if (__scratch_n > 0)
                 {
-                    __scratch_buf = std::shared_ptr<_T>(
-                        __internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__scratch_n),
-                        __internal::__sycl_usm_free<_T>{__q});
+                    __scratch_buf =
+                        __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{__q}(__scratch_n),
+                                           __usm_buffer_custom_deleter_t{__q});
                 }
                 if constexpr (_NResults > 0)
                 {
                     __result_buf =
-                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::host>{__q}(_NResults),
-                                            __internal::__sycl_usm_free<_T>{__q});
+                        __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::host>{__q}(_NResults),
+                                           __usm_buffer_custom_deleter_t{__q});
                 }
             }
             else if (__supports_USM_device)
             {
                 // If we don't use host memory, malloc only a single unified device allocation
                 __scratch_buf =
-                    std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__total_n),
-                                        __internal::__sycl_usm_free<_T>{__q});
+                    __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{__q}(__total_n),
+                                       __usm_buffer_custom_deleter_t{__q});
             }
             else
             {
                 // If we don't have USM support allocate memory here
-                __sycl_buf = std::make_shared<__sycl_buffer_t>(__sycl_buffer_t(__total_n));
+                __sycl_buf = std::make_unique<__sycl_buffer_t>(__sycl_buffer_t(__total_n));
             }
         }
     }
@@ -736,6 +744,8 @@ struct __deferrable_mode
 template <typename _Event, typename... _Args>
 class __future : private std::tuple<_Args...>
 {
+    using __base_t = std::tuple<_Args...>;
+
     _Event __my_event;
 
     template <typename _T>
