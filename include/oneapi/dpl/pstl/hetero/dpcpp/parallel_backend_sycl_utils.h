@@ -514,7 +514,7 @@ struct __result_and_scratch_storage_base
     virtual std::size_t
     __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
-using __result_and_scratch_storage_base_ptr_t = std::shared_ptr<__result_and_scratch_storage_base>;
+using __result_and_scratch_storage_base_ptr_t = std::unique_ptr<__result_and_scratch_storage_base>;
 
 template <typename _T, std::size_t _NResults = 1>
 struct __result_and_scratch_storage : __result_and_scratch_storage_base
@@ -772,7 +772,9 @@ class __future : private std::tuple<_Args...>
     }
 
   public:
-    __future(_Event __e, _Args... __args) : std::tuple<_Args...>(__args...), __my_event(__e) {}
+
+    template <typename ...TArgs>
+    __future(_Event __e, TArgs&&... __args) : std::tuple<_Args...>(std::forward<TArgs>(__args)...), __my_event(__e) {}
     __future(_Event __e, std::tuple<_Args...> __t) : std::tuple<_Args...>(__t), __my_event(__e) {}
 
     auto
