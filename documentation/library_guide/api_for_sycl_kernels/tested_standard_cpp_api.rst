@@ -456,7 +456,7 @@ These tests were done for the following versions of the standard C++ library:
 libstdc++ (GNU)                               Provided with GCC* 8.4.0, GCC 9.3.0,          Intel® oneAPI DPC++/C++ Compiler
                                               GCC 11.4.0, GCC 13.2.0
 --------------------------------------------- --------------------------------------------- ----------------------------------
-libc++ (LLVM)                                 Provided with Clang* 20.1                     AdaptiveCpp compiler
+libc++ (LLVM)                                 Provided with Clang* 20.1                     AdaptiveCpp Compiler
 --------------------------------------------- --------------------------------------------- ----------------------------------
 Microsoft Visual C++* (MSVC) Standard Library Provided with Microsoft Visual Studio 2019    Intel® oneAPI DPC++/C++ Compiler
                                               and Microsoft Visual Studio 2022.
