@@ -461,6 +461,6 @@ Intel® oneAPI DPC++/C++ Compiler   libstdc++ (GNU)                              
 Intel® oneAPI DPC++/C++ Compiler   Microsoft Visual C++* (MSVC) Standard Library Provided with Microsoft Visual Studio 2019
                                                                                  and Microsoft Visual Studio 2022.
 ---------------------------------- --------------------------------------------- ---------------------------------------------
-AdaptiveCpp                        libc++ (LLVM)                                 Provided with Clang* Clang* 18.1,
-                                                                                 Clang* 19.1, Clang* 20.1
+AdaptiveCpp                        libc++ (LLVM)                                 Provided with Clang* 18.1, Clang* 19.1,
+                                                                                 Clang* 20.1
 ================================== ============================================= =============================================
