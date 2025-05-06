@@ -418,6 +418,103 @@ A round-robin policy using such a custom resource and policy would be define as 
     round_robin_policy<third_party::custom_resource, third_party::custom_backend> p;
 ```
 
+We propose adding a trait `backend_for_resource` that is used by policies to find the
+correct backend for a given resource type, as shown below:
+
+```cpp
+namespace oneapi {
+namespace dpl {
+namespace experimental {
+
+template <typename ResourceType>
+struct backend_for_resource
+{
+    using backend_t = default_backend<ResourceType>;
+};
+
+
+template <typename ResourceType = sycl::queue, typename Backend = backend_for_resource<ResourceType>::backend_t>
+struct round_robin_policy
+{
+    // policy implementation not shown here
+};
+}
+}
+}
+```
+
+There would be three ways then that a custom backend can be found:
+
+1. The backend writer can add a specialized `backend_for_resource` in the `experimental::dpl` namespace.
+2. The backend writer can specialized `default_backend` in the `experimental::dpl` namespace.
+3. The backend can be provide explicitly to the policy.
+
+The code below demonstrates each of these approaches:
+
+```cpp
+namespace third_party {
+
+    // 1. specialize backend_for_resource in oneapi::dpl::experimental
+    class custom_resource_1 {
+        // implementation
+    };
+
+    class custom_backend_1 : public oneapi::dpl::experimental::backend_base<custom_resource_1, custom_backend_1> {
+        // override _impl functions as desired
+    };
+
+    // 2. specialize default_backend in oneapi::dpl::experimental
+    class custom_resource_2 {
+        // implementation
+    };
+
+    // 3. no specializations, only available explicitly
+    class custom_resource_3 {
+        // implementation
+    };
+
+    class custom_backend_3 : public oneapi::dpl::experimental::backend_base<custom_resource_3, custom_backend_3> {
+        // override _impl functions as desired
+    };
+
+}
+
+namespace oneapi {
+namespace dpl {
+namespace experimental {
+
+    // 1. specialize backend_for_resource in oneapi::dpl::experimental
+    template <>
+    struct backend_for_resource<third_party::custom_resource_1>
+    {
+        using backend_t = third_party::custom_backend;
+    };
+
+    // 2. specialize default_backend in oneapi::dpl::experimental
+    template< >
+    class default_backend<third_party::custom_resource_2> 
+        : public backend_base<third_party::custom_resource_2, default_backend<third_party::custom_resource_2>> {
+    public:
+        using resource_type = third_party::custom_resource_2;
+        // override _impl functions as desired
+    };
+}
+}
+}
+
+int f() {
+    // 1. specialize backend_for_resource in oneapi::dpl::experimental
+    round_robin_policy<third_party::custom_resource_1> p1;
+
+    // 2. specialize default_backend in oneapi::dpl::experimental
+    round_robin_policy<third_party::custom_resource_2> p2;
+
+    // 3. no specializations, only available explicitly
+    round_robin_policy<third_party::custom_resource_3,
+                       third_party::custom_backend_3> p3;
+}
+```
+
 ## Backend Examples
 
 ### Using the Default Backend with a new Resource Type
