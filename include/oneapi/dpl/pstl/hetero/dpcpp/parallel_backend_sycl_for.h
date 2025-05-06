@@ -102,7 +102,7 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
             });
         });
 
-        return __future{std::move(__event)};
+        return __future<sycl::event>{std::move(__event)};
     }
 };
 
@@ -200,7 +200,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
                 });
         });
 
-        return __future{std::move(__event)};
+        return __future<sycl::event>{std::move(__event)};
     }
 };
 
