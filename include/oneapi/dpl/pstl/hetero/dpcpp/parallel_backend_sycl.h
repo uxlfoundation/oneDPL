@@ -1758,7 +1758,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
             });
         }
         // return future and extend lifetime of temporary buffer
-        return __future{std::move(__event1)};
+        return __future<sycl::event>{std::move(__event1)};
     }
 };
 
