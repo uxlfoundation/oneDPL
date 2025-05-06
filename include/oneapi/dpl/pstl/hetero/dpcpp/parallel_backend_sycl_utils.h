@@ -773,9 +773,16 @@ class __future : private std::tuple<_Args...>
 
   public:
 
-    template <typename ...TArgs>
-    __future(_Event __e, TArgs&&... __args) : std::tuple<_Args...>(std::forward<TArgs>(__args)...), __my_event(__e) {}
-    __future(_Event __e, std::tuple<_Args...> __t) : std::tuple<_Args...>(__t), __my_event(__e) {}
+    template <typename TEvent, typename... TArgs>
+    __future(TEvent&& __e, TArgs&&... __args)
+        : std::tuple<_Args...>(std::forward<TArgs>(__args)...), __my_event(std::forward<TEvent>(__e))
+    {
+    }
+
+    template <typename TEvent>
+    __future(TEvent&& __e, std::tuple<_Args...> __t) : std::tuple<_Args...>(__t), __my_event(std::forward<TEvent>(__e))
+    {
+    }
 
     auto
     event() const
