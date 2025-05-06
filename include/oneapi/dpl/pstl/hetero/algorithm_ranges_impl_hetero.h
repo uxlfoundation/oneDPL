@@ -547,8 +547,10 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     auto __rng1 = __rng | std::ranges::views::take(__rng.size() - 1);
     auto __rng2 = __rng | std::ranges::views::drop(1);
 #else
-    auto __rng1 = __rng | oneapi::dpl::experimental::ranges::views::take(__rng.size() - 1);
-    auto __rng2 = __rng | oneapi::dpl::experimental::ranges::views::drop(1);
+    // auto __rng1 = __rng | oneapi::dpl::experimental::ranges::views::take(__rng.size() - 1);
+    auto __rng1 = oneapi::dpl::experimental::ranges::subrange(__rng.begin(), __rng.end() - 1);
+    // auto __rng2 = __rng | oneapi::dpl::experimental::ranges::views::drop(1);
+    auto __rng2 = oneapi::dpl::experimental::ranges::subrange(__rng.begin() + 1, __rng.end());
 #endif
 
     // TODO: in case of conflicting names
