@@ -728,7 +728,8 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
         __event_sort = __merge_sort_copy_back_submitter<_CopyBackKernel>()(__q, __rng, __temp_buf, __event_sort);
     }
 
-    return __future{std::move(__event_sort), std::move(__temp_sp_storages)};
+    return __future<sycl::event, __result_and_scratch_storage_base_ptr_t>{std::move(__event_sort),
+                                                                          std::move(__temp_sp_storages)};
 }
 
 template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare>
