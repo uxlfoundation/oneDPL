@@ -178,7 +178,7 @@ test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
     std::vector<int> v2 = {1};
     std::vector<int> v3(v1.size() + v2.size());
 
-    oneapi::dpl::__par_backend_hetero::__temp_data_array<20, int> __temp_data{};
+    oneapi::dpl::__par_backend_hetero::__temp_data_array<15, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
@@ -211,7 +211,7 @@ test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
     std::vector<int> v2 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2};
     std::vector<int> v3(v1.size() + v2.size());
 
-    oneapi::dpl::__par_backend_hetero::__temp_data_array<20, int> __temp_data{};
+    oneapi::dpl::__par_backend_hetero::__temp_data_array<15, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
 
