@@ -453,7 +453,7 @@ C++ Standard API                      libstdc++  libc++     MSVC
 The testing was conducted for the following versions of the C++ standard libraries, with the help of the listed compilers:
 
 ============================================= ============================================= ==================================
-Standard C++ Library                          Standard C++ Library Version                  SYCL Compiler Used
+C++ Standard Library                          C++ Standard Library Version                  SYCL Compiler Used
 ============================================= ============================================= ==================================
 libstdc++ (GNU)                               Provided with GCC* 8.4.0, GCC 9.3.0,          Intel® oneAPI DPC++/C++ Compiler
                                               GCC 11.4.0, GCC 13.2.0
