@@ -450,7 +450,7 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ``std::truncf``                       Tested     Tested     Tested
 ===================================== ========== ========== ==========
 
-These tests were done for the following versions of the standard C++ library:
+These tests were done for the following SYCL compilers and versions of the standard C++ library:
 
 ================================== ============================================= =============================================
 SYCL Compiler                      Standard C++ Library                          Standard C++ Library Version
