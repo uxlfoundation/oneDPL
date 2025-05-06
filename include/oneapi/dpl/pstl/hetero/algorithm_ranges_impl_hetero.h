@@ -542,8 +542,8 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<adjacent_find_fn<_BinaryPredicate>>;
     using _TagType = ::std::conditional_t<__is__or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
                                           oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range>>;
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
+// ranges libstdc++10 and newer use exceptions, which is not supported in SYCL
+#if _ONEDPL_CPP20_RANGES_PRESENT && (!defined(__GLIBCXX__) || _GLIBCXX_RELEASE >= 11)
     auto __rng1 = __rng | std::ranges::views::take(__rng.size() - 1);
     auto __rng2 = __rng | std::ranges::views::drop(1);
 #else
