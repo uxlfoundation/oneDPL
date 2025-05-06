@@ -46,7 +46,6 @@
 #include <type_traits>
 #include <utility>
 #include <algorithm>
-#include <array>
 
 #include "../pstl/iterator_impl.h"
 #include "function.h"

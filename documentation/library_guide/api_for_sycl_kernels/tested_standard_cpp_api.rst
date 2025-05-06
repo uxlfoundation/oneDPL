@@ -225,7 +225,7 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ------------------------------------- ---------- ---------- ----------
 ``std::ratio``                        Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
-``std::complex``                      Tested     Tested     Tested
+``std::complex``                      Tested                Tested
 ------------------------------------- ---------- ---------- ----------
 ``std::abs``                          Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
@@ -450,14 +450,17 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ``std::truncf``                       Tested     Tested     Tested
 ===================================== ========== ========== ==========
 
-These tests were done for the following versions of the standard C++ library:
+The testing was conducted for the following versions of the C++ standard libraries, with the help of the listed compilers:
 
-============================================= ============================================= ==========================
-libstdc++ (GNU)                               Provided with GCC* 8.4.0, GCC 9.3.0,
+============================================= ============================================= ==================================
+C++ Standard Library                          C++ Standard Library Version                  SYCL Compiler Used
+============================================= ============================================= ==================================
+libstdc++ (GNU)                               Provided with GCC* 8.4.0, GCC 9.3.0,          Intel® oneAPI DPC++/C++ Compiler
                                               GCC 11.4.0, GCC 13.2.0
---------------------------------------------- --------------------------------------------- --------------------------
-libc++ (LLVM)                                 Provided with Clang* 20.1                     AdaptiveCpp compiler
---------------------------------------------- --------------------------------------------- --------------------------
-Microsoft Visual C++* (MSVC) Standard Library Provided with Microsoft Visual Studio 2019
+--------------------------------------------- --------------------------------------------- ----------------------------------
+Microsoft Visual C++* (MSVC) Standard Library Provided with Microsoft Visual Studio 2019    Intel® oneAPI DPC++/C++ Compiler 
                                               and Microsoft Visual Studio 2022.
-============================================= ============================================= ==========================
+--------------------------------------------- --------------------------------------------- ----------------------------------
+libc++ (LLVM)                                 Provided with Clang* 18.1, Clang 19.1,        AdaptiveCpp
+                                              Clang 20.1
+============================================= ============================================= ==================================
