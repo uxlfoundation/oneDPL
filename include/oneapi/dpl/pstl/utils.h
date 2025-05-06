@@ -26,6 +26,8 @@
 #include <functional>
 #include <type_traits>
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "hetero/dpcpp/sycl_defs.h"
@@ -558,6 +560,21 @@ __dpl_ceiling_div(_T1 __number, _T2 __divisor)
     return (__number - 1) / __divisor + 1;
 }
 
+template <typename _T>
+std::enable_if_t<std::is_floating_point_v<_T>, bool>
+__dpl_signbit(const _T& __x)
+{
+    return std::signbit(__x);
+}
+
+//This is required to resolve some possible ambiguity for some STL implementations
+template <typename _T>
+std::enable_if_t<!std::is_floating_point_v<_T>, bool>
+__dpl_signbit(const _T& __x)
+{
+    return std::signbit(static_cast<double>(__x));
+}
+
 template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
 _Size1
 __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
@@ -595,6 +612,57 @@ _Index
 __pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp)
 {
     return __pstl_upper_bound(__a, __first, __last, __val, __comp);
+}
+
+// Performs a "biased" binary search targets the split point close to one edge of the range.
+// When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
+// After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
+// resulting in a standard binary search.
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
+_Size1
+__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+{
+    auto __n = __last - __first;
+    std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
+    _Size1 __it = 0;
+    _Size1 __cur_idx = 0;
+
+    while (__n > 0 && __shift_right_div > 1)
+    {
+        _Size1 __biased_step = (__n >> __shift_right_div);
+        if constexpr (__bias_last)
+            __cur_idx = __n - __biased_step - 1;
+        else
+            __cur_idx = __biased_step;
+        __it = __first + __cur_idx;
+
+        if (__comp(__acc[__it], __value))
+        {
+            __first = __it + 1;
+        }
+        else
+        {
+            __last = __it;
+        }
+        __n = __last - __first;
+        // get closer and closer to binary search with more iterations
+        __shift_right_div -= 3;
+    }
+    if (__n > 0)
+    {
+        //end up fully at binary search
+        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, __value, __comp);
+    }
+    return __first;
+}
+
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
+_Size1
+__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+{
+    return __biased_lower_bound<__bias_last>(
+        __acc, __first, __last, __value,
+        oneapi::dpl::__internal::__not_pred{oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
 template <typename _IntType, typename _Acc>

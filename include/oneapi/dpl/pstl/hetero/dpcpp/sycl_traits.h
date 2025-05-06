@@ -548,16 +548,10 @@ namespace oneapi::dpl::unseq_backend
 template <typename _F>
 struct walk_n;
 
-template <typename _F, typename _Range>
-struct walk1_vector_or_scalar;
+template <typename _F>
+struct walk_n_vectors_or_scalars;
 
-template <typename _F, typename _Range1, typename _Range2>
-struct walk2_vectors_or_scalars;
-
-template <typename _F, typename _Range1, typename _Range2, typename _Range3>
-struct walk3_vectors_or_scalars;
-
-template <typename _F, typename _Range1, typename _Range2>
+template <typename _F>
 struct walk_adjacent_difference;
 
 template <typename _Operation1, typename _Operation2, typename _Tp, typename _Commutative, std::uint8_t _VecSize>
@@ -606,7 +600,7 @@ struct __brick_includes;
 template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
 class __brick_set_op;
 
-template <typename _BinaryOperator, typename _Size, typename _Range>
+template <typename _BinaryOperator, typename _Size>
 struct __brick_reduce_idx;
 
 } // namespace oneapi::dpl::unseq_backend
@@ -617,29 +611,14 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _F, typename _Range>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk1_vector_or_scalar, _F, _Range)>
+template <typename _F>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_n_vectors_or_scalars, _F)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
 };
 
-template <typename _F, typename _Range1, typename _Range2>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk2_vectors_or_scalars, _F,
-                                                       _Range1, _Range2)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_F>
-{
-};
-
-template <typename _F, typename _Range1, typename _Range2, typename _Range3>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk3_vectors_or_scalars, _F,
-                                                       _Range1, _Range2, _Range3)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_F>
-{
-};
-
-template <typename _F, typename _Range1, typename _Range2>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_adjacent_difference, _F,
-                                                       _Range1, _Range2)>
+template <typename _F>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::walk_adjacent_difference, _F)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F>
 {
 };
@@ -746,9 +725,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _BinaryOperator, typename _Size, typename _Range>
+template <typename _BinaryOperator, typename _Size>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_reduce_idx, _BinaryOperator,
-                                                       _Size, _Range)>
+                                                       _Size)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOperator, _Size>
 {
 };
@@ -758,7 +737,7 @@ namespace oneapi::dpl::internal
 
 enum class search_algorithm;
 
-template <typename Comp, typename T, typename _Range, search_algorithm func>
+template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick;
 
 template <typename T, typename Predicate>
@@ -778,8 +757,8 @@ class transform_if_stencil_fun;
 
 } // namespace oneapi::dpl::internal
 
-template <typename Comp, typename T, typename _Range, oneapi::dpl::internal::search_algorithm func>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::__custom_brick, Comp, T, _Range, func)>
+template <typename Comp, typename T, oneapi::dpl::internal::search_algorithm func>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::__custom_brick, Comp, T, func)>
     : oneapi::dpl::__internal::__are_all_device_copyable<Comp, T>
 {
 };
