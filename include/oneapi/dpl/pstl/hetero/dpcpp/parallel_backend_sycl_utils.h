@@ -791,14 +791,20 @@ class __future : private std::tuple<_Args...>
         if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
             wait();
         else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
-            __deferrable_wait();
+            __checked_deferrable_wait();
     }
 
     void
-    __deferrable_wait()
+    __checked_deferrable_wait()
     {
 #if !ONEDPL_ALLOW_DEFERRED_WAITING
         wait();
+#else
+        if constexpr (sizeof...(_Args) > 0)
+        {
+            // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
+            wait();
+        }
 #endif
     }
 
@@ -1011,29 +1017,32 @@ template <std::uint8_t __num_strides>
 struct __strided_loop
 {
     std::size_t __full_range_size;
-    template <typename _IdxType, typename _LoopBodyOp, typename... _Ranges>
+    template <typename _IdxType, typename _LoopBodyOp, typename... _Args>
     void
     operator()(/*__is_full*/ std::true_type, _IdxType __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
-               _Ranges&&... __rngs) const
+               _Args&&... __args) const
     {
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint8_t __i = 0; __i < __num_strides; ++__i)
         {
-            __loop_body_op(std::true_type{}, __idx, __rngs...);
+            __loop_body_op(std::true_type{}, __idx, __args...);
             __idx += __stride;
         }
     }
-    template <typename _IdxType, typename _LoopBodyOp, typename... _Ranges>
+    template <typename _IdxType, typename _LoopBodyOp, typename... _Args>
     void
     operator()(/*__is_full*/ std::false_type, _IdxType __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
-               _Ranges&&... __rngs) const
+               _Args&&... __args) const
     {
+        // This operation improves safety by preventing underflow for unsigned types which would otherwise require a
+        // check outside of the __strided_loop body.
+        __idx = std::min<std::size_t>(__idx, __full_range_size);
         // Constrain the number of iterations as much as possible and then pass the knowledge that we are not a full loop to the body operation
         const std::uint8_t __adjusted_iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__full_range_size - __idx, __stride);
         for (std::uint8_t __i = 0; __i < __adjusted_iters_per_work_item; ++__i)
         {
-            __loop_body_op(std::false_type{}, __idx, __rngs...);
+            __loop_body_op(std::false_type{}, __idx, __args...);
             __idx += __stride;
         }
     }
