@@ -89,7 +89,7 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
     {
         if (i <= 2 * n_samples && (i - 1) % n_samples != best_resource)
         {
-            *j = 500;
+            *j = 100;
         }
         else
         {
@@ -199,7 +199,7 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
     {
         if (i <= 2 * n_samples && (i - 1) % n_samples != best_resource)
         {
-            *j = 500;
+            *j = 100;
         }
         else
         {
