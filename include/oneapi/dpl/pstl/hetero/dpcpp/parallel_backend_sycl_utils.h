@@ -17,6 +17,7 @@
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_UTILS_H
 
 //!!! NOTE: This file should be included under the macro _ONEDPL_BACKEND_SYCL
+#include <array>
 #include <memory>
 #include <type_traits>
 #include <tuple>
