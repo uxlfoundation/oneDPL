@@ -338,7 +338,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         const _IdType __base_diag_chunk = __nd_range_params.steps_between_two_base_diags * __nd_range_params.chunk;
 
         return __q.submit([&__rng1, &__rng2, __comp, __proj1, __proj2, __nd_range_params,
-                           __base_diagonals_sp_global_storage, __n1, __n2,
+                           &__base_diagonals_sp_global_storage, __n1, __n2,
                            __n, __base_diag_chunk](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2);
             auto __base_diagonals_sp_global_acc =
@@ -377,7 +377,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         const _IdType __n = std::min<_IdType>(__n1 + __n2, __rng3.size());
 
         return __q.submit([&__event, &__rng1, &__rng2, &__rng3, __n, __comp, __proj1, __proj2, __nd_range_params,
-                           __base_diagonals_sp_global_storage, __n1, __n2](sycl::handler& __cgh) {
+                           &__base_diagonals_sp_global_storage, __n1, __n2](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
             auto __base_diagonals_sp_global_acc =
                 __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
