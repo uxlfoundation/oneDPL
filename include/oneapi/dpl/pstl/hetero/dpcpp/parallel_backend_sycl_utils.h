@@ -555,8 +555,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
       public:
 
-        __result_and_scratch_storage_impl(sycl::queue&& __q_, std::size_t __scratch_n)
-            : __q{std::move(__q_)}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
+        __result_and_scratch_storage_impl(sycl::queue& __q_ref, std::size_t __scratch_n)
+            : __q{__q_ref}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
               __supports_USM_device{__use_USM_allocations()}
         {
             const std::size_t __total_n = _NResults + __scratch_n;
@@ -745,8 +745,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
   public:
 
-    __result_and_scratch_storage(sycl::queue __q_, std::size_t __scratch_n)
-        : __impl(std::make_unique<__result_and_scratch_storage_impl>(std::move(__q_), __scratch_n))
+    __result_and_scratch_storage(sycl::queue& __q_ref, std::size_t __scratch_n)
+        : __impl(std::make_unique<__result_and_scratch_storage_impl>(__q_ref, __scratch_n))
     {
     }
 
