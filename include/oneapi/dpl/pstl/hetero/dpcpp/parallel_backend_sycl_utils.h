@@ -397,34 +397,6 @@ class __buffer_impl
     }
 };
 
-template <typename _T>
-struct __sycl_usm_free
-{
-    sycl::queue __q;
-
-    void
-    operator()(_T* __memory) const
-    {
-        sycl::free(__memory, __q.get_context());
-    }
-};
-
-template <typename _T, sycl::usm::alloc __alloc_t>
-struct __sycl_usm_alloc
-{
-    sycl::queue __q;
-
-    _T*
-    operator()(::std::size_t __elements) const
-    {
-        if (auto __buf =
-                static_cast<_T*>(sycl::malloc(sizeof(_T) * __elements, __q.get_device(), __q.get_context(), __alloc_t)))
-            return __buf;
-
-        throw std::bad_alloc();
-    }
-};
-
 //-----------------------------------------------------------------------
 // type traits for objects granting access to some value objects
 //-----------------------------------------------------------------------
@@ -527,6 +499,37 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     {
       protected:
 
+        template <sycl::usm::alloc __alloc_t>
+        struct __sycl_usm_alloc
+        {
+            sycl::queue* __p_queue = nullptr;
+
+            _T*
+            operator()(std::size_t __elements) const
+            {
+                assert(nullptr != __p_queue);
+
+                if (auto __buf = static_cast<_T*>(sycl::malloc(sizeof(_T) * __elements, __p_queue->get_device(),
+                                                               __p_queue->get_context(), __alloc_t)))
+                    return __buf;
+
+                throw std::bad_alloc();
+            }
+        };
+
+        struct __sycl_usm_free
+        {
+            sycl::queue* __p_queue = nullptr;
+
+            void
+            operator()(_T* __memory) const
+            {
+                assert(nullptr != __p_queue);
+
+                sycl::free(__memory, __p_queue->get_context());
+            }
+        };
+
         template <sycl::access_mode _AccessMode>
         using __accessor_t =
             sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
@@ -539,8 +542,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         const bool __supports_USM_device = false;
 
         template <sycl::usm::alloc __alloc_t>
-        using __usm_buffer_custom_allocator_t = __internal::__sycl_usm_alloc<_T, __alloc_t>;
-        using __usm_buffer_custom_deleter_t   = __internal::__sycl_usm_free<_T>;
+        using __usm_buffer_custom_allocator_t = __sycl_usm_alloc<__alloc_t>;
+        using __usm_buffer_custom_deleter_t   = __sycl_usm_free;
         using __usm_buffer_ptr_t              = std::unique_ptr<_T, __usm_buffer_custom_deleter_t>;
 
         using __sycl_buffer_t = sycl::buffer<_T, 1>;
@@ -566,22 +569,22 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                     if (__scratch_n > 0)
                     {
                         __scratch_buf =
-                            __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{__q}(__scratch_n),
-                                               __usm_buffer_custom_deleter_t{__q});
+                            __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{&__q}(__scratch_n),
+                                               __usm_buffer_custom_deleter_t{&__q});
                     }
                     if constexpr (_NResults > 0)
                     {
                         __result_buf =
-                            __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::host>{__q}(_NResults),
-                                               __usm_buffer_custom_deleter_t{__q});
+                            __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::host>{&__q}(_NResults),
+                                               __usm_buffer_custom_deleter_t{&__q});
                     }
                 }
                 else if (__supports_USM_device)
                 {
                     // If we don't use host memory, malloc only a single unified device allocation
                     __scratch_buf =
-                        __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{__q}(__total_n),
-                                           __usm_buffer_custom_deleter_t{__q});
+                        __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{&__q}(__total_n),
+                                           __usm_buffer_custom_deleter_t{&__q});
                 }
                 else
                 {
