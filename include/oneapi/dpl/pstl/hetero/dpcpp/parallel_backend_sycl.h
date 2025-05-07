@@ -1899,6 +1899,13 @@ __parallel_set_op(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
     }
 }
 
+template <typename _ExecutionPolicy>
+bool
+__can_set_op_write_from_set_b(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)
+{
+    return oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec.queue());
+}
+
 //------------------------------------------------------------------------
 // find_or tags
 //------------------------------------------------------------------------
