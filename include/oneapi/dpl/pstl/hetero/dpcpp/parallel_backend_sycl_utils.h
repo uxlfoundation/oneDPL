@@ -567,24 +567,15 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                 {
                     // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
                     if (__scratch_n > 0)
-                    {
-                        __scratch_buf =
-                            __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{&__q}(__scratch_n),
-                                               __usm_buffer_custom_deleter_t{&__q});
-                    }
+                        __scratch_buf = __create_usm_buffer<sycl::usm::alloc::device>(&__q, __scratch_n);
+
                     if constexpr (_NResults > 0)
-                    {
-                        __result_buf =
-                            __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::host>{&__q}(_NResults),
-                                               __usm_buffer_custom_deleter_t{&__q});
-                    }
+                        __result_buf = __create_usm_buffer<sycl::usm::alloc::host>(&__q, _NResults);
                 }
                 else if (__supports_USM_device)
                 {
                     // If we don't use host memory, malloc only a single unified device allocation
-                    __scratch_buf =
-                        __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<sycl::usm::alloc::device>{&__q}(__total_n),
-                                           __usm_buffer_custom_deleter_t{&__q});
+                    __scratch_buf = __create_usm_buffer<sycl::usm::alloc::device>(&__q, __total_n);
                 }
                 else
                 {
@@ -720,6 +711,14 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         is_USM() const
         {
             return __supports_USM_device;
+        }
+
+        template <sycl::usm::alloc __alloc_t>
+        static __usm_buffer_ptr_t
+        __create_usm_buffer(sycl::queue* __p_queue, const std::size_t __size)
+        {
+            return __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<__alloc_t>{__p_queue}(__size),
+                                      __usm_buffer_custom_deleter_t{__p_queue});
         }
 
         template <typename _Type>
