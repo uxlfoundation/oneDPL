@@ -289,7 +289,7 @@ template <typename _CustomName, std::uint16_t __iters_per_work_item, std::uint8_
           typename _Range1, typename _Range2, typename _BinHashMgr>
 sycl::event
 __histogram_general_registers_local_reduction(sycl::queue& __q, const sycl::event& __init_event,
-                                              ::std::uint16_t __work_group_size, _Range1&& __input, _Range2&& __bins,
+                                              std::uint16_t __work_group_size, _Range1&& __input, _Range2&& __bins,
                                               const _BinHashMgr& __binhash_manager)
 {
     using _iters_per_work_item_t = ::std::integral_constant<::std::uint16_t, __iters_per_work_item>;
