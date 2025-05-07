@@ -1787,8 +1787,8 @@ __parallel_set_reduce_then_scan_set_a_write(sycl::queue& __q, _Range1&& __rng1, 
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _SetTag>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
-__parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
-                                _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag)
+__parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
+                                _Compare __comp, _SetTag)
 {
     constexpr std::uint16_t __diagonal_spacing = 32;
 
@@ -1818,7 +1818,7 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
     constexpr std::uint32_t __bytes_per_work_item_iter =
         ((sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2) * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
     return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
-        __backend_tag, __q, __num_diagonals,
+        __q, __num_diagonals,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
