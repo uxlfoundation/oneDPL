@@ -38,9 +38,12 @@ enum class search_algorithm
 };
 
 #if _ONEDPL_BACKEND_SYCL
-template <typename Comp, typename T, typename _Range, search_algorithm func>
-struct __custom_brick : oneapi::dpl::unseq_backend::walk_scalar_base<_Range>
+template <typename Comp, typename T, search_algorithm func>
+struct __custom_brick
 {
+    constexpr static bool __can_vectorize = false;
+    constexpr static bool __can_process_multiple_iters = true;
+
     Comp comp;
     T size;
     bool use_32bit_indexing;
@@ -74,20 +77,14 @@ struct __custom_brick : oneapi::dpl::unseq_backend::walk_scalar_base<_Range>
             get<2>(acc[idx]) = (value != end_orig) && (get<1>(acc[idx]) == get<0>(acc[value]));
         }
     }
-    template <typename _IsFull, typename _ItemId, typename _Acc>
+    template <typename _IsFull, typename _Params, typename _Acc>
     void
-    __scalar_path_impl(_IsFull, _ItemId idx, _Acc acc) const
+    operator()(_IsFull, const std::size_t idx, _Params, _Acc acc) const
     {
         if (use_32bit_indexing)
             search_impl<std::uint32_t>(idx, acc);
         else
             search_impl<std::uint64_t>(idx, acc);
-    }
-    template <typename _IsFull, typename _ItemId, typename _Acc>
-    void
-    operator()(_IsFull __is_full, _ItemId idx, _Acc acc) const
-    {
-        __scalar_path_impl(__is_full, idx, acc);
     }
 };
 #endif
@@ -207,12 +204,11 @@ lower_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
-    __bknd::__parallel_for(
-        _BackendTag{}, ::std::forward<decltype(policy)>(policy),
-        __custom_brick<StrictWeakOrdering, decltype(size), decltype(zip_vw), search_algorithm::lower_bound>{
-            comp, size, use_32bit_indexing},
-        value_size, zip_vw)
-        .__deferrable_wait();
+    __bknd::__parallel_for(_BackendTag{}, std::forward<decltype(policy)>(policy),
+                           __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::lower_bound>{
+                               comp, size, use_32bit_indexing},
+                           value_size, zip_vw)
+        .__checked_deferrable_wait();
     return result + value_size;
 }
 
@@ -240,12 +236,11 @@ upper_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
-    __bknd::__parallel_for(
-        _BackendTag{}, std::forward<decltype(policy)>(policy),
-        __custom_brick<StrictWeakOrdering, decltype(size), decltype(zip_vw), search_algorithm::upper_bound>{
-            comp, size, use_32bit_indexing},
-        value_size, zip_vw)
-        .__deferrable_wait();
+    __bknd::__parallel_for(_BackendTag{}, std::forward<decltype(policy)>(policy),
+                           __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::upper_bound>{
+                               comp, size, use_32bit_indexing},
+                           value_size, zip_vw)
+        .__checked_deferrable_wait();
     return result + value_size;
 }
 
@@ -273,12 +268,11 @@ binary_search_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, Input
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
-    __bknd::__parallel_for(
-        _BackendTag{}, std::forward<decltype(policy)>(policy),
-        __custom_brick<StrictWeakOrdering, decltype(size), decltype(zip_vw), search_algorithm::binary_search>{
-            comp, size, use_32bit_indexing},
-        value_size, zip_vw)
-        .__deferrable_wait();
+    __bknd::__parallel_for(_BackendTag{}, std::forward<decltype(policy)>(policy),
+                           __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::binary_search>{
+                               comp, size, use_32bit_indexing},
+                           value_size, zip_vw)
+        .__checked_deferrable_wait();
     return result + value_size;
 }
 

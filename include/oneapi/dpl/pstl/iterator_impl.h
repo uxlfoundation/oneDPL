@@ -19,6 +19,7 @@
 #include <iterator>
 #include <tuple>
 #include <cassert>
+#include <type_traits>
 
 #include "onedpl_config.h"
 #include "utils.h"
@@ -74,6 +75,38 @@ struct __make_references
         return _TupleReturnType(*::std::get<_Ip>(__t)...);
     }
 };
+
+template <typename _Iter, typename = void>
+struct __is_legacy_passed_directly : std::false_type
+{
+};
+
+template <typename _Iter>
+struct __is_legacy_passed_directly<_Iter, std::enable_if_t<_Iter::is_passed_directly::value>> : std::true_type
+{
+};
+
+template <typename _T>
+struct __is_reversed_indirectly_device_accessible_it;
+
+template <typename T>
+constexpr auto is_onedpl_indirectly_device_accessible(T)
+    -> std::disjunction<
+#if _ONEDPL_BACKEND_SYCL
+        oneapi::dpl::__internal::__is_known_usm_vector_iter<std::decay_t<T>>,             // USM vector iterator
+#endif // _ONEDPL_BACKEND_SYCL
+        std::is_pointer<std::decay_t<T>>,                                                 // USM pointer
+        oneapi::dpl::__internal::__is_legacy_passed_directly<std::decay_t<T>>,            // legacy passed directly iter
+        oneapi::dpl::__internal::__is_reversed_indirectly_device_accessible_it<std::decay_t<T>>>; // reverse iterator
+
+struct __is_onedpl_indirectly_device_accessible_fn
+{
+    template <typename T>
+    constexpr auto
+    operator()(T t) const -> decltype(is_onedpl_indirectly_device_accessible(t));
+};
+
+inline constexpr __is_onedpl_indirectly_device_accessible_fn __is_onedpl_indirectly_device_accessible;
 
 //zip_iterator version for forward iterator
 //== and != comparison is performed only on the first element of the tuple
@@ -157,6 +190,21 @@ namespace oneapi
 {
 namespace dpl
 {
+
+template <typename T>
+struct is_indirectly_device_accessible
+    : decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible(std::declval<T>()))
+{
+    static_assert(std::is_same_v<decltype(decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible(
+                                     std::declval<T>()))::value),
+                                 const bool>,
+                  "Return type of is_onedpl_indirectly_device_accessible does not have the characteristics of a "
+                  "bool_constant");
+};
+
+template <typename T>
+inline constexpr bool is_indirectly_device_accessible_v = is_indirectly_device_accessible<T>::value;
+
 template <typename _Ip>
 class counting_iterator
 {
@@ -265,6 +313,8 @@ class counting_iterator
     {
         return !(*this < __it);
     }
+
+    friend std::true_type is_onedpl_indirectly_device_accessible(counting_iterator);
 
   private:
     _Ip __my_counter_;
@@ -397,6 +447,9 @@ class zip_iterator
     {
         return !(*this < __it);
     }
+
+    friend auto is_onedpl_indirectly_device_accessible(zip_iterator)
+        -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Types>...>;
 
   private:
     __it_types __my_it_;
@@ -574,6 +627,8 @@ class transform_iterator
     {
         return __my_unary_func_;
     }
+    friend auto is_onedpl_indirectly_device_accessible(transform_iterator)
+        -> oneapi::dpl::is_indirectly_device_accessible<_Iter>;
 };
 
 template <typename _Iter, typename _UnaryFunc>
@@ -765,6 +820,10 @@ class permutation_iterator
         return !(*this < it);
     }
 
+    friend auto is_onedpl_indirectly_device_accessible(permutation_iterator)
+        -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<SourceIterator>,
+                            oneapi::dpl::is_indirectly_device_accessible<permutation_iterator::IndexMap>>;
+
   private:
     SourceIterator my_source_it;
     IndexMap my_index;
@@ -927,6 +986,8 @@ class discard_iterator
         return !(*this < __it);
     }
 
+    friend std::true_type is_onedpl_indirectly_device_accessible(discard_iterator);
+
   private:
     difference_type __my_position_;
 };
@@ -940,6 +1001,16 @@ namespace dpl
 {
 namespace __internal
 {
+template <typename _T>
+struct __is_reversed_indirectly_device_accessible_it : std::false_type
+{
+};
+
+template <typename _BaseIter>
+struct __is_reversed_indirectly_device_accessible_it<std::reverse_iterator<_BaseIter>>
+    : oneapi::dpl::is_indirectly_device_accessible<_BaseIter>
+{
+};
 
 struct make_zipiterator_functor
 {

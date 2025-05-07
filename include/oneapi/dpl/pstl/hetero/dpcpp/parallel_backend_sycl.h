@@ -654,12 +654,46 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
 }
 
+//This is a temporary data structure which is used to store results to registers during a reduce then scan operation.
+template <std::uint16_t elements, typename _ValueT>
+struct __temp_data_array
+{
+    template <typename _ValueT2>
+    void
+    set(std::uint16_t __idx, const _ValueT2& __ele)
+    {
+        __data[__idx].__setup(__ele);
+    }
+
+    _ValueT
+    get_and_destroy(std::uint16_t __idx)
+    {
+        _ValueT __ele = std::move(__data[__idx].__v);
+        __data[__idx].__destroy();
+        return __ele;
+    }
+
+    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
+};
+
+// This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
+// where no temporary register data is needed within reduce then scan kern
+struct __noop_temp_data
+{
+    template <typename _ValueT>
+    void
+    set(std::uint16_t, const _ValueT&) const
+    {
+    }
+};
+
 template <typename _UnaryOp>
 struct __gen_transform_input
 {
+    using TempData = __noop_temp_data;
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
@@ -673,13 +707,14 @@ struct __gen_transform_input
 template <typename _BinaryPred>
 struct __gen_red_by_seg_reduce_input
 {
+    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // (new_seg_mask, value)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
     // ValueType value     : Current element's value for reduction
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         const auto __in_keys = std::get<0>(__in_rng.tuple());
         const auto __in_vals = std::get<1>(__in_rng.tuple());
@@ -696,6 +731,7 @@ struct __gen_red_by_seg_reduce_input
 template <typename _BinaryPred>
 struct __gen_red_by_seg_scan_input
 {
+    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // ((new_seg_mask, value), output_value, next_key, current_key)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
@@ -705,7 +741,7 @@ struct __gen_red_by_seg_scan_input
     // KeyType current_key : The current element's key. This is only ever used by work-item 0 to write the first key
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         const auto __in_keys = std::get<0>(__in_rng.tuple());
         const auto __in_vals = std::get<1>(__in_rng.tuple());
@@ -814,9 +850,10 @@ struct __red_by_seg_op
 template <typename _BinaryPred>
 struct __write_red_by_seg
 {
+    using _TempData = __noop_temp_data;
     template <typename _OutRng, typename _Tup>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
     {
         using std::get;
         auto __out_keys = get<0>(__out_rng.tuple());
@@ -848,9 +885,10 @@ struct __write_red_by_seg
 
 struct __simple_write_to_id
 {
+    using _TempData = __noop_temp_data;
     template <typename _OutRng, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed through.
@@ -956,9 +994,10 @@ struct __extract_range_from_zip
 template <typename _GenMask>
 struct __gen_count_mask
 {
+    using TempData = __noop_temp_data;
     template <typename _InRng, typename _SizeType>
     _SizeType
-    operator()(_InRng&& __in_rng, _SizeType __id) const
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
     }
@@ -968,9 +1007,10 @@ struct __gen_count_mask
 template <typename _GenMask, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
 struct __gen_expand_count_mask
 {
+    using TempData = __noop_temp_data;
     template <typename _InRng, typename _SizeType>
     auto
-    operator()(_InRng&& __in_rng, _SizeType __id) const
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
         auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
@@ -985,6 +1025,302 @@ struct __gen_expand_count_mask
     _RangeTransform __rng_transform;
 };
 
+// Locates and returns the "intersection" of a diagonal on the balanced path, based on merge path coordinates.
+// It returns coordinates in each set of the intersection with a boolean representing if the diagonal is "starred",
+// meaning that the balanced path "intersection" point does not lie directly on the diagonal, but one step forward in
+// the second set.
+// Some diagonals must be "starred" to ensure that matching elements between rng1 and rng2 are processed in pairs
+// starting from the first of repeating value(s) in each range and a matched pair are not split between work-items.
+template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
+auto
+__find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1,
+                                 const _Index __merge_path_rng2, _Compare __comp)
+{
+    // back up to balanced path divergence with a biased binary search
+    bool __star = false;
+    if (__merge_path_rng1 == 0 || __merge_path_rng2 == __rng2.size())
+    {
+        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+    }
+
+    auto __ele_val = __rng1[__merge_path_rng1 - 1];
+
+    if (__comp(__ele_val, __rng2[__merge_path_rng2]))
+    {
+        // There is no chance that the balanced path differs from the merge path here, because the previous element of
+        // rng1 does not match the next element of rng2. We can just return the merge path.
+        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+    }
+
+    // find first element of repeating sequence in the first set of the previous element
+    _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
+        __rng1, _Index{0}, __merge_path_rng1, __ele_val, __comp);
+    // find first element of repeating sequence in the second set of the next element
+    _Index __rng2_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
+        __rng2, _Index{0}, __merge_path_rng2, __ele_val, __comp);
+
+    _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
+    _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
+
+    if (__rng2_repeats_bck >= __rng1_repeats)
+    {
+        // If we have at least as many repeated elements in rng2, we end up back on merge path
+        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+    }
+    _Index __total_repeats = __rng1_repeats + __rng2_repeats_bck;
+
+    // Calculate the number of "unmatched" repeats in the first set, add one and divide by two to round up for a
+    // possible star diagonal.
+    _Index __fwd_search_count = (__rng1_repeats - __rng2_repeats_bck + 1) / 2;
+
+    // Calculate the max location to search in the second set for future repeats, limiting to the edge of the range
+    _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2.size());
+
+    _Index __balanced_path_intersection_rng2 =
+        oneapi::dpl::__internal::__pstl_upper_bound(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
+
+    // Calculate the number of matchable "future" repeats in the second set
+    _Index __matchable_forward_ele_rng2 = __balanced_path_intersection_rng2 - __merge_path_rng2;
+    _Index __total_matched_rng2 = __balanced_path_intersection_rng2 - __rng2_repeat_start;
+
+    // Update balanced path intersection for rng1, must account for cases where there are more repeating elements in
+    // rng1 than matched elements of rng2
+    _Index __balanced_path_intersection_rng1 =
+        __rng1_repeat_start + std::max(__total_matched_rng2, __rng1_repeats - __matchable_forward_ele_rng2);
+
+    // If we needed to step off the diagonal to find the balanced path, mark the diagonal as "starred"
+    __star =
+        __balanced_path_intersection_rng1 + __balanced_path_intersection_rng2 != __merge_path_rng1 + __merge_path_rng2;
+
+    return std::make_tuple(__balanced_path_intersection_rng1, __balanced_path_intersection_rng2, __star);
+}
+
+// Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
+// balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
+// to the output for the reduction operation.
+template <typename _SetOpCount, typename _Compare>
+struct __gen_set_balanced_path
+{
+    using TempData = __noop_temp_data;
+    template <typename _InRng, typename _IndexT>
+    std::uint16_t
+    operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data) const
+    {
+        // First we must extract individual sequences from zip iterator because they may not have the same length,
+        // dereferencing is dangerous
+        auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
+        auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+
+        auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
+
+        using _SizeType = decltype(__rng1.size());
+        _SizeType __i_elem = __id * __diagonal_spacing;
+        if (__i_elem >= __rng1.size() + __rng2.size())
+            return 0;
+        //find merge path intersection
+        auto [__rng1_pos, __rng2_pos] = oneapi::dpl::__par_backend_hetero::__find_start_point(
+            __rng1, _SizeType{0}, __rng1.size(), __rng2, _SizeType{0}, __rng2.size(), __i_elem, __comp);
+
+        //Find balanced path for diagonal start
+        auto [__rng1_balanced_pos, __rng2_balanced_pos, __star_offset] =
+            __find_balanced_path_start_point(__rng1, __rng2, __rng1_pos, __rng2_pos, __comp);
+
+        // Use sign bit to represent star offset. Temp storage is a signed type equal to the difference_type of the
+        // input iterator range. The index will fit into the positive portion of the type, so the sign may be used to
+        // indicate the star offset.
+        __rng1_temp_diag[__id] = __rng1_balanced_pos * (__star_offset ? -1 : 1);
+
+        _SizeType __eles_to_process = std::min(__diagonal_spacing - (__star_offset ? _SizeType{1} : _SizeType{0}),
+                                               __rng1.size() + __rng2.size() - (__i_elem - 1));
+
+        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
+                                               __eles_to_process, __temp_data, __comp);
+        return __count;
+    }
+    _SetOpCount __set_op_count;
+    std::uint16_t __diagonal_spacing;
+    _Compare __comp;
+};
+
+// Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
+// path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
+// the output to temporary data in registers to be ready for the scan and write operations to follow.
+template <typename _SetOpCount, typename _TempData, typename _Compare>
+struct __gen_set_op_from_known_balanced_path
+{
+    using TempData = _TempData;
+    template <typename _InRng, typename _IndexT>
+    auto
+    operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
+    {
+        // First we must extract individual sequences from zip iterator because they may not have the same length,
+        // dereferencing is dangerous
+        auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
+        auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+
+        auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
+        using _SizeType = decltype(__rng1.size());
+        _SizeType __i_elem = __id * __diagonal_spacing;
+        if (__i_elem >= __rng1.size() + __rng2.size())
+            return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
+        _SizeType __star_offset = oneapi::dpl::__internal::__dpl_signbit(__rng1_temp_diag[__id]) ? 1 : 0;
+        auto __rng1_temp_diag_abs = std::abs(__rng1_temp_diag[__id]);
+        auto __rng2_temp_diag = __i_elem - __rng1_temp_diag_abs + __star_offset;
+
+        _SizeType __eles_to_process =
+            std::min(_SizeType{__diagonal_spacing} - __star_offset, __rng1.size() + __rng2.size() - (__i_elem - 1));
+
+        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_temp_diag_abs, __rng2_temp_diag,
+                                               __eles_to_process, __output_data, __comp);
+        return std::make_tuple(std::uint32_t{__count}, __count);
+    }
+    _SetOpCount __set_op_count;
+    std::uint16_t __diagonal_spacing;
+    _Compare __comp;
+};
+
+// Returns by reference: iterations consumed, and the number of elements copied to temp output
+template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds, typename _InRng1,
+          typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
+void
+__set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
+                                  std::size_t& __idx2, _SizeType __num_eles_min, _TempOutput& __temp_out,
+                                  _SizeType& __idx, std::uint16_t& __count, _Compare __comp)
+{
+    using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
+    using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
+
+    if constexpr (_CheckBounds)
+    {
+        if (__idx1 == __in_rng1.size())
+        {
+            if constexpr (_CopyDiffSetB)
+            {
+                // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
+                for (; __idx2 < __in_rng2.size() && __idx < __num_eles_min; ++__idx2, ++__idx)
+                {
+                    __temp_out.set(__count, __in_rng2[__idx2]);
+                    ++__count;
+                }
+            }
+            __idx = __num_eles_min;
+            return;
+        }
+        if (__idx2 == __in_rng2.size())
+        {
+            if constexpr (_CopyDiffSetA)
+            {
+                // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
+                for (; __idx1 < __in_rng1.size() && __idx < __num_eles_min; ++__idx1, ++__idx)
+                {
+                    __temp_out.set(__count, __in_rng1[__idx1]);
+                    ++__count;
+                }
+            }
+            __idx = __num_eles_min;
+            return;
+        }
+    }
+
+    const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
+    const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
+    if (__comp(__ele_rng1, __ele_rng2))
+    {
+        if constexpr (_CopyDiffSetA)
+        {
+            __temp_out.set(__count, __ele_rng1);
+            ++__count;
+        }
+        ++__idx1;
+        ++__idx;
+    }
+    else if (__comp(__ele_rng2, __ele_rng1))
+    {
+        if constexpr (_CopyDiffSetB)
+        {
+            __temp_out.set(__count, __ele_rng2);
+            ++__count;
+        }
+        ++__idx2;
+        ++__idx;
+    }
+    else // if neither element is less than the other, they are equal
+    {
+        if constexpr (_CopyMatch)
+        {
+            __temp_out.set(__count, __ele_rng1);
+            ++__count;
+        }
+        ++__idx1;
+        ++__idx2;
+        __idx += 2;
+    }
+}
+
+template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
+struct __set_generic_operation
+{
+    template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
+    std::uint16_t
+    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
+               _SizeType __num_eles_min, _TempOutput& __temp_out, _Compare __comp) const
+    {
+
+        std::uint16_t __count = 0;
+        _SizeType __idx = 0;
+        bool __can_reach_rng1_end = __idx1 + __num_eles_min >= __in_rng1.size();
+        bool __can_reach_rng2_end = __idx2 + __num_eles_min >= __in_rng2.size();
+
+        if (!__can_reach_rng1_end && !__can_reach_rng2_end)
+        {
+            while (__idx < __num_eles_min)
+            {
+                // no bounds checking
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false>(
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
+            }
+        }
+        else
+        {
+            while (__idx < __num_eles_min)
+            {
+                //bounds check all
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true>(
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
+            }
+        }
+        return __count;
+    }
+};
+
+using __set_intersection = __set_generic_operation<true, false, false>;
+using __set_difference = __set_generic_operation<false, true, false>;
+using __set_union = __set_generic_operation<true, true, true>;
+using __set_symmetric_difference = __set_generic_operation<false, true, true>;
+
+template <typename _SetTag>
+struct __get_set_operation;
+
+template <>
+struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>> : public __set_intersection
+{
+};
+
+template <>
+struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>> : public __set_difference
+{
+};
+template <>
+struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag<std::true_type>> : public __set_union
+{
+};
+
+template <>
+struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>>
+    : public __set_symmetric_difference
+{
+};
+
 struct __get_zeroth_element
 {
     template <typename _Tp>
@@ -994,12 +1330,14 @@ struct __get_zeroth_element
         return std::get<0>(std::forward<_Tp>(__a));
     }
 };
+
 template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
+    using _TempData = __noop_temp_data;
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed through.
@@ -1015,10 +1353,14 @@ struct __write_to_id_if
 template <typename _Assign>
 struct __write_to_id_if_else
 {
+    using _TempData = __noop_temp_data;
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
+        // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
@@ -1027,6 +1369,32 @@ struct __write_to_id_if_else
         else
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
                      std::get<1>(__out_rng[__id - std::get<0>(__v)]));
+    }
+    _Assign __assign;
+};
+
+// Writes multiple elements from temp data to the output range. The values to write are stored in `__temp_data` from a
+// previous operation, and must be written to the output range in the appropriate location. The zeroth element of `__v`
+// will contain the index of one past the last element to write, and the first element of `__v` will contain the number
+// of elements to write.
+template <typename _Assign>
+struct __write_multiple_to_id
+{
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    void
+    operator()(_OutRng& __out_rng, _SizeType, const _ValueType& __v, _TempData& __temp_data) const
+    {
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
+        // through.
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
+        for (std::size_t __i = 0; __i < std::get<1>(__v); ++__i)
+        {
+            __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
+                     __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
+        }
     }
     _Assign __assign;
 };
@@ -1082,8 +1450,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
 
             _GenInput __gen_transform{__unary_op};
 
-            return __parallel_transform_reduce_then_scan<_CustomName>(
-                __backend_tag, __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng),
+            const std::size_t __n = __in_rng.size();
+            return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
+                __backend_tag, __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng),
                 __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
                 /*_IsUniquePattern=*/std::false_type{});
         }
@@ -1171,8 +1540,9 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    return __parallel_transform_reduce_then_scan<_CustomName>(
-        __backend_tag, __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
+    const std::size_t __n = __in_rng.size();
+    return __parallel_transform_reduce_then_scan<sizeof(_Size), _CustomName>(
+        __backend_tag, __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
         _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask, {}}, _ScanInputTransform{},
         __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
@@ -1279,9 +1649,9 @@ __parallel_reduce_by_segment_reduce_then_scan(oneapi::dpl::__internal::__device_
     std::size_t __n = __keys.size();
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
-
-    return __parallel_transform_reduce_then_scan<_CustomName>(
-        __backend_tag, __q,
+    return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>),
+                                                 _CustomName>(
+        __backend_tag, __q, __n,
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values)),
         _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{__binary_pred, __n},
@@ -1381,12 +1751,13 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag __backend_tag, 
     }
 }
 
+// This function is currently unused, but may be utilized for small sizes sets at some point in the future.
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _IsOpDifference>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
-__parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
-                                _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
-                                _IsOpDifference)
+__parallel_set_reduce_then_scan_set_a_write(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
+                                            sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
+                                            _Compare __comp, _IsOpDifference)
 {
     // fill in reduce then scan impl
     using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_IsOpDifference, _Compare>;
@@ -1404,8 +1775,9 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
 
     oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__rng1.size());
 
-    return __parallel_transform_reduce_then_scan<_CustomName>(
-        __backend_tag, __q,
+    const std::size_t __n = __rng1.size();
+    return __parallel_transform_reduce_then_scan<sizeof(_Size), _CustomName>(
+        __backend_tag, __q, __n,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
@@ -1414,6 +1786,52 @@ __parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __
         _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
         _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
+}
+
+// balanced path
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+          typename _SetTag>
+__future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
+__parallel_set_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
+                                _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag)
+{
+    constexpr std::uint16_t __diagonal_spacing = 32;
+
+    using _SetOperation = __get_set_operation<_SetTag>;
+    using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
+    using _In2ValueT = oneapi::dpl::__internal::__value_t<_Range2>;
+    using _OutValueT = oneapi::dpl::__internal::__value_t<_Range3>;
+    using _TempData = __temp_data_array<__diagonal_spacing, _OutValueT>;
+    using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
+    using _ReduceOp = std::plus<_Size>;
+
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _Compare>;
+    using _GenScanInput =
+        oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_SetOperation, _TempData, _Compare>;
+    using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
+    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign>;
+
+    const std::int32_t __num_diagonals =
+        oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size() + __rng2.size(), __diagonal_spacing);
+
+    // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
+    // portion of the range so star flag can use sign bit.
+    using _TemporaryType = decltype(__rng1.size());
+    //TODO: limit to diagonals per block, and only write to a block based index of temporary data
+    oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
+
+    constexpr std::uint32_t __bytes_per_work_item_iter =
+        ((sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2) * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
+    return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
+        __backend_tag, __q, __num_diagonals,
+        oneapi::dpl::__ranges::make_zip_view(
+            std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+            oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
+                __temp_diags.get_buffer())),
+        std::forward<_Range3>(__result), _GenReduceInput{_SetOperation{}, __diagonal_spacing, __comp}, _ReduceOp{},
+        _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp}, _ScanInputTransform{}, _WriteOp{},
+        oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{},
+        /*__is_unique_pattern=*/std::false_type{});
 }
 
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
@@ -1465,28 +1883,34 @@ __parallel_set_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag,
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
-          typename _IsOpDifference>
+          typename _SetTag>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
 __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
-                  _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
-                  _IsOpDifference __is_op_difference)
+                  _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag __set_tag)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
 
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+    if constexpr (_SetTag::__can_write_from_rng2_v)
     {
-        return __parallel_set_reduce_then_scan<_CustomName>(
-            __backend_tag, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            std::forward<_Range3>(__result), __comp, __is_op_difference);
+        return __parallel_set_reduce_then_scan<_CustomName>(__backend_tag, __q_local, std::forward<_Range1>(__rng1),
+                                                            std::forward<_Range2>(__rng2),
+                                                            std::forward<_Range3>(__result), __comp, __set_tag);
     }
     else
     {
         return __parallel_set_scan<_CustomName>(__backend_tag, __q_local, std::forward<_Range1>(__rng1),
                                                 std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
-                                                __is_op_difference);
+                                                __set_tag);
     }
+}
+
+template <typename _ExecutionPolicy>
+bool
+__can_set_op_write_from_set_b(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)
+{
+    return oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec.queue());
 }
 
 //------------------------------------------------------------------------
@@ -1494,14 +1918,14 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _
 //------------------------------------------------------------------------
 
 // Tag for __parallel_find_or to find the first element that satisfies predicate
-template <typename _RangeType>
+template <typename... _Ranges>
 struct __parallel_find_forward_tag
 {
 // FPGA devices don't support 64-bit atomics
 #if _ONEDPL_FPGA_DEVICE
     using _AtomicType = uint32_t;
 #else
-    using _AtomicType = oneapi::dpl::__internal::__difference_t<_RangeType>;
+    using _AtomicType = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
 #endif
 
     using _LocalResultsReduceOp = __dpl_sycl::__minimum<_AtomicType>;
@@ -1875,19 +2299,41 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     }
 };
 
+template <typename... _Ranges>
+struct __first_size_calc
+{
+    auto
+    operator()(const _Ranges&... __rngs) const
+    {
+        return oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
+    }
+};
+
+template <typename... _Ranges>
+struct __min_size_calc
+{
+    auto
+    operator()(const _Ranges&... __rngs) const
+    {
+        using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+        return std::min({_Size(__rngs.size())...});
+    }
+};
+
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
-template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
-::std::conditional_t<
+template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename _SizeCalc, typename... _Ranges>
+std::conditional_t<
     ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
     oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
-__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
-                   _BrickTag __brick_tag, _Ranges&&... __rngs)
+__parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                        _BrickTag __brick_tag, _SizeCalc __sz_calc, _Ranges&&... __rngs)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
 
-    auto __rng_n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
+    const auto __rng_n = __sz_calc(__rngs...);
+
     assert(__rng_n > 0);
 
     // Evaluate the amount of work-groups and work-group size
@@ -1934,6 +2380,30 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         return __result != __init_value;
     else
         return __result != __init_value ? __result : __rng_n;
+}
+
+template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
+std::conditional_t<
+    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
+    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
+__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                   _BrickTag __brick_tag, _Ranges&&... __rngs)
+{
+    return __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag{},
+        std::forward<_ExecutionPolicy>(__exec), __f, __brick_tag, __first_size_calc<_Ranges...>{},
+        std::forward<_Ranges>(__rngs)...);
+}
+
+template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
+std::conditional_t<
+    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
+    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
+__parallel_find_or_min_size(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                            _BrickTag __brick_tag, _Ranges&&... __rngs)
+{
+    return __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag{},
+        std::forward<_ExecutionPolicy>(__exec), __f, __brick_tag, __min_size_calc<_Ranges...>{},
+        std::forward<_Ranges>(__rngs)...);
 }
 
 // parallel_or - sync pattern
@@ -2328,13 +2798,15 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       _BinaryOperator __binary_op,
                                       /*known_identity=*/std::false_type)
 {
+    const auto __n = __keys.size();
+    assert(__n > 0);
+
     using __diff_type = oneapi::dpl::__internal::__difference_t<_Range1>;
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
 
     sycl::queue __q_local = __exec.queue();
 
-    const auto __n = __keys.size();
     // Round 1: reduce with extra indices added to avoid long segments
     // TODO: At threshold points check if the key is equal to the key at the previous threshold point, indicating a long sequence.
     // Skip a round of copy_if and reduces if there are none.
@@ -2373,8 +2845,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
-        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n), _Range2>(__binary_op, __n),
-        __intermediate_result_end,
+        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n)>(__binary_op, __n), __intermediate_result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx),
                                                 __intermediate_result_end),
         std::forward<_Range2>(__values), oneapi::dpl::__ranges::views::all_write(__tmp_out_values))
@@ -2414,12 +2885,12 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
             std::forward<_ExecutionPolicy>(__exec)),
-        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end), _Range4>(
+        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end)>(
             __binary_op, __intermediate_result_end),
         __result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx), __result_end),
         oneapi::dpl::__ranges::views::all_read(__tmp_out_values), std::forward<_Range4>(__out_values))
-        .__deferrable_wait();
+        .__checked_deferrable_wait();
     return __result_end;
 }
 

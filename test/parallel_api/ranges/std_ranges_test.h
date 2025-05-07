@@ -84,6 +84,7 @@ auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
 auto proj = [](auto&& val){ return val * 2; };
 auto pred = [](auto&& val) { return val == 5; };
 auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
+auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
 
 auto pred1 = [](auto&& val) -> decltype(auto) { return val > 0; };
 auto pred2 = [](auto&& val) -> decltype(auto) { return val == 4; };
@@ -158,7 +159,24 @@ template<typename T>
 static constexpr
 bool is_range<T, std::void_t<decltype(std::declval<T&>().begin())>> = true;
 
-template<typename DataType, typename Container, TestDataMode test_mode = data_in>
+template<typename, typename = void>
+static constexpr bool check_minmax{};
+
+template<typename T>
+static constexpr
+bool check_minmax<T, std::void_t<decltype(std::declval<T>().min, std::declval<T>().max)>> = true;
+
+template<typename>
+constexpr int trivial_size{0};
+
+template<typename>
+constexpr int calc_res_size(int n, int) { return n; }
+
+auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
+auto data_gen_zero = [](auto i) { return 0;};
+
+template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
+         typename DataGen2 = decltype(data_gen2_default)>
 struct test
 {
     void
@@ -174,30 +192,43 @@ struct test
     std::enable_if_t<mode == data_in>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
-        Container cont_in(exec, max_n, [](auto i) { return i;});
-        Container cont_exp(exec, max_n, [](auto i) { return i;});
+        process_data_in(max_n, exec, algo, checker, tr_in, args...);
+
+        //test with empty sequence
+        process_data_in(trivial_size<std::remove_cvref_t<Algo>>, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+    }
+
+private:
+    void
+    process_data_in(int max_n, auto&& exec, auto algo, auto& checker, auto tr_in, auto... args)
+    {
+        Container cont_in(exec, max_n, DataGen1{});
+        Container cont_exp(exec, max_n, DataGen1{});
 
         auto expected_view = tr_in(std::views::all(cont_exp()));
         auto expected_res = checker(expected_view, args...);
 
         typename Container::type& A = cont_in();
         decltype(auto) r_in = tr_in(A);
-        auto res = algo(exec, r_in, args...);
+        auto res = algo(exec, r_in, args...);        
 
         //check result
         static_assert(std::is_same_v<decltype(res), decltype(checker(r_in, args...))>, "Wrong return type");
 
+        using Algo = decltype(algo);
         auto bres = ret_in_val(expected_res, expected_view.begin()) == ret_in_val(res, r_in.begin());
         EXPECT_TRUE(bres, (std::string("wrong return value from algo with ranges: ") + typeid(Algo).name() +
                 typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
+        if constexpr(is_range<std::remove_cvref_t<decltype(res)>>)
+            n = calc_res_size<std::remove_cvref_t<decltype(algo)>>(n, std::ranges::size(res));
+
         EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("wrong effect algo with ranges: ")
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
     }
 
-private:
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
     void
     process_data_in_out(int max_n, int n_in, int n_out, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in,
@@ -205,9 +236,9 @@ private:
     {
         static_assert(mode == data_in_out || mode == data_in_out_lim);
 
-        Container cont_in(exec, n_in, [](auto i) { return i;});
-        Container cont_out(exec, n_out, [](auto i) { return 0;});
-        Container cont_exp(exec, n_out, [](auto i) { return 0;});
+        Container cont_in(exec, n_in, DataGen1{});
+        Container cont_out(exec, n_out, data_gen_zero);
+        Container cont_exp(exec, n_out, data_gen_zero);
 
         assert(n_in <= max_n);
         assert(n_out <= max_n);
@@ -241,7 +272,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
+
+        //test cases with empty sequence(s)
+	    process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -249,19 +283,40 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
         process_data_in_out(max_n, r_size/2, r_size, exec, algo, checker, args...);
-        process_data_in_out(max_n, r_size, r_size/2, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size/2, exec, algo, checker, args...);
+
+        //test cases with empty sequence(s)
+        process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
     std::enable_if_t<mode == data_in_in>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
-        Container cont_in1(exec, max_n, [](auto i) { return i;});
-        Container cont_in2(exec, max_n, [](auto i) { return i % 5 ? i : 0;});
+        const int r_size = max_n;
+        process_data_in_in(max_n, r_size, r_size, exec, algo, checker, tr_in, args...);
+
+        //test case the sizes of input ranges are different
+        process_data_in_in(max_n, r_size/2, r_size, exec, algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size/2, exec, algo, checker, tr_in, args...);
+
+        //test cases with empty sequence(s)
+        process_data_in_in(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+    }
+
+private:
+    void
+    process_data_in_in(int max_n, int n_in1, int n_in2, auto&& exec, auto algo, auto& checker, auto tr_in, auto... args)
+    {
+        assert(n_in1 <= max_n);
+        assert(n_in2 <= max_n);
+
+        Container cont_in1(exec, n_in1, DataGen1{});
+        Container cont_in2(exec, n_in2, DataGen2{});
 
         auto src_view1 = tr_in(std::views::all(cont_in1()));
         auto src_view2 = tr_in(std::views::all(cont_in2()));
@@ -275,11 +330,10 @@ public:
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), args...))>, "Wrong return type");
 
         auto bres_in = ret_in_val(expected_res, src_view1.begin()) == ret_in_val(res, tr_in(A).begin());
-        EXPECT_TRUE(bres_in, (std::string("wrong return value from algo: ") + typeid(Algo).name() +
+        EXPECT_TRUE(bres_in, (std::string("wrong return value from algo: ") + typeid(decltype(algo)).name() +
             typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
     }
 
-private:
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
     void
     process_data_in_in_out(int max_n, int n_in1, int n_in2, int n_out, Policy&& exec, Algo algo, Checker& checker,
@@ -287,11 +341,11 @@ private:
     {
         static_assert(mode == data_in_in_out || mode == data_in_in_out_lim);
 
-        Container cont_in1(exec, n_in1, [](auto i) { return i;});
+        Container cont_in1(exec, n_in1, DataGen1{});
         Container cont_in2(exec, n_in2, [](auto i) { return i/3;});
 
-        Container cont_out(exec, n_out, [](auto i) { return 0;});
-        Container cont_exp(exec, n_out, [](auto i) { return 0;});
+        Container cont_out(exec, n_out, data_gen_zero);
+        Container cont_exp(exec, n_out, data_gen_zero);
 
         assert(n_in1 <= max_n);
         assert(n_in2 <= max_n);
@@ -324,7 +378,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
+
+        //test cases with empty sequence(s)
+        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -336,7 +393,10 @@ public:
         process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
         process_data_in_in_out(max_n, r_size/2, r_size, r_size, exec, algo, checker, args...);
         process_data_in_in_out(max_n, r_size, r_size/2, r_size, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size/2, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size/2, exec, algo, checker, args...);
+
+	    //test cases with empty sequence(s)
+        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 private:
 
@@ -353,6 +413,14 @@ private:
             return std::distance(begin, ret);
         else if constexpr(is_range<Ret>)
             return std::pair{std::distance(begin, ret.begin()), std::ranges::distance(ret.begin(), ret.end())};
+        else if constexpr(check_minmax<Ret>)
+        {
+            const auto& [first, second] = ret;
+            if constexpr(std::random_access_iterator<std::remove_cvref_t<decltype(first)>>)
+                return std::pair{std::distance(begin, first), std::ranges::distance(begin, second)};
+            else
+                return std::pair{first, second};
+        }
         else
             return ret;
     }
@@ -524,7 +592,8 @@ using  usm_span = usm_subrange_impl<T, std::span<T>>;
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-template<int call_id = 0, typename T = int, TestDataMode mode = data_in>
+template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
+         typename DataGen2 = decltype(data_gen2_default)>
 struct test_range_algo
 {
     const int n_serial = small_size;
@@ -553,9 +622,9 @@ struct test_range_algo
 
     void test_view(auto view, auto algo, auto& checker, auto... args)
     {
-        test<T, host_subrange<T>, mode>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
+        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
 #if TEST_DPCPP_BACKEND_PRESENT
-        test<T, usm_subrange<T>, mode>{}(n_device, dpcpp_policy<call_id>(), algo, checker, view, std::identity{}, args...);
+        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, dpcpp_policy<call_id>(), algo, checker, view, std::identity{}, args...);
 #endif //TEST_DPCPP_BACKEND_PRESENT
     }
 
@@ -567,18 +636,18 @@ struct test_range_algo
         auto span_view = [](auto&& v) { return std::span(v); };
 #endif
 
-        test<T, host_vector<T>, mode>{}.host_policies(
+        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker, std::identity{}, std::identity{}, args...);
-        test<T, host_vector<T>, mode>{}.host_policies(
+        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker, subrange_view, std::identity{}, args...);
-        test<T, host_vector<T>, mode>{}.host_policies(
+        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
-        test<T, host_subrange<T>, mode>{}.host_policies(
+        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-        test<T, host_vector<T>, mode>{}.host_policies(
+        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker,  span_view, std::identity{}, args...);
-        test<T, host_span<T>, mode>{}.host_policies(
+        test<T, host_span<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
 #endif
 
@@ -590,14 +659,14 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                test<T, usm_vector<T>, mode>{}(
+                test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
                     n_device, dpcpp_policy<call_id + 10>(), algo, checker, subrange_view, subrange_view, args...);
-                test<T, usm_subrange<T>, mode>{}(
+                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(
                     n_device, dpcpp_policy<call_id + 30>(), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>, mode>{}(
+                test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
                     n_device, dpcpp_policy<call_id + 20>(), algo, checker, span_view, subrange_view, args...);
-                test<T, usm_span<T>, mode>{}(
+                test<T, usm_span<T>, mode, DataGen1, DataGen2>{}(
                     n_device, dpcpp_policy<call_id + 40>(), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
