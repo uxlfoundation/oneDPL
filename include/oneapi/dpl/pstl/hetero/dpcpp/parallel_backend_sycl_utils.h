@@ -817,8 +817,8 @@ class __future : private std::tuple<_Args...>
             auto& __val = std::get<0>(*this);
             return __wait_and_get_value(__val);
         }
-        else
-            wait();
+
+        wait();
     }
 
     //The internal API. There are cases where the implementation specifies return value  "higher" than SYCL backend,
