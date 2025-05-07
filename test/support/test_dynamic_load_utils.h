@@ -147,9 +147,9 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
         b[jk] = distribution(generator);
     }
 
-    sycl::buffer<int, 1> bufferA(a.data(), sycl::range<1>(I * J));
-    sycl::buffer<int, 1> bufferB(b.data(), sycl::range<1>(J * K));
-    sycl::buffer<int, 1> bufferResultMatrix(resultMatrix.data(), sycl::range<1>(I * K));
+    sycl::buffer<int, 2> bufferA(a.data(), sycl::range<2>(I, J));
+    sycl::buffer<int, 2> bufferB(b.data(), sycl::range<2>(J, K));
+    sycl::buffer<int, 2> bufferResultMatrix(resultMatrix.data(), sycl::range<2>(I, K));
 
     std::atomic<int> probability = 0;
     size_t total_items = 6;
@@ -177,9 +177,9 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                                     int dotProduct = 0;
                                     for (size_t j = 0; j < J; ++j)
                                     {
-                                        dotProduct += accessorA[j * I + item] * accessorB[k * J + j];
+                                        dotProduct += accessorA[j][item] * accessorB[k][j];
                                     }
-                                    accessorResultMatrix[k * I + item] = dotProduct;
+                                    accessorResultMatrix[k][item] = dotProduct;
                                 }
                             });
                     });
@@ -223,9 +223,9 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                                         int dotProduct = 0;
                                         for (size_t j = 0; j < J; ++j)
                                         {
-                                            dotProduct += accessorA[j * I + item] * accessorB[k * J + j];
+                                            dotProduct += accessorA[j][item] * accessorB[k][j];
                                         }
-                                        accessorResultMatrix[k * I + item] = dotProduct;
+                                        accessorResultMatrix[k][item] = dotProduct;
                                     }
                                 });
                         });
