@@ -746,7 +746,7 @@ class __future : private std::tuple<_Args...>
     }
 
     template <typename _T, std::size_t _NResults>
-    constexpr auto
+    constexpr _T
     __wait_and_get_value(const __result_and_scratch_storage<_T, _NResults>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
