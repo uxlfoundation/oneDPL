@@ -48,7 +48,6 @@
 #include <type_traits>
 #include <utility>
 #include <algorithm>
-#include <array>
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
@@ -228,7 +227,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
             __seg_reduce_wg_kernel,
 #endif
             sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
-                std::array<__val_type, __vals_per_item> __loc_partials;
+                __val_type __loc_partials[__vals_per_item];
 
                 auto __group = __item.get_group();
                 std::size_t __group_id = __item.get_group(0);
