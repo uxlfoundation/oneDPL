@@ -28,6 +28,7 @@
 #include "parallel_backend_sycl_utils.h"
 // workaround until we implement more performant optimization for patterns
 #include "parallel_backend_sycl.h"
+#include "parallel_backend_sycl_for.h"
 #include "parallel_backend_sycl_histogram.h"
 #include "../../execution_impl.h"
 #include "execution_sycl_defs.h"
@@ -59,7 +60,9 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
     __future<sycl::event>
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
-        assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
+        assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
+                   __rngs.size())...}) > 0);
+        assert(__count > 0);
 
         _PRINT_INFO_IN_DEBUG_MODE(__q);
         auto __event = __q.submit([&__rngs..., &__brick, __count](sycl::handler& __cgh) {
@@ -67,10 +70,12 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
             __cgh.single_task<_Name...>([=]() {
+                // Disable vectorization and multiple iterations per item.
+                __pfor_params<false /*__enable_tuning*/, _Fp, _Ranges...> __params;
 #pragma unroll(unroll_factor)
                 for (auto __idx = 0; __idx < __count; ++__idx)
                 {
-                    __brick.__scalar_path_impl(std::true_type{}, __idx, __rngs...);
+                    __brick(std::true_type{}, __idx, __params, __rngs...);
                 }
             });
         });

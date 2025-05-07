@@ -116,6 +116,16 @@ using __difference_t = std::make_signed_t<decltype(__check_size<_R>(0))>;
 
 } //namespace __internal
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    if _ONEDPL_CPP26_DEFAULT_VALUE_TYPE_PRESENT
+template <std::indirectly_readable I, std::indirectly_regular_unary_invocable<I> Proj>
+using projected_value_t = std::projected_value_t<I, Proj>;
+#    else
+template <std::indirectly_readable I, std::indirectly_regular_unary_invocable<I> Proj>
+using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::iter_value_t<I>&>>;
+#    endif
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 namespace __ranges
 {
 

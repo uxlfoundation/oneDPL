@@ -147,7 +147,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
             __unary_op, __init, __binary_op, _Inclusive{})
-            .__deferrable_wait();
+            .__checked_deferrable_wait();
     }
     else
     {
@@ -274,13 +274,12 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
             oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _ForwardIterator2>();
         auto __buf2 = __keep2(__d_first, __d_last);
 
-        using _Function = unseq_backend::walk_adjacent_difference<decltype(__fn), decltype(__buf1.all_view()),
-                                                                  decltype(__buf2.all_view())>;
+        using _Function = unseq_backend::walk_adjacent_difference<decltype(__fn)>;
 
         oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, __exec,
                                                           _Function{__fn, static_cast<std::size_t>(__n)}, __n,
                                                           __buf1.all_view(), __buf2.all_view())
-            .__deferrable_wait();
+            .__checked_deferrable_wait();
     }
 
     return __d_last;
