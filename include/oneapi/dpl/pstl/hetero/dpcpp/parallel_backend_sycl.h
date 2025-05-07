@@ -1894,9 +1894,8 @@ __parallel_set_op(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
     }
     else
     {
-        return __parallel_set_scan<_CustomName>(__backend_tag, __q_local, std::forward<_Range1>(__rng1),
-                                                std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
-                                                __set_tag);
+        return __parallel_set_scan<_CustomName>(__q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                                                std::forward<_Range3>(__result), __comp, __set_tag);
     }
 }
 
