@@ -824,7 +824,7 @@ class __future : private std::tuple<_Args...>
     //The internal API. There are cases where the implementation specifies return value  "higher" than SYCL backend,
     //where a future is created.
     template <typename _T>
-    auto
+    __future<_Event, _T, _Args...>
     __make_future(_T __t) const
     {
         auto new_val = std::tuple<_T>(__t);
