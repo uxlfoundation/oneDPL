@@ -1452,9 +1452,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
 
             const std::size_t __n = __in_rng.size();
             return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
-                __backend_tag, __q_local, __n, std::forward<_Range1>(__in_rng),
-                std::forward<_Range2>(__out_rng), __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{},
-                _WriteOp{}, __init, _Inclusive{},
+                __backend_tag, __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng),
+                __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
                 /*_IsUniquePattern=*/std::false_type{});
         }
     }
