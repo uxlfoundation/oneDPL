@@ -475,7 +475,7 @@ namespace third_party {
         // override _impl functions as desired
     };
 
-}
+} //namespace third_party
 
 namespace oneapi {
 namespace dpl {
