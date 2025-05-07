@@ -367,7 +367,7 @@ types:
     };
 ```
 
-A backend that is in the `oneapi::dpl` namespace that relies on the defaults but overrides some functionality
+A backend that is in the `oneapi::dpl::experimental` namespace that relies on the defaults but overrides some functionality
 can specialize the default backend for the type. For example, the existing SYCL backend can be implemented as:
 
 ```cpp
