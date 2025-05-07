@@ -630,7 +630,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         {
             static_assert(_NResults == 1);
 
-            if (is_USM())
+            if (__has_supports_USM_device())
                 __event.wait_and_throw();
 
             return __get_value();
@@ -668,7 +668,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         {
             static_assert(_NResults == 0 || _NResults == 1);
 
-            if (is_USM())
+            if (__has_supports_USM_device())
                 __event.wait_and_throw();
 
             if constexpr (_NResults == 1)
@@ -708,7 +708,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
 
         bool
-        is_USM() const
+        __has_supports_USM_device() const
         {
             return __supports_USM_device;
         }
