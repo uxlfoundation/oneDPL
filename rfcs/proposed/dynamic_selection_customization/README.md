@@ -560,7 +560,7 @@ customized for `std::pair<tbb::task_arena *, tbb::task_group *>`:
 }
 ```
 
-In this example, we can see that the user has to manual construct a vector of
+In this example, we can see that the user has to manually construct a vector of
 resources and pass it to the policy (which in turn passes it to the default
 backend). There is no obvious way to wait on this pair of pointers and so
 the user also needs to define a `WaitType` in their code and return that
