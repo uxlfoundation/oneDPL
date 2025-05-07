@@ -2581,7 +2581,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                                          __internal::__optional_kernel_name<_CopyBackName...>>
 {
     template <typename _BackendTag, typename _Range, typename _Merge, typename _Compare>
-    __future<sycl::event>
+    oneapi::dpl::__par_backend_hetero::__event_with_keepalive<sycl::event>
     operator()(_BackendTag, sycl::queue& __q, _Range&& __rng, _Merge __merge, _Compare __comp) const
     {
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
@@ -2649,7 +2649,7 @@ template <typename... _Name>
 class __sort_global_kernel;
 
 template <typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare>
-__future<sycl::event>
+oneapi::dpl::__par_backend_hetero::__event_with_keepalive<sycl::event>
 __parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                              _Merge __merge, _Compare __comp)
 {
@@ -2688,7 +2688,7 @@ template <
     typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
     ::std::enable_if_t<
         __is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
-__future<sycl::event>
+oneapi::dpl::__par_backend_hetero::__event_with_keepalive<sycl::event>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                        _Range&& __rng, _Compare, _Proj __proj)
 {
@@ -2717,7 +2717,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_t
 // TODO: consider changing __partial_merge_kernel to make it compatible with
 //       __full_merge_kernel in order to use __parallel_sort_impl routine
 template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>
-__future<sycl::event>
+oneapi::dpl::__par_backend_hetero::__event_with_keepalive<sycl::event>
 __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                         _Iterator __first, _Iterator __mid, _Iterator __last, _Compare __comp)
 {

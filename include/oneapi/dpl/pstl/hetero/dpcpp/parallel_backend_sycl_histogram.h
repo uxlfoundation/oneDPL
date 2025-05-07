@@ -493,7 +493,7 @@ __histogram_general_private_global_atomics(oneapi::dpl::__internal::__device_bac
 
 template <typename _CustomName, std::uint16_t __iters_per_work_item, typename _Range1, typename _Range2,
           typename _BinHashMgr>
-__future<sycl::event>
+oneapi::dpl::__par_backend_hetero::__event_with_keepalive<sycl::event>
 __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q,
                                    const sycl::event& __init_event, _Range1&& __input, _Range2&& __bins,
                                    const _BinHashMgr& __binhash_manager)
@@ -540,7 +540,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
 }
 
 template <typename _ExecutionPolicy, typename _Event, typename _Range1, typename _Range2, typename _BinHashMgr>
-__future<sycl::event>
+oneapi::dpl::__par_backend_hetero::__event_with_keepalive<sycl::event>
 __parallel_histogram(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                      const _Event& __init_event, _Range1&& __input, _Range2&& __bins,
                      const _BinHashMgr& __binhash_manager)

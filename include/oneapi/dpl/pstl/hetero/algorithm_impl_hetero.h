@@ -110,13 +110,13 @@ __pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode2, _ForwardIterator2>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    auto __return_event = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n, __buf1.all_view(),
         __buf2.all_view());
 
     // Call no wait, wait or deferrable wait depending on _WaitMode
-    __future.wait(_WaitMode{});
+    __return_event.wait(_WaitMode{});
 
     return __first2 + __n;
 }
@@ -152,11 +152,11 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator2>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    auto __return_event = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::__brick_swap<_Function>{__f, static_cast<std::size_t>(__n)}, __n, __buf1.all_view(),
         __buf2.all_view());
-    __future.wait(__par_backend_hetero::__deferrable_mode{});
+    __return_event.wait(__par_backend_hetero::__deferrable_mode{});
     return __first2 + __n;
 }
 
