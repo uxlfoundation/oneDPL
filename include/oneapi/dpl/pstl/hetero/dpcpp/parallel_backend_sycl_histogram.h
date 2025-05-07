@@ -405,7 +405,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
 {
     template <typename _Range1, typename _Range2, typename _BinHashMgr>
     sycl::event
-    operator()(sycl::queue& __q, const sycl::event& __init_event, ::std::uint16_t __min_iters_per_work_item,
+    operator()(sycl::queue& __q, const sycl::event& __init_event, std::uint16_t __min_iters_per_work_item,
                ::std::uint16_t __work_group_size, _Range1&& __input, _Range2&& __bins,
                const _BinHashMgr& __binhash_manager)
     {
