@@ -381,7 +381,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 template <typename _CustomName, std::uint16_t __iters_per_work_item, typename _Range1, typename _Range2,
           typename _BinHashMgr>
 sycl::event
-__histogram_general_local_atomics(sycl::queue& __q, const sycl::event& __init_event, ::std::uint16_t __work_group_size,
+__histogram_general_local_atomics(sycl::queue& __q, const sycl::event& __init_event, std::uint16_t __work_group_size,
                                   _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
     using _iters_per_work_item_t = ::std::integral_constant<::std::uint16_t, __iters_per_work_item>;
@@ -478,7 +478,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
 template <typename _CustomName, typename _Range1, typename _Range2, typename _BinHashMgr>
 sycl::event
 __histogram_general_private_global_atomics(sycl::queue& __q, const sycl::event& __init_event,
-                                           ::std::uint16_t __min_iters_per_work_item, ::std::uint16_t __work_group_size,
+                                           std::uint16_t __min_iters_per_work_item, std::uint16_t __work_group_size,
                                            _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
     using _global_atomics_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
