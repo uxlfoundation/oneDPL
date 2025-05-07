@@ -438,9 +438,7 @@ struct round_robin_policy
 {
     // policy implementation not shown here
 };
-}
-}
-}
+}}} //namespace oneapi::dpl::experimental
 ```
 
 There would be three ways then that a custom backend can be found:
