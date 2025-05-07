@@ -496,9 +496,7 @@ namespace experimental {
         using resource_type = third_party::custom_resource_2;
         // override _impl functions as desired
     };
-}
-}
-}
+}}} //namespace oneapi::dpl::experimental
 
 int f() {
     // 1. specialize backend_for_resource in oneapi::dpl::experimental
