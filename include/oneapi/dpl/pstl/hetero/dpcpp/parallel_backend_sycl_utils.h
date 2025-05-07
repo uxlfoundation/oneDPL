@@ -673,8 +673,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
             if constexpr (_NResults == 1)
                 return __fill_data(__get_value(), __p_buf);
-            else
-                return 0;
+
+            return 0;
         }
 
     private:
