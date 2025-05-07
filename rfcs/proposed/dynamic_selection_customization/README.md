@@ -57,8 +57,8 @@ when constructing the backend. When a policy is default constructed, the resourc
 a manditory template argument and this can be used to set the resource type in the backend.
 
 It therefore becomes unnecessary to explicitly provide the resource type in the default backend.
-For example, in the code below a `round_robin_policy` is constructed by passing a vector of
-pointers to `tbb::task_group`.  The type of the resource `tbb::task_group *` can be deduced and
+For example, in the code below, a `round_robin_policy` is constructed by passing a vector of
+pointers to `tbb::task_group`. The type of the resource `tbb::task_group *` can be deduced and
 passed as a template argument to the default backend. 
 
 ```cpp
@@ -95,9 +95,9 @@ of the `submit` function:
 4. Construct and return the *Submission* object, which typically wraps what is returned by `f`.
 
 It is not possible for a default backend to properly instrument execution for an unknown resource type to provide
-reporting of `task_time`, `task_submission` and `task_completion`. Therefore, a default implementation
-cannot provide useful implementations for step 1 and 3. However, it can provide more fine-grained hooks
-that can be overridden to provide steps 1 and 3, without requiring a custom backend to reimplemnted the entire
+reporting of `task_time`, `task_submission`, and `task_completion`. Therefore, a default implementation
+cannot provide useful implementations for steps 1 and 3. However, it can provide more fine-grained hooks
+that can be overridden to provide steps 1 and 3, without requiring a custom backend to reimplement the entire
 four step pattern.
 
 We propose that the default backend provide a `submit` function that implements the four step pattern
