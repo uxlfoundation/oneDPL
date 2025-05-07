@@ -7,7 +7,7 @@ and its current design is described by
 When applying Dynamic Selection to use cases, there is often the desire to add a new
 backend or new selection policy. While it is possible to add new policies or backends
 by following the contract described in the current design, the process is non-trivial
-and requires some (unecessarily) verbose code.
+and requires some (unnecessarily) verbose code.
 
 ## Current backend design
 
@@ -39,7 +39,7 @@ open up Dynamic Selection to more use cases.
 ## An overview of the proposal
 
 This document proposes that there is a default backend that can be used with any resource type to get
-sensible default functionaility. In addition, custom backends can be created when needed by mixing in
+sensible default functionality. In addition, custom backends can be created when needed by mixing in
 default functionality with specialized functionality. 
 
 ### Proposed Defaults
@@ -51,14 +51,14 @@ describe the proposed default implementation and the implications of the default
 #### Default `resource_t<T>` 
 
 Policies contain a backend and current policies are either default constructed/initialized or
-constructed/initialized with a `std::vector<Resouce>` of resources. When a vector is passed
+constructed/initialized with a `std::vector<Resource>` of resources. When a vector is passed
 to the constructor, the type of the resource can be deduced and used as a template argument
 when constructing the backend. When a policy is default constructed, the resource type can be made
 a manditory template argument and this can be used to set the resource type in the backend.
 
-Is it therefore becomes unnecessary to explicitly provide the resource type in the default backend.
-For example, in the code below a `round_robin_policy` is constructed by passing a vector of
-pointers to `tbb::task_group`.  The type of the resource `tbb::task_group *` can be deduced and
+It therefore becomes unnecessary to explicitly provide the resource type in the default backend.
+For example, in the code below, a `round_robin_policy` is constructed by passing a vector of
+pointers to `tbb::task_group`. The type of the resource `tbb::task_group *` can be deduced and
 passed as a template argument to the default backend. 
 
 ```cpp
@@ -90,24 +90,24 @@ Experience has shown us that most backends perform four basic steps in their imp
 of the `submit` function:
 
 1. Do any setup needed for implementing reporting before calling `f`.
-2. The function `f` is called and it return value captured.
+2. Call the function `f` and capture the return value.
 3. Do any setup needed for implementing reporting after calling `f`, perhaps using what was returned by `f`.
-4. The *Submission* object, which typically wraps what is returned by `f`, is constructed and returned.
+4. Construct and return the *Submission* object, which typically wraps what is returned by `f`.
 
-It is not possible for a default backend to properly instrument execution for an unkown resource type to provide
-reporting of `task_time`, `task_submission` and `task_completion`. And so a default implementation
-cannot provide useful implementations for step 1 and 3. However, it can provide more finer-grained hooks
-that can be overridden to provide steps 1 and 3, without requiring a custom backend to reimplemnted the entire
+It is not possible for a default backend to properly instrument execution for an unknown resource type to provide
+reporting of `task_time`, `task_submission`, and `task_completion`. Therefore, a default implementation
+cannot provide useful implementations for steps 1 and 3. However, it can provide more fine-grained hooks
+that can be overridden to provide steps 1 and 3, without requiring a custom backend to reimplement the entire
 four step pattern.
 
 We propose that the default backend provide a `submit` function that implements the four step pattern
-but also calls `instrument_before_impl` and `instrument_after_impl` functions that can be overridden
+but also calls `instrument_before_impl` and `instrument_after_impl` functions that can be individually overridden
 to add instrumentation by backends that need it.
 
 ```cpp
     template <typename SelectionHandle, typename Function, typename... Args>
     auto submit(SelectionHandle s, Function&& f, Args&&... args) {
-        instrument_before_impl(s); // do insrumentation before calling `f`, step 1
+        instrument_before_impl(s); // do instrumentation before calling `f`, step 1
         auto w = std::forward<Function>(f)(unwrap(s), std::forward<Args>(args)...); // step 2
         return instrument_after_impl( s, w ); // steps 3 & 4
     }
@@ -116,9 +116,9 @@ to add instrumentation by backends that need it.
 #### Default *Submission* type
 
 A *Submission* object must support `s.wait()` and `s.unwrap`. A default backend cannot meaningfully
-implement `wait` on an arbitrary type, but can wrap a type, such as `sycl::queue` or `tbb::task_group`
-that provides a `wait` member function itself and call that `wait` member function if it finds it.
-`s.unwrap` can return what was return by the user's function `f`.
+implement `wait` on an arbitrary type, but it can wrap a type, such as `sycl::queue` or `tbb::task_group`
+that provides a `wait` member function itself and call that `wait` member function if it exists.
+`s.unwrap` can return what was returned by the user's function `f`.
 
 A possible default implementation of a *Submission* object is shown below:
 
@@ -274,7 +274,7 @@ to be maintained (such as the universe) and accessing that state is easiest from
 object. We also think that static polymorphism is sufficient.
 
 The base will provide the common-sense default behaviours described [above](#default-backend) but
-then functionaility can be selectively customized using static polymorphism. The base class will
+then functionality can be selectively customized using static polymorphism. The base class will
 provide default implementations of `get_resources` (returning the vector passed to the constructor),
 `get_submission_group` (but will fail to compile if invoked) and `submit`. There will be protected
 `_impl` functions that can be overridden in the derived classes to change the default behaviors.
@@ -319,7 +319,7 @@ Show below is a sketch of a `backend_base`:
     protected:
 
         //
-        // The default functionality that can be overriden in derived classes
+        // The default functionality that can be overridden in derived classes
         //
 
         std::vector<resource_type> resources_;
@@ -390,7 +390,7 @@ struct round_robin_policy
 ```
 
 The result is that round-robin policy still default to the SYCL backend, which is implemented using
-a specialization of teh default backed:
+a specialization of the default backend:
 
 ```cpp
     // uses ResourceType = sycl::queue and Backend = default_backend<sycl::queue>
