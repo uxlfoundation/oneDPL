@@ -125,27 +125,31 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
     using my_policy_t = Policy;
     my_policy_t p{u};
 
-    constexpr size_t N = 1000; // Number of vectors
-    constexpr size_t D = 100;  // Dimension of each vector
-    std::vector<int> a(N * D);
-    std::vector<int> b(N * D);
+    // Do a matrix multiply operation with each work item processing a row of the result matrix
+
+    constexpr size_t I = 1000; // size of row matrix A
+    constexpr size_t J = 100;  // size of col matrix A and row matrix B
+    constexpr size_t K = 200;  // size of col matrix B
+    std::vector<int> a(I * J);
+    std::vector<int> b(J * K);
+    std::vector<int> resultMatrix(I * K);
 
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution(1, 10);
 
-    for (size_t i = 0; i < N; ++i)
+    // fill each matrix with random data
+    for (size_t ij = 0; ij < I*J; ++ij)
     {
-        for (size_t j = 0; j < D; ++j)
-        {
-            a[i * D + j] = distribution(generator);
-            b[i * D + j] = distribution(generator);
-        }
+        a[ij] = distribution(generator);
+    }
+    for (size_t jk = 0; jk < J*K; ++jk)
+    {
+        b[jk] = distribution(generator);
     }
 
-    std::vector<int> resultMatrix(N * N);
-    sycl::buffer<int, 1> bufferA(a.data(), sycl::range<1>(N * D));
-    sycl::buffer<int, 1> bufferB(b.data(), sycl::range<1>(N * D));
-    sycl::buffer<int, 1> bufferResultMatrix(resultMatrix.data(), sycl::range<1>(N * N));
+    sycl::buffer<int, 1> bufferA(a.data(), sycl::range<1>(I * J));
+    sycl::buffer<int, 1> bufferB(b.data(), sycl::range<1>(J * K));
+    sycl::buffer<int, 1> bufferResultMatrix(resultMatrix.data(), sycl::range<1>(I * K));
 
     std::atomic<int> probability = 0;
     size_t total_items = 6;
@@ -167,15 +171,15 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                         auto accessorB = bufferB.get_access<sycl::access::mode::read>(cgh);
                         auto accessorResultMatrix = bufferResultMatrix.get_access<sycl::access::mode::write>(cgh);
                         cgh.parallel_for<TestUtils::unique_kernel_name<class load2, 0>>(
-                            sycl::range<1>(N), [=](sycl::item<1> item) {
-                                for (size_t j = 0; j < N; ++j)
+                            sycl::range<1>(I), [=](sycl::item<1> item) {
+                                for (size_t k = 0; k < K; ++k)
                                 {
                                     int dotProduct = 0;
-                                    for (size_t i = 0; i < D; ++i)
+                                    for (size_t j = 0; j < J; ++j)
                                     {
-                                        dotProduct += accessorA[item* D + i] * accessorB[item* D + i];
+                                        dotProduct += accessorA[j * I + item] * accessorB[k * J + j];
                                     }
-                                    accessorResultMatrix[item * N + j] = dotProduct;
+                                    accessorResultMatrix[k * I + item] = dotProduct;
                                 }
                             });
                     });
@@ -213,15 +217,15 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                             auto accessorB = bufferB.get_access<sycl::access::mode::read>(cgh);
                             auto accessorResultMatrix = bufferResultMatrix.get_access<sycl::access::mode::write>(cgh);
                             cgh.parallel_for<TestUtils::unique_kernel_name<class load1, 0>>(
-                                sycl::range<1>(N), [=](sycl::item<1> item) {
-                                    for (size_t j = 0; j < N; ++j)
+                                sycl::range<1>(I), [=](sycl::item<1> item) {
+                                    for (size_t k = 0; k < K; ++k)
                                     {
                                         int dotProduct = 0;
-                                        for (size_t i = 0; i < D; ++i)
+                                        for (size_t j = 0; j < J; ++j)
                                         {
-                                            dotProduct += accessorA[item * D + i] * accessorB[item * D + i];
+                                            dotProduct += accessorA[j * I + item] * accessorB[k * J + j];
                                         }
-                                        accessorResultMatrix[item * N + j] = dotProduct;
+                                        accessorResultMatrix[k * I + item] = dotProduct;
                                     }
                                 });
                         });
