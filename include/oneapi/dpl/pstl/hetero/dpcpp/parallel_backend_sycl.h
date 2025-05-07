@@ -1879,8 +1879,8 @@ __parallel_set_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _SetTag>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
-__parallel_set_op(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
-                  _SetTag __set_tag)
+__parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
+                  _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag __set_tag)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
