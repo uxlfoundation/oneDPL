@@ -26,10 +26,11 @@
 # endif
 #endif
 #ifndef TEST_IMP_INCLUDED_HEADER
-#if __has_include(<version>)
-# include <version>
-#else
-# include <ciso646>
+#  if __has_include(<version>)
+#   include <version>
+#  else
+#   include <ciso646>
+#  endif
 #endif
 
 #define TEST_STRINGIZE_IMPL(x) #x
