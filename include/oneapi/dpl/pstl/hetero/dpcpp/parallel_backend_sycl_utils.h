@@ -612,7 +612,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
             if (__use_USM_host && __supports_USM_device)
                 return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __result_buf.get(), __prop_list);
-            else if (__supports_USM_device)
+            if (__supports_USM_device)
                 return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __scratch_n,
                                                                            __prop_list);
             return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __scratch_n, __prop_list);
