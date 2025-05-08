@@ -85,7 +85,8 @@ DEFINE_TEST(test_equal_structured_binding)
 
     struct CompareOp
     {
-        bool operator()(auto tuple_first1, auto tuple_first2) const
+        template <typename Tuple1, typename Tuple2>
+        bool operator()(Tuple1 tuple_first1, Tuple2 tuple_first2) const
         {
             const auto& [a, b] = tuple_first1;
             const auto& [c, d] = tuple_first2;
