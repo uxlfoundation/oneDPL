@@ -39,12 +39,12 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             *it = n - index;
     }
 
-    template <typename Policy, typename Size, typename THostVals, typename Iterator2>
+    template <typename Policy, typename Size, typename Iterator2>
     struct TestImlementation
     {
         Policy exec;
         Size n;
-        THostVals& host_vals;
+        TestDataTransfer<UDTKind::eVals, Size>& host_vals;      // reference to result data of transform
         Iterator2 first2;
 
         template <typename TPermutationIterator>
@@ -103,7 +103,7 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementation<Policy, Size, decltype(host_vals), Iterator2>{exec, n, host_vals, first2});
+                TestImlementation<Policy, Size, Iterator2>{exec, n, host_vals, first2});
         }
     }
 };
