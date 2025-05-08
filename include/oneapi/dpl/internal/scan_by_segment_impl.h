@@ -108,9 +108,8 @@ struct __sycl_scan_by_segment_impl
     template <typename _Range1, typename _Range2, typename _Range3, typename _BinaryPredicate, typename _BinaryOperator,
               typename _T>
     void
-    operator()(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
-               _Range3&& __out_values, _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init,
-               _T __identity)
+    operator()(sycl::queue& __q, _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
+               _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _T __init, _T __identity)
     {
         using _SegScanWgKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             _SegScanWgPhase, _CustomName, _Range1, _Range2, _Range3, _BinaryPredicate, _BinaryOperator>;
@@ -374,9 +373,8 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
     sycl::queue __q_local = __exec.queue();
 
     __sycl_scan_by_segment_impl<_CustomName, __is_inclusive>()(
-        oneapi::dpl::__internal::__device_backend_tag{}, __q_local, std::forward<_Range1>(__keys),
-        std::forward<_Range2>(__values), std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init,
-        __identity);
+        __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
+        __binary_pred, __binary_op, __init, __identity);
 }
 } //namespace __par_backend_hetero
 
