@@ -74,7 +74,7 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
 
             // Check results
             std::vector<TestValueType> transformedDataExpected(testing_n);
-            const auto itExpectedEnd = ::std::transform(sourceData.begin(), sourceData.end(), transformedDataExpected.begin(), TransformOp{});
+            const auto itExpectedEnd = std::transform(sourceData.begin(), sourceData.end(), transformedDataExpected.begin(), TransformOp{});
             const auto expectedSize = itExpectedEnd - transformedDataExpected.begin();
             EXPECT_EQ(expectedSize, resultSize, "Wrong size from dpl::transform");
             EXPECT_EQ_N(transformedDataExpected.begin(), transformedDataResult.begin(), expectedSize, "Wrong result of dpl::transform");

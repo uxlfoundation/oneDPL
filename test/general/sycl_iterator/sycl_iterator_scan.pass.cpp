@@ -93,7 +93,7 @@ DEFINE_TEST(test_remove_if)
         host_keys.update_data();
 
         auto pos = (last - first) / 2;
-        auto res1 = ::std::remove_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, CheckState<T1, decltype(pos)>{pos});
+        auto res1 = std::remove_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, CheckState<T1, decltype(pos)>{pos});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last - 1, "wrong result from remove_if");
@@ -142,7 +142,7 @@ DEFINE_TEST(test_unique)
         host_keys.update_data();
 
         // invoke
-        auto result_last = ::std::unique(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, IsEq<IteratorValueType>{});
+        auto result_last = std::unique(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, IsEq<IteratorValueType>{});
         wait_and_throw(exec);
 
         auto result_size = result_last - first;
@@ -282,7 +282,7 @@ DEFINE_TEST(test_transform_inclusive_scan)
         }
 
         // without initial value
-        auto res2 = ::std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2, std::plus<T1>(), TransformOp<T1>{});
+        auto res2 = std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2, std::plus<T1>(), TransformOp<T1>{});
         EXPECT_TRUE(res2 == last2, "wrong result from transform_inclusive_scan_2");
 
         retrieve_data(host_keys, host_vals);

@@ -70,7 +70,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
 
             // Eval expected result
             auto expectedRemoveIf = sourceData;
-            auto itEndNewExpected = ::std::remove_if(expectedRemoveIf.begin(), expectedRemoveIf.end(), op);
+            auto itEndNewExpected = std::remove_if(expectedRemoveIf.begin(), expectedRemoveIf.end(), op);
             const auto newSizeExpected = itEndNewExpected - expectedRemoveIf.begin();
 
             // Check results
@@ -91,7 +91,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
     {
-        if constexpr (is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>)
+        if constexpr (is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator1>)
         {
             TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);     // source data for remove_if
 
