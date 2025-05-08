@@ -232,6 +232,9 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         else
             assert(__rng3.size() >= __n1 + __n2);
 
+        std::unique_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base(
+            static_cast<__result_and_scratch_storage_base*>(__p_res_storage));
+
         auto __event = __q.submit([&__rng1, &__rng2, &__rng3, __p_res_storage, __comp, __chunk, __steps, __n, __n1,
                                    __n2](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
@@ -261,7 +264,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         // Save the raw pointer into a unique_ptr to return it in __future and extend the lifetime of the storage.
         // We should return the same thing in the second param of __future for compatibility
         // with the returning value in __parallel_merge_submitter_large::operator()
-        return __future{std::move(__event), std::unique_ptr<__result_and_scratch_storage_base>{__p_res_storage}};
+        return __future{std::move(__event), std::move(__p_result_and_scratch_storage_base)};
     }
 
   private:
@@ -442,6 +445,10 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         auto __p_base_diagonals_sp_global_storage =
             new __result_and_scratch_storage_t(__q, __nd_range_params.base_diag_count + 1);
 
+        // Save the raw pointer into a unique_ptr to return it in __future and extend the lifetime of the storage.
+        std::unique_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base(
+            static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
+
         // Find split-points on the base diagonals
         sycl::event __event = eval_split_points_for_groups(__q, __rng1, __rng2, __n, __comp, __nd_range_params,
                                                            *__p_base_diagonals_sp_global_storage);
@@ -450,8 +457,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         __event = run_parallel_merge(__event, __q, __rng1, __rng2, __rng3, __comp, __nd_range_params,
                                      *__p_base_diagonals_sp_global_storage);
 
-        return __future{std::move(__event),
-                        std::unique_ptr<__result_and_scratch_storage_base>{__p_base_diagonals_sp_global_storage}};
+        return __future{std::move(__event), std::move(__p_result_and_scratch_storage_base)};
     }
 };
 

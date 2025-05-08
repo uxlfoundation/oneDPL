@@ -592,6 +592,9 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         // Storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
         __base_diagonals_sp_storage_t* __p_base_diagonals_sp_global_storage = nullptr;
 
+        // unique_ptr instance to return it in __future and extend the lifetime of the storage.
+        std::unique_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base;
+
         // Max amount of base diagonals
         const std::size_t __max_base_diags_count =
             get_max_base_diags_count(__q, __nd_range_params.chunk, __n) + __1_final_base_diag;
@@ -612,6 +615,10 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                     // Create storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
                     __p_base_diagonals_sp_global_storage =
                         new __base_diagonals_sp_storage_t(__q, __max_base_diags_count);
+
+                    // Save the raw pointer into a unique_ptr to return it in __future and extend the lifetime of the storage.
+                    __p_result_and_scratch_storage_base.reset(
+                        static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
                 }
 
                 nd_range_params __nd_range_params_this =
@@ -642,9 +649,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             __data_in_temp = !__data_in_temp;
         }
 
-        // Save the raw pointer into a unique_ptr to return it in __future and extend the lifetime of the storage.
-        return {std::move(__event_chain), __data_in_temp,
-                std::unique_ptr<__result_and_scratch_storage_base>{__p_base_diagonals_sp_global_storage}};
+        return {std::move(__event_chain), __data_in_temp, std::move(__p_result_and_scratch_storage_base)};
     }
 };
 
