@@ -822,35 +822,11 @@ class __event_with_keepalive_base : private std::tuple<_Args...>
 
 template <typename _Event, typename T>
 auto
-__add_keepalive(_Event e, T __t)
-{
-    if constexpr (::std::is_invocable_v<decltype(&decltype(e)::template __add_keepalive<T>), decltype(e), T>)
-    {
-        // if event is already a __future or __event_with_keepalive
-        return e.__add_keepalive(__t);
-    }
-    else
-    {
-        // if not, we can create a new __event_with_keepalive
-        return __event_with_keepalive<_Event, T>(e, __t);
-    }
-}
+__add_keepalive(_Event e, T __t);
 
 template <typename _Event, typename T>
 auto
-__add_future(__Event e, T __t)
-{
-    if constexpr (::std::is_invocable_v<decltype(&decltype(e)::template __add_future<T>), decltype(e), T>)
-    {
-        // if event is already a __future or __event_with_keepalive
-        return e.__add_future(__t);
-    }
-    else
-    {
-        // if not, we can create a new __future
-        return __future(e, __t);
-    }
-}
+__add_future(_Event e, T __t);
 
 template <typename _Event, typename... _Args>
 class __future : private __event_with_keepalive_base<_Event, _Args...>
@@ -858,13 +834,12 @@ class __future : private __event_with_keepalive_base<_Event, _Args...>
     using __base = __event_with_keepalive_base<_Event, _Args...>;
 
   public:
-    __future(_Event __e, _Args... __args) : __event_with_keepalive_base(e, __args...) {}
-    __future(_Event __e, std::tuple<_Args...> __t) : __event_with_keepalive_base(e, __t) {}
+    __future(_Event __e, _Args... __args) : __base(__e, __args...) {}
+    __future(_Event __e, std::tuple<_Args...> __t) : __base(__e, __t) {}
 
     using __base::event;
     using __base::wait;
-    using __base::__deferrable_wait;
-    using __base::get;
+    using __base::__checked_deferrable_wait;
 
     //The internal API. There are cases where the implementation specifies return value  "higher" than SYCL backend,
     //where a future is created.
@@ -874,7 +849,7 @@ class __future : private __event_with_keepalive_base<_Event, _Args...>
     {
         auto new_val = std::tuple<_T>(__t);
         auto new_tuple = std::tuple_cat(new_val, (std::tuple<_Args...>)*this);
-        return __future<_Event, _T, _Args...>(__my_event, new_tuple);
+        return __future<_Event, _T, _Args...>(this->__my_event, new_tuple);
     }
 
     // Make a new future, adding a keepalive without future value to the existing event
@@ -882,7 +857,7 @@ class __future : private __event_with_keepalive_base<_Event, _Args...>
     auto 
     __add_keepalive(_T __t) const
     {
-        auto __new_event = __add_keepalive(__my_event, __t);
+        auto __new_event = __add_keepalive(this->__my_event, __t);
         return __future<decltype(__new_event), _Args...>(std::move(__new_event), (std::tuple<_Args...>)*this);
     }
 
@@ -898,7 +873,7 @@ class __future : private __event_with_keepalive_base<_Event, _Args...>
             return __wait_and_get_value(__val);
         }
         else
-            __wait_and_throw();
+            wait();
     }
 };
 
@@ -908,13 +883,13 @@ class __event_with_keepalive : private __event_with_keepalive_base<_Event, _Args
     using __base = __event_with_keepalive_base<_Event, _Args...>;
 
   public:
-    __event_with_keepalive(_Event __e, _Args... __args) : __base(e, __args...) {}
-    __event_with_keepalive(_Event __e, std::tuple<_Args...> __t) : __base(e, __t) {}
-    __event_with_keepalive(__future<_Event, _Args> __f) : __base(__f) {}
+    __event_with_keepalive(_Event __e, _Args... __args) : __base(__e, __args...) {}
+    __event_with_keepalive(_Event __e, std::tuple<_Args...> __t) : __base(__e, __t) {}
+    __event_with_keepalive(__future<_Event, _Args...> __f) : __base(__f) {}
 
     using __base::event;
     using __base::wait;
-    using __base::__deferrable_wait;
+    using __base::__checked_deferrable_wait;
 
     //The internal API. There are cases where the implementation specifies return value  "higher" than SYCL backend,
     //where a future is created.
@@ -931,9 +906,42 @@ class __event_with_keepalive : private __event_with_keepalive_base<_Event, _Args
     {
         auto new_val = std::tuple<_T>(__t);
         auto new_tuple = std::tuple_cat(new_val, (std::tuple<_Args...>)*this);
-        return __event_with_keepalive<_Event, _T, _Args...>(__my_event, new_tuple);
+        return __event_with_keepalive<_Event, _T, _Args...>(this->__my_event, new_tuple);
     }
 };
+
+
+template <typename _Event, typename T>
+auto
+__add_keepalive(_Event e, T __t)
+{
+    if constexpr (::std::is_invocable_v<decltype(&decltype(e)::template __add_keepalive<T>), decltype(e), T>)
+    {
+        // if event is already a __future or __event_with_keepalive
+        return e.__add_keepalive(__t);
+    }
+    else
+    {
+        // if not, we can create a new __event_with_keepalive
+        return __event_with_keepalive<_Event, T>(e, __t);
+    }
+}
+
+template <typename _Event, typename T>
+auto
+__add_future(_Event e, T __t)
+{
+    if constexpr (::std::is_invocable_v<decltype(&decltype(e)::template __add_future<T>), decltype(e), T>)
+    {
+        // if event is already a __future or __event_with_keepalive
+        return e.__add_future(__t);
+    }
+    else
+    {
+        // if not, we can create a new __future
+        return __future(e, __t);
+    }
+}
 
 // Invoke a callable and pass a compile-time integer based on a provided run-time integer.
 // The compile-time integer that will be provided to the callable is defined as the smallest
