@@ -93,17 +93,12 @@ template <class _ExecutionPolicy, class _Iterator, class _Compare, class... _Eve
 auto
 sort_async(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Compare __comp, _Events&&... __dependencies)
 {
-    wait_for_all(::std::forward<_Events>(__dependencies)...);
-    assert(__last - __first >= 2);
-
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
-    auto __buf = __keep(__first, __last);
-
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
-    using __backend_tag = typename decltype(__dispatch_tag)::__backend_tag;
 
-    return __par_backend_hetero::__parallel_stable_sort(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec),
-                                                        __buf.all_view(), __comp, oneapi::dpl::identity{});
+    wait_for_all(std::forward<_Events>(__dependencies)...);
+
+    return oneapi::dpl::__internal::__pattern_stable_sort_async(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+                                                                __first, __last, __comp);
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator, class... _Events,
@@ -112,9 +107,9 @@ auto
 sort_async(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
            _Events&&... __dependencies)
 {
-    using _ValueType = typename ::std::iterator_traits<_RandomAccessIterator>::value_type;
-    return sort_async(::std::forward<_ExecutionPolicy>(__exec), __first, __last, ::std::less<_ValueType>(),
-                      ::std::forward<_Events>(__dependencies)...);
+    using _ValueType = typename std::iterator_traits<_RandomAccessIterator>::value_type;
+    return sort_async(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<_ValueType>(),
+                      std::forward<_Events>(__dependencies)...);
 }
 
 // [async.for_each]

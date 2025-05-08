@@ -730,7 +730,7 @@ struct __deferrable_mode
 {
 };
 
-//A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
+//A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __result_and_scratch_storage>
 //Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
 template <typename _Event, typename... _Args>
 class __future : private std::tuple<_Args...>
@@ -771,7 +771,8 @@ class __future : private std::tuple<_Args...>
     }
 
   public:
-    __future(_Event __e, _Args... __args) : std::tuple<_Args...>(__args...), __my_event(__e) {}
+    template<typename... _UArgs>
+    __future(_Event __e, _UArgs&&... __args) : std::tuple<_Args...>(std::forward<_UArgs>(__args)...), __my_event(__e) {}
     __future(_Event __e, std::tuple<_Args...> __t) : std::tuple<_Args...>(__t), __my_event(__e) {}
 
     auto
@@ -832,6 +833,9 @@ class __future : private std::tuple<_Args...>
         return __future<_Event, _T, _Args...>(__my_event, new_tuple);
     }
 };
+// Deduction guide for __future
+template<typename _Event, typename... _UArgs>
+__future(_Event, _UArgs&&...) -> __future<_Event, std::remove_cv_t<std::remove_reference_t<_UArgs>>...>;
 
 // Invoke a callable and pass a compile-time integer based on a provided run-time integer.
 // The compile-time integer that will be provided to the callable is defined as the smallest

@@ -2675,9 +2675,9 @@ struct __is_radix_sort_usable_for_type
 {
     static constexpr bool value =
 #if _ONEDPL_USE_RADIX_SORT
-        (::std::is_arithmetic_v<_T> || ::std::is_same_v<sycl::half, _T>) &&
-            (__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value ||
-            __internal::__is_comp_descending<::std::decay_t<_Compare>>::value);
+        (std::is_arithmetic_v<_T> || std::is_same_v<sycl::half, _T>) &&
+        (__internal::__is_comp_ascending<std::decay_t<_Compare>>::value ||
+         __internal::__is_comp_descending<std::decay_t<_Compare>>::value);
 #else
         false;
 #endif // _ONEDPL_USE_RADIX_SORT
@@ -2686,26 +2686,26 @@ struct __is_radix_sort_usable_for_type
 #if _ONEDPL_USE_RADIX_SORT
 template <
     typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
-    ::std::enable_if_t<
+    std::enable_if_t<
         __is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
 __future<sycl::event>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                        _Range&& __rng, _Compare, _Proj __proj)
 {
-    return __parallel_radix_sort<__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
-        __backend_tag, ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __proj);
+    return __parallel_radix_sort<__internal::__is_comp_ascending<std::decay_t<_Compare>>::value>(
+        __backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __proj);
 }
 #endif // _ONEDPL_USE_RADIX_SORT
 
 template <
     typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
-    ::std::enable_if_t<
+    std::enable_if_t<
         !__is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
-__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+__future<sycl::event, std::unique_ptr<__result_and_scratch_storage_base>>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                        _Range&& __rng, _Compare __comp, _Proj __proj)
 {
-    return __parallel_sort_impl(__backend_tag, ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
+    return __parallel_sort_impl(__backend_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng),
                                 oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
 }
 
@@ -2726,7 +2726,7 @@ __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag __backend_
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    return __parallel_partial_sort_impl(__backend_tag, ::std::forward<_ExecutionPolicy>(__exec), __buf.all_view(),
+    return __parallel_partial_sort_impl(__backend_tag, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(),
                                         __partial_merge_kernel<decltype(__mid_idx)>{__mid_idx}, __comp);
 }
 

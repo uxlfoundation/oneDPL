@@ -236,6 +236,26 @@ __pattern_transform_scan_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy
                                                __result, __unary_op, _InitType{}, __binary_op, _Inclusive{});
 }
 
+//------------------------------------------------------------------------
+// sort
+//------------------------------------------------------------------------
+
+template <class _ExecutionPolicy, class _Iterator, class _Compare>
+__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+__pattern_stable_sort_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
+                            _Compare __comp)
+{
+    assert(__last - __first >= 2);
+
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
+    auto __buf = __keep(__first, __last);
+
+    auto [__e, __p_unique] = __par_backend_hetero::__parallel_stable_sort(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __comp, oneapi::dpl::identity{});
+
+    return {std::move(__e), std::shared_ptr{__p_unique}};
+}
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
