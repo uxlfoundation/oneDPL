@@ -84,7 +84,7 @@ DEFINE_TEST(test_for_each_structured_binding)
     {
         F f;
 
-        template <typaname TValue>
+        template <typename TValue>
         void
         operator()(TValue value) const
         {
