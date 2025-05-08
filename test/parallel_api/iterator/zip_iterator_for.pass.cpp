@@ -117,7 +117,7 @@ DEFINE_TEST(test_for_each_structured_binding)
                         "zip_iterator (structured_binding) not properly copyable");
         }
 
-        std::for_each(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, FncCall<decltype(f)>{f}
+        std::for_each(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, FncCall<decltype(f)>{f});
 
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
