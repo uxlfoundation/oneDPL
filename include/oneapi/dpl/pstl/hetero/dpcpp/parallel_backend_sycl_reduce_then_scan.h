@@ -952,7 +952,7 @@ __parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_
                                           __num_work_groups * __work_group_size);
         }
     }
-    return __future{std::move(__event), std::move(__result_and_scratch)};
+    return __event_with_keepalive{std::move(__event), std::move(__result_and_scratch)};
 }
 
 } // namespace __par_backend_hetero

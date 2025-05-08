@@ -870,7 +870,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         }
     }
 
-    return __future{std::move(__event)};
+    return __event_with_keepalive{std::move(__event)};
 }
 
 } // namespace __par_backend_hetero

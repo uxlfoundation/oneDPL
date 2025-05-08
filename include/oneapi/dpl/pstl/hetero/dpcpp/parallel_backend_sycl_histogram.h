@@ -512,7 +512,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
     // if bins fit into registers, use register private accumulation
     if (__num_bins <= __max_work_item_private_bins)
     {
-        return __future(__histogram_general_registers_local_reduction<_CustomName, __iters_per_work_item,
+        return __event_with_keepalive(__histogram_general_registers_local_reduction<_CustomName, __iters_per_work_item,
                                                                       __max_work_item_private_bins>(
             __backend_tag, __q, __init_event, __work_group_size, std::forward<_Range1>(__input),
             std::forward<_Range2>(__bins), __binhash_manager));
@@ -522,7 +522,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
                  __binhash_manager.get_required_SLM_elements() * sizeof(_extra_memory_type) <
              __local_mem_size)
     {
-        return __future(__histogram_general_local_atomics<_CustomName, __iters_per_work_item>(
+        return __event_with_keepalive(__histogram_general_local_atomics<_CustomName, __iters_per_work_item>(
             __backend_tag, __q, __init_event, __work_group_size, std::forward<_Range1>(__input),
             std::forward<_Range2>(__bins), __binhash_manager));
     }
@@ -533,7 +533,7 @@ __parallel_histogram_select_kernel(oneapi::dpl::__internal::__device_backend_tag
         // suggestion which but global memory limitations may increase this value to be able to fit the workgroup
         // private copies of the histogram bins in global memory.  No unrolling is taken advantage of here because it
         // is a runtime argument.
-        return __future(__histogram_general_private_global_atomics<_CustomName>(
+        return __event_with_keepalive(__histogram_general_private_global_atomics<_CustomName>(
             __backend_tag, __q, __init_event, __iters_per_work_item, __work_group_size, std::forward<_Range1>(__input),
             std::forward<_Range2>(__bins), __binhash_manager));
     }

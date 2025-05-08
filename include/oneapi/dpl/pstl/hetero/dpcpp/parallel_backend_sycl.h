@@ -1401,7 +1401,7 @@ struct __write_multiple_to_id
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
-__future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
+__event_with_keepalive<__future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>>
 __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                           _Range1&& __in_rng, _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op,
                           _InitType __init, _BinaryOperation __binary_op, _Inclusive)
@@ -1439,7 +1439,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
                 // a placeholder here to match the return type of the non-single-work-group implementation
                 __result_and_scratch_storage<_Type> __dummy_result_and_scratch{__q_local, 0};
 
-                return __future{std::move(__event), std::move(__dummy_result_and_scratch)};
+                return __event_with_keepalive{__future{std::move(__event), std::move(__dummy_result_and_scratch)}};
             }
         }
         if (__use_reduce_then_scan)
@@ -1451,10 +1451,10 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
             _GenInput __gen_transform{__unary_op};
 
             const std::size_t __n = __in_rng.size();
-            return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
+            return __event_with_keepalive{__parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
                 __backend_tag, __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng),
                 __gen_transform, __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
-                /*_IsUniquePattern=*/std::false_type{});
+                /*_IsUniquePattern=*/std::false_type{})};
         }
     }
 
@@ -1468,7 +1468,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
     _NoAssign __no_assign_op;
     _NoOpFunctor __get_data_op;
 
-    return __parallel_transform_scan_base<_CustomName>(
+    // While the shared transform scan base returns a future, we wrap it in an event with keepalive, because
+    // transform_scan is not expected to return a result in the form of a future.
+    return __event_with_keepalive{__parallel_transform_scan_base<_CustomName>(
         __backend_tag, __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
         // local scan
         unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _NoOpFunctor,
@@ -1479,7 +1481,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag __backen
                               _NoOpFunctor, unseq_backend::__no_init_value<_Type>>{
             __binary_op, _NoOpFunctor{}, __no_assign_op, __assign_op, __get_data_op},
         // global scan
-        unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init});
+        unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init})};
 }
 
 template <typename _CustomName, typename _SizeType>
@@ -1550,7 +1552,7 @@ __parallel_reduce_then_scan_copy(oneapi::dpl::__internal::__device_backend_tag _
 
 template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _CreateMaskOp,
           typename _CopyByMaskOp>
-__future<sycl::event, __result_and_scratch_storage<_Size>>
+__event_with_keepalive<__future<sycl::event, __result_and_scratch_storage<_Size>>>
 __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag, sycl::queue& __q, _InRng&& __in_rng,
                      _OutRng&& __out_rng, _Size __n, _CreateMaskOp __create_mask_op, _CopyByMaskOp __copy_by_mask_op)
 {
@@ -1569,7 +1571,9 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n);
 
-    return __parallel_transform_scan_base<_CustomName>(
+    // While the shared transform scan base returns a future, we wrap it in an event with keepalive, because
+    // scan_copy is not expected to return a result in the form of a future.
+    return __event_with_keepalive{__parallel_transform_scan_base<_CustomName>(
         __backend_tag, __q,
         oneapi::dpl::__ranges::zip_view(
             __in_rng, oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
@@ -1583,7 +1587,7 @@ __parallel_scan_copy(oneapi::dpl::__internal::__device_backend_tag __backend_tag
         unseq_backend::__scan</*inclusive*/ std::true_type, _ReduceOp, _DataAcc, _NoAssign, _Assigner, _DataAcc,
                               _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
         // global scan
-        __copy_by_mask_op);
+        __copy_by_mask_op)};
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryPredicate>
@@ -2641,7 +2645,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
             });
         }
         // return future and extend lifetime of temporary buffer
-        return __future{std::move(__event1)};
+        return __event_with_keepalive{std::move(__event1)};
     }
 };
 
@@ -2701,7 +2705,7 @@ template <
     typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
     ::std::enable_if_t<
         !__is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
-__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+__event_with_keepalive<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __backend_tag, _ExecutionPolicy&& __exec,
                        _Range&& __rng, _Compare __comp, _Proj __proj)
 {
