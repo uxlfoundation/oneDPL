@@ -8003,16 +8003,15 @@ class counted_iterator
 #                    ifndef _MSC_VER
     // FIXME MSVC: If this is a template, MSVC can't find it via ADL for some reason
     // Making it a non-template doesn't lose much other than the InputIterator guard
-    template <typename II = I, ::std::enable_if_t<input_iterator<II>, int> = 0>
-#                    endif
-    friend constexpr iter_rvalue_reference_t<I>
-#                   ifndef _MSC_VER
+    //
     // GCC 15 and later cannot find i.current_ outside of immediate context
-    iter_move(const counted_iterator<II>& i)
-#                   else
-    iter_move(const counted_iterator& i)
-#                   endif
-        noexcept(noexcept(ranges::iter_move(i.current_)))
+    template <typename II = I, ::std::enable_if_t<input_iterator<II>, int> = 0>
+    friend constexpr iter_rvalue_reference_t<II>
+    iter_move(const counted_iterator<II>& i) noexcept(noexcept(ranges::iter_move(i.current_)))
+#                    else
+    friend constexpr iter_rvalue_reference_t<I>
+    iter_move(const counted_iterator& i) noexcept(noexcept(ranges::iter_move(i.current_)))
+#                    endif // _MSC_VER
     {
         return ranges::iter_move(i.current_);
     }
