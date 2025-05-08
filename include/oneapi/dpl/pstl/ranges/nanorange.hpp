@@ -8006,22 +8006,16 @@ class counted_iterator
     template <typename II = I, ::std::enable_if_t<input_iterator<II>, int> = 0>
 #                    endif
     friend constexpr iter_rvalue_reference_t<I>
-#                   ifndef _MSC_VER
-    // GCC 15 and later cannot find i.current_ outside of immediate context
-    iter_move(const counted_iterator<II>& i)
-#                   else
-    iter_move(const counted_iterator& i)
-#                   endif
-        noexcept(noexcept(ranges::iter_move(i.current_)))
+    iter_move(const counted_iterator& i) noexcept(noexcept(ranges::iter_move(i.current_)))
     {
         return ranges::iter_move(i.current_);
     }
 
-    template <typename I2, typename II = I>
+    template <typename I2>
     friend constexpr auto
-    iter_swap(const counted_iterator<II>& x,
+    iter_swap(const counted_iterator<I>& x,
               const counted_iterator<I2>& y) noexcept(noexcept(ranges::iter_swap(x.current_, y.current_)))
-        -> ::std::enable_if_t<indirectly_swappable<I2, II>>
+        -> ::std::enable_if_t<indirectly_swappable<I2, I>>
     {
         ranges::iter_swap(x.current_, y.current_);
     }
@@ -8484,18 +8478,17 @@ class move_iterator
         return iter_move(current_ + n);
     }
 
-    template<typename II = I>
-    friend constexpr iter_rvalue_reference_t<II>
-    iter_move(const move_iterator<II>& i) noexcept(noexcept(ranges::iter_move(i.current_)))
+    friend constexpr iter_rvalue_reference_t<I>
+    iter_move(const move_iterator& i) noexcept(noexcept(ranges::iter_move(i.current_)))
     {
         return ranges::iter_move(i.current_);
     }
 
-    template <typename I2, typename II = I>
+    template <typename I2>
     friend constexpr auto
-    iter_swap(const move_iterator<II>& x,
+    iter_swap(const move_iterator& x,
               const move_iterator<I2>& y) noexcept(noexcept(ranges::iter_swap(x.current_, y.current_)))
-        -> ::std::enable_if_t<indirectly_swappable<I2, II>>
+        -> ::std::enable_if_t<indirectly_swappable<I2, I>>
     {
         ranges::iter_swap(x.current_, y.current_);
     }
@@ -17049,7 +17042,7 @@ struct iota_view : view_interface<iota_view<W, Bound>>
                 }
                 else
                 {
-                    return (y.value_ > x.value_) ? D(-D(y.value_ - x.value_)) : D(x.value_ - y.value_);
+                    return (y.value_ > x.value) ? D(-D(y.value_ - x.value_)) : D(x.value_ - y.value_);
                 }
             }
             else
