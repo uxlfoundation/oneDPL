@@ -842,8 +842,7 @@ template <std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typena
           typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
           typename _WriteOp, typename _InitType, typename _Inclusive, typename _IsUniquePattern>
 __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
-__parallel_transform_reduce_then_scan(oneapi::dpl::__internal::__device_backend_tag, sycl::queue& __q,
-                                      const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
+__parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
                                       _WriteOp __write_op, _InitType __init, _Inclusive, _IsUniquePattern)
