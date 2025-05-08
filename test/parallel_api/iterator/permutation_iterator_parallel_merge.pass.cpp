@@ -36,8 +36,8 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
         std::vector<TestValueType>& srcData1;
 
         Iterator3 first3;
-        TPermutationIterator permItBegin;
-        TPermutationIterator permItEnd;
+        TPermutationIterator permItBegin1;
+        TPermutationIterator permItEnd1;
 
         template <typename TPermutationIteratorArg>
         void operator()(TPermutationIteratorArg permItBegin2, TPermutationIteratorArg permItEnd2) const
@@ -45,20 +45,20 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
             auto exec2 = TestUtils::create_new_policy_idx<1>(exec);
             auto exec3 = TestUtils::create_new_policy_idx<2>(exec);
 
-            const auto testing_n1 = permItEnd - permItBegin;
-            const auto testing_n2 = permItEnd2 - permItBegin;
+            const auto testing_n1 = permItEnd1 - permItBegin1;
+            const auto testing_n2 = permItEnd2 - permItBegin2;
 
             //ensure list is sorted (not necessarily true after permutation)
-            dpl::sort(exec2, permItBegin, permItEnd2);
+            dpl::sort(exec2, permItBegin2, permItEnd2);
             wait_and_throw(exec2);
 
-            const auto resultEnd = dpl::merge(exec, permItBegin, permItEnd, permItBegin, permItEnd2, first3);
+            const auto resultEnd = dpl::merge(exec, permItBegin1, permItEnd1, permItBegin2, permItEnd2, first3);
             wait_and_throw(exec);
             const auto resultSize = resultEnd - first3;
 
             // Copy data back
             std::vector<TestValueType> srcData2(testing_n2);
-            dpl::copy(exec2, permItBegin, permItEnd2, srcData2.begin());
+            dpl::copy(exec2, permItBegin2, permItEnd2, srcData2.begin());
             wait_and_throw(exec2);
 
             std::vector<TestValueType> mergedDataResult(resultSize);
@@ -83,23 +83,23 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
         Iterator3 first3;
 
         template <typename TPermutationIterator>
-        void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        void operator()(TPermutationIterator permItBegin1, TPermutationIterator permItEnd1) const
         {
             auto exec1 = TestUtils::create_new_policy_idx<0>(exec);
 
-            const auto testing_n1 = permItEnd - permItBegin;
+            const auto testing_n1 = permItEnd1 - permItBegin1;
 
             //ensure list is sorted (not necessarily true after permutation)
-            dpl::sort(exec1, permItBegin, permItEnd);
+            dpl::sort(exec1, permItBegin1, permItEnd1);
             wait_and_throw(exec1);
 
             // Copy data back
             std::vector<TestValueType> srcData1(testing_n1);
-            dpl::copy(exec1, permItBegin, permItEnd, srcData1.begin());
+            dpl::copy(exec1, permItBegin1, permItEnd1, srcData1.begin());
             wait_and_throw(exec1);
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementationLevel1<Policy, Size, Iterator3, TPermutationIterator>{exec, n, srcData1, first3, permItBegin, permItEnd});
+                TestImlementationLevel1<Policy, Size, Iterator3, TPermutationIterator>{exec, n, srcData1, first3, permItBegin1, permItEnd1});
         }
     };
 
@@ -109,10 +109,6 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
     {
         if constexpr (is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>)
         {
-            auto exec1 = TestUtils::create_new_policy_idx<0>(exec);
-            auto exec2 = TestUtils::create_new_policy_idx<1>(exec);
-            auto exec3 = TestUtils::create_new_policy_idx<2>(exec);
-
             TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);                                 // source data(1) for merge
             TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);                                 // source data(2) for merge
             TestDataTransfer<UDTKind::eRes,  Size> host_res (*this, ::std::distance(first3, last3));    // merge results
