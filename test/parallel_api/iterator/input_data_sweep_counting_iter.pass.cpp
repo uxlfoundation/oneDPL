@@ -53,6 +53,29 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
     }
 }
 
+template <typename T, int __recurse, typename Policy>
+void
+test(Policy&& policy)
+{
+    constexpr size_t n = 10;
+
+    // baseline with no wrapping
+    test<float, 0>(CREATE_NEW_POLICY(policy, 0), -666.0f, n, "float");
+    test<double, 0>(CREATE_NEW_POLICY(policy, 1), -666.0, n, "double");
+    test<std::uint64_t, 0>(CREATE_NEW_POLICY(policy, 2), 999, n, "uint64_t");
+
+    // big recursion step: 1 and 2 layers of wrapping
+    test<std::int32_t, 2>(CREATE_NEW_POLICY(policy, 3), -666, n, "int32_t");
+
+    // special case: discard iterator
+    oneapi::dpl::counting_iterator<int> counting(0);
+    oneapi::dpl::discard_iterator discard{};
+    wrap_recurse<1, 0, /*__read =*/false, /*__reset_read=*/false, /*__write=*/true,
+                 /*__check_write=*/false, /*__usable_as_perm_map=*/false, /*__usable_as_perm_src=*/true,
+                 /*__is_reversible=*/true>(CREATE_NEW_POLICY(policy, 4), discard, discard + n, counting, discard, discard, discard, discard,
+                                           -666, "discard_iterator");
+}
+
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 int
@@ -60,33 +83,13 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
 
-    constexpr size_t n = 10;
-
     auto q = TestUtils::get_test_queue();
 
     auto policy = TestUtils::make_new_policy<class Kernel1>(q);
+    test(policy);
 
-    auto policy1 = TestUtils::create_new_policy_idx<0>(policy);
-    auto policy2 = TestUtils::create_new_policy_idx<1>(policy);
-    auto policy3 = TestUtils::create_new_policy_idx<2>(policy);
-    auto policy4 = TestUtils::create_new_policy_idx<3>(policy);
-    auto policy5 = TestUtils::create_new_policy_idx<4>(policy);
-
-    // baseline with no wrapping
-    test<float, 0>(policy1, -666.0f, n, "float");
-    test<double, 0>(policy2, -666.0, n, "double");
-    test<std::uint64_t, 0>(policy3, 999, n, "uint64_t");
-
-    // big recursion step: 1 and 2 layers of wrapping
-    test<std::int32_t, 2>(policy4, -666, n, "int32_t");
-
-    // special case: discard iterator
-    oneapi::dpl::counting_iterator<int> counting(0);
-    oneapi::dpl::discard_iterator discard{};
-    wrap_recurse<1, 0, /*__read =*/false, /*__reset_read=*/false, /*__write=*/true,
-                 /*__check_write=*/false, /*__usable_as_perm_map=*/false, /*__usable_as_perm_src=*/true,
-                 /*__is_reversible=*/true>(policy5, discard, discard + n, counting, discard, discard, discard, discard,
-                                           -666, "discard_iterator");
+    const auto& policy_ref = policy;
+    test(policy_ref);
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
