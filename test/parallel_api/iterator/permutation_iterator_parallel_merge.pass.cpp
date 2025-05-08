@@ -28,19 +28,24 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
         ::std::iota(itBegin, itEnd, initVal);
     }
 
-    template <typename Policy, typename Size>
+    template <typename Policy, typename Size, typename Iterator3, typename TPermutationIterator>
     struct TestImlementationLevel1
     {
         Policy exec;
         Size n;
         std::vector<TestValueType>& srcData1;
 
-        template <typename TPermutationIterator>
-        void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd2) const
+        Iterator3 first3;
+        TPermutationIterator permItBegin;
+        TPermutationIterator permItEnd;
+
+        template <typename TPermutationIteratorArg>
+        void operator()(TPermutationIteratorArg permItBegin2, TPermutationIteratorArg permItEnd2) const
         {
             auto exec2 = TestUtils::create_new_policy_idx<1>(exec);
             auto exec3 = TestUtils::create_new_policy_idx<2>(exec);
 
+            const auto testing_n1 = permItEnd - permItBegin;
             const auto testing_n2 = permItEnd2 - permItBegin;
 
             //ensure list is sorted (not necessarily true after permutation)
@@ -69,12 +74,13 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
         }
     };
 
-    template <typename Policy, typename Iterator1, typename Size>
+    template <typename Policy, typename Size, typename Iterator1, typename Iterator3>
     struct TestImlementationLevel0
     {
         Policy exec;
         Size n;
         Iterator1 first1;
+        Iterator3 first3;
 
         template <typename TPermutationIterator>
         void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
@@ -93,11 +99,11 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
             wait_and_throw(exec1);
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementationLevel1<Policy, Size>{exec, n, srcData1});
+                TestImlementationLevel1<Policy, Size, Iterator3, TPermutationIterator>{exec, n, srcData1, first3, permItBegin, permItEnd});
         }
     };
 
-    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
+    template <typename Policy, typename Size, typename Iterator1, typename Iterator2, typename Iterator3>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Iterator3 first3, Iterator3 last3, Size n)
     {
@@ -128,7 +134,7 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
             assert(::std::distance(first3, last3) >= ::std::distance(first1, last1) + ::std::distance(first2, last2));
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementationLevel0<Policy, Iterator1, Size>{exec, n, first1});
+                TestImlementationLevel0<Policy, Size, Iterator1, Iterator3>{exec, n, first1, first3});
         }
     }
 };
