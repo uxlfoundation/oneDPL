@@ -55,7 +55,7 @@ struct test_adjacent_find_predicate
 template <typename T>
 struct CustomPred
 {
-    bool operator()(T x, T y)
+    bool operator()(T x, T y) const
     {
         return (x - y) * (x - y) == 4;
     }
