@@ -47,6 +47,7 @@ Macro                              Macro values and the functionality
 ``ONEDPL_HAS_RANGE_ALGORITHMS``    Parallel range algorithms.
 
                                    * ``202409L`` - see :ref:`available algorithms <range-algorithms-202409L>`.
+                                   * ``202505L`` - see :ref:`available algorithms <range-algorithms-202505L>`.
 ================================== ===============================================
 
 Additional Macros
