@@ -1079,6 +1079,23 @@ struct IsEven
     }
 };
 
+template <typename T>
+struct IsOdd
+{
+    std::enable_if_t<std::is_integral_v<T>, bool>
+    operator()(T v) const
+    {
+        return i % 2 != 0;
+    }
+
+    std::enable_if_t<!std::is_integral_v<T>, bool>
+    operator()(T v) const
+    {
+        std::uint32_t i = (std::uint32_t)v;
+        return i % 2 != 0;
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
