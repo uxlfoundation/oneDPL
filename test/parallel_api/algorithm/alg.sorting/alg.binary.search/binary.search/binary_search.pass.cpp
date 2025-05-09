@@ -54,7 +54,6 @@ DEFINE_TEST(test_binary_search)
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
-
     // specialization for hetero policy
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     ::std::enable_if_t<oneapi::dpl::__internal::__is_hetero_execution_policy_v<::std::decay_t<Policy>> &&
