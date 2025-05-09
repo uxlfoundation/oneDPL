@@ -924,23 +924,6 @@ __pattern_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 // min_element
 //------------------------------------------------------------------------
 
-template <typename _Compare, typename _ReduceValueType>
-struct __pattern_min_element_reduce_fn
-{
-    _Compare __comp;
-
-    _ReduceValueType
-    operator()(_ReduceValueType __a, _ReduceValueType __b) const
-    {
-        using ::std::get;
-        if (__comp(get<1>(__b), get<1>(__a)))
-        {
-            return __b;
-        }
-        return __a;
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
 std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>
 __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
@@ -953,7 +936,7 @@ __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&
 
     // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
     // not commutative.
-    __pattern_min_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
+    __pattern_min_element_reduce_fn<_ReduceValueType, _Compare> __reduce_fn{__comp};
     oneapi::dpl::__internal::__pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
     [[maybe_unused]] auto [__idx, __val] =
