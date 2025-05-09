@@ -1065,7 +1065,13 @@ get_pattern_for_test_sizes()
 template <typename T>
 struct IsEven
 {
-    bool
+    std::enable_if_t<std::is_integral_v<T>, bool>
+    operator()(T v) const
+    {
+        return i % 2 == 0;
+    }
+
+    std::enable_if_t<!std::is_integral_v<T>, bool>
     operator()(T v) const
     {
         std::uint32_t i = (std::uint32_t)v;
