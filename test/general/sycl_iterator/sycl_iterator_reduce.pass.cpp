@@ -266,13 +266,7 @@ template <typename ValueType>
 using GreatThen10 = TestUtils::GreatThan<ValueType, 10>;
 
 template <typename ValueType>
-struct LessThen10
-{
-    bool operator()(const ValueType& x) const
-    {
-        return x < 10;
-    }
-};
+using LessThen10 = TestUtils::LessThan<ValueType, 10>;
 
 DEFINE_TEST(test_count_if)
 {
