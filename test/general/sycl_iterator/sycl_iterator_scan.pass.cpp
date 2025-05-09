@@ -128,16 +128,6 @@ DEFINE_TEST(test_unique)
 {
     DEFINE_TEST_CONSTRUCTOR(test_unique, 2.0f, 0.65f)
 
-    template <typename IteratorValueType>
-    struct IsEq
-    {
-        bool
-        operator()(IteratorValueType a, IteratorValueType b) const
-        {
-            return a == b;
-        }
-    };
-
     template <typename Policy, typename Iterator, typename Size>
     void
     operator()(Policy&& exec, Iterator first, Iterator last, Size n)
@@ -152,7 +142,7 @@ DEFINE_TEST(test_unique)
         host_keys.update_data();
 
         // invoke
-        auto result_last = std::unique(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, IsEq<IteratorValueType>{});
+        auto result_last = std::unique(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, TestUtils::IsEqual<IteratorValueType>{});
         wait_and_throw(exec);
 
         auto result_size = result_last - first;
@@ -386,16 +376,6 @@ DEFINE_TEST(test_unique_copy)
 {
     DEFINE_TEST_CONSTRUCTOR(test_unique_copy, 2.0f, 0.65f)
 
-    template <typename Iterator1ValueType>
-    struct IsEq
-    {
-        bool
-        operator()(Iterator1ValueType a, Iterator1ValueType b) const
-        {
-            return a == b;
-        }
-    };
-
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 /* last2 */, Size n)
@@ -412,10 +392,9 @@ DEFINE_TEST(test_unique_copy)
         update_data(host_keys, host_vals);
 
         // invoke
-        auto f = IsEq<Iterator1ValueType>{};
         auto result_first = first2;
-        auto result_last =
-            ::std::unique_copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, result_first, f);
+        auto result_last = std::unique_copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1,
+                                            result_first, TestUtils::IsEqual<Iterator1ValueType>{});
         wait_and_throw(exec);
 
         auto result_size = result_last - result_first;
