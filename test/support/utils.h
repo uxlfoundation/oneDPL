@@ -1126,6 +1126,15 @@ struct IsLessThen
 };
 
 template <typename T>
+struct IsGreat
+{
+    bool operator()(T x, T y) const
+    {
+        return x < y;
+    }
+};
+
+template <typename T>
 struct IsLess
 {
     bool operator()(T x, T y) const
