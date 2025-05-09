@@ -82,6 +82,25 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202409L`` or a greater value,
 * ``copy_if``
 * ``merge``
 
+.. _range-algorithms-202505L:
+
+If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202505L`` or a greater value, the following algorithms are provided:
+
+* ``fill``
+* ``move``
+* ``replace``
+* ``replace_if``
+* ``remove``
+* ``remove_if``
+* ``mismatch``
+* ``minmax_element``
+* ``minmax``
+* ``min``
+* ``max``
+* ``find_first_of``
+* ``find_end``
+* ``is_sorted_until``
+
 Usage Example for Parallel Range Algorithms
 -------------------------------------------
 
