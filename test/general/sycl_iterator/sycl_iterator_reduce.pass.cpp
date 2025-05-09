@@ -263,13 +263,7 @@ template <typename ValueType>
 using MultipleOf10 = TestUtils::IsMultipleOf<ValueType, 10>;
 
 template <typename ValueType>
-struct GreatThen10
-{
-    bool operator()(const ValueType& x) const
-    {
-        return x > 10;
-    }
-};
+using GreatThen10 = TestUtils::GreatThan<ValueType, 10>;
 
 template <typename ValueType>
 struct LessThen10
