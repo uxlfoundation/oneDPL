@@ -1115,6 +1115,16 @@ struct IsGreatThen
     }
 };
 
+template <typename T, T value>
+struct IsLessThen
+{
+    bool
+    operator()(T v) const
+    {
+        return v < value;
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
