@@ -112,8 +112,7 @@ DEFINE_TEST(test_binary_search)
         check_and_clean(result_first, n);
 
         // call algorithm with comparator
-        auto res2 = oneapi::dpl::binary_search(exec, first, last, value_first, value_last, result_first,
-                                               [](ValueT first, ValueT second) { return first < second; });
+        auto res2 = oneapi::dpl::binary_search(exec, first, last, value_first, value_last, result_first, TestUtils::IsLess<ValueT>{});
         EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, host policy");
         check_and_clean(result_first, n);
     }
