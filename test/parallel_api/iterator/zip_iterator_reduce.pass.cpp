@@ -198,15 +198,6 @@ DEFINE_TEST(test_lexicographical_compare)
 {
     DEFINE_TEST_CONSTRUCTOR(test_lexicographical_compare, 1.0f, 1.0f)
 
-    template <typename ValueType>
-    struct IsLess
-    {
-        bool operator()(const ValueType& first, const ValueType& second) const
-        {
-            return first < second;
-        }
-    };
-
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Size n)
@@ -241,7 +232,8 @@ DEFINE_TEST(test_lexicographical_compare)
                         "zip_iterator (lexicographical_compare2) not properly copyable");
         }
 
-        IsLess<ValueType> comp;
+        // We using here std::cref<ValueType> to pass comparing value by const reference
+        TestUtils::IsLess<std::cref<ValueType>> comp;
 
         bool is_less_exp = n > 1 ? 1 : 0;
         bool is_less_res =
