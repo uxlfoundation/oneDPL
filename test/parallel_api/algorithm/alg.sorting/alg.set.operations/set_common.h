@@ -333,15 +333,6 @@ test_set(Compare compare, bool comp_flag)
 }
 
 template <typename T>
-struct LessOp
-{
-    bool operator()(const T& x, const T& y) const
-    {
-        return x < y;
-    }
-};
-
-template <typename T>
 struct ValueLessOp
 {
     bool operator()(const T& val1, const T& val2) const
@@ -367,7 +358,7 @@ run_test_set()
 #endif // !ONEDPL_FPGA_DEVICE
 
 #if !TEST_DPCPP_BACKEND_PRESENT
-    test_set<TestType, Num<std::int64_t>, Num<std::int32_t>>(LessOp<Num<std::int32_t>>{}, true);
+    test_set<TestType, Num<std::int64_t>, Num<std::int32_t>>(TestUtils::IsLess<Num<std::int32_t>>{}, true);
 
     test_set<TestType, MemoryChecker, MemoryChecker>(ValueLessOp<MemoryChecker>{}, true);
     EXPECT_TRUE(MemoryChecker::alive_objects() == 0,
