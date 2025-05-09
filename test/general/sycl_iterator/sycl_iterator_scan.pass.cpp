@@ -360,16 +360,6 @@ DEFINE_TEST(test_copy_if)
         }
     };
 
-    template <typename T1>
-    struct IsNotMultipleOfTwo
-    {
-        bool
-        operator()(T1 x) const
-        {
-            return x % 2 == 1;
-        }
-    };
-
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Size n)
@@ -399,7 +389,7 @@ DEFINE_TEST(test_copy_if)
             EXPECT_TRUE(host_first2[i] == exp, "wrong effect from copy_if_1");
         }
 
-        auto res2 = std::copy_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2, IsNotMultipleOfTwo<T1>{});
+        auto res2 = std::copy_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2, TestUtils::IsOdd<T1>{});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res2 == first2 + (last2 - first2) / 2, "wrong result from copy_if_2");
