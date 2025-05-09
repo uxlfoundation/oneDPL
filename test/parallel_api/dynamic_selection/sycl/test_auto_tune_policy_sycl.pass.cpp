@@ -48,7 +48,22 @@ test_auto_initialization(const std::vector<sycl::queue>& u)
     return 0;
 }
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer>
+template <typename KernelName>
+auto
+launch_kernel(sycl::queue& q, int* j, volatile double* v)
+{
+    return q.submit([=](sycl::handler& h) {
+        h.parallel_for<KernelName>(
+            1000000, [=](sycl::id<1> idx) {
+                for (int j0 = 0; j0 < *j; ++j0)
+                {
+                    v[idx] += idx;
+                }
+            });
+    });
+}
+
+template <bool call_select_before_submit, typename Policy, typename KernelName, typename UniverseContainer>
 int
 test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
 {
@@ -106,24 +121,8 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
                     }
                 }
                 ecount += i;
-                if (*j == 0)
-                {
-                     return q.submit([=](sycl::handler& h){
-                        h.single_task<class SingleTask1>([](){});
-                     });
-                }
-                else
-                {
-                    return q.submit([=](sycl::handler& h) {
-                        h.parallel_for<TestUtils::unique_kernel_name<class tune1, 0>>(
-                            1000000, [=](sycl::id<1> idx) {
-                                for (int j0 = 0; j0 < *j; ++j0)
-                                {
-                                    v[idx] += idx;
-                                }
-                            });
-                    });
-                }
+
+                return launch_kernel<TestUtils::unique_kernel_name<KernelName, 0>>(q, j, v);
             };
             auto s = oneapi::dpl::experimental::select(p, f);
             auto e = oneapi::dpl::experimental::submit(s, f);
@@ -152,24 +151,9 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
                         }
                     }
                     ecount += i;
-                    if (*j == 0)
-                    {
-                         return q.submit([=](sycl::handler& h){
-                            h.single_task<class SingleTask2>([](){});
-                         });
-                    }
-                    else
-                    {
-                        return q.submit([=](sycl::handler& h) {
-                            h.parallel_for<TestUtils::unique_kernel_name<class tune2, 0>>(
-                                1000000, [=](sycl::id<1> idx) {
-                                    for (int j0 = 0; j0 < *j; ++j0)
-                                    {
-                                        v[idx] += idx;
-                                    }
-                                });
-                        });
-                    }
+
+                    return launch_kernel<TestUtils::unique_kernel_name<KernelName, 1>>(q, j, v);
+
                 });
             oneapi::dpl::experimental::wait(s);
         }
@@ -189,7 +173,7 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
     return 0;
 }
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer>
+template <bool call_select_before_submit, typename Policy, typename KernelName, typename UniverseContainer>
 int
 test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
 {
@@ -247,24 +231,9 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                     }
                 }
                 ecount += i;
-                if (*j == 0)
-                {
-                     return q.submit([=](sycl::handler& h){
-                        h.single_task<class SingleTask3>([](){});
-                     });
-                }
-                else
-                {
-                    return q.submit([=](sycl::handler& h) {
-                        h.parallel_for<TestUtils::unique_kernel_name<class tune3, 0>>(
-                            1000000, [=](sycl::id<1> idx) {
-                                for (int j0 = 0; j0 < *j; ++j0)
-                                {
-                                    v[idx] += idx;
-                                }
-                            });
-                    });
-                }
+
+                return launch_kernel<TestUtils::unique_kernel_name<KernelName, 0>>(q, j, v);
+
             };
             auto s = oneapi::dpl::experimental::select(p, f);
             auto e = oneapi::dpl::experimental::submit(s, f);
@@ -293,24 +262,7 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                         }
                     }
                     ecount += i;
-                    if (*j == 0)
-                    {
-                         return q.submit([=](sycl::handler& h){
-                            h.single_task<class SingleTask4>([](){});
-                         });
-                    }
-                    else
-                    {
-                        return q.submit([=](sycl::handler& h) {
-                            h.parallel_for<TestUtils::unique_kernel_name<class tune4, 0>>(
-                                1000000, [=](sycl::id<1> idx) {
-                                    for (int j0 = 0; j0 < *j; ++j0)
-                                    {
-                                        v[idx] += idx;
-                                    }
-                                });
-                        });
-                    }
+                    return launch_kernel<TestUtils::unique_kernel_name<KernelName, 1>>(q, j, v);
                 });
             oneapi::dpl::experimental::wait(p.get_submission_group());
         }
@@ -331,7 +283,7 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
 }
 
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer>
+template <bool call_select_before_submit, typename Policy, typename KernelName, typename UniverseContainer>
 int
 test_auto_submit_and_wait(UniverseContainer u, int best_resource)
 {
@@ -356,7 +308,7 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
     {
         if (i <= 2 * n_samples && (i - 1) % n_samples != best_resource)
         {
-            *j = 100;
+            *j = 500;
         }
         else
         {
@@ -388,24 +340,8 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
                     }
                 }
                 ecount += i;
-                if (*j == 0)
-                {
-                     return q.submit([=](sycl::handler& h){
-                        h.single_task<class SingleTask5>([](){});
-                     });
-                }
-                else
-                {
-                    return q.submit([=](sycl::handler& h) {
-                        h.parallel_for<TestUtils::unique_kernel_name<class tune5, 0>>(
-                            1000000, [=](sycl::id<1> idx) {
-                                for (int j0 = 0; j0 < *j; ++j0)
-                                {
-                                    v[idx] += idx;
-                                }
-                            });
-                    });
-                }
+                return launch_kernel<TestUtils::unique_kernel_name<KernelName, 0>>(q, j, v);
+
             };
             auto s = oneapi::dpl::experimental::select(p, f);
             oneapi::dpl::experimental::submit_and_wait(s, f);
@@ -433,24 +369,7 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
                         }
                     }
                     ecount += i;
-                    if (*j == 0)
-                    {
-                         return q.submit([=](sycl::handler& h){
-                            h.single_task<class SingleTask6>([](){});
-                         });
-                    }
-                    else
-                    {
-                        return q.submit([=](sycl::handler& h) {
-                            h.parallel_for<TestUtils::unique_kernel_name<class tune6, 0>>(
-                                1000000, [=](sycl::id<1> idx) {
-                                    for (int j0 = 0; j0 < *j; ++j0)
-                                    {
-                                        v[idx] += idx;
-                                    }
-                                });
-                        });
-                    }
+                    return launch_kernel<TestUtils::unique_kernel_name<KernelName, 1>>(q, j, v);
                 });
         }
 
@@ -551,57 +470,57 @@ main()
 
         auto actual = test_auto_initialization(u1);
         actual = test_select<policy_t, decltype(u1), const decltype(f)&, true>(u1, f);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u1, 0);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u1, 1);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u1, 2);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u1, 3);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u1, 0);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u1, 1);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u1, 2);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u1, 3);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u1, 0);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u1, 1);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u1, 2);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u1, 3);
+        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel1>(u1, 0);
+        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel2>(u1, 1);
+        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel3>(u1, 2);
+        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel4>(u1, 3);
+        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel5>(u1, 0);
+        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel6>(u1, 1);
+        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel7>(u1, 2);
+        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel8>(u1, 3);
+        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel9>(u1, 0);
+        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel10>(u1, 1);
+        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel11>(u1, 2);
+        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel12>(u1, 3);
         // now select then submits
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u1, 0);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u1, 1);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u1, 2);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u1, 3);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u1, 0);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u1, 1);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u1, 2);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u1, 3);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u1, 0);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u1, 1);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u1, 2);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u1, 3);
+        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel13>(u1, 0);
+        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel14>(u1, 1);
+        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel15>(u1, 2);
+        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel16>(u1, 3);
+        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel17>(u1, 0);
+        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel18>(u1, 1);
+        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel19>(u1, 2);
+        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel20>(u1, 3);
+        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel21>(u1, 0);
+        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel22>(u1, 1);
+        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel23>(u1, 2);
+        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel24>(u1, 3);
         // Use event profiling
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t>(u2, 3);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t>(u2, 3);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t>(u2, 3);
+        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel25>(u2, 0);
+        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel26>(u2, 1);
+        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel27>(u2, 2);
+        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel28>(u2, 3);
+        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel29>(u2, 0);
+        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel30>(u2, 1);
+        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel31>(u2, 2);
+        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel32>(u2, 3);
+        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel33>(u2, 0);
+        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel34>(u2, 1);
+        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel35>(u2, 2);
+        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel36>(u2, 3);
         // now select then submits
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t>(u2, 3);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t>(u2, 3);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u2, 0);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u2, 1);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u2, 2);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t>(u2, 3);
+        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel37>(u2, 0);
+        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel38>(u2, 1);
+        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel39>(u2, 2);
+        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel40>(u2, 3);
+        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel41>(u2, 0);
+        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel42>(u2, 1);
+        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel43>(u2, 2);
+        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel44>(u2, 3);
+        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel45>(u2, 0);
+        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel46>(u2, 1);
+        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel47>(u2, 2);
+        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel48>(u2, 3);
 
         bProcessed = true;
     }
