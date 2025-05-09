@@ -24,13 +24,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
     DEFINE_TEST_PERM_IT_CONSTRUCTOR(test_remove_if, 1.0f, 1.0f)
 
     template <typename TTestValueType>
-    struct IsGreatThenZero
-    {
-        bool operator()(TTestValueType val) const
-        {
-            return val > 0;
-        }
-    };
+    using IsGreatThenZero = TestUtils::IsGreatThen<TTestValueType, 0>;
 
     template <typename Policy, typename Size>
     struct TestImlementation
