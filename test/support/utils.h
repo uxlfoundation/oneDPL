@@ -1062,6 +1062,96 @@ get_pattern_for_test_sizes()
     return sizes;
 }
 
+template <typename T, T value>
+struct MultipleOf
+{
+    bool operator()(T v) const
+    {
+        return v % value == 0;
+    }
+};
+
+template <typename T>
+struct IsEven
+{
+    std::enable_if_t<!std::is_floating_point_v<T>, bool>
+    operator()(T v) const
+    {
+        return i % 2 == 0;
+    }
+
+    std::enable_if_t<std::is_floating_point_v<T>, bool>
+    operator()(T v) const
+    {
+        std::uint32_t i = (std::uint32_t)v;
+        return i % 2 == 0;
+    }
+};
+
+template <typename T>
+struct IsOdd
+{
+    std::enable_if_t<!std::is_floating_point_v<T>, bool>
+    operator()(T v) const
+    {
+        return i % 2 != 0;
+    }
+
+    std::enable_if_t<std::is_floating_point_v<T>, bool>
+    operator()(T v) const
+    {
+        std::uint32_t i = (std::uint32_t)v;
+        return i % 2 != 0;
+    }
+};
+
+template <typename T, T value>
+struct IsGreatThen
+{
+    bool
+    operator()(T v) const
+    {
+        return v > value;
+    }
+};
+
+template <typename T, T value>
+struct IsLessThen
+{
+    bool
+    operator()(T v) const
+    {
+        return v < value;
+    }
+};
+
+template <typename T>
+struct IsGreat
+{
+    bool operator()(T x, T y) const
+    {
+        return x < y;
+    }
+};
+
+template <typename T>
+struct IsLess
+{
+    bool operator()(T x, T y) const
+    {
+        return x < y;
+    }
+};
+
+template <typename T>
+struct IsEqual
+{
+    bool operator()(T x, T y) const
+    {
+        return x == y;
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
