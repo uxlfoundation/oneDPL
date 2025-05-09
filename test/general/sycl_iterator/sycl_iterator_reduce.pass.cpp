@@ -392,16 +392,6 @@ DEFINE_TEST(test_transform_reduce_binary)
     }
 };
 
-template <typename ValueType>
-struct LessThen
-{
-    bool
-    operator()(const ValueType& x, const ValueType& y) const
-    {
-        return x < y;
-    }
-};
-
 // TODO: move unique cases to test_lexicographical_compare
 DEFINE_TEST(test_lexicographical_compare)
 {
@@ -427,7 +417,8 @@ DEFINE_TEST(test_lexicographical_compare)
             update_data(host_keys, host_vals);
         }
 
-        auto comp = LessThen<ValueType>{};
+        // We using here std::cref<ValueType> to pass comparing value by const reference
+        auto comp = TestUtils::IsLess<std::cref<ValueType>>{};
 
         // CHECK 1.1: S1 == S2 && len(S1) == len(S2)
         bool is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1,
