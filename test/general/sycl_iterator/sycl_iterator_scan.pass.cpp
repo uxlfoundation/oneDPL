@@ -351,14 +351,7 @@ DEFINE_TEST(test_copy_if)
     DEFINE_TEST_CONSTRUCTOR(test_copy_if, 2.0f, 0.65f)
 
     template <typename T1>
-    struct GreatThenMinusOne
-    {
-        bool
-        operator()(T1 x) const
-        {
-            return x > -1;
-        }
-    };
+    using GreatThenMinusOne = TestUtils::IsGreaterThan<T1, -1>;
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
