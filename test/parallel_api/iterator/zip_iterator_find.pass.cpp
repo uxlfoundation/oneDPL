@@ -55,13 +55,7 @@ DEFINE_TEST(test_find_if)
     };
 
     template <typename T1>
-    struct ForFirst
-    {
-        bool operator()(T1 x) const
-        {
-            return x % 2 == 0;
-        }
-    };
+    using ForFirst = TestUtils::IsEven<T1>;
 
     template <typename Policy, typename Iterator1, typename Size>
     void
