@@ -21,7 +21,7 @@
 
 #include "support/utils.h"
 
-// A comparison, equalivalent to std::greater<int> without the
+// A comparison, equivalent to std::greater<int> without the
 // dependency on <functional>.
 struct gt
 {
