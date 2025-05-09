@@ -286,15 +286,6 @@ struct LessThen10
     }
 };
 
-template <typename ValueType>
-struct IsOdd
-{
-    bool operator()(const ValueType& x) const
-    {
-        return x % 2 != 0;
-    }
-};
-
 DEFINE_TEST(test_count_if)
 {
     DEFINE_TEST_CONSTRUCTOR(test_count_if, 2.0f, 0.80f)
@@ -360,7 +351,7 @@ DEFINE_TEST(test_is_partitioned)
             return;
 
         auto less_than = LessThen10<ValueType>{};
-        auto is_odd = IsOdd<ValueType>{};
+        auto is_odd = TestUtils::IsOdd<ValueType>{};
 
         bool expected_bool_less_then = false;
         bool expected_bool_is_odd = false;
