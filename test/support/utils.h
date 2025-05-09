@@ -1062,6 +1062,15 @@ get_pattern_for_test_sizes()
     return sizes;
 }
 
+template <typename T, T value>
+struct MultipleOf
+{
+    bool operator()(T v) const
+    {
+        return v % value == 0;
+    }
+};
+
 template <typename T>
 struct IsEven
 {
