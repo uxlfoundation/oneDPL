@@ -33,6 +33,16 @@ get_size(Size n)
     return n + a_size + b_size + c_size + d_size;
 }
 
+template <typename T>
+struct TransformOp
+{
+    T
+    operator()(T x) const
+    {
+        return x * 2;
+    }
+};
+
 DEFINE_TEST(test_remove)
 {
     DEFINE_TEST_CONSTRUCTOR(test_remove, 2.0f, 0.65f)
@@ -239,16 +249,6 @@ DEFINE_TEST(test_transform_inclusive_scan)
         }
     };
 
-    template <typename T1>
-    struct TransformOp
-    {
-        T1
-        operator()(T1 x) const
-        {
-            return x * 2;
-        }
-    };
-
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Size n)
@@ -304,15 +304,6 @@ DEFINE_TEST(test_transform_inclusive_scan)
 DEFINE_TEST(test_transform_exclusive_scan)
 {
     DEFINE_TEST_CONSTRUCTOR(test_transform_exclusive_scan, 2.0f, 0.65f)
-
-    template <typename T1>
-    struct TransformOp
-    {
-        T1 operator()(T1 x) const
-        {
-            return x * 2;
-        }
-    };
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
