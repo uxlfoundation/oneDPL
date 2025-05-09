@@ -239,16 +239,6 @@ DEFINE_TEST(test_transform_inclusive_scan)
 {
     DEFINE_TEST_CONSTRUCTOR(test_transform_inclusive_scan, 2.0f, 0.65f)
 
-    template <typename T1>
-    struct Mult2
-    {
-        T1
-        operator()(T1 x) const
-        {
-            return x * 2;
-        }
-    };
-
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Size n)
@@ -262,7 +252,7 @@ DEFINE_TEST(test_transform_inclusive_scan)
         ::std::fill(host_keys.get(), host_keys.get() + n, T1(1));
         host_keys.update_data();
 
-        auto res1 = std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, std::plus<T1>(), Mult2<T1>{}, value);
+        auto res1 = std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, std::plus<T1>(), TransformOp<T1>{}, value);
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from transform_inclusive_scan_1");
