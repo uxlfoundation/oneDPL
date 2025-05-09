@@ -260,13 +260,7 @@ DEFINE_TEST(test_count)
 };
 
 template <typename ValueType>
-struct MultipleOf10
-{
-    bool operator()(const ValueType& x) const
-    {
-        return x % 10 == 0;
-    }
-};
+using MultipleOf10 = TestUtils::IsMultipleOf<ValueType, 10>;
 
 template <typename ValueType>
 struct GreatThen10
