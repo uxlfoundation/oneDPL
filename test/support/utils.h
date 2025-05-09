@@ -1105,6 +1105,16 @@ struct IsOdd
     }
 };
 
+template <typename T, T value>
+struct IsGreatThen
+{
+    bool
+    operator()(T v) const
+    {
+        return v > value;
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
