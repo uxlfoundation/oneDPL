@@ -1143,6 +1143,15 @@ struct IsLess
     }
 };
 
+template <typename T>
+struct IsEqual
+{
+    bool operator()(T x, T y) const
+    {
+        return x == y;
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
