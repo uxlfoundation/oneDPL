@@ -314,7 +314,10 @@ class counting_iterator
         return !(*this < __it);
     }
 
-    friend std::true_type is_onedpl_indirectly_device_accessible(counting_iterator);
+    friend std::true_type is_onedpl_indirectly_device_accessible(counting_iterator)
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
+    }
 
   private:
     _Ip __my_counter_;
@@ -449,7 +452,10 @@ class zip_iterator
     }
 
     friend auto is_onedpl_indirectly_device_accessible(zip_iterator)
-        -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Types>...>;
+        -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Types>...>
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
+    }
 
   private:
     __it_types __my_it_;
@@ -628,7 +634,10 @@ class transform_iterator
         return __my_unary_func_;
     }
     friend auto is_onedpl_indirectly_device_accessible(transform_iterator)
-        -> oneapi::dpl::is_indirectly_device_accessible<_Iter>;
+        -> oneapi::dpl::is_indirectly_device_accessible<_Iter>
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
+    }
 };
 
 template <typename _Iter, typename _UnaryFunc>
@@ -822,7 +831,10 @@ class permutation_iterator
 
     friend auto is_onedpl_indirectly_device_accessible(permutation_iterator)
         -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<SourceIterator>,
-                            oneapi::dpl::is_indirectly_device_accessible<permutation_iterator::IndexMap>>;
+                            oneapi::dpl::is_indirectly_device_accessible<permutation_iterator::IndexMap>>
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
+    }
 
   private:
     SourceIterator my_source_it;
@@ -986,7 +998,10 @@ class discard_iterator
         return !(*this < __it);
     }
 
-    friend std::true_type is_onedpl_indirectly_device_accessible(discard_iterator);
+    friend std::true_type is_onedpl_indirectly_device_accessible(discard_iterator)
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
+    }
 
   private:
     difference_type __my_position_;
