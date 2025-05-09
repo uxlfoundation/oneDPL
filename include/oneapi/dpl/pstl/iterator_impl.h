@@ -314,7 +314,8 @@ class counting_iterator
         return !(*this < __it);
     }
 
-    friend std::true_type is_onedpl_indirectly_device_accessible(counting_iterator)
+    friend std::true_type
+    is_onedpl_indirectly_device_accessible(counting_iterator)
     {
         return {}; //minimal body provided to avoid warnings of non-template-friend in g++
     }
@@ -451,7 +452,8 @@ class zip_iterator
         return !(*this < __it);
     }
 
-    friend auto is_onedpl_indirectly_device_accessible(zip_iterator)
+    friend auto
+    is_onedpl_indirectly_device_accessible(zip_iterator)
         -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Types>...>
     {
         return {}; //minimal body provided to avoid warnings of non-template-friend in g++
@@ -633,8 +635,8 @@ class transform_iterator
     {
         return __my_unary_func_;
     }
-    friend auto is_onedpl_indirectly_device_accessible(transform_iterator)
-        -> oneapi::dpl::is_indirectly_device_accessible<_Iter>
+    friend auto
+    is_onedpl_indirectly_device_accessible(transform_iterator) -> oneapi::dpl::is_indirectly_device_accessible<_Iter>
     {
         return {}; //minimal body provided to avoid warnings of non-template-friend in g++
     }
@@ -829,7 +831,8 @@ class permutation_iterator
         return !(*this < it);
     }
 
-    friend auto is_onedpl_indirectly_device_accessible(permutation_iterator)
+    friend auto
+    is_onedpl_indirectly_device_accessible(permutation_iterator)
         -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<SourceIterator>,
                             oneapi::dpl::is_indirectly_device_accessible<permutation_iterator::IndexMap>>
     {
@@ -998,7 +1001,8 @@ class discard_iterator
         return !(*this < __it);
     }
 
-    friend std::true_type is_onedpl_indirectly_device_accessible(discard_iterator)
+    friend std::true_type
+    is_onedpl_indirectly_device_accessible(discard_iterator)
     {
         return {}; //minimal body provided to avoid warnings of non-template-friend in g++
     }

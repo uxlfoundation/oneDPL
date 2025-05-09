@@ -125,7 +125,8 @@ struct sycl_iterator
 
     // While sycl_iterator cannot be "passed directly" because it is not device_copyable or a random access iterator,
     // it does represent indirectly device accessible data.
-    friend std::true_type is_onedpl_indirectly_device_accessible(sycl_iterator)
+    friend std::true_type
+    is_onedpl_indirectly_device_accessible(sycl_iterator)
     {
         return {}; //minimal body provided to avoid warnings of non-template-friend in g++
     }
