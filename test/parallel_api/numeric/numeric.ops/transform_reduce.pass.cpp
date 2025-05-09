@@ -22,14 +22,6 @@
 
 using namespace TestUtils;
 
-// Equal for all types
-template <typename T>
-static bool
-Equal(T x, T y)
-{
-    return x == y;
-}
-
 // Functor for xor-operation for modeling binary operations in inner_product
 class XOR
 {
@@ -72,7 +64,7 @@ template <typename T>
 void
 CheckResults(const T& expected, const T& in, const char* msg)
 {
-    EXPECT_TRUE(Equal(expected, in), msg);
+    EXPECT_EQ(expected, in, msg);
 }
 
 // We need to check correctness only for "int" (for example) except cases
