@@ -809,7 +809,6 @@ struct __global_scan_functor
         constexpr auto __shift = _Inclusive{} ? 0 : 1;
         auto __item_idx = __item.get_linear_id();
         // skip the first group scanned locally
-        // if (__item_idx >= __size_per_wg && __item_idx + __shift < __n)
         if (oneapi::dpl::__internal::__cmp_greater_equal(__item_idx, __size_per_wg) &&
             oneapi::dpl::__internal::__cmp_less(__item_idx + __shift, __n))
         {
