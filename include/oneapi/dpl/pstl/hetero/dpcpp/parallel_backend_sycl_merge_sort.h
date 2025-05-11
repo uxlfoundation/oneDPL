@@ -62,9 +62,8 @@ struct __group_merge_path_sorter
 {
     template <typename _StorageAcc, typename _Compare>
     bool
-    sort(const sycl::nd_item<1>& __item, const _StorageAcc& __storage_acc, _Compare __comp,
-         std::uint32_t __end, std::uint32_t __sorted, std::uint32_t __data_per_workitem,
-         std::uint32_t __workgroup_size) const
+    sort(const sycl::nd_item<1>& __item, const _StorageAcc& __storage_acc, _Compare __comp, std::uint32_t __end,
+         std::uint32_t __sorted, std::uint32_t __data_per_workitem, std::uint32_t __workgroup_size) const
     {
         const std::uint32_t __sorted_final = __data_per_workitem * __workgroup_size;
 

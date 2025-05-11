@@ -472,8 +472,8 @@ struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::subgro
 
 template <typename _InRange, typename _OutRange>
 void
-__copy_kernel_for_radix_sort(const std::size_t __elem_per_segment, std::size_t __sg_size,
-                         sycl::nd_item<1> __self_item, _InRange& __input_rng, _OutRange& __output_rng)
+__copy_kernel_for_radix_sort(const std::size_t __elem_per_segment, std::size_t __sg_size, sycl::nd_item<1> __self_item,
+                             _InRange& __input_rng, _OutRange& __output_rng)
 {
     // item info
     const ::std::size_t __self_lidx = __self_item.get_local_id(0);
@@ -557,8 +557,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 auto& __no_op_flag = __offset_rng[__no_op_flag_idx];
                 if (__no_op_flag)
                 {
-                    __copy_kernel_for_radix_sort(__elem_per_segment, __sg_size, __self_item, __input_rng,
-                                                 __output_rng);
+                    __copy_kernel_for_radix_sort(__elem_per_segment, __sg_size, __self_item, __input_rng, __output_rng);
                     return;
                 }
 

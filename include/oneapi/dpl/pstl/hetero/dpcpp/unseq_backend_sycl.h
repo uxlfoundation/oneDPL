@@ -1410,8 +1410,8 @@ struct __brick_reduce_idx
     }
     template <typename _IsFull, typename _Params, typename _ReduceIdx, typename _Values, typename _OutValues>
     void
-    operator()(_IsFull, const std::size_t __idx, _Params, const _ReduceIdx& __segment_starts,
-               const _Values& __values, _OutValues& __out_values) const
+    operator()(_IsFull, const std::size_t __idx, _Params, const _ReduceIdx& __segment_starts, const _Values& __values,
+               _OutValues& __out_values) const
     {
         using __value_type = decltype(__segment_starts[__idx]);
         __value_type __segment_end =
