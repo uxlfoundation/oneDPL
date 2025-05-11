@@ -157,7 +157,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     // then we should start using this code path.
     template <typename _Fp, typename... _Ranges>
     static std::size_t
-    __estimate_best_start_size(const sycl::queue& __q, _Fp __brick)
+    __estimate_best_start_size(const sycl::queue& __q)
     {
         using __params_t = __pfor_params<true /*__enable_tuning*/, _Fp, _Ranges...>;
         const std::size_t __work_group_size =
@@ -255,7 +255,7 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     // then only compile the basic kernel as the two versions are effectively the same.
     if constexpr (__params_t::__iters_per_item > 1 || __params_t::__vector_size > 1)
     {
-        if (__count >= __large_submitter::template __estimate_best_start_size<_Fp, _Ranges...>(__q_local, __brick))
+        if (__count >= __large_submitter::template __estimate_best_start_size<_Fp, _Ranges...>(__q_local))
         {
             return __large_submitter{}(__q_local, __brick, __count, std::forward<_Ranges>(__rngs)...);
         }

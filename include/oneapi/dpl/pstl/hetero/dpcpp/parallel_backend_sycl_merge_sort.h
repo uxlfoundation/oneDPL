@@ -62,7 +62,7 @@ struct __group_merge_path_sorter
 {
     template <typename _StorageAcc, typename _Compare>
     bool
-    sort(const sycl::nd_item<1>& __item, const _StorageAcc& __storage_acc, _Compare __comp, std::uint32_t __start,
+    sort(const sycl::nd_item<1>& __item, const _StorageAcc& __storage_acc, _Compare __comp,
          std::uint32_t __end, std::uint32_t __sorted, std::uint32_t __data_per_workitem,
          std::uint32_t __workgroup_size) const
     {
@@ -178,7 +178,7 @@ struct __leaf_sorter
 
         // 3. Sort on work-group level
         bool __data_in_temp =
-            __group_sorter.sort(__item, __storage_acc, __comp, std::uint32_t{0}, __adjusted_process_size,
+            __group_sorter.sort(__item, __storage_acc, __comp, __adjusted_process_size,
                                 /*sorted per sub-group*/ __data_per_workitem, __data_per_workitem, __workgroup_size);
         // barrier is not needed here because of the barrier inside the sort method
 

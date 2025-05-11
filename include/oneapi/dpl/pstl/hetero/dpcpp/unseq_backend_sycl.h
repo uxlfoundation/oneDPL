@@ -1320,7 +1320,7 @@ struct __brick_shift_left
 
     template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<_Params::__b_vectorize, int> = 0>
     void
-    operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range&& __rng) const
+    operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
         const std::size_t __unsigned_size = __size;
@@ -1410,7 +1410,7 @@ struct __brick_reduce_idx
     }
     template <typename _IsFull, typename _Params, typename _ReduceIdx, typename _Values, typename _OutValues>
     void
-    operator()(_IsFull __is_full, const std::size_t __idx, _Params, const _ReduceIdx& __segment_starts,
+    operator()(_IsFull, const std::size_t __idx, _Params, const _ReduceIdx& __segment_starts,
                const _Values& __values, _OutValues& __out_values) const
     {
         using __value_type = decltype(__segment_starts[__idx]);
