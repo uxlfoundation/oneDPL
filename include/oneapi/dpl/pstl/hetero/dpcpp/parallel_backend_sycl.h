@@ -2522,7 +2522,8 @@ struct __partial_merge_kernel
         const auto __part_end_2 = sycl::min(__start_2 + __k, __end_2);
 
         // Handle elements from p1
-        if (__global_idx >= __start_1 && __global_idx < __part_end_1)
+        if (oneapi::dpl::__internal::__cmp_less_equal(__global_idx, __start_1) &&
+            oneapi::dpl::__internal::__comp_less(__global_idx, __part_end_1))
         {
             const auto __shift =
                 /* index inside p1 */ __global_idx - __start_1 +
@@ -2533,7 +2534,8 @@ struct __partial_merge_kernel
             __out_acc[__out_shift + __shift] = __in_acc1[__global_idx];
         }
         // Handle elements from p2
-        else if (__global_idx >= __part_end_1 && __global_idx < __end_1)
+        else if (oneapi::dpl::__internal::__cmp_greater_equal(__global_idx, __part_end_1) &&
+                 oneapi::dpl::__internal::__comp_less(__global_idx, __end_1))
         {
             const auto __shift =
                 /* index inside p2 */ (__global_idx - __part_end_1) +
@@ -2541,7 +2543,8 @@ struct __partial_merge_kernel
             __out_acc[__out_shift + __shift] = __in_acc1[__global_idx];
         }
         // Handle elements from p3
-        else if (__global_idx >= __start_2 && __global_idx < __part_end_2)
+        else if (oneapi::dpl::__internal::__cmp_greater_equal(__global_idx, __start_2) &&
+                 oneapi::dpl::__internal::__comp_less(__global_idx, __part_end_2))
         {
             const auto __shift =
                 /* index inside p3 */ __global_idx - __start_2 +
@@ -2552,7 +2555,8 @@ struct __partial_merge_kernel
             __out_acc[__out_shift + __shift] = __in_acc2[__global_idx];
         }
         // Handle elements from p4
-        else if (__global_idx >= __part_end_2 && __global_idx < __end_2)
+        else if (oneapi::dpl::__internal::__cmp_greater_equal(__global_idx, __part_end_2) &&
+                 oneapi::dpl::__internal::__comp_less(__global_idx, __end_2))
         {
             const auto __shift =
                 /* index inside p4 + size of p3 */ __global_idx - __start_2 +
