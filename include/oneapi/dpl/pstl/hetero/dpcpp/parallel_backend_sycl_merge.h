@@ -299,7 +299,6 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     };
 
     // Calculate nd-range parameters
-    template <typename _Range1, typename _Range2>
     nd_range_params
     eval_nd_range_params(const sycl::queue& __q, const std::size_t __n) const
     {
