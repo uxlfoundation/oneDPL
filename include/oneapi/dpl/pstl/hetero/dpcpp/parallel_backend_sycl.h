@@ -1190,12 +1190,12 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 
     if constexpr (_CheckBounds)
     {
-        if (__idx1 == __in_rng1.size())
+        if (__idx1 == static_cast<std::size_t>(__in_rng1.size()))
         {
             if constexpr (_CopyDiffSetB)
             {
                 // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
-                for (; __idx2 < __in_rng2.size() && __idx < __num_eles_min; ++__idx2, ++__idx)
+                for (; __idx2 < static_cast<std::size_t>(__in_rng2.size()) && __idx < __num_eles_min; ++__idx2, ++__idx)
                 {
                     __temp_out.set(__count, __in_rng2[__idx2]);
                     ++__count;
@@ -1204,12 +1204,12 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
             __idx = __num_eles_min;
             return;
         }
-        if (__idx2 == __in_rng2.size())
+        if (__idx2 == static_cast<std::size_t>(__in_rng2.size()))
         {
             if constexpr (_CopyDiffSetA)
             {
                 // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
-                for (; __idx1 < __in_rng1.size() && __idx < __num_eles_min; ++__idx1, ++__idx)
+                for (; __idx1 < static_cast<std::size_t>(__in_rng1.size()) && __idx < __num_eles_min; ++__idx1, ++__idx)
                 {
                     __temp_out.set(__count, __in_rng1[__idx1]);
                     ++__count;
@@ -1266,8 +1266,10 @@ struct __set_generic_operation
 
         std::uint16_t __count = 0;
         _SizeType __idx = 0;
-        bool __can_reach_rng1_end = __idx1 + __num_eles_min >= __in_rng1.size();
-        bool __can_reach_rng2_end = __idx2 + __num_eles_min >= __in_rng2.size();
+        bool __can_reach_rng1_end = onedpl::dpl::__internal::__cmp_greater_equal(__idx1 + __num_eles_min,
+                                                                                 __in_rng1.size());
+        bool __can_reach_rng2_end = onedpl::dpl::__internal::__cmp_greater_equal(__idx2 + __num_eles_min,
+                                                                                 __in_rng2.size());
 
         if (!__can_reach_rng1_end && !__can_reach_rng2_end)
         {
@@ -2522,7 +2524,7 @@ struct __partial_merge_kernel
         const auto __part_end_2 = sycl::min(__start_2 + __k, __end_2);
 
         // Handle elements from p1
-        if (oneapi::dpl::__internal::__cmp_less_equal(__global_idx, __start_1) &&
+        if (oneapi::dpl::__internal::__cmp_greater_equal(__global_idx, __start_1) &&
             oneapi::dpl::__internal::__cmp_less(__global_idx, __part_end_1))
         {
             const auto __shift =
