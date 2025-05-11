@@ -255,7 +255,8 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     // then only compile the basic kernel as the two versions are effectively the same.
     if constexpr (__params_t::__iters_per_item > 1 || __params_t::__vector_size > 1)
     {
-        if (__count >= __large_submitter::template __estimate_best_start_size<_Fp, _Ranges...>(__q_local, __brick))
+        if (std::make_unsigned_t<_Index>(__count) >=
+                __large_submitter::template __estimate_best_start_size<_Fp, _Ranges...>(__q_local, __brick))
         {
             return __large_submitter{}(__q_local, __brick, __count, std::forward<_Ranges>(__rngs)...);
         }
