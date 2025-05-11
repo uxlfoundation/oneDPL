@@ -64,7 +64,7 @@ __transform_reduce_body(_RandomAccessIterator __first, _RandomAccessIterator __l
     }
 
     // main loop
-    _PSTL_PRAGMA(omp taskloop shared(__accums))
+    _ONEDPL_PRAGMA(omp taskloop shared(__accums))
     for (std::size_t __chunk = 0; __chunk < __policy.__n_chunks; ++__chunk)
     {
         oneapi::dpl::__omp_backend::__process_chunk(
@@ -102,8 +102,8 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__omp_backend_tag, _Executi
     {
         // Create a parallel region, and a single thread will create tasks
         // for the region.
-        _PSTL_PRAGMA(omp parallel)
-        _PSTL_PRAGMA(omp single nowait)
+        _ONEDPL_PRAGMA(omp parallel)
+        _ONEDPL_PRAGMA(omp single nowait)
         {
             __result = oneapi::dpl::__omp_backend::__transform_reduce_body(__first, __last, __unary_op, __init,
                                                                            __combiner, __reduction);
