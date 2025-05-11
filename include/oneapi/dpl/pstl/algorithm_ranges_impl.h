@@ -205,8 +205,8 @@ __pattern_find_end(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
 auto
-__pattern_find_end(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2,
-                   _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_find_end(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Pred __pred,
+                   _Proj1 __proj1, _Proj2 __proj2)
 {
     return std::ranges::find_end(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
 }
@@ -715,8 +715,7 @@ __pattern_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&
 
 template <typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
-__pattern_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __r,
-               _OutRange&& __out_r)
+__pattern_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __r, _OutRange&& __out_r)
 {
     std::ranges::move(std::forward<_InRange>(__r), std::forward<_OutRange>(__out_r));
 }
