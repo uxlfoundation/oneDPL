@@ -560,7 +560,7 @@ struct multiple_match_pred
         // So the second range is not a subrange of the first range
         auto __n = __acc.size();
         auto __s_n = __s_acc.size();
-        bool __result = __shifted_idx <= __n - __s_n;
+        bool __result = oneapi::dpl::__internal::__cmp_less_equal(__shifted_idx, __n - __s_n);
         const auto __total_shift = __shifted_idx;
 
         using _Size2 = decltype(__s_n);
@@ -590,8 +590,7 @@ struct n_elem_match_pred
     bool
     operator()(const _Idx __shifted_idx, const _Acc& __acc) const
     {
-
-        bool __result = ((__shifted_idx + __count) <= __acc.size());
+        bool __result = oneapi::dpl::__internal::__cmp_less_equal(__shifted_idx + __count, __acc.size());
         const auto __total_shift = __shifted_idx;
 
         for (auto __idx = 0; __idx < __count && __result; ++__idx)
@@ -708,7 +707,7 @@ struct __copy_by_mask
     {
         using ::std::get;
         auto __item_idx = __item.get_linear_id();
-        if (__item_idx < __n && get<N>(__in_acc[__item_idx]))
+        if (oneapi::dpl::__internal::__cmp_less(__item_idx, __n) && get<N>(__in_acc[__item_idx]))
         {
             auto __out_idx = get<N>(__in_acc[__item_idx]) - 1;
 
@@ -759,7 +758,7 @@ struct __partition_by_mask
                _Size __n, _SizePerWg __size_per_wg) const
     {
         auto __item_idx = __item.get_linear_id();
-        if (__item_idx < __n)
+        if (oneapi::dpl::__internal::__cmp_less(__item_idx, __n))
         {
             using ::std::get;
             using __in_type = ::std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>;
@@ -810,7 +809,8 @@ struct __global_scan_functor
         constexpr auto __shift = _Inclusive{} ? 0 : 1;
         auto __item_idx = __item.get_linear_id();
         // skip the first group scanned locally
-        if (__item_idx >= __size_per_wg && __item_idx + __shift < __n)
+        if (oneapi::dpl::__internal::__cmp_greater_equal(__item_idx, __size_per_wg) &&
+            oneapi::dpl::__internal::__cmp_less(__item_idx + __shift, __n))
         {
             auto __wg_sums_idx = __item_idx / __size_per_wg - 1;
             // an initial value precedes the first group for the exclusive scan
@@ -939,9 +939,9 @@ struct __scan
 
         auto __adjusted_global_id = __local_id + __size_per_wg * __group_id;
         auto __adder = __local_acc[0];
-        for (auto __iter = 0; __iter < __iters_per_wg; ++__iter, __adjusted_global_id += __wgroup_size)
+        for (_ItersPerWG __iter = 0; __iter < __iters_per_wg; ++__iter, __adjusted_global_id += __wgroup_size)
         {
-            if (__adjusted_global_id < __n)
+            if (oneapi::dpl::__internal::__cmp_less(__adjusted_global_id, __n))
                 __local_acc[__local_id] = __data_acc(__adjusted_global_id, __acc);
             else
                 __local_acc[__local_id] = _Tp{__known_identity<_BinaryOperation, _Tp>};
@@ -959,14 +959,15 @@ struct __scan
 
             __adder = __local_acc[__wgroup_size - 1];
 
-            if (__adjusted_global_id + __shift < __n)
+            if (oneapi::dpl::__internal::__cmp_less(__adjusted_global_id + __shift, __n))
                 __gl_assigner(__acc, __out_acc, __adjusted_global_id + __shift, __local_acc, __local_id);
 
-            if (__adjusted_global_id == __n - 1)
+            if (oneapi::dpl::__internal::__cmp_equal(__adjusted_global_id, __n - 1))
                 __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
         }
 
-        if (__local_id == __wgroup_size - 1 && __adjusted_global_id - __wgroup_size < __n)
+        if (oneapi::dpl::__internal::__cmp_equal(__local_id, __wgroup_size - 1) &&
+            oneapi::dpl::__internal::__cmp_less(__adjusted_global_id - __wgroup_size, __n))
             __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
     }
 

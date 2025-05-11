@@ -110,7 +110,7 @@ void
 __parallel_strict_scan(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
-    if (__n <= __default_chunk_size)
+    if (oneapi::dpl::__internal::__cmp_less_equal(__n, __default_chunk_size))
     {
         _Tp __sum = __initial;
         if (__n)

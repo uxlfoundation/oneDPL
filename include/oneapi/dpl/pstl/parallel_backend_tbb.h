@@ -765,7 +765,7 @@ class __merge_func
         Iterator2
         operator()(Iterator1 __first1, Iterator1 __last1, Iterator2 __first2)
         {
-            if (__last1 - __first1 < __merge_cut_off)
+            if (oneapi::dpl::__internal::__cmp_less(__last1 - __first1, __merge_cut_off))
                 return ::std::move(__first1, __last1, __first2);
 
             auto __n = __last1 - __first1;
@@ -784,7 +784,7 @@ class __merge_func
         Iterator2
         operator()(Iterator1 __first1, Iterator1 __last1, Iterator2 __first2)
         {
-            if (__last1 - __first1 < __merge_cut_off)
+            if (oneapi::dpl::__internal::__cmp_less(__last1 - __first1, __merge_cut_off))
             {
                 for (; __first1 != __last1; ++__first1, ++__first2)
                     __move_value_construct()(__first1, __first2);
@@ -807,7 +807,7 @@ class __merge_func
         void
         operator()(Iterator __first, Iterator __last)
         {
-            if (__last - __first < __merge_cut_off)
+            if (oneapi::dpl::__internal::__cmp_less(__last - __first, __merge_cut_off))
                 _Cleanup()(__first, __last);
             else
             {
@@ -926,7 +926,7 @@ class __merge_func
         const auto __n = __nx + __ny;
 
         // need to merge {x} and {y}
-        if (__n > __merge_cut_off)
+        if (oneapi::dpl::__internal::__cmp_greater(__n, __merge_cut_off))
             return split_merging(__self);
 
         //merge to buffer
@@ -1223,7 +1223,7 @@ operator()(__task* __self)
     typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
     typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
     const _SizeType __n = (_M_xe - _M_xs) + (_M_ye - _M_ys);
-    if (__n <= __merge_cut_off)
+    if (oneapi::dpl::__internal::__cmp_less_equal(__n, __merge_cut_off))
     {
         _M_leaf_merge(_M_xs, _M_xe, _M_ys, _M_ye, _M_zs, _M_comp);
         return nullptr;
@@ -1263,7 +1263,7 @@ __parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&,
     typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
     typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
     const _SizeType __n = (__xe - __xs) + (__ye - __ys);
-    if (__n <= __merge_cut_off)
+    if (oneapi::dpl::__internal::__cmp_less_equal(__n, __merge_cut_off))
     {
         // Fall back on serial merge
         __leaf_merge(__xs, __xe, __ys, __ye, __zs, __comp);
