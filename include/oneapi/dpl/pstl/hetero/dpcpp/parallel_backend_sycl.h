@@ -2523,7 +2523,7 @@ struct __partial_merge_kernel
 
         // Handle elements from p1
         if (oneapi::dpl::__internal::__cmp_less_equal(__global_idx, __start_1) &&
-            oneapi::dpl::__internal::__comp_less(__global_idx, __part_end_1))
+            oneapi::dpl::__internal::__cmp_less(__global_idx, __part_end_1))
         {
             const auto __shift =
                 /* index inside p1 */ __global_idx - __start_1 +
@@ -2535,7 +2535,7 @@ struct __partial_merge_kernel
         }
         // Handle elements from p2
         else if (oneapi::dpl::__internal::__cmp_greater_equal(__global_idx, __part_end_1) &&
-                 oneapi::dpl::__internal::__comp_less(__global_idx, __end_1))
+                 oneapi::dpl::__internal::__cmp_less(__global_idx, __end_1))
         {
             const auto __shift =
                 /* index inside p2 */ (__global_idx - __part_end_1) +
@@ -2544,7 +2544,7 @@ struct __partial_merge_kernel
         }
         // Handle elements from p3
         else if (oneapi::dpl::__internal::__cmp_greater_equal(__global_idx, __start_2) &&
-                 oneapi::dpl::__internal::__comp_less(__global_idx, __part_end_2))
+                 oneapi::dpl::__internal::__cmp_less(__global_idx, __part_end_2))
         {
             const auto __shift =
                 /* index inside p3 */ __global_idx - __start_2 +
@@ -2556,7 +2556,7 @@ struct __partial_merge_kernel
         }
         // Handle elements from p4
         else if (oneapi::dpl::__internal::__cmp_greater_equal(__global_idx, __part_end_2) &&
-                 oneapi::dpl::__internal::__comp_less(__global_idx, __end_2))
+                 oneapi::dpl::__internal::__cmp_less(__global_idx, __end_2))
         {
             const auto __shift =
                 /* index inside p4 + size of p3 */ __global_idx - __start_2 +
