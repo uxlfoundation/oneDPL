@@ -938,6 +938,13 @@ __cmp_less(_T __t, _U __u) noexcept
 
 template <typename _T, typename _U>
 constexpr bool
+__cmp_greater(_T __t, _U __u) noexcept
+{
+    return __cmp_less(__u, __t);
+}
+
+template <typename _T, typename _U>
+constexpr bool
 __cmp_equal(_T __t, _U __u) noexcept
 {
     if constexpr (std::is_signed_v<_T> == std::is_signed_v<_U>)
@@ -950,16 +957,16 @@ __cmp_equal(_T __t, _U __u) noexcept
 
 template <typename _T, typename _U>
 constexpr bool
-__cmp_greater(_T __t, _U __u) noexcept
+__cmp_less_equal(_T __t, _U __u) noexcept
 {
-    return __cmp_less(__u, __t);
+    return !__cmp_greater(__t, __u);
 }
 
 template <typename _T, typename _U>
 constexpr bool
-__cmp_less_equal(_T __t, _U __u) noexcept
+__cmp_greater_equal(_T __t, _U __u) noexcept
 {
-    return !__cmp_greater(__t, __u);
+    return !__cmp_less(__t, __u);
 }
 
 } // namespace __internal
