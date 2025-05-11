@@ -835,10 +835,10 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     if (__count <= 0)
         return __first;
 
-    if (__last - __first < __count)
+    if (oneapi::dpl::__internal::__cmp_less(__last - __first, __count))
         return __last;
 
-    if (__last - __first == __count)
+    if (oneapi::dpl::__internal::__cmp_equal(__last - __first, __count))
     {
         return (!__internal::__pattern_any_of(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
                                               __search_n_unary_predicate<_Tp, _BinaryPredicate>{__value, __pred}))

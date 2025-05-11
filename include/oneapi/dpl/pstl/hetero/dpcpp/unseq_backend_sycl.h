@@ -560,7 +560,7 @@ struct multiple_match_pred
         // So the second range is not a subrange of the first range
         auto __n = __acc.size();
         auto __s_n = __s_acc.size();
-        bool __result = __shifted_idx <= __n - __s_n;
+        bool __result = oneapi::dpl::__internal::__cmp_less_equal(__shifted_idx, __n - __s_n);
         const auto __total_shift = __shifted_idx;
 
         using _Size2 = decltype(__s_n);
@@ -590,8 +590,7 @@ struct n_elem_match_pred
     bool
     operator()(const _Idx __shifted_idx, const _Acc& __acc) const
     {
-
-        bool __result = ((__shifted_idx + __count) <= __acc.size());
+        bool __result = oneapi::dpl::__internal::__cmp_less_equal(__shifted_idx + __count, __acc.size());
         const auto __total_shift = __shifted_idx;
 
         for (auto __idx = 0; __idx < __count && __result; ++__idx)
