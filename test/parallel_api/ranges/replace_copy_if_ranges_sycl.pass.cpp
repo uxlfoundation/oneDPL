@@ -32,18 +32,17 @@ main()
 #if _ENABLE_RANGES_TESTING
     constexpr int max_n = 10;
     constexpr int new_val = -1;
-    auto pred = [](auto i) { return i % 2 == 0; };
 
     using namespace oneapi::dpl::experimental::ranges;
 
     sycl::buffer<int> A(max_n);
 
     auto src = views::iota(0, max_n);
-    auto res = replace_copy_if(TestUtils::default_dpcpp_policy, src, A, pred, new_val);
+    auto res = replace_copy_if(TestUtils::default_dpcpp_policy, src, A, TestUtils::IsEven<int>{}, new_val);
 
     //check result
     int expected[max_n];
-    auto res_exp = ::std::replace_copy_if(src.begin(), src.end(), expected, pred, new_val) - expected;
+    auto res_exp = ::std::replace_copy_if(src.begin(), src.end(), expected, TestUtils::IsEven<int>{}, new_val) - expected;
     std::cout << res_exp;
 
     EXPECT_TRUE(res_exp == res, "wrong result from replace_copy_if");
