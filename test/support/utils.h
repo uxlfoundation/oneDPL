@@ -1117,9 +1117,11 @@ struct IsGreatThen
     }
 };
 
-template <typename T, T value>
+template <typename T>
 struct IsLessThen
 {
+    T value;
+
     bool
     operator()(T v) const
     {
