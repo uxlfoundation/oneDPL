@@ -194,7 +194,7 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
         typedef typename ::std::iterator_traits<Iterator1>::value_type KeyT;
         typedef typename ::std::iterator_traits<Iterator2>::value_type ValT;
 
-        initialize_data(keys_first, vals_first, key_res_first, val_res_first, n);
+        initialize_data(keys_first, vals_first, val_res_first, n);
 
         std::pair<Iterator3, Iterator4> res;
         if constexpr (std::is_same_v<std::equal_to<KeyT>, std::decay_t<BinaryPredicate>> &&
