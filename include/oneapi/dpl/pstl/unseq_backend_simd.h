@@ -548,7 +548,7 @@ struct _Combiner
     _Combiner&
     operator=(const _Combiner& __obj)
     {
-        __value{};
+        __value = _Tp{};
         __bin_op = __obj.__bin_op;
         return *this;
     }
