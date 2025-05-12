@@ -544,58 +544,37 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 // adjacent_find
 //------------------------------------------------------------------------
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _BinaryPredicate>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _BinaryPredicate, typename _OrFirstTag>
 _Iterator
 __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
-                        _BinaryPredicate __predicate, oneapi::dpl::__internal::__or_semantic)
+                        _BinaryPredicate __pred, _OrFirstTag __is_or_semantic)
 {
-    if (__last - __first < 2)
+    const auto __n = __last - __first;
+    if (__n < 2)
         return __last;
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<adjacent_find_fn<_BinaryPredicate>>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_BinaryPredicate>;
 
-    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
-    auto __buf1 = __keep1(__first, __last - 1);
-    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
-    auto __buf2 = __keep2(__first + 1, __last);
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
+    auto __buf = __keep1(__first, __last); //a scope lifetime of this instance should be.
+
+    auto __view = __buf.all_view();
+    auto __view1 = oneapi::dpl::__ranges::take_view_simple(__view, __view.size() - 1);
+    auto __view2 = oneapi::dpl::__ranges::drop_view_simple(__view, 1);
+
+    using __size_calc = oneapi::dpl::__par_backend_hetero::__min_size_calc;
 
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
-    bool result = __par_backend_hetero::__parallel_find_or(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{adjacent_find_fn<_BinaryPredicate>{__predicate}}, __par_backend_hetero::__parallel_or_tag{},
-        oneapi::dpl::__ranges::make_zip_view(__buf1.all_view(), __buf2.all_view()));
+    auto result = __par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        _Predicate{__pred}, __is_or_semantic, __size_calc{}, __view1, __view2);
 
     // inverted conditional because of
     // reorder_predicate in glue_algorithm_impl.h
-    return result ? __first : __last;
-}
-
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _BinaryPredicate>
-_Iterator
-__pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
-                        _BinaryPredicate __predicate, oneapi::dpl::__internal::__first_semantic)
-{
-    if (__last - __first < 2)
-        return __last;
-
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<adjacent_find_fn<_BinaryPredicate>>;
-
-    auto __result = __par_backend_hetero::__parallel_find(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        __par_backend_hetero::zip(
-            __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first),
-            __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first + 1)),
-        __par_backend_hetero::zip(
-            __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__last - 1),
-            __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__last)),
-        _Predicate{adjacent_find_fn<_BinaryPredicate>{__predicate}}, ::std::true_type{});
-
-    auto __zip_at_first = __par_backend_hetero::zip(
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first + 1));
-    _Iterator __result_iterator = __first + (__result - __zip_at_first);
-    return (__result_iterator == __last - 1) ? __last : __result_iterator;
+    if constexpr (__is_or_semantic())
+        return result ? __first : __last;
+    else
+        return result == __n - 1 ? __n : result;
 }
 
 //------------------------------------------------------------------------
@@ -645,11 +624,13 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
 
+    using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
+
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{},
         __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>(
-            ::std::forward<_ExecutionPolicy>(__exec)),
-        _Predicate{__pred}, __par_backend_hetero::__parallel_or_tag{}, __buf.all_view());
+            std::forward<_ExecutionPolicy>(__exec)), _Predicate{__pred}, __par_backend_hetero::__parallel_or_tag{},
+            __size_calc{}, __buf.all_view());
 }
 
 //------------------------------------------------------------------------
@@ -664,19 +645,20 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1
     if (__last1 == __first1 || __last2 == __first2 || __last1 - __first1 != __last2 - __first2)
         return false;
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<equal_predicate<_Pred>>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<oneapi::dpl::__internal::__not_pred<_Pred>>;
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
     auto __buf1 = __keep1(__first1, __last1);
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator2>();
     auto __buf2 = __keep2(__first2, __last2);
 
+    using size_calc = oneapi::dpl::__par_backend_hetero::__min_size_calc;
+
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
     return !__par_backend_hetero::__parallel_find_or(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), _Predicate{equal_predicate<_Pred>{__pred}},
-        __par_backend_hetero::__parallel_or_tag{},
-        oneapi::dpl::__ranges::make_zip_view(__buf1.all_view(), __buf2.all_view()));
+        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred},
+        __par_backend_hetero::__parallel_or_tag{}, size_calc{}, __buf1.all_view(), __buf2.all_view());
 }
 
 //------------------------------------------------------------------------
@@ -863,18 +845,15 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, 
 __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first1, _Iterator1 __last1,
                    _Iterator2 __first2, _Iterator2 __last2, _Pred __pred)
 {
-    auto __n = ::std::min(__last1 - __first1, __last2 - __first2);
+    auto __n = std::min(__last1 - __first1, __last2 - __first2);
     if (__n <= 0)
-        return ::std::make_pair(__first1, __first2);
+        return std::make_pair(__first1, __first2);
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<equal_predicate<_Pred>>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<oneapi::dpl::__internal::__not_pred<_Pred>>;
 
-    auto __first_zip = __par_backend_hetero::zip(
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first1),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first2));
-    auto __result = __par_backend_hetero::__parallel_find(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __first_zip, __first_zip + __n,
-        _Predicate{equal_predicate<_Pred>{__pred}}, ::std::true_type{});
+    auto __result = __par_backend_hetero::__parallel_find(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        __first1, __last1, __first2, __last2, _Predicate{__pred}, std::true_type{});
+
     __n = __result - __first_zip;
     return ::std::make_pair(__first1 + __n, __first2 + __n);
 }
