@@ -24,7 +24,7 @@ main()
     build_universe(u);
     if (!u.empty())
     {
-        auto f = [u](int i, int offset = 0) { return u[offset]; };
+        auto f = [u](int, int offset = 0) { return u[offset]; };
 
         constexpr bool just_call_submit = false;
         constexpr bool call_select_before_submit = true;
