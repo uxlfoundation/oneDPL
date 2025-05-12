@@ -107,7 +107,7 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Iterator3 first3, Iterator3 last3, Size n)
     {
-        if constexpr (is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>)
+        if constexpr (is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator1>)
         {
             TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);                                 // source data(1) for merge
             TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);                                 // source data(2) for merge

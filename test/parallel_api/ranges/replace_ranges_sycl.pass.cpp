@@ -51,7 +51,7 @@ main()
     }
 
     //check result
-    ::std::replace_if(expected, expected + max_n, TestUtils::IsEven<int>{}, val2);
+    std::replace_if(expected, expected + max_n, TestUtils::IsEven<int>{}, val2);
 
     EXPECT_EQ_N(expected, data, max_n, "wrong effect from replace(_if) with sycl ranges");
 #endif //_ENABLE_RANGES_TESTING

@@ -42,7 +42,7 @@ main()
 
     //check result
     int expected[max_n];
-    auto res_exp = ::std::replace_copy_if(src.begin(), src.end(), expected, TestUtils::IsEven<int>{}, new_val) - expected;
+    auto res_exp = std::replace_copy_if(src.begin(), src.end(), expected, TestUtils::IsEven<int>{}, new_val) - expected;
     std::cout << res_exp;
 
     EXPECT_TRUE(res_exp == res, "wrong result from replace_copy_if");

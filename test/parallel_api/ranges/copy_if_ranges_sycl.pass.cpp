@@ -55,10 +55,10 @@ main()
     //check result
     int expected[max_n];
 
-    ::std::copy_if(src.begin(), src.end(), expected, TestUtils::IsEven<int>{});
+    std::copy_if(src.begin(), src.end(), expected, TestUtils::IsEven<int>{});
     EXPECT_EQ_N(expected, views::host_all(A).begin(), res1, "wrong effect from copy_if with sycl ranges");
 
-    ::std::remove_copy_if(src.begin(), src.end(), expected, TestUtils::IsEven<int>{});
+    std::remove_copy_if(src.begin(), src.end(), expected, TestUtils::IsEven<int>{});
     EXPECT_EQ_N(expected, views::host_all(B).begin(), res2, "wrong effect from remove_copy_if with sycl ranges");
 
     ::std::remove_copy(src.begin(), src.end(), expected, 0);
