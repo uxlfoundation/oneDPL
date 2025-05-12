@@ -22,17 +22,6 @@
 #include "support/counting_predicates.h"
 class KernelRef2PassTest;
 
-// bool is5 ( int i ) { return i == 5; }
-class is5
-{
-  public:
-    bool
-    operator()(int i) const
-    {
-        return i == 5;
-    }
-};
-
 template <typename T>
 bool
 call_pred(T pred)
@@ -58,7 +47,7 @@ kernel_test()
             }
 
             {
-                is5 is5_functor;
+                TestUtils::IsEqualTo<int> is5_functor{5};
                 unary_counting_predicate<is5, int> cp(is5_functor);
                 ret_access[0] &= (!cp(6));
                 ret_access[0] &= (cp.count() == 1);
