@@ -318,15 +318,6 @@ struct IsMinusOneEqTo
     }
 };
 
-template <typename T1>
-struct IsEqMinusOne
-{
-    bool operator()(T1 x) const
-    {
-        return x == -1;
-    }
-};
-
 DEFINE_TEST(test_any_all_none_of)
 {
     DEFINE_TEST_CONSTRUCTOR(test_any_all_none_of, 2.0f, 0.65f)
@@ -349,7 +340,7 @@ DEFINE_TEST(test_any_all_none_of)
             wait_and_throw(exec);
 
             EXPECT_TRUE(!res0, "wrong effect from any_of_0");
-            res0 = std::none_of(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, first1, IsEqMinusOne<T1>{});
+            res0 = std::none_of(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, first1, TestUtils::IsEqualTo<T1>{-1});
             wait_and_throw(exec);
 
             EXPECT_TRUE(res0, "wrong effect from none_of_0");
@@ -363,7 +354,7 @@ DEFINE_TEST(test_any_all_none_of)
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1, "wrong effect from any_of_1");
-        auto res2 = std::any_of(make_new_policy<new_kernel_name<Policy, 4>>(exec), first1, last1, IsEqMinusOne<T1>{});
+        auto res2 = std::any_of(make_new_policy<new_kernel_name<Policy, 4>>(exec), first1, last1, TestUtils::IsEqualTo<T1>{-1});
         wait_and_throw(exec);
 
         EXPECT_TRUE(!res2, "wrong effect from any_of_2");
@@ -373,7 +364,7 @@ DEFINE_TEST(test_any_all_none_of)
         EXPECT_TRUE(res3, "wrong effect from any_of_3");
 
         //none_of
-        auto res4 = std::none_of(make_new_policy<new_kernel_name<Policy, 6>>(exec), first1, last1, IsEqMinusOne<T1>{});
+        auto res4 = std::none_of(make_new_policy<new_kernel_name<Policy, 6>>(exec), first1, last1, TestUtils::IsEqualTo<T1>{-1});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res4, "wrong effect from none_of");
@@ -419,7 +410,7 @@ DEFINE_TEST(test_find_if)
 
         EXPECT_TRUE((res1 - first1) == n - 1, "wrong effect from find_if_1");
 
-        auto res2 = std::find_if(make_new_policy<new_kernel_name<Policy, 3>>(exec), first1, last1, IsEqMinusOne<T1>{});
+        auto res2 = std::find_if(make_new_policy<new_kernel_name<Policy, 3>>(exec), first1, last1, TestUtils::IsEqualTo<T1>{-1});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res2 == last1, "wrong effect from find_if_2");
