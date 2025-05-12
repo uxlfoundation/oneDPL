@@ -536,7 +536,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             }
         };
 
-        template <sycl::access_mode _AccessMode>
+        template <typename _T, sycl::access_mode _AccessMode>
         using __accessor_t =
             sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
 
@@ -551,16 +551,16 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         using __usm_buffer_custom_allocator_t = __sycl_usm_alloc<_T, __alloc_t>;
 
         template <typename _T>
-        using __usm_buffer_custom_deleter_t = __sycl_usm_free<_t>;
+        using __usm_buffer_custom_deleter_t = __sycl_usm_free<_T>;
 
         template <typename _T>
-        using __usm_buffer_ptr_t = std::unique_ptr<_T, __usm_buffer_custom_deleter_t>;
+        using __usm_buffer_ptr_t = std::unique_ptr<_T, __usm_buffer_custom_deleter_t<_T>>;
 
         template <typename _T>
         using __sycl_buffer_t = sycl::buffer<_T, 1>;
 
         template <typename _T>
-        using __sycl_buffer_ptr_t = std::unique_ptr<__sycl_buffer_t>;
+        using __sycl_buffer_ptr_t = std::unique_ptr<__sycl_buffer_t<_T>>;
 
         __usm_buffer_ptr_t<_TScratchData>  __usm_buf_scratch;   // For scratch or for results + scratch data if _TResult and _TScratchData is the same
         __usm_buffer_ptr_t<_TResult>       __usm_buf_results;   // For results data if _TResult and _TScratchData isn't the same
@@ -581,6 +581,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             {
                 // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
                 const sycl::usm::alloc __alloc_type_results = __use_USM_host ? sycl::usm::alloc::host : sycl::usm::alloc::device;
+                const sycl::usm::alloc __alloc_type_scratch = sycl::usm::alloc::device;
 
                 // Additional condition for combine results and scratch data - the same USM types for them
                 __can_combine_results_and_scratch &= __alloc_type_scratch == __alloc_type_results;
@@ -590,7 +591,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                  __usm_buf_scratch = __create_usm_buffer<_TScratchData, sycl::usm::alloc::device>(&__q, __scratch_size);
 
                 __usm_buf_results = __alloc_type_results == sycl::usm::alloc::device
-                    ? __create_usm_buffer<_TResult, sycl::usm::alloc::device>(&__q, __results_size);
+                    ? __create_usm_buffer<_TResult, sycl::usm::alloc::device>(&__q, __results_size)
                     : __create_usm_buffer<_TResult, sycl::usm::alloc::host>(&__q, __results_size);
             }
             else
@@ -598,8 +599,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                 const std::size_t __scratch_size = __scratch_n + (__can_combine_results_and_scratch ? _NResults : 0);
                 const std::size_t __results_size = __can_combine_results_and_scratch ? 0 : _NResults;
 
-                __sycl_buf_scratch = __create_sycl_buffer<_TScratchData>(&__q, __scratch_size);
-                __sycl_buf_results = __create_sycl_buffer<_TResult>(&__q, __results_size);
+                __sycl_buf_scratch = __create_sycl_buffer<_TScratchData>(__scratch_size);
+                __sycl_buf_results = __create_sycl_buffer<_TResult>(__results_size);
             }
         }
 
@@ -609,12 +610,12 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
             if (__use_USM_host && __supports_USM_device)
-                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __usm_buf_results.get(), __prop_list);
+                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __usm_buf_results.get(), __prop_list);
 
             if (__supports_USM_device)
-                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __usm_buf_scratch.get(), __scratch_n, __prop_list);
+                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __usm_buf_scratch.get(), __scratch_n, __prop_list);
 
-            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf_results.get(), __scratch_n, __prop_list);
+            return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __sycl_buf_results.get(), __scratch_n, __prop_list);
 #else
             return __accessor_t<_AccessMode>(*__sycl_buf_results.get(), __cgh, __prop_list);
 #endif
@@ -626,11 +627,11 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
             if (__use_USM_host || __supports_USM_device)
-                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __usm_buf_scratch.get(), __prop_list);
+                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __usm_buf_scratch.get(), __prop_list);
 
-            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf_results.get(), __prop_list);
+            return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __sycl_buf_results.get(), __prop_list);
 #else
-            return __accessor_t<_AccessMode>(*__sycl_buf_results.get(), __cgh, __prop_list);
+            return __accessor_t<_TResult, _AccessMode>(*__sycl_buf_results.get(), __cgh, __prop_list);
 #endif
         }
 
@@ -688,7 +689,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         // Note: this member function assumes the result is *ready*, since the __future has already
         // waited on the relevant event.
         template <std::size_t _Idx = 0>
-        _T
+        _TResult
         __get_value() const
         {
             static_assert(0 <= _Idx && _Idx < _NResults);
@@ -699,8 +700,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             }
             else if (__supports_USM_device)
             {
-                _T __tmp;
-                __q.memcpy(&__tmp, __usm_buf_scratch.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
+                _TResult __tmp;
+                __q.memcpy(&__tmp, __usm_buf_scratch.get() + __scratch_n + _Idx, 1 * sizeof(_TResult)).wait();
                 return __tmp;
             }
             else
@@ -830,7 +831,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         return __impl->__get_scratch_acc(__cgh, __prop_list);
     }
 
-    _T
+    _TResult
     __wait_and_get_value(sycl::event __event) const
     {
         return __impl->__wait_and_get_value(std::move(__event));
@@ -839,7 +840,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     // Note: this member function assumes the result is *ready*, since the __future has already
     // waited on the relevant event.
     template <std::size_t _Idx = 0>
-    _T
+    _TResult
     __get_value() const
     {
         return __impl->template __get_value<_Idx>();
