@@ -573,7 +573,7 @@ std::enable_if_t<!std::is_floating_point_v<_T>, bool>
 __dpl_signbit(const _T& __x)
 {
     using __unsigned_type = std::make_unsigned_t<_T>;
-    static_assert(std::is_signed_v<_T>, "Only signed types do not have a signbit.");
+    static_assert(std::is_signed_v<_T>, "Only signed types have a signbit.");
     constexpr __unsigned_type __mask = (__unsigned_type{1} << (sizeof(_T) * 8 - 1));
     return (__x & __mask) != 0;
 }
