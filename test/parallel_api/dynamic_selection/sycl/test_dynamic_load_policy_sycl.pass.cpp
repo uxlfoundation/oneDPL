@@ -58,9 +58,9 @@ main()
     if (n != 0)
     {
         // should be similar to round_robin when waiting on policy
-        auto f = [u, n](int i) { return u[i % u.size()]; };
+        auto f = [u](int i) { return u[i % u.size()]; };
 
-        auto f2 = [u, n](int i) { return u[0]; };
+        auto f2 = [u](int) { return u[0]; };
         // should always pick first when waiting on sync in each iteration
 
         constexpr bool just_call_submit = false;

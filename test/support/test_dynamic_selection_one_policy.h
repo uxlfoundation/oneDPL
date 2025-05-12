@@ -88,7 +88,7 @@ class one_with_no_customizations
     // required
     template <typename... Args>
     selection_type
-    select(Args&&... args)
+    select(Args&&...)
     {
         trace_ = (trace_ | t_select);
         return selection_type{*this};

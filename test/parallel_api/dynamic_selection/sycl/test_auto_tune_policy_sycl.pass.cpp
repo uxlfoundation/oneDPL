@@ -24,7 +24,6 @@ test_auto_initialization(const std::vector<sycl::queue>& u)
     // initialize
     oneapi::dpl::experimental::auto_tune_policy p{u};
     auto u2 = oneapi::dpl::experimental::get_resources(p);
-    auto u2s = u2.size();
     EXPECT_TRUE(std::equal(std::begin(u2), std::end(u2), std::begin(u)),
                 "ERROR: provided resources and queried resources are not equal\n");
 
@@ -40,7 +39,6 @@ test_auto_initialization(const std::vector<sycl::queue>& u)
     }
     p2.initialize(u);
     auto u3 = oneapi::dpl::experimental::get_resources(p);
-    auto u3s = u3.size();
     EXPECT_TRUE(std::equal(std::begin(u3), std::end(u3), std::begin(u)),
                 "ERROR: reported resources and queried resources are not equal after deferred initialization\n");
 
@@ -468,59 +466,59 @@ main()
         constexpr bool just_call_submit = false;
         constexpr bool call_select_before_submit = true;
 
-        auto actual = test_auto_initialization(u1);
-        actual = test_select<policy_t, decltype(u1), const decltype(f)&, true>(u1, f);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel1>(u1, 0);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel2>(u1, 1);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel3>(u1, 2);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel4>(u1, 3);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel5>(u1, 0);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel6>(u1, 1);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel7>(u1, 2);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel8>(u1, 3);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel9>(u1, 0);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel10>(u1, 1);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel11>(u1, 2);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel12>(u1, 3);
+        test_auto_initialization(u1);
+        test_select<policy_t, decltype(u1), const decltype(f)&, true>(u1, f);
+        test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel1>(u1, 0);
+        test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel2>(u1, 1);
+        test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel3>(u1, 2);
+        test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel4>(u1, 3);
+        test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel5>(u1, 0);
+        test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel6>(u1, 1);
+        test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel7>(u1, 2);
+        test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel8>(u1, 3);
+        test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel9>(u1, 0);
+        test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel10>(u1, 1);
+        test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel11>(u1, 2);
+        test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel12>(u1, 3);
         // now select then submits
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel13>(u1, 0);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel14>(u1, 1);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel15>(u1, 2);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel16>(u1, 3);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel17>(u1, 0);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel18>(u1, 1);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel19>(u1, 2);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel20>(u1, 3);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel21>(u1, 0);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel22>(u1, 1);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel23>(u1, 2);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel24>(u1, 3);
+        test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel13>(u1, 0);
+        test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel14>(u1, 1);
+        test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel15>(u1, 2);
+        test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel16>(u1, 3);
+        test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel17>(u1, 0);
+        test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel18>(u1, 1);
+        test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel19>(u1, 2);
+        test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel20>(u1, 3);
+        test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel21>(u1, 0);
+        test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel22>(u1, 1);
+        test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel23>(u1, 2);
+        test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel24>(u1, 3);
         // Use event profiling
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel25>(u2, 0);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel26>(u2, 1);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel27>(u2, 2);
-        actual = test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel28>(u2, 3);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel29>(u2, 0);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel30>(u2, 1);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel31>(u2, 2);
-        actual = test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel32>(u2, 3);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel33>(u2, 0);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel34>(u2, 1);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel35>(u2, 2);
-        actual = test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel36>(u2, 3);
+        test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel25>(u2, 0);
+        test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel26>(u2, 1);
+        test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel27>(u2, 2);
+        test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel28>(u2, 3);
+        test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel29>(u2, 0);
+        test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel30>(u2, 1);
+        test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel31>(u2, 2);
+        test_auto_submit_wait_on_group<just_call_submit, policy_t, class Kernel32>(u2, 3);
+        test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel33>(u2, 0);
+        test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel34>(u2, 1);
+        test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel35>(u2, 2);
+        test_auto_submit_and_wait<just_call_submit, policy_t, class Kernel36>(u2, 3);
         // now select then submits
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel37>(u2, 0);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel38>(u2, 1);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel39>(u2, 2);
-        actual = test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel40>(u2, 3);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel41>(u2, 0);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel42>(u2, 1);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel43>(u2, 2);
-        actual = test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel44>(u2, 3);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel45>(u2, 0);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel46>(u2, 1);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel47>(u2, 2);
-        actual = test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel48>(u2, 3);
+        test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel37>(u2, 0);
+        test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel38>(u2, 1);
+        test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel39>(u2, 2);
+        test_auto_submit_wait_on_event<call_select_before_submit, policy_t, class Kernel40>(u2, 3);
+        test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel41>(u2, 0);
+        test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel42>(u2, 1);
+        test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel43>(u2, 2);
+        test_auto_submit_wait_on_group<call_select_before_submit, policy_t, class Kernel44>(u2, 3);
+        test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel45>(u2, 0);
+        test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel46>(u2, 1);
+        test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel47>(u2, 2);
+        test_auto_submit_and_wait<call_select_before_submit, policy_t, class Kernel48>(u2, 3);
 
         bProcessed = true;
     }
