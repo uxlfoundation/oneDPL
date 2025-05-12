@@ -50,7 +50,7 @@ test_submit_and_wait_on_submission_group()
     for (int i = 1; i <= N; ++i)
     {
         s.submit(h,
-                 [&](int q, int i) {
+                 [&](int, int i) {
                      ecount += i;
                      return 0;
                  },
@@ -75,7 +75,7 @@ test_submit_and_wait_on_submission_group_single_element()
     for (int i = 1; i <= N; ++i)
     {
         s.submit(h,
-                 [&](int q, int i) {
+                 [&](int, int i) {
                      ecount += i;
                      return 0;
                  },
@@ -112,7 +112,7 @@ test_submit_and_wait_on_submission()
     for (int i = 1; i <= N; ++i)
     {
         auto w = s.submit(h,
-                          [&](int q, int i) {
+                          [&](int, int i) {
                               ecount += i;
                               return 0;
                           },
@@ -137,7 +137,7 @@ test_submit_and_wait_on_submission_single_element()
     for (int i = 1; i <= N; ++i)
     {
         auto w = s.submit(h,
-                          [&](int q, int i) {
+                          [&](int, int i) {
                               ecount += i;
                               return 0;
                           },
@@ -173,12 +173,12 @@ main()
 {
     auto actual = test_cout();
     EXPECT_EQ(0, actual, "test_cout failed");
-    actual = test_submit_and_wait_on_submission_group();
-    actual = test_submit_and_wait_on_submission_group_single_element();
-    actual = test_submit_and_wait_on_submission_group_empty();
-    actual = test_submit_and_wait_on_submission();
-    actual = test_submit_and_wait_on_submission_single_element();
-    actual = test_properties();
+    test_submit_and_wait_on_submission_group();
+    test_submit_and_wait_on_submission_group_single_element();
+    test_submit_and_wait_on_submission_group_empty();
+    test_submit_and_wait_on_submission();
+    test_submit_and_wait_on_submission_single_element();
+    test_properties();
 
     return TestUtils::done();
 }

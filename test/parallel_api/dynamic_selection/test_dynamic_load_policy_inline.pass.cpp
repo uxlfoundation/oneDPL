@@ -23,7 +23,7 @@ main()
 
     // should always pick the "offset" device since executed inline
     // there is no overlap and so "offset" is always unloaded at selection time
-    auto f = [u](int i) { return u[0]; };
+    auto f = [u](int) { return u[0]; };
 
     constexpr bool just_call_submit = false;
     constexpr bool call_select_before_submit = true;
