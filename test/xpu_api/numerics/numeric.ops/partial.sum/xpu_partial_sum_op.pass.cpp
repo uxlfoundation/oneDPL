@@ -38,7 +38,7 @@ template <class InIter, class OutIter, class Test> void test() {
   {
     sycl::buffer<int, 1> buffer1(input, numOfItems1);
     sycl::buffer<int, 1> buffer2(output, numOfItems1);
-    sycl::buffer<int, 1> buffer3(&result_distance, sycl::range<1>(1));
+    sycl::buffer<int, 1> buffer3(result_distance, sycl::range<1>(1));
     deviceQueue.submit([&](sycl::handler &cgh) {
       auto in = buffer1.get_access<sycl::access::mode::read>(cgh);
       auto out = buffer2.get_access<sycl::access::mode::write>(cgh);
@@ -55,7 +55,7 @@ template <class InIter, class OutIter, class Test> void test() {
   for (int i = 0; i < 5; ++i) {
     ASSERT_EQUAL(ref[i], output[i]);
   }
-  ASSERT_EQUAL(5, result_distance);
+  ASSERT_EQUAL(5, result_distance[0]);
 }
 
 class KernelTest1;
