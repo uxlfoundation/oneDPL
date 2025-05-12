@@ -79,12 +79,12 @@ test_range_and_even_histogram(Size n, T min_boundary, T max_boundary, T overflow
                               Size trash)
 {
     //possibly spill over by overflow/2 on each side of range
-    Sequence<T> in(n, [&](size_t k) {
+    Sequence<T> in(n, [&](size_t /*index*/) {
         return T(std::rand() % Size(max_boundary - min_boundary + overflow)) + min_boundary - overflow / T(2);
     });
 
-    Sequence<Size> expected(num_bins, [](size_t k) { return 0; });
-    Sequence<Size> out(num_bins, [&](size_t k) { return trash; });
+    Sequence<Size> expected(num_bins, [](size_t /*index*/) { return 0; });
+    Sequence<Size> out(num_bins, [&](size_t /*index*/) { return trash; });
 
     invoke_on_all_policies<CallNumber * 4>()(test_histogram_even_bins(), in.begin(), in.end(), expected.begin(),
                                                     expected.end(), out.begin(), out.end(), Size(in.size()),
