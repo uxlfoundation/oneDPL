@@ -545,6 +545,7 @@ struct _Combiner
     // "initializer(omp_priv = omp_orig). That solution was done just for UDR simd bricks, when an identity
     // value unknown and it assumes getting an identity by _Tp value initialization - _Tp{}.
     _Combiner(const _Combiner& __obj) : __value{}, __bin_op(__obj.__bin_op) {}
+    _Combiner& operator=(const _Combiner& __obj) = delete; // avoid warning: definition of implicit copy assignment operator
 
     void
     operator()(const _Combiner& __obj)
