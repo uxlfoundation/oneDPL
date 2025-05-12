@@ -488,7 +488,7 @@ struct __result_and_scratch_storage_base
 };
 using __result_and_scratch_storage_base_ptr_t = std::unique_ptr<__result_and_scratch_storage_base>;
 
-template <typename _T, std::size_t _NResults = 1>
+template <typename _TResult, std::size_t _NResults = 1, typename _TScratchData = _TResult>
 struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
   private:
@@ -499,7 +499,12 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     {
       protected:
 
-        template <sycl::usm::alloc __alloc_t>
+        constexpr bool __is_the_same_result_and_scratch_data_types() const
+        {
+            return std::is_same_v<_TResult, _TScratchData>;
+        }
+
+        template <typename _T, sycl::usm::alloc __alloc_t>
         struct __sycl_usm_alloc
         {
             sycl::queue* __p_queue = nullptr;
@@ -509,14 +514,15 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             {
                 assert(nullptr != __p_queue);
 
-                if (auto __buf = static_cast<_T*>(sycl::malloc(sizeof(_T) * __elements, __p_queue->get_device(),
-                                                               __p_queue->get_context(), __alloc_t)))
+                if (_T* __buf = static_cast<_T*>(sycl::malloc(sizeof(_T) * __elements, __p_queue->get_device(),
+                                                              __p_queue->get_context(), __alloc_t)))
                     return __buf;
 
                 throw std::bad_alloc();
             }
         };
 
+        template <typename _T>
         struct __sycl_usm_free
         {
             sycl::queue* __p_queue = nullptr;
@@ -541,17 +547,26 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         const bool __use_USM_host = false;
         const bool __supports_USM_device = false;
 
-        template <sycl::usm::alloc __alloc_t>
-        using __usm_buffer_custom_allocator_t = __sycl_usm_alloc<__alloc_t>;
-        using __usm_buffer_custom_deleter_t   = __sycl_usm_free;
-        using __usm_buffer_ptr_t              = std::unique_ptr<_T, __usm_buffer_custom_deleter_t>;
+        template <typename _T, sycl::usm::alloc __alloc_t>
+        using __usm_buffer_custom_allocator_t = __sycl_usm_alloc<_T, __alloc_t>;
 
+        template <typename _T>
+        using __usm_buffer_custom_deleter_t = __sycl_usm_free<_t>;
+
+        template <typename _T>
+        using __usm_buffer_ptr_t = std::unique_ptr<_T, __usm_buffer_custom_deleter_t>;
+
+        template <typename _T>
         using __sycl_buffer_t = sycl::buffer<_T, 1>;
+
+        template <typename _T>
         using __sycl_buffer_ptr_t = std::unique_ptr<__sycl_buffer_t>;
 
-        __usm_buffer_ptr_t  __scratch_buf;
-        __usm_buffer_ptr_t  __result_buf;
-        __sycl_buffer_ptr_t __sycl_buf;
+        __usm_buffer_ptr_t<_TScratchData>  __usm_buf_scratch;   // For scratch or for results + scratch data if _TResult and _TScratchData is the same
+        __usm_buffer_ptr_t<_TResult>       __usm_buf_results;   // For results data if _TResult and _TScratchData isn't the same
+
+        __sycl_buffer_ptr_t<_TScratchData> __sycl_buf_scratch;  // For scratch or for results + scratch data if _TResult and _TScratchData is the same
+        __sycl_buffer_ptr_t<_TResult>      __sycl_buf_results;  // For results data if _TResult and _TScratchData isn't the same
 
       public:
 
@@ -559,70 +574,104 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             : __q{__q_ref}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
               __supports_USM_device{__use_USM_allocations()}
         {
-            const std::size_t __total_n = _NResults + __scratch_n;
-            // Skip in case this is a dummy container
-            if (__total_n > 0)
+            // Initial condition for combine results and scratch data - their types are the same
+            bool __can_combine_results_and_scratch = __is_the_same_result_and_scratch_data_types();
+
+            if (__supports_USM_device)
             {
-                if (__use_USM_host && __supports_USM_device)
-                {
-                    // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
-                    if (__scratch_n > 0)
-                        __scratch_buf = __create_usm_buffer<sycl::usm::alloc::device>(&__q, __scratch_n);
+                // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
+                const sycl::usm::alloc __alloc_type_results = __use_USM_host ? sycl::usm::alloc::host : sycl::usm::alloc::device;
 
-                    if constexpr (_NResults > 0)
-                        __result_buf = __create_usm_buffer<sycl::usm::alloc::host>(&__q, _NResults);
-                }
-                else if (__supports_USM_device)
-                {
-                    // If we don't use host memory, malloc only a single unified device allocation
-                    __scratch_buf = __create_usm_buffer<sycl::usm::alloc::device>(&__q, __total_n);
-                }
-                else
-                {
-                    // If we don't have USM support allocate memory here
-                    __sycl_buf = std::make_unique<__sycl_buffer_t>(__sycl_buffer_t(__total_n));
-                }
+                // Additional condition for combine results and scratch data - the same USM types for them
+                __can_combine_results_and_scratch &= __alloc_type_scratch == __alloc_type_results;
+                const std::size_t __scratch_size = __scratch_n + (__can_combine_results_and_scratch ? _NResults : 0);
+                const std::size_t __results_size = __can_combine_results_and_scratch ? 0 : _NResults;
+
+                 __usm_buf_scratch = __create_usm_buffer<_TScratchData, sycl::usm::alloc::device>(&__q, __scratch_size);
+
+                __usm_buf_results = __alloc_type_results == sycl::usm::alloc::device
+                    ? __create_usm_buffer<_TResult, sycl::usm::alloc::device>(&__q, __results_size);
+                    : __create_usm_buffer<_TResult, sycl::usm::alloc::host>(&__q, __results_size);
             }
-        }
+            else
+            {
+                const std::size_t __scratch_size = __scratch_n + (__can_combine_results_and_scratch ? _NResults : 0);
+                const std::size_t __results_size = __can_combine_results_and_scratch ? 0 : _NResults;
 
-        template <typename _Acc>
-        static auto
-        __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n)
-        {
-    #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-            return __acc.__get_pointer();
-    #else
-            return &__acc[__scratch_n];
-    #endif
+                __sycl_buf_scratch = __create_sycl_buffer<_TScratchData>(&__q, __scratch_size);
+                __sycl_buf_results = __create_sycl_buffer<_TResult>(&__q, __results_size);
+            }
         }
 
         template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
         auto
         __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
         {
-    #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
             if (__use_USM_host && __supports_USM_device)
-                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __result_buf.get(), __prop_list);
+                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __usm_buf_results.get(), __prop_list);
+
             if (__supports_USM_device)
-                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __scratch_n,
-                                                                           __prop_list);
-            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __scratch_n, __prop_list);
-    #else
-            return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
-    #endif
+                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __usm_buf_scratch.get(), __scratch_n, __prop_list);
+
+            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf_results.get(), __scratch_n, __prop_list);
+#else
+            return __accessor_t<_AccessMode>(*__sycl_buf_results.get(), __cgh, __prop_list);
+#endif
         }
 
         template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
         auto
         __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
         {
-    #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+            if (__use_USM_host || __supports_USM_device)
+                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __usm_buf_scratch.get(), __prop_list);
+
+            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf_results.get(), __prop_list);
+#else
+            return __accessor_t<_AccessMode>(*__sycl_buf_results.get(), __cgh, __prop_list);
+#endif
+        }
+
+        template <typename _Acc>
+        static auto
+        __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n)
+        {
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+            return __acc.__get_pointer();
+#else
+            return &__acc[__scratch_n];
+#endif
+        }
+
+        template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+        auto
+        __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
+        {
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+            if (__use_USM_host && __supports_USM_device)
+                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __result_buf.get(), __prop_list);
+            if (__supports_USM_device)
+                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __scratch_n,
+                                                                           __prop_list);
+            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __scratch_n, __prop_list);
+#else
+            return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
+#endif
+        }
+
+        template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+        auto
+        __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
+        {
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
             if (__use_USM_host || __supports_USM_device)
                 return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __prop_list);
             return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __prop_list);
-    #else
+#else
             return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
-    #endif
+#endif
         }
 
         _T
@@ -646,17 +695,17 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
             if (__use_USM_host && __supports_USM_device)
             {
-                return *(__result_buf.get() + _Idx);
+                return *(__usm_buf_results.get() + _Idx);
             }
             else if (__supports_USM_device)
             {
                 _T __tmp;
-                __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
+                __q.memcpy(&__tmp, __usm_buf_scratch.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
                 return __tmp;
             }
             else
             {
-                return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + _Idx];
+                return __sycl_buf_results->get_host_access(sycl::read_only)[__scratch_n + _Idx];
             }
         }
 
@@ -683,7 +732,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         bool
         __use_USM_host_allocations() const
         {
-    #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
             const sycl::device& __device = __q.get_device();
             if (__device.is_gpu()
                 && __device.has(sycl::aspect::usm_host_allocations)
@@ -691,18 +740,18 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             {
                 return true;
             }
-    #endif
+#endif
             return false;
         }
 
         bool
         __use_USM_allocations() const
         {
-    #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
             return __q.get_device().has(sycl::aspect::usm_device_allocations);
-    #else
+#else
             return false;
-    #endif
+#endif
         }
 
         bool
@@ -711,12 +760,25 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             return __supports_USM_device;
         }
 
-        template <sycl::usm::alloc __alloc_t>
-        static __usm_buffer_ptr_t
+        template <typename _T>
+        static __usm_buffer_ptr_t<_T, sycl::usm::alloc __alloc_t>
         __create_usm_buffer(sycl::queue* __p_queue, const std::size_t __size)
         {
-            return __usm_buffer_ptr_t(__usm_buffer_custom_allocator_t<__alloc_t>{__p_queue}(__size),
-                                      __usm_buffer_custom_deleter_t{__p_queue});
+            if (__size == 0)
+                return {};
+
+            return __usm_buffer_ptr_t<_T>(__usm_buffer_custom_allocator_t<_T, __alloc_t>{__p_queue}(__size),
+                                          __usm_buffer_custom_deleter_t<_T>{__p_queue});
+        }
+
+        template <typename _T>
+        static __sycl_buffer_ptr_t<_T>
+        __create_sycl_bufer(const std::size_t __size)
+        {
+            if (__size == 0)
+                return {};
+
+            return std::make_unique<__sycl_buffer_t<_T>>(__sycl_buffer_t<_T>(__size));
         }
 
         template <typename _Type>
