@@ -546,7 +546,8 @@ struct _Combiner
     // value unknown and it assumes getting an identity by _Tp value initialization - _Tp{}.
     _Combiner(const _Combiner& __obj) : __value{}, __bin_op(__obj.__bin_op) {}
 
-    _Combiner& operator=(const _Combiner& __obj) = default;
+    _Combiner&
+    operator=(const _Combiner& __obj) = default;
 
     void
     operator()(const _Combiner& __obj)
