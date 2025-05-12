@@ -61,7 +61,7 @@ main()
                     typedef float T;
                     typedef dpl::array<const T, 0> C;
                     C c = {{}};
-                    const T* p = c.data();
+                    [[maybe_unused]] const T* p = c.data();
                     static_assert(dpl::is_same<decltype(c.data()), const T*>::value);
                 }
                 {
