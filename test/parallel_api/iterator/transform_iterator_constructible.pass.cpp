@@ -61,6 +61,8 @@ struct stateful_functor_no_copy_assign
 
     stateful_functor_no_copy_assign&
     operator=(const stateful_functor_no_copy_assign&) = delete;
+    // avoid definition of implicit copy constructor for 'stateful_functor_no_copy_assign' is deprecated
+    stateful_functor_no_copy_assign(const stateful_functor_no_copy_assign&) = default;
     int
     operator()(int a) const
     {
