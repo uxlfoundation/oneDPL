@@ -49,7 +49,7 @@ bool
 kernel_test1(sycl::queue& deviceQueue)
 {
     // Test with range that is partitioned, but not sorted.
-    X seq[] = {{1}, {3}, {5}, {7}, {1}, {6}, {4}}
+    X seq[] = {{1}, {3}, {5}, {7}, {1}, {6}, {4}};
     auto tmp = seq;
     const int N = sizeof(seq) / sizeof(seq[0]);
     bool ret = false;
