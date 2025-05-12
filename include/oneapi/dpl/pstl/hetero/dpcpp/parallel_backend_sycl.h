@@ -1067,7 +1067,6 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
         // If we have at least as many repeated elements in rng2, we end up back on merge path
         return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
     }
-    _Index __total_repeats = __rng1_repeats + __rng2_repeats_bck;
 
     // Calculate the number of "unmatched" repeats in the first set, add one and divide by two to round up for a
     // possible star diagonal.
