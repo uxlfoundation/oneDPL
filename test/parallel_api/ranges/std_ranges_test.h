@@ -173,7 +173,7 @@ template<typename>
 constexpr int calc_res_size(int n, int) { return n; }
 
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
-auto data_gen_zero = [](auto i) { return 0;};
+auto data_gen_zero = [](auto) { return 0;};
 
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
@@ -210,7 +210,7 @@ private:
 
         typename Container::type& A = cont_in();
         decltype(auto) r_in = tr_in(A);
-        auto res = algo(exec, r_in, args...);        
+        auto res = algo(exec, r_in, args...);
 
         //check result
         static_assert(std::is_same_v<decltype(res), decltype(checker(r_in, args...))>, "Wrong return type");
