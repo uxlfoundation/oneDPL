@@ -32,18 +32,22 @@ template <class InIter, class OutIter, class Test> void test() {
   sycl::queue deviceQueue = TestUtils::get_test_queue();
   int input[5] = {1, 2, 3, 4, 5};
   int output[5] = {0};
+  int result_distance[1] = {0};
   sycl::range<1> numOfItems1{5};
 
   {
     sycl::buffer<int, 1> buffer1(input, numOfItems1);
     sycl::buffer<int, 1> buffer2(output, numOfItems1);
+    sycl::buffer<int, 1> buffer3(&result_distance, sycl::range<1>(1));
     deviceQueue.submit([&](sycl::handler &cgh) {
       auto in = buffer1.get_access<sycl::access::mode::read>(cgh);
       auto out = buffer2.get_access<sycl::access::mode::write>(cgh);
+      auto res = buffer3.get_access<sycl::access::mode::write>(cgh);
       cgh.single_task<Test>([=]() {
         OutIter r = oneapi::dpl::partial_sum(InIter(&in[0]), InIter(&in[0] + 5),
                                              OutIter(&out[0]),
                                              oneapi::dpl::minus<int>());
+        res[0] = std::distance(OutIter(&out[0]), r);
       });
     });
   }
@@ -51,6 +55,7 @@ template <class InIter, class OutIter, class Test> void test() {
   for (int i = 0; i < 5; ++i) {
     ASSERT_EQUAL(ref[i], output[i]);
   }
+  ASSERT_EQUAL(5, result_distance);
 }
 
 class KernelTest1;
