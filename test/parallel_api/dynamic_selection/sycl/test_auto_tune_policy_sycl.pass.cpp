@@ -466,7 +466,6 @@ main()
         constexpr bool just_call_submit = false;
         constexpr bool call_select_before_submit = true;
 
-
         EXPECT_EQ(0, (test_auto_initialization(u1)), "");
 
         EXPECT_EQ(0, (test_select<policy_t, decltype(u1), const decltype(f)&, true>(u1, f)), "");
