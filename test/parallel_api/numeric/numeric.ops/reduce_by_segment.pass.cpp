@@ -258,8 +258,8 @@ test_flag_pred()
     T key_res_head_on_host[n] = {};
     T val_res_head_on_host[n] = {};
 
-    prepare_data(n, key_head_on_host, val_head_on_host, key_res_head_on_host, val_res_head_on_host);
-    auto flag_pred = [](const auto& a, const auto& b) {
+    prepare_data(n, key_head_on_host, val_head_on_host);
+    auto flag_pred = [](const auto&, const auto& b) {
         using KeyT = ::std::decay_t<decltype(b)>;
         return b != KeyT(1);
     };
