@@ -23,9 +23,6 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
 {
     DEFINE_TEST_PERM_IT_CONSTRUCTOR(test_remove_if, 1.0f, 1.0f)
 
-    template <typename TTestValueType>
-    using IsGreatThenZero = TestUtils::IsGreatThen<TTestValueType, 0>;
-
     template <typename Policy, typename Size>
     struct TestImlementation
     {
@@ -50,7 +47,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
             dpl::copy(exec, permItBegin, permItEnd, sourceData.begin());
             wait_and_throw(exec);
 
-            const IsGreatThenZero<TestValueType> op;
+            const TestUtils::IsGreatThen<TTestValueType> op{0};
 
             auto itEndNewRes = dpl::remove_if(exec, permItBegin, permItEnd, op);
             wait_and_throw(exec);

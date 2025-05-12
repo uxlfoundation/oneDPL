@@ -1105,9 +1105,11 @@ struct IsOdd
     }
 };
 
-template <typename T, T value>
+template <typename T>
 struct IsGreatThen
 {
+    T value;
+
     bool
     operator()(T v) const
     {
