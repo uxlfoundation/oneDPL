@@ -205,7 +205,7 @@ jobs:
           mkdir build && cd build
           lscpu
 
-          warning_flags="-Wall -Werror=unused-variable -Werror=unused-parameter -Werror=unused-local-typedefs -Werror=missing-field-initializers -Werror=unused-function -Werror=unused-but-set-variable -Werror=int-in-bool-context"
+          warning_flags="-Wall -Werror=unused-variable -Werror=unused-parameter -Werror=unused-local-typedefs -Werror=missing-field-initializers -Werror=unused-function -Werror=unused-but-set-variable -Werror=int-in-bool-context -Werror=deprecated-copy"
           if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
             warning_flags="${warning_flags} -Werror=unused-lambda-capture -Werror=deprecated-copy-with-user-provided-copy -Werror=macro-redefined"
           fi
@@ -374,7 +374,7 @@ jobs:
           # -DCMAKE_POLICY_DEFAULT_CMP0074=NEW below is forced to make sure CMake uses <PackageName>_ROOT variables.
           export OpenMP_ROOT=$(brew --prefix)/opt/libomp
           mkdir build && cd build
-          warning_flags="-Wall -Werror=unused-variable -Werror=unused-parameter -Werror=unused-local-typedefs -Werror=unused-lambda-capture -Werror=missing-field-initializers -Werror=deprecated-copy-with-user-provided-copy -Werror=unused-function -Werror=unused-but-set-variable -Werror=int-in-bool-context -Werror=macro-redefined"
+          warning_flags="-Wall -Werror=unused-variable -Werror=unused-parameter -Werror=unused-local-typedefs -Werror=unused-lambda-capture -Werror=missing-field-initializers -Werror=deprecated-copy-with-user-provided-copy -Werror=deprecated-copy -Werror=unused-function -Werror=unused-but-set-variable -Werror=int-in-bool-context -Werror=macro-redefined"
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_CXX_FLAGS="${warning_flags}" ..
           make VERBOSE=1 build-onedpl-tests -j${MACOS_BUILD_CONCURRENCY} 2>&1 | tee build.log
