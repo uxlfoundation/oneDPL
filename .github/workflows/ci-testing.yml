@@ -204,7 +204,12 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           mkdir build && cd build
           lscpu
-          warning_flags="-Wall -Werror=unused-variable -Werror=unused-parameter -Werror=unused-local-typedefs -Werror=unused-lambda-capture -Werror=missing-field-initializers -Werror=deprecated-copy-with-user-provided-copy -Werror=unused-function -Werror=unused-but-set-variable -Werror=int-in-bool-context"
+
+          warning_flags="-Wall -Werror=unused-variable -Werror=unused-parameter -Werror=unused-local-typedefs -Werror=missing-field-initializers -Werror=unused-function -Werror=unused-but-set-variable -Werror=int-in-bool-context"
+          if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
+            warning_flags="${warning_flags} -Werror=unused-lambda-capture -Werror=deprecated-copy-with-user-provided-copy"
+          fi
+
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="${warning_flags}" ..
           make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
