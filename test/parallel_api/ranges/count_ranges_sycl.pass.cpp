@@ -32,8 +32,6 @@ main()
     constexpr int max_n = 10;
     int data[max_n]     = {0, 1, -1, 3, 4, 5, 6, -1, 8, 9};
 
-    auto lambda = [](auto i) { return i % 2 == 0; };
-
     auto res1 = 0, res2 = 0;
     using namespace oneapi::dpl::experimental::ranges;
     {
@@ -45,8 +43,8 @@ main()
         using Policy = decltype(exec);
         auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
         auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
-                                       
-        res1 = count_if(exec1, view, lambda);
+
+        res1 = count_if(exec1, view, TestUtils::IsEven<int>{});
         res2 = count(exec2, A, -1);
     }
 
