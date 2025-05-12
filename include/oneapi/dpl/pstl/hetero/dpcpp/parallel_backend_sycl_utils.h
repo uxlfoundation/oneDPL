@@ -571,8 +571,10 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
       public:
 
         __result_and_scratch_storage_impl(sycl::queue& __q_ref, std::size_t __scratch_n)
-            : __q{__q_ref}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
-              __supports_USM_device{__use_USM_allocations()}
+            : __q{__q_ref}
+            , __scratch_n{__scratch_n}
+            , __use_USM_host{__use_USM_host_allocations(__q)}
+            , __supports_USM_device{__use_USM_allocations(__q)}
         {
             // Initial condition for combine results and scratch data - their types are the same
             bool __can_combine_results_and_scratch = __is_the_same_result_and_scratch_data_types();
@@ -606,31 +608,39 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
         template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
         auto
-        __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
+        __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
         {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-            if (__use_USM_host && __supports_USM_device)
-                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __usm_buf_results.get(), __prop_list);
+            if (__usm_buf_scratch.get() != nullptr)
+                return __usm_or_buffer_accessor<__accessor_t<_TScratchData, _AccessMode>>(__cgh, __usm_buf_scratch.get(), __prop_list);
 
-            if (__supports_USM_device)
-                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __usm_buf_scratch.get(), __scratch_n, __prop_list);
-
-            return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __sycl_buf_results.get(), __scratch_n, __prop_list);
+            assert(__sycl_buf_scratch.get() != nullptr);
+            return __usm_or_buffer_accessor<__accessor_t<_TScratchData, _AccessMode>>(__cgh, __sycl_buf_scratch.get(), __prop_list);
 #else
-            return __accessor_t<_AccessMode>(*__sycl_buf_results.get(), __cgh, __prop_list);
+            assert(__sycl_buf_scratch.get() != nullptr);
+            return __accessor_t<_TScratchData, _AccessMode>(*__sycl_buf_scratch.get(), __cgh, __prop_list);
 #endif
         }
 
         template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
         auto
-        __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
+        __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
         {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-            if (__use_USM_host || __supports_USM_device)
-                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __usm_buf_scratch.get(), __prop_list);
-
-            return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __sycl_buf_results.get(), __prop_list);
+            if (__usm_buf_scratch.get() != nullptr || __usm_buf_results.get() != nullptr)
+            {
+                if (__usm_buf_results.get() != nullptr)
+                    return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __usm_buf_results.get(), __prop_list);
+            
+                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __usm_buf_scratch.get(), __scratch_n, __prop_list);
+            }
+            else
+            {
+                assert(__sycl_buf_results.get() != nullptr);
+                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __sycl_buf_results.get(), __scratch_n, __prop_list);
+            }
 #else
+            assert(__sycl_buf_results.get() != nullptr);
             return __accessor_t<_TResult, _AccessMode>(*__sycl_buf_results.get(), __cgh, __prop_list);
 #endif
         }
@@ -646,41 +656,12 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 #endif
         }
 
-        template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
-        auto
-        __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
-        {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-            if (__use_USM_host && __supports_USM_device)
-                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __result_buf.get(), __prop_list);
-            if (__supports_USM_device)
-                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __scratch_n,
-                                                                           __prop_list);
-            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __scratch_n, __prop_list);
-#else
-            return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
-#endif
-        }
-
-        template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
-        auto
-        __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
-        {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-            if (__use_USM_host || __supports_USM_device)
-                return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __scratch_buf.get(), __prop_list);
-            return __usm_or_buffer_accessor<__accessor_t<_AccessMode>>(__cgh, __sycl_buf.get(), __prop_list);
-#else
-            return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
-#endif
-        }
-
-        _T
+        _TResult
         __wait_and_get_value(sycl::event&& __event) const
         {
             static_assert(_NResults == 1);
 
-            if (__has_supports_USM_device())
+            if (__supports_USM_device)
                 __event.wait_and_throw();
 
             return __get_value();
@@ -694,15 +675,18 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         {
             static_assert(0 <= _Idx && _Idx < _NResults);
 
-            if (__use_USM_host && __supports_USM_device)
+            if (__usm_buf_results.get() != nullptr || __usm_buf_scratch.get() != nullptr)
             {
-                return *(__usm_buf_results.get() + _Idx);
-            }
-            else if (__supports_USM_device)
-            {
-                _TResult __tmp;
-                __q.memcpy(&__tmp, __usm_buf_scratch.get() + __scratch_n + _Idx, 1 * sizeof(_TResult)).wait();
-                return __tmp;
+                if (__usm_buf_results.get() != nullptr)
+                {
+                    return *(__usm_buf_results.get() + _Idx);
+                }
+                else
+                {
+                    _TResult __tmp;
+                    __q.memcpy(&__tmp, __usm_buf_scratch.get() + __scratch_n + _Idx, 1 * sizeof(_TResult)).wait();
+                    return __tmp;
+                }
             }
             else
             {
@@ -718,7 +702,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         {
             static_assert(_NResults == 0 || _NResults == 1);
 
-            if (__has_supports_USM_device())
+            if (__supports_USM_device)
                 __event.wait_and_throw();
 
             if constexpr (_NResults == 1)
@@ -730,8 +714,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     private:
 
         // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a device allocation instead.
-        bool
-        __use_USM_host_allocations() const
+        static bool
+        __use_USM_host_allocations(sycl::queue& __q)
         {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
             const sycl::device& __device = __q.get_device();
@@ -745,8 +729,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             return false;
         }
 
-        bool
-        __use_USM_allocations() const
+        static bool
+        __use_USM_allocations(sycl::queue& __q)
         {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
             return __q.get_device().has(sycl::aspect::usm_device_allocations);
@@ -755,14 +739,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 #endif
         }
 
-        bool
-        __has_supports_USM_device() const
-        {
-            return __supports_USM_device;
-        }
-
-        template <typename _T>
-        static __usm_buffer_ptr_t<_T, sycl::usm::alloc __alloc_t>
+        template <typename _T, sycl::usm::alloc __alloc_t>
+        static __usm_buffer_ptr_t<_T>
         __create_usm_buffer(sycl::queue* __p_queue, const std::size_t __size)
         {
             if (__size == 0)
@@ -774,7 +752,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
         template <typename _T>
         static __sycl_buffer_ptr_t<_T>
-        __create_sycl_bufer(const std::size_t __size)
+        __create_sycl_buffer(const std::size_t __size)
         {
             if (__size == 0)
                 return {};
