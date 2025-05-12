@@ -21,6 +21,8 @@
 
 // Do not #include <algorithm>, because if we do we will not detect accidental dependencies.
 #include <iterator>
+#include <exception>
+#include <iostream>
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "utils_sycl_defs.h"
