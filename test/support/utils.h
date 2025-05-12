@@ -1152,6 +1152,17 @@ struct IsEqual
     }
 };
 
+template <typename T>
+struct IsEqualTo
+{
+    T val;
+
+    bool operator()(T x) const
+    {
+        return val == x;
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
