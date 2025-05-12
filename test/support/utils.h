@@ -779,7 +779,7 @@ template <typename _Tp>
 struct UserBinaryPredicate
 {
     bool
-    operator()(const _Tp& __x, const _Tp& __y) const
+    operator()(const _Tp&, const _Tp& __y) const
     {
         using KeyT = ::std::decay_t<_Tp>;
         return __y != KeyT(1);
