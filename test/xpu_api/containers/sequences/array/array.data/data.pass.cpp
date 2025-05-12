@@ -55,7 +55,7 @@ main()
                     typedef float T;
                     typedef dpl::array<T, 0> C;
                     C c = {};
-                    T* p = c.data();
+                    [[maybe_unused]] T* p = c.data();
                 }
                 {
                     typedef float T;
@@ -68,7 +68,7 @@ main()
                     typedef NoDefault T;
                     typedef dpl::array<T, 0> C;
                     C c = {};
-                    T* p = c.data();
+                    [[maybe_unused]] T* p = c.data();
                 }
             });
         });
