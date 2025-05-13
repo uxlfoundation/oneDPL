@@ -1154,11 +1154,14 @@ __pattern_is_heap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _RandomA
         return true;
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred_by_idx<__is_heap_check<_Compare>>;
+    using _TagType = __par_backend_hetero::__parallel_or_tag;
+    using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
 
-    return !__par_backend_hetero::__parallel_or(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__last), _Predicate{__comp});
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+    auto __buf = __keep(__first, __last);
+
+    return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        _Predicate{__comp}, _TagType{}, __size_calc{}, __buf.all_view());
 }
 
 //------------------------------------------------------------------------
@@ -1436,22 +1439,23 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
     if (__first2 == __last2)
         return true;
 
+    const auto __n1 = __last1 - __first1;
+    const auto __n2 = __last2 - __first2;
     //optimization; {1} - the first sequence, {2} - the second sequence
     //{1} is empty or size_of{2} > size_of{1}
-    if (__first1 == __last1 || __last2 - __first2 > __last1 - __first1)
+    if (__n1 == 0 || __n2 > __n1)
         return false;
 
-    typedef typename ::std::iterator_traits<_ForwardIterator1>::difference_type _Size1;
-    typedef typename ::std::iterator_traits<_ForwardIterator2>::difference_type _Size2;
-
     using __brick_include_type = unseq_backend::__brick_includes<_Compare, _Size1, _Size2>;
-    return !__par_backend_hetero::__parallel_or(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first2),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__last2),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first1),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__last1),
-        __brick_include_type(__comp, __last1 - __first1, __last2 - __first2));
+    using _TagType = __par_backend_hetero::__parallel_or_tag;
+    using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
+
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+    auto __buf1 = __keep(__first1, __last1);
+    auto __buf1 = __keep(__first2, __last2);
+
+    return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        __brick_include_type{__comp, __n1, __n2}, _TagType{}, __size_calc{}, __buf1.all_view(), __buf1.all_view());
 }
 
 //------------------------------------------------------------------------
