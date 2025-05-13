@@ -437,46 +437,6 @@ using __repacked_tuple_t = typename __repacked_tuple<T>::type;
 template <typename _ContainerOrIterable>
 using __value_t = typename __internal::__memobj_traits<_ContainerOrIterable>::value_type;
 
-template <typename _Accessor>
-struct __usm_or_buffer_accessor
-{
-  private:
-    using _T = std::decay_t<typename _Accessor::value_type>;
-    _Accessor __acc;
-    _T* __ptr = nullptr;
-    bool __usm = false;
-    size_t __offset = 0;
-
-  public:
-    // Buffer accessor
-    __usm_or_buffer_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>* __sycl_buf,
-                             const sycl::property_list& __prop_list)
-        : __acc(*__sycl_buf, __cgh, __prop_list)
-    {
-    }
-    __usm_or_buffer_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>* __sycl_buf, size_t __acc_offset,
-                             const sycl::property_list& __prop_list)
-        : __acc(*__sycl_buf, __cgh, __prop_list), __offset(__acc_offset)
-    {
-    }
-
-    // USM pointer
-    __usm_or_buffer_accessor(sycl::handler&, _T* __usm_buf, const sycl::property_list&)
-        : __ptr(__usm_buf), __usm(true)
-    {
-    }
-    __usm_or_buffer_accessor(sycl::handler&, _T* __usm_buf, size_t __ptr_offset, const sycl::property_list&)
-        : __ptr(__usm_buf), __usm(true), __offset(__ptr_offset)
-    {
-    }
-
-    auto
-    __get_pointer() const // should be cached within a kernel
-    {
-        return __usm ? __ptr + __offset : &__acc[__offset];
-    }
-};
-
 // This base class is provided to allow same-typed shared pointer return values from kernels in
 // a `__future` for keeping alive temporary data, while allowing run-time branches to lead to
 // differently typed temporary storage for kernels. Virtual destructor is required to call
@@ -492,6 +452,46 @@ using __result_and_scratch_storage_base_ptr_t = std::unique_ptr<__result_and_scr
 template <typename _TResult, std::size_t _NResults = 1, typename _TScratchData = _TResult>
 struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
+    template <typename _Accessor>
+    struct __usm_or_buffer_accessor
+    {
+      private:
+        using _T = std::decay_t<typename _Accessor::value_type>;
+        _Accessor __acc;
+        _T* __ptr = nullptr;
+        bool __usm = false;
+        size_t __offset = 0;
+
+      public:
+        // Buffer accessor
+        __usm_or_buffer_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>* __sycl_buf,
+                                 const sycl::property_list& __prop_list)
+            : __acc(*__sycl_buf, __cgh, __prop_list)
+        {
+        }
+        __usm_or_buffer_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>* __sycl_buf, size_t __acc_offset,
+                                 const sycl::property_list& __prop_list)
+            : __acc(*__sycl_buf, __cgh, __prop_list), __offset(__acc_offset)
+        {
+        }
+
+        // USM pointer
+        __usm_or_buffer_accessor(sycl::handler&, _T* __usm_buf, const sycl::property_list&)
+            : __ptr(__usm_buf), __usm(true)
+        {
+        }
+        __usm_or_buffer_accessor(sycl::handler&, _T* __usm_buf, size_t __ptr_offset, const sycl::property_list&)
+            : __ptr(__usm_buf), __usm(true), __offset(__ptr_offset)
+        {
+        }
+
+        auto
+        __get_pointer() const // should be cached within a kernel
+        {
+            return __usm ? __ptr + __offset : &__acc[__offset];
+        }
+    };
+
   private:
 
     // struct __result_and_scratch_storage_impl - internal implementation of result and scratch storage
