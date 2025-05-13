@@ -65,17 +65,12 @@ class Y
     }
 };
 
-bool
+void
 kernel_test()
 {
     sycl::queue q = TestUtils::get_test_queue();
-    bool ret = true;
-    sycl::range<1> numOfItems1{1};
     {
-        sycl::buffer<bool, 1> buffer1(&ret, numOfItems1);
-
         q.submit([&](sycl::handler& cgh) {
-            auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
             cgh.single_task<class KernelTest>([=]() {
                 {
                     static_assert(!dpl::is_constructible<X, std::initializer_list<int>&>::value);
@@ -98,14 +93,11 @@ kernel_test()
             });
         });
     }
-    return ret;
 }
 
 int
 main()
 {
-    auto ret = kernel_test();
-    EXPECT_TRUE(ret, "Wrong result of constexpr dpl::optional and initialization list check");
-
+    kernel_test();
     return TestUtils::done();
 }
