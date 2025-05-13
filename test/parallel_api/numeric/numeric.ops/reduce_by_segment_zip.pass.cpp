@@ -26,6 +26,7 @@
 #include <functional>
 #include <iostream>
 #include <tuple>
+#include <iterator>
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "support/sycl_alloc_utils.h"
@@ -74,7 +75,7 @@ test_with_usm(BinaryOp binary_op)
     auto begin_vals_out= oneapi::dpl::make_zip_iterator(d_output_values1, d_output_values2);
     auto policy = TestUtils::make_device_policy<
         TestUtils::unique_kernel_name<BinaryOp, KernelIdx>>(q);
-    //run reduce_by_segment algorithm 
+    //run reduce_by_segment algorithm
     auto new_last = oneapi::dpl::reduce_by_segment(
         policy, begin_keys_in,
         end_keys_in, begin_vals_in, begin_keys_out, begin_vals_out,
@@ -109,6 +110,8 @@ test_with_usm(BinaryOp binary_op)
     EXPECT_EQ_N(exp_keys2, output_keys2, n, "wrong keys2 from reduce_by_segment");
     EXPECT_EQ_N(exp_values1, output_values1, n, "wrong values1 from reduce_by_segment");
     EXPECT_EQ_N(exp_values2, output_values2, n, "wrong values2 from reduce_by_segment");
+    EXPECT_EQ(std::distance(begin_keys_out, new_last.first), 6, "wrong number of keys from reduce_by_segment");
+    EXPECT_EQ(std::distance(begin_vals_out, new_last.second), 6, "wrong number of values from reduce_by_segment");
 }
 
 template <std::size_t KernelIdx, typename BinaryOp>
@@ -164,6 +167,8 @@ test_zip_with_discard(BinaryOp binary_op)
     const int exp_values[n] = {4, 4, 2};
     EXPECT_EQ_N(exp_keys, output_keys, n, "wrong keys from reduce_by_segment");
     EXPECT_EQ_N(exp_values, output_values, n, "wrong values from reduce_by_segment");
+    EXPECT_EQ(std::distance(begin_keys_out, new_last.first), 3, "wrong number of keys from reduce_by_segment");
+    EXPECT_EQ(std::distance(begin_vals_out, new_last.second), 3, "wrong number of values from reduce_by_segment");
 }
 #endif
 

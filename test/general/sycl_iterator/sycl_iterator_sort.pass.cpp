@@ -291,7 +291,7 @@ DEFINE_TEST(test_nth_element)
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
-    operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 /* last2 */, Size n)
+    operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 /*first2*/, Iterator2 /* last2 */, Size n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
