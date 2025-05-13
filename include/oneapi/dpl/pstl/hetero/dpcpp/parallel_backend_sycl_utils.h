@@ -493,12 +493,12 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     };
 
   private:
-
     // struct __result_and_scratch_storage_impl - internal implementation of result and scratch storage
     // for support of pimpl-implementation pattern
     class __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     {
-        static constexpr bool __is_the_same_result_and_scratch_data_types()
+        static constexpr bool
+        __is_the_same_result_and_scratch_data_types()
         {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
             return std::is_same_v<_TResult, _TScratchData>;
@@ -620,7 +620,9 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             __get_value_impl(const sycl::queue& __q, std::size_t _Idx, std::size_t __scratch_n) const
             {
                 _TResult __tmp;
-                const_cast<sycl::queue&>(__q).memcpy(&__tmp, __scratch.get() + __scratch_n + _Idx, 1 * sizeof(_TResult)).wait();
+                const_cast<sycl::queue&>(__q)
+                    .memcpy(&__tmp, __scratch.get() + __scratch_n + _Idx, 1 * sizeof(_TResult))
+                    .wait();
                 return __tmp;
             }
         };
@@ -663,37 +665,41 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                 return __results->get_host_access(sycl::read_only)[__scratch_n + _Idx];
             }
         };
-        using BufferPlacementVariants = std::variant<BufferPlacementInUSMTogether, BufferPlacementInUSMSeparate, BufferPlacementInSyclBufTogether, BufferPlacementInSyclBufSeparate>;
+        using BufferPlacementVariants =
+            std::variant<BufferPlacementInUSMTogether, BufferPlacementInUSMSeparate, BufferPlacementInSyclBufTogether,
+                         BufferPlacementInSyclBufSeparate>;
 
-        BufferPlacementVariants __buffers;    // All internal containers
+        BufferPlacementVariants __buffers; // All internal containers
 
       private:
-
-          static BufferPlacementVariants
+        static BufferPlacementVariants
         __create_buffers(sycl::queue& __q_ref, std::size_t __scratch_n)
         {
             if (__use_USM_allocations(__q_ref))
             {
                 // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
-                const sycl::usm::alloc __alloc_type_results = __use_USM_host_allocations(__q_ref) ? sycl::usm::alloc::host : sycl::usm::alloc::device;
+                const sycl::usm::alloc __alloc_type_results =
+                    __use_USM_host_allocations(__q_ref) ? sycl::usm::alloc::host : sycl::usm::alloc::device;
                 constexpr sycl::usm::alloc __alloc_type_scratch = sycl::usm::alloc::device;
 
                 if (__is_the_same_result_and_scratch_data_types() && __alloc_type_scratch == __alloc_type_results)
                 {
                     return BufferPlacementVariants(BufferPlacementInUSMTogether{
-                        { /* empty initialization for wait_and_throw impl */ },
+                        {/* empty initialization for wait_and_throw impl */},
                         BufferPlacementInUsmMemory::template __create<_TScratchData, sycl::usm::alloc::device>(
                             &__q_ref, __scratch_n + _NResults)});
                 }
                 else
                 {
                     return BufferPlacementVariants(BufferPlacementInUSMSeparate{
-                        { /* empty initialization for wait_and_throw impl */ },
-                        BufferPlacementInUsmMemory::template __create<_TScratchData, sycl::usm::alloc::device>(&__q_ref,
-                                                                                                      __scratch_n),
+                        {/* empty initialization for wait_and_throw impl */},
+                        BufferPlacementInUsmMemory::template __create<_TScratchData, sycl::usm::alloc::device>(
+                            &__q_ref, __scratch_n),
                         __alloc_type_results == sycl::usm::alloc::device
-                            ? BufferPlacementInUsmMemory::template __create<_TResult, sycl::usm::alloc::device>(&__q_ref, _NResults)
-                            : BufferPlacementInUsmMemory::template __create<_TResult, sycl::usm::alloc::host>(&__q_ref, _NResults)});
+                            ? BufferPlacementInUsmMemory::template __create<_TResult, sycl::usm::alloc::device>(
+                                  &__q_ref, _NResults)
+                            : BufferPlacementInUsmMemory::template __create<_TResult, sycl::usm::alloc::host>(
+                                  &__q_ref, _NResults)});
                 }
             }
             else
@@ -701,13 +707,13 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                 if (__is_the_same_result_and_scratch_data_types())
                 {
                     return BufferPlacementVariants(BufferPlacementInSyclBufTogether{
-                        { /* empty initialization for wait_and_throw impl */ },
+                        {/* empty initialization for wait_and_throw impl */},
                         BufferPlacementInSyclBuf::template __create<_TScratchData>(__scratch_n + _NResults)});
                 }
                 else
                 {
                     return BufferPlacementVariants(BufferPlacementInSyclBufSeparate{
-                        { /* empty initialization for wait_and_throw impl */ },
+                        {/* empty initialization for wait_and_throw impl */},
                         BufferPlacementInSyclBuf::template __create<_TScratchData>(__scratch_n),
                         BufferPlacementInSyclBuf::template __create<_TResult>(_NResults)});
                 }
@@ -715,11 +721,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
 
       public:
-
         __result_and_scratch_storage_impl(sycl::queue& __q_ref, std::size_t __scratch_n)
-            : __q{__q_ref}
-            , __scratch_n{__scratch_n}
-            , __buffers(__create_buffers(__q, __scratch_n))
+            : __q{__q_ref}, __scratch_n{__scratch_n}, __buffers(__create_buffers(__q, __scratch_n))
         {
         }
 
@@ -729,7 +732,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         {
             return std::visit(
                 [&](auto&& __arg) {
-                    return __get_scratch_acc_impl<_AccessMode>(__cgh, __prop_list, std::forward<decltype(__arg)>(__arg));
+                    return __get_scratch_acc_impl<_AccessMode>(__cgh, __prop_list,
+                                                               std::forward<decltype(__arg)>(__arg));
                 },
                 __buffers);
         }
@@ -780,12 +784,12 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
             const sycl::queue& __q_ref = __q;
             const std::size_t __s_n = __scratch_n;
-            return std::visit([__q_ref, __s_n](auto&& __arg) { return __arg.__get_value_impl(__q_ref, _Idx, __s_n); }, __buffers);
+            return std::visit([__q_ref, __s_n](auto&& __arg) { return __arg.__get_value_impl(__q_ref, _Idx, __s_n); },
+                              __buffers);
         }
 
-    // __result_and_scratch_storage_base
-    public:
-
+        // __result_and_scratch_storage_base
+      public:
         virtual std::size_t
         __get_data(sycl::event __event, std::size_t* __p_buf) const override
         {
@@ -799,17 +803,15 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             return 0;
         }
 
-    private:
-
+      private:
         // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a device allocation instead.
         static bool
         __use_USM_host_allocations(sycl::queue& __q)
         {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
             const sycl::device& __device = __q.get_device();
-            if (__device.is_gpu()
-                && __device.has(sycl::aspect::usm_host_allocations)
-                && __device.get_backend() != __dpl_sycl::__level_zero_backend)
+            if (__device.is_gpu() && __device.has(sycl::aspect::usm_host_allocations) &&
+                __device.get_backend() != __dpl_sycl::__level_zero_backend)
             {
                 return true;
             }
@@ -883,7 +885,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             }
         }
 
-        void __wait_and_throw(sycl::event& __event) const
+        void
+        __wait_and_throw(sycl::event& __event) const
         {
             return std::visit([&](auto&& __arg) { __arg.__wait_and_throw_impl(__event); }, __buffers);
         }
@@ -894,7 +897,6 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     std::unique_ptr<__result_and_scratch_storage_impl> __impl;
 
   public:
-
     __result_and_scratch_storage(sycl::queue& __q_ref, std::size_t __scratch_n)
         : __impl(std::make_unique<__result_and_scratch_storage_impl>(__q_ref, __scratch_n))
     {
@@ -936,9 +938,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         return __impl->template __get_value<_Idx>();
     }
 
-// __result_and_scratch_storage_base
+    // __result_and_scratch_storage_base
   public:
-
     virtual std::size_t
     __get_data(sycl::event __event, std::size_t* __p_buf) const override
     {
@@ -1003,7 +1004,6 @@ class __future : private std::tuple<_Args...>
     }
 
   public:
-
     template <typename TEvent, typename... TArgs>
     __future(TEvent&& __e, TArgs&&... __args)
         : __base_t(std::forward<TArgs>(__args)...), __my_event(std::forward<TEvent>(__e))
