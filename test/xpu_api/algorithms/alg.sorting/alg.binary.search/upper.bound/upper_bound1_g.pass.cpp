@@ -47,7 +47,6 @@ kernel_test()
                     int arr[] = {0, 0, 0, 0, 1, 1, 1, 1};
                     // check if there is change after data transfer
                     check_access[0] = TestUtils::check_data(&access[0], arr, N);
-                    auto ret = true;
                     if (check_access[0])
                     {
                         auto ret = true;
