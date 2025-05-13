@@ -171,14 +171,13 @@ test_properties()
 int
 main()
 {
-    auto actual = test_cout();
-    EXPECT_EQ(0, actual, "test_cout failed");
-    test_submit_and_wait_on_submission_group();
-    test_submit_and_wait_on_submission_group_single_element();
-    test_submit_and_wait_on_submission_group_empty();
-    test_submit_and_wait_on_submission();
-    test_submit_and_wait_on_submission_single_element();
-    test_properties();
+    EXPECT_EQ(0, (test_cout()), "test_cout failed");
+    EXPECT_EQ(0, (test_submit_and_wait_on_submission_group()), "");
+    EXPECT_EQ(0, (test_submit_and_wait_on_submission_group_single_element()), "");
+    EXPECT_EQ(0, (test_submit_and_wait_on_submission_group_empty()), "");
+    EXPECT_EQ(0, (test_submit_and_wait_on_submission()), "");
+    EXPECT_EQ(0, (test_submit_and_wait_on_submission_single_element()), "");
+    EXPECT_EQ(0, (test_properties()), "");
 
     return TestUtils::done();
 }
