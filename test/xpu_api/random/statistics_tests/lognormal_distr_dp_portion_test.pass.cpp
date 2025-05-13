@@ -27,7 +27,6 @@ int main() {
 
     sycl::queue queue = TestUtils::get_test_queue();
 
-    constexpr int nsamples = 100;
     int err = 0;
 
     // Skip tests if DP is not supported

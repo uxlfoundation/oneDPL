@@ -416,8 +416,6 @@ template <class Distr, class UIntType>
 std::enable_if_t<std::is_same_v<Distr, oneapi::dpl::geometric_distribution<typename Distr::result_type>>, int>
 tests_set_portion(sycl::queue& queue, std::int32_t nsamples, unsigned int part)
 {
-    using real_type = typename Distr::result_type;
-
     constexpr int nparams = 2;
 
     double p_array[nparams] = {0.2, 0.9};
