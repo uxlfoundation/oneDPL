@@ -205,7 +205,7 @@ jobs:
           mkdir build && cd build
           lscpu
 
-          warning_flags="-Wall -Werror -Wno-error=unused-parameter -Wno-error=sign-compare -Wno-error=deprecated-copy -Wno-error=unused-but-set-variable"
+          warning_flags="-Wall -Werror -Wno-error=unused-parameter -Wno-error=sign-compare -Wno-error=deprecated-copy"
           if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
             warning_flags="${warning_flags} -Wno-error=deprecated-copy-with-user-provided-copy -Wno-error=pass-failed"
           fi
@@ -378,7 +378,7 @@ jobs:
           export OpenMP_ROOT=$(brew --prefix)/opt/libomp
           mkdir build && cd build
 
-          warning_flags="-Wall -Werror -Wno-error=unused-parameter -Wno-error=sign-compare -Wno-error=deprecated-copy -Wno-error=unused-but-set-variable -Wno-error=deprecated-copy-with-user-provided-copy -Wno-error=pass-failed -Wno-error=macro-redefined"
+          warning_flags="-Wall -Werror -Wno-error=unused-parameter -Wno-error=sign-compare -Wno-error=deprecated-copy -Wno-error=deprecated-copy-with-user-provided-copy -Wno-error=pass-failed -Wno-error=macro-redefined"
 
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_CXX_FLAGS="${warning_flags}" ..
