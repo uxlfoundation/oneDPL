@@ -35,7 +35,6 @@ test_dl_initialization(const std::vector<sycl::queue>& u)
     // initialize
     oneapi::dpl::experimental::dynamic_load_policy p{u};
     auto u2 = oneapi::dpl::experimental::get_resources(p);
-    auto u2s = u2.size();
     if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
     {
         std::cout << "ERROR: provided resources and queried resources are not equal\n";
@@ -58,7 +57,6 @@ test_dl_initialization(const std::vector<sycl::queue>& u)
     }
     p2.initialize(u);
     auto u3 = oneapi::dpl::experimental::get_resources(p);
-    auto u3s = u3.size();
     if (!std::equal(std::begin(u3), std::end(u3), std::begin(u)))
     {
         std::cout << "ERROR: reported resources and queried resources are not equal after deferred initialization\n";
@@ -192,7 +190,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                 }
                 else
                 {
-                    auto e2 = e.submit([&](sycl::handler& cgh) {});
+                    auto e2 = e.submit([&](sycl::handler&) {});
                     return e2;
                 }
             };
@@ -238,7 +236,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                     }
                     else
                     {
-                        auto e2 = e.submit([&](sycl::handler& cgh) {
+                        auto e2 = e.submit([&](sycl::handler&) {
                             // for(int i=0;i<1;i++);
                         });
                         return e2;
