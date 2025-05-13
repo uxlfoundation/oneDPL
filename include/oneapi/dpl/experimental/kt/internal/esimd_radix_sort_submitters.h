@@ -90,8 +90,7 @@ struct __radix_sort_onesweep_scan_submitter<
 {
     template <typename _GlobalOffsetData>
     sycl::event
-    operator()(sycl::queue& __q, const _GlobalOffsetData& __global_offset_data, ::std::size_t __n,
-               const sycl::event& __e) const
+    operator()(sycl::queue& __q, const _GlobalOffsetData& __global_offset_data, const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__stage_count * __bin_count, __bin_count);
         return __q.submit([&](sycl::handler& __cgh) {
