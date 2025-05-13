@@ -166,7 +166,7 @@ Known Limitations
 * For ``max_element``, ``min_element``, ``minmax_element``, ``partial_sort``, ``partial_sort_copy``, ``sort``, ``stable_sort``
   the dereferenced value type of the provided iterators should satisfy the ``DefaultConstructible`` requirements.
 * For ``remove``, ``remove_if``, ``unique`` the dereferenced value type of the provided
-  iterators should be ``MoveConstructible``.
+  iterators should be ``CopyConstructible``.
 * When compiling with ``-O0 -g`` options on Linux with the Intel® oneAPI DPC++/C++ Compiler version 2025.0 or earlier
   the ``sort``, ``stable_sort``, ``sort_by_key``, ``stable_sort_by_key``, and ``partial_sort_copy`` may work incorrectly
   or cause a segmentation fault when used with a device execution policy on a CPU device. To avoid this issue, pass the
@@ -177,5 +177,7 @@ Known Limitations
   than ``2423.32`` (Rolling) and ``2350.61`` (LTS) is used.
   See the `Release Types <https://dgpu-docs.intel.com/releases/releases.html>`_
   to find information about the relevant Rolling and LTS releases.
+* ``sort``, ``stable_sort``, ``sort_by_key`` and ``stable_sort_by_key`` algorithms with a device policy are still not supported
+  on Windows with Intel® Arc™ graphics 140V.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
