@@ -269,7 +269,8 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
             });
         });
 
-        // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
+        // Save the raw pointer into a __result_and_scratch_storage_base_ptr_t to return it
+        // in __future and extend the lifetime of the storage.
         // We should return the same thing in the second param of __future for compatibility
         // with the returning value in __parallel_merge_submitter_large::operator()
         return __future<sycl::event, __result_and_scratch_storage_base_ptr_t>{
@@ -460,7 +461,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         auto __p_base_diagonals_sp_global_storage =
             new __result_and_scratch_storage_t(__q, __nd_range_params.base_diag_count + 1);
 
-        // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
+        // Save the raw pointer into a __result_and_scratch_storage_base_ptr_t to return it
+        // in __future and extend the lifetime of the storage.
         __result_and_scratch_storage_base_ptr_t __p_result_and_scratch_storage_base(
             static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
 
