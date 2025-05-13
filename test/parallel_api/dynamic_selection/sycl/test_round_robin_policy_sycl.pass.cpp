@@ -33,18 +33,14 @@ main()
         constexpr bool just_call_submit = false;
         constexpr bool call_select_before_submit = true;
 
-        auto actual = test_initialization<policy_t, sycl::queue>(u);
-
-        actual = test_select<policy_t, decltype(u), decltype(f)&, false>(u, f);
-
-        actual = test_submit_and_wait_on_event<just_call_submit, policy_t>(u, f);
-        actual = test_submit_and_wait_on_event<call_select_before_submit, policy_t>(u, f);
-
-        actual = test_submit_and_wait<just_call_submit, policy_t>(u, f);
-        actual = test_submit_and_wait<call_select_before_submit, policy_t>(u, f);
-
-        actual = test_submit_and_wait_on_group<just_call_submit, policy_t>(u, f);
-        actual = test_submit_and_wait_on_group<call_select_before_submit, policy_t>(u, f);
+        EXPECT_EQ(0, (test_initialization<policy_t, sycl::queue>(u)), "");
+        EXPECT_EQ(0, (test_select<policy_t, decltype(u), decltype(f)&, false>(u, f)), "");
+        EXPECT_EQ(0, (test_submit_and_wait_on_event<just_call_submit, policy_t>(u, f)), "");
+        EXPECT_EQ(0, (test_submit_and_wait_on_event<call_select_before_submit, policy_t>(u, f)), "");
+        EXPECT_EQ(0, (test_submit_and_wait<just_call_submit, policy_t>(u, f)), "");
+        EXPECT_EQ(0, (test_submit_and_wait<call_select_before_submit, policy_t>(u, f)), "");
+        EXPECT_EQ(0, (test_submit_and_wait_on_group<just_call_submit, policy_t>(u, f)), "");
+        EXPECT_EQ(0, (test_submit_and_wait_on_group<call_select_before_submit, policy_t>(u, f)), "");
 
         bProcessed = true;
     }
