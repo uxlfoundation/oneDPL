@@ -61,7 +61,7 @@ DEFINE_TEST(test_upper_bound)
     ::std::enable_if_t<oneapi::dpl::__internal::__is_hetero_execution_policy_v<::std::decay_t<Policy>> &&
                        is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
     operator()(Policy&& exec, Iterator1 first, Iterator1 last, Iterator2 value_first, Iterator2 value_last,
-               Iterator3 result_first, Iterator3 result_last, Size n)
+               Iterator3 result_first, Iterator3 /*result_last*/, Size n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
@@ -102,7 +102,7 @@ DEFINE_TEST(test_upper_bound)
 #endif
             is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
     operator()(Policy&& exec, Iterator1 first, Iterator1 last, Iterator2 value_first, Iterator2 value_last,
-               Iterator3 result_first, Iterator3 result_last, Size n)
+               Iterator3 result_first, Iterator3 /*result_last*/, Size n)
     {
         typedef typename ::std::iterator_traits<Iterator1>::value_type ValueT;
         // call algorithm with no optional arguments
@@ -122,8 +122,7 @@ DEFINE_TEST(test_upper_bound)
     // specialization for non-random_access iterators
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     ::std::enable_if_t<!is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
-    operator()(Policy&& exec, Iterator1 first, Iterator1 last, Iterator2 value_first, Iterator2 value_last,
-               Iterator3 result_first, Iterator3 result_last, Size n)
+    operator()(Policy&&, Iterator1, Iterator1, Iterator2, Iterator2, Iterator3, Iterator3, Size)
     {
     }
 };
