@@ -204,8 +204,17 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           mkdir build && cd build
           lscpu
+
+          warning_flags="-Wall -Werror -Wno-error=unused-parameter -Wno-error=sign-compare -Wno-error=deprecated-copy -Wno-error=unused-but-set-variable"
+          if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
+            warning_flags="${warning_flags} -Wno-error=deprecated-copy-with-user-provided-copy -Wno-error=pass-failed"
+          fi
+          if [[ "${{ matrix.cxx_compiler }}" == "icpx" ]]; then
+            warning_flags="${warning_flags} -Wno-error=recommended-option"
+          fi
+
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="-Wall" ..
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="${warning_flags}" ..
           make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags} |& tee ctest.log
 
@@ -309,7 +318,8 @@ jobs:
           cd %BASE_DIR%
           mkdir build && cd build
 
-          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="/W4" ..
+          warning_flags="/W4 /We4005 /We4100 /We4101 /We4189 /We4505 /We4805"
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
           if !errorlevel! neq 0 set exit_code=!errorlevel!
           ninja -j 2 -v %ninja_targets% > build.log 2>&1
           if !errorlevel! neq 0 set exit_code=!errorlevel!
@@ -367,8 +377,11 @@ jobs:
           # -DCMAKE_POLICY_DEFAULT_CMP0074=NEW below is forced to make sure CMake uses <PackageName>_ROOT variables.
           export OpenMP_ROOT=$(brew --prefix)/opt/libomp
           mkdir build && cd build
+
+          warning_flags="-Wall -Werror -Wno-error=unused-parameter -Wno-error=sign-compare -Wno-error=deprecated-copy -Wno-error=unused-but-set-variable -Wno-error=deprecated-copy-with-user-provided-copy -Wno-error=pass-failed -Wno-error=macro-redefined"
+
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_CXX_FLAGS="-Wall" ..
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_CXX_FLAGS="${warning_flags}" ..
           make VERBOSE=1 build-onedpl-tests -j${MACOS_BUILD_CONCURRENCY} 2>&1 | tee build.log
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure -E "${EXCLUDE_FROM_TESTING}" 2>&1 | tee ctest.log
 
