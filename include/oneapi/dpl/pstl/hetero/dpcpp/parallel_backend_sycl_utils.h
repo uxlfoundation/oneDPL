@@ -22,6 +22,7 @@
 #include <type_traits>
 #include <tuple>
 #include <algorithm>
+#include <variant>
 
 #include "../../iterator_impl.h"
 
@@ -495,46 +496,16 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
     // struct __result_and_scratch_storage_impl - internal implementation of result and scratch storage
     // for support of pimpl-implementation pattern
-    struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
+    class __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     {
-      protected:
-
-        constexpr bool __is_the_same_result_and_scratch_data_types() const
+        static constexpr bool __is_the_same_result_and_scratch_data_types()
         {
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
             return std::is_same_v<_TResult, _TScratchData>;
+#else
+            return false;
+#endif
         }
-
-        template <typename _T, sycl::usm::alloc __alloc_t>
-        struct __sycl_usm_alloc
-        {
-            sycl::queue* __p_queue = nullptr;
-
-            _T*
-            operator()(std::size_t __elements) const
-            {
-                assert(nullptr != __p_queue);
-
-                if (_T* __buf = static_cast<_T*>(sycl::malloc(sizeof(_T) * __elements, __p_queue->get_device(),
-                                                              __p_queue->get_context(), __alloc_t)))
-                    return __buf;
-
-                throw std::bad_alloc();
-            }
-        };
-
-        template <typename _T>
-        struct __sycl_usm_free
-        {
-            sycl::queue* __p_queue = nullptr;
-
-            void
-            operator()(_T* __memory) const
-            {
-                assert(nullptr != __p_queue);
-
-                sycl::free(__memory, __p_queue->get_context());
-            }
-        };
 
         template <typename _T, sycl::access_mode _AccessMode>
         using __accessor_t =
@@ -544,105 +515,234 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
         // Declare as const to avoid accidental modification and copy/move operations
         const std::size_t __scratch_n = 0;
-        const bool __use_USM_host = false;
-        const bool __supports_USM_device = false;
 
-        template <typename _T, sycl::usm::alloc __alloc_t>
-        using __usm_buffer_custom_allocator_t = __sycl_usm_alloc<_T, __alloc_t>;
+        struct BufferPlacementInUsmMemory
+        {
+            template <typename _T, sycl::usm::alloc __alloc_t>
+            struct __sycl_usm_alloc
+            {
+                sycl::queue* __p_queue = nullptr;
 
-        template <typename _T>
-        using __usm_buffer_custom_deleter_t = __sycl_usm_free<_T>;
+                _T*
+                operator()(std::size_t __elements) const
+                {
+                    assert(nullptr != __p_queue);
 
-        template <typename _T>
-        using __usm_buffer_ptr_t = std::unique_ptr<_T, __usm_buffer_custom_deleter_t<_T>>;
+                    if (_T* __buf = static_cast<_T*>(sycl::malloc(sizeof(_T) * __elements, __p_queue->get_device(),
+                                                                  __p_queue->get_context(), __alloc_t)))
+                        return __buf;
 
-        template <typename _T>
-        using __sycl_buffer_t = sycl::buffer<_T, 1>;
+                    throw std::bad_alloc();
+                }
+            };
 
-        template <typename _T>
-        using __sycl_buffer_ptr_t = std::unique_ptr<__sycl_buffer_t<_T>>;
+            template <typename _T>
+            struct __sycl_usm_free
+            {
+                sycl::queue* __p_queue = nullptr;
 
-        __usm_buffer_ptr_t<_TScratchData>  __usm_buf_scratch;   // For scratch or for results + scratch data if _TResult and _TScratchData is the same
-        __usm_buffer_ptr_t<_TResult>       __usm_buf_results;   // For results data if _TResult and _TScratchData isn't the same
+                void
+                operator()(_T* __memory) const
+                {
+                    assert(nullptr != __p_queue);
 
-        __sycl_buffer_ptr_t<_TScratchData> __sycl_buf_scratch;  // For scratch or for results + scratch data if _TResult and _TScratchData is the same
-        __sycl_buffer_ptr_t<_TResult>      __sycl_buf_results;  // For results data if _TResult and _TScratchData isn't the same
+                    sycl::free(__memory, __p_queue->get_context());
+                }
+            };
+
+            template <typename _T, sycl::usm::alloc __alloc_t>
+            using __usm_buffer_custom_allocator_t = __sycl_usm_alloc<_T, __alloc_t>;
+
+            template <typename _T>
+            using __usm_buffer_custom_deleter_t = __sycl_usm_free<_T>;
+
+            template <typename _T>
+            using __usm_buffer_ptr_t = std::unique_ptr<_T, __usm_buffer_custom_deleter_t<_T>>;
+
+            template <typename _T, sycl::usm::alloc __alloc_t>
+            static __usm_buffer_ptr_t<_T>
+            __create(sycl::queue* __p_queue, const std::size_t __size)
+            {
+                if (__size == 0)
+                    return {};
+
+                return __usm_buffer_ptr_t<_T>(
+                    BufferPlacementInUsmMemory::__usm_buffer_custom_allocator_t<_T, __alloc_t>{__p_queue}(__size),
+                    BufferPlacementInUsmMemory::__usm_buffer_custom_deleter_t<_T>{__p_queue});
+            }
+
+            struct
+            {
+                void
+                operator()(sycl::event& __event) const
+                {
+                    __event.wait_and_throw();
+                }
+            } __wait_and_throw_impl;
+        };
+
+        struct BufferPlacementInSyclBuf
+        {
+            template <typename _T>
+            using __sycl_buffer_t = sycl::buffer<_T, 1>;
+
+            template <typename _T>
+            using __sycl_buffer_ptr_t = std::unique_ptr<__sycl_buffer_t<_T>>;
+
+            template <typename _T>
+            static __sycl_buffer_ptr_t<_T>
+            __create(const std::size_t __size)
+            {
+                if (__size == 0)
+                    return {};
+
+                return std::make_unique<__sycl_buffer_t<_T>>(__sycl_buffer_t<_T>(__size));
+            }
+
+            struct
+            {
+                void
+                operator()(sycl::event&) const
+                {
+                    // no op
+                }
+            } __wait_and_throw_impl;
+        };
+
+        ////////////////////////////////////////////////////////////////////////
+        // Buffer placement variants
+        struct BufferPlacementInUSMTogether : BufferPlacementInUsmMemory
+        {
+            // For scratch or for results + scratch data if _TResult and _TScratchData is the same
+            typename BufferPlacementInUsmMemory::template __usm_buffer_ptr_t<_TScratchData> __scratch;
+
+            _TResult
+            __get_value_impl(const sycl::queue& __q, std::size_t _Idx, std::size_t __scratch_n) const
+            {
+                _TResult __tmp;
+                const_cast<sycl::queue&>(__q).memcpy(&__tmp, __scratch.get() + __scratch_n + _Idx, 1 * sizeof(_TResult)).wait();
+                return __tmp;
+            }
+        };
+        struct BufferPlacementInUSMSeparate : BufferPlacementInUsmMemory
+        {
+            // For scratch or for results + scratch data if _TResult and _TScratchData is the same
+            typename BufferPlacementInUsmMemory::template __usm_buffer_ptr_t<_TScratchData> __scratch;
+
+            // For results data if _TResult and _TScratchData isn't the same
+            typename BufferPlacementInUsmMemory::template __usm_buffer_ptr_t<_TResult> __results;
+
+            _TResult
+            __get_value_impl(const sycl::queue& /*__q*/, std::size_t _Idx, std::size_t /*__scratch_n*/) const
+            {
+                return *(__results.get() + _Idx);
+            }
+        };
+        struct BufferPlacementInSyclBufTogether : BufferPlacementInSyclBuf
+        {
+            // For scratch or for results + scratch data if _TResult and _TScratchData is the same
+            typename BufferPlacementInSyclBuf::template __sycl_buffer_ptr_t<_TScratchData> __scratch;
+
+            _TResult
+            __get_value_impl(const sycl::queue& /*__q*/, std::size_t _Idx, std::size_t __scratch_n) const
+            {
+                return __scratch->get_host_access(sycl::read_only)[__scratch_n + _Idx];
+            }
+        };
+        struct BufferPlacementInSyclBufSeparate : BufferPlacementInSyclBuf
+        {
+            // For scratch or for results + scratch data if _TResult and _TScratchData is the same
+            typename BufferPlacementInSyclBuf::template __sycl_buffer_ptr_t<_TScratchData> __scratch;
+
+            // For results data if _TResult and _TScratchData isn't the same
+            typename BufferPlacementInSyclBuf::template __sycl_buffer_ptr_t<_TResult> __results;
+
+            _TResult
+            __get_value_impl(const sycl::queue& /*__q*/, std::size_t _Idx, std::size_t __scratch_n) const
+            {
+                return __results->get_host_access(sycl::read_only)[__scratch_n + _Idx];
+            }
+        };
+        using BufferPlacementVariants = std::variant<BufferPlacementInUSMTogether, BufferPlacementInUSMSeparate, BufferPlacementInSyclBufTogether, BufferPlacementInSyclBufSeparate>;
+
+        BufferPlacementVariants __buffers;    // All internal containers
+
+      private:
+
+          static BufferPlacementVariants
+        __create_buffers(sycl::queue& __q_ref, std::size_t __scratch_n)
+        {
+            if (__use_USM_allocations(__q_ref))
+            {
+                // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
+                const sycl::usm::alloc __alloc_type_results = __use_USM_host_allocations(__q_ref) ? sycl::usm::alloc::host : sycl::usm::alloc::device;
+                constexpr sycl::usm::alloc __alloc_type_scratch = sycl::usm::alloc::device;
+
+                if (__is_the_same_result_and_scratch_data_types() && __alloc_type_scratch == __alloc_type_results)
+                {
+                    return BufferPlacementVariants(BufferPlacementInUSMTogether{
+                        { /* empty initialization for wait_and_throw impl */ },
+                        BufferPlacementInUsmMemory::template __create<_TScratchData, sycl::usm::alloc::device>(
+                            &__q_ref, __scratch_n + _NResults)});
+                }
+                else
+                {
+                    return BufferPlacementVariants(BufferPlacementInUSMSeparate{
+                        { /* empty initialization for wait_and_throw impl */ },
+                        BufferPlacementInUsmMemory::template __create<_TScratchData, sycl::usm::alloc::device>(&__q_ref,
+                                                                                                      __scratch_n),
+                        __alloc_type_results == sycl::usm::alloc::device
+                            ? BufferPlacementInUsmMemory::template __create<_TResult, sycl::usm::alloc::device>(&__q_ref, _NResults)
+                            : BufferPlacementInUsmMemory::template __create<_TResult, sycl::usm::alloc::host>(&__q_ref, _NResults)});
+                }
+            }
+            else
+            {
+                if (__is_the_same_result_and_scratch_data_types())
+                {
+                    return BufferPlacementVariants(BufferPlacementInSyclBufTogether{
+                        { /* empty initialization for wait_and_throw impl */ },
+                        BufferPlacementInSyclBuf::template __create<_TScratchData>(__scratch_n + _NResults)});
+                }
+                else
+                {
+                    return BufferPlacementVariants(BufferPlacementInSyclBufSeparate{
+                        { /* empty initialization for wait_and_throw impl */ },
+                        BufferPlacementInSyclBuf::template __create<_TScratchData>(__scratch_n),
+                        BufferPlacementInSyclBuf::template __create<_TResult>(_NResults)});
+                }
+            }
+        }
 
       public:
 
         __result_and_scratch_storage_impl(sycl::queue& __q_ref, std::size_t __scratch_n)
             : __q{__q_ref}
             , __scratch_n{__scratch_n}
-            , __use_USM_host{__use_USM_host_allocations(__q)}
-            , __supports_USM_device{__use_USM_allocations(__q)}
+            , __buffers(__create_buffers(__q, __scratch_n))
         {
-            // Initial condition for combine results and scratch data - their types are the same
-            bool __can_combine_results_and_scratch = __is_the_same_result_and_scratch_data_types();
-
-            if (__supports_USM_device)
-            {
-                // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
-                const sycl::usm::alloc __alloc_type_results = __use_USM_host ? sycl::usm::alloc::host : sycl::usm::alloc::device;
-                const sycl::usm::alloc __alloc_type_scratch = sycl::usm::alloc::device;
-
-                // Additional condition for combine results and scratch data - the same USM types for them
-                __can_combine_results_and_scratch &= __alloc_type_scratch == __alloc_type_results;
-                const std::size_t __scratch_size = __scratch_n + (__can_combine_results_and_scratch ? _NResults : 0);
-                const std::size_t __results_size = __can_combine_results_and_scratch ? 0 : _NResults;
-
-                 __usm_buf_scratch = __create_usm_buffer<_TScratchData, sycl::usm::alloc::device>(&__q, __scratch_size);
-
-                __usm_buf_results = __alloc_type_results == sycl::usm::alloc::device
-                    ? __create_usm_buffer<_TResult, sycl::usm::alloc::device>(&__q, __results_size)
-                    : __create_usm_buffer<_TResult, sycl::usm::alloc::host>(&__q, __results_size);
-            }
-            else
-            {
-                const std::size_t __scratch_size = __scratch_n + (__can_combine_results_and_scratch ? _NResults : 0);
-                const std::size_t __results_size = __can_combine_results_and_scratch ? 0 : _NResults;
-
-                __sycl_buf_scratch = __create_sycl_buffer<_TScratchData>(__scratch_size);
-                __sycl_buf_results = __create_sycl_buffer<_TResult>(__results_size);
-            }
         }
 
-        template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+        template <sycl::access_mode _AccessMode>
         auto
         __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
         {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-            if (__usm_buf_scratch.get() != nullptr)
-                return __usm_or_buffer_accessor<__accessor_t<_TScratchData, _AccessMode>>(__cgh, __usm_buf_scratch.get(), __prop_list);
-
-            assert(__sycl_buf_scratch.get() != nullptr);
-            return __usm_or_buffer_accessor<__accessor_t<_TScratchData, _AccessMode>>(__cgh, __sycl_buf_scratch.get(), __prop_list);
-#else
-            assert(__sycl_buf_scratch.get() != nullptr);
-            return __accessor_t<_TScratchData, _AccessMode>(*__sycl_buf_scratch.get(), __cgh, __prop_list);
-#endif
+            return std::visit(
+                [&](auto&& __arg) {
+                    return __get_scratch_acc_impl<_AccessMode>(__cgh, __prop_list, std::forward<decltype(__arg)>(__arg));
+                },
+                __buffers);
         }
 
-        template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+        template <sycl::access_mode _AccessMode>
         auto
         __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list) const
         {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-            if (__usm_buf_scratch.get() != nullptr || __usm_buf_results.get() != nullptr)
-            {
-                if (__usm_buf_results.get() != nullptr)
-                    return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __usm_buf_results.get(), __prop_list);
-            
-                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __usm_buf_scratch.get(), __scratch_n, __prop_list);
-            }
-            else
-            {
-                assert(__sycl_buf_results.get() != nullptr);
-                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __sycl_buf_results.get(), __scratch_n, __prop_list);
-            }
-#else
-            assert(__sycl_buf_results.get() != nullptr);
-            return __accessor_t<_TResult, _AccessMode>(*__sycl_buf_results.get(), __cgh, __prop_list);
-#endif
+            return std::visit(
+                [&](auto&& __arg) {
+                    return __get_result_acc_impl<_AccessMode>(__cgh, __prop_list, std::forward<decltype(__arg)>(__arg));
+                },
+                __buffers);
         }
 
         template <typename _Acc>
@@ -661,8 +761,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         {
             static_assert(_NResults == 1);
 
-            if (__supports_USM_device)
-                __event.wait_and_throw();
+            __wait_and_throw(__event);
 
             return __get_value();
         }
@@ -675,23 +774,13 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         {
             static_assert(0 <= _Idx && _Idx < _NResults);
 
-            if (__usm_buf_results.get() != nullptr || __usm_buf_scratch.get() != nullptr)
-            {
-                if (__usm_buf_results.get() != nullptr)
-                {
-                    return *(__usm_buf_results.get() + _Idx);
-                }
-                else
-                {
-                    _TResult __tmp;
-                    __q.memcpy(&__tmp, __usm_buf_scratch.get() + __scratch_n + _Idx, 1 * sizeof(_TResult)).wait();
-                    return __tmp;
-                }
-            }
-            else
-            {
-                return __sycl_buf_results->get_host_access(sycl::read_only)[__scratch_n + _Idx];
-            }
+            //_TResult __result;
+            //std::visit([&__result](auto&& __arg){ __result = __arg.template __get_value<_Idx>(); }, __buffers);
+            //return __result;
+
+            const sycl::queue& __q_ref = __q;
+            const std::size_t __s_n = __scratch_n;
+            return std::visit([__q_ref, __s_n](auto&& __arg) { return __arg.__get_value_impl(__q_ref, _Idx, __s_n); }, __buffers);
         }
 
     // __result_and_scratch_storage_base
@@ -702,8 +791,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         {
             static_assert(_NResults == 0 || _NResults == 1);
 
-            if (__supports_USM_device)
-                __event.wait_and_throw();
+            __wait_and_throw(__event);
 
             if constexpr (_NResults == 1)
                 return __fill_data(__get_value(), __p_buf);
@@ -733,31 +821,13 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         __use_USM_allocations(sycl::queue& __q)
         {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-            return __q.get_device().has(sycl::aspect::usm_device_allocations);
-#else
-            return false;
+            const sycl::device& __device = __q.get_device();
+            if (__device.has(sycl::aspect::usm_device_allocations))
+            {
+                return true;
+            }
 #endif
-        }
-
-        template <typename _T, sycl::usm::alloc __alloc_t>
-        static __usm_buffer_ptr_t<_T>
-        __create_usm_buffer(sycl::queue* __p_queue, const std::size_t __size)
-        {
-            if (__size == 0)
-                return {};
-
-            return __usm_buffer_ptr_t<_T>(__usm_buffer_custom_allocator_t<_T, __alloc_t>{__p_queue}(__size),
-                                          __usm_buffer_custom_deleter_t<_T>{__p_queue});
-        }
-
-        template <typename _T>
-        static __sycl_buffer_ptr_t<_T>
-        __create_sycl_buffer(const std::size_t __size)
-        {
-            if (__size == 0)
-                return {};
-
-            return std::make_unique<__sycl_buffer_t<_T>>(__sycl_buffer_t<_T>(__size));
+            return false;
         }
 
         template <typename _Type>
@@ -776,7 +846,49 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             assert(!"Unsupported return type");
             return 0;
         }
-    };
+
+        // Get accessor for scratch data
+        template <sycl::access_mode _AccessMode, typename _BufferPlacementState>
+        auto
+        __get_scratch_acc_impl(sycl::handler& __cgh, const sycl::property_list& __prop_list,
+                               _BufferPlacementState&& __state) const
+        {
+            return __usm_or_buffer_accessor<__accessor_t<_TScratchData, _AccessMode>>(__cgh, __state.__scratch.get(),
+                                                                                      __prop_list);
+        }
+
+        // Get accessor for results
+        template <sycl::access_mode _AccessMode, typename _BufferPlacementState>
+        auto
+        __get_result_acc_impl(sycl::handler& __cgh, const sycl::property_list& __prop_list,
+                              _BufferPlacementState&& __state) const
+        {
+            using _state_t = std::decay_t<_BufferPlacementState>;
+
+            if constexpr (std::is_same_v<_state_t, BufferPlacementInUSMSeparate> ||
+                          std::is_same_v<_state_t, BufferPlacementInSyclBufSeparate>)
+            {
+                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __state.__results.get(),
+                                                                                     __prop_list);
+            }
+            else if constexpr (std::is_same_v<_state_t, BufferPlacementInUSMTogether> ||
+                               std::is_same_v<_state_t, BufferPlacementInSyclBufTogether>)
+            {
+                return __usm_or_buffer_accessor<__accessor_t<_TResult, _AccessMode>>(__cgh, __state.__scratch.get(),
+                                                                                     __scratch_n, __prop_list);
+            }
+            else
+            {
+                static_assert(false, "Operation not implemented.");
+            }
+        }
+
+        void __wait_and_throw(sycl::event& __event) const
+        {
+            return std::visit([&](auto&& __arg) { __arg.__wait_and_throw_impl(__event); }, __buffers);
+        }
+
+    }; // class __result_and_scratch_storage_impl
 
     // Pointer to internal implementation of of result and scratch storage
     std::unique_ptr<__result_and_scratch_storage_impl> __impl;
@@ -799,14 +911,14 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     auto
     __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {}) const
     {
-        return __impl->__get_result_acc(__cgh, __prop_list);
+        return __impl->template __get_result_acc<_AccessMode>(__cgh, __prop_list);
     }
 
     template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
     auto
     __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {}) const
     {
-        return __impl->__get_scratch_acc(__cgh, __prop_list);
+        return __impl->template __get_scratch_acc<_AccessMode>(__cgh, __prop_list);
     }
 
     _TResult
