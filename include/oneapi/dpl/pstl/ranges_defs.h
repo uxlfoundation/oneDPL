@@ -51,10 +51,6 @@ using __nanorange::nano::ranges::iota_view;
 using __nanorange::nano::ranges::reverse_view;
 using __nanorange::nano::ranges::take_view;
 using __nanorange::nano::ranges::transform_view;
-using __nanorange::nano::subrange;
-
-using __nanorange::nano::begin;
-using __nanorange::nano::size;
 
 //adaptors
 namespace views
@@ -75,6 +71,7 @@ using __nanorange::nano::views::rotate;
 using __nanorange::nano::views::take;
 using __nanorange::nano::views::transform;
 
+using __nanorange::nano::subrange;
 } // namespace views
 
 } // namespace ranges
