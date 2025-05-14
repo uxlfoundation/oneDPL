@@ -591,7 +591,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         // Storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
         __base_diagonals_sp_storage_t* __p_base_diagonals_sp_global_storage = nullptr;
 
-        // __result_and_scratch_storage_base_ptr instance to return it in __future and extend the lifetime of the storage.
+        // __result_and_scratch_storage_base_ptr instance to return it in tuple and extend the lifetime of the storage.
         __result_and_scratch_storage_base_ptr __p_result_and_scratch_storage_base;
 
         // Max amount of base diagonals
@@ -615,7 +615,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                     __p_base_diagonals_sp_global_storage =
                         new __base_diagonals_sp_storage_t(__q, __max_base_diags_count);
 
-                    // Save the raw pointer into a __result_and_scratch_storage_base_ptr to return it in __future and extend the lifetime of the storage.
+                    // Save the raw pointer into a __result_and_scratch_storage_base_ptr to return it in tuple and extend the lifetime of the storage.
                     __p_result_and_scratch_storage_base.reset(
                         static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
                 }
