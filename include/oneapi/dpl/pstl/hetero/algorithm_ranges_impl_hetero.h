@@ -764,13 +764,12 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     {
         // For a sequence of size 1, we can just copy the only element to the result.
         using _CopyBrick = oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>;
-        const auto [__event] = oneapi::dpl::__par_backend_hetero::__parallel_for(
+        auto [__event] = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
             unseq_backend::walk_n_vectors_or_scalars<_CopyBrick>{_CopyBrick{}, static_cast<std::size_t>(__n)}, __n,
             std::forward<_Range1>(__rng), std::forward<_Range2>(__result));
-
         __event.wait_and_throw();
 
         return 1;
