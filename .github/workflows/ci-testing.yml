@@ -318,7 +318,7 @@ jobs:
           cd %BASE_DIR%
           mkdir build && cd build
 
-          warning_flags="/W4 /We4005 /We4100 /We4101 /We4189 /We4505 /We4805"
+          warning_flags="/W4 /we4005 /we4100 /we4101 /we4189 /we4505 /we4805"
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
           if !errorlevel! neq 0 set exit_code=!errorlevel!
           ninja -j 2 -v %ninja_targets% > build.log 2>&1
