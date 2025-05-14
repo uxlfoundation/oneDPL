@@ -866,10 +866,10 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         std::forward<_Range2>(__rng2), std::forward<_Range3>(__rng3), __comp, __out_size_limit{});
 
     // TODO required to return __storage with result and and __storage_ptr from __parallel_merge
-    std::pair<std::size_t, std::size_t> __val;
-    __storage_ptr->__get_data(__event, &__val);
+    std::size_t __val[2] = {0, 0};
+    __storage_ptr->__get_data(__event, __val);
 
-    return {__val.first, __val.second};
+    return {__val[0], __val[1]};
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
