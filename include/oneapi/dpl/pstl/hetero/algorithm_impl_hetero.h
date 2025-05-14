@@ -1467,12 +1467,12 @@ __pattern_partial_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _It
     if (__last - __first < 2)
         return;
 
-    auto __result = __par_backend_hetero::__parallel_partial_sort(
+    auto [__event] = __par_backend_hetero::__parallel_partial_sort(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__first),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__mid),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__last), __comp);
-    oneapi::dpl::__par_backend_hetero::__future(std::get<0>(__result)).__checked_deferrable_wait();
+    oneapi::dpl::__par_backend_hetero::__future(__event).__checked_deferrable_wait();
 }
 
 //------------------------------------------------------------------------
