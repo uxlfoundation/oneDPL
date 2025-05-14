@@ -27,7 +27,6 @@ test_dl_initialization(const std::vector<sycl::queue>& u)
     // initialize
     oneapi::dpl::experimental::dynamic_load_policy p{u};
     auto u2 = oneapi::dpl::experimental::get_resources(p);
-    auto u2s = u2.size();
     if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
     {
         std::cout << "ERROR: provided resources and queried resources are not equal\n";
@@ -50,7 +49,6 @@ test_dl_initialization(const std::vector<sycl::queue>& u)
     }
     p2.initialize(u);
     auto u3 = oneapi::dpl::experimental::get_resources(p);
-    auto u3s = u3.size();
     if (!std::equal(std::begin(u3), std::end(u3), std::begin(u)))
     {
         std::cout << "ERROR: reported resources and queried resources are not equal after deferred initialization\n";
@@ -117,28 +115,36 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
     using my_policy_t = Policy;
     my_policy_t p{u};
 
-    constexpr size_t N = 1000; // Number of vectors
-    constexpr size_t D = 100;  // Dimension of each vector
+    // Do a matrix multiply operation with each work item processing a row of the result matrix
 
-    std::array<std::array<int, D>, N> a;
-    std::array<std::array<int, D>, N> b;
+    constexpr size_t rows_a = 1000;
+    constexpr size_t cols_a = 100;
+    constexpr size_t rows_b = cols_a;
+    constexpr size_t cols_b = 200;
+    constexpr size_t rows_c = rows_a;
+    constexpr size_t cols_c = cols_b;
+    
+    std::vector<int> a(rows_a * cols_a);
+    std::vector<int> b(rows_b * cols_b);
+    std::vector<int> resultMatrix(rows_a * cols_b);
 
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution(1, 10);
 
-    for (size_t i = 0; i < N; ++i)
+    // fill each matrix with random data
+    for (size_t a_idx = 0; a_idx < rows_a * cols_a; ++a_idx)
     {
-        for (size_t j = 0; j < D; ++j)
-        {
-            a[i][j] = distribution(generator);
-            b[i][j] = distribution(generator);
-        }
+        a[a_idx] = distribution(generator);
     }
 
-    std::array<std::array<int, N>, N> resultMatrix;
-    sycl::buffer<std::array<int, D>, 1> bufferA(a.data(), sycl::range<1>(N));
-    sycl::buffer<std::array<int, D>, 1> bufferB(b.data(), sycl::range<1>(N));
-    sycl::buffer<std::array<int, N>, 1> bufferResultMatrix(resultMatrix.data(), sycl::range<1>(N));
+    for (size_t b_idx = 0; b_idx < rows_b * cols_b; ++b_idx)
+    {
+        b[b_idx] = distribution(generator);
+    }
+
+    sycl::buffer<int, 2> bufferA(a.data(), sycl::range<2>(rows_a, cols_a));
+    sycl::buffer<int, 2> bufferB(b.data(), sycl::range<2>(rows_b, cols_b));
+    sycl::buffer<int, 2> bufferResultMatrix(resultMatrix.data(), sycl::range<2>(rows_c, cols_c));
 
     std::atomic<int> probability = 0;
     size_t total_items = 6;
@@ -160,15 +166,15 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                         auto accessorB = bufferB.get_access<sycl::access::mode::read>(cgh);
                         auto accessorResultMatrix = bufferResultMatrix.get_access<sycl::access::mode::write>(cgh);
                         cgh.parallel_for<TestUtils::unique_kernel_name<class load2, 0>>(
-                            sycl::range<1>(N), [=](sycl::item<1> item) {
-                                for (size_t j = 0; j < N; ++j)
+                            sycl::range<1>(rows_c), [=](sycl::item<1> row_c) {
+                                for (size_t col_c = 0; col_c < cols_c; ++col_c)
                                 {
                                     int dotProduct = 0;
-                                    for (size_t i = 0; i < D; ++i)
+                                    for (size_t inner_idx = 0; inner_idx < cols_a; ++inner_idx)
                                     {
-                                        dotProduct += accessorA[item][i] * accessorB[item][i];
+                                        dotProduct += accessorA[row_c][inner_idx] * accessorB[inner_idx][col_c];
                                     }
-                                    accessorResultMatrix[item][j] = dotProduct;
+                                    accessorResultMatrix[row_c][col_c] = dotProduct;
                                 }
                             });
                     });
@@ -176,7 +182,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                 }
                 else
                 {
-                    auto e2 = e.submit([&](sycl::handler& cgh) {});
+                    auto e2 = e.submit([&](sycl::handler&) {});
                     return e2;
                 }
             };
@@ -206,15 +212,15 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                             auto accessorB = bufferB.get_access<sycl::access::mode::read>(cgh);
                             auto accessorResultMatrix = bufferResultMatrix.get_access<sycl::access::mode::write>(cgh);
                             cgh.parallel_for<TestUtils::unique_kernel_name<class load1, 0>>(
-                                sycl::range<1>(N), [=](sycl::item<1> item) {
-                                    for (size_t j = 0; j < N; ++j)
+                                sycl::range<1>(rows_c), [=](sycl::item<1> row_c) {
+                                    for (size_t col_c = 0; col_c < cols_c; ++col_c)
                                     {
                                         int dotProduct = 0;
-                                        for (size_t i = 0; i < D; ++i)
+                                        for (size_t inner_idx = 0; inner_idx < cols_a; ++inner_idx)
                                         {
-                                            dotProduct += accessorA[item][i] * accessorB[item][i];
+                                            dotProduct += accessorA[row_c][inner_idx] * accessorB[inner_idx][col_c];
                                         }
-                                        accessorResultMatrix[item][j] = dotProduct;
+                                        accessorResultMatrix[row_c][col_c] = dotProduct;
                                     }
                                 });
                         });
@@ -222,7 +228,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                     }
                     else
                     {
-                        auto e2 = e.submit([&](sycl::handler& cgh) {
+                        auto e2 = e.submit([&](sycl::handler&) {
                             // for(int i=0;i<1;i++);
                         });
                         return e2;

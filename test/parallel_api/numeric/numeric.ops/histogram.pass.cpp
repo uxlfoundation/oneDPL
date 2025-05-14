@@ -30,7 +30,7 @@ struct test_histogram_even_bins
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
     std::enable_if_t<TestUtils::is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 expected_bin_first,
-               Iterator2 expected_bin_last, Iterator3 bin_first, Iterator3 bin_last, Size n, T bin_min, T bin_max,
+               Iterator2 /*expected_bin_last*/, Iterator3 bin_first, Iterator3 bin_last, Size /*n*/, T bin_min, T bin_max,
                Size trash)
     {
         const Size bin_size = bin_last - bin_first;
@@ -43,9 +43,7 @@ struct test_histogram_even_bins
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
     std::enable_if_t<!TestUtils::is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
-    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 expected_bin_first,
-               Iterator2 expected_bin_last, Iterator3 bin_first, Iterator3 bin_last, Size n, T bin_min, T bin_max,
-               Size trash)
+    operator()(Policy&&, Iterator1, Iterator1, Iterator2, Iterator2, Iterator3, Iterator3, Size, T, T, Size)
     {
     }
 };
@@ -70,9 +68,7 @@ struct test_histogram_range_bins
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Iterator4,
               typename Size>
     std::enable_if_t<!TestUtils::is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
-    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 boundary_first, Iterator2 boundary_last,
-               Iterator3 expected_bin_first, Iterator3 /* expected_bin_last */, Iterator4 bin_first, Iterator4 bin_last,
-               Size trash)
+    operator()(Policy&&, Iterator1, Iterator1, Iterator2, Iterator2, Iterator3, Iterator3, Iterator4, Iterator4, Size)
     {
     }
 };
@@ -83,12 +79,12 @@ test_range_and_even_histogram(Size n, T min_boundary, T max_boundary, T overflow
                               Size trash)
 {
     //possibly spill over by overflow/2 on each side of range
-    Sequence<T> in(n, [&](size_t k) {
+    Sequence<T> in(n, [&](size_t /*index*/) {
         return T(std::rand() % Size(max_boundary - min_boundary + overflow)) + min_boundary - overflow / T(2);
     });
 
-    Sequence<Size> expected(num_bins, [](size_t k) { return 0; });
-    Sequence<Size> out(num_bins, [&](size_t k) { return trash; });
+    Sequence<Size> expected(num_bins, [](size_t /*index*/) { return 0; });
+    Sequence<Size> out(num_bins, [&](size_t /*index*/) { return trash; });
 
     invoke_on_all_policies<CallNumber * 4>()(test_histogram_even_bins(), in.begin(), in.end(), expected.begin(),
                                                     expected.end(), out.begin(), out.end(), Size(in.size()),

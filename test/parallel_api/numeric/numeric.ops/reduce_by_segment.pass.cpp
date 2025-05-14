@@ -49,8 +49,8 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
 {
     DEFINE_TEST_CONSTRUCTOR(test_reduce_by_segment, 1.0f, 1.0f)
 
-    template <typename Iterator1, typename Iterator2, typename Iterator3, typename Iterator4, typename Size>
-    void initialize_data(Iterator1 host_keys, Iterator2 host_vals, Iterator3 host_key_res, Iterator4 host_val_res,
+    template <typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
+    void initialize_data(Iterator1 host_keys, Iterator2 host_vals, Iterator3 host_val_res,
                          Size n)
     {
         // T keys[n] = { 1, 2, 3, 4, 1, 1, 2, 2, 3, 3, 4, 4, 1, 1, 1, ...};
@@ -139,8 +139,8 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
     ::std::enable_if_t<oneapi::dpl::__internal::__is_hetero_execution_policy_v<::std::decay_t<Policy>> &&
                        is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3> &&
                        is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator4>>
-    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 vals_last,
-               Iterator3 key_res_first, Iterator3 key_res_last, Iterator4 val_res_first, Iterator4 val_res_last, Size n)
+    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 /*vals_last*/,
+               Iterator3 key_res_first, Iterator3 /*key_res_last*/, Iterator4 val_res_first, Iterator4 /*val_res_last*/, Size n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
@@ -150,7 +150,7 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
         typedef typename ::std::iterator_traits<Iterator1>::value_type KeyT;
         typedef typename ::std::iterator_traits<Iterator2>::value_type ValT;
 
-        initialize_data(host_keys.get(), host_vals.get(), host_res_keys.get(), host_res.get(), n);
+        initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res_keys, host_res);
 
         std::pair<Iterator3, Iterator4> res;
@@ -188,13 +188,13 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
 #endif
             is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3> &&
             is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator4>>
-    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 vals_last,
-               Iterator3 key_res_first, Iterator3 key_res_last, Iterator4 val_res_first, Iterator4 val_res_last, Size n)
+    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 /*vals_last*/,
+               Iterator3 key_res_first, Iterator3 /*key_res_last*/, Iterator4 val_res_first, Iterator4 /*val_res_last*/, Size n)
     {
         typedef typename ::std::iterator_traits<Iterator1>::value_type KeyT;
         typedef typename ::std::iterator_traits<Iterator2>::value_type ValT;
 
-        initialize_data(keys_first, vals_first, key_res_first, val_res_first, n);
+        initialize_data(keys_first, vals_first, val_res_first, n);
 
         std::pair<Iterator3, Iterator4> res;
         if constexpr (std::is_same_v<std::equal_to<KeyT>, std::decay_t<BinaryPredicate>> &&
@@ -224,8 +224,7 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
               typename Size>
     ::std::enable_if_t<!is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3> ||
                            !is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator4>>
-    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 vals_last,
-               Iterator3 key_res_first, Iterator3 key_res_last, Iterator4 val_res_first, Iterator4 val_res_last, Size n)
+    operator()(Policy&&, Iterator1, Iterator1, Iterator2, Iterator2, Iterator3, Iterator3, Iterator4, Iterator4, Size)
     {
     }
 };
@@ -244,7 +243,7 @@ test_flag_pred()
     // keys_result = {1, 1, 1};
     // vals_result = {11, 12, 10};
 
-    auto prepare_data = [](int n, T* key_head, T* val_head, T* key_res_head, T* val_res_head)
+    auto prepare_data = [](int n, T* key_head, T* val_head)
         {
             for (int i = 0; i < n; ++i)
             {
@@ -259,8 +258,8 @@ test_flag_pred()
     T key_res_head_on_host[n] = {};
     T val_res_head_on_host[n] = {};
 
-    prepare_data(n, key_head_on_host, val_head_on_host, key_res_head_on_host, val_res_head_on_host);
-    auto flag_pred = [](const auto& a, const auto& b) {
+    prepare_data(n, key_head_on_host, val_head_on_host);
+    auto flag_pred = [](const auto&, const auto& b) {
         using KeyT = ::std::decay_t<decltype(b)>;
         return b != KeyT(1);
     };
