@@ -2825,23 +2825,22 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     // evenly divisible by wg size (ensures segments are not long), or has a key not equal to the
     // adjacent element (marks end of real segments)
     // TODO: replace wgroup size with segment size based on platform specifics.
-    auto __intermediate_result_end =
-        oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
-            oneapi::dpl::__internal::__device_backend_tag{},
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2,
-            __n, __internal::__parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
-            unseq_backend::__brick_assign_key_position{})
-            .get();
+    auto [__event1, __storage1] = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+        oneapi::dpl::__internal::__device_backend_tag{},
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2, __n,
+        __internal::__parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
+        unseq_backend::__brick_assign_key_position{});
+    auto __intermediate_result_end = __storage1.__wait_and_get_value(__event1);
 
     //reduce by segment
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
+    auto [__event2] = oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
         unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n)>(__binary_op, __n), __intermediate_result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx),
                                                 __intermediate_result_end),
-        std::forward<_Range2>(__values), oneapi::dpl::__ranges::views::all_write(__tmp_out_values))
-        .wait();
+        std::forward<_Range2>(__values), oneapi::dpl::__ranges::views::all_write(__tmp_out_values));
+    __event2.wait_and_throw();
 
     // Round 2: final reduction to get result for each segment of equal adjacent keys
     // create views over adjacent keys
@@ -2864,16 +2863,17 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // element is copied if it is the 0th element (marks beginning of first segment), or has a key not equal to
     // the adjacent element (end of a segment). Artificial segments based on wg size are not created.
-    auto __result_end =
+    auto [__event2, __storage2] = 
+    
         oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
             oneapi::dpl::__internal::__device_backend_tag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec), __view3, __view4,
             __view3.size(), __internal::__parallel_reduce_by_segment_fallback_fn2<_BinaryPredicate>{__binary_pred},
-            unseq_backend::__brick_assign_key_position{})
-            .get();
+            unseq_backend::__brick_assign_key_position{});
+    auto __result_end = __storage2.__wait_and_get_value(__event2);
 
     //reduce by segment
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
+    auto [__event3] = oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
             std::forward<_ExecutionPolicy>(__exec)),
@@ -2881,8 +2881,9 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
             __binary_op, __intermediate_result_end),
         __result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx), __result_end),
-        oneapi::dpl::__ranges::views::all_read(__tmp_out_values), std::forward<_Range4>(__out_values))
-        .__checked_deferrable_wait();
+        oneapi::dpl::__ranges::views::all_read(__tmp_out_values), std::forward<_Range4>(__out_values));
+    oneapi::dpl::__par_backend_hetero::__future(__event3).__checked_deferrable_wait();
+
     return __result_end;
 }
 
