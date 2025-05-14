@@ -49,7 +49,7 @@ test_submit_and_wait_on_scheduler()
     {
         s.submit(
             h,
-            [&](sycl::queue q, int i) {
+            [&](sycl::queue, int i) {
                 ecount += i;
                 return sycl::event{};
             },
@@ -75,7 +75,7 @@ test_submit_and_wait_on_scheduler_single_element()
     {
         s.submit(
             h,
-            [&](sycl::queue q, int i) {
+            [&](sycl::queue, int i) {
                 ecount += i;
                 return sycl::event{};
             },
@@ -101,7 +101,7 @@ test_submit_and_wait_on_scheduler_empty()
     {
         s.submit(
             h,
-            [&](sycl::queue q, int i) {
+            [&](sycl::queue, int i) {
                 ecount += i;
                 return sycl::event{};
             },
@@ -127,7 +127,7 @@ test_submit_and_wait_on_sync()
     {
         auto w = s.submit(
             h,
-            [&](sycl::queue q, int i) {
+            [&](sycl::queue, int i) {
                 ecount += i;
                 return sycl::event{};
             },
@@ -153,7 +153,7 @@ test_submit_and_wait_on_sync_single_element()
     {
         auto w = s.submit(
             h,
-            [&](sycl::queue q, int i) {
+            [&](sycl::queue, int i) {
                 ecount += i;
                 return sycl::event{};
             },
@@ -179,7 +179,7 @@ test_submit_and_wait_on_sync_empty()
     {
         auto w = s.submit(
             h,
-            [&](sycl::queue q, int i) {
+            [&](sycl::queue, int i) {
                 ecount += i;
                 return sycl::event{};
             },
@@ -260,7 +260,7 @@ main()
     {
         std::cout << "SKIPPED: Unable to use sycl at all\n";
     }
-#endif // TEST_DYNAMIC_SELECTION_AVAILABLE    
+#endif // TEST_DYNAMIC_SELECTION_AVAILABLE
 
     return TestUtils::done(bProcessed);
 }

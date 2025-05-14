@@ -533,30 +533,32 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _BinaryPredicate,
           typename _OrFirstTag>
 oneapi::dpl::__internal::__difference_t<_Range>
-__pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng,
-                        _BinaryPredicate __predicate, _OrFirstTag __is__or_semantic)
+__pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _BinaryPredicate __pred,
+                        _OrFirstTag __is__or_semantic)
 {
     if (__rng.size() < 2)
         return __rng.size();
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<adjacent_find_fn<_BinaryPredicate>>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_BinaryPredicate>;
     using _TagType = ::std::conditional_t<__is__or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
                                           oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range>>;
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-    auto __rng1 = __rng | std::ranges::views::take(__rng.size() - 1);
-    auto __rng2 = __rng | std::ranges::views::drop(1);
+    auto __first = std::ranges::begin(__rng);
+    const auto __n = std::ranges::size(__rng);
+    auto __rng1 = std::ranges::subrange(__first, __first + __n - 1);
+    auto __rng2 = std::ranges::subrange(__first + 1, __first + __n);
 #else
-    auto __rng1 = __rng | oneapi::dpl::experimental::ranges::views::take(__rng.size() - 1);
-    auto __rng2 = __rng | oneapi::dpl::experimental::ranges::views::drop(1);
+    auto __first = __rng.begin();
+    const auto __n = __rng.size();
+    auto __rng1 = oneapi::dpl::experimental::ranges::views::subrange(__first, __first + __n - 1);
+    auto __rng2 = oneapi::dpl::experimental::ranges::views::subrange(__first + 1, __first + __n);
 #endif
 
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
     auto result = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{adjacent_find_fn<_BinaryPredicate>{__predicate}}, _TagType{},
-        oneapi::dpl::__ranges::zip_view(__rng1, __rng2));
+        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, _TagType{}, __rng1, __rng2);
 
     // inverted conditional because of
     // reorder_predicate in glue_algorithm_impl.h
@@ -924,23 +926,6 @@ __pattern_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 // min_element
 //------------------------------------------------------------------------
 
-template <typename _Compare, typename _ReduceValueType>
-struct __pattern_min_element_reduce_fn
-{
-    _Compare __comp;
-
-    _ReduceValueType
-    operator()(_ReduceValueType __a, _ReduceValueType __b) const
-    {
-        using ::std::get;
-        if (__comp(get<1>(__b), get<1>(__a)))
-        {
-            return __b;
-        }
-        return __a;
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
 std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>
 __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
@@ -953,7 +938,7 @@ __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&
 
     // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
     // not commutative.
-    __pattern_min_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
+    __pattern_min_element_reduce_fn<_ReduceValueType, _Compare> __reduce_fn{__comp};
     oneapi::dpl::__internal::__pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
     [[maybe_unused]] auto [__idx, __val] =
@@ -997,7 +982,7 @@ __pattern_min_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 std::ranges::range_value_t<_R>
-__pattern_min(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+__pattern_min(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
         std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
@@ -1085,7 +1070,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>
-__pattern_minmax(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+__pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp,
         std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
@@ -1104,7 +1089,7 @@ __pattern_minmax(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
           typename _Proj2>
 std::pair<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>>
-__pattern_mismatch(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
+__pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
                    _Proj1 __proj1, _Proj2 __proj2)
 {
     if (std::ranges::empty(__r1) || std::ranges::empty(__r2))

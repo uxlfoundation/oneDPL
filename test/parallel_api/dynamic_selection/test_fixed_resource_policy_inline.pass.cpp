@@ -20,7 +20,7 @@ main()
 {
     using policy_t = oneapi::dpl::experimental::fixed_resource_policy<TestUtils::int_inline_backend_t>;
     std::vector<int> u{4, 5, 6, 7};
-    auto f = [u](size_t i, size_t offset = 0) { return u[offset]; };
+    auto f = [u](size_t, size_t offset = 0) { return u[offset]; };
 
     constexpr bool just_call_submit = false;
     constexpr bool call_select_before_submit = true;

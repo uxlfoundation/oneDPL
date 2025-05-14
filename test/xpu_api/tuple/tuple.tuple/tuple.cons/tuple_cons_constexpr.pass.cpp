@@ -57,17 +57,17 @@ kernel_test()
 
                 // 03: element move ctor, single element
                 const int i1(415);
-                constexpr tuple_type t2{44, dpl::move(i1)};
+                [[maybe_unused]] constexpr tuple_type t2{44, dpl::move(i1)};
 
                 // 04: element move ctor, two element
                 const int i2(510);
                 const int i3(408);
-                constexpr tuple_type t4{dpl::move(i2), dpl::move(i3)};
+                [[maybe_unused]] constexpr tuple_type t4{dpl::move(i2), dpl::move(i3)};
 
                 // 05: value-type conversion constructor
                 const int i4(650);
                 const int i5(310);
-                constexpr tuple_type t8(i4, i5);
+                [[maybe_unused]] constexpr tuple_type t8(i4, i5);
 
                 // 06: pair conversion ctor
                 test_constexpr_single_val_ctor<tuple_type, dpl::pair<int, int>>();

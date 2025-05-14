@@ -21,6 +21,8 @@
 
 // Do not #include <algorithm>, because if we do we will not detect accidental dependencies.
 #include <iterator>
+#include <exception>
+#include <iostream>
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "utils_sycl_defs.h"
@@ -111,9 +113,21 @@ inline auto&& default_dpcpp_policy =
 inline
 sycl::queue get_test_queue()
 {
-    // create the queue with custom asynchronous exceptions handler
-    static sycl::queue my_queue(default_selector, async_handler);
-    return my_queue;
+    try
+    {
+        // create the queue with custom asynchronous exceptions handler
+        static sycl::queue my_queue(default_selector, async_handler);
+        return my_queue;
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Exception occurred in get_test_queue()";
+        if (exc.what())
+            std::cerr << ": " << exc.what();
+        std::cerr << std::endl;
+
+        throw;
+    }
 }
 
 template <sycl::usm::alloc alloc_type>

@@ -38,7 +38,7 @@ kernel_test1()
 
                 // Test empty constructor
                 [[maybe_unused]] dpl::tuple<> ta;
-                dpl::tuple<int, int> tb;
+                [[maybe_unused]] dpl::tuple<int, int> tb;
                 // Test construction from values
                 dpl::tuple<int, int> tc(x1, x2);
                 dpl::tuple<int, int&> td(x1, x2);
@@ -48,22 +48,22 @@ kernel_test1()
                 ret_access[0] = (get<0>(td) == 0 && get<1>(td) == 1 && get<0>(t1) == 1);
 
                 // Test identical dpl::tuple copy constructor
-                dpl::tuple<int, int> tf(tc);
+                [[maybe_unused]] dpl::tuple<int, int> tf(tc);
                 dpl::tuple<int, int> tg(td);
-                dpl::tuple<const int&> th(t1);
+                [[maybe_unused]] dpl::tuple<const int&> th(t1);
                 // Test different dpl::tuple copy constructor
-                dpl::tuple<int, float> ti(tc);
-                dpl::tuple<int, float> tj(td);
+                [[maybe_unused]] dpl::tuple<int, float> ti(tc);
+                [[maybe_unused]] dpl::tuple<int, float> tj(td);
                 // dpl::tuple<int&, int&> tk(tc);
                 dpl::tuple<const int&, const int&> tl(tc);
-                dpl::tuple<const int&, const int&> tm(tl);
+                [[maybe_unused]] dpl::tuple<const int&, const int&> tm(tl);
                 // Test constructing from a pair
                 pair<int, int> pair1(1, 1);
                 const pair<int, int> pair2(pair1);
-                dpl::tuple<int, int> tn(pair1);
-                dpl::tuple<int, const int&> to(pair1);
-                dpl::tuple<int, int> tp(pair2);
-                dpl::tuple<int, const int&> tq(pair2);
+                [[maybe_unused]] dpl::tuple<int, int> tn(pair1);
+                [[maybe_unused]] dpl::tuple<int, const int&> to(pair1);
+                [[maybe_unused]] dpl::tuple<int, int> tp(pair2);
+                [[maybe_unused]] dpl::tuple<int, const int&> tq(pair2);
             });
         });
     }

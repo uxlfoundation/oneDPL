@@ -62,6 +62,7 @@ main()
                     typedef dpl::array<T, 0> C;
                     const C c = {};
                     const T* p = c.data();
+                    (void)p;
                 }
             });
         });

@@ -366,17 +366,17 @@ run_tests(std::vector<int> u, int best_resource)
             return u[0];
     };
 
-    auto actual = test_initialization<policy_t>(u);
-    actual = test_select<policy_t, decltype(u), const decltype(f)&, true>(u, f);
-    actual = test_auto_submit<policy_t>(u, best_resource);
-    actual = test_auto_submit_wait_on_event<policy_t>(u, best_resource);
-    actual = test_auto_submit_wait_on_group<policy_t>(u, best_resource);
-    actual = test_auto_submit_and_wait<policy_t>(u, best_resource);
-    // now select then submits
-    actual = test_auto_submit<policy_t, decltype(u), true>(u, best_resource);
-    actual = test_auto_submit_wait_on_event<policy_t, decltype(u), true>(u, best_resource);
-    actual = test_auto_submit_wait_on_group<policy_t, decltype(u), true>(u, best_resource);
-    actual = test_auto_submit_and_wait<policy_t, decltype(u), true>(u, best_resource);
+    EXPECT_EQ(0, (test_initialization<policy_t>(u)), "");
+    EXPECT_EQ(0, (test_select<policy_t, decltype(u), const decltype(f)&, true>(u, f)), "");
+    EXPECT_EQ(0, (test_auto_submit<policy_t>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t>(u, best_resource)), "");
+    // now select( then submits
+    EXPECT_EQ(0, (test_auto_submit<policy_t, decltype(u), true>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, decltype(u), true>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, decltype(u), true>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, decltype(u), true>(u, best_resource)), "");
 }
 
 int

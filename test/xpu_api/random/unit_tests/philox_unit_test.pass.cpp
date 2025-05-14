@@ -115,7 +115,7 @@ main()
     err += skip_test<ex::philox4x32>();
     std::cout << "void skip_test() [Engine = philox4x64]";
     err += skip_test<ex::philox4x64>();
-    
+
     std::cout << "void counter_overflow_test() [Engine = philox2x32]";
     err += counter_overflow_test<philox2x32>();
     std::cout << "void counter_overflow_test() [Engine = philox2x64]";
@@ -246,7 +246,7 @@ main()
     err += counter_management_test<philox2x64_w25>();
     std::cout << "void counter_management_test() [Engine = philox2x64_w49]";
     err += counter_management_test<philox2x64_w49>();
-    
+
     // `counter_management_test` philox4x*
     std::cout << "void counter_management_test() [Engine = philox4x32_w5]";
     err += counter_management_test<philox4x32_w5>();
@@ -473,7 +473,6 @@ discard_overflow_test()
     int ret_sts = 0;
 
     using T = typename Engine::result_type;
-    using scalar_type = typename Engine::scalar_type;
 
     // Iterate through the counter's position being overflown
     for (int overflown_position = 0; overflown_position < Engine::word_count - 1; ++overflown_position)

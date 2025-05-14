@@ -112,14 +112,12 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     ::std::enable_if_t<oneapi::dpl::__internal::__is_hetero_execution_policy_v<::std::decay_t<Policy>> &&
                        is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
-    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 vals_last,
-               Iterator3 val_res_first, Iterator3 val_res_last, Size n)
+    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 /*vals_last*/,
+               Iterator3 val_res_first, Iterator3 /*val_res_last*/, Size n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
         TestDataTransfer<UDTKind::eRes, Size> host_res(*this, n);
-
-        typedef typename ::std::iterator_traits<Iterator1>::value_type KeyT;
 
         // call algorithm with no optional arguments
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
@@ -169,8 +167,8 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         !oneapi::dpl::__internal::__is_hetero_execution_policy_v<::std::decay_t<Policy>> &&
 #endif
             is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
-    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 vals_last,
-               Iterator3 val_res_first, Iterator3 val_res_last, Size n)
+    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 /*vals_last*/,
+               Iterator3 val_res_first, Iterator3 /*val_res_last*/, Size n)
     {
         // call algorithm with no optional arguments
         initialize_data(keys_first, vals_first, val_res_first, n);
@@ -196,8 +194,7 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
     // specialization for non-random_access iterators
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     ::std::enable_if_t<!is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
-    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 vals_last,
-               Iterator3 val_res_first, Iterator3 val_res_last, Size n)
+    operator()(Policy&&, Iterator1, Iterator1, Iterator2, Iterator2, Iterator3, Iterator3, Size)
     {
     }
 };
