@@ -149,7 +149,8 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         auto [__event, __storage] = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
             __unary_op, __init, __binary_op, _Inclusive{});
-        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event, __storage.get() != nullptr);
+        // Get value just for wait
+        [[maybe_unused]] auto __res = __storage.__wait_and_get_value(__event);
     }
     else
     {
@@ -170,10 +171,11 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         auto __buf2 = __keep2(__first_tmp, __last_tmp);
 
         // Run main algorithm and save data into temporary buffer
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(_BackendTag{}, __policy, __buf1.all_view(),
-                                                                     __buf2.all_view(), __n, __unary_op, __init,
-                                                                     __binary_op, _Inclusive{})
-            .wait();
+        auto [__event, __storage] = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
+            _BackendTag{}, __policy, __buf1.all_view(), __buf2.all_view(), __n, __unary_op, __init, __binary_op,
+            _Inclusive{});
+        // Get value just for wait
+        [[maybe_unused]] auto __res = __storage.__wait_and_get_value(__event);
 
         // Move data from temporary buffer into results
         oneapi::dpl::__internal::__pattern_walk2_brick(
