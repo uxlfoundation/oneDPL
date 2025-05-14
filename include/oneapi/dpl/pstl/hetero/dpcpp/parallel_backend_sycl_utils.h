@@ -732,6 +732,22 @@ struct __deferrable_mode
 {
 };
 
+template <typename _WaitModeTag>
+void
+__wait_impl(oneapi::dpl::__internal::__device_backend_tag, _WaitModeTag, sycl::event& __event,
+            bool __need_extend_lifetime = false)
+{
+    if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
+    {
+        __event.wait_and_throw();
+    }
+    else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
+    {
+        // We should extend life-time if we have any data inside __future instance
+        __checked_deferrable_wait(oneapi::dpl::__internal::__device_backend_tag{}, __event, __need_extend_lifetime);
+    }
+}
+
 void
 __checked_deferrable_wait(oneapi::dpl::__internal::__device_backend_tag, sycl::event& __event,
                           bool __need_extend_lifetime = false)
@@ -806,16 +822,7 @@ class __future : private std::tuple<_Args...>
     void
     wait(_WaitModeTag)
     {
-        if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
-        {
-            wait();
-        }
-        else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
-        {
-            // We should extend life-time if we have any data inside __future instance
-            __checked_deferrable_wait(oneapi::dpl::__internal::__device_backend_tag{}, __my_event,
-                                      sizeof...(_Args) > 0);
-        }
+        __wait_impl(oneapi::dpl::__internal::__device_backend_tag{}, _WaitModeTag{}, __my_event, sizeof...(_Args) > 0);
     }
 
     auto

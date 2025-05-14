@@ -116,7 +116,7 @@ __pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
         __buf2.all_view());
 
     // Call no wait, wait or deferrable wait depending on _WaitMode
-    oneapi::dpl::__par_backend_hetero::__future(__event).wait(_WaitMode{});
+    oneapi::dpl::__par_backend_hetero::__wait_impl(_BackendTag{}, _WaitMode{}, __event);
 
     return __first2 + __n;
 }
@@ -156,7 +156,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::__brick_swap<_Function>{__f, static_cast<std::size_t>(__n)}, __n, __buf1.all_view(),
         __buf2.all_view());
-    oneapi::dpl::__par_backend_hetero::__future(__event).wait(__par_backend_hetero::__deferrable_mode{});
+    oneapi::dpl::__par_backend_hetero::__wait_impl(_BackendTag{}, __par_backend_hetero::__deferrable_mode{}, __event);
 
     return __first2 + __n;
 }
