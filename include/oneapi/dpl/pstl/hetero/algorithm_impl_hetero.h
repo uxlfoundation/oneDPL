@@ -556,25 +556,28 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_BinaryPredicate>;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
-    auto __buf = __keep1(__first, __last); //a scope lifetime of this instance should be.
+    auto __buf = __keep(__first, __last); //a scope lifetime of this instance should be.
 
     auto __view = __buf.all_view();
     auto __view1 = oneapi::dpl::__ranges::take_view_simple(__view, __view.size() - 1);
     auto __view2 = oneapi::dpl::__ranges::drop_view_simple(__view, 1);
 
     using __size_calc = oneapi::dpl::__par_backend_hetero::__min_size_calc;
+    using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator>::difference_type>;
+    using _TagType = std::conditional_t<__is_or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
+                                        oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_IndexType>>;
 
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
     auto result = __par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{__pred}, __is_or_semantic, __size_calc{}, __view1, __view2);
+        _Predicate{__pred}, _TagType{}, __size_calc{}, __view1, __view2);
 
     // inverted conditional because of
     // reorder_predicate in glue_algorithm_impl.h
     if constexpr (__is_or_semantic())
         return result ? __first : __last;
     else
-        return result == __n - 1 ? __n : result;
+        return __first + (result == __n - 1 ? __n : result);
 }
 
 //------------------------------------------------------------------------
@@ -626,11 +629,8 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
 
     using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        _BackendTag{},
-        __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>(
-            std::forward<_ExecutionPolicy>(__exec)), _Predicate{__pred}, __par_backend_hetero::__parallel_or_tag{},
-            __size_calc{}, __buf.all_view());
+    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        _Predicate{__pred}, __par_backend_hetero::__parallel_or_tag{}, __size_calc{}, __buf.all_view());
 }
 
 //------------------------------------------------------------------------
@@ -656,7 +656,7 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
     return !__par_backend_hetero::__parallel_find_or(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred},
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{oneapi::dpl::__internal::__not_pred<_Pred>{__pred}},
         __par_backend_hetero::__parallel_or_tag{}, size_calc{}, __buf1.all_view(), __buf2.all_view());
 }
 
@@ -686,7 +686,8 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
         return __last;
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_Pred>;
-    using _TagType = __par_backend_hetero::__parallel_find_forward_tag;
+    using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator>::difference_type>;
+    using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
     using __size_calc = oneapi::dpl::__par_backend_hetero::__min_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
@@ -719,7 +720,8 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     else
     {
         using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
-        using _TagType = __par_backend_hetero::__parallel_find_backward_tag;
+        using _IndexType = typename std::iterator_traits<_Iterator1>::difference_type;
+        using _TagType = __par_backend_hetero::__parallel_find_backward_tag<_IndexType>;
         using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
 
         auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
@@ -727,7 +729,7 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
         auto __buf2 = __keep(__s_first, __s_last);
 
         auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-            _Predicate{__pred}, _TagType{}, __size_calc{}, __buf.all_view());
+            _Predicate{__pred}, _TagType{}, __size_calc{}, __buf1.all_view(), __buf2.all_view());
 
         return __first + __res;
     }
@@ -746,7 +748,8 @@ __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
         return __last;
 
     using _Predicate = unseq_backend::first_match_pred<_Pred>;
-    using _TagType = __par_backend_hetero::__parallel_find_forward_tag;
+    using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator1>::difference_type>;
+    using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
     using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
 
     // TODO: To check whether it makes sense to iterate over the second sequence in case of
@@ -791,7 +794,8 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
     }
 
     using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
-    using _TagType = __par_backend_hetero::__parallel_find_forward_tag;
+    using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator1>::difference_type>;
+    using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
     using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
@@ -843,7 +847,8 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     }
 
     using _Predicate = unseq_backend::n_elem_match_pred<_BinaryPredicate, _Tp, _Size>;
-    using _TagType = __par_backend_hetero::__parallel_find_forward_tag;
+    using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator>::difference_type>;
+    using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
     using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
@@ -869,7 +874,10 @@ __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterat
         return std::make_pair(__first1, __first2);
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<oneapi::dpl::__internal::__not_pred<_Pred>>;
-    using _TagType = __par_backend_hetero::__parallel_find_forward_tag;
+    using _IndexType =
+        std::make_unsigned_t<std::common_type_t<typename std::iterator_traits<_Iterator1>::difference_type,
+                                                typename std::iterator_traits<_Iterator2>::difference_type>>;
+    using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
     using __size_calc = oneapi::dpl::__par_backend_hetero::__min_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
@@ -877,7 +885,7 @@ __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterat
     auto __buf2 = __keep(__first2, __last2);
 
     __n = oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{__pred}, _TagType{}, __size_calc{}, __buf1.all_view(), __buf2.all_view());
+        _Predicate{oneapi::dpl::__internal::__not_pred<_Pred>{__pred}}, _TagType{}, __size_calc{}, __buf1.all_view(), __buf2.all_view());
 
     return std::make_pair(__first1 + __n, __first2 + __n);
 }
@@ -1133,7 +1141,8 @@ __pattern_is_heap_until(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
         return __last;
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred_by_idx<__is_heap_check<_Compare>>;
-    using _TagType = __par_backend_hetero::__parallel_find_forward_tag;
+    using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type>;
+    using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
     using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
@@ -1446,16 +1455,16 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
     if (__n1 == 0 || __n2 > __n1)
         return false;
 
-    using __brick_include_type = unseq_backend::__brick_includes<_Compare, _Size1, _Size2>;
+    using __brick_include_type = unseq_backend::__brick_includes<_Compare, decltype(__n1), decltype(__n2)>;
     using _TagType = __par_backend_hetero::__parallel_or_tag;
     using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep(__first1, __last1);
-    auto __buf1 = __keep(__first2, __last2);
+    auto __buf2 = __keep(__first2, __last2);
 
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        __brick_include_type{__comp, __n1, __n2}, _TagType{}, __size_calc{}, __buf1.all_view(), __buf1.all_view());
+        __brick_include_type{__comp, __n1, __n2}, _TagType{}, __size_calc{}, __buf2.all_view(), __buf1.all_view());
 }
 
 //------------------------------------------------------------------------
