@@ -482,7 +482,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
 
     const auto [__event, __storage] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, _Commutative>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
             __buf.all_view());
     const auto __ret_idx = __storage.__wait_and_get_value(__event);
@@ -535,7 +535,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     const auto [__event, __storage] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                        std::false_type /*is_commutative*/>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
             __buf.all_view());
     const auto __ret = __storage.__wait_and_get_value(__event);
@@ -626,7 +626,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator 
     const auto [__event, __storage] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                        std::true_type /*is_commutative*/>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
             __buf.all_view());
     return __storage.__wait_and_get_value(__event);
@@ -1101,7 +1101,7 @@ __pattern_is_partitioned(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     const auto [__event, __storage] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                        std::false_type /*is_commutative*/>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
             __buf.all_view());
     const auto __res = __storage.__wait_and_get_value(__event);
@@ -1201,7 +1201,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
         auto __buf3 = __keep3(__d_first, __d_first + __n);
 
         auto [__event, __storage_ptr] =
-            __par_backend_hetero::__parallel_merge(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
+            __par_backend_hetero::__parallel_merge(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
                                                    __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp);
         oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event, __storage_ptr.get() != nullptr);
     }
@@ -2051,7 +2051,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
             unseq_backend::walk_n_vectors_or_scalars<_Function>{_Function{}, static_cast<std::size_t>(__size_res)};
 
         auto [__event] = oneapi::dpl::__par_backend_hetero::__parallel_for(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __brick, __size_res, __src, __dst);
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __brick, __size_res, __src, __dst);
         oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event);
     }
     else //2. n < size/2; 'n' parallel copying

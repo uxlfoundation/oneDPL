@@ -53,9 +53,9 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
 
     auto [__event, __storage] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp, std::true_type /*is_commutative*/>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op1, _Functor{__binary_op2},
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __binary_op1, _Functor{__binary_op2},
             unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
-            std::forward<_Range1>(__rng1), ::std::forward<_Range2>(__rng2));
+            std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2));
 
     return __storage.__wait_and_get_value(__event);
 }
@@ -78,7 +78,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
 
     auto [__event, __storage] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp, std::true_type /*is_commutative*/>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op, _Functor{__unary_op},
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __binary_op, _Functor{__unary_op},
             unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
             std::forward<_Range>(__rng));
 

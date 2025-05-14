@@ -2681,7 +2681,7 @@ std::tuple<sycl::event, __result_and_scratch_storage_base_ptr>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                        _Compare, _Proj __proj)
 {
-    auto [__event] = __parallel_radix_sort<__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
+    auto [__event] = __parallel_radix_sort<__internal::__is_comp_ascending<std::decay_t<_Compare>>::value>(
         oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
         std::forward<_Range>(__rng), __proj);
 
