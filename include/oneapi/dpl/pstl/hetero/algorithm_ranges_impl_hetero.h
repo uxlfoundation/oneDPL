@@ -533,8 +533,8 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _BinaryPredicate,
           typename _OrFirstTag>
 oneapi::dpl::__internal::__difference_t<_Range>
-__pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng,
-                        _BinaryPredicate __pred, _OrFirstTag __is__or_semantic)
+__pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _BinaryPredicate __pred,
+                        _OrFirstTag __is__or_semantic)
 {
     if (__rng.size() < 2)
         return __rng.size();
@@ -558,8 +558,7 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
     auto result = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{__pred}, _TagType{}, __rng1, __rng2);
+        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, _TagType{}, __rng1, __rng2);
 
     // inverted conditional because of
     // reorder_predicate in glue_algorithm_impl.h
