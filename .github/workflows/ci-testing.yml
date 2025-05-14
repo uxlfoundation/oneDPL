@@ -318,7 +318,11 @@ jobs:
           cd %BASE_DIR%
           mkdir build && cd build
 
-          warning_flags="/W4 /we4005 /we4100 /we4101 /we4189 /we4505 /we4805"
+          if "${{ matrix.cxx_compiler }}" == "cl" (
+            set warning_flags=/W4 /WX /wd4018 /wd4127 /wd4146 /wd4244 /wd4267 /wd4459 /wd4702 /wd4996
+          ) else (
+            set warning_flags=-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed
+          )
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
           if !errorlevel! neq 0 set exit_code=!errorlevel!
           ninja -j 2 -v %ninja_targets% > build.log 2>&1
