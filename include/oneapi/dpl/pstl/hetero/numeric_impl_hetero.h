@@ -149,7 +149,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         auto [__event, __storage] = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
             __unary_op, __init, __binary_op, _Inclusive{});
-        oneapi::dpl::__par_backend_hetero::__future(__event, std::move(__storage)).__checked_deferrable_wait();
+        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event, __storage.get() != nullptr);
     }
     else
     {
@@ -281,7 +281,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
         auto [__event] = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, __exec, _Function{__fn, static_cast<std::size_t>(__n)}, __n, __buf1.all_view(),
             __buf2.all_view());
-        oneapi::dpl::__par_backend_hetero::__future(__event).__checked_deferrable_wait();
+        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event);
     }
 
     return __d_last;

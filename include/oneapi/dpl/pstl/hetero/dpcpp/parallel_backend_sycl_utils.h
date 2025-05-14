@@ -732,6 +732,21 @@ struct __deferrable_mode
 {
 };
 
+void
+__checked_deferrable_wait(oneapi::dpl::__internal::__device_backend_tag, sycl::event& __event,
+                          bool __need_extend_lifetime = false)
+{
+#if !ONEDPL_ALLOW_DEFERRED_WAITING
+    __event.wait();
+#else
+    if (__need_extend_lifetime)
+    {
+        // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
+        __event.wait();
+    }
+#endif
+}
+
 //A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
 //Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
 template <typename _Event, typename... _Args>
@@ -792,23 +807,15 @@ class __future : private std::tuple<_Args...>
     wait(_WaitModeTag)
     {
         if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
-            wait();
-        else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
-            __checked_deferrable_wait();
-    }
-
-    void
-    __checked_deferrable_wait()
-    {
-#if !ONEDPL_ALLOW_DEFERRED_WAITING
-        wait();
-#else
-        if constexpr (sizeof...(_Args) > 0)
         {
-            // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
             wait();
         }
-#endif
+        else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
+        {
+            // We should extend life-time if we have any data inside __future instance
+            __checked_deferrable_wait(oneapi::dpl::__internal::__device_backend_tag{}, __my_event,
+                                      sizeof...(_Args) > 0);
+        }
     }
 
     auto

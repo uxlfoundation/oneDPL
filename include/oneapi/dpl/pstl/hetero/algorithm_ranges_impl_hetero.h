@@ -62,7 +62,7 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
             unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
             std::forward<_Ranges>(__rngs)...);
-        oneapi::dpl::__par_backend_hetero::__future(__event).__checked_deferrable_wait();
+        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event);
     }
     return __n;
 }
@@ -193,7 +193,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
             unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng1, __rng2);
-        oneapi::dpl::__par_backend_hetero::__future(__event).__checked_deferrable_wait();
+        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event);
 
         return __n;
     }
@@ -203,7 +203,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
         unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng2, __rng1);
-    oneapi::dpl::__par_backend_hetero::__future(__event).__checked_deferrable_wait();
+    oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event);
 
     return __n;
 }
@@ -914,7 +914,7 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     {
         auto [__event, __storage_ptr] = __par_backend_hetero::__parallel_stable_sort(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __comp, __proj);
-        oneapi::dpl::__par_backend_hetero::__future(__event, std::move(__storage_ptr)).__checked_deferrable_wait();
+        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event, __storage_ptr.get() != nullptr);
     }
 }
 

@@ -102,7 +102,8 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     auto [__event, __storage] = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
         std::forward<_Range2>(__rng2), __n, __unary_op, __init, __binary_op, _Inclusive{});
-    oneapi::dpl::__par_backend_hetero::__future(__event, std::move(__storage)).__checked_deferrable_wait();
+    oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(
+        _BackendTag{}, __event, true /* we should wait here to extend lifetime of __storage */);
 
     return __n;
 }
