@@ -131,8 +131,8 @@ for_each_async(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIter
 
     wait_for_all(::std::forward<_Events>(__dependencies)...);
 
-    return oneapi::dpl::__internal::__pattern_walk1_async(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
+    return oneapi::dpl::__internal::__pattern_walk1_async(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+                                                          __first, __last, __f);
 }
 
 // [async.reduce]

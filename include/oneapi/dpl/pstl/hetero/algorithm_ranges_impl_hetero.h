@@ -913,7 +913,8 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     {
         auto [__event, __storage_ptr] = __par_backend_hetero::__parallel_stable_sort(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __comp, __proj);
-        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event, __storage_ptr.get() != nullptr);
+        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event,
+                                                                     __storage_ptr.get() != nullptr);
     }
 }
 

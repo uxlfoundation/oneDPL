@@ -980,7 +980,7 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
 
     const auto [__event, __storage] = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __pred);
-    
+
     const auto __size = __storage.__wait_and_get_value(__event);
 
     return __result_first + __size;
@@ -1203,7 +1203,8 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
         auto [__event, __storage_ptr] =
             __par_backend_hetero::__parallel_merge(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
                                                    __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp);
-        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event, __storage_ptr.get() != nullptr);
+        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event,
+                                                                     __storage_ptr.get() != nullptr);
     }
     return __d_first + __n;
 }
@@ -1259,9 +1260,10 @@ __stable_sort_with_projection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    auto [__event, __storage_ptr] = __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                                  __buf.all_view(), __comp, __proj);
-    oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event, __storage_ptr.get() != nullptr);
+    auto [__event, __storage_ptr] = __par_backend_hetero::__parallel_stable_sort(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __comp, __proj);
+    oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event,
+                                                                 __storage_ptr.get() != nullptr);
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare,
