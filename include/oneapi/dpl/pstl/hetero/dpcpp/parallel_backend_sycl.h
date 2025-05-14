@@ -2867,15 +2867,15 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // element is copied if it is the 0th element (marks beginning of first segment), or has a key not equal to
     // the adjacent element (end of a segment). Artificial segments based on wg size are not created.
-    auto [__event2, __storage2] = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+    auto [__event3, __storage3] = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec), __view3, __view4,
         __view3.size(), __internal::__parallel_reduce_by_segment_fallback_fn2<_BinaryPredicate>{__binary_pred},
         unseq_backend::__brick_assign_key_position{});
-    auto __result_end = __storage2.__wait_and_get_value(__event2);
+    auto __result_end = __storage3.__wait_and_get_value(__event3);
 
     //reduce by segment
-    auto [__event3] = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    auto [__event4] = oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
             std::forward<_ExecutionPolicy>(__exec)),
@@ -2917,12 +2917,14 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     {
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
         {
-            auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
-                __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
-                std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
+            auto [__event, __storage] =
+                oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
+                    __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
+                    std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
             // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
             // past-the-end iterator pair of segmented reduction.
-            return std::get<0>(__res.get()) + 1;
+            const auto __res = __storage.__wait_and_get_value(__event);
+            return std::get<0>(__res) + 1;
         }
     }
 #endif
