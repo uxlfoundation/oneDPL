@@ -38,10 +38,10 @@ main()
     using namespace oneapi::dpl::experimental;
 
     auto view1 = ranges::views::fill(-1, max_n) | ranges::views::transform(lambda);
-    auto res1 = std::all_of(view1.begin(), view1.end(), [](auto i) { return i == 1;});
+    auto res1 = std::all_of(view1.begin(), view1.end(), TestUtils::IsEqualTo<int>{1});
 
     auto view2 = ranges::views::generate([]() { return -1;}, max_n) | ranges::views::transform(lambda);
-    auto res2 = std::all_of(view2.begin(), view2.end(), [](auto i) { return i == 1;});
+    auto res2 = std::all_of(view2.begin(), view2.end(), TestUtils::IsEqualTo<int>{1});
 
     //check result
     EXPECT_TRUE(res1, "wrong result from fill factory");
@@ -61,8 +61,8 @@ main()
         ranges::copy(exec2, view2, B);
     }
 
-    auto res3 = std::all_of(expected1, expected1 + max_n, [](auto i) { return i == 1;});
-    auto res4 = std::all_of(expected2, expected2 + max_n, [](auto i) { return i == 1;});
+    auto res3 = std::all_of(expected1, expected1 + max_n, TestUtils::IsEqualTo<int>{1});
+    auto res4 = std::all_of(expected2, expected2 + max_n, TestUtils::IsEqualTo<int>{1});
 
     //check result
     EXPECT_TRUE(res3, "wrong result from fill factory on a device");

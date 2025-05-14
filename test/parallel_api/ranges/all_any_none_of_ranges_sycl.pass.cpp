@@ -33,8 +33,6 @@ main()
     int data1[max_n]     = {-1, 1, -1, 3, 4, 5, 6, -1, 8, 9};
     int data2[max_n]     = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18};
 
-    auto lambda = [](auto i) { return i % 2 == 0; };
-
     bool res1 = false, res2 = false, res3 = false;
     using namespace oneapi::dpl::experimental::ranges;
     {
@@ -45,9 +43,9 @@ main()
         using Policy = decltype(exec1);
         auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec1);
         auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec1);
-                                       
-        res1 = any_of(exec1, views::all(A), lambda);
-        res2 = all_of(exec2, B, lambda);
+
+        res1 = any_of(exec1, views::all(A), TestUtils::IsEven<int>{});
+        res2 = all_of(exec2, B, TestUtils::IsEven<int>{});
         res3 = none_of(exec3, B, [](auto i) { return i == -1;});
     }
 

@@ -27,7 +27,7 @@ main()
 {
 #if _ENABLE_RANGES_TESTING
     using namespace oneapi::dpl::experimental::ranges;
-    all_of(TestUtils::default_dpcpp_policy, views::fill(-1, 10), [](auto i) { return i == -1;});
+    all_of(TestUtils::default_dpcpp_policy, views::fill(-1, 10), TestUtils::IsEqualTo<int>{-1});
 #endif
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

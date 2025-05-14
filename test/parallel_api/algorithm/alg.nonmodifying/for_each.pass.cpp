@@ -100,14 +100,22 @@ test()
     }
 }
 
+template <typename TRef>
+struct TransformOp
+{
+    void operator()(TRef x) const
+    {
+        x = x + 1;
+    }
+};
+
 struct test_non_const_for_each
 {
     template <typename Policy, typename Iterator>
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto f = [](typename ::std::iterator_traits<Iterator>::reference x) { x = x + 1; };
-
+        auto f = TransformOp<typename std::iterator_traits<Iterator>::reference>{};
         for_each(exec, iter, iter, non_const(f));
     }
 };
@@ -118,8 +126,7 @@ struct test_non_const_for_each_n
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto f = [](typename ::std::iterator_traits<Iterator>::reference x) { x = x + 1; };
-
+        auto f = TransformOp<typename std::iterator_traits<Iterator>::reference>{};
         for_each_n(exec, iter, 0, non_const(f));
     }
 };
