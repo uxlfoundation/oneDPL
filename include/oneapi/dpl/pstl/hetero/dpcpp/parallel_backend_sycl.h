@@ -1910,14 +1910,14 @@ __can_set_op_write_from_set_b(oneapi::dpl::__internal::__device_backend_tag, _Ex
 //------------------------------------------------------------------------
 
 // Tag for __parallel_find_or to find the first element that satisfies predicate
-template <typename... _Ranges>
+template <typename _IndexType>
 struct __parallel_find_forward_tag
 {
 // FPGA devices don't support 64-bit atomics
 #if _ONEDPL_FPGA_DEVICE
     using _AtomicType = uint32_t;
 #else
-    using _AtomicType = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+    using _AtomicType = _IndexType;
 #endif
 
     using _LocalResultsReduceOp = __dpl_sycl::__minimum<_AtomicType>;
@@ -1949,14 +1949,14 @@ struct __parallel_find_forward_tag
 };
 
 // Tag for __parallel_find_or to find the last element that satisfies predicate
-template <typename _RangeType>
+template <typename _IndexType>
 struct __parallel_find_backward_tag
 {
 // FPGA devices don't support 64-bit atomics
 #if _ONEDPL_FPGA_DEVICE
     using _AtomicType = int32_t;
 #else
-    using _AtomicType = oneapi::dpl::__internal::__difference_t<_RangeType>;
+    using _AtomicType = _IndexType;
 #endif
 
     using _LocalResultsReduceOp = __dpl_sycl::__maximum<_AtomicType>;
