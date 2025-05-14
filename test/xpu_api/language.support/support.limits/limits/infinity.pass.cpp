@@ -26,7 +26,7 @@
 
 template <class T>
 void
-test(T expected)
+test([[maybe_unused]] T expected)
 {
 #ifdef __clang__
 #pragma clang diagnostic push
