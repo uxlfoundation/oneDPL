@@ -268,6 +268,7 @@ jobs:
           tbb_install.exe -s -a --silent --eula accept -p=NEED_VS2019_INTEGRATION=0 -p=NEED_VS2022_INTEGRATION=0
           del tbb_install.exe
       - name: Install Intel® oneAPI DPC++/C++ Compiler
+        if: (matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'icx')
         shell: cmd
         run: |
           curl %WINDOWS_ICPX_DOWNLOAD_LINK% --output icpx_install.exe
