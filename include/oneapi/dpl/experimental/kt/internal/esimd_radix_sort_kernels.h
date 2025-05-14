@@ -233,7 +233,6 @@ __global_histogram(sycl::nd_item<1> __idx, size_t __n, const _KeysRng& __keys_rn
 {
     using _KeyT = oneapi::dpl::__internal::__value_t<_KeysRng>;
     using _BinT = ::std::uint16_t;
-    using _HistT = ::std::uint32_t;
     using _GlobalHistT = ::std::uint32_t;
 
     __dpl_esimd::__ns::slm_init<16384>();
@@ -478,7 +477,7 @@ struct __radix_sort_onesweep_kernel
     }
 
     static inline __dpl_esimd::__ns::simd<::std::uint32_t, 32>
-    __match_bins(const __dpl_esimd::__ns::simd<::std::uint32_t, 32>& __bins, ::std::uint32_t __local_tid)
+    __match_bins(const __dpl_esimd::__ns::simd<::std::uint32_t, 32>& __bins)
     {
         __dpl_esimd::__ns::simd<::std::uint32_t, 32> __matched_bins(0xffffffff);
         _ONEDPL_PRAGMA_UNROLL
@@ -494,8 +493,7 @@ struct __radix_sort_onesweep_kernel
     }
 
     inline auto
-    __rank_local(_LocOffsetSimdT& __ranks, _LocOffsetSimdT& __bins, ::std::uint32_t __slm_counter_offset,
-                 ::std::uint32_t __local_tid) const
+    __rank_local(_LocOffsetSimdT& __ranks, _LocOffsetSimdT& __bins, ::std::uint32_t __slm_counter_offset) const
     {
         constexpr int __bins_per_step = 32;
         using _ScanSimdT = __dpl_esimd::__ns::simd<::std::uint32_t, __bins_per_step>;
@@ -509,7 +507,7 @@ struct __radix_sort_onesweep_kernel
         for (::std::uint32_t __s = 0; __s < __data_per_work_item; __s += __bins_per_step)
         {
             _ScanSimdT __this_bins = __bins.template select<__bins_per_step, 1>(__s);
-            _ScanSimdT __matched_bins = __match_bins(__this_bins, __local_tid);
+            _ScanSimdT __matched_bins = __match_bins(__this_bins);
             _ScanSimdT __pre_rank = __dpl_esimd::__vector_load<_LocOffsetT, 1, __bins_per_step>(
                 __slm_counter_offset + __this_bins * sizeof(_LocOffsetT));
             auto __matched_left_lanes = __matched_bins & __remove_right_lanes;
@@ -528,7 +526,6 @@ struct __radix_sort_onesweep_kernel
     __rank_global(_LocHistT& __subgroup_offset, _GlobHistT& __global_fix, ::std::uint32_t __local_tid,
                   ::std::uint32_t __wg_id) const
     {
-        const ::std::uint32_t __slm_bin_hist_this_thread = __local_tid * __hist_stride;
         const ::std::uint32_t __slm_bin_hist_group_incoming = __work_group_size * __hist_stride;
         const ::std::uint32_t __slm_bin_hist_global_incoming = __slm_bin_hist_group_incoming + __hist_stride;
         constexpr ::std::uint32_t __global_accumulated = 0x40000000;
@@ -781,7 +778,7 @@ struct __radix_sort_onesweep_kernel
         const auto __ordered = __order_preserving_cast<__is_ascending>(__values_simd_pack.__keys);
         __bins = __get_bucket<__mask>(__ordered, __stage * __radix_bits);
 
-        __rank_local(__ranks, __bins, __thread_slm_offset, __local_tid);
+        __rank_local(__ranks, __bins, __thread_slm_offset);
         __rank_global(__subgroup_offset, __global_fix, __local_tid, __wg_id);
 
         __reorder_reg_to_slm(__values_simd_pack, __ranks, __bins, __subgroup_offset, __wg_size, __thread_slm_offset);

@@ -567,12 +567,15 @@ __dpl_signbit(const _T& __x)
     return std::signbit(__x);
 }
 
-//This is required to resolve some possible ambiguity for some STL implementations
+// This prevents ambiguity with std::signbit for integral types on MSVC without requiring double support
 template <typename _T>
 std::enable_if_t<!std::is_floating_point_v<_T>, bool>
 __dpl_signbit(const _T& __x)
 {
-    return std::signbit(static_cast<double>(__x));
+    using __unsigned_type = std::make_unsigned_t<_T>;
+    static_assert(std::is_signed_v<_T>, "Only signed types have a signbit.");
+    constexpr __unsigned_type __mask = (__unsigned_type{1} << (sizeof(_T) * 8 - 1));
+    return (__x & __mask) != 0;
 }
 
 template <typename _Acc, typename _Size1, typename _Value, typename _Compare>

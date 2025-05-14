@@ -155,7 +155,7 @@ test_select(UniverseContainer u, ResourceFunction&& f)
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, int offset = 0)
+test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
 {
     using my_policy_t = Policy;
     my_policy_t p{u};
@@ -218,7 +218,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, int off
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, int offset = 0)
+test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f)
 {
     using my_policy_t = Policy;
     my_policy_t p{u};
@@ -296,7 +296,7 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, int off
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, int offset = 0)
+test_submit_and_wait(UniverseContainer u, ResourceFunction&& f)
 {
     using my_policy_t = Policy;
     my_policy_t p{u};

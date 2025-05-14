@@ -128,8 +128,8 @@ namespace TestUtils
     // Run test in Kernel as single task
     template <typename TFncDoubleHasSupportInRuntime, typename TFncDoubleHasntSupportInRuntime>
     void
-    run_test_in_kernel(TFncDoubleHasSupportInRuntime fncDoubleHasSupportInRuntime,
-                       TFncDoubleHasntSupportInRuntime fncDoubleHasntSupportInRuntime)
+    run_test_in_kernel([[maybe_unused]] TFncDoubleHasSupportInRuntime fncDoubleHasSupportInRuntime,
+                       [[maybe_unused]] TFncDoubleHasntSupportInRuntime fncDoubleHasntSupportInRuntime)
     {
 #if TEST_DPCPP_BACKEND_PRESENT
         try

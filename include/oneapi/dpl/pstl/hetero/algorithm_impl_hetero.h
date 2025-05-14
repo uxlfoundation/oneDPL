@@ -457,43 +457,6 @@ struct __brick_fill_n<__hetero_tag<_BackendTag>, _SourceT>
 // min_element, max_element
 //------------------------------------------------------------------------
 
-template <typename _ReduceValueType, typename _Compare>
-struct __pattern_min_element_reduce_fn
-{
-    _Compare __comp;
-
-    _ReduceValueType
-    operator()(_ReduceValueType __a, _ReduceValueType __b) const
-    {
-        using ::std::get;
-        // TODO: Consider removing the non-commutative operator for SPIR-V targets when we see improved performance with the
-        // non-sequential load path in transform_reduce.
-        if constexpr (oneapi::dpl::__internal::__is_spirv_target_v)
-        {
-            // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
-            // not commutative.
-            if (__comp(get<1>(__b), get<1>(__a)))
-            {
-                return __b;
-            }
-            return __a;
-        }
-        else
-        {
-            // This operator keeps track of the lowest found index in case of equal min. or max. values. Thus, this operator is
-            // commutative.
-            bool _is_a_lt_b = __comp(get<1>(__a), get<1>(__b));
-            bool _is_b_lt_a = __comp(get<1>(__b), get<1>(__a));
-
-            if (_is_b_lt_a || (!_is_a_lt_b && get<0>(__b) < get<0>(__a)))
-            {
-                return __b;
-            }
-            return __a;
-        }
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Compare>
 _Iterator
 __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,

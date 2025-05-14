@@ -49,7 +49,7 @@ bool
 kernel_test1(sycl::queue& deviceQueue)
 {
     // Test with range that is partitioned, but not sorted.
-    X seq[] = {1, 3, 5, 7, 1, 6, 4, 2};
+    X seq[] = {{1}, {3}, {5}, {7}, {1}, {6}, {4}, {2}};
     auto tmp = seq;
     const int N = sizeof(seq) / sizeof(seq[0]);
     bool ret = false;
@@ -67,7 +67,7 @@ kernel_test1(sycl::queue& deviceQueue)
                 auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
                 auto access = buffer3.get_access<sycl::access::mode::write>(cgh);
                 cgh.single_task<class KernelTest1>([=]() {
-                    X arr[] = {1, 3, 5, 7, 1, 6, 4, 2};
+                    X arr[] = {{1}, {3}, {5}, {7}, {1}, {6}, {4}, {2}};
                     // check if there is change after data transfer
                     check_access[0] = TestUtils::check_data(&access[0], arr, N);
                     if (check_access[0])
@@ -120,7 +120,7 @@ kernel_test2(sycl::queue& deviceQueue)
 {
     bool ret = false;
     bool check = false;
-    Y seq[] = {-0.1, 1.2, 5.0, 5.2, 5.1, 5.9, 5.5, 6.0};
+    Y seq[] = {{-0.1}, {1.2}, {5.0}, {5.2}, {5.1}, {5.9}, {5.5}, {6.0}};
     auto tmp = seq;
     const int N = sizeof(seq) / sizeof(seq[0]);
     sycl::range<1> item1{1};
@@ -135,7 +135,7 @@ kernel_test2(sycl::queue& deviceQueue)
                 auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
                 auto access = buffer3.get_access<sycl::access::mode::write>(cgh);
                 cgh.single_task<class KernelTest2>([=]() {
-                    Y arr[] = {-0.1, 1.2, 5.0, 5.2, 5.1, 5.9, 5.5, 6.0};
+                    Y arr[] = {{-0.1}, {1.2}, {5.0}, {5.2}, {5.1}, {5.9}, {5.5}, {6.0}};
                     // check if there is change after data transfer
                     check_access[0] = TestUtils::check_data(&access[0], arr, N);
                     if (check_access[0])

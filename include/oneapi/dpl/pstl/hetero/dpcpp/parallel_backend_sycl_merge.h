@@ -299,10 +299,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     };
 
     // Calculate nd-range parameters
-    template <typename _Range1, typename _Range2>
     nd_range_params
-    eval_nd_range_params(const sycl::queue& __q, const _Range1& __rng1, const _Range2& __rng2,
-                         const std::size_t __n) const
+    eval_nd_range_params(const sycl::queue& __q, const std::size_t __n) const
     {
         // Empirical number of values to process per work-item
         const std::uint8_t __chunk = __q.get_device().is_cpu() ? 128 : 4;
@@ -435,7 +433,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         _PRINT_INFO_IN_DEBUG_MODE(__q);
 
         // Calculate nd-range parameters
-        const nd_range_params __nd_range_params = eval_nd_range_params(__q, __rng1, __rng2, __n);
+        const nd_range_params __nd_range_params = eval_nd_range_params(__q, __n);
 
         // Create storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
         using __val_t = _split_point_t<_IdType>;
