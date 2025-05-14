@@ -205,7 +205,7 @@ template <typename _OutSizeLimit, typename _IdType, typename... _Name>
 struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional_kernel_name<_Name...>>
 {
     template <typename _Range1, typename _Range2, typename _Range3, typename _Compare>
-    std::tuple<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+    std::tuple<sycl::event, __result_and_scratch_storage_base_ptr>
     operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp) const
     {
         const _IdType __n1 = __rng1.size();
@@ -232,7 +232,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         else
             assert(__rng3.size() >= __n1 + __n2);
 
-        std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base(
+        __result_and_scratch_storage_base_ptr __p_result_and_scratch_storage_base(
             static_cast<__result_and_scratch_storage_base*>(__p_res_storage));
 
         auto __event = __q.submit([&__rng1, &__rng2, &__rng3, __p_res_storage, __comp, __chunk, __steps, __n, __n1,
@@ -261,7 +261,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
             });
         });
 
-        // Save the raw pointer into a shared_ptr to return it in std::tuple and extend the lifetime of the storage.
+        // Save the raw pointer into a __result_and_scratch_storage_base_ptr to return it in std::tuple and extend the lifetime of the storage.
         // We should return the same thing in the second param of std::tuple for compatibility
         // with the returning value in __parallel_merge_submitter_large::operator()
         return std::tuple{std::move(__event), std::move(__p_result_and_scratch_storage_base)};
@@ -421,7 +421,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
   public:
     template <typename _Range1, typename _Range2, typename _Range3, typename _Compare>
-    std::tuple<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+    std::tuple<sycl::event, __result_and_scratch_storage_base_ptr>
     operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp) const
     {
         const _IdType __n1 = __rng1.size();
@@ -443,8 +443,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         auto __p_base_diagonals_sp_global_storage =
             new __result_and_scratch_storage_t(__q, __nd_range_params.base_diag_count + 1);
 
-        // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
-        std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base(
+        // Save the raw pointer into a __result_and_scratch_storage_base_ptr to return it in __future and extend the lifetime of the storage.
+        __result_and_scratch_storage_base_ptr __p_result_and_scratch_storage_base(
             static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
 
         // Find split-points on the base diagonals
@@ -484,7 +484,7 @@ __get_starting_size_limit_for_large_submitter<int>()
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _OutSizeLimit = std::false_type>
-std::tuple<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+std::tuple<sycl::event, __result_and_scratch_storage_base_ptr>
 __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
                  _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _OutSizeLimit = {})
 {

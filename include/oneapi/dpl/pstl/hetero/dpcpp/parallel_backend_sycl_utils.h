@@ -515,6 +515,8 @@ struct __result_and_scratch_storage_base
     __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
+using __result_and_scratch_storage_base_ptr = std::unique_ptr<__result_and_scratch_storage_base>;
+
 template <typename _T, std::size_t _NResults = 1>
 struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
@@ -753,7 +755,7 @@ class __future : private std::tuple<_Args...>
     }
 
     std::pair<std::size_t, std::size_t>
-    __wait_and_get_value(const std::shared_ptr<__result_and_scratch_storage_base>& __p_storage)
+    __wait_and_get_value(const __result_and_scratch_storage_base_ptr& __p_storage)
     {
         std::size_t __buf[2] = {0, 0};
         [[maybe_unused]] auto __n = __p_storage->__get_data(__my_event, __buf);
