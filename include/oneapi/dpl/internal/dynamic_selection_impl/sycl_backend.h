@@ -199,7 +199,7 @@ class sycl_backend
                     async_waiter_list.add_waiter(new async_waiter(waiter));
             }
 
-            if (report_task_time && !is_profiling_enabled || report_task_completion)
+            if ((report_task_time && !is_profiling_enabled) || report_task_completion)
             {
                 auto e2 = q.submit([=](sycl::handler& h) {
                     h.depends_on(e1);

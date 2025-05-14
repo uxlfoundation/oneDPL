@@ -533,30 +533,32 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _BinaryPredicate,
           typename _OrFirstTag>
 oneapi::dpl::__internal::__difference_t<_Range>
-__pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng,
-                        _BinaryPredicate __predicate, _OrFirstTag __is__or_semantic)
+__pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _BinaryPredicate __pred,
+                        _OrFirstTag __is__or_semantic)
 {
     if (__rng.size() < 2)
         return __rng.size();
 
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<adjacent_find_fn<_BinaryPredicate>>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_BinaryPredicate>;
     using _TagType = ::std::conditional_t<__is__or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
                                           oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range>>;
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-    auto __rng1 = __rng | std::ranges::views::take(__rng.size() - 1);
-    auto __rng2 = __rng | std::ranges::views::drop(1);
+    auto __first = std::ranges::begin(__rng);
+    const auto __n = std::ranges::size(__rng);
+    auto __rng1 = std::ranges::subrange(__first, __first + __n - 1);
+    auto __rng2 = std::ranges::subrange(__first + 1, __first + __n);
 #else
-    auto __rng1 = __rng | oneapi::dpl::experimental::ranges::views::take(__rng.size() - 1);
-    auto __rng2 = __rng | oneapi::dpl::experimental::ranges::views::drop(1);
+    auto __first = __rng.begin();
+    const auto __n = __rng.size();
+    auto __rng1 = oneapi::dpl::experimental::ranges::views::subrange(__first, __first + __n - 1);
+    auto __rng2 = oneapi::dpl::experimental::ranges::views::subrange(__first + 1, __first + __n);
 #endif
 
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
     auto result = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{adjacent_find_fn<_BinaryPredicate>{__predicate}}, _TagType{},
-        oneapi::dpl::__ranges::zip_view(__rng1, __rng2));
+        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, _TagType{}, __rng1, __rng2);
 
     // inverted conditional because of
     // reorder_predicate in glue_algorithm_impl.h
