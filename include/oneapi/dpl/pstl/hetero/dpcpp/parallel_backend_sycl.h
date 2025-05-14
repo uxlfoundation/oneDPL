@@ -2677,13 +2677,17 @@ template <
     typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
     ::std::enable_if_t<
         __is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
-std::tuple<sycl::event>
+std::tuple<sycl::event, __result_and_scratch_storage_base_ptr>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                        _Compare, _Proj __proj)
 {
-    return __parallel_radix_sort<__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
+    auto [__event] = __parallel_radix_sort<__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
         oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
         std::forward<_Range>(__rng), __proj);
+
+    // Save empty __result_and_scratch_storage_base_ptr for align with another implementation
+    return std::tuple<sycl::event, __result_and_scratch_storage_base_ptr>(std::move(__event),
+                                                                          __result_and_scratch_storage_base_ptr());
 }
 #endif // _ONEDPL_USE_RADIX_SORT
 
