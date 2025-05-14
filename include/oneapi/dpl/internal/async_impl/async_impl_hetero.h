@@ -173,7 +173,7 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
             unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
             __buf.all_view());
 
-    return oneapi::dpl::__par_backend_hetero::__future<decltype(__event), decltype(__storage)>(__event, std::move(__storage));
+    return oneapi::dpl::__par_backend_hetero::__future<decltype(__event), decltype(__storage)>(std::move(__event), std::move(__storage));
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _T>
@@ -212,7 +212,7 @@ __pattern_transform_scan_base_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&
         __init, __binary_op, _Inclusive{});
 
     return oneapi::dpl::__par_backend_hetero::__future<decltype(__event), decltype(__result + __n),
-                                                       decltype(__storage)>(__event, __result + __n,
+                                                       decltype(__storage)>(std::move(__event), __result + __n,
                                                                             std::move(__storage));
 }
 
