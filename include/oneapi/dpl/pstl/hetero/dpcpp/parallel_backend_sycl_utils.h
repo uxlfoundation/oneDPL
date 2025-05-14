@@ -732,6 +732,21 @@ struct __deferrable_mode
 {
 };
 
+void
+__checked_deferrable_wait(oneapi::dpl::__internal::__device_backend_tag, sycl::event& __event,
+                          bool __need_extend_lifetime = false)
+{
+#if !ONEDPL_ALLOW_DEFERRED_WAITING
+    __event.wait();
+#else
+    if (__need_extend_lifetime)
+    {
+        // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
+        __event.wait();
+    }
+#endif
+}
+
 template <typename _WaitModeTag>
 void
 __wait_impl(oneapi::dpl::__internal::__device_backend_tag, _WaitModeTag, sycl::event& __event,
@@ -746,21 +761,6 @@ __wait_impl(oneapi::dpl::__internal::__device_backend_tag, _WaitModeTag, sycl::e
         // We should extend life-time if we have any data inside __future instance
         __checked_deferrable_wait(oneapi::dpl::__internal::__device_backend_tag{}, __event, __need_extend_lifetime);
     }
-}
-
-void
-__checked_deferrable_wait(oneapi::dpl::__internal::__device_backend_tag, sycl::event& __event,
-                          bool __need_extend_lifetime = false)
-{
-#if !ONEDPL_ALLOW_DEFERRED_WAITING
-    __event.wait();
-#else
-    if (__need_extend_lifetime)
-    {
-        // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
-        __event.wait();
-    }
-#endif
 }
 
 //A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
