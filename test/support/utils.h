@@ -1024,13 +1024,13 @@ generate_arithmetic_data(T* input, std::size_t size, std::uint32_t seed)
 }
 
 // Utility that models __estimate_best_start_size in the SYCL backend parallel_for to ensure large enough inputs are
-// used to test the large submitter path. A multiplier to the max n is added to ensure we get a few separate test inputs
-// for this path. For debug testing, only test with a single large n to avoid timeouts. Returns a monotonically increasing
+// used to test the large submitter path. A multiplier to the max size is added to ensure we get a few separate test inputs
+// for this path. For debug testing, only test with a single large size to avoid timeouts. Returns a monotonically increasing
 // sequence for use in testing.
 inline std::vector<std::size_t>
 get_pattern_for_test_sizes()
 {
-    std::size_t max_n = 0;
+    std::size_t max_size = 0;
     // We do not enable large input size testing for FPGA devices as __parallel_for_submitter_fpga only has a single
     // implementation with the standard input sizes providing full coverage, and testing large inputs is slow with the
     // FPGA emulator.
@@ -1045,18 +1045,18 @@ get_pattern_for_test_sizes()
 #endif
 #if TEST_DPCPP_BACKEND_PRESENT && !PSTL_USE_DEBUG && !ONEDPL_FPGA_DEVICE
     std::size_t cap = 10000000;
-    max_n = multiplier * large_submitter_limit;
-    // Ensure that TestUtils::max_n <= max_n <= cap
-    max_n = std::max(TestUtils::max_n, std::min(cap, max_n));
+    max_size = multiplier * large_submitter_limit;
+    // Ensure that TestUtils::max_n <= max <= cap
+    max_size = std::max(TestUtils::max_n, std::min(cap, max_size));
 #else
-    max_n = TestUtils::max_n;
+    max_size = TestUtils::max_n;
 #endif
     // Generate the sequence of test input sizes
     std::vector<std::size_t> sizes;
-    for (std::size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : std::size_t(3.1415 * n))
+    for (std::size_t n = 0; n <= max_size; n = n <= 16 ? n + 1 : std::size_t(3.1415 * n))
         sizes.push_back(n);
 #if TEST_DPCPP_BACKEND_PRESENT && PSTL_USE_DEBUG && !ONEDPL_FPGA_DEVICE
-    if (max_n < large_submitter_limit)
+    if (max_size < large_submitter_limit)
         sizes.push_back(large_submitter_limit);
 #endif
     return sizes;

@@ -97,9 +97,9 @@ template <typename T>
 void
 test_is_sorted_by_type()
 {
-    const ::std::size_t max_n = 1000000;
+    const ::std::size_t max_size = 1000000;
 
-    for (::std::size_t n1 = 1; n1 <= max_n; n1 = n1 <= 16 ? n1 + 1 : ::std::size_t(3.1415 * n1))
+    for (::std::size_t n1 = 1; n1 <= max_size; n1 = n1 <= 16 ? n1 + 1 : ::std::size_t(3.1415 * n1))
     {
         Sequence<T> in(n1, [](::std::size_t v) -> T { return T(v); }); //fill 0..n
 #ifdef _PSTL_TEST_IS_SORTED
