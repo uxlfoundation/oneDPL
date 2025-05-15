@@ -546,6 +546,9 @@ struct _Combiner
     // value unknown and it assumes getting an identity by _Tp value initialization - _Tp{}.
     _Combiner(const _Combiner& __obj) : __value{}, __bin_op(__obj.__bin_op) {}
 
+    // This assignment operator copies the reduced value back to the caller
+    // It does not participate in the creation of an initial value,
+    // hence its behaviour is different from the copy constructor above
     _Combiner&
     operator=(const _Combiner& __obj) = default;
 
