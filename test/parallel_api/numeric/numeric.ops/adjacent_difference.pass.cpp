@@ -70,16 +70,16 @@ compute_and_check(Iterator1 first, Iterator1 last, Iterator2 d_first, T, Functio
     if (first == last)
         return true;
 
-    T2 temp(*first);
-    if (!compare(temp, *d_first))
+    T2 temp1(*first);
+    if (!compare(temp1, *d_first))
         return false;
     Iterator1 second = ::std::next(first);
 
     ++d_first;
     for (; second != last; ++first, ++second, ++d_first)
     {
-        T2 temp(f(*second, *first));
-        if (!compare(temp, *d_first))
+        T2 temp2(f(*second, *first));
+        if (!compare(temp2, *d_first))
             return false;
     }
 

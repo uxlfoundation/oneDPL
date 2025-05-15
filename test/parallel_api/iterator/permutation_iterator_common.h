@@ -51,7 +51,7 @@ using namespace TestUtils;
 
 template <typename ExecutionPolicy>
 void
-wait_and_throw(ExecutionPolicy&& exec)
+wait_and_throw([[maybe_unused]] ExecutionPolicy&& exec)
 {
 #if TEST_DPCPP_BACKEND_PRESENT
     if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy<::std::decay_t<ExecutionPolicy>>::value)

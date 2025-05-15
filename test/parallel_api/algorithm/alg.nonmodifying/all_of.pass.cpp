@@ -56,7 +56,7 @@ struct Parity
     bool
     operator()(T value) const
     {
-        return (size_t(value) ^ parity) % 2 == 0;
+        return (size_t(value) ^ size_t(parity)) % 2 == 0;
     }
 };
 
