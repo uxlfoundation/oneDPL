@@ -38,16 +38,16 @@ main()
     {
         sycl::buffer<int> A(data, sycl::range<1>(max_n));
 
-        using namespace TestUtils;
-
         auto view = oneapi::dpl::experimental::ranges::all_view<int, sycl::access::mode::read>(A);
 
         auto exec = TestUtils::default_dpcpp_policy;
         using Policy = decltype(TestUtils::default_dpcpp_policy);
+        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
+        auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 3>>(exec);
 
         res1 = oneapi::dpl::experimental::ranges::transform_reduce(exec, A, view, 0);
-        res2 = oneapi::dpl::experimental::ranges::transform_reduce(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, A, 0, ::std::plus<int>(), ::std::multiplies<int>());
-        res3 = oneapi::dpl::experimental::ranges::transform_reduce(make_new_policy<new_kernel_name<Policy, 1>>(exec), view, 0, ::std::plus<int>(), lambda1);
+        res2 = oneapi::dpl::experimental::ranges::transform_reduce(exec2, view, A, 0, ::std::plus<int>(), ::std::multiplies<int>());
+        res3 = oneapi::dpl::experimental::ranges::transform_reduce(exec3, view, 0, ::std::plus<int>(), lambda1);
     }
 
     //check result

@@ -36,7 +36,6 @@ main()
     data[idx] = 0;
 
     int res1 = -1, res2 = - 1;
-    using namespace TestUtils;
     using namespace oneapi::dpl::experimental::ranges;
     {
         sycl::buffer<int> A(data, sycl::range<1>(max_n));
@@ -45,9 +44,10 @@ main()
 
         auto exec = TestUtils::default_dpcpp_policy;
         using Policy = decltype(TestUtils::default_dpcpp_policy);
+        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
 
         res1 = is_sorted_until(exec, view);
-        res2 = is_sorted_until(make_new_policy<new_kernel_name<Policy, 0>>(exec), A, [](auto a, auto b) { return a < b; });
+        res2 = is_sorted_until(exec2, A, [](auto a, auto b) { return a < b; });
     }
 
     //check result
