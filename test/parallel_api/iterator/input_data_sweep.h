@@ -54,6 +54,7 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
 
     //Run the tests
     auto get_expect = [n](auto exp) {
+        (void)n; // avoid unused-lambda-capture, bug https://bugs.llvm.org/show_bug.cgi?id=35450
         if constexpr (__reverses % 2 == 0)
         {
             return exp;
