@@ -8,6 +8,51 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in 2022.9.0
+===============
+
+New Features
+------------
+- Added parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``fill``, ``move``, ``replace``, ``replace_if``,
+``remove``, ``remove_if``, ``mismatch``, ``minmax_element``, ``min``, ``max``, ``find_first_of``, ``find_end``, ``is_sorted_until``
+- Improved performance of set operation algorithms (e.g., ``set_union``, ``set_difference``, etc.)
+
+Fixed Issues
+------------
+- Eliminated runtime exceptions that were encountered when compiling code that uses device policies with the open source
+oneAPI DPC++ Compiler (clang++ driver) without specifying an optimization flag.
+- Eliminated compile time warnings throughout the library.
+
+
+Known Issues and Limitations
+----------------------------
+New in This Release
+^^^^^^^^^^^^^^^^^^^
+
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- Incorrect results may be observed when calling ``sort`` with a device policy on Intel® Arc™ graphics 140V with data
+  sizes of 4-8 million elements.
+- ``sort``, ``stable_sort``, ``sort_by_key`` and ``stable_sort_by_key`` algorithms fail to compile
+  when using Clang 17 and earlier versions, as well as compilers based on these versions,
+  such as Intel® oneAPI DPC++/C++ Compiler 2023.2.0.
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with an FPGA policy.
+- ``histogram`` may provide incorrect results with device policies in a program built with ``-O0`` option.
+- Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows. 
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+  ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
+  with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler
+  with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
+  To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
+
 New in 2022.8.0
 ===============
 
