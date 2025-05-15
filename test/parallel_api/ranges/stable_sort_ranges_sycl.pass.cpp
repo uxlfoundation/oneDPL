@@ -33,7 +33,6 @@ main()
     int data1[max_n] = {0, 1, 2, -1, 4, 5, 6, 7, 8, 9};
     int data2[max_n] = {0, 1, 2, -1, 4, 5, -6, 7, 8, 9};
 
-    using namespace TestUtils;
     using namespace oneapi::dpl::experimental::ranges;
     {
         sycl::buffer<int> A(data1, sycl::range<1>(max_n));
@@ -41,10 +40,10 @@ main()
 
         auto exec = TestUtils::default_dpcpp_policy;
         using Policy = decltype(TestUtils::default_dpcpp_policy);
+        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
 
         stable_sort(exec, A); //check passing sycl buffer directly
-        stable_sort(make_new_policy<new_kernel_name<Policy, 0>>(exec), all_view<int, sycl::access::mode::read_write>(B),
-            ::std::greater<int>());
+        stable_sort(exec2, all_view<int, sycl::access::mode::read_write>(B), std::greater<int>());
     }
 
     //check result
