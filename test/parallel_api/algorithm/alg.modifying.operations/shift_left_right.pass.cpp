@@ -172,7 +172,7 @@ struct shift_right_algo
     //skip the test for non-bidirectional iterator (forward iterator, etc)
     template <typename Policy, typename It>
     ::std::enable_if_t<!TestUtils::is_base_of_iterator_category_v<::std::bidirectional_iterator_tag, It>, It>
-    operator()(Policy&&, It first, It, typename ::std::iterator_traits<It>::difference_type)
+    operator()(Policy&&, It first, It, typename std::iterator_traits<It>::difference_type)
     {
         return first;
     }
