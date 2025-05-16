@@ -384,4 +384,42 @@ inline void DoNotOptimize(Tp const& value) {
 #define TEST_PREPARE_CALLABLE(std_algo_name) \
     [](auto&&... __args) { return std_algo_name(std::forward<decltype(__args)>(__args)...); }
 
+#if TEST_STD_VER >= 14
+# define TEST_CONSTEXPR_CXX14 constexpr
+#else
+# define TEST_CONSTEXPR_CXX14
+#endif
+
+#if TEST_STD_VER >= 11
+# define TEST_ALIGNOF(...) alignof(__VA_ARGS__)
+# define TEST_ALIGNAS(...) alignas(__VA_ARGS__)
+# define TEST_CONSTEXPR constexpr
+# define TEST_NOEXCEPT noexcept
+# define TEST_NOEXCEPT_FALSE noexcept(false)
+# define TEST_NOEXCEPT_COND(...) noexcept(__VA_ARGS__)
+#else
+#   if defined(TEST_COMPILER_CLANG)
+#    define TEST_ALIGNOF(...) _Alignof(__VA_ARGS__)
+#   else
+#    define TEST_ALIGNOF(...) __alignof(__VA_ARGS__)
+#   endif
+# define TEST_ALIGNAS(...) __attribute__((__aligned__(__VA_ARGS__)))
+# define TEST_CONSTEXPR
+# define TEST_NOEXCEPT throw()
+# define TEST_NOEXCEPT_FALSE
+# define TEST_NOEXCEPT_COND(...)
+#endif
+
+#if TEST_STD_VER >= 17
+# define TEST_CONSTEXPR_CXX17 constexpr
+#else
+# define TEST_CONSTEXPR_CXX17
+#endif
+
+#if TEST_STD_VER >= 20
+# define TEST_CONSTEXPR_CXX20 constexpr
+#else
+# define TEST_CONSTEXPR_CXX20
+#endif
+
 #endif // _SUPPORT_TEST_MACROS_H
