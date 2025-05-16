@@ -27,7 +27,6 @@ include(CMakeDependentOption)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 option(ONEDPL_FPGA_STATIC_REPORT "Enable the static report generation for the FPGA device" OFF)
-option(ONEDPL_USE_AOT_COMPILATION "Enable the ahead of time compilation" OFF)
 option(ONEDPL_ENABLE_SIMD "Enable SIMD vectorization by passing an OpenMP SIMD flag to the compiler if supported" ON)
 cmake_dependent_option(ONEDPL_TEST_WIN_ICX_FIXES "Enable icx workarounds for Windows" ON "CMAKE_HOST_WIN32;NOT _onedpl_is_subproject" OFF)
 
@@ -265,31 +264,6 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
             endif()
         endif()
 
-        # settings for the specific compilation type
-        if (NOT ONEDPL_USE_AOT_COMPILATION)
-            message(STATUS "Using just-in-time compilation")
-        else()
-            if (NOT ONEDPL_AOT_ARCH)
-                if (ONEDPL_USE_DEVICE_GPU)
-                    set(ONEDPL_AOT_ARCH "*")
-                endif()
-                if (ONEDPL_USE_DEVICE_CPU)
-                    set(ONEDPL_AOT_ARCH "avx")
-                endif()
-            endif()
-            message(STATUS "Using ahead-of-time compilation for \"${ONEDPL_AOT_ARCH}\" architecture(s)")
-
-            if (ONEDPL_USE_DEVICE_GPU)
-                # -cl-kernel-debug-enable is not needed since https://github.com/intel/compute-runtime/commit/9c237d99ec49ceb3678c815314bc7c745226e4a2
-                # TODO: remove that option when older driver versions are not expected to be used
-                set(ONEDPL_AOT_EXTRA_BACKEND_OPTIONS "$<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-internal_options -cl-kernel-debug-enable>")
-                set(ONEDPL_AOT_OPTIONS "-fsycl-targets=spir64_gen -Xs \"-device ${ONEDPL_AOT_ARCH} ${ONEDPL_AOT_EXTRA_BACKEND_OPTIONS}\"")
-            endif()
-            if (ONEDPL_USE_DEVICE_CPU)
-                set(ONEDPL_AOT_OPTIONS "-fsycl-targets=spir64_x86_64 -Xs \"-march=${ONEDPL_AOT_ARCH}\"")
-            endif()
-        endif()
-
         # DPC++ specific compiler options
         target_compile_options(oneDPL INTERFACE
             ${FSYCL_OPTION_IF_SUPPORTED}
@@ -327,7 +301,6 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
             $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:-fintelfpga>
             $<$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>:-Xshardware>
             $<$<AND:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_FPGA_STATIC_REPORT}>>:-fsycl-link>
-            ${ONEDPL_AOT_OPTIONS}
             )
     endif()
 
