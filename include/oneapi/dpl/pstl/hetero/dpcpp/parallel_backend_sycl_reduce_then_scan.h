@@ -841,7 +841,7 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 template <std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng, typename _OutRng,
           typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
           typename _WriteOp, typename _InitType, typename _Inclusive, typename _IsUniquePattern>
-__future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
+std::tuple<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
@@ -951,7 +951,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                           __num_work_groups * __work_group_size);
         }
     }
-    return __future{std::move(__event), std::move(__result_and_scratch)};
+    return std::tuple{std::move(__event), std::move(__result_and_scratch)};
 }
 
 } // namespace __par_backend_hetero
