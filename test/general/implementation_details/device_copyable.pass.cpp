@@ -49,10 +49,10 @@ test_device_copyable()
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::internal::__custom_brick<
                       noop_device_copyable, int_device_copyable, oneapi::dpl::internal::search_algorithm::lower_bound>>,
                   "__custom_brick is not device copyable with device copyable types");
-    //replace_if_fun
+    //replace_by_flag
     static_assert(
-        sycl::is_device_copyable_v<oneapi::dpl::internal::replace_if_fun<int_device_copyable, noop_device_copyable>>,
-        "replace_if_fun is not device copyable with device copyable types");
+        sycl::is_device_copyable_v<oneapi::dpl::internal::replace_by_flag<int_device_copyable, noop_device_copyable>>,
+        "replace_by_flag is not device copyable with device copyable types");
     //scan_by_key_fun
     static_assert(
         sycl::is_device_copyable_v<
@@ -320,10 +320,10 @@ test_non_device_copyable()
         !sycl::is_device_copyable_v<oneapi::dpl::internal::__custom_brick<
             noop_device_copyable, int_non_device_copyable, oneapi::dpl::internal::search_algorithm::lower_bound>>,
         "__custom_brick is device copyable with non device copyable types");
-    //replace_if_fun
+    //replace_by_flag
     static_assert(!sycl::is_device_copyable_v<
-                      oneapi::dpl::internal::replace_if_fun<int_device_copyable, noop_non_device_copyable>>,
-                  "replace_if_fun is device copyable with non device copyable types");
+                      oneapi::dpl::internal::replace_by_flag<int_device_copyable, noop_non_device_copyable>>,
+                  "replace_by_flag is device copyable with non device copyable types");
     //scan_by_key_fun
     static_assert(
         !sycl::is_device_copyable_v<oneapi::dpl::internal::scan_by_key_fun<int_non_device_copyable, int_device_copyable,

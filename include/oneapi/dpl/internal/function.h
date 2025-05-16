@@ -17,6 +17,8 @@
 #define _ONEDPL_INTERNAL_FUNCTION_H
 
 #include <utility>
+#include <iostream>
+
 #if _ONEDPL_BACKEND_SYCL
 #    include "../pstl/hetero/dpcpp/parallel_backend_sycl_utils.h"
 #endif
@@ -44,22 +46,21 @@ struct is_discard_iterator<Iter, ::std::enable_if_t<Iter::is_discard::value>> : 
 
 // Used by: exclusive_scan_by_key
 // Lambda: [pred, &new_value](Ref1 a, Ref2 s) {return pred(s) ? new_value : a; });
-template <typename T, typename Predicate>
-struct replace_if_fun
+template <typename T>
+struct replace_by_flag
 {
     using result_of = T;
 
-    replace_if_fun(Predicate _pred, T _new_value) : pred(_pred), new_value(_new_value) {}
+    replace_by_flag(T _new_value) : new_value(_new_value) {}
 
     template <typename _T1, typename _T2>
     T
-    operator()(_T1&& a, _T2&& s) const
+    operator()(_T1&& a, _T2&& flag) const
     {
-        return pred(s) ? new_value : a;
+        return flag ? new_value : a;
     }
 
   private:
-    Predicate pred;
     const T new_value;
 };
 

@@ -79,12 +79,8 @@ __pattern_exclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1
 
     // TODO : add stencil form of replace_copy_if to oneDPL if the
     // transform call here is difficult to understand and maintain.
-#if 1
     transform(policy, first2, last2 - 1, _flags.get() + 1, _temp.get() + 1,
-              internal::replace_if_fun<T, ::std::negate<FlagType>>(::std::negate<FlagType>(), init));
-#else
-    replace_copy_if(policy1, first2, last2 - 1, _flags.get() + 1, _temp.get() + 1, ::std::negate<FlagType>(), init);
-#endif
+              internal::replace_by_flag<T>(init));
 
     // scan key-flag tuples
     inclusive_scan(::std::forward<Policy>(policy), make_zip_iterator(_temp.get(), _flags.get()),
@@ -146,13 +142,8 @@ __pattern_exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, 
 
     // TODO : add stencil form of replace_copy_if to oneDPL if the
     // transform call here is difficult to understand and maintain.
-#    if 1
     transform(::std::move(policy1), first2, last2 - 1, _flags.get() + 1, _temp.get() + 1,
-              internal::replace_if_fun<T, ::std::negate<FlagType>>(::std::negate<FlagType>(), init));
-#    else
-    replace_copy_if(::std::move(policy1), first2, last2 - 1, _flags.get() + 1, _temp.get() + 1,
-                    ::std::negate<FlagType>(), init);
-#    endif
+              internal::replace_by_flag<T>(init));
 
     auto policy2 =
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<ExclusiveScan2>(::std::forward<Policy>(policy));
