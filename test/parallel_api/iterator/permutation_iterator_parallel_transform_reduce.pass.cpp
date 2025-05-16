@@ -87,7 +87,7 @@ run_algo_tests()
 int
 main()
 {
-    using ValueType = ::std::uint32_t;
+    using ValueType = std::int32_t;
 
 #if TEST_DPCPP_BACKEND_PRESENT
     run_algo_tests<ValueType, perm_it_index_tags_usm_shared>();
