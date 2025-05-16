@@ -562,7 +562,7 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
     auto __view1 = oneapi::dpl::__ranges::take_view_simple(__view, __view.size() - 1);
     auto __view2 = oneapi::dpl::__ranges::drop_view_simple(__view, 1);
 
-    using __size_calc = oneapi::dpl::__par_backend_hetero::__min_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__min_size_calc;
     using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator>::difference_type>;
     using _TagType = std::conditional_t<__is_or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
                                         oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_IndexType>>;
@@ -627,7 +627,7 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         _Predicate{__pred}, __par_backend_hetero::__parallel_or_tag{}, __size_calc{}, __buf.all_view());
@@ -651,7 +651,7 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1
     auto __buf1 = __keep(__first1, __last1);
     auto __buf2 = __keep(__first2, __last2);
 
-    using size_calc = oneapi::dpl::__par_backend_hetero::__min_size_calc;
+    using size_calc = oneapi::dpl::__ranges::__min_size_calc;
 
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
@@ -688,7 +688,7 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_Pred>;
     using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator>::difference_type>;
     using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
-    using __size_calc = oneapi::dpl::__par_backend_hetero::__min_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__min_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
@@ -722,7 +722,7 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
         using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
         using _IndexType = typename std::iterator_traits<_Iterator1>::difference_type;
         using _TagType = __par_backend_hetero::__parallel_find_backward_tag<_IndexType>;
-        using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
+        using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
         auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
         auto __buf1 = __keep(__first, __last);
@@ -750,7 +750,7 @@ __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
     using _Predicate = unseq_backend::first_match_pred<_Pred>;
     using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator1>::difference_type>;
     using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
-    using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
     // TODO: To check whether it makes sense to iterate over the second sequence in case of
     // distance(__first, __last) < distance(__s_first, __s_last).
@@ -796,7 +796,7 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
     using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
     using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator1>::difference_type>;
     using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
-    using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep(__first, __last);
@@ -849,7 +849,7 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     using _Predicate = unseq_backend::n_elem_match_pred<_BinaryPredicate, _Tp, _Size>;
     using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator>::difference_type>;
     using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
-    using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
@@ -878,7 +878,7 @@ __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterat
         std::make_unsigned_t<std::common_type_t<typename std::iterator_traits<_Iterator1>::difference_type,
                                                 typename std::iterator_traits<_Iterator2>::difference_type>>;
     using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
-    using __size_calc = oneapi::dpl::__par_backend_hetero::__min_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__min_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep(__first1, __last1);
@@ -1143,7 +1143,7 @@ __pattern_is_heap_until(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred_by_idx<__is_heap_check<_Compare>>;
     using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type>;
     using _TagType = __par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
-    using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
@@ -1164,7 +1164,7 @@ __pattern_is_heap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _RandomA
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred_by_idx<__is_heap_check<_Compare>>;
     using _TagType = __par_backend_hetero::__parallel_or_tag;
-    using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
@@ -1457,7 +1457,7 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
 
     using __brick_include_type = unseq_backend::__brick_includes<_Compare, decltype(__n1), decltype(__n2)>;
     using _TagType = __par_backend_hetero::__parallel_or_tag;
-    using __size_calc = oneapi::dpl::__par_backend_hetero::__first_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep(__first1, __last1);

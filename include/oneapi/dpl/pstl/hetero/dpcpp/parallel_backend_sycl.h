@@ -2289,33 +2289,9 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     }
 };
 
-struct __first_size_calc
-{
-
-    template <typename... _Ranges>
-    auto
-    operator()(const _Ranges&... __rngs) const
-    {
-        return oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
-    }
-};
-
-struct __min_size_calc
-{
-    template <typename... _Ranges>
-    auto
-    operator()(const _Ranges&... __rngs) const
-    {
-        using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
-        return std::min({_Size(__rngs.size())...});
-    }
-};
-
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
 template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename _SizeCalc, typename... _Ranges>
-std::conditional_t<
-    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
-    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
+auto
 __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
                         _BrickTag __brick_tag, _SizeCalc __sz_calc, _Ranges&&... __rngs)
 {
@@ -2367,9 +2343,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     }
 
     if constexpr (__or_tag_check)
-        return __result != __init_value;
+        return __result != __init_value; //return a bool type
     else
-        return __result != __init_value ? __result : __rng_n;
+        return __result != __init_value ? decltype(__rng_n)(__result) : __rng_n; //return a decltype(__rng_n)
 }
 
 //------------------------------------------------------------------------

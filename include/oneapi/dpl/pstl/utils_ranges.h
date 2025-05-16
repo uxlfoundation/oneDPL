@@ -129,6 +129,35 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 namespace __ranges
 {
 
+struct __first_size_calc
+{
+    template <typename _Range, typename... _Ranges>
+    auto
+    operator()(const _Range& __rng, const _Ranges&...) const
+    {
+#if _ONEDPL_CPP20_RANGES_PRESENT
+        return std::ranges::size(__rng);
+#else
+        return __rng.size();
+#endif
+    }
+};
+
+struct __min_size_calc
+{
+    template <typename... _Ranges>
+    auto
+    operator()(const _Ranges&... __rngs) const
+    {
+        using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+#if _ONEDPL_CPP20_RANGES_PRESENT
+        return std::min({_Size(std::ranges::size(__rngs))...});
+#else
+        return std::min({_Size(__rngs.size())...});
+#endif
+    }
+};
+
 // helpers to check implement "has_base"
 template <typename U>
 auto
