@@ -1010,7 +1010,6 @@ namespace __internal
 
 struct __remove_fn
 {
-
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
@@ -1028,6 +1027,53 @@ struct __remove_fn
 } //__internal
 
 inline constexpr __internal::__remove_fn remove;
+
+// [alg.unique]
+
+struct __unique_fn
+{
+
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_R>, _Proj>>
+                _Comp = std::ranges::equal_to>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_subrange_t<_R>
+    operator(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_unique(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+    }
+};//__unique_fn
+} //__internal
+
+inline constexpr __internal::__unique_fn unique;
+
+struct __unique_copy_fn
+{
+
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+             std::ranges::random_access_range _OutRange, typename _Proj = std::identity,
+             std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_R>, _Proj>>
+                _Comp = std::ranges::equal_to>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
+        && std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
+
+    std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t_InRangeR>, std::ranges::borrowed_iterator_t<_OutRange>>
+    operator(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r, _Comp __comp = {}, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_unique_copy(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r),
+            __comp, __proj);
+    }
+};//__unique_fn
+} //__internal
+
+inline constexpr __internal::__unique_copy_fn unique_copy;
 
 // [alg.reverse]
 
@@ -1066,11 +1112,10 @@ struct __reverse_copy_fn
 
     std::ranges::reverse_copy_result<std::ranges::borrowed_subrange_t<_InRange>,
                                      std::ranges::borrowed_subrange_t<_OutRange>>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r) const
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r) const
     {
-        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_reverse_copy(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r));
+        return oneapi::dpl::ranges::copy(std::forward<_ExecutionPolicy>(__exec), __in_r | std::views::reverse,
+            std::forward<_OutRange>(__out_r));
     }
 
 }; //__reverse_fn
