@@ -45,7 +45,6 @@ struct is_discard_iterator<Iter, ::std::enable_if_t<Iter::is_discard::value>> : 
 };
 
 // Used by: exclusive_scan_by_key
-// Lambda: [pred, &new_value](Ref1 a, Ref2 s) {return pred(s) ? new_value : a; });
 template <typename T>
 struct replace_by_flag
 {
