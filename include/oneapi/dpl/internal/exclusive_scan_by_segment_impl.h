@@ -79,8 +79,7 @@ __pattern_exclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1
 
     // TODO : add stencil form of replace_copy_if to oneDPL if the
     // transform call here is difficult to understand and maintain.
-    transform(policy, first2, last2 - 1, _flags.get() + 1, _temp.get() + 1,
-              internal::replace_by_flag<T>(init));
+    transform(policy, first2, last2 - 1, _flags.get() + 1, _temp.get() + 1, internal::replace_by_flag<T>(init));
 
     // scan key-flag tuples
     inclusive_scan(::std::forward<Policy>(policy), make_zip_iterator(_temp.get(), _flags.get()),
