@@ -43,21 +43,23 @@ struct is_discard_iterator<Iter, ::std::enable_if_t<Iter::is_discard::value>> : 
 };
 
 // Used by: exclusive_scan_by_key
-template <typename T>
-struct replace_by_flag
+// Lambda: [pred, &new_value](Ref1 a, Ref2 s) {return pred(s) ? new_value : a; });
+template <typename T, typename Predicate>
+struct replace_if_fun
 {
     using result_of = T;
 
-    replace_by_flag(T _new_value) : new_value(_new_value) {}
+    replace_if_fun(Predicate _pred, T _new_value) : pred(_pred), new_value(_new_value) {}
 
     template <typename _T1, typename _T2>
     T
-    operator()(_T1&& a, _T2&& flag) const
+    operator()(_T1&& a, _T2&& s) const
     {
-        return flag ? new_value : a;
+        return pred(s) ? new_value : a;
     }
 
   private:
+    Predicate pred;
     const T new_value;
 };
 

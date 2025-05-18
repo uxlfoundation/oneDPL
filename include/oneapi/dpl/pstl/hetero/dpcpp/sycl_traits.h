@@ -740,8 +740,8 @@ enum class search_algorithm;
 template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick;
 
-template <typename T>
-struct replace_by_flag;
+template <typename T, typename Predicate>
+struct replace_if_fun;
 
 template <typename ValueType, typename FlagType, typename BinaryOp>
 struct scan_by_key_fun;
@@ -763,9 +763,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::__
 {
 };
 
-template <typename T>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::replace_by_flag, T)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<T>
+template <typename T, typename Predicate>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::replace_if_fun, T, Predicate)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<T, Predicate>
 {
 };
 
