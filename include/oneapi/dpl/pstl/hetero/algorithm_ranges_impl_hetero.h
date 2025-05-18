@@ -204,7 +204,9 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& 
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<oneapi::dpl::__internal::__not_pred<_Pred>>;
     using __or_tag = oneapi::dpl::__par_backend_hetero::__parallel_or_tag;
-    using __size_calc = oneapi::dpl::__ranges::__min_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
+
+    assert(__rng1.size() == __rng2.size());
 
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
@@ -363,7 +365,7 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& 
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_Pred>;
     using __or_tag = oneapi::dpl::__par_backend_hetero::__parallel_or_tag;
-    using __size_calc = oneapi::dpl::__ranges::__min_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
     
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         _Predicate{__pred}, __or_tag{}, __size_calc{}, std::forward<_Range>(__rng));
@@ -529,7 +531,9 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     auto __rng1 = oneapi::dpl::__ranges::take_view_simple(__rng, __rng.size() - 1);
     auto __rng2 = oneapi::dpl::__ranges::drop_view_simple(__rng, 1);
 
-    using __size_calc = oneapi::dpl::__ranges::__min_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
+
+    assert(__rng1.size() == __rng2.size());
 
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
