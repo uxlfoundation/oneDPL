@@ -562,7 +562,9 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
     auto __view1 = oneapi::dpl::__ranges::take_view_simple(__view, __view.size() - 1);
     auto __view2 = oneapi::dpl::__ranges::drop_view_simple(__view, 1);
 
-    using __size_calc = oneapi::dpl::__ranges::__min_size_calc;
+    assert(__view1.size() = __view2.size());
+
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
     using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator>::difference_type>;
     using _TagType = std::conditional_t<__is_or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
                                         oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_IndexType>>;
@@ -642,8 +644,11 @@ bool
 __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first1, _Iterator1 __last1,
                 _Iterator2 __first2, _Iterator2 __last2, _Pred __pred)
 {
-    if (__last1 == __first1 || __last2 == __first2 || __last1 - __first1 != __last2 - __first2)
+    if (__last1 - __first1 != __last2 - __first2)
         return false;
+   
+    if(__last1 == __first1)
+        return true; //both sequences are empty
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<oneapi::dpl::__internal::__not_pred<_Pred>>;
 
