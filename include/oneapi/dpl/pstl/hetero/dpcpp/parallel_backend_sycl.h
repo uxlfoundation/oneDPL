@@ -2293,7 +2293,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename _SizeCalc, typename... _Ranges>
 auto
 __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
-                        _BrickTag __brick_tag, _SizeCalc __sz_calc, _Ranges&&... __rngs)
+                   _BrickTag __brick_tag, _SizeCalc __sz_calc, _Ranges&&... __rngs)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
