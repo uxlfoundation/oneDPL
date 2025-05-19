@@ -1,7 +1,7 @@
 # tuple like concept for the oneDPL C++20
 
 ## Introduction
-A tuple like type in C++ is a powerful utility that enables developers to combine two or more types into a single one  - a tuple.
+A tuple like type in C++ is a powerful utility that enables developers to combine two or more types into a single one - a tuple.
 There are very useful other types based on a tuple like type. For example, zip iterator or zip view types.
 C++ standard library indroduces `std::tuple` type and `std::ranges::zip_view` is based on `std::tuple`.
 
@@ -19,11 +19,13 @@ So, it is not able to be used with the non-range algorithms
 - Any wrapper over `std::tuple` is not device copyable. (https://godbolt.org/z/brfvcMeM6). A device copyability of the `std::tuple` is not transitive property.
 
 oneDPL has internal tuple like type without the issues mentioned above.
-But, we would not specify that internal type in oneDPL specification. Rather we would have a tuple like concept for oneDPL.
+But, we would not specify that internal type in oneDPL specification. Rather we would have a `tuple like concept` for oneDPL.
 
 ### Key Requirements
-- oneDPL tuple type should be explicitly convertible to `std::tuple`
-- Elements of tuple-like types can be accessed using structured bindings.
+A tuple type, which is satisfying a `tuple like concept`, should be:
+- Explicitly convertible to `std::tuple`.
+- A SYCL device copyable type.
+- Elements of such typel type can be accessed using structured bindings.
 - The type can be used with `onedpl::get`, `onedpl::tuple_element` and `onedpl::tuple_size`.
 
 ### Implementation proposal (C++20)
@@ -31,4 +33,4 @@ But, we would not specify that internal type in oneDPL specification. Rather we 
 - This C++ concept is defined via a list of C++ requirements, corresponding to the `Key Requirements` list above.
 
 ### Test coverage
-- The test cases should cover each require from the `Key Requirements` list.
+- The test cases should cover as the whole concept and as each require from the `Key Requirements` list for `oneapi::dpl::__internal::tuple` type.
