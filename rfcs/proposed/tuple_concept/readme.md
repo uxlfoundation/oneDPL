@@ -27,7 +27,7 @@ But, we would not specify that internal type in oneDPL specification. Rather we 
 - The type can be used with `onedpl::get`, `onedpl::tuple_element` and `onedpl::tuple_size`.
 
 ### Implementation proposal (C++20)
-- For C++20 oneDPL introduces a C++ concept, for exampple, `oneapi::dpl::tuple`. A proper name may be discussed.
+- For C++20 oneDPL introduces a C++ concept, for example, `oneapi::dpl::tuple`. A proper name may be discussed.
 - This C++ concept is defined via a list of C++ requirements, corresponding to the `Key Requirements` list above.
 
 ### Test coverage
