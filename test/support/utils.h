@@ -113,8 +113,7 @@ is_equal_val(const T1& val1, const T2& val2)
         const auto eps = std::numeric_limits<T>::epsilon();
         return std::fabs(T(val1) - T(val2)) < eps;
     }
-
-    if constexpr (std::is_same_v<T1, T2>)
+    else if constexpr (std::is_same_v<T1, T2>)
     {
         return val1 == val2;
     }
