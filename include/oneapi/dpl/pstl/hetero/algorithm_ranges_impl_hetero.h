@@ -746,6 +746,25 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     return __res.get(); // is a blocking call
 }
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
+std::ranges::unique_copy_result<std::ranges::_R>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
+{
+    oneapi::dpl::__internal::__compare __pred_2{__comp, __proj};
+
+    auto __beg = std::ranges::begin(__r);
+    auto __end = __beg + std::ranges::size(__r);
+    auto __beg_out = std::ranges::begin(__out_r);
+
+    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique_copy(__tag, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)),__pred_2);
+
+    return {__end, __beg_out + __idx};
+}
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 //------------------------------------------------------------------------
 // unique
 //------------------------------------------------------------------------
