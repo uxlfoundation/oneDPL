@@ -544,7 +544,8 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 // adjacent_find
 //------------------------------------------------------------------------
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _BinaryPredicate, typename _OrFirstTag>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _BinaryPredicate,
+          typename _OrFirstTag>
 _Iterator
 __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
                         _BinaryPredicate __pred, _OrFirstTag __is_or_semantic)
@@ -571,8 +572,9 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
 
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
-    auto result = __par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{__pred}, _TagType{}, __size_calc{}, __view1, __view2);
+    auto result =
+        __par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                 _Predicate{__pred}, _TagType{}, __size_calc{}, __view1, __view2);
 
     // inverted conditional because of
     // reorder_predicate in glue_algorithm_impl.h
@@ -631,8 +633,9 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
 
     using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{__pred}, __par_backend_hetero::__parallel_or_tag{}, __size_calc{}, __buf.all_view());
+    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred},
+        __par_backend_hetero::__parallel_or_tag{}, __size_calc{}, __buf.all_view());
 }
 
 //------------------------------------------------------------------------
@@ -646,8 +649,8 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1
 {
     if (__last1 - __first1 != __last2 - __first2)
         return false;
-   
-    if(__last1 == __first1)
+
+    if (__last1 == __first1)
         return true; //both sequences are empty
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<oneapi::dpl::__internal::__not_pred<_Pred>>;
@@ -662,9 +665,10 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1
 
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
-    return !__par_backend_hetero::__parallel_find_or(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{oneapi::dpl::__internal::__not_pred<_Pred>{__pred}},
-        __par_backend_hetero::__parallel_or_tag{}, size_calc{}, __buf1.all_view(), __buf2.all_view());
+    return !__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                     _Predicate{oneapi::dpl::__internal::__not_pred<_Pred>{__pred}},
+                                                     __par_backend_hetero::__parallel_or_tag{}, size_calc{},
+                                                     __buf1.all_view(), __buf2.all_view());
 }
 
 //------------------------------------------------------------------------
@@ -700,8 +704,9 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{__pred}, _TagType{}, __size_calc{}, __buf.all_view());
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, _TagType{}, __size_calc{},
+        __buf.all_view());
 
     return __first + __res;
 }
@@ -735,8 +740,9 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
         auto __buf1 = __keep(__first, __last);
         auto __buf2 = __keep(__s_first, __s_last);
 
-        auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-            _Predicate{__pred}, _TagType{}, __size_calc{}, __buf1.all_view(), __buf2.all_view());
+        auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, _TagType{}, __size_calc{},
+            __buf1.all_view(), __buf2.all_view());
 
         return __first + __res;
     }
@@ -766,8 +772,9 @@ __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
     auto __buf1 = __keep(__first, __last);
     auto __buf2 = __keep(__s_first, __s_last);
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{__pred}, _TagType{}, __size_calc{}, __buf1.all_view(), __buf2.all_view());
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, _TagType{}, __size_calc{},
+        __buf1.all_view(), __buf2.all_view());
 
     return __first + __res;
 }
@@ -809,9 +816,10 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
     auto __buf1 = __keep(__first, __last);
     auto __buf2 = __keep(__s_first, __s_last);
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{__pred}, _TagType{}, __size_calc{}, __buf1.all_view(), __buf2.all_view());
-        
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, _TagType{}, __size_calc{},
+        __buf1.all_view(), __buf2.all_view());
+
     return __first + __res;
 }
 
@@ -861,8 +869,9 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{__pred, __value, __count}, _TagType{}, __size_calc{}, __buf.all_view());
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred, __value, __count}, _TagType{},
+        __size_calc{}, __buf.all_view());
 
     return __first + __res;
 }
@@ -891,8 +900,10 @@ __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterat
     auto __buf1 = __keep(__first1, __last1);
     auto __buf2 = __keep(__first2, __last2);
 
-    __n = oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{oneapi::dpl::__internal::__not_pred<_Pred>{__pred}}, _TagType{}, __size_calc{}, __buf1.all_view(), __buf2.all_view());
+    __n = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        _Predicate{oneapi::dpl::__internal::__not_pred<_Pred>{__pred}}, _TagType{}, __size_calc{}, __buf1.all_view(),
+        __buf2.all_view());
 
     return std::make_pair(__first1 + __n, __first2 + __n);
 }
@@ -1155,8 +1166,9 @@ __pattern_is_heap_until(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{__comp}, _TagType{}, __size_calc{}, __buf.all_view());
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__comp}, _TagType{}, __size_calc{},
+        __buf.all_view());
 
     return __first + __res;
 }
@@ -1177,7 +1189,8 @@ __pattern_is_heap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _RandomA
     auto __buf = __keep(__first, __last);
 
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        _Predicate{__comp}, _TagType{}, __size_calc{}, __buf.all_view());
+                                                                  _Predicate{__comp}, _TagType{}, __size_calc{},
+                                                                  __buf.all_view());
 }
 
 //------------------------------------------------------------------------
@@ -1471,7 +1484,8 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
     auto __buf2 = __keep(__first2, __last2);
 
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        __brick_include_type{__comp, __n1, __n2}, _TagType{}, __size_calc{}, __buf2.all_view(), __buf1.all_view());
+                                                                  __brick_include_type{__comp, __n1, __n2}, _TagType{},
+                                                                  __size_calc{}, __buf2.all_view(), __buf1.all_view());
 }
 
 //------------------------------------------------------------------------
