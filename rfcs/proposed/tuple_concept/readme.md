@@ -21,15 +21,14 @@ So, it is not able to be used with the non-range algorithms
 oneDPL has internal tuple like type without the issues mentioned above.
 But, we would not specify that internal type in oneDPL specification. Rather we would have a tuple like concept for oneDPL.
 
-
 ### Key Requirements
 - oneDPL tuple type should be explicitly convertible to `std::tuple`
 - Elements of tuple-like types can be accessed using structured bindings.
 - The type can be used with `onedpl::get`, `onedpl::tuple_element` and `onedpl::tuple_size`.
 
-
 ### Implementation proposal (C++20)
-TODO
+- For C++20 oneDPL introduces a C++ concept, for exampple, `oneapi::dpl::tuple`. A proper name may be discussed.
+- This C++ concept is defined via a list of C++ requirements, corresponding to the `Key Requirements` list above.
 
 ### Test coverage
-TODO
+- The test cases should cover each require from the `Key Requirements` list.
