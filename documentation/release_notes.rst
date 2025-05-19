@@ -14,14 +14,15 @@ New in 2022.9.0
 New Features
 ------------
 - Added parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``fill``, ``move``, ``replace``, ``replace_if``,
-``remove``, ``remove_if``, ``mismatch``, ``minmax_element``, ``min``, ``max``, ``find_first_of``, ``find_end``, ``is_sorted_until``
-- Improved performance of set operation algorithms (e.g., ``set_union``, ``set_difference``, etc.)
+  ``remove``, ``remove_if``, ``mismatch``, ``minmax_element``, ``min``, ``max``, ``find_first_of``, ``find_end``, ``is_sorted_until``
+- Improved performance of set operation algorithms when using device policies: ``set_union``, ``set_difference``,
+  ``set_intersection``, ``set_symmetric_difference``.
 
 Fixed Issues
 ------------
 - Eliminated runtime exceptions that were encountered when compiling code that uses device policies with the open source
 oneAPI DPC++ Compiler (clang++ driver) without specifying an optimization flag.
-- Eliminated compile time warnings throughout the library.
+- Eliminated multiple compile time warnings throughout the library.
 
 
 Known Issues and Limitations
@@ -35,12 +36,8 @@ See oneDPL Guide for other `restrictions and known limitations`_.
 
 - Incorrect results may be observed when calling ``sort`` with a device policy on Intel® Arc™ graphics 140V with data
   sizes of 4-8 million elements.
-- ``sort``, ``stable_sort``, ``sort_by_key`` and ``stable_sort_by_key`` algorithms fail to compile
-  when using Clang 17 and earlier versions, as well as compilers based on these versions,
-  such as Intel® oneAPI DPC++/C++ Compiler 2023.2.0.
 - ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
-  when used with an FPGA policy.
-- ``histogram`` may provide incorrect results with device policies in a program built with ``-O0`` option.
+  when used with a device policy on hardware that does not support 64-bit atomic operations.
 - Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows. 
 - For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
   used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
