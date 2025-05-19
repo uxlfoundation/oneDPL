@@ -1,43 +1,7 @@
+.. _iterator-details:
+
 Iterators
 #########
-
-Requirements For Iterator Use With Device Policies
---------------------------------------------------
-Iterators and iterator-like types may or may not refer to content accessible within a
-`SYCL <https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html>`_ kernel on a device. The term
-*indirectly device accessible* refers to a type that represents content accessible on a device. An indirectly device
-accessible iterator is such a type that can also be dereferenced within a SYCL kernel.
-
-An example of indirectly device accessible iterators include SYCL USM shared pointers which can inherently be used in a
-SYCL kernel. An example of an iterator type that is not indirectly device accessible is a random access iterator
-referring to host allocated data because dereferencing it within a SYCL kernel would result in undefined behavior.
-
-The `type returned from oneapi::dpl::begin and oneapi::dpl::end <use-buffer-wrappers>`_ are not iterators. However,
-they are indirectly device accessible because they represent data accessible on the device.
-
-When passed to oneDPL algorithms with a device_policy, using indirectly device accessible types will minimize data
-movement and should be equivalent to using the type directly within a SYCL kernel. For iterator types, you must also
-ensure that the iterator type is SYCL device-copyable when using a device policy.
-
-
-Indirect Device Accessibility Type Trait
-----------------------------------------
-The following class template and variable template are defined in ``<oneapi/dpl/iterator>`` inside the namespace
-``oneapi::dpl:``
-
-.. code:: cpp
-  template <typename T>
-  struct is_indirectly_device_accessible{ /* see below */ };
-
-  template <typename T>
-  inline constexpr bool is_indirectly_device_accessible_v = is_indirectly_device_accessible<T>::value;
-
-``template <typename T> oneapi::dpl::is_indirectly_device_accessible`` is a template which has the base characteristic
-of ``std::true_type`` if ``T`` is indirectly device accessible. Otherwise, it has the base characteristic of
-``std::false_type``.
-
-oneDPL Iterators
-----------------
 
 The definitions of the iterators are available through the ``<oneapi/dpl/iterator>``
 header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
@@ -45,7 +9,8 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 * ``counting_iterator``: a random-access iterator-like type whose dereferenced value is an integer
   counter. Instances of a ``counting_iterator`` provide read-only dereference operations. The counter of an
   ``counting_iterator`` instance changes according to the arithmetic of the random-access iterator type.
-  ``counting_iterator`` is SYCL device-copyable, and is an indirectly device accessible iterator.
+  ``counting_iterator`` is `SYCL device-copyable`_, and is an
+  `indirectly device accessible <_indirectly-device-accessible>`_ iterator.
 
   .. code:: cpp
 
@@ -192,7 +157,7 @@ indirectly device accessible. The function overload to use must be selected with
   will match its most specific base type for which an overload exists.
 
 
-Once ``is_onedpl_indirectly_device_accessible(T)`` is defined, the public trait 
+Once ``is_onedpl_indirectly_device_accessible(T)`` is defined, the `public trait <indirectly-device-accessible-trait>`_
 ``template<typename T> oneapi::dpl::is_indirectly_device_accessible[_v]`` will return the appropriate value. This public
 trait can also be used to define the return type of ``is_onedpl_indirectly_device_accessible(T)`` by applying it to any
 source iterator component types. 
@@ -244,3 +209,5 @@ the iterator class.
                                   it_pair<usr::accessible_it, usr::accessible_it>> == true);
   static_assert(oneapi::dpl::is_indirectly_device_accessible<
                                   it_pair<usr::accessible_it, usr::inaccessible_it>> == false);
+
+.. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
