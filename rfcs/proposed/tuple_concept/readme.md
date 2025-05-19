@@ -26,8 +26,11 @@ A tuple type, which is satisfying a `tuple like concept`, should be:
 - Explicitly convertible to `std::tuple`.
 - A SYCL device copyable type.
 - Elements of such typel type can be accessed using structured bindings.
-- The type can be used with `onedpl::get`, `onedpl::tuple_element` and `onedpl::tuple_size`.
-
+- The type can be used with `std::get`, `std::tuple_element` and `std::tuple_size`, `std::apply`.
+- The type is lexicographically comparable the values in the tuple. Other words, the following operators should be defined for the type:
+  `operator==`, `operator!=`, `operator<`, `operator<=`, `operator>`, `operator>=`, `operator<=>`.
+- The standard typrs `std::common_type` and `std::basic_common_reference` should be specified for the type.
+  
 ### Implementation proposal (C++20)
 - For C++20 oneDPL introduces a C++ concept, for example, `oneapi::dpl::tuple`. A proper name may be discussed.
 - This C++ concept is defined via a list of C++ requirements, corresponding to the `Key Requirements` list above.
