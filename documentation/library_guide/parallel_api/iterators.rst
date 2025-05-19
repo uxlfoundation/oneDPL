@@ -3,19 +3,21 @@ Iterators
 
 Requirements For Iterator Use With Device Policies
 --------------------------------------------------
-Iterators and iterator-like types may or may not refer to content accessible within a SYCL kernel on a device. The term
-indirectly device accessible refers to a type that represents content accessible on a device. An indirectly device
+Iterators and iterator-like types may or may not refer to content accessible within a
+`SYCL <https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html>`_ kernel on a device. The term
+*indirectly device accessible* refers to a type that represents content accessible on a device. An indirectly device
 accessible iterator is such a type that can also be dereferenced within a SYCL kernel.
 
 An example of indirectly device accessible iterators include SYCL USM shared pointers which can inherently be used in a
 SYCL kernel. An example of an iterator type that is not indirectly device accessible is a random access iterator
 referring to host allocated data because dereferencing it within a SYCL kernel would result in undefined behavior.
 
-The type returned from ``oneapi::dpl::begin`` and ``oneapi::dpl::end`` <use-buffer-wrappers> are not iterators. However,
+The `type returned from oneapi::dpl::begin and oneapi::dpl::end <use-buffer-wrappers>`_ are not iterators. However,
 they are indirectly device accessible because they represent data accessible on the device.
 
 When passed to oneDPL algorithms with a device_policy, using indirectly device accessible types will minimize data
-movement and should be equivalent to using the type directly within a SYCL kernel.
+movement and should be equivalent to using the type directly within a SYCL kernel. For iterator types, you must also
+ensure that the iterator type is SYCL device-copyable when using a device policy.
 
 
 Indirect Device Accessibility Type Trait
