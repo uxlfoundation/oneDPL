@@ -773,7 +773,7 @@ struct __merge_fn
         && std::mergeable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
         std::ranges::iterator_t<_OutRange>, _Comp, _Proj1, _Proj2>
     auto
-    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {}, _Proj1 __proj1 = {},
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp  = {}, _Proj1 __proj1 = {},
                _Proj2 __proj2 = {}) const
     {
         // TODO: develop a strategy to get a common minimum size
@@ -786,6 +786,88 @@ struct __merge_fn
 }  //__internal
 
 inline constexpr __internal::__merge_fn merge;
+
+// [includes]
+namespace __internal
+{
+struct __includes_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+             typename _Proj1 = std::identity, typename _Proj2 = std::identity,
+             std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R1>, _Proj1>, 
+             std::projected<std::ranges::iterator_t<_R2>, _Proj2>> _Comp = std::ranges::less>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R1>
+             && std::ranges::sized_range<_R2>
+
+    constexpr bool
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp = {}, _Proj1 __proj1 = {},
+               _Proj2 __proj2 = {})
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_includes(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+            std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+    }
+}; //__includes_fn
+} //__internal
+
+inline constexpr __internal::__includes_fn includes;
+
+// [set.union]
+namespace __internal
+{
+struct __set_union_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+             std::ranges::random_access_range _OutRange, typename _Comp = std::ranges::less,
+             typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R1>
+             && std::ranges::sized_range<_R2> && std::ranges::sized_range<_OutRange>
+             && std::mergeable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
+             std::ranges::iterator_t<_OutRange>, _Comp, _Proj1, _Proj2>
+
+    std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                  std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {},
+               _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_set_union(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+            std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
+    }
+}; //__set_union_fn
+} //__internal
+
+inline constexpr __internal::__set_union_fn set_union;
+
+// [set.intersection]
+
+namespace __internal
+{
+struct __set_intersection_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+             std::ranges::random_access_range _OutRange, typename _Comp = std::ranges::less,
+             typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R1>
+             && std::ranges::sized_range<_R2> && std::ranges::sized_range<_OutRange>
+             && std::mergeable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
+             std::ranges::iterator_t<_OutRange>, _Comp, _Proj1, _Proj2>
+
+    std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                  std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {},
+               _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_set_intersection(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+            std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
+    }
+}; //__set_intersection_fn
+} //__internal
+
+inline constexpr __internal::__set_intersection_fn set_intersection;
 
 // [alg.fill]
 
@@ -1053,7 +1135,6 @@ inline constexpr __internal::__unique_fn unique;
 
 struct __unique_copy_fn
 {
-
     template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
              std::ranges::random_access_range _OutRange, typename _Proj = std::identity,
              std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_R>, _Proj>>
