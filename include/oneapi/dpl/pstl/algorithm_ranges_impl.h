@@ -713,6 +713,27 @@ __pattern_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
     std::ranges::move(std::forward<_InRange>(__r), std::forward<_OutRange>(__out_r));
 }
 
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_unique(_Tag __tag, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    auto __pred_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
+        std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
+
+    auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
+    auto __it = oneapi::dpl::__internal::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                          std::ranges::begin(__r), __end, __pred_2);
+
+    return std::ranges::borrowed_subrange_t<_R>(__it, __end);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    return std::ranges::unique(std::forward<_InRange>(__r), __comp, __proj);
+}
+
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl
