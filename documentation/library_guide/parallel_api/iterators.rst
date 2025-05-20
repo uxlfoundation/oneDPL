@@ -158,10 +158,10 @@ indirectly device accessible. The function overload to use must be selected with
 Once ``is_onedpl_indirectly_device_accessible(T)`` is defined, the `public trait <indirectly-device-accessible-trait>`_
 ``template<typename T> oneapi::dpl::is_indirectly_device_accessible[_v]`` will return the appropriate value. This public
 trait can also be used to define the return type of ``is_onedpl_indirectly_device_accessible(T)`` by applying it to any
-source iterator component types. 
+source iterator component types.
 
-The following example shows how to define a customization for ``is_indirectly_device_accessible`` trait for a simple
-user defined iterator. It also shows a more complicated example where the customization is defined as a hidden friend of
+The following example shows how to define a customization for the ``is_indirectly_device_accessible`` trait for a simple
+user defined iterator. It also shows a more complex example where the customization is defined as a hidden friend of
 the iterator class.
 
 .. code:: cpp
