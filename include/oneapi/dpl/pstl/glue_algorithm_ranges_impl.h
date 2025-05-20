@@ -773,7 +773,7 @@ struct __merge_fn
         && std::mergeable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
         std::ranges::iterator_t<_OutRange>, _Comp, _Proj1, _Proj2>
     auto
-    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp  = {}, _Proj1 __proj1 = {},
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {}, _Proj1 __proj1 = {},
                _Proj2 __proj2 = {}) const
     {
         // TODO: develop a strategy to get a common minimum size
@@ -1069,7 +1069,7 @@ struct __unique_fn
         && std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_subrange_t<_R>
-    operator(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_unique(__dispatch_tag,
@@ -1090,8 +1090,8 @@ struct __unique_copy_fn
         && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
         && std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
 
-    std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t_InRangeR>, std::ranges::borrowed_iterator_t<_OutRange>>
-    operator(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r, _Comp __comp = {}, _Proj __proj = {}) const
+    std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_unique_copy(__dispatch_tag,
