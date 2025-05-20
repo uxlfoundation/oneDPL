@@ -39,9 +39,8 @@ Iterators and iterator-like types may or may not refer to content accessible wit
 *indirectly device accessible* refers to a type that represents content accessible on a device. An indirectly device
 accessible iterator is such a type that can also be dereferenced within a SYCL kernel.
 
-When passed to |onedpl_short| algorithms with a device_policy, using indirectly device accessible types will minimize data
-movement and should be equivalent to using the type directly within a SYCL kernel. For iterator types, you must also
-ensure that the iterator type is `SYCL device-copyable`_ when using a device policy.
+When passed to |onedpl_short| algorithms with a device_policy, indirectly device accessible types will minimize
+data movement and should be equivalent to using the type directly within a SYCL kernel.
 
 .. _indirectly-device-accessible-trait:
 
@@ -229,9 +228,10 @@ Use Iterators
 -------------
 
 |onedpl_short| provides a set of `iterators <iterators-details>`_ that can be used to pass data to algorithms in
-combination with the data described above. They generally hold the characteristics of the iterator type they wrap. Look
-to their descriptions for the details of their use, specifically with regard to their indirect device accessibility and
-sycl device copyability when using device policies.
+combination with the data described above. To pass data to an algorithm with a device execution policy, use
+iterators which are `SYCL device-copyable`_ and `indirectly device accessible <indirectly-device-accessible>`_. Each
+provided iterator's description contains for rules about their indirect device accessible and SYCL device-copyable
+properties.
 
 .. _use-range-views:
 
