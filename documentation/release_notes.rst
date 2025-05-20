@@ -32,7 +32,6 @@ Fixed Issues
 - Fixed a compilation error in ``reduce_by_segment`` when called with a device policy.
 - Eliminated multiple compile time warnings throughout the library.
 
-
 Known Issues and Limitations
 ----------------------------
 Existing Issues
