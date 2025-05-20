@@ -53,6 +53,8 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
   with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
   To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
+- With libstdc++ version 10, the compilation error *SYCL kernel cannot use exceptions* occurs
+  when calling the range-based ``adjacent_find``, ``is_sorted`` or ``is_sorted_until`` with device policies.
 
 New in 2022.8.0
 ===============
