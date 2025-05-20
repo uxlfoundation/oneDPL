@@ -27,8 +27,8 @@ New Features
 Fixed Issues
 ------------
 - Eliminated runtime exceptions encountered when compiling code that called ``inclusive_scan``, ``copy_if``,
-  ``partition``, ``unique``, ``reduce_by_segment``, and related algorithms with device policies using the Intel® SYCL
-  compiler (clang++ driver) without specifying an optimization flag.
+  ``partition``, ``unique``, ``reduce_by_segment``, and related algorithms with device policies using
+  the open source oneAPI DPC++ compiler without specifying an optimization flag.
 - Fixed a compilation error in ``reduce_by_segment`` when called with a device policy.
 - Eliminated multiple compile time warnings throughout the library.
 
