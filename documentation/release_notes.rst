@@ -19,7 +19,7 @@ New Features
 - Improved performance of set operation algorithms when using device policies: ``set_union``, ``set_difference``,
   ``set_intersection``, ``set_symmetric_difference``.
 - Improved performance of ``copy``, ``fill``, ``for_each``, ``replace``, ``reverse``, ``rotate``, ``transform`` and 30+
-  other algorithms with device policies on GPUs when using std::reverse_iterator.
+  other algorithms with device policies on GPUs when using ``std::reverse_iterator``.
 - Added ADL-based customization point ``is_onedpl_indirectly_device_accessible`` which can be used to mark iterator
   types as *indirectly device accessible*. Added public trait ``oneapi::dpl::is_directly_device_accessible[_v]`` to
   query if types are indirectly device accessible.
