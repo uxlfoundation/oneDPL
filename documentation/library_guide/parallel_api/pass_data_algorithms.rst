@@ -61,7 +61,6 @@ The following class template and variable template are defined in ``<oneapi/dpl/
 of ``std::true_type`` if ``T`` is indirectly device accessible. Otherwise, it has the base characteristic of
 ``std::false_type``.
 
-
 .. _use-buffer-wrappers:
 
 Use oneapi::dpl::begin and oneapi::dpl::end Functions

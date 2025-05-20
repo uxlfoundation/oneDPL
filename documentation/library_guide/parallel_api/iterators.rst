@@ -139,7 +139,6 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
     auto permutation_last = permutation_first + num_elements;
     dpl::copy(dpl::execution::dpcpp_default, permutation_first, permutation_last, result);
 
-
 Customization For User Defined Iterators
 ----------------------------------------
 |onedpl_short| provides a mechanism to indicate whether custom iterators are indirectly device accessible.
@@ -155,7 +154,6 @@ indirectly device accessible. The function overload to use must be selected with
 .. note::
   Therefore, according to the rules in the C++ Standard, a derived type for which there is no function overload
   will match its most specific base type for which an overload exists.
-
 
 Once ``is_onedpl_indirectly_device_accessible(T)`` is defined, the `public trait <indirectly-device-accessible-trait>`_
 ``template<typename T> oneapi::dpl::is_indirectly_device_accessible[_v]`` will return the appropriate value. This public
