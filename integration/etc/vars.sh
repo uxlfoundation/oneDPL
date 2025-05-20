@@ -34,3 +34,4 @@ fi
 # ############################################################################
 
 DPL_ROOT=${ONEAPI_ROOT} ; export DPL_ROOT
+DPLROOT=${ONEAPI_ROOT} ; export DPLROOT
