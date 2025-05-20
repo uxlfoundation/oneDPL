@@ -39,7 +39,7 @@ Iterators and iterator-like types may or may not refer to content accessible wit
 *indirectly device accessible* refers to a type that represents content accessible on a device. An indirectly device
 accessible iterator is such a type that can also be dereferenced within a SYCL kernel.
 
-When passed to oneDPL algorithms with a device_policy, using indirectly device accessible types will minimize data
+When passed to |onedpl_short| algorithms with a device_policy, using indirectly device accessible types will minimize data
 movement and should be equivalent to using the type directly within a SYCL kernel. For iterator types, you must also
 ensure that the iterator type is `SYCL device-copyable`_ when using a device policy.
 
@@ -83,7 +83,7 @@ to explicitly control which access mode should be applied to a particular buffer
 a SYCL kernel to a device:
 
 The return types of the ``begin`` and ``end`` functions are
-`indirectly device accessible <_indirectly-device-accessible>`_.
+`indirectly device accessible <indirectly-device-accessible>`_.
 
 .. code:: cpp
 
@@ -149,7 +149,7 @@ When using device USM, such as allocated by ``malloc_device``, you are responsib
 transfers to and from the device to ensure that input data is device accessible during oneDPL
 algorithm execution and that the result is available to the subsequent operations.
 
-USM shared and device pointers are `indirectly device accessible <_indirectly-device-accessible>`_.
+USM shared and device pointers are `indirectly device accessible <indirectly-device-accessible>`_.
 
 .. _use-std-vector:
 
@@ -216,7 +216,7 @@ Make sure that the allocator and the execution policy use the same SYCL queue:
     return 0;
   }
 
-Iterators to ``std::vector`` are `indirectly device accessible <_indirectly-device-accessible>`_ if and only if a 
+Iterators to ``std::vector`` are `indirectly device accessible <indirectly-device-accessible>`_ if and only if a 
 ``sycl::usm_allocator`` is used. For ``std::vector`` with a USM allocator we recommend to use ``std::vector::data()`` in
 combination with ``std::vector::size()`` as shown in the example above, rather than iterators to
 ``std::vector``. That is because for some implementations of the C++ Standard Library it might not
@@ -229,10 +229,10 @@ Retrieving USM pointers from ``std::vector`` as shown guarantees no unintended c
 Use Iterators
 -------------
 
-oneDPL provides a set of `iterators <_iterators-details>`_ that can be used to pass data to algorithms in combination with
-the data described above. They generally hold the characteristics of the iterator type they wrap. Look to their
-descriptions for the details of their use, specifically with regard to their indirect device accessibility and sycl 
-device copyability when using device policies.
+|onedpl_short| provides a set of `iterators <iterators-details>`_ that can be used to pass data to algorithms in
+combination with the data described above. They generally hold the characteristics of the iterator type they wrap. Look
+to their descriptions for the details of their use, specifically with regard to their indirect device accessibility and
+sycl device copyability when using device policies.
 
 .. _use-range-views:
 

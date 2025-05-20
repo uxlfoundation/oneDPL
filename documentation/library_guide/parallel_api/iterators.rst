@@ -10,7 +10,7 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
   counter. Instances of a ``counting_iterator`` provide read-only dereference operations. The counter of an
   ``counting_iterator`` instance changes according to the arithmetic of the random-access iterator type.
   ``counting_iterator`` is `SYCL device-copyable`_, and is an
-  `indirectly device accessible <_indirectly-device-accessible>`_ iterator.
+  `indirectly device accessible <indirectly-device-accessible>`_ iterator.
 
   .. code:: cpp
 
@@ -142,7 +142,7 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 
 Customization For User Defined Iterators
 ----------------------------------------
-oneDPL provides a mechanism to indicate whether custom iterators are indirectly device accessible.
+|onedpl_short| provides a mechanism to indicate whether custom iterators are indirectly device accessible.
 
 Applications may define a free function ``is_onedpl_indirectly_device_accessible(T)``, which accepts an argument of type
 ``T`` and returns a type with the base characteristic of ``std::true_type`` if ``T`` is indirectly device accessible.
