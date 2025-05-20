@@ -543,16 +543,17 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     using _TagType = ::std::conditional_t<__is__or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
                                           oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range>>;
 
+    //ATTENTION!!! oneDPL supports SYCL buffer via a placeholder accessor; a 'subrange' cannot used here because
+    //getting an iterator for the placeholder accessor is incorrect on the host; so, oneDPL uses lazy-access views
+    //for range transformations.
+
 #if _ONEDPL_CPP20_RANGES_PRESENT
-    auto __first = std::ranges::begin(__rng);
     const auto __n = std::ranges::size(__rng);
-    auto __rng1 = std::ranges::subrange(__first, __first + __n - 1);
-    auto __rng2 = std::ranges::subrange(__first + 1, __first + __n);
+    auto __rng1 = std::ranges::take_view(__rng, __n - 1);
+    auto __rng2 = std::ranges::drop_view(__rng, 1);
 #else
-    auto __first = __rng.begin();
-    const auto __n = __rng.size();
-    auto __rng1 = oneapi::dpl::experimental::ranges::views::subrange(__first, __first + __n - 1);
-    auto __rng2 = oneapi::dpl::experimental::ranges::views::subrange(__first + 1, __first + __n);
+    auto __rng1 = oneapi::dpl::__ranges::take_view_simple(__rng, __rng.size() - 1);
+    auto __rng2 = oneapi::dpl::__ranges::drop_view_simple(__rng, 1);
 #endif
 
     // TODO: in case of conflicting names
