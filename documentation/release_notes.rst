@@ -20,7 +20,7 @@ New Features
   ``set_intersection``, ``set_symmetric_difference``.
 - Improved performance of ``copy``, ``fill``, ``for_each``, ``replace``, ``reverse``, ``rotate``, ``transform`` and 30+
   other algorithms with device policies on GPUs when using ``std::reverse_iterator``.
-- Added ADL-based customization point ``is_onedpl_indirectly_device_accessible`` which can be used to mark iterator
+- Added ADL-based customization point ``is_onedpl_indirectly_device_accessible``, which can be used to mark iterator
   types as *indirectly device accessible*. Added public trait ``oneapi::dpl::is_directly_device_accessible[_v]`` to
   query if types are indirectly device accessible.
 
@@ -28,7 +28,7 @@ Fixed Issues
 ------------
 - Eliminated runtime exceptions encountered when compiling code that called ``inclusive_scan``, ``copy_if``,
   ``partition``, ``unique``, ``reduce_by_segment``, and related algorithms with device policies using
-  the open source oneAPI DPC++ compiler without specifying an optimization flag.
+  the open source oneAPI DPC++ Compiler without specifying an optimization flag.
 - Fixed a compilation error in ``reduce_by_segment`` when called with a device policy.
 - Eliminated multiple compile time warnings throughout the library.
 
