@@ -37,10 +37,10 @@ Indirectly Device Accessible
 Iterators and iterator-like types may or may not refer to content accessible within a
 `SYCL <https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html>`_ kernel on a device. The term
 *indirectly device accessible* refers to a type that represents content accessible on a device. An indirectly device
-accessible iterator is such a type that can also be dereferenced within a SYCL kernel.
+accessible iterator is a type that can also be dereferenced within a SYCL kernel.
 
-When passed to |onedpl_short| algorithms with a device_policy, indirectly device accessible types will minimize
-data movement and should be equivalent to using the type directly within a SYCL kernel.
+When passed to |onedpl_short| algorithms with a device execution policy, indirectly device accessible types minimize
+data movement and behave equivalently to using the type directly within a SYCL kernel.
 
 .. _indirectly-device-accessible-trait:
 
@@ -227,11 +227,11 @@ Retrieving USM pointers from ``std::vector`` as shown guarantees no unintended c
 Use Iterators
 -------------
 
-|onedpl_short| provides a set of `iterators <iterators-details>`_ that can be used to pass data to algorithms in
-combination with the data described above. To pass data to an algorithm with a device execution policy, use
-iterators which are `SYCL device-copyable`_ and `indirectly device accessible <indirectly-device-accessible>`_. Each
-provided iterator's description contains for rules about their indirect device accessible and SYCL device-copyable
-properties.
+|onedpl_short| provides a set of `iterators <iterators-details>`_ that can be used to pass data to algorithms, in
+combination with the data storage types described above. To pass data to an algorithm with a device execution policy,
+use iterators that are both `SYCL device-copyable`_ and `indirectly device accessible <indirectly-device-accessible>`_.
+Each provided iterator's description includes information about its indirect device accessibility and SYCL
+device-copyable properties.
 
 .. _use-range-views:
 
