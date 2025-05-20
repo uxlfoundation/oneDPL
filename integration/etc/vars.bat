@@ -34,3 +34,4 @@ if not defined ONEAPI_ROOT (
 rem ############################################################################
 
 set "DPL_ROOT=%ONEAPI_ROOT%"
+set "DPLROOT=%ONEAPI_ROOT%"
