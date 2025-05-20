@@ -731,7 +731,7 @@ __pattern_swap(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
 std::ranges::borrowed_subrange_t<_R>
-__pattern_unique(_Tag __tag, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
+__pattern_unique(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     auto __pred_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
         std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
@@ -753,7 +753,7 @@ __pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&,
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
 std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_unique_copy(_Tag __tag, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
+__pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
 {
     auto __pred_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
         std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
@@ -766,8 +766,9 @@ __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&&, _R&& __r, _OutRange&& __ou
 }
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
-std::ranges::unique_copy_result<std::ranges::_R>, std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
+std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r,
+                      _Comp __comp, _Proj __proj)
 {
     return std::ranges::unique_copy(std::forward<_R>(__r), std::forward<_OutRange>(__out_r), __comp, __proj);
 }
