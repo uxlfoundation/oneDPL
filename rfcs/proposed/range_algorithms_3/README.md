@@ -15,6 +15,7 @@ The feature is proposed as the next step of range-based API support for oneDPL.
 - The range-based signatures for the mentioned API should correspond to the [proposed specification](https://github.com/uxlfoundation/oneAPI-spec/pull/614)
 that is based on the [C++ standardization proposal P3179](https://wg21.link/p3179).
 - The proposed implementation should support all oneDPL execution policies: `seq`, `unseq`, `par`, `par_unseq`, and `device_policy`.
+- For the algprithms `reverse_copy`, `rotate_copy` return values semantic might be changed in the future or this algorithms will be not added to oneDPL.
 
 ### Implementation proposal
 - The implementation is supposed to rely on existing range-based or iterator-based algorithm patterns, which are already
