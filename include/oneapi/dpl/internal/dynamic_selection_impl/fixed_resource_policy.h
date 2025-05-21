@@ -7,147 +7,71 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _ONEDPL_STATIC_POLICY_IMPL_H
-#define _ONEDPL_STATIC_POLICY_IMPL_H
-#include <vector>
-#include <type_traits>
-#include <memory>
-#include <stdexcept>
-#include <utility>
-#include "oneapi/dpl/internal/dynamic_selection_traits.h"
-#include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
+#ifndef _ONEDPL_FIXED_RESOURCE_POLICY_H
+#define _ONEDPL_FIXED_RESOURCE_POLICY_H
+
+#include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
+
 #if _DS_BACKEND_SYCL != 0
 #    include "oneapi/dpl/internal/dynamic_selection_impl/sycl_backend.h"
 #endif
-namespace oneapi
-{
-namespace dpl
-{
-namespace experimental
-{
+
+namespace oneapi {
+namespace dpl {
+namespace experimental {
 
 #if _DS_BACKEND_SYCL != 0
 template <typename ResourceType = sycl::queue, typename Backend = default_backend<sycl::queue>>
 #else
-template <typename Backend>
+template <typename ResourceType, typename Backend>
 #endif
-struct fixed_resource_policy
-{
-  private:
-    using backend_t = Backend;
-    using resource_container_t = typename backend_t::resource_container_t;
-    using execution_resource_t = typename backend_t::execution_resource_t;
-    using wrapped_resource_t = execution_resource_t;
+class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceType, Backend>, ResourceType, Backend> {
+    using base_t = policy_base<fixed_resource_policy<ResourceType, Backend>, ResourceType, Backend>;
+    using resource_container_size_t = typename base_t::resource_container_size_t;
+    using resource_type = typename base_t::resource_type;
 
-  public:
-    //policy traits
-    using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
-    using selection_type =
-        oneapi::dpl::experimental::basic_selection_handle_t<fixed_resource_policy<ResourceType, Backend>, execution_resource_t>;
-    using wait_type = typename backend_t::wait_type;
-
-  private:
-    std::shared_ptr<backend_t> backend_;
-
-    struct state_t
-    {
-        resource_container_t resources_;
-        ::std::size_t index_ = 0;
+    struct selector_t {
+        typename base_t::resource_container_t resources_;
+        resource_container_size_t index_ = 0;
     };
 
-    std::shared_ptr<state_t> state_;
+    std::shared_ptr<selector_t> selector_;
+    std::size_t initial_index_ = 0;
 
-  public:
-    fixed_resource_policy(::std::size_t index = 0) { initialize(index); }
+public:
+    using base_t::base_t;
+    using typename base_t::selection_type;
 
-    fixed_resource_policy(deferred_initialization_t) {}
-
-    fixed_resource_policy(const std::vector<resource_type>& u, ::std::size_t index = 0) { initialize(u, index); }
-
-    auto
-    get_resources() const
-    {
-        if (backend_)
-        {
-            return backend_->get_resources();
-        }
-        else
-        {
-            throw std::logic_error("get_resources called before initialization");
-        }
+    fixed_resource_policy(std::size_t index = 0) : initial_index_(index) { this->initialize(); }
+    fixed_resource_policy(deferred_initialization_t) : initial_index_(0) {}
+    fixed_resource_policy(const std::vector<resource_type>& u, std::size_t index = 0)
+        : initial_index_(index) {
+        this->initialize(u);
     }
 
-    void
-    initialize(::std::size_t index = 0)
-    {
-        if (!state_)
-        {
-            backend_ = std::make_shared<backend_t>();
-            state_ = std::make_shared<state_t>();
-            state_->resources_ = get_resources();
-            state_->index_ = index;
-        }
+    void ensure_selector_initialized() {
+        if (!selector_) selector_ = std::make_shared<selector_t>();
     }
 
-    void
-    initialize(const std::vector<resource_type>& u, ::std::size_t index = 0)
-    {
-        if (!state_)
-        {
-            backend_ = std::make_shared<backend_t>(u);
-            state_ = std::make_shared<state_t>();
-            state_->resources_ = get_resources();
-            state_->index_ = index;
-        }
+    void initialize_impl(const std::vector<resource_type>& u) {
+        auto* s = this->template selector<selector_t>(selector_);
+        s->resources_ = u;
+        s->index_ = initial_index_;
     }
 
     template <typename... Args>
-    selection_type
-    select(Args&&...)
-    {
-        if (state_)
-        {
-            if (!state_->resources_.empty())
-            {
-                return selection_type{*this, state_->resources_[state_->index_]};
-            }
-            return selection_type{*this};
+    selection_type select_impl(Args&&...) {
+        auto* s = this->template selector<selector_t>(selector_);
+        if (!s->resources_.empty()) {
+            return selection_type{*this, s->resources_[s->index_]};
         }
-        else
-        {
-            throw std::logic_error("select called before initialization");
-        }
-    }
-
-    template <typename Function, typename... Args>
-    auto
-    submit(selection_type e, Function&& f, Args&&... args)
-    {
-        if (backend_)
-        {
-            return backend_->submit(e, std::forward<Function>(f), std::forward<Args>(args)...);
-        }
-        else
-        {
-            throw std::logic_error("submit called before initialization");
-        }
-    }
-
-    auto
-    get_submission_group()
-    {
-        if (backend_)
-        {
-            return backend_->get_submission_group();
-        }
-        else
-        {
-            throw std::logic_error("get_submission_group called before initialization");
-        }
+        return selection_type{*this};  // default constructed if empty
     }
 };
-} //namespace experimental
-} //namespace dpl
-} //namespace oneapi
 
-#endif /*_ONEDPL_STATIC_POLICY_IMPL_H*/
+} // namespace experimental
+} // namespace dpl
+} // namespace oneapi
+
+#endif // _ONEDPL_FIXED_RESOURCE_POLICY_H
+
