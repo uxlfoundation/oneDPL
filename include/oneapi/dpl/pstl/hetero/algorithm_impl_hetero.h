@@ -31,7 +31,6 @@
 
 #include <cstddef> // std::nullptr_t
 #include <utility> // std::forward
-#include <cassert>
 
 namespace oneapi
 {
