@@ -42,6 +42,8 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   sizes of 4-8 million elements.
 - ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
   when used with a device policy on hardware that does not support 64-bit atomic operations.
+- ``histogram`` may provide incorrect results with device policies in a program built with ``-O0`` option and the driver
+  version is 2448.13 or older.
 - For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
   used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
   it is required that the provided input and destination iterators are equality comparable.
