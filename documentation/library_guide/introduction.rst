@@ -177,8 +177,8 @@ Known Limitations
   than ``2423.32`` (Rolling) and ``2350.61`` (LTS) is used.
   See the `Release Types <https://dgpu-docs.intel.com/releases/releases.html>`_
   to find information about the relevant Rolling and LTS releases.
-* With libstdc++ version 10, the compilation error *SYCL kernel cannot use exceptions* occurs
-  when using ``std::ranges::take_view`` or ``std::ranges::drop_view`` to construct views passed to range-based
-  algorithms with device policies.
+* ``std::ranges::drop_view`` from libstdc++ version 10 may throw exceptions.
+  This can lead to a "SYCL kernel cannot use exceptions" compilation error
+  when it is used to pass data to a range-based algorithm with a device policy.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
