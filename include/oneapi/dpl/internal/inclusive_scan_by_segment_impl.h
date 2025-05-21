@@ -27,7 +27,7 @@
 #include "../pstl/parallel_backend.h"
 #include "function.h"
 #include "../pstl/utils.h"
-#include "scan_by_segment_impl.h"
+#include "../pstl/hetero/algorithm_impl_hetero.h"
 
 namespace oneapi
 {

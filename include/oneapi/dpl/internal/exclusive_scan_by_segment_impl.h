@@ -23,7 +23,7 @@
 #include "function.h"
 #include "by_segment_extension_defs.h"
 #include "../pstl/utils.h"
-#include "scan_by_segment_impl.h"
+#include "../pstl/hetero/algorithm_impl_hetero.h"
 
 namespace oneapi
 {
