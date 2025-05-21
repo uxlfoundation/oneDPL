@@ -147,7 +147,7 @@ test(size_t bits, Compare comp)
 
     for (size_t n = 0; n <= max_size; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
-	const bool ex_res_true = true;
+        const bool ex_res_true = true;
         invoke_on_all_policies<0>()(test_with_3_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), comp, ex_res_true);
         invoke_on_all_policies<1>()(test_with_3_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), ex_res_true);
         invoke_on_all_policies<2>()(test_with_4_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), inCopy.begin() + n, comp, ex_res_true);
