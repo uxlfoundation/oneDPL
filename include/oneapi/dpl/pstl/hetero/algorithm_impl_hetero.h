@@ -2206,7 +2206,8 @@ __pattern_scan_by_segment(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputI
     using _IterValueType = typename std::iterator_traits<_InputIterator2>::value_type;
 
     // Currently, this pattern requires a known identity for the binary operator.
-    assert((unseq_backend::__has_known_identity<_Operator, _IterValueType>::value));
+    static_assert(unseq_backend::__has_known_identity<_Operator, _IterValueType>::value,
+                  "Calls to __pattern_scan_by_segment require a known identity for the provided binary operator");
     constexpr _IterValueType __identity = unseq_backend::__known_identity<_Operator, _IterValueType>;
 
     __bknd::__parallel_scan_by_segment<_Inclusive::value>(
