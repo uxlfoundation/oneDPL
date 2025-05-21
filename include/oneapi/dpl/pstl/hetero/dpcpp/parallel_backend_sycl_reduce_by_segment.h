@@ -55,7 +55,7 @@
 #include "sycl_traits.h"
 
 #include "../../utils.h"
-#include "../../../internal/scan_by_segment_impl.h"
+#include "parallel_backend_sycl_scan_by_segment.h"
 
 namespace oneapi
 {
