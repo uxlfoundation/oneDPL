@@ -251,112 +251,112 @@ struct __sycl_scan_by_segment_impl
 
         // 2. Apply work group carry outs, calculate output indices, and load results into correct indices.
         __q.submit([&](sycl::handler& __cgh) {
-                oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_values);
+               oneapi::dpl::__ranges::__require_access(__cgh, __keys, __out_values);
 
-                auto __partials_acc = __partials.template get_access<sycl::access_mode::read>(__cgh);
-                auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::read>(__cgh);
+               auto __partials_acc = __partials.template get_access<sycl::access_mode::read>(__cgh);
+               auto __seg_ends_acc = __seg_ends.template get_access<sycl::access_mode::read>(__cgh);
 
-                __cgh.depends_on(__wg_scan);
+               __cgh.depends_on(__wg_scan);
 
-                __dpl_sycl::__local_accessor<__val_type> __loc_partials_acc(__wgroup_size, __cgh);
+               __dpl_sycl::__local_accessor<__val_type> __loc_partials_acc(__wgroup_size, __cgh);
 
-                __dpl_sycl::__local_accessor<bool> __loc_seg_ends_acc(__wgroup_size, __cgh);
+               __dpl_sycl::__local_accessor<bool> __loc_seg_ends_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
-                __cgh.use_kernel_bundle(__seg_scan_prefix_kernel.get_kernel_bundle());
+               __cgh.use_kernel_bundle(__seg_scan_prefix_kernel.get_kernel_bundle());
 #endif
-                __cgh.parallel_for<_SegScanPrefixKernel>(
+               __cgh.parallel_for<_SegScanPrefixKernel>(
 #if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
-                    __seg_scan_prefix_kernel,
+                   __seg_scan_prefix_kernel,
 #endif
-                    sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
-                        auto __group = __item.get_group();
-                        std::size_t __group_id = __item.get_group(0);
-                        std::size_t __global_id = __item.get_global_id(0);
-                        std::size_t __local_id = __item.get_local_id(0);
-                        std::size_t __start = __global_id * __vals_per_item;
-                        std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
+                   sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
+                       auto __group = __item.get_group();
+                       std::size_t __group_id = __item.get_group(0);
+                       std::size_t __global_id = __item.get_global_id(0);
+                       std::size_t __local_id = __item.get_local_id(0);
+                       std::size_t __start = __global_id * __vals_per_item;
+                       std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
 
-                        std::int32_t __wg_agg_idx = __group_id - 1;
-                        __val_type __agg_collector = __identity;
+                       std::int32_t __wg_agg_idx = __group_id - 1;
+                       __val_type __agg_collector = __identity;
 
-                        //TODO:  just launch with one fewer group and adjust indexing since group zero can skip phase
-                        if (__group_id != 0)
-                        {
-                            // 2a. Calculate the work group's carry-in value.
-                            bool __ag_exists = __start < __n;
-                            // local reductions followed by a downsweep
-                            // TODO: Generalize this value
-                            constexpr std::int32_t __vals_to_explore = 16;
-                            bool __last_it = false;
-                            __loc_seg_ends_acc[__local_id] = false;
-                            __loc_partials_acc[__local_id] = __identity;
+                       //TODO:  just launch with one fewer group and adjust indexing since group zero can skip phase
+                       if (__group_id != 0)
+                       {
+                           // 2a. Calculate the work group's carry-in value.
+                           bool __ag_exists = __start < __n;
+                           // local reductions followed by a downsweep
+                           // TODO: Generalize this value
+                           constexpr std::int32_t __vals_to_explore = 16;
+                           bool __last_it = false;
+                           __loc_seg_ends_acc[__local_id] = false;
+                           __loc_partials_acc[__local_id] = __identity;
 
-                            for (std::int32_t __i = __wg_agg_idx - __vals_to_explore * __local_id; !__last_it;
-                                 __i -= __wgroup_size * __vals_to_explore)
-                            {
-                                __val_type __local_collector = __identity;
-                                // Parallel exploration phase
-                                for (std::int32_t __j = __i;
-                                     __j > __dpl_sycl::__maximum<std::int32_t>{}(-1L, __i - __vals_to_explore); --__j)
-                                {
-                                    __local_collector = __binary_op(__partials_acc[__j], __local_collector);
-                                    if (__seg_ends_acc[__j] || __j == 0)
-                                    {
-                                        __loc_seg_ends_acc[__local_id] = true;
-                                        break;
-                                    }
-                                }
-                                __loc_partials_acc[__local_id] = __local_collector;
-                                __dpl_sycl::__group_barrier(__item);
-                                // Serial aggregate collection and synchronization
-                                if (__local_id == 0)
-                                {
-                                    for (std::size_t __j = 0; __j < __wgroup_size; ++__j)
-                                    {
-                                        __agg_collector = __binary_op(__loc_partials_acc[__j], __agg_collector);
-                                        if (__loc_seg_ends_acc[__j])
-                                        {
-                                            __last_it = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                                __agg_collector = __dpl_sycl::__group_broadcast(__item.get_group(), __agg_collector);
-                                __last_it = __dpl_sycl::__group_broadcast(__item.get_group(), __last_it);
-                            }
-                            __ag_exists = __dpl_sycl::__any_of_group(__group, __ag_exists);
+                           for (std::int32_t __i = __wg_agg_idx - __vals_to_explore * __local_id; !__last_it;
+                                __i -= __wgroup_size * __vals_to_explore)
+                           {
+                               __val_type __local_collector = __identity;
+                               // Parallel exploration phase
+                               for (std::int32_t __j = __i;
+                                    __j > __dpl_sycl::__maximum<std::int32_t>{}(-1L, __i - __vals_to_explore); --__j)
+                               {
+                                   __local_collector = __binary_op(__partials_acc[__j], __local_collector);
+                                   if (__seg_ends_acc[__j] || __j == 0)
+                                   {
+                                       __loc_seg_ends_acc[__local_id] = true;
+                                       break;
+                                   }
+                               }
+                               __loc_partials_acc[__local_id] = __local_collector;
+                               __dpl_sycl::__group_barrier(__item);
+                               // Serial aggregate collection and synchronization
+                               if (__local_id == 0)
+                               {
+                                   for (std::size_t __j = 0; __j < __wgroup_size; ++__j)
+                                   {
+                                       __agg_collector = __binary_op(__loc_partials_acc[__j], __agg_collector);
+                                       if (__loc_seg_ends_acc[__j])
+                                       {
+                                           __last_it = true;
+                                           break;
+                                       }
+                                   }
+                               }
+                               __agg_collector = __dpl_sycl::__group_broadcast(__item.get_group(), __agg_collector);
+                               __last_it = __dpl_sycl::__group_broadcast(__item.get_group(), __last_it);
+                           }
+                           __ag_exists = __dpl_sycl::__any_of_group(__group, __ag_exists);
 
-                            // If no aggregate exists, all work items return as no more work is needed.
-                            if (!__ag_exists)
-                                return;
+                           // If no aggregate exists, all work items return as no more work is needed.
+                           if (!__ag_exists)
+                               return;
 
-                            // 2c. Second pass over the keys, reidentifying end segments and applying work group
-                            // aggregates if appropriate.
-                            std::size_t __end_nm1_cap =
-                                __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n - 1);
-                            std::size_t __local_min_key_idx = __n - 1;
+                           // 2c. Second pass over the keys, reidentifying end segments and applying work group
+                           // aggregates if appropriate.
+                           std::size_t __end_nm1_cap =
+                               __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n - 1);
+                           std::size_t __local_min_key_idx = __n - 1;
 
-                            // Find the smallest end index in the work group
-                            for (std::size_t __i = __end_nm1_cap - 1; __i >= __start; --__i)
-                            {
-                                if (!__binary_pred(__keys[__i], __keys[__i + 1]))
-                                {
-                                    __local_min_key_idx = __i;
-                                }
-                            }
+                           // Find the smallest end index in the work group
+                           for (std::size_t __i = __end_nm1_cap - 1; __i >= __start; --__i)
+                           {
+                               if (!__binary_pred(__keys[__i], __keys[__i + 1]))
+                               {
+                                   __local_min_key_idx = __i;
+                               }
+                           }
 
-                            std::size_t __wg_min_seg_end = __dpl_sycl::__reduce_over_group(
-                                __group, __local_min_key_idx, __dpl_sycl::__minimum<std::size_t>());
+                           std::size_t __wg_min_seg_end = __dpl_sycl::__reduce_over_group(
+                               __group, __local_min_key_idx, __dpl_sycl::__minimum<std::size_t>());
 
-                            // apply work group aggregates
-                            for (std::size_t __i = __start;
-                                 __i < __dpl_sycl::__minimum<decltype(__end)>{}(__wg_min_seg_end + 1, __end); ++__i)
-                            {
-                                __out_values[__i] = __binary_op(__agg_collector, __out_values[__i]);
-                            }
-                        }
-                    });
-            })
+                           // apply work group aggregates
+                           for (std::size_t __i = __start;
+                                __i < __dpl_sycl::__minimum<decltype(__end)>{}(__wg_min_seg_end + 1, __end); ++__i)
+                           {
+                               __out_values[__i] = __binary_op(__agg_collector, __out_values[__i]);
+                           }
+                       }
+                   });
+           })
             .wait();
     }
 };
