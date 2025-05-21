@@ -156,6 +156,10 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typ
 oneapi::dpl::__internal::__difference_t<_Range1>
 __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
+    //a trivial pre-check
+    if(__rng1.empty() || __rng2.empty())
+        return 0;
+
     using _Function = oneapi::dpl::__internal::__swap_fn;
 
     if (__rng1.size() <= __rng2.size())
