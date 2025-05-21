@@ -8,6 +8,57 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in 2022.9.0
+===============
+
+New Features
+------------
+- Added parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``fill``, ``move``, ``replace``, ``replace_if``,
+  ``remove``, ``remove_if``, ``mismatch``, ``minmax_element``, ``min``, ``max``, ``find_first_of``, ``find_end``,
+  ``is_sorted_until``. These algorithms operate with C++20 random access ranges.
+- Improved performance of set operation algorithms when using device policies: ``set_union``, ``set_difference``,
+  ``set_intersection``, ``set_symmetric_difference``.
+- Improved performance of ``copy``, ``fill``, ``for_each``, ``replace``, ``reverse``, ``rotate``, ``transform`` and 30+
+  other algorithms with device policies on GPUs when using ``std::reverse_iterator``.
+- Added ADL-based customization point ``is_onedpl_indirectly_device_accessible``, which can be used to mark iterator
+  types as *indirectly device accessible*. Added public trait ``oneapi::dpl::is_directly_device_accessible[_v]`` to
+  query if types are indirectly device accessible.
+
+Fixed Issues
+------------
+- Eliminated runtime exceptions encountered when compiling code that called ``inclusive_scan``, ``copy_if``,
+  ``partition``, ``unique``, ``reduce_by_segment``, and related algorithms with device policies using
+  the open source oneAPI DPC++ Compiler without specifying an optimization flag.
+- Fixed a compilation error in ``reduce_by_segment`` regarding return type deduction when called with a device policy.
+- Eliminated multiple compile time warnings throughout the library.
+
+Known Issues and Limitations
+----------------------------
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- Incorrect results may be observed when calling ``sort`` with a device policy on Intel® Arc™ graphics 140V with data
+  sizes of 4-8 million elements.
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with a device policy on hardware that does not support 64-bit atomic operations.
+- ``histogram`` may provide incorrect results with device policies in a program built with ``-O0`` option and the driver
+  version is 2448.13 or older.
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+  ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
+  with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
+  with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
+  To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
+- With libstdc++ version 10, the compilation error *SYCL kernel cannot use exceptions* occurs
+  when calling the range-based ``adjacent_find``, ``is_sorted`` or ``is_sorted_until`` algorithms with device policies.
+- The range-based ``count_if`` may produce incorrect results on Intel® Data Center GPU Max Series when the driver version
+  is "Rolling 2507.12" and newer.
+
 New in 2022.8.0
 ===============
 
