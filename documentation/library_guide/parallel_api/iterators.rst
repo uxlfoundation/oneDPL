@@ -131,6 +131,8 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
     auto permutation_last = permutation_first + num_elements;
     dpl::copy(dpl::execution::dpcpp_default, permutation_first, permutation_last, result);
 
+.. _iterator-properties-table:
+
 Iterators with Device Execution Policies
 ----------------------------------------
 The iterators described above can be used with device execution policies according to the rules described in

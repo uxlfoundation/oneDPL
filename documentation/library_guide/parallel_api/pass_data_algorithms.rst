@@ -232,8 +232,7 @@ Use |onedpl_short| Iterators
 |onedpl_short| provides a set of `iterators <iterators-details>`_ that can be used to pass data to algorithms, in
 combination with the data storage types described above. To pass data to an algorithm with a device execution policy,
 use iterators that are both `SYCL device-copyable`_ and `indirectly device accessible <indirectly-device-accessible>`_.
-Each provided iterator's description includes information about its indirect device accessibility and SYCL
-device-copyable properties.
+These properties of the |onedpl_short| iterators are described in `this table <iterator-properties-table>`_.
 
 Use Custom Iterators
 --------------------
