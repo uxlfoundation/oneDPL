@@ -55,9 +55,7 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
   To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
 - With libstdc++ version 10, the compilation error *SYCL kernel cannot use exceptions* occurs
-  when calling the range-based ``adjacent_find``, ``is_sorted`` or ``is_sorted_until`` algorithms with device policies,
-  or using ``std::ranges::take_view`` or ``std::ranges::drop_view`` to construct views passed to range-based algorithms
-  with device policies.
+  when calling the range-based ``adjacent_find``, ``is_sorted`` or ``is_sorted_until`` algorithms with device policies.
 - The range-based ``count_if`` may produce incorrect results on Intel® Data Center GPU Max Series when the driver version
   is "Rolling 2507.12" and newer.
 
