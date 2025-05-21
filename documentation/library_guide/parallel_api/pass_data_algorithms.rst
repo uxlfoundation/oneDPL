@@ -1,3 +1,5 @@
+.. _pass-data-algorithms:
+
 Pass Data to Algorithms
 #######################
 
