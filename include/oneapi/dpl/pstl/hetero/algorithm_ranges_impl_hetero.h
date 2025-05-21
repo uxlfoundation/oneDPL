@@ -543,18 +543,15 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     using _TagType = ::std::conditional_t<__is__or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
                                           oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_Range>>;
 
-    //ATTENTION!!! oneDPL supports SYCL buffer via a placeholder accessor; a 'subrange' cannot used here because
+    //ATTENTION!!! oneDPL supports SYCL buffer via a placeholder accessor; a 'subrange' cannot be used here because
     //getting an iterator for the placeholder accessor is incorrect on the host; so, oneDPL uses lazy-access views
     //for range transformations.
+    //For _ONEDPL_CPP20_RANGES_PRESENT, oneDPL may use std::ranges::take_view and std::ranges::drop_view, but there are
+    //C++ standard libraries (f.e libstdc++ 10), where the implementation might throw C++ exceptions, that is an issue,
+    //because "SYCL kernel cannot use exceptions".
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
-    const auto __n = std::ranges::size(__rng);
-    auto __rng1 = std::ranges::take_view(__rng, __n - 1);
-    auto __rng2 = std::ranges::drop_view(__rng, 1);
-#else
     auto __rng1 = oneapi::dpl::__ranges::take_view_simple(__rng, __rng.size() - 1);
     auto __rng2 = oneapi::dpl::__ranges::drop_view_simple(__rng, 1);
-#endif
 
     // TODO: in case of conflicting names
     // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
