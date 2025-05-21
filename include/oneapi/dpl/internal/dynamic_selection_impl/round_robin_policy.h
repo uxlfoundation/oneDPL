@@ -68,15 +68,21 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, B
     selection_type 
     select_impl(Args&&...) 
     {
-        resource_container_size_t current;
+        if (selector_)
+	{
+            resource_container_size_t current;
 
-        while (true) {
-            current = selector_->next_context_.load();
-            auto next = (current + 1) % selector_->num_contexts_;
-            if (selector_->next_context_.compare_exchange_strong(current, next)) break;
-        }
-
-        return selection_type{*this, selector_->resources_[current]};
+            while (true) {
+                current = selector_->next_context_.load();
+                auto next = (current + 1) % selector_->num_contexts_;
+                if (selector_->next_context_.compare_exchange_strong(current, next)) break;
+            }
+            return selection_type{*this, selector_->resources_[current]};
+	}
+	else
+	{
+	    throw std::logic_error("select called before initialization");
+	}
     }
 };
 
