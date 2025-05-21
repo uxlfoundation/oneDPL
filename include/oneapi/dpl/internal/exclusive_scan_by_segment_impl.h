@@ -23,7 +23,10 @@
 #include "function.h"
 #include "by_segment_extension_defs.h"
 #include "../pstl/utils.h"
+
+#if _ONEDPL_BACKEND_SYCL
 #include "../pstl/hetero/algorithm_impl_hetero.h"
+#endif
 
 namespace oneapi
 {
