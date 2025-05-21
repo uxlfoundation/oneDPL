@@ -139,14 +139,18 @@ The iterators described above can be used with device execution policies accordi
 `Pass Data to Algorithms <pass-data-algorithms>`_. The following table summarizes the characteristics of the iterators
 and their use with device execution policies:
 
-+----------------------+--------------------------------------------+------------------------------------------+
-| Iterator             |          SYCL device-copyable              |        Indirectly device accessible      |
-+----------------------+--------------------------------------------+------------------------------------------+
-| counting_iterator    | Yes                                        | Yes                                      |
-| discard_iterator     | Yes                                        | Yes                                      |
-| zip_iterator         | If all Source Iterators are                | If all Source Iterators are              |
-| transform_iterator   | If the Source Iterator is                  | If the Source Iterator is                |
-| permutation_iterator | If the Source Iterator and Index Map are   | If the Source Iterator and Index Map are |
-+----------------------+--------------------------------------------+------------------------------------------+
++----------------------+---------------------------------------------+-------------------------------------------+
+| Iterator             |          SYCL device-copyable               |        Indirectly device accessible       |
++----------------------+---------------------------------------------+-------------------------------------------+
+| counting_iterator    | Yes                                         | Yes                                       |
++----------------------+---------------------------------------------+-------------------------------------------+
+| discard_iterator     | Yes                                         | Yes                                       |
++----------------------+---------------------------------------------+-------------------------------------------+
+| zip_iterator         | If all Source Iterators are                 | If all Source Iterators are               |
++----------------------+---------------------------------------------+-------------------------------------------+
+| transform_iterator   | If the Source Iterator is                   | If the Source Iterator is                 |
++----------------------+---------------------------------------------+-------------------------------------------+
+| permutation_iterator | If both Source Iterator and Index Map are   | If both Source Iterator and Index Map are |
++----------------------+---------------------------------------------+-------------------------------------------+
 
 .. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
