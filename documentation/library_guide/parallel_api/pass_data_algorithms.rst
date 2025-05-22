@@ -236,7 +236,7 @@ These properties of the |onedpl_short| iterators are described in `this table <i
 
 Use Custom Iterators
 --------------------
-If the provided iterators are sufficient for your needs, you can create your own iterators that can be used as input
+If the provided iterators are not sufficient for your needs, you can create your own iterators that can be used as input
 to |onedpl_short| algorithms. To pass data to an algorithm with a device execution policy, the custom iterator must
 be `SYCL device-copyable`_ and indirectly device accessible. 
 
