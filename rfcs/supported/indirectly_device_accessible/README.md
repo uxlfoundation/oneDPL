@@ -121,19 +121,20 @@ the notes below for more information, and recommendations.
 | std::vector::iterator with a USM allocator | If the allocator is "known" in the vector iterator type  |
 | Iterators using is_passed_directly = std::true_type | Yes                                |
 
-oneDPL supports `std::reverse iterators` as best it can for source iterators which are indirectly device accessible.
-Users must adhere to the standard library specification when using `std::reverse_iterator`. The return of
-`oneapi::dpl::begin()`, and `oneapi::dpl::end()` is not an iterator, so it is not eligible for use within a
-`std::reverse_iterator`.
+oneDPL supports `std::reverse_iterator` for source iterators that are indirectly device accessible, as much as possible.
+Users must adhere to the standard library specification when using `std::reverse_iterator`. The return values of
+`oneapi::dpl::begin()` and `oneapi::dpl::end()` are not iterators, so they are not eligible for use within a
+`std::reverse_iterator`. oneDPL makes no guarantee that `std::reverse_iterator` is sycl device-copyable, this is
+dependant on the standard library implementation.
 
 oneDPL attempts to determine if the allocator can be identified as a USM allocator within the type of the
-`std::vector::iterator`, and if so, it treats the iterator as indirectly device accessible.  This relies upon
-implementation details of the standard library implementation, and it is not always possible. For this reason, we
-recommend using `data()` on the vectors allocated with a USM allocator to obtain a USM pointer.  USM pointers should
-work regardless of the standard library implementation of `std::vector`.
+`std::vector::iterator`. If so, it treats the iterator as indirectly device accessible. This relies on implementation
+details of the standard library, and it is not always possible. For this reason, we recommend using `data()` on vectors
+allocated with a USM allocator to obtain a USM pointer. USM pointers should work regardless of the standard library
+implementation of `std::vector`.
 
 The `is_passed_directly` alias as `std::true_type` provides legacy support to some helpers within SYCLomatic. This may
-be removed in the future without deprecation, when there are no longer known features utilizing this unspecified
+be removed in the future without deprecation, once there are no longer known features utilizing this unspecified
 feature. These aliases should be replaced with overloads of `is_onedpl_indirectly_device_accessible()` to guarantee
 continued functionality.
 
