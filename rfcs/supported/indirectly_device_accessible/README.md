@@ -97,7 +97,7 @@ static_assert(oneapi::dpl::is_indirectly_device_accessible<
                                 it_pair<usr::accessible_it, usr::inaccessible_it>> == false);
 ```
 
-### Indirectly Device Accessible Trait Value for oneDPL Inputs
+### Indirectly Device Accessible for oneDPL Inputs
 
 The following table summarizes oneDPL input types and whether they are Indirectly Device Accessible:
 
