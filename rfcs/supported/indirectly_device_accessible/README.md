@@ -110,19 +110,32 @@ The following table summarizes oneDPL input types and whether they are Indirectl
 | permutation_iterator                       | If both source iterator and index map are indirectly device accessible |
 | Return of oneapi::dpl::begin(), end()      | Yes                                         |
 | USM pointers                               | Yes                                         |
-| std::reverse_iterator                      | If the source iterator is indirectly device accessible |
-| std::vector::iterator with a USM allocator | If the allocator is "known" in the vector iterator type * |
-| Iterators using is_passed_directly = std::true_type | Yes **                             |
 | std::vector::iterator with a host allocator| No                                          |
 
- * oneDPL attempts to determine if the allocator can be identified as a USM allocator within the type of the
+The following are extensions within our implementation which are not a part of the oneDPL specification. Please read
+the notes below for more information, and recommendations.
+
+| Iterator                                   | Indirectly Device Accessible                |
+|--------------------------------------------|---------------------------------------------|
+| std::reverse_iterator                      | If the source iterator is indirectly device accessible |
+| std::vector::iterator with a USM allocator | If the allocator is "known" in the vector iterator type  |
+| Iterators using is_passed_directly = std::true_type | Yes                                |
+
+oneDPL supports `std::reverse iterators` as best it can for source iterators which are indirectly device accessible.
+Users must adhere to the standard library specification when using `std::reverse_iterator`. The return of
+`oneapi::dpl::begin()`, and `oneapi::dpl::end()` is not an iterator, so it is not eligible for use within a
+`std::reverse_iterator`.
+
+oneDPL attempts to determine if the allocator can be identified as a USM allocator within the type of the
 `std::vector::iterator`, and if so, it treats the iterator as indirectly device accessible.  This relies upon
 implementation details of the standard library implementation, and it is not always possible. For this reason, we
-recommend using `data()` on the vectors allocated with a USM allocator to obtain a USM pointer which will always work.
+recommend using `data()` on the vectors allocated with a USM allocator to obtain a USM pointer.  USM pointers should
+work regardless of the standard library implementation of `std::vector`.
 
- ** `is_passed_directly` alias as `std::true_type` provides legacy support to some helpers within SYCLomatic, and is not
-part of the specification for this feature. This may be removed in the future without deprecation, when there are no
-longer known features utilizing this unspecified feature.
+The `is_passed_directly` alias as `std::true_type` provides legacy support to some helpers within SYCLomatic. This may
+be removed in the future without deprecation, when there are no longer known features utilizing this unspecified
+feature. These aliases should be replaced with overloads of `is_onedpl_indirectly_device_accessible()` to guarantee
+continued functionality.
 
 
 ### Implementation Details
