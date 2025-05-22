@@ -101,7 +101,7 @@ static_assert(oneapi::dpl::is_indirectly_device_accessible<
 
 The following table summarizes oneDPL input types and whether they are Indirectly Device Accessible:
 
-| Iterator                                   | Indirectly Device Accessible                |
+| Input Type                                 | Indirectly Device Accessible                |
 |--------------------------------------------|---------------------------------------------|
 | counting_iterator                          | Yes                                         |
 | discard_iterator                           | Yes                                         |
@@ -115,7 +115,7 @@ The following table summarizes oneDPL input types and whether they are Indirectl
 The following are extensions within our implementation which are not a part of the oneDPL specification. Please read
 the notes below for more information, and recommendations.
 
-| Iterator                                   | Indirectly Device Accessible                |
+| Extension Input Type                       | Indirectly Device Accessible                |
 |--------------------------------------------|---------------------------------------------|
 | std::reverse_iterator                      | If the source iterator is indirectly device accessible |
 | std::vector::iterator with a USM allocator | If the allocator is "known" in the vector iterator type  |
