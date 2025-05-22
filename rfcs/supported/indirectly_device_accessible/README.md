@@ -140,7 +140,7 @@ SYCL kernels without any additional processing for direct usage.
 
 A static assertion is used to prevent incorrect usage of the ADL-based customization point
 `is_onedpl_indirectly_device_accessible()` by returning a type which is not a `std::bool_constant`. This is meant to
-alert users clearly of incorrect usage of the customization point.  
+alert users clearly of incorrect usage of the customization point.
 
 All hidden friend functions for the `is_onedpl_indirectly_device_accessible()` customization point provide a minimal
 body within oneDPL, as do our examples in the specification and documentation. This is because GCC 15.1 provides a
@@ -148,7 +148,7 @@ warning for hidden friend functions that are body-less, as such usage matches a 
 non-template friend is declared but not defined within the class definition, and then cannot be defined externally
 to the class with a matching function signature. There is technically no problem with a body-less hidden friend
 function for our purposes, as we only need the function declaration for evaluating the return type in a `declval`
-scope. However, it is better to avoid this warning and the appearance of any problems. 
+scope. However, it is better to avoid this warning and the appearance of any problems.
 
 ## Alternatives Considered 
 Note: these are carried forward from the previous RFC, where the framing was more around the implementation detail of
