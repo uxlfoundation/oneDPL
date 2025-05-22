@@ -125,7 +125,7 @@ oneDPL supports `std::reverse_iterator` for source iterators that are indirectly
 Users must adhere to the standard library specification when using `std::reverse_iterator`. The return values of
 `oneapi::dpl::begin()` and `oneapi::dpl::end()` are not iterators, so they are not eligible for use within a
 `std::reverse_iterator`. oneDPL makes no guarantee that `std::reverse_iterator` is sycl device-copyable, this is
-dependant on the standard library implementation.
+dependent on the standard library implementation.
 
 oneDPL attempts to determine if the allocator can be identified as a USM allocator within the type of the
 `std::vector::iterator`. If so, it treats the iterator as indirectly device accessible. This relies on implementation
