@@ -1,16 +1,16 @@
-# Indirectly Device Accessible Trait and Customization Point for User Defined Types
+# Indirectly Device Accessible Trait and Customization Point for User-Defined Types
 
 ## Introduction
 Iterators and iterator-like types may or may not refer to content accessible within a
-`SYCL <https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html>`_ kernel on a device. The term
+[SYCL](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html) kernel on a device. The term
 *indirectly device accessible* refers to a type that represents content accessible on a device. An indirectly device
 accessible iterator is a type that can also be dereferenced within a SYCL kernel.
 
-When passed to |onedpl_short| algorithms with a device execution policy, indirectly device accessible types minimize
+When passed to oneDPL algorithms with a device execution policy, indirectly device accessible types minimize
 data movement and behave equivalently to using the type directly within a SYCL kernel.
 
-oneDPL provides a some tools to enable users to be able to customize their own user-defined iterators to be indirectly
-device accessible, and therefore be usable performantly with oneDPL algorithms when using a device execution policy.
+oneDPL provides tools to enable users to customize their own user-defined iterators to be indirectly device accessible,
+making them performant with oneDPL algorithms when using a device execution policy.
 
 ### Changes from proposed RFC
 The original RFC as proposed focussed more on the implementation detail "is passed directly", where during discussion
