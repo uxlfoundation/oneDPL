@@ -50,8 +50,7 @@ indirectly device accessible. The function overload to use must be selected with
   Therefore, according to the rules in the C++ Standard, a derived type for which there is no function overload
   will match its most specific base type for which an overload exists.
 
-Once ``is_onedpl_indirectly_device_accessible(T)`` is defined, the `public trait <indirectly-device-accessible-trait>`_
-``template<typename T> oneapi::dpl::is_indirectly_device_accessible[_v]`` will return the appropriate value. This public
+Once ``is_onedpl_indirectly_device_accessible(T)`` is defined, the public trait ``template<typename T> oneapi::dpl::is_indirectly_device_accessible[_v]`` will return the appropriate value. This public
 trait can also be used to define the return type of ``is_onedpl_indirectly_device_accessible(T)`` by applying it to any
 source iterator component types.
 
