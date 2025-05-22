@@ -140,7 +140,7 @@ The iterators described above can be used with device execution policies accordi
 and their use with device execution policies:
 
 +----------------------+---------------------------------------------+-------------------------------------------+
-| Iterator             |          SYCL device-copyable               |        Indirectly device accessible       |
+| Iterator             |          SYCL Device-Copyable               |        Indirectly Device Accessible       |
 +----------------------+---------------------------------------------+-------------------------------------------+
 | counting_iterator    | Yes                                         | Yes                                       |
 +----------------------+---------------------------------------------+-------------------------------------------+
