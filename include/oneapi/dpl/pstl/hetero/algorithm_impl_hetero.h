@@ -570,8 +570,6 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
     using _TagType = std::conditional_t<__is_or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
                                         oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_IndexType>>;
 
-    // TODO: in case of conflicting names
-    // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
     auto result =
         __par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
                                                  _Predicate{__pred}, _TagType{}, __size_calc{}, __view1, __view2);
@@ -663,8 +661,6 @@ __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1
 
     using size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
-    // TODO: in case of conflicting names
-    // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
     return !__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
                                                      _Predicate{oneapi::dpl::__internal::__not_pred<_Pred>{__pred}},
                                                      __par_backend_hetero::__parallel_or_tag{}, size_calc{},
