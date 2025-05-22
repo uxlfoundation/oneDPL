@@ -102,37 +102,19 @@ static_assert(oneapi::dpl::is_indirectly_device_accessible<
 
 The following table summarizes oneDPL input types and whether they are Indirectly Device Accessible:
 
-+-------------------------------------------+---------------------------------------------+
-| Iterator                                  | Indirectly Device Accessible                |
-+-------------------------------------------+---------------------------------------------+
-| counting_iterator                         | Yes                                         |
-+-------------------------------------------+---------------------------------------------+
-| discard_iterator                          | Yes                                         |
-+-------------------------------------------+---------------------------------------------+
-| zip_iterator                              | If all source iterators are                 |
-+-------------------------------------------+---------------------------------------------+
-| transform_iterator                        | If the source iterator is                   |
-+-------------------------------------------+---------------------------------------------+
-| permutation_iterator                      | If both source iterator and index map are   |
-+-------------------------------------------+---------------------------------------------+
-| Return of                                 |                                             |
-| oneapi::dpl::begin(),                     |                                             |
-| oneapi::dpl::end()                        | Yes                                         |
-+-------------------------------------------+---------------------------------------------+
-| USM pointers                              | Yes                                         |
-+-------------------------------------------+---------------------------------------------+
-| std::reverse_iterator                     | If the source iterator is                   |
-+-------------------------------------------+---------------------------------------------+
-| std::vector::iterator                     | If the allocator is distinguishable in      |
-| with a USM allocator                      | the vector iterator type (*not recommended) |
-+-------------------------------------------+---------------------------------------------+
-| Iterators containing                      |                                             |
-| using is_passed_directly = std::true_type | Yes (*may be removed)                       |
-+-------------------------------------------+---------------------------------------------+
-| std::vector::iterator                     |                                             |
-| with a host allocator                     | No                                          |
-+-------------------------------------------+---------------------------------------------+
-
+| Iterator                                   | Indirectly Device Accessible                |
+|--------------------------------------------|---------------------------------------------|
+| counting_iterator                          | Yes                                         |
+| discard_iterator                           | Yes                                         |
+| zip_iterator                               | If all source iterators are                 |
+| transform_iterator                         | If the source iterator is                   |
+| permutation_iterator                       | If both source iterator and index map are   |
+| Return of oneapi::dpl::begin(), end()      | Yes                                         |
+| USM pointers                               | Yes                                         |
+| std::reverse_iterator                      | If the source iterator is                   |
+| std::vector::iterator with a USM allocator | If the allocator is distinguishable in the vector iterator type (*not recommended) |
+| Iterators using is_passed_directly = std::true_type | Yes (*may be removed)                |
+| std::vector::iterator with a host allocator| No                                          |
 
 ### Implementation Details
 
