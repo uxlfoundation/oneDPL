@@ -97,20 +97,20 @@ the iterator class.
 
 ### Indirectly Device Accessible Trait Value for oneDPL Inputs
 
-The following table summarizes the oneDPL inputs and their status as Indirectly Device Accessible
+The following table summarizes oneDPL input types and whether they are Indirectly Device Accessible:
 
 +-------------------------------------------+---------------------------------------------+
-| Iterator                                  |        Indirectly Device Accessible         |
+| Iterator                                  | Indirectly Device Accessible                |
 +-------------------------------------------+---------------------------------------------+
 | counting_iterator                         | Yes                                         |
 +-------------------------------------------+---------------------------------------------+
 | discard_iterator                          | Yes                                         |
 +-------------------------------------------+---------------------------------------------+
-| zip_iterator                              | If all Source Iterators are                 |
+| zip_iterator                              | If all source iterators are                 |
 +-------------------------------------------+---------------------------------------------+
-| transform_iterator                        | If the Source Iterator is                   |
+| transform_iterator                        | If the source iterator is                   |
 +-------------------------------------------+---------------------------------------------+
-| permutation_iterator                      | If both Source Iterator and Index Map are   |
+| permutation_iterator                      | If both source iterator and index map are   |
 +-------------------------------------------+---------------------------------------------+
 | Return of                                 |                                             |
 | oneapi::dpl::begin(),                     |                                             |
@@ -118,13 +118,13 @@ The following table summarizes the oneDPL inputs and their status as Indirectly 
 +-------------------------------------------+---------------------------------------------+
 | USM pointers                              | Yes                                         |
 +-------------------------------------------+---------------------------------------------+
-| std::reverse_iterator                     | If the Source Iterator is                   |
+| std::reverse_iterator                     | If the source iterator is                   |
 +-------------------------------------------+---------------------------------------------+
 | std::vector::iterator                     | If the allocator is distinguishable in      |
 | with a USM allocator                      | the vector iterator type (*not recommended) |
 +-------------------------------------------+---------------------------------------------+
-| iterators containing                      |                                             |
-| using is_passed_directly = std::true_type | Yes (*may remove)                           |
+| Iterators containing                      |                                             |
+| using is_passed_directly = std::true_type | Yes (*may be removed)                       |
 +-------------------------------------------+---------------------------------------------+
 | std::vector::iterator                     |                                             |
 | with a host allocator                     | No                                          |
@@ -133,22 +133,22 @@ The following table summarizes the oneDPL inputs and their status as Indirectly 
 
 ### Implementation Details
 
-Internally, a trait is defined `template <typename _Iter> oneapi::dpl::__ranges::__is_passed_directly_device_ready`
-which is defined as the conjunction of `oneapi::dpl::is_indirectly_device_accessible<_Iter>` and
-`sycl::is_device_copyable<_Iter>`. Input types which are *passed directly device ready* are passed to
+Internally, a trait `template <typename _Iter> oneapi::dpl::__ranges::__is_passed_directly_device_ready`
+is defined as the conjunction of `oneapi::dpl::is_indirectly_device_accessible<_Iter>` and
+`sycl::is_device_copyable<_Iter>`. Input types that are *passed directly device ready* are passed to
 SYCL kernels without any additional processing for direct usage.
 
-A static_assertion is used to prevent types which are not `bool_constant` from being used as the return type from
-`is_onedpl_indirectly_device_accessible()`. This should help users adhere to the oneDPL specification with clear return
-types from this customization point.
+A static assertion is used to prevent incorrect usage of the ADL-based customization point
+`is_onedpl_indirectly_device_accessible()` by returning a type which is not a `std::bool_constant`. This is meant to
+alert users clearly of incorrect usage of the customization point.  
 
-GCC 15.1 provides a warning for hidden friend functions which are body-less, as it matches a common anti-pattern where
-a non-template friend is declared but not defined within the class definition, and then is unable to be defined
-externally to the class with a matching function signature. There is technically no problem with a body-less hidden
-friend function for our purposes, as we only need the function declaration for evaluating the return type in a `declval`
-scope, but it is better to avoid this warning and the appearance of any problems. Therefore, all hidden friend
-functions for the `is_onedpl_indirectly_device_accessible()` customization point provide a minimal body within oneDPL,
-as does our examples in the specification and docs.
+All hidden friend functions for the `is_onedpl_indirectly_device_accessible()` customization point provide a minimal
+body within oneDPL, as do our examples in the specification and documentation. This is because GCC 15.1 provides a
+warning for hidden friend functions that are body-less, as such usage matches a common anti-pattern where a
+non-template friend is declared but not defined within the class definition, and then cannot be defined externally
+to the class with a matching function signature. There is technically no problem with a body-less hidden friend
+function for our purposes, as we only need the function declaration for evaluating the return type in a `declval`
+scope. However, it is better to avoid this warning and the appearance of any problems. 
 
 ## Alternatives Considered 
 Note: these are carried forward from the previous RFC, where the framing was more around the implementation detail of
