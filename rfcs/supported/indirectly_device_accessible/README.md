@@ -24,11 +24,14 @@ to represent this trait.
 The following class template and variable template are defined in ``<oneapi/dpl/iterator>`` inside the namespace
 ``oneapi::dpl:``
 
-.. code:: cpp
-  template <typename T>
-  struct is_indirectly_device_accessible{ /* see below */ };
-  template <typename T>
-  inline constexpr bool is_indirectly_device_accessible_v = is_indirectly_device_accessible<T>::value;
+```cpp
+template <typename T>
+struct is_indirectly_device_accessible{ /* see below */ };
+
+template <typename T>
+inline constexpr bool is_indirectly_device_accessible_v = is_indirectly_device_accessible<T>::value;
+```
+
 ``template <typename T> oneapi::dpl::is_indirectly_device_accessible`` is a template which has the base characteristic
 of ``std::true_type`` if ``T`` is indirectly device accessible. Otherwise, it has the base characteristic of
 ``std::false_type``.
@@ -57,42 +60,42 @@ user defined iterator. It also shows a more complex example where the customizat
 the iterator class.
 
 ```cpp
-  namespace usr
-  {
-      struct accessible_it
-      {
-          /* user definition of an indirectly device accessible iterator */
-      };
-      std::true_type
-      is_onedpl_indirectly_device_accessible(accessible_it);
-      struct inaccessible_it
-      {
-          /* user definition of an iterator which is not indirectly device accessible */
-      };
-      // The following could be omitted, as returning std::false_type matches the default behavior.
-      std::false_type
-      is_onedpl_indirectly_device_accessible(inaccessible_it);
-  }
-  static_assert(oneapi::dpl::is_indirectly_device_accessible<usr::accessible_it> == true);
-  static_assert(oneapi::dpl::is_indirectly_device_accessible<usr::inaccessible_it> == false);
-  // Example with base iterators and ADL overload as a hidden friend
-  template <typename It1, typename It2>
-  struct it_pair
-   {
-        It1 first;
-        It2 second;
-        friend auto
-        is_onedpl_indirectly_device_accessible(it_pair) ->
-            std::conjunction<oneapi::dpl::is_indirectly_device_accessible<It1>,
-                             oneapi::dpl::is_indirectly_device_accessible<It2>>
-        {
-            return {};
-        }
+namespace usr
+{
+    struct accessible_it
+    {
+        /* user definition of an indirectly device accessible iterator */
     };
-  static_assert(oneapi::dpl::is_indirectly_device_accessible<
-                                  it_pair<usr::accessible_it, usr::accessible_it>> == true);
-  static_assert(oneapi::dpl::is_indirectly_device_accessible<
-                                  it_pair<usr::accessible_it, usr::inaccessible_it>> == false);
+    std::true_type
+    is_onedpl_indirectly_device_accessible(accessible_it);
+    struct inaccessible_it
+    {
+        /* user definition of an iterator which is not indirectly device accessible */
+    };
+    // The following could be omitted, as returning std::false_type matches the default behavior.
+    std::false_type
+    is_onedpl_indirectly_device_accessible(inaccessible_it);
+}
+static_assert(oneapi::dpl::is_indirectly_device_accessible<usr::accessible_it> == true);
+static_assert(oneapi::dpl::is_indirectly_device_accessible<usr::inaccessible_it> == false);
+// Example with base iterators and ADL overload as a hidden friend
+template <typename It1, typename It2>
+struct it_pair
+  {
+      It1 first;
+      It2 second;
+      friend auto
+      is_onedpl_indirectly_device_accessible(it_pair) ->
+          std::conjunction<oneapi::dpl::is_indirectly_device_accessible<It1>,
+                            oneapi::dpl::is_indirectly_device_accessible<It2>>
+      {
+          return {};
+      }
+  };
+static_assert(oneapi::dpl::is_indirectly_device_accessible<
+                                it_pair<usr::accessible_it, usr::accessible_it>> == true);
+static_assert(oneapi::dpl::is_indirectly_device_accessible<
+                                it_pair<usr::accessible_it, usr::inaccessible_it>> == false);
 ```
 
 ### Indirectly Device Accessible Trait Value for oneDPL Inputs
