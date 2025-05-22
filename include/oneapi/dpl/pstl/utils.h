@@ -132,20 +132,23 @@ class __pstl_assign
     }
 };
 
-template <typename _Comp, typename _Proj>
-struct __compare
+template <typename _Pred, typename _Proj>
+struct __predicate
 {
     //'mutable' is to relax the requirements for a user comparator or/and projection type operator() may be non-const
-    mutable _Comp __comp;
+    mutable _Pred __pred;
     mutable _Proj __proj;
 
-    template <typename _Xp, typename _Yp>
+    template <typename... _Xp>
     bool
-    operator()(const _Xp& __x, const _Yp& __y) const
+    operator()(const _Xp&... __x) const
     {
-        return std::invoke(__comp, std::invoke(__proj, __x), std::invoke(__proj, __y));
+        return std::invoke(__pred, std::invoke(__proj, __x)...);
     }
 };
+
+template <typename _Comp, typename _Proj>
+using __compare = __predicate<_Comp, _Proj>;
 
 //! "==" comparison.
 /** Not called "equal" to avoid (possibly unfounded) concerns about accidental invocation via
@@ -258,6 +261,22 @@ class __not_equal_value
     operator()(_Arg&& __arg) const
     {
         return !(::std::forward<_Arg>(__arg) == _M_value);
+    }
+};
+
+template <typename _Tp>
+class __set_value
+{
+    const _Tp _M_value;
+
+  public:
+    explicit __set_value(const _Tp& __value) : _M_value(__value) {}
+
+    template <typename _Arg>
+    void
+    operator()(_Arg&& __arg) const
+    {
+        std::forward<_Arg>(__arg) = _M_value;
     }
 };
 
