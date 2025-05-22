@@ -263,6 +263,7 @@ user defined iterator. It also shows a more complex example where the customizat
 the iterator class.
 
 .. code:: cpp
+
   namespace usr
   {
       struct accessible_it
