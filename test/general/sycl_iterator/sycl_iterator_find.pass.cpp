@@ -678,7 +678,7 @@ DEFINE_TEST(test_equal)
         ::std::fill(host_vals.get() + new_start, host_vals.get() + new_end, value);
         update_data(host_keys, host_vals);
 
-        auto expected  = new_end - new_start > 0;
+        auto expected  = new_end - new_start >= 0;
         auto result = ::std::equal(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1 + new_start,
                                    first1 + new_end, first2 + new_start);
         wait_and_throw(exec);

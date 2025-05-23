@@ -171,7 +171,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         using __params_t = __pfor_params<true /*__enable_tuning*/, _Fp, _Ranges...>;
-        assert(oneapi::dpl::__ranges::__get_first_range_size(__rngs...) > 0);
+        assert(oneapi::dpl::__ranges::__first_size_calc{}(__rngs...) > 0);
         const std::size_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__q, __max_work_group_size);
         _PRINT_INFO_IN_DEBUG_MODE(__q);
