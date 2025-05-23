@@ -34,6 +34,11 @@ Fixed Issues
 
 Known Issues and Limitations
 ----------------------------
+New in This Release
+^^^^^^^^^^^^^^^^^^^
+- The `set_intersection`, `set_difference`, `set_symmetric_difference`, and `set_union` algorithms with a device policy
+require GPUs with double-precision support on Windows, regardless of the value type of the input sequences.
+
 Existing Issues
 ^^^^^^^^^^^^^^^
 See oneDPL Guide for other `restrictions and known limitations`_.
