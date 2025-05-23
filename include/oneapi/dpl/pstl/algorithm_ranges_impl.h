@@ -638,6 +638,32 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// pattern_includes
+//---------------------------------------------------------------------------------------------------------------------
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
+          typename _Proj2>
+bool
+__pattern_includes(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1,
+                   _Proj2 __proj2)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    __pattern_transform_binary_op<_Comp, _Proj1, _Proj2> __comp_2{__comp, __proj1, __proj2};
+
+    return oneapi::dpl::__internal::__pattern_includes(__tag, std::forward<_ExecutionPolicy>(__exec),
+        std::ranges::begin(__r1), std::ranges::begin(__r1) + std::ranges::size(__r1),
+        std::ranges::begin(__r2), std::ranges::begin(__r2) + std::ranges::size(__r2), __comp_2);
+}
+
+template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1, typename _Proj2>
+bool
+__pattern_includes(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2,
+                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // __pattern_mismatch
 //---------------------------------------------------------------------------------------------------------------------
 
