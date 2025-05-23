@@ -44,12 +44,8 @@ accessible iterator is a type that can also be dereferenced within a SYCL kernel
 When passed to |onedpl_short| algorithms with a device execution policy, indirectly device accessible types minimize
 data movement and behave equivalently to using the type directly within a SYCL kernel.
 
-.. _indirectly-device-accessible-trait:
-
-Indirect Device Accessibility Type Trait
-----------------------------------------
 The following class template and variable template are defined in ``<oneapi/dpl/iterator>`` inside the namespace
-``oneapi::dpl:``
+``oneapi::dpl`` :
 
 .. code:: cpp
   template <typename T>
@@ -224,28 +220,77 @@ be possible for |onedpl_short| to detect that iterators are pointing to USM-allo
 case the data will be treated as if it were in host memory, with an extra copy made to a SYCL buffer.
 Retrieving USM pointers from ``std::vector`` as shown guarantees no unintended copying.
 
+.. _use-range-views:
+
+Use Range Views
+---------------
+
+For :doc:`parallel range algorithms <parallel_range_algorithms>` with device execution policies,
+place the data in USM or a USM-allocated ``std::vector``, and pass it to an algorithm
+via a device-copyable range or view object such as ``std::ranges::subrange`` or ``std::span``.
+
+.. note::
+   Use of ``std::ranges::views::all`` is not supported for algorithms with device execution policies.
+
+These data ranges as well as supported range adaptors and factories may be combined into
+data transformation pipelines that also can be used with parallel range algorithms. For example:
+
+.. code:: cpp
+
+  #include <oneapi/dpl/execution>
+  #include <oneapi/dpl/algorithm>
+  #include <random>
+  #include <vector>
+  #include <span>
+  #include <ranges>
+  #include <functional>
+  #include <sycl/sycl.hpp>
+
+  int main(){
+    const int n = 1000;
+    auto policy = oneapi::dpl::execution::dpcpp_default;
+    sycl::queue q = policy.queue();
+
+    int* d_head = sycl::malloc_host<int>(n, q);
+    std::generate(d_head, d_head + n, std::minstd_rand{});
+
+    sycl::usm_allocator<int, sycl::usm::alloc::shared> alloc(q);
+    std::vector<int, decltype(alloc)> vec(n, alloc);
+
+    oneapi::dpl::ranges::copy(policy,
+        std::ranges::subrange(d_head, d_head + n) | std::views::transform(std::negate{}),
+        std::span(vec));
+
+    oneapi::dpl::ranges::sort(policy, std::span(vec));
+
+    sycl::free(d_head, q);
+    return 0;
+  }
+
 .. _use-iterators:
 
 Use |onedpl_short| Iterators
 ----------------------------
 
 |onedpl_short| provides a set of `iterators <iterators-details>`_ that can be used to pass data to algorithms, in
-combination with the data storage types described above. To pass data to an algorithm with a device execution policy,
-use iterators that are both `SYCL device-copyable`_ and `indirectly device accessible <indirectly-device-accessible>`_.
+combination with the iterators described above and with the return of ``oneapi::dpl::begin()`` and
+``oneapi::dpl::end()``. To pass data to an algorithm with a device execution policy with minimum data movement, use
+iterators that are both `SYCL device-copyable`_ and `indirectly device accessible <indirectly-device-accessible>`_.
 These properties of the |onedpl_short| iterators are described in `this table <iterator-properties-table>`_.
 
 Use Custom Iterators
 --------------------
 If the provided iterators are not sufficient for your needs, you can create your own iterators that can be used as input
 to |onedpl_short| algorithms. To pass data efficiently to an algorithm with a device execution policy, the custom
-iterator must be `SYCL device-copyable`_ and indirectly device accessible. If a custom iterator is *not* defined to be
+iterator must be SYCL device-copyable and indirectly device accessible. If a custom iterator is *not* defined to be
 indirectly device accessible, the algorithm will create a temporary SYCL buffer to copy the data from the iterator to
-the device. This may lead to performance degradation, and also requires that the data be accessible on the host.
+the device. This may lead to performance degradation, and also requires that the data be accessible on the host to be
+copied into the temporary SYCL buffer.
 
-You may customize your own iterator type ``T`` to be indirectly device accessible by defining a free function
-``is_onedpl_indirectly_device_accessible(T)``, which returns a type with the base characteristic of ``std::true_type``
-if ``T`` is indirectly device accessible. Otherwise, it returns a type with the base characteristic of
-``std::false_type``. The function must be discoverable by argument-dependent lookup (ADL). It may be provided as a
+You may customize your own iterator type ``T`` to define its indirectly device accessible property by defining a free
+function ``is_onedpl_indirectly_device_accessible(T)``, which returns a type with the base characteristic of
+``std::true_type`` if ``T`` is indirectly device accessible. Otherwise, it returns a type with the base characteristic
+of ``std::false_type``. The function must be discoverable by argument-dependent lookup (ADL). It may be provided as a
 forward declaration only, without defining a body.
 
 The return type of ``is_onedpl_indirectly_device_accessible`` is examined at compile time to determine if ``T`` is
@@ -255,7 +300,7 @@ indirectly device accessible. The function overload to use must be selected with
   Therefore, according to the rules in the C++ Standard, a derived type for which there is no function overload
   will match its most specific base type for which an overload exists.
 
-Once ``is_onedpl_indirectly_device_accessible(T)`` is defined, the `public trait <indirectly-device-accessible-trait>`_
+Once ``is_onedpl_indirectly_device_accessible(T)`` is defined, the `public trait <indirectly-device-accessible>`_
 ``template<typename T> oneapi::dpl::is_indirectly_device_accessible[_v]`` will return the appropriate value. This public
 trait can also be used to define the return type of ``is_onedpl_indirectly_device_accessible(T)`` by applying it to any
 source iterator component types.
@@ -309,52 +354,6 @@ the iterator class.
   static_assert(oneapi::dpl::is_indirectly_device_accessible<
                                   it_pair<usr::accessible_it, usr::inaccessible_it>> == false);
 
-.. _use-range-views:
-
-Use Range Views
----------------
-
-For :doc:`parallel range algorithms <parallel_range_algorithms>` with device execution policies,
-place the data in USM or a USM-allocated ``std::vector``, and pass it to an algorithm
-via a device-copyable range or view object such as ``std::ranges::subrange`` or ``std::span``.
-
-.. note::
-   Use of ``std::ranges::views::all`` is not supported for algorithms with device execution policies.
-
-These data ranges as well as supported range adaptors and factories may be combined into
-data transformation pipelines that also can be used with parallel range algorithms. For example:
-
-.. code:: cpp
-
-  #include <oneapi/dpl/execution>
-  #include <oneapi/dpl/algorithm>
-  #include <random>
-  #include <vector>
-  #include <span>
-  #include <ranges>
-  #include <functional>
-  #include <sycl/sycl.hpp>
-
-  int main(){
-    const int n = 1000;
-    auto policy = oneapi::dpl::execution::dpcpp_default;
-    sycl::queue q = policy.queue();
-
-    int* d_head = sycl::malloc_host<int>(n, q);
-    std::generate(d_head, d_head + n, std::minstd_rand{});
-
-    sycl::usm_allocator<int, sycl::usm::alloc::shared> alloc(q);
-    std::vector<int, decltype(alloc)> vec(n, alloc);
-
-    oneapi::dpl::ranges::copy(policy,
-        std::ranges::subrange(d_head, d_head + n) | std::views::transform(std::negate{}),
-        std::span(vec));
-
-    oneapi::dpl::ranges::sort(policy, std::span(vec));
-
-    sycl::free(d_head, q);
-    return 0;
-  }
 
 .. _`SYCL buffer`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#subsec:buffers
 .. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
