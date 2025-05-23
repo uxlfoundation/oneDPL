@@ -265,7 +265,7 @@ public:
         process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
 
         //test cases with empty sequence(s)
-	    process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+	process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
