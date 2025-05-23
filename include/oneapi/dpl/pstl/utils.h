@@ -150,6 +150,22 @@ struct __predicate
 template <typename _Comp, typename _Proj>
 using __compare = __predicate<_Comp, _Proj>;
 
+template <typename _F, typename _Proj1, typename _Proj2>
+struct __binary_op
+{
+    _F __f;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
+
+    template <typename _TValue1, typename _TValue2>
+    auto
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
+    {
+        return std::invoke(__f, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj2, std::forward<_TValue2>(__val2)));
+    }
+};
+
 //! "==" comparison.
 /** Not called "equal" to avoid (possibly unfounded) concerns about accidental invocation via
     argument-dependent name lookup by code expecting to find the usual ::std::equal. */
