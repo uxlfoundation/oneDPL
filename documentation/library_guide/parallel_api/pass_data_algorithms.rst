@@ -237,8 +237,10 @@ These properties of the |onedpl_short| iterators are described in `this table <i
 Use Custom Iterators
 --------------------
 If the provided iterators are not sufficient for your needs, you can create your own iterators that can be used as input
-to |onedpl_short| algorithms. To pass data to an algorithm with a device execution policy, the custom iterator must
-be `SYCL device-copyable`_ and indirectly device accessible. 
+to |onedpl_short| algorithms. To pass data efficiently to an algorithm with a device execution policy, the custom
+iterator must be `SYCL device-copyable`_ and indirectly device accessible. If a custom iterator is *not* defined to be
+indirectly device accessible, the algorithm will create a temporary SYCL buffer to copy the data from the iterator to
+the device. This may lead to performance degradation, and also requires that the data be accessible on the host.
 
 You may customize your own iterator type ``T`` to be indirectly device accessible by defining a free function
 ``is_onedpl_indirectly_device_accessible(T)``, which returns a type with the base characteristic of ``std::true_type``
