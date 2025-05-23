@@ -153,9 +153,10 @@ using __compare = __predicate<_Comp, _Proj>;
 template <typename _F, typename _Proj1, typename _Proj2>
 struct __binary_op
 {
-    _F __f;
-    _Proj1 __proj1;
-    _Proj2 __proj2;
+    //'mutable' is to relax the requirements for a user functor or/and projection type operator() may be non-const
+    mutable _F __f;
+    mutable _Proj1 __proj1;
+    mutable _Proj2 __proj2;
 
     template <typename _TValue1, typename _TValue2>
     auto
