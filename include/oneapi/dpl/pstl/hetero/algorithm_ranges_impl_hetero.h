@@ -853,6 +853,32 @@ __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exe
     return __return_t{std::ranges::begin(__r1) + __res.first, std::ranges::begin(__r2) + __res.second,
                       std::ranges::begin(__out_r) + __n_out};
 }
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
+          typename _Proj2>
+bool
+__pattern_includes(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1,
+                   _Proj2 __proj2)
+{
+    //according to the spec
+    if (std::ranges::empty(__r2))
+        return true;
+
+    //optimization; {1} - the first sequence, {2} - the second sequence
+    //{1} is empty or size_of{2} > size_of{1}
+    if (std::ranges::empty(__r1) || std::ranges::size(__r2) > std::ranges::size(__r1))
+        return false;
+
+    using _Size1 = oneapi::dpl::__internal::__difference_t<_R1>;
+    using _Size2 = oneapi::dpl::__internal::__difference_t<_R2>;
+
+    oneapi::dpl::__internal::__binary_op<_Comp, _Proj1, _Proj2> __comp_2{__comp, __proj1, __proj2};
+    using __brick_include_type = unseq_backend::__brick_includes<decltype(__comp_2), _Size1, _Size2>;
+
+    return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{},
+        std::forward<_ExecutionPolicy>(__exec), __comp_2, oneapi::dpl::__par_backend_hetero::__parallel_or_tag{},
+        oneapi::dpl::__ranges::views::all_read(__r1), oneapi::dpl::__ranges::views::all_read(__r2));
+}
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
