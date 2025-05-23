@@ -107,9 +107,9 @@ When called with device execution policies, |onedpl_short| algorithms apply the 
 |dpcpp_short| does (see the |dpcpp_cpp| documentation and the SYCL specification for details), such as:
 
 * Adding buffers to a lambda capture list is not allowed for lambdas passed to an algorithm, as buffers are not
- `SYCL device-copyable`_.
-* Data types which are not SYCL device-copyable may only be passed to |onedpl_short| algorithms via USM pointers. SYCL
-buffers or host-allocated containers must have a SYCL device-copyable value type.
+  `SYCL device-copyable`_.
+* Data types which are not SYCL device-copyable may only be passed to |onedpl_short| algorithms via USM pointers. 
+  SYCL buffers or host-allocated containers must have a SYCL device-copyable value type.
 * Objects of pointer-to-member types cannot be passed to an algorithm.
 * The definition of lambda functions used with parallel algorithms should not depend on preprocessor macros
   that makes it different for the host and the device. Otherwise, the behavior is undefined.
