@@ -388,13 +388,13 @@ __simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, _Bound __m, bool
     _ONEDPL_PRAGMA_SIMD_EARLYEXIT_REDUCTION(+ : __count)
     for (__i = 0; __i < __n; ++__i)
     {
-        if(__count >= __m)
-            break;
-
         __mask[__i] = __pred(__first[__i]);
         __count += __mask[__i];
+
+        if(__count > __m)
+            break;
     }
-    return {__count, __i};
+    return {__count - 1, __i};
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
@@ -418,7 +418,7 @@ __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _Bound, class _Assigner>
-void
+std::pair<_InputIterator, _OutputIterator>
 __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _Bound __m, bool* __mask,
                     _Assigner __assigner) noexcept
 {
@@ -455,15 +455,20 @@ __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator
         }
 
         //process the remaining (__n - __m) elements
-        for (__i = __m; __i < __n && __cnt < __m; ++__i)
+        for (__i = __m; __i < __n; ++__i)
         {
             if (__mask[__i])
             {
-                __assigner(__first + __i, __result + __cnt);
+                if(__cnt < __m)
+                    __assigner(__first + __i, __result + __cnt);
+                else 
+                    break;
+
                 ++__cnt;
             }
         }
     }
+    return {__first + __i, __result + __cnt};
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator1, class _OutputIterator2>

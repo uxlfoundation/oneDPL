@@ -1325,7 +1325,7 @@ std::pair<_ForwardIterator, _OutputIterator>
 __brick_copy_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result, _Bound __m, bool* __mask,
                      _Assigner __assigner, /*vector=*/::std::false_type) noexcept
 {
-    for (; __first != __last && __m > 0; ++__first, ++__mask)
+    for (; __first != __last && __m >= 0; ++__first, ++__mask)
     {
         if (*__mask)
         {
@@ -1350,7 +1350,7 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __la
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
-auto
+std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
                      _Bound __m, bool* __restrict __mask, _Assigner __assigner, /*vector=*/::std::true_type) noexcept
 {
