@@ -1,3 +1,5 @@
+.. _pass-data-algorithms:
+
 Pass Data to Algorithms
 #######################
 
@@ -30,6 +32,32 @@ with parallel execution policies.
 
 The following subsections describe proper ways to pass data to an algorithm invoked with a device execution policy.
 
+.. _indirectly-device-accessible:
+
+Indirectly Device Accessible
+----------------------------
+Iterators and iterator-like types may or may not refer to content accessible within a
+`SYCL <https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html>`_ kernel on a device. The term
+*indirectly device accessible* refers to a type that represents content accessible on a device. An indirectly device
+accessible iterator is a type that can also be dereferenced within a SYCL kernel.
+
+When passed to |onedpl_short| algorithms with a device execution policy, indirectly device accessible types minimize
+data movement and behave equivalently to using the type directly within a SYCL kernel.
+
+The following class template and variable template are defined in ``<oneapi/dpl/iterator>`` inside the namespace
+``oneapi::dpl`` :
+
+.. code:: cpp
+  template <typename T>
+  struct is_indirectly_device_accessible{ /* see below */ };
+
+  template <typename T>
+  inline constexpr bool is_indirectly_device_accessible_v = is_indirectly_device_accessible<T>::value;
+
+``template <typename T> oneapi::dpl::is_indirectly_device_accessible`` is a template which has the base characteristic
+of ``std::true_type`` if ``T`` is indirectly device accessible. Otherwise, it has the base characteristic of
+``std::false_type``.
+
 .. _use-buffer-wrappers:
 
 Use oneapi::dpl::begin and oneapi::dpl::end Functions
@@ -49,6 +77,9 @@ a `SYCL buffer`_ and return an object of an unspecified type that provides the f
 The ``begin`` and ``end`` functions can take SYCL 2020 deduction tags and ``sycl::no_init`` as arguments
 to explicitly control which access mode should be applied to a particular buffer when submitting
 a SYCL kernel to a device:
+
+The return types of the ``begin`` and ``end`` functions are
+`indirectly device accessible <indirectly-device-accessible>`_.
 
 .. code:: cpp
 
@@ -113,6 +144,8 @@ the USM allocation use the same SYCL queue. For example:
 When using device USM, such as allocated by ``malloc_device``, you are responsible for data
 transfers to and from the device to ensure that input data is device accessible during oneDPL
 algorithm execution and that the result is available to the subsequent operations.
+
+USM shared and device pointers are `indirectly device accessible <indirectly-device-accessible>`_.
 
 .. _use-std-vector:
 
@@ -179,7 +212,8 @@ Make sure that the allocator and the execution policy use the same SYCL queue:
     return 0;
   }
 
-For ``std::vector`` with a USM allocator we recommend to use ``std::vector::data()`` in
+Iterators to ``std::vector`` are `indirectly device accessible <indirectly-device-accessible>`_ if and only if a 
+``sycl::usm_allocator`` is used. For ``std::vector`` with a USM allocator we recommend to use ``std::vector::data()`` in
 combination with ``std::vector::size()`` as shown in the example above, rather than iterators to
 ``std::vector``. That is because for some implementations of the C++ Standard Library it might not
 be possible for |onedpl_short| to detect that iterators are pointing to USM-allocated data. In that
@@ -233,5 +267,94 @@ data transformation pipelines that also can be used with parallel range algorith
     return 0;
   }
 
+.. _use-iterators:
+
+Use |onedpl_short| Iterators
+----------------------------
+
+|onedpl_short| provides a set of `iterators <iterators-details>`_ that can be used to pass data to algorithms, in
+combination with the iterators described above and with the return of ``oneapi::dpl::begin()`` and
+``oneapi::dpl::end()``. To pass data to an algorithm with a device execution policy with minimum data movement, use
+iterators that are both `SYCL device-copyable`_ and `indirectly device accessible <indirectly-device-accessible>`_.
+These properties of the |onedpl_short| iterators are described in `this table <iterator-properties-table>`_.
+
+Use Custom Iterators
+--------------------
+If the provided iterators are not sufficient for your needs, you can create your own iterators that can be used as input
+to |onedpl_short| algorithms. To pass data efficiently to an algorithm with a device execution policy, the custom
+iterator must be SYCL device-copyable and indirectly device accessible. If a custom iterator is *not* defined to be
+indirectly device accessible, the algorithm will create a temporary SYCL buffer to copy the data from the iterator to
+the device. This may lead to performance degradation, and also requires that the data be accessible on the host to be
+copied into the temporary SYCL buffer.
+
+You may customize your own iterator type ``T`` to define its indirectly device accessible property by defining a free
+function ``is_onedpl_indirectly_device_accessible(T)``, which returns a type with the base characteristic of
+``std::true_type`` if ``T`` is indirectly device accessible. Otherwise, it returns a type with the base characteristic
+of ``std::false_type``. The function must be discoverable by argument-dependent lookup (ADL). It may be provided as a
+forward declaration only, without defining a body.
+
+The return type of ``is_onedpl_indirectly_device_accessible`` is examined at compile time to determine if ``T`` is
+indirectly device accessible. The function overload to use must be selected with argument-dependent lookup.
+
+.. note::
+  Therefore, according to the rules in the C++ Standard, a derived type for which there is no function overload
+  will match its most specific base type for which an overload exists.
+
+Once ``is_onedpl_indirectly_device_accessible(T)`` is defined, the `public trait <indirectly-device-accessible>`_
+``template<typename T> oneapi::dpl::is_indirectly_device_accessible[_v]`` will return the appropriate value. This public
+trait can also be used to define the return type of ``is_onedpl_indirectly_device_accessible(T)`` by applying it to any
+source iterator component types.
+
+The following example shows how to define a customization for the ``is_indirectly_device_accessible`` trait for a simple
+user defined iterator. It also shows a more complex example where the customization is defined as a hidden friend of
+the iterator class.
+
+.. code:: cpp
+
+  namespace usr
+  {
+      struct accessible_it
+      {
+          /* user definition of an indirectly device accessible iterator */
+      };
+
+      std::true_type
+      is_onedpl_indirectly_device_accessible(accessible_it);
+
+      struct inaccessible_it
+      {
+          /* user definition of an iterator which is not indirectly device accessible */
+      };
+
+      // The following could be omitted, as returning std::false_type matches the default behavior.
+      std::false_type
+      is_onedpl_indirectly_device_accessible(inaccessible_it);
+  }
+
+  static_assert(oneapi::dpl::is_indirectly_device_accessible<usr::accessible_it> == true);
+  static_assert(oneapi::dpl::is_indirectly_device_accessible<usr::inaccessible_it> == false);
+
+  // Example with base iterators and ADL overload as a hidden friend
+  template <typename It1, typename It2>
+  struct it_pair
+   {
+        It1 first;
+        It2 second;
+        friend auto
+        is_onedpl_indirectly_device_accessible(it_pair) ->
+            std::conjunction<oneapi::dpl::is_indirectly_device_accessible<It1>,
+                             oneapi::dpl::is_indirectly_device_accessible<It2>>
+        {
+            return {};
+        }
+    };
+
+  static_assert(oneapi::dpl::is_indirectly_device_accessible<
+                                  it_pair<usr::accessible_it, usr::accessible_it>> == true);
+  static_assert(oneapi::dpl::is_indirectly_device_accessible<
+                                  it_pair<usr::accessible_it, usr::inaccessible_it>> == false);
+
+
 .. _`SYCL buffer`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#subsec:buffers
+.. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
 .. _`unified shared memory`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec:usm

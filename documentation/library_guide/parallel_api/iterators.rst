@@ -1,3 +1,5 @@
+.. _iterator-details:
+
 Iterators
 #########
 
@@ -73,7 +75,7 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 * ``transform_iterator``: an iterator defined over another iterator whose dereferenced value is the result
   of a function applied to the corresponding element of the base iterator. Both the type of the base
   iterator and the unary function applied during dereference operations are required template parameters of
-  the ``transform_iterator`` class. 
+  the ``transform_iterator`` class.
 
   The unary functor provided to a ``transform_iterator`` should have a ``const``-qualified call operator which accepts
   the reference type of the base iterator as argument. The functor's call operator should not have any side effects and
@@ -128,3 +130,27 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
     auto permutation_first = dpl::make_permutation_iterator(first, multiply_index_by_two());
     auto permutation_last = permutation_first + num_elements;
     dpl::copy(dpl::execution::dpcpp_default, permutation_first, permutation_last, result);
+
+.. _iterator-properties-table:
+
+Iterators with Device Execution Policies
+----------------------------------------
+The iterators described above can be used with device execution policies according to the rules described in
+`Pass Data to Algorithms <pass-data-algorithms>`_. The following table summarizes the characteristics of the iterators
+and their use with device execution policies:
+
++----------------------+---------------------------------------------+-------------------------------------------+
+| Iterator             |          SYCL Device-Copyable               |        Indirectly Device Accessible       |
++----------------------+---------------------------------------------+-------------------------------------------+
+| counting_iterator    | Yes                                         | Yes                                       |
++----------------------+---------------------------------------------+-------------------------------------------+
+| discard_iterator     | Yes                                         | Yes                                       |
++----------------------+---------------------------------------------+-------------------------------------------+
+| zip_iterator         | If all Source Iterators are                 | If all Source Iterators are               |
++----------------------+---------------------------------------------+-------------------------------------------+
+| transform_iterator   | If the Source Iterator is                   | If the Source Iterator is                 |
++----------------------+---------------------------------------------+-------------------------------------------+
+| permutation_iterator | If both Source Iterator and Index Map are   | If both Source Iterator and Index Map are |
++----------------------+---------------------------------------------+-------------------------------------------+
+
+.. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
