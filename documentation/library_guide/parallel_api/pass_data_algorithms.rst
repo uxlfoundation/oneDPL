@@ -251,9 +251,7 @@ You can use iterators defined in ``<oneapi/dpl/iterator>`` header in the ``oneap
 :ref:`Iterators <iterator-details>` section describes them in detail and provides usage examples.
 
 If you want to use these iterators in combination with your own custom iterators,
-make sure to follow the guidelines in the use-custom-iterators_ section.
-For |onedpl_short| iterators to be *indirectly device accessible*,
-the underlying iterators must also be *indirectly device accessible*.
+make sure to follow the guidelines in the :ref:`Use Custom Iterators <use-custom-iterators>` section.
 
 .. _use-custom-iterators:
 
@@ -279,12 +277,13 @@ The term *indirectly device accessible* means that the data referenced by the it
 can be accessed from within a SYCL kernel (that is, on a device).
 |onedpl_short| determines this by examining the return type of the free function
 ``is_onedpl_indirectly_device_accessible(It)``, where ``It`` is the iterator type.
-This function is defined in the ``<oneapi/dpl/iterator>`` in the ``oneapi::dpl`` namespace.
+If the return type is ``std::true_type``, the iterator is considered *indirectly device accessible*.
+This function is defined in ``<oneapi/dpl/iterator>`` in the ``oneapi::dpl`` namespace.
 
 To make a custom iterator *indirectly device accessible* (assume its type is ``It``),
 define an overload of ``is_onedpl_indirectly_device_accessible``
 that accepts an argument of type ``It`` and returns ``std::true_type``.
-This overload must be visible through argument-dependent lookup (ADL).
+This overload must be visible through argument-dependent lookup.
 If it is found, the trait ``oneapi::dpl::is_onedpl_indirectly_device_accessible_v<It>``,
 which is also defined in ``<oneapi/dpl/iterator>``, evaluates to ``true``.
 The example below shows how to define such an overload:
@@ -358,13 +357,26 @@ The example below shows how to define such an overload:
       auto res = oneapi::dpl::reduce(oneapi::dpl::execution::make_device_policy<class reduce_kernel>(q),
                                     stride2, stride2 + 5);
 
+      // is_indirectly_device_accessible_v: 1
+      // result: 20
       std::cout << "is_indirectly_device_accessible_v: "
                 << (oneapi::dpl::is_indirectly_device_accessible_v<strided_iterator<int*>>) << std::endl;
-      std::cout << "Result: " << res << std::endl;
+      std::cout << "result: " << res << std::endl;
 
       sycl::free(d_head, q);
       return 0;
   }
+
+The example above uses ``oneapi::dpl::is_indirectly_device_accessible<It>``, where ``It`` is ``int*``.
+|onedpl_short| predefines an overload of
+``oneapi::dpl::is_indirectly_device_accessible<int*>`` returning ``std::true_type``
+assuming that the pointer refers to USM-allocated data.
+It also automatically treats the following entities as *indirectly device accessible*:
+
+- Iterators to ``std::vector`` with a USM allocator.
+- ``counting_iterator`` and ``discard_iterator``.
+- ``zip_iterator``, ``transform_iterator``, and ``permutation_iterator``,
+  if their underlying iterators are *indirectly device accessible*.
 
 For more information, refer to the
 `Iterators section of oneDPL specification <https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/parallel_api/iterators.html>`_.
