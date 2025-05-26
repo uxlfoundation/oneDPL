@@ -1075,34 +1075,36 @@ struct MultipleOf
 template <typename T>
 struct IsEven
 {
-    std::enable_if_t<!std::is_floating_point_v<T>, bool>
+    bool
     operator()(T v) const
     {
-        return i % 2 == 0;
-    }
-
-    std::enable_if_t<std::is_floating_point_v<T>, bool>
-    operator()(T v) const
-    {
-        std::uint32_t i = (std::uint32_t)v;
-        return i % 2 == 0;
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            std::uint32_t i = (std::uint32_t)v;
+            return i % 2 == 0;
+        }
+        else
+        {
+            return v % 2 == 0;
+        }
     }
 };
 
 template <typename T>
 struct IsOdd
 {
-    std::enable_if_t<!std::is_floating_point_v<T>, bool>
+    bool
     operator()(T v) const
     {
-        return i % 2 != 0;
-    }
-
-    std::enable_if_t<std::is_floating_point_v<T>, bool>
-    operator()(T v) const
-    {
-        std::uint32_t i = (std::uint32_t)v;
-        return i % 2 != 0;
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            std::uint32_t i = (std::uint32_t)v;
+            return i % 2 != 0;
+        }
+        else
+        {
+            return v % 2 != 0;
+        }
     }
 };
 
