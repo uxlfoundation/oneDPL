@@ -1062,7 +1062,7 @@ get_pattern_for_test_sizes()
 }
 
 template <typename T>
-struct MultipleOf
+struct IsMultipleOf
 {
     T value;
 

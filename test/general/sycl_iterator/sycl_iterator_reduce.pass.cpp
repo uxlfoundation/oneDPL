@@ -263,10 +263,10 @@ template <typename ValueType>
 using MultipleOf10 = TestUtils::IsMultipleOf<ValueType, 10>;
 
 template <typename ValueType>
-using GreatThen10 = TestUtils::GreatThan<ValueType, 10>;
+using GreatThen10 = TestUtils::IsGreatThen<ValueType, 10>;
 
 template <typename ValueType>
-using LessThen10 = TestUtils::LessThan<ValueType, 10>;
+using LessThen10 = TestUtils::IsLessThen<ValueType, 10>;
 
 DEFINE_TEST(test_count_if)
 {
