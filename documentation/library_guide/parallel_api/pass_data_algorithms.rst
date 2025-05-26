@@ -332,15 +332,15 @@ The example below shows how to define such an overload:
       bool operator>=(const strided_iterator& other) const { return ptr >= other.ptr; }
 
       // Another way to make this iterator indirectly device accessible
-      // friend std::true_type is_onedpl_indirectly_device_accessible(strided_iterator) { return {}; }
+      // friend oneapi::dpl::is_indirectly_device_accessible<It> is_onedpl_indirectly_device_accessible(strided_iterator) { return {}; }
   private:
       It ptr;
       difference_type stride;
   };
 
-  // Make strided_iterator indirectly device accessible
+  // Make strided_iterator indirectly device accessible when it wraps an indirectly device accessible type
   template <typename It>
-  std::true_type is_onedpl_indirectly_device_accessible(strided_iterator<It>);
+  auto is_onedpl_indirectly_device_accessible(strided_iterator<It>) -> oneapi::dpl::is_indirectly_device_accessible<It>;
 
   int main() {
       sycl::queue q{};
