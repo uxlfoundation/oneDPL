@@ -321,9 +321,6 @@ DEFINE_TEST(test_copy_if)
 {
     DEFINE_TEST_CONSTRUCTOR(test_copy_if, 2.0f, 0.65f)
 
-    template <typename T1>
-    using GreatThenMinusOne = TestUtils::IsGreaterThan<T1, -1>;
-
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Size n)
@@ -336,7 +333,7 @@ DEFINE_TEST(test_copy_if)
         ::std::iota(host_keys.get(), host_keys.get() + n, T1(222));
         host_keys.update_data();
 
-        auto res1 = std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, GreatThenMinusOne<T1>{});
+        auto res1 = std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, TestUtils::IsGreatThen<T1>{-1});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from copy_if_1");
