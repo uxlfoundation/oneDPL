@@ -59,7 +59,6 @@ struct __uninitialized_copy_fn
         && oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
         && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
 
-    std::ranges::copy_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
     std::ranges::uninitialized_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
                                            std::ranges::borrowed_iterator_t<_OutRange>>
     operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r) const
@@ -92,7 +91,6 @@ struct __uninitialized_move_fn
         && oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
         && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
 
-    std::ranges::copy_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
     std::ranges::uninitialized_move_result<std::ranges::borrowed_iterator_t<_InRange>,
                                            std::ranges::borrowed_iterator_t<_OutRange>>
     operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r) const
@@ -112,6 +110,29 @@ struct __uninitialized_move_fn
 }  //__internal
 
 inline constexpr __internal::__uninitialized_move_fn uninitialized_move;
+
+namespace __internal
+{
+
+struct __uninitialized_fill_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _T>
+    requires std::constructible_from<std::ranges::range_value_t<_R>, const T&>
+        && oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+
+        return oneapi::dpl::__internal::__ranges::__pattern_uninitialized_fill(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __value);
+    }
+}; //__uninitialized_fill_fn
+}  //__internal
+
+inline constexpr __internal::__uninitialized_fill_fn uninitialized_fill;
 
 } // ranges
 
