@@ -105,7 +105,7 @@ DEFINE_TEST(test_lower_bound)
         check_and_clean(result_first, value_first, n);
 
         // call algorithm with comparator
-        auto res2 = oneapi::dpl::lower_bound(exec, first, last, value_first, value_last, result_first, TEstUtils::IsLess<ValueT>{});
+        auto res2 = oneapi::dpl::lower_bound(exec, first, last, value_first, value_last, result_first, TestUtils::IsLess<ValueT>{});
         EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, host policy");
         check_and_clean(result_first, value_first, n);
     }
