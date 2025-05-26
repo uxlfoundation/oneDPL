@@ -56,7 +56,7 @@ struct wrapper
 };
 
 template <typename T>
-using compare = TestUtils::IsEqual<std::cref<T>>;
+using compare = TestUtils::IsEqual<const T&>;
 
 template <typename T>
 struct compare<wrapper<T>>

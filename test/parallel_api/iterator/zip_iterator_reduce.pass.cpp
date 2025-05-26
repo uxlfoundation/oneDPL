@@ -232,8 +232,7 @@ DEFINE_TEST(test_lexicographical_compare)
                         "zip_iterator (lexicographical_compare2) not properly copyable");
         }
 
-        // We using here std::cref<ValueType> to pass comparing value by const reference
-        TestUtils::IsLess<std::cref<ValueType>> comp;
+        TestUtils::IsLess<const ValueType&> comp;
 
         bool is_less_exp = n > 1 ? 1 : 0;
         bool is_less_res =
