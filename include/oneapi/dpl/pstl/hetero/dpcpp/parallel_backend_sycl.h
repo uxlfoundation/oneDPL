@@ -2681,7 +2681,7 @@ std::tuple<sycl::event, __result_and_scratch_storage_base_ptr>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                        _Compare, _Proj __proj)
 {
-    auto [__event] = __parallel_radix_sort<__internal::__is_comp_ascending<std::decay_t<_Compare>>::value>(
+    auto __event = __parallel_radix_sort<__internal::__is_comp_ascending<std::decay_t<_Compare>>::value>(
         oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
         std::forward<_Range>(__rng), __proj);
 
@@ -2837,7 +2837,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     auto __intermediate_result_end = __storage1.__wait_and_get_value(__event1);
 
     //reduce by segment
-    auto [__event2] = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    auto __event2 = oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
         unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n)>(__binary_op, __n), __intermediate_result_end,
@@ -2875,7 +2875,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     auto __result_end = __storage3.__wait_and_get_value(__event3);
 
     //reduce by segment
-    auto [__event4] = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    auto __event4 = oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
             std::forward<_ExecutionPolicy>(__exec)),

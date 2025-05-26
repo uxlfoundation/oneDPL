@@ -58,7 +58,7 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
     const _Size __n = std::min({_Size(__rngs.size())...});
     if (__n > 0)
     {
-        auto [__event] = oneapi::dpl::__par_backend_hetero::__parallel_for(
+        auto __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
             unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
             std::forward<_Ranges>(__rngs)...);
@@ -172,7 +172,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
     {
         const std::size_t __n = __rng1.size();
 
-        auto [__event] = oneapi::dpl::__par_backend_hetero::__parallel_for(
+        auto __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
@@ -183,7 +183,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
     }
     const std::size_t __n = __rng2.size();
 
-    auto [__event] = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    auto __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
         unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng2, __rng1);
@@ -738,7 +738,7 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     {
         // For a sequence of size 1, we can just copy the only element to the result.
         using _CopyBrick = oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>;
-        auto [__event] = oneapi::dpl::__par_backend_hetero::__parallel_for(
+        auto __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
