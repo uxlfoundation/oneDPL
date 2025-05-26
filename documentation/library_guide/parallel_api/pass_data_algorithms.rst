@@ -369,8 +369,8 @@ The example below shows how to define such an overload:
 
 The example above uses ``oneapi::dpl::is_indirectly_device_accessible<It>``, where ``It`` is ``int*``.
 |onedpl_short| predefines an overload of
-``oneapi::dpl::is_indirectly_device_accessible<int*>`` returning ``std::true_type``
-assuming that the pointer refers to USM-allocated data.
+``oneapi::dpl::is_indirectly_device_accessible<int*>`` that returns ``std::true_type``
+assuming that pointers refer to USM-allocated data.
 It also automatically treats the following entities as *indirectly device accessible*:
 
 - Iterators to ``std::vector`` with a USM allocator.
