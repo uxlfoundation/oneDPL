@@ -250,7 +250,7 @@ You can use iterators defined in ``<oneapi/dpl/iterator>`` header in the ``oneap
 
 :ref:`Iterators <iterator-details>` section describes them in detail and provides usage examples.
 
-If you want to use these iterators on top of your own custom iterators,
+If you want to use these iterators in combination with your own custom iterators,
 make sure to follow the guidelines in the use-custom-iterators_ section.
 For |onedpl_short| iterators to be *indirectly device accessible*,
 the underlying iterators must also be *indirectly device accessible*.
