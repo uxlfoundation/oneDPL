@@ -56,7 +56,14 @@ struct wrapper
 };
 
 template <typename T>
-using compare = TestUtils::IsEqual<const T&>;
+struct compare
+{
+    bool
+    operator()(const T& a, const T& b)
+    {
+        return a == b;
+    }
+};
 
 template <typename T>
 struct compare<wrapper<T>>
