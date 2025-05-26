@@ -176,6 +176,7 @@ fi
 
 _onedpl_scrip_path=$(dirname -- "$(rreadlink "${vars_script_name:-}")")
 DPL_ROOT=$(dirname -- "${_onedpl_scrip_path}") ; export DPL_ROOT
+DPLROOT=$(dirname -- "${_onedpl_scrip_path}") ; export DPLROOT
 CPLUS_INCLUDE_PATH=$(prepend_path "${DPL_ROOT}/include" "${CPLUS_INCLUDE_PATH:-}") ; export CPLUS_INCLUDE_PATH
 PKG_CONFIG_PATH=$(prepend_path "${DPL_ROOT}/lib/pkgconfig" "${PKG_CONFIG_PATH:-}") ; export PKG_CONFIG_PATH
 CMAKE_PREFIX_PATH=$(prepend_path "${DPL_ROOT}/lib/cmake/oneDPL" "${CMAKE_PREFIX_PATH:-}") ; export CMAKE_PREFIX_PATH

@@ -101,7 +101,7 @@ test(Predicate pred, _IteratorAdapter adap = {})
     // very slow code leading to test timeouts.
 
     const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
-    size_t max_n =
+    size_t max_size =
 #if PSTL_USE_DEBUG && ONEDPL_USE_OPENMP_BACKEND
         10000;
 #else
@@ -109,7 +109,7 @@ test(Predicate pred, _IteratorAdapter adap = {})
 #endif
     for (size_t n : test_sizes)
     {
-        if (n <= max_n)
+        if (n <= max_size)
         {
             Sequence<In1> in1(n, [](size_t k) { return k % 5 != 1 ? In1(3 * k + 7) : 0; });
             Sequence<In2> in2(n, [](size_t k) { return k % 7 != 2 ? In2(5 * k + 5) : 0; });

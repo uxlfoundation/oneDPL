@@ -35,7 +35,7 @@ __parallel_for_body(_Index __first, _Index __last, _Fp __f, std::size_t __grains
     auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first, __last, __grainsize);
 
     // To avoid over-subscription we use taskloop for the nested parallelism
-    _PSTL_PRAGMA(omp taskloop untied mergeable)
+    _ONEDPL_PRAGMA(omp taskloop untied mergeable)
     for (std::size_t __chunk = 0; __chunk < __policy.__n_chunks; ++__chunk)
     {
         oneapi::dpl::__omp_backend::__process_chunk(__policy, __first, __chunk, __f);
@@ -62,8 +62,8 @@ __parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _
     {
         // in any case (nested or non-nested) one parallel region is created and
         // only one thread creates a set of tasks
-        _PSTL_PRAGMA(omp parallel)
-        _PSTL_PRAGMA(omp single nowait)
+        _ONEDPL_PRAGMA(omp parallel)
+        _ONEDPL_PRAGMA(omp single nowait)
         {
             oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f, __grainsize);
         }
