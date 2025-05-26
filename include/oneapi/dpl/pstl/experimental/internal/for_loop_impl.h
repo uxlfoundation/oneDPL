@@ -79,9 +79,15 @@ typename __difference<_Ip>::__type
 __calculate_input_sequence_length(const _Ip __first, const _Ip __last, const _Sp __stride)
 {
     assert(__stride != 0);
-
-    return (__stride > 0) ? ((__last - __first + (__stride - 1)) / __stride)
-                          : ((__first - __last - (__stride + 1)) / -__stride);
+    if constexpr (std::is_unsigned_v<_Sp>)
+    {
+        return (__last - __first + (__stride - 1)) / __stride;
+    }
+    else
+    {
+        return (__stride > 0) ? ((__last - __first + (__stride - 1)) / __stride)
+                              : ((__first - __last - (__stride + 1)) / -__stride);
+    }
 }
 
 template <typename _Ip>

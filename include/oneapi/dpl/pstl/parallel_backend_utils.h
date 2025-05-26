@@ -123,43 +123,73 @@ struct __serial_move_merge
                         }
                         else if (__n == 0)
                         {
-                            const auto __j = __zs - __zs_beg;
-                            if (__same_move_seq || __j < __nx)
+                            if constexpr (__same_move_seq)
+                            {
                                 __zs = __move_sequence_x(__ys, __ye, __zs);
+                            }
                             else
-                                __zs = __move_sequence_y(__ys, __ye, __zs);
+                            {
+                                const auto __j = __zs - __zs_beg;
+                                if (__j < __nx)
+                                    __zs = __move_sequence_x(__ys, __ye, __zs);
+                                else
+                                    __zs = __move_sequence_y(__ys, __ye, __zs);
+                            }
                             break;
                         }
                     }
                     else
                     {
-                        const auto __i = __zs - __zs_beg;
-                        if (__same_move_val || __i < __nx)
+                        if constexpr (__same_move_val)
+                        {
                             __move_value_x(__xs, __zs);
+                        }
                         else
-                            __move_value_y(__xs, __zs);
+                        {
+                            const auto __i = __zs - __zs_beg;
+                            if (__i < __nx)
+                                __move_value_x(__xs, __zs);
+                            else
+                                __move_value_y(__xs, __zs);
+                        }
+
                         ++__zs, --__n;
                         if (++__xs == __xe)
                         {
-                            const auto __j = __zs - __zs_beg;
-                            if (__same_move_seq || __j < __nx)
+                            if constexpr (__same_move_seq)
+                            {
                                 __move_sequence_x(__ys, __ye, __zs);
+                            }
                             else
-                                __move_sequence_y(__ys, __ye, __zs);
+                            {
+                                const auto __j = __zs - __zs_beg;
+                                if (__j < __nx)
+                                    __move_sequence_x(__ys, __ye, __zs);
+                                else
+                                    __move_sequence_y(__ys, __ye, __zs);
+                            }
                             return;
                         }
                         else if (__n == 0)
                         {
-                            const auto __j = __zs - __zs_beg;
-                            if (__same_move_seq || __j < __nx)
+                            if constexpr (__same_move_seq)
                             {
                                 __zs = __move_sequence_x(__xs, __xe, __zs);
                                 __move_sequence_x(__ys, __ye, __zs);
                             }
                             else
                             {
-                                __zs = __move_sequence_y(__xs, __xe, __zs);
-                                __move_sequence_y(__ys, __ye, __zs);
+                                const auto __j = __zs - __zs_beg;
+                                if (__j < __nx)
+                                {
+                                    __zs = __move_sequence_x(__xs, __xe, __zs);
+                                    __move_sequence_x(__ys, __ye, __zs);
+                                }
+                                else
+                                {
+                                    __zs = __move_sequence_y(__xs, __xe, __zs);
+                                    __move_sequence_y(__ys, __ye, __zs);
+                                }
                             }
                             return;
                         }
@@ -169,11 +199,18 @@ struct __serial_move_merge
             __ys = __xs;
             __ye = __xe;
         }
-        const auto __i = __zs - __zs_beg;
-        if (__same_move_seq || __i < __nx)
+        if constexpr (__same_move_seq)
+        {
             __move_sequence_x(__ys, __ye, __zs);
+        }
         else
-            __move_sequence_y(__ys, __ye, __zs);
+        {
+            const auto __i = __zs - __zs_beg;
+            if (__i < __nx)
+                __move_sequence_x(__ys, __ye, __zs);
+            else
+                __move_sequence_y(__ys, __ye, __zs);
+        }
     }
 };
 
