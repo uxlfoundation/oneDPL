@@ -1,0 +1,123 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Copyright (C) Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// This file incorporates work covered by the following copyright and permission
+// notice:
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _ONEDPL_GLUE_MEMORY_RANGES_IMPL_H
+#define _ONEDPL_GLUE_MEMORY_RANGES_IMPL_H
+
+#include <utility>
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    include <ranges>
+#    include <functional>
+#    include <type_traits>
+#    include <iterator>
+#endif
+
+//#include "utils_ranges.h" // __difference_t
+//#include "utils.h"        // oneapi::dpl::__internal::__swap_ranges_fn
+
+#include "execution_defs.h"
+#include "oneapi/dpl/pstl/ranges_defs.h"
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+//#    include "algorithm_ranges_impl.h"
+#endif
+
+#if _ONEDPL_HETERO_BACKEND
+//#    include "hetero/algorithm_ranges_impl_hetero.h"
+//#    include "hetero/algorithm_impl_hetero.h" //TODO: for __brick_copy
+#endif
+
+namespace oneapi
+{
+namespace dpl
+{
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+namespace ranges
+{
+
+namespace __internal
+{
+
+struct __uninitialized_copy_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+             std::ranges::random_access_range _OutRange>
+    requires std::constructible_from<std::ranges::range_value_t<_InRange>, std::ranges::range_reference_t<_OutRange>>
+        && oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
+
+    std::ranges::copy_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
+    std::ranges::uninitialized_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                           std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+
+        using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
+        const _Size __size = std::ranges::min((_Size)std::ranges::size(__in_r), (_Size)std::ranges::size(__out_r));
+
+        oneapi::dpl::__internal::__ranges::__pattern_uninitialized_copy(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::ranges::take_view(__in_r, __size),
+            std::ranges::take_view(__out_r, __size));
+
+        return {std::ranges::begin(__in_r) + __size, std::ranges::begin(__out_r) +  __size};
+    }
+}; //__uninitialized_copy_fn
+}  //__internal
+
+inline constexpr __internal::__uninitialized_copy_fn uninitialized_copy;
+
+namespace __internal
+{
+
+struct __uninitialized_move_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+             std::ranges::random_access_range _OutRange>
+    requires std::constructible_from<std::ranges::range_value_t<_InRange>,
+        std::ranges::range_rvalue_reference_t<_OutRange>>
+        && oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
+
+    std::ranges::copy_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
+    std::ranges::uninitialized_move_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                           std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+
+        using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
+        const _Size __size = std::ranges::min((_Size)std::ranges::size(__in_r), (_Size)std::ranges::size(__out_r));
+
+        oneapi::dpl::__internal::__ranges::__pattern_uninitialized_move(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::ranges::take_view(__in_r, __size),
+            std::ranges::take_view(__out_r, __size));
+
+        return {std::ranges::begin(__in_r) + __size, std::ranges::begin(__out_r) +  __size};
+    }
+}; //__uninitialized_move_fn
+}  //__internal
+
+inline constexpr __internal::__uninitialized_move_fn uninitialized_move;
+
+} // ranges
+
+#endif _ONEDPL_CPP20_RANGES_PRESENT
+
+} // namespace dpl
+} // namespace oneapi
+
+#endif // _ONEDPL_GLUE_MEMORY_RANGES_IMPL_H
