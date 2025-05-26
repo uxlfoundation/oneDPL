@@ -57,7 +57,7 @@ template <typename... _Name>
 struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...>>
 {
     template <unsigned int unroll_factor, typename _Fp, typename _Index, typename... _Ranges>
-    std::tuple<sycl::event>
+    sycl::event
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
@@ -80,7 +80,7 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
             });
         });
 
-        return std::tuple{std::move(__event)};
+        return std::move(__event);
     }
 };
 
@@ -106,7 +106,7 @@ __parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& _
 
 // TODO: check if it makes sense to move these wrappers out of backend to a common place
 template <typename _ExecutionPolicy, typename _Event, typename _Range1, typename _Range2, typename _BinHashMgr>
-std::tuple<sycl::event>
+sycl::event
 __parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& __exec, const _Event& __init_event,
                      _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {

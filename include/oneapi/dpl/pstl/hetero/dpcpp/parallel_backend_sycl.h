@@ -2570,7 +2570,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                                          __internal::__optional_kernel_name<_CopyBackName...>>
 {
     template <typename _Range, typename _Merge, typename _Compare>
-    std::tuple<sycl::event>
+    sycl::event
     operator()(sycl::queue& __q, _Range&& __rng, _Merge __merge, _Compare __comp) const
     {
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
@@ -2630,7 +2630,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
             });
         }
         // return future and extend lifetime of temporary buffer
-        return std::tuple{std::move(__event1)};
+        return std::move(__event1);
     }
 };
 
@@ -2638,7 +2638,7 @@ template <typename... _Name>
 class __sort_global_kernel;
 
 template <typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare>
-std::tuple<sycl::event>
+sycl::event
 __parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                              _Merge __merge, _Compare __comp)
 {
@@ -2712,7 +2712,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
 // TODO: consider changing __partial_merge_kernel to make it compatible with
 //       __full_merge_kernel in order to use __parallel_sort_impl routine
 template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>
-std::tuple<sycl::event>
+sycl::event
 __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Iterator __first,
                         _Iterator __mid, _Iterator __last, _Compare __comp)
 {
