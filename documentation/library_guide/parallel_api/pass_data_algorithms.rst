@@ -355,7 +355,7 @@ The example below shows how to define such an overload:
       // Reduce every second element, 5 elements in total: 0, 2, 4, 6, 8
       strided_iterator<int*> stride2(d_head, 2);
       auto res = oneapi::dpl::reduce(oneapi::dpl::execution::make_device_policy<class reduce_kernel>(q),
-                                    stride2, stride2 + 5);
+                                     stride2, stride2 + 5);
 
       // is_indirectly_device_accessible_v: 1
       // result: 20
