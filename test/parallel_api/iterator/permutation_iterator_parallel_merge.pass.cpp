@@ -104,8 +104,9 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
     };
 
     template <typename Policy, typename Size, typename Iterator1, typename Iterator2, typename Iterator3>
-    void
-    operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2, Iterator3 first3, Iterator3 last3, Size n)
+    void operator()(Policy&& exec, Iterator1 first1, [[maybe_unused]] Iterator1 last1,
+                    [[maybe_unused]] Iterator2 first2, [[maybe_unused]] Iterator2 last2, Iterator3 first3,
+                    Iterator3 last3, Size n)
     {
         if constexpr (is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator1>)
         {

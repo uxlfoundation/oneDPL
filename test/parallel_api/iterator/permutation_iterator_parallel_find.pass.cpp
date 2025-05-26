@@ -62,7 +62,7 @@ DEFINE_TEST_PERM_IT(test_find, PermItIndexTag)
 
     template <typename Policy, typename Iterator1, typename Size>
     void
-    operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
+    operator()(Policy&& exec, Iterator1 first1, Iterator1 /*last1*/, Size n)
     {
         assert(n > 0);
 

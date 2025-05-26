@@ -55,17 +55,17 @@ __parallel_merge_body(std::size_t __size_x, std::size_t __size_y, _RandomAccessI
 
     auto __zm = __zs + (__xm - __xs) + (__ym - __ys);
 
-    _PSTL_PRAGMA(omp task untied mergeable default(none)
+    _ONEDPL_PRAGMA(omp task untied mergeable default(none)
                      firstprivate(__xs, __xm, __ys, __ym, __zs, __comp, __leaf_merge))
     oneapi::dpl::__omp_backend::__parallel_merge_body(__xm - __xs, __ym - __ys, __xs, __xm, __ys, __ym, __zs, __comp,
                                                       __leaf_merge);
 
-    _PSTL_PRAGMA(omp task untied mergeable default(none)
+    _ONEDPL_PRAGMA(omp task untied mergeable default(none)
                      firstprivate(__xm, __xe, __ym, __ye, __zm, __comp, __leaf_merge))
     oneapi::dpl::__omp_backend::__parallel_merge_body(__xe - __xm, __ye - __ym, __xm, __xe, __ym, __ye, __zm, __comp,
                                                       __leaf_merge);
 
-    _PSTL_PRAGMA(omp taskwait)
+    _ONEDPL_PRAGMA(omp taskwait)
 }
 
 template <class _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
@@ -90,9 +90,9 @@ __parallel_merge(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&& 
     }
     else
     {
-        _PSTL_PRAGMA(omp parallel)
+        _ONEDPL_PRAGMA(omp parallel)
         {
-            _PSTL_PRAGMA(omp single nowait)
+            _ONEDPL_PRAGMA(omp single nowait)
             oneapi::dpl::__omp_backend::__parallel_merge_body(__size_x, __size_y, __xs, __xe, __ys, __ye, __zs, __comp,
                                                               __leaf_merge);
         }

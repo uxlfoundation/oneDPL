@@ -42,7 +42,7 @@ DEFINE_TEST(test_binary_search)
         {
             if (i == 0)
             {
-                EXPECT_TRUE(result[i] == true, "wrong effect from binary_search");
+                EXPECT_TRUE(static_cast<bool>(result[i]) == true, "wrong effect from binary_search");
             }
             else
             {

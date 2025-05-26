@@ -54,7 +54,7 @@ DEFINE_TEST_PERM_IT(test_is_heap, PermItIndexTag)
 
     template <typename Policy, typename Iterator1, typename Size>
     void
-    operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
+    operator()(Policy&& exec, Iterator1 first1, Iterator1 /*last1*/, Size n)
     {
         if constexpr (is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>)
         {
