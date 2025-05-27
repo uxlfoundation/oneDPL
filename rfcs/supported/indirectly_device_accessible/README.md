@@ -160,6 +160,16 @@ to the class with a matching function signature. There is technically no problem
 function for our purposes, as we only need the function declaration for evaluating the return type in a `declval`
 scope. However, it is better to avoid this warning and the appearance of any problems.
 
+### Testing
+`test/parallel_api/iterator/indirectly_device_accessible.pass.cpp` provides testing for a variety of types, and
+recursions upon types and the value of their `is_indirectly_device_accessible` trait both in the negative and positive
+result.
+
+It would be good to extend `test/parallel_api/iterator/input_data_sweep.h` tests to include a custom iterator
+adaptor which tests actual usage of a custom type within oneDPL using the trait in different scenarios. However, with
+the tests of oneDPL's provided iterators, we do cover the functionality of this system because those types use the ADL
+customization point to define themselves indirectly device accessible.
+
 ## Alternatives Considered 
 Note: these are carried forward from the previous RFC, where the framing was more around the implementation detail of
 whether a type "is passed directly" to a sycl kernel. We have since reframed that for the public API within the
@@ -204,12 +214,4 @@ directly". There is no logic that can be used to express some iterator type whic
 directly", other than to have logic to conditionally apply the wrapper in the first place. This option seems less clear
 and has more opportunity to cause problems.
 
-## Testing
-`test/parallel_api/iterator/indirectly_device_accessible.pass.cpp` provides testing for a variety of types, and
-recursions upon types and the value of their `is_indirectly_device_accessible` trait both in the negative and positive
-result.
 
-It would be good to extend `test/parallel_api/iterator/input_data_sweep.h` tests to include a custom iterator
-adaptor which tests actual usage of a custom type within oneDPL using the trait in different scenarios. However, with
-the tests of oneDPL's provided iterators, we do cover the functionality of this system because those types use the ADL
-customization point to define themselves indirectly device accessible.
