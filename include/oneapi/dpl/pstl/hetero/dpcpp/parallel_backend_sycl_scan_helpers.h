@@ -167,7 +167,7 @@ struct __write_to_id_if_else
     _Assign __assign;
 };
 
-// Writes operation for reduce_by_segment, writes first ket if the id is 0. Also, if the segment end is reached, writes
+// Writes operation for reduce_by_segment, writes first key if the id is 0. Also, if the segment end is reached, writes
 // the current value and then the next key if it exists. Used for __parallel_reduce_by_segment_reduce_then_scan.
 template <typename _BinaryPred>
 struct __write_red_by_seg
