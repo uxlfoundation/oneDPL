@@ -11,12 +11,12 @@ data movement and behave equivalently to using the type directly within a SYCL k
 
 oneDPL provides tools to enable users to customize their own user-defined iterators to be indirectly device accessible,
 making them performant with oneDPL algorithms when using a device execution policy. One example of a situation which
-can benefit from this feature is ``device_iterator`` and ``device_pointer`` found in SYCLomatic helper headers which
-currently uses the unspecified alias ``using is_passed_directly = std::true_type;`` to indicate to oneDPL that the data
-is already on the device. Similarly, [Kokkos uses the same alias](https://github.com/kokkos/kokkos/pull/7502) to provide
-this functionality to a ``RandomAccessIterator`` which may be strided, but is known to be on the device. This feature
-allows more flexibility to express this trait either in the class implementation or beside it without exiting the user's
-namespace.
+can benefit from this feature is ``device_iterator`` and ``device_pointer`` [found in SYCLomatic helper headers](https://github.com/oneapi-src/SYCLomatic/blob/7fc89aff9e3aeeb8794b0f8baa33f5a65496868a/clang/runtime/dpct-rt/include/dpct/dpl_extras/memory.h)
+which urrently uses the unspecified alias ``using is_passed_directly = std::true_type;`` to indicate to oneDPL that the
+data is already on the device. Similarly, [Kokkos uses the same alias](https://github.com/kokkos/kokkos/pull/7502) to
+provide this functionality to a ``RandomAccessIterator`` which may be strided, but is known to be on the device. This
+feature allows more flexibility to express this trait either in the class implementation or beside it without exiting
+the user's namespace.
 
 ### Changes from proposed RFC
 The original RFC as proposed focussed more on the implementation detail "is passed directly", where during discussion
