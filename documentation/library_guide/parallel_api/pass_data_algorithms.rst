@@ -374,6 +374,7 @@ assuming that pointers refer to USM-allocated data.
 It also automatically treats the following entities as *indirectly device accessible*:
 
 - Iterators to ``std::vector`` with a USM allocator.
+- Objects returned by ``oneapi::dpl::begin`` and ``oneapi::dpl::end`` functions. 
 - ``counting_iterator`` and ``discard_iterator``.
 - ``zip_iterator``, ``transform_iterator``, and ``permutation_iterator``,
   if their underlying iterators are *indirectly device accessible*.
