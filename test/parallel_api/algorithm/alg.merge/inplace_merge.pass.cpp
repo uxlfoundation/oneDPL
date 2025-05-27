@@ -163,7 +163,8 @@ int
 main()
 {
 #if !ONEDPL_FPGA_DEVICE
-    test_by_type<float64_t>([](std::int32_t i) { return -2 * i; }, [](std::int32_t i) { return -(2 * i + 1); }, true, TestUtils::IsGreat<float64_t>{});
+    test_by_type<float64_t>([](std::int32_t i) { return -2 * i; }, [](std::int32_t i) { return -(2 * i + 1); }, true,
+                            [](const float64_t x, const float64_t y) { return x > y; });
 #endif
 
     test_by_type<std::int32_t>([](std::int32_t i) { return 10 * i; }, [](std::int32_t i) { return i + 1; }, false, ::std::less<std::int32_t>());

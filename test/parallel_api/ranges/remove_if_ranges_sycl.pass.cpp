@@ -33,10 +33,12 @@ main()
 #if _ENABLE_RANGES_TESTING
     using T = int;
 
-    std::vector<T> data = {2, 5, 2, 4, 2, 0, 6, -7, 7, 3};
+    auto lambda1 = [](T val) -> bool { return val % 2 == 0; };
+    auto lambda2 = [](T val) -> bool { return val % 3 == 0; };
+    ::std::vector<T> data = {2, 5, 2, 4, 2, 0, 6, -7, 7, 3};
 
-    std::vector<T> in(data);
-    std::vector<T>::difference_type in_end_n;
+    ::std::vector<T> in(data);
+    ::std::vector<T>::difference_type in_end_n;
     using namespace oneapi::dpl::experimental::ranges;
     {
         sycl::buffer<T> A(in.data(), sycl::range<1>(in.size()));
@@ -46,14 +48,14 @@ main()
         auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
         auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
 
-        in_end_n = remove_if(exec1, A, TestUtils::IsEven<int>{}); //check passing a buffer
-        in_end_n = remove_if(exec2, views::all(A) | views::take(in_end_n), TestUtils::IsMultiple<T>{3}); //check passing a view
+        in_end_n = remove_if(exec1, A, lambda1); //check passing a buffer
+        in_end_n = remove_if(exec2, views::all(A) | views::take(in_end_n), lambda2); //check passing a view
     }
 
     //check result
     ::std::vector<T> exp(data);
-    auto exp_end = std::remove_if(exp.begin(), exp.end(), TestUtils::IsEven<int>{});
-    exp_end = std::remove_if(exp.begin(), exp_end, TestUtils::IsMultiple<T>{3});
+    auto exp_end = ::std::remove_if(exp.begin(), exp.end(), lambda1);
+    exp_end = ::std::remove_if(exp.begin(), exp_end, lambda2);
 
     EXPECT_TRUE(::std::distance(exp.begin(), exp_end) == in_end_n, "wrong effect from remove with sycl ranges");
     EXPECT_EQ_N(exp.begin(), in.begin(), in_end_n, "wrong effect from remove with sycl ranges");
