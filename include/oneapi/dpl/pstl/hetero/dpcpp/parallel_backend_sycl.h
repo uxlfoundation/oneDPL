@@ -1910,14 +1910,14 @@ __can_set_op_write_from_set_b(oneapi::dpl::__internal::__device_backend_tag, _Ex
 //------------------------------------------------------------------------
 
 // Tag for __parallel_find_or to find the first element that satisfies predicate
-template <typename... _Ranges>
+template <typename _IndexType>
 struct __parallel_find_forward_tag
 {
 // FPGA devices don't support 64-bit atomics
 #if _ONEDPL_FPGA_DEVICE
     using _AtomicType = uint32_t;
 #else
-    using _AtomicType = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+    using _AtomicType = _IndexType;
 #endif
 
     using _LocalResultsReduceOp = __dpl_sycl::__minimum<_AtomicType>;
@@ -1949,14 +1949,14 @@ struct __parallel_find_forward_tag
 };
 
 // Tag for __parallel_find_or to find the last element that satisfies predicate
-template <typename _RangeType>
+template <typename _IndexType>
 struct __parallel_find_backward_tag
 {
 // FPGA devices don't support 64-bit atomics
 #if _ONEDPL_FPGA_DEVICE
     using _AtomicType = int32_t;
 #else
-    using _AtomicType = oneapi::dpl::__internal::__difference_t<_RangeType>;
+    using _AtomicType = _IndexType;
 #endif
 
     using _LocalResultsReduceOp = __dpl_sycl::__maximum<_AtomicType>;
@@ -2289,34 +2289,11 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     }
 };
 
-template <typename... _Ranges>
-struct __first_size_calc
-{
-    auto
-    operator()(const _Ranges&... __rngs) const
-    {
-        return oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
-    }
-};
-
-template <typename... _Ranges>
-struct __min_size_calc
-{
-    auto
-    operator()(const _Ranges&... __rngs) const
-    {
-        using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
-        return std::min({_Size(__rngs.size())...});
-    }
-};
-
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
 template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename _SizeCalc, typename... _Ranges>
-std::conditional_t<
-    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
-    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
-__parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
-                        _BrickTag __brick_tag, _SizeCalc __sz_calc, _Ranges&&... __rngs)
+auto
+__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
+                   _BrickTag __brick_tag, _SizeCalc __sz_calc, _Ranges&&... __rngs)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -2366,122 +2343,9 @@ __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag, _Executio
     }
 
     if constexpr (__or_tag_check)
-        return __result != __init_value;
+        return __result != __init_value; //return a bool type
     else
-        return __result != __init_value ? __result : __rng_n;
-}
-
-template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
-std::conditional_t<
-    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
-    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
-__parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
-                   _BrickTag __brick_tag, _Ranges&&... __rngs)
-{
-    return __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag{},
-                                   std::forward<_ExecutionPolicy>(__exec), __f, __brick_tag,
-                                   __first_size_calc<_Ranges...>{}, std::forward<_Ranges>(__rngs)...);
-}
-
-template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename... _Ranges>
-std::conditional_t<
-    ::std::is_same_v<_BrickTag, __parallel_or_tag>, bool,
-    oneapi::dpl::__internal::__difference_t<typename oneapi::dpl::__ranges::__get_first_range_type<_Ranges...>::type>>
-__parallel_find_or_min_size(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Brick __f,
-                            _BrickTag __brick_tag, _Ranges&&... __rngs)
-{
-    return __parallel_find_or_impl(oneapi::dpl::__internal::__device_backend_tag{},
-                                   std::forward<_ExecutionPolicy>(__exec), __f, __brick_tag,
-                                   __min_size_calc<_Ranges...>{}, std::forward<_Ranges>(__rngs)...);
-}
-
-// parallel_or - sync pattern
-//------------------------------------------------------------------------
-
-template <typename Name>
-class __or_policy_wrapper
-{
-};
-
-template <typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Brick>
-bool
-__parallel_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Iterator1 __first,
-              _Iterator1 __last, _Iterator2 __s_first, _Iterator2 __s_last, _Brick __f)
-{
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
-    auto __buf = __keep(__first, __last);
-    auto __s_keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator2>();
-    auto __s_buf = __s_keep(__s_first, __s_last);
-
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        oneapi::dpl::__internal::__device_backend_tag{},
-        __par_backend_hetero::make_wrapped_policy<__or_policy_wrapper>(::std::forward<_ExecutionPolicy>(__exec)), __f,
-        __parallel_or_tag{}, __buf.all_view(), __s_buf.all_view());
-}
-
-// Special overload for single sequence cases.
-// TODO: check if similar pattern may apply to other algorithms. If so, these overloads should be moved out of
-// backend code.
-template <typename _ExecutionPolicy, typename _Iterator, typename _Brick>
-bool
-__parallel_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Iterator __first,
-              _Iterator __last, _Brick __f)
-{
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
-    auto __buf = __keep(__first, __last);
-
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        oneapi::dpl::__internal::__device_backend_tag{},
-        __par_backend_hetero::make_wrapped_policy<__or_policy_wrapper>(::std::forward<_ExecutionPolicy>(__exec)), __f,
-        __parallel_or_tag{}, __buf.all_view());
-}
-
-//------------------------------------------------------------------------
-// parallel_find - sync pattern
-//-----------------------------------------------------------------------
-
-template <typename Name>
-class __find_policy_wrapper
-{
-};
-
-template <typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Brick, typename _IsFirst>
-_Iterator1
-__parallel_find(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Iterator1 __first,
-                _Iterator1 __last, _Iterator2 __s_first, _Iterator2 __s_last, _Brick __f, _IsFirst)
-{
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
-    auto __buf = __keep(__first, __last);
-    auto __s_keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator2>();
-    auto __s_buf = __s_keep(__s_first, __s_last);
-
-    using _TagType = ::std::conditional_t<_IsFirst::value, __parallel_find_forward_tag<decltype(__buf.all_view())>,
-                                          __parallel_find_backward_tag<decltype(__buf.all_view())>>;
-    return __first + oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-                         oneapi::dpl::__internal::__device_backend_tag{},
-                         __par_backend_hetero::make_wrapped_policy<__find_policy_wrapper>(
-                             ::std::forward<_ExecutionPolicy>(__exec)),
-                         __f, _TagType{}, __buf.all_view(), __s_buf.all_view());
-}
-
-// Special overload for single sequence cases.
-// TODO: check if similar pattern may apply to other algorithms. If so, these overloads should be moved out of
-// backend code.
-template <typename _ExecutionPolicy, typename _Iterator, typename _Brick, typename _IsFirst>
-_Iterator
-__parallel_find(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Iterator __first,
-                _Iterator __last, _Brick __f, _IsFirst)
-{
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
-    auto __buf = __keep(__first, __last);
-
-    using _TagType = ::std::conditional_t<_IsFirst::value, __parallel_find_forward_tag<decltype(__buf.all_view())>,
-                                          __parallel_find_backward_tag<decltype(__buf.all_view())>>;
-    return __first + oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-                         oneapi::dpl::__internal::__device_backend_tag{},
-                         __par_backend_hetero::make_wrapped_policy<__find_policy_wrapper>(
-                             ::std::forward<_ExecutionPolicy>(__exec)),
-                         __f, _TagType{}, __buf.all_view());
+        return __result != __init_value ? decltype(__rng_n)(__result) : __rng_n; //return a decltype(__rng_n)
 }
 
 //------------------------------------------------------------------------

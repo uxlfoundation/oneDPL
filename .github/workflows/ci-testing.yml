@@ -205,6 +205,7 @@ jobs:
           mkdir build && cd build
           lscpu
 
+          # TODO: fix or justify the excluded warnings
           warning_flags="-Wall -Werror -Wno-error=sign-compare"
           if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
             warning_flags="${warning_flags} -Wno-error=pass-failed"
@@ -269,6 +270,7 @@ jobs:
           del tbb_install.exe
       - name: Install Intel® oneAPI DPC++/C++ Compiler
         shell: cmd
+        if: (matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'icx')
         run: |
           curl %WINDOWS_ICPX_DOWNLOAD_LINK% --output icpx_install.exe
           icpx_install.exe -s -a --silent --eula accept -p=NEED_VS2019_INTEGRATION=0 -p=NEED_VS2022_INTEGRATION=0
@@ -318,7 +320,13 @@ jobs:
           cd %BASE_DIR%
           mkdir build && cd build
 
-          warning_flags="/W4 /We4005 /We4100 /We4101 /We4189 /We4505 /We4805"
+          :: TODO: fix or justify the excluded warnings
+          if "${{ matrix.cxx_compiler }}" == "cl" (
+            set warning_flags=/W4 /WX /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4805 /wd4996
+          ) else (
+            set warning_flags=-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed
+          )
+
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
           if !errorlevel! neq 0 set exit_code=!errorlevel!
           ninja -j 2 -v %ninja_targets% > build.log 2>&1
@@ -378,6 +386,7 @@ jobs:
           export OpenMP_ROOT=$(brew --prefix)/opt/libomp
           mkdir build && cd build
 
+          # TODO: fix or justify the excluded warnings
           warning_flags="-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed"
 
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \

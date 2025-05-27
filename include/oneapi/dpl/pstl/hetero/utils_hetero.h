@@ -31,36 +31,6 @@ namespace dpl
 namespace __internal
 {
 
-template <typename _Pred>
-struct equal_predicate
-{
-    _Pred __pred;
-
-    template <typename _Value>
-    bool
-    operator()(const _Value& __val) const
-    {
-        using ::std::get;
-        return !__pred(get<0>(__val), get<1>(__val));
-    }
-};
-
-template <typename _Predicate>
-struct adjacent_find_fn
-{
-    _Predicate __predicate;
-
-    // the functor is being used instead of a lambda because
-    // at this level we don't know what type we get during zip_iterator unpack
-    template <typename _Pack>
-    bool
-    operator()(const _Pack& __packed_neighbor_values) const
-    {
-        using ::std::get;
-        return __predicate(get<0>(__packed_neighbor_values), get<1>(__packed_neighbor_values));
-    }
-};
-
 template <typename _Predicate, typename _ValueType>
 struct __create_mask_unique_copy
 {
