@@ -117,7 +117,7 @@ When called with device execution policies, |onedpl_short| algorithms apply the 
   whose type meets SYCL requirements for use in kernels and for data transfer, respectively. 
 * Calling the API that throws exception is not allowed within callable objects passed to an algorithm.
 
-Please see `Pass Data to Algorithms<pass-data-algorithms>`_ for more details on how to pass data to algorithms, and the
+Please see :ref:`Pass Data to Algorithms <pass-data-algorithms>` for more details on how to pass data to algorithms, and the
 restrictions on the data types that can be passed to algorithms executed with device execution policies.
 
 Known Limitations
