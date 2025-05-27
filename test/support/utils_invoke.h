@@ -88,12 +88,6 @@ make_new_policy(_Policy&& __policy)
     return TestUtils::make_device_policy<_NewKernelName>(::std::forward<_Policy>(__policy));
 }
 
-template<typename PolicyName = class TestPolicyName, int call_id = 0>
-auto dpcpp_policy()
-{
-    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(get_test_queue());
-}
-
 #if ONEDPL_FPGA_DEVICE
 template <typename _NewKernelName, typename _Policy,
           oneapi::dpl::__internal::__enable_if_fpga_execution_policy<_Policy, int> = 0>
@@ -116,6 +110,12 @@ make_new_policy(sycl::queue _queue)
 #else
     return TestUtils::make_device_policy<KernelName>(_queue);
 #endif
+}
+
+template<typename PolicyName = class TestPolicyName, int call_id = 0>
+auto dpcpp_policy()
+{
+    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(get_test_queue());
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
