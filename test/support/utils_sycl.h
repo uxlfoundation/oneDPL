@@ -88,25 +88,12 @@ inline auto default_selector =
 #    else
         sycl::ext::intel::fpga_selector{};
 #    endif // ONEDPL_FPGA_EMULATOR
-
-inline auto&& default_dpcpp_policy =
-#    if TEST_USE_PREDEFINED_POLICIES
-        oneapi::dpl::execution::dpcpp_fpga;
-#    else
-        TestUtils::make_fpga_policy(sycl::queue{default_selector});
-#    endif
 #else
 inline auto default_selector =
 #    if TEST_LIBSYCL_VERSION >= 60000
         sycl::default_selector_v;
 #    else
         sycl::default_selector{};
-#    endif
-inline auto&& default_dpcpp_policy =
-#    if TEST_USE_PREDEFINED_POLICIES
-        oneapi::dpl::execution::dpcpp_default;
-#    else
-        TestUtils::make_device_policy(sycl::queue{default_selector});
 #    endif
 #endif     // ONEDPL_FPGA_DEVICE
 
