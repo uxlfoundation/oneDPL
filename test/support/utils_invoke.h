@@ -222,7 +222,7 @@ struct invoke_on_all_hetero_policies
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
             using kernel_name = unique_kernel_name<Op, CallNumber>;
-            auto my_policy = make_new_policy<kernel_name>(queue);
+            auto my_policy = dpcpp_policy<kernel_name>();
             iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
                 my_policy, op, ::std::forward<Args>(rest)...);
         }
