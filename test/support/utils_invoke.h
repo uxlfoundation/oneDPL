@@ -201,6 +201,13 @@ inline void unsupported_types_notifier(const sycl::device& device)
 template <::std::size_t CallNumber = 0>
 struct invoke_on_all_hetero_policies
 {
+    sycl::queue queue;
+
+    invoke_on_all_hetero_policies(sycl::queue _queue = get_test_queue())
+        : queue(_queue)
+    {
+    }
+
     template <typename Op, typename... Args>
     void
     operator()(Op op, Args&&... rest)
