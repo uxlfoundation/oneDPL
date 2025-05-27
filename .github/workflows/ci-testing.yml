@@ -312,7 +312,7 @@ jobs:
             )
 
             set ninja_targets=build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests
-            set ctest_flags=-R (sycl_iterator_.*)|(device_copyable).pass
+            set ctest_flags=-R "(sycl_iterator_.*)|(device_copyable)\.pass"
           ) else (
             set ninja_targets=build-onedpl-tests
           )
@@ -330,7 +330,7 @@ jobs:
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
           if !errorlevel! neq 0 set exit_code=!errorlevel!
           for %%t in (%ninja_targets%) do (
-            ninja -j 2 -v %%t >> build.log 2>&1
+            ninja -j 2 -v "%%t" >> build.log 2>&1
             if !errorlevel! neq 0 set exit_code=!errorlevel!
           )
           ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1
