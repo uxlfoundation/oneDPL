@@ -39,7 +39,7 @@ main()
     {
         sycl::buffer<int> A(data, sycl::range<1>(max_n));
         sycl::buffer<int> B(expected, sycl::range<1>(max_n));
-        ranges::copy(TestUtils::default_dpcpp_policy, 
+        ranges::copy(TestUtils::dpcpp_policy(), 
                      ranges::views::all_read(A) | ranges::views::rotate(rotate_val), ranges::views::all_write(B));
     }
 

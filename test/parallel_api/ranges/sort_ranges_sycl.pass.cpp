@@ -40,8 +40,8 @@ main()
     using namespace TestUtils;
     using namespace oneapi::dpl::experimental::ranges;
 
-    auto exec = TestUtils::default_dpcpp_policy;
-    using Policy = decltype(TestUtils::default_dpcpp_policy);
+    auto exec = TestUtils::dpcpp_policy();
+    using Policy = decltype(exec);
     {
         sycl::buffer<int> A(data1, sycl::range<1>(max_n));
         sycl::buffer<int> B(data2, sycl::range<1>(max_n));

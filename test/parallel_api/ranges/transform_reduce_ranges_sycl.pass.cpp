@@ -40,8 +40,8 @@ main()
 
         auto view = oneapi::dpl::experimental::ranges::all_view<int, sycl::access::mode::read>(A);
 
-        auto exec = TestUtils::default_dpcpp_policy;
-        using Policy = decltype(TestUtils::default_dpcpp_policy);
+        auto exec = TestUtils::dpcpp_policy();
+        using Policy = decltype(exec);
         auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
         auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 3>>(exec);
 

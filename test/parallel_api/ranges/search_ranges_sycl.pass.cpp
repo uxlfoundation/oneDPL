@@ -47,8 +47,8 @@ main()
         auto view_a = all_view(A);
         auto view_b = all_view(B);
 
-        auto exec = TestUtils::default_dpcpp_policy;
-        using Policy = decltype(TestUtils::default_dpcpp_policy);
+        auto exec = TestUtils::dpcpp_policy();
+        using Policy = decltype(exec);
 
         res1 = search(exec, A, view_b);
         res2 = search(make_new_policy<new_kernel_name<Policy, 0>>(exec), view_a, B, [](auto a, auto b) { return a == b; });

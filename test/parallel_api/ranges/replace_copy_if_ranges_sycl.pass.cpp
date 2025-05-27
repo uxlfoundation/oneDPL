@@ -39,7 +39,7 @@ main()
     sycl::buffer<int> A(max_n);
 
     auto src = views::iota(0, max_n);
-    auto res = replace_copy_if(TestUtils::default_dpcpp_policy, src, A, pred, new_val);
+    auto res = replace_copy_if(TestUtils::dpcpp_policy(), src, A, pred, new_val);
 
     //check result
     int expected[max_n];

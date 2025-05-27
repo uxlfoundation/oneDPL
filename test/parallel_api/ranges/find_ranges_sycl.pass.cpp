@@ -45,8 +45,8 @@ main()
 
         auto view = all_view(A);
 
-        auto exec = TestUtils::default_dpcpp_policy;
-        using Policy = decltype(TestUtils::default_dpcpp_policy);
+        auto exec = TestUtils::dpcpp_policy();
+        using Policy = decltype(exec);
 
         res1 = find(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, val); //check passing all_view
         res1 = find(make_new_policy<new_kernel_name<Policy, 1>>(exec), A, val);    //check passing sycl::buffer directly
