@@ -349,9 +349,9 @@ struct test_permutation_iterator
 
 struct test_discard_iterator
 {
-    template <typename T1, typename T2>
+    template <typename T1>
     void
-    operator()(::std::vector<T1>& in1, ::std::vector<T2>& in2)
+    operator()(std::vector<T1>& in1)
     {
         ::std::iota(in1.begin(), in1.end(), T1(0));
 
@@ -380,7 +380,7 @@ void test_iterator_by_type(IntType n) {
     test_zip_iterator()(in, in2);
     test_transform_iterator()(in, in2);
     test_permutation_iterator()(in, in2);
-    test_discard_iterator()(in, in2);
+    test_discard_iterator()(in);
 }
 
 int main() {
