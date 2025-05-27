@@ -19,6 +19,15 @@
 
 #include <cassert>
 
+struct Pred
+{
+    bool
+    operator()(int i)
+    {
+        return i % 3 == 0;
+    }
+};
+
 template <class Iter1, class Iter2>
 class KernelTest;
 
@@ -43,7 +52,7 @@ test(sycl::queue& deviceQueue)
             auto acc_arr2 = buffer2.get_access<sycl::access::mode::write>(cgh);
             auto ret_acc = buffer3.get_access<sycl::access::mode::write>(cgh);
             cgh.single_task<KernelTest<InIter, OutIter>>([=]() {
-                OutIter r = dpl::copy_if(InIter(&acc_arr1[0]), InIter(&acc_arr1[0] + N), OutIter(&acc_arr2[0]), TestUtils::IsMultiple<int>{3});
+                OutIter r = dpl::copy_if(InIter(&acc_arr1[0]), InIter(&acc_arr1[0] + N), OutIter(&acc_arr2[0]), Pred());
                 ret_acc[0] &= (base(r) == &acc_arr2[0] + N / 3 + 1);
             });
         });
