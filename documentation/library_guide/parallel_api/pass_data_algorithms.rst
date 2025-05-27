@@ -290,14 +290,14 @@ The example below shows how to define such an overload:
 
 .. code:: cpp
 
-  #include <iterator>
-  #include <cstddef>
-  #include <iostream>
-
   #include <oneapi/dpl/execution>
   #include <oneapi/dpl/iterator>
   #include <oneapi/dpl/numeric>
   #include <oneapi/dpl/algorithm>
+  #include <iterator>
+  #include <cstddef>
+  #include <iostream>
+  #include <sycl/sycl.hpp>
 
   template <typename It>
   class strided_iterator
