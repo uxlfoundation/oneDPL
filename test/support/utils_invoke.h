@@ -113,9 +113,9 @@ make_new_policy(sycl::queue _queue)
 }
 
 template<typename PolicyName = class TestPolicyName, int call_id = 0>
-auto dpcpp_policy()
+auto dpcpp_policy(sycl::queue _queue = get_test_queue())
 {
-    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(get_test_queue());
+    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(_queue);
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -222,7 +222,7 @@ struct invoke_on_all_hetero_policies
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
             using kernel_name = unique_kernel_name<Op, CallNumber>;
-            auto my_policy = dpcpp_policy<kernel_name>();
+            auto my_policy = dpcpp_policy<kernel_name>(queue);
             iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
                 my_policy, op, ::std::forward<Args>(rest)...);
         }
