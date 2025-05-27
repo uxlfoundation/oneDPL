@@ -859,7 +859,7 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     {
         return (!__internal::__pattern_any_of(
                    __tag,
-                   __par_backend_hetero::make_wrapped_policy<any_of_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
+                   __par_backend_hetero::make_wrapped_policy<any_of_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
                    __first, __last, __search_n_unary_predicate<_Tp, _BinaryPredicate>{__value, __pred}))
                    ? __first
                    : __last;
