@@ -46,7 +46,7 @@ main()
         auto view = views::reverse(sv) | views::transform(lambda1);
         auto range_res = all_view<int, sycl::access::mode::write>(B);
 
-        auto exec = TestUtils::dpcpp_policy();
+        auto exec = TestUtils::get_dpcpp_test_policy();
         using Policy = decltype(exec);
         auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
         auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);

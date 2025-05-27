@@ -55,7 +55,7 @@ main()
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    auto exec = TestUtils::dpcpp_policy();
+    auto exec = TestUtils::get_dpcpp_test_policy();
     {
     auto [res1, res2] = dpl_ranges::mismatch(exec, view1, view2, binary_pred, proj, proj);
     EXPECT_TRUE(ex_res1 == res1, err_msg);

@@ -614,7 +614,7 @@ struct test_range_algo
     {
         test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
 #if TEST_DPCPP_BACKEND_PRESENT
-        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, TestUtils::dpcpp_policy<class Test, call_id>(), algo, checker, view, std::identity{}, args...);
+        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, TestUtils::get_dpcpp_test_policy<class Test, call_id>(), algo, checker, view, std::identity{}, args...);
 #endif //TEST_DPCPP_BACKEND_PRESENT
     }
 
@@ -650,14 +650,14 @@ struct test_range_algo
 #endif
             {
                 test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::dpcpp_policy<class Test, call_id + 10>(), algo, checker, subrange_view, subrange_view, args...);
+                    n_device, TestUtils::get_dpcpp_test_policy<class Test, call_id + 10>(), algo, checker, subrange_view, subrange_view, args...);
                 test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::dpcpp_policy<class Test, call_id + 30>(), algo, checker, std::identity{}, std::identity{}, args...);
+                    n_device, TestUtils::get_dpcpp_test_policy<class Test, call_id + 30>(), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
                 test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::dpcpp_policy<class Test, call_id + 20>(), algo, checker, span_view, subrange_view, args...);
+                    n_device, TestUtils::get_dpcpp_test_policy<class Test, call_id + 20>(), algo, checker, span_view, subrange_view, args...);
                 test<T, usm_span<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::dpcpp_policy<class Test, call_id + 40>(), algo, checker, std::identity{}, std::identity{}, args...);
+                    n_device, TestUtils::get_dpcpp_test_policy<class Test, call_id + 40>(), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
         }

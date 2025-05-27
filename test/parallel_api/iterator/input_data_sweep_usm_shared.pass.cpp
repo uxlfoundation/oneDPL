@@ -61,7 +61,7 @@ main()
 
     constexpr size_t n = 10;
 
-    auto policy = TestUtils::dpcpp_policy();
+    auto policy = TestUtils::get_dpcpp_test_policy();
 
     auto policy1 = TestUtils::create_new_policy_idx<0>(policy);
     auto policy2 = TestUtils::create_new_policy_idx<1>(policy);

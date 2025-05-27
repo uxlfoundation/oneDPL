@@ -41,7 +41,7 @@ main()
         sycl::buffer<int> A(data1, sycl::range<1>(max_n));
         sycl::buffer<int> B(data2, sycl::range<1>(max_n));
 
-        auto exec1 = TestUtils::dpcpp_policy();
+        auto exec1 = TestUtils::get_dpcpp_test_policy();
         using Policy = decltype(exec1);
         auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec1);
         auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec1);

@@ -42,7 +42,7 @@ main()
 
         auto view  = all_view(A);
 
-        auto exec = TestUtils::dpcpp_policy();
+        auto exec = TestUtils::get_dpcpp_test_policy();
         using Policy = decltype(exec);
         auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
 

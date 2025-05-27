@@ -39,7 +39,7 @@ main()
     auto iota = views::iota(0, max_n);
     //the name nano::ranges::copy is not injected into oneapi::dpl::experimental::ranges namespace
     __nanorange::nano::ranges::copy(iota, views::host_all(A).begin());
-    reverse(TestUtils::dpcpp_policy(), A);
+    reverse(TestUtils::get_dpcpp_test_policy(), A);
 
     for(auto v: views::host_all(A))
         ::std::cout << v << " ";

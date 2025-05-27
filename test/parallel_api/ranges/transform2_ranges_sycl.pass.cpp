@@ -45,7 +45,7 @@ main()
         auto view = oneapi::dpl::experimental::ranges::views::reverse(sv) | oneapi::dpl::experimental::ranges::views::transform(lambda1);
 
         auto range_res = oneapi::dpl::experimental::ranges::all_view<int, sycl::access::mode::write>(B);
-        oneapi::dpl::experimental::ranges::transform(TestUtils::dpcpp_policy(), view, view, range_res, lambda2);
+        oneapi::dpl::experimental::ranges::transform(TestUtils::get_dpcpp_test_policy(), view, view, range_res, lambda2);
     }
 
     //check result

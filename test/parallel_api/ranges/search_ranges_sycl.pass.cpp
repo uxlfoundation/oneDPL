@@ -47,7 +47,7 @@ main()
         auto view_a = all_view(A);
         auto view_b = all_view(B);
 
-        auto exec = TestUtils::dpcpp_policy();
+        auto exec = TestUtils::get_dpcpp_test_policy();
         using Policy = decltype(exec);
 
         res1 = search(exec, A, view_b);

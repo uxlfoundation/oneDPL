@@ -23,7 +23,7 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
 
-    auto policy = TestUtils::dpcpp_policy();
+    auto policy = TestUtils::get_dpcpp_test_policy();
     sycl::queue q = policy.queue();
 
     constexpr std::size_t n = 100;

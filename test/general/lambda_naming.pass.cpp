@@ -33,7 +33,7 @@ int main() {
     auto buf_begin = oneapi::dpl::begin(buf);
     auto buf_end = buf_begin + n;
 
-    const auto policy = TestUtils::dpcpp_policy();
+    const auto policy = TestUtils::get_dpcpp_test_policy();
     auto buf_begin_discard_write = oneapi::dpl::begin(buf, sycl::write_only, sycl::property::no_init{});
 
     ::std::fill(policy, buf_begin_discard_write, buf_begin_discard_write + n, 1);

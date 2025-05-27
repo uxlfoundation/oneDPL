@@ -37,7 +37,7 @@ main()
     sycl::buffer<int> A(max_n);
 
     auto src = views::iota(0, max_n);
-    auto res = reverse_copy(TestUtils::dpcpp_policy(), src, A);
+    auto res = reverse_copy(TestUtils::get_dpcpp_test_policy(), src, A);
 
     //check result
     EXPECT_TRUE(res == max_n, "wrong result from reverse_copy");

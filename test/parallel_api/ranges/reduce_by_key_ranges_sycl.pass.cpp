@@ -44,7 +44,7 @@ main()
     using namespace TestUtils;
     using namespace oneapi::dpl::experimental::ranges;
 
-    auto exec = TestUtils::dpcpp_policy();
+    auto exec = TestUtils::get_dpcpp_test_policy();
 
     [[maybe_unused]] auto res = reduce_by_segment(exec, views::all_read(A), views::all_read(B),
                                                   views::all_write(C), views::all_write(D));
