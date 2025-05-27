@@ -329,8 +329,10 @@ jobs:
 
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
           if !errorlevel! neq 0 set exit_code=!errorlevel!
-          ninja -j 2 -v %ninja_targets% > build.log 2>&1
-          if !errorlevel! neq 0 set exit_code=!errorlevel!
+          for %%t in (%ninja_targets%) do (
+            ninja -j 2 -v %%t >> build.log 2>&1
+            if !errorlevel! neq 0 set exit_code=!errorlevel!
+          )
           ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1
           if !errorlevel! neq 0 set exit_code=!errorlevel!
           type ctest.log
