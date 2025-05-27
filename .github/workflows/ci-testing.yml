@@ -195,8 +195,8 @@ jobs:
             done
 
             #set targets to just sycl iterator for dpcpp tests
-            make_targets="build-onedpl-sycl_iterator-tests build-onedpl-ranges-tests"
-            ctest_flags="-R (sycl_iterator_.*)|(std_ranges_.*)\.pass"
+            make_targets="build-onedpl-sycl_iterator-tests build-onedpl-ranges-tests build-onedpl-implementation_details-tests"
+            ctest_flags="-R (sycl_iterator_.*)|(std_ranges_.*)|(device_copyable)\.pass"
           else
             make_targets="build-onedpl-tests"
           fi

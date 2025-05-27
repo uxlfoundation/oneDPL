@@ -444,6 +444,9 @@ struct __write_to_id_if_else;
 template <typename _BinaryPred>
 struct __write_red_by_seg;
 
+template <typename _Assign>
+struct __write_multiple_to_id;
+
 template <typename _Pred>
 struct __early_exit_find_or;
 
@@ -452,6 +455,12 @@ struct __leaf_sorter;
 
 template <typename _BinaryOp>
 struct __red_by_seg_op;
+
+template <typename _SetOpCount, typename _Compare>
+struct __gen_set_balanced_path;
+
+template <typename _SetOpCount, typename _TempData, typename _Compare>
+struct __gen_set_op_from_known_balanced_path;
 
 } // namespace oneapi::dpl::__par_backend_hetero
 
@@ -523,6 +532,13 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
+template <typename _Assign>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_multiple_to_id,
+                                                       _Assign)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Assign>
+{
+};
+
 template <typename _Pred>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__early_exit_find_or, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
@@ -539,6 +555,20 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 template <typename _BinaryOp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__red_by_seg_op, _BinaryOp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOp>
+{
+};
+
+template <typename _SetOpCount, typename _Compare>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path,
+                                                       _SetOpCount, _Compare)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare>
+{
+};
+
+template <typename _SetOpCount, typename _TempData, typename _Compare>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path, _SetOpCount, _TempData, _Compare)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare>
 {
 };
 
