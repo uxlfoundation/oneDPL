@@ -726,8 +726,9 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 
     if (__last - __first == __s_last - __s_first)
     {
-        const bool __res =
-            __pattern_equal(__tag, __par_backend_hetero::make_wrapped_policy<equal_wrapper>(std::forward<_ExecutionPolicy>(__exec)), __first, __last, __s_first, __pred);
+        const bool __res = __pattern_equal(
+            __tag, __par_backend_hetero::make_wrapped_policy<equal_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
+            __first, __last, __s_first, __pred);
         return __res ? __first : __last;
     }
     else
@@ -856,8 +857,10 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 
     if (__last - __first == __count)
     {
-        return (!__internal::__pattern_any_of(__tag, __par_backend_hetero::make_wrapped_policy<any_of_wrapper>(::std::forward<_ExecutionPolicy>(__exec)), __first, __last,
-                                              __search_n_unary_predicate<_Tp, _BinaryPredicate>{__value, __pred}))
+        return (!__internal::__pattern_any_of(
+                   __tag,
+                   __par_backend_hetero::make_wrapped_policy<any_of_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
+                   __first, __last, __search_n_unary_predicate<_Tp, _BinaryPredicate>{__value, __pred}))
                    ? __first
                    : __last;
     }
