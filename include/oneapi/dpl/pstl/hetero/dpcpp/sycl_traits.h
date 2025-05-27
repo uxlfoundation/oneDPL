@@ -95,14 +95,8 @@ struct fill_functor;
 template <typename _Generator>
 struct generate_functor;
 
-template <typename _Pred>
-struct equal_predicate;
-
 template <typename _Tp, typename _Pred>
 struct __search_n_unary_predicate;
-
-template <typename _Predicate>
-struct adjacent_find_fn;
 
 template <class _Comp>
 struct __is_heap_check;
@@ -271,18 +265,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 template <class _Comp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__is_heap_check, _Comp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Comp>
-{
-};
-
-template <typename _Pred>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::equal_predicate, _Pred)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
-{
-};
-
-template <typename _Predicate>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::adjacent_find_fn, _Predicate)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
 {
 };
 
