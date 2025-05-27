@@ -57,12 +57,10 @@ inline constexpr std::array<int, 2> big_sz = {/*serial*/ small_size, /*par*/ med
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
-template<int call_id = 0>
+template<typename PolicyName = class TestPolicyName, int call_id = 0>
 auto dpcpp_policy()
 {
-    auto exec = TestUtils::default_dpcpp_policy;
-    using Policy = decltype(exec);
-    return TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, call_id>>(TestUtils::default_dpcpp_policy);
+    return TestUtils::make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(TestUtils::get_test_queue());
 }
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
