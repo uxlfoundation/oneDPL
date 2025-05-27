@@ -21,83 +21,14 @@ to represent this trait.
 
 ## Design and Implementation
 
-### Public Trait
+### New Public Trait and Customization Point
 
-The following class template and variable template are defined in ``<oneapi/dpl/iterator>`` inside the namespace
-``oneapi::dpl:``
-
-```cpp
-template <typename T>
-struct is_indirectly_device_accessible{ /* see below */ };
-
-template <typename T>
-inline constexpr bool is_indirectly_device_accessible_v = is_indirectly_device_accessible<T>::value;
-```
-
-``template <typename T> oneapi::dpl::is_indirectly_device_accessible`` is a template which has the base characteristic
-of ``std::true_type`` if ``T`` is indirectly device accessible. Otherwise, it has the base characteristic of
-``std::false_type``.
-
-### ADL-based Customization Point for User-Defined Iterator Types
-Users may customize their own iterator types ``T`` to be indirectly device accessible by defining a free function
-``is_onedpl_indirectly_device_accessible(T)``, which returns a type with the base characteristic of ``std::true_type``
-if ``T`` is indirectly device accessible. Otherwise, it returns a type with the base characteristic of
-``std::false_type``. The function must be discoverable by argument-dependent lookup (ADL). It may be provided as a
-forward declaration only, without defining a body.
-
-The return type of ``is_onedpl_indirectly_device_accessible`` is examined at compile time to determine if ``T`` is
-indirectly device accessible. The function overload to use must be selected with argument-dependent lookup.
-
-.. note::
-  Therefore, according to the rules in the C++ Standard, a derived type for which there is no function overload
-  will match its most specific base type for which an overload exists.
-
-Once ``is_onedpl_indirectly_device_accessible(T)`` is defined, the public trait ``template<typename T> oneapi::dpl::is_indirectly_device_accessible[_v]`` will return the appropriate value. This public
-trait can also be used to define the return type of ``is_onedpl_indirectly_device_accessible(T)`` by applying it to any
-source iterator component types.
-
-The following example shows how to define a customization for the ``is_indirectly_device_accessible`` trait for a simple
-user defined iterator. It also shows a more complex example where the customization is defined as a hidden friend of
-the iterator class.
-
-```cpp
-namespace usr
-{
-    struct accessible_it
-    {
-        /* user definition of an indirectly device accessible iterator */
-    };
-    std::true_type
-    is_onedpl_indirectly_device_accessible(accessible_it);
-    struct inaccessible_it
-    {
-        /* user definition of an iterator which is not indirectly device accessible */
-    };
-    // The following could be omitted, as returning std::false_type matches the default behavior.
-    std::false_type
-    is_onedpl_indirectly_device_accessible(inaccessible_it);
-}
-static_assert(oneapi::dpl::is_indirectly_device_accessible<usr::accessible_it> == true);
-static_assert(oneapi::dpl::is_indirectly_device_accessible<usr::inaccessible_it> == false);
-// Example with base iterators and ADL overload as a hidden friend
-template <typename It1, typename It2>
-struct it_pair
-  {
-      It1 first;
-      It2 second;
-      friend auto
-      is_onedpl_indirectly_device_accessible(it_pair) ->
-          std::conjunction<oneapi::dpl::is_indirectly_device_accessible<It1>,
-                            oneapi::dpl::is_indirectly_device_accessible<It2>>
-      {
-          return {};
-      }
-  };
-static_assert(oneapi::dpl::is_indirectly_device_accessible<
-                                it_pair<usr::accessible_it, usr::accessible_it>> == true);
-static_assert(oneapi::dpl::is_indirectly_device_accessible<
-                                it_pair<usr::accessible_it, usr::inaccessible_it>> == false);
-```
+We have added a trait ``template <typename T> oneapi::dpl::is_indirectly_device_accessible[_v]`` which is
+``std::true_type`` when ``T`` is *indirectly device accessible* and an argument-dependent lookup (ADL) based
+customization point function ``is_onedpl_indirectly_device_accessible(T)`` which can be used to define types as
+*indirectly device accessible*.  Please see
+[the oneDPL specification](https://github.com/uxlfoundation/oneAPI-spec/blob/main/source/elements/oneDPL/source/parallel_api/iterators.rst)
+for more details.
 
 ### Indirectly Device Accessible for oneDPL Inputs
 
