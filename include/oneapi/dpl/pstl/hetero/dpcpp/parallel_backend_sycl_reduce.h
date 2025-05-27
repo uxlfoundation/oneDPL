@@ -434,7 +434,7 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag, _Exec
 
     sycl::queue __q_local = __exec.queue();
 
-    auto __n = oneapi::dpl::__ranges::__get_first_range_size(__rngs...);
+    auto __n = oneapi::dpl::__ranges::__first_size_calc{}(__rngs...);
     assert(__n > 0);
     using _Size = decltype(__n);
 
