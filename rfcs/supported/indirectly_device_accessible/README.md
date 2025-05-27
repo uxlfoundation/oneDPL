@@ -19,6 +19,8 @@ to data which is accessible on the device. This separates its meaning from other
 a SYCL kernel like random access iterator or SYCL device copyable. The name indirectly device accessible was selected
 to represent this trait.
 
+## Design and Implementation
+
 ### Public Trait
 
 The following class template and variable template are defined in ``<oneapi/dpl/iterator>`` inside the namespace
