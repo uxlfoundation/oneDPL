@@ -21,8 +21,6 @@ that is based on the [C++ standardization proposal P3179](https://wg21.link/p317
 implemented in oneDPL.
 - Several algorithms described in P3179 have slightly different semantics. To implement these, some existing algorithm patterns
 might require modifications or new versions.
-- For the algorithms, which work with uninitialized memory (`uninitialized_*` and `destroy` form `<memory>`) an additional require is proposed: `oneapi:dpl::value_adressable`.
-The require can be implemented via C++ concept: `template<typename R> concept value_adressable = requires { std::addressof(*std::ranges::iterator_t<R>{}); };`
 
 ### Implementation limitation
 - In case of a `device_policy` and `std::vector` with `USM` allocator, `std::vector` cannot be passed into algorithm directly because a `std::vector`
