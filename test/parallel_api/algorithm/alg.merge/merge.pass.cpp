@@ -190,7 +190,7 @@ main()
     // Large data sizes
 #if TEST_DPCPP_BACKEND_PRESENT
     const size_t start_size_large = 4'000'000;
-    const size_t max_size_large = 8'000'000;
+    const size_t max_size_large = 20'000'000;
     auto fstep_large = [](std::size_t size){ return size + 2'000'000; };
     test_merge_by_type(start_size_large, max_size_large, fstep_large);
 #endif
