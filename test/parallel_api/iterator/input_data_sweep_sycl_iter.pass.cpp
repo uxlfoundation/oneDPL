@@ -75,9 +75,7 @@ main()
 
     auto policy = TestUtils::get_dpcpp_test_policy();
     test(policy);
-
-    const auto& policy_ref = policy;
-    test(policy_ref);
+    test(std::move(policy));
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
