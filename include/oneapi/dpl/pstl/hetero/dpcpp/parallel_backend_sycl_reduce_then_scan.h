@@ -41,7 +41,6 @@ namespace dpl
 namespace __par_backend_hetero
 {
 
-
 // *** Reduce then scan functional building blocks ***
 // *** Utilities ***
 
