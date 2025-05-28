@@ -84,6 +84,7 @@ main()
 #if TEST_DPCPP_BACKEND_PRESENT
 
     auto policy = TestUtils::get_dpcpp_test_policy();
+    test(policy);
 
     const auto& policy_ref = policy;
     test(policy_ref);
