@@ -282,12 +282,6 @@ test_device_copyable()
     //__is_heap_check
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__is_heap_check<noop_device_copyable>>,
                   "__is_heap_check is not device copyable with device copyable types");
-    //equal_predicate
-    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::equal_predicate<noop_device_copyable>>,
-                  "equal_predicate is not device copyable with device copyable types");
-    //adjacent_find_fn
-    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::adjacent_find_fn<noop_device_copyable>>,
-                  "adjacent_find_fn is not device copyable with device copyable types");
     //__create_mask_unique_copy
     static_assert(sycl::is_device_copyable_v<
                       oneapi::dpl::__internal::__create_mask_unique_copy<noop_device_copyable, int_device_copyable>>,
@@ -549,14 +543,6 @@ test_non_device_copyable()
     //__is_heap_check
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__is_heap_check<noop_non_device_copyable>>,
                   "__is_heap_check is device copyable with non device copyable types");
-
-    //equal_predicate
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::equal_predicate<noop_non_device_copyable>>,
-                  "equal_predicate is device copyable with non device copyable types");
-
-    //adjacent_find_fn
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::adjacent_find_fn<noop_non_device_copyable>>,
-                  "adjacent_find_fn is device copyable with non device copyable types");
 
     //__create_mask_unique_copy
     static_assert(
