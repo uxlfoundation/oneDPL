@@ -15,6 +15,8 @@
 
 #include "sycl_iterator_test.h"
 
+#include "support/utils_invoke.h"
+
 #if TEST_DPCPP_BACKEND_PRESENT
 
 constexpr int a[] = {0, 0, 1, 1, 2, 6, 6, 9, 9};
@@ -258,8 +260,8 @@ DEFINE_TEST(test_destroy)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::destroy(make_new_policy<policy_name_wrapper<new_kernel_name<Policy, 0>, T1>>(exec),first1 + (n / 3),
-                       first1 + (n / 2));
+        using _NewKernelName = policy_name_wrapper<new_kernel_name<Policy, 0>, T1>;
+        std::destroy(CREATE_NEW_POLICY_WITH_NAME(_NewKernelName, exec), first1 + (n / 3), first1 + (n / 2));
         if (!::std::is_trivially_destructible_v<T1>)
             value = T1{-2};
         wait_and_throw(exec);
@@ -286,7 +288,8 @@ DEFINE_TEST(test_destroy_n)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::destroy_n(make_new_policy<policy_name_wrapper<new_kernel_name<Policy, 0>, T1>>(exec), first1, n);
+        using _NewKernelName = policy_name_wrapper<new_kernel_name<Policy, 0>, T1>;
+        std::destroy_n(CREATE_NEW_POLICY_WITH_NAME(_NewKernelName, exec), first1, n);
         if(!::std::is_trivially_destructible_v<T1>)
             value = T1{-2};
         wait_and_throw(exec);
