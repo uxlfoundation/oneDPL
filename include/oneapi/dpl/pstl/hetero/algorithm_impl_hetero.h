@@ -712,9 +712,7 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 //------------------------------------------------------------------------
 
 template <typename Name>
-class equal_wrapper
-{
-};
+struct equal_wrapper;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Pred>
 _Iterator1
@@ -839,9 +837,7 @@ struct __search_n_unary_predicate
 };
 
 template <typename Name>
-class any_of_wrapper
-{
-};
+struct any_of_wrapper;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Size, typename _Tp,
           typename _BinaryPredicate>
@@ -1691,9 +1687,7 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bi
 //2:The average time is better until ~10e8 elements
 //Wrapper needed to avoid kernel problems
 template <typename Name>
-class __rotate_wrapper
-{
-};
+struct __rotate_wrapper;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator>
 _Iterator
