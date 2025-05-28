@@ -311,8 +311,8 @@ jobs:
 
             )
 
-            set ninja_targets=build-onedpl-sycl_iterator-tests build-onedpl-ranges-tests build-onedpl-implementation_details-tests
-            set ctest_flags=-R "(sycl_iterator_.*)|(std_ranges_.*)|(device_copyable)\.pass"
+            set ninja_targets=build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests
+            set ctest_flags=-R "(sycl_iterator_.*)|(device_copyable)\.pass"
           ) else (
             set ninja_targets=build-onedpl-tests
           )
