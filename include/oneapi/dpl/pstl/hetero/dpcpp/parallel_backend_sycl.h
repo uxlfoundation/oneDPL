@@ -44,7 +44,6 @@
 #include "parallel_backend_sycl_reduce_by_segment.h"
 #include "parallel_backend_sycl_reduce_then_scan.h"
 #include "parallel_backend_sycl_scan_by_segment.h"
-#include "parallel_backend_sycl_scan_helpers.h"
 #include "execution_sycl_defs.h"
 #include "sycl_iterator.h"
 #include "unseq_backend_sycl.h"
