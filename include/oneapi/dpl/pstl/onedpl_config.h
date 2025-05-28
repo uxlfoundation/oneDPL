@@ -229,7 +229,7 @@
 // Check the user-defined macro to use non-temporal stores
 #ifndef _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
 #    if defined(PSTL_USE_NONTEMPORAL_STORES) && (__INTEL_LLVM_COMPILER || __INTEL_COMPILER >= 1600)
-#        define _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED _PSTL_PRAGMA(vector nontemporal)
+#        define _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED _ONEDPL_PRAGMA(vector nontemporal)
 #    else
 #        define _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
 #    endif

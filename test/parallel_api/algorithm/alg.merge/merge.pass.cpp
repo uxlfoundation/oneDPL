@@ -137,7 +137,8 @@ template <typename FStep>
 void
 test_merge_by_type(size_t start_size, size_t max_size, FStep fstep)
 {
-    test_merge_by_type<std::int32_t>([](size_t v) { return (v % 2 == 0 ? v : -v) * 3; }, [](size_t v) { return v * 2; }, start_size, max_size, fstep);
+    test_merge_by_type<std::int32_t>([](std::int32_t v) { return (v % 2 == 0 ? v : -v) * 3; },
+                                     [](std::int32_t v) { return v * 2; }, start_size, max_size, fstep);
 #if !ONEDPL_FPGA_DEVICE
     test_merge_by_type<float64_t>([](size_t v) { return float64_t(v); }, [](size_t v) { return float64_t(v - 100); }, start_size, max_size, fstep);
 #endif

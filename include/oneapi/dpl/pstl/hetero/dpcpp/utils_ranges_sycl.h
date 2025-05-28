@@ -251,19 +251,6 @@ using val_t = typename ::std::iterator_traits<_Iter>::value_type;
 
 //range/zip_view/all_view/ variadic utilities
 
-template <typename _Range, typename... _Ranges>
-struct __get_first_range_type
-{
-    using type = _Range;
-};
-
-template <typename _Range, typename... _Ranges>
-constexpr auto
-__get_first_range_size(const _Range& __rng, const _Ranges&...) -> decltype(__rng.size())
-{
-    return __rng.size();
-}
-
 //forward declaration required for _require_access_args
 template <typename _Range, typename... _Ranges>
 void
@@ -370,7 +357,7 @@ struct __range_holder
     }
 };
 
-template <sycl::access::mode AccMode, typename _Iterator>
+template <sycl::access::mode AccMode, typename _Iterator = void> //TODO: _Iterator is not used and should be removed
 struct __get_sycl_range
 {
     __get_sycl_range()

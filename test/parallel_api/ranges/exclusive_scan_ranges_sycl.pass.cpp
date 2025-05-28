@@ -39,7 +39,6 @@ main()
         sycl::buffer<int> B1(data1, sycl::range<1>(max_n));
         sycl::buffer<int> B2(data2, sycl::range<1>(max_n));
 
-        using namespace TestUtils;
         using namespace oneapi::dpl::experimental;
 
         auto view = ranges::all_view<int, sycl::access::mode::read>(A);
@@ -47,9 +46,10 @@ main()
 
         auto exec = TestUtils::default_dpcpp_policy;
         using Policy = decltype(TestUtils::default_dpcpp_policy);
+        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
 
         ranges::exclusive_scan(exec, A, view_res1, 100);
-        ranges::exclusive_scan(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, B2, 100, ::std::plus<int>());
+        ranges::exclusive_scan(exec2, view, B2, 100, ::std::plus<int>());
     }
 
     //check result

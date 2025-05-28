@@ -39,11 +39,10 @@ template <typename T, typename Predicate>
 void
 test(Predicate pred)
 {
+    const std::size_t max_size = 1000000;
+    Sequence<T> in(max_size, [](std::size_t k) { return T(k); });
 
-    const ::std::size_t max_n = 1000000;
-    Sequence<T> in(max_n, [](::std::size_t k) { return T(k); });
-
-    for (::std::size_t n1 = 0; n1 <= max_n; n1 = n1 <= 16 ? n1 + 1 : ::std::size_t(3.1415 * n1))
+    for (std::size_t n1 = 0; n1 <= max_size; n1 = n1 <= 16 ? n1 + 1 : std::size_t(3.1415 * n1))
     {
         invoke_on_all_policies<0>()(test_is_partitioned<T>(), in.begin(), in.begin() + n1, pred);
         ::std::partition(in.begin(), in.begin() + n1, pred);

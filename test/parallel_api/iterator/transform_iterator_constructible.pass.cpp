@@ -61,6 +61,9 @@ struct stateful_functor_no_copy_assign
 
     stateful_functor_no_copy_assign&
     operator=(const stateful_functor_no_copy_assign&) = delete;
+
+    stateful_functor_no_copy_assign(const stateful_functor_no_copy_assign&) = default;
+    
     int
     operator()(int a) const
     {

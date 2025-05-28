@@ -172,7 +172,7 @@ struct shift_right_algo
     //skip the test for non-bidirectional iterator (forward iterator, etc)
     template <typename Policy, typename It>
     ::std::enable_if_t<!TestUtils::is_base_of_iterator_category_v<::std::bidirectional_iterator_tag, It>, It>
-    operator()(Policy&& exec, It first, It last, typename ::std::iterator_traits<It>::difference_type n)
+    operator()(Policy&&, It first, It, typename std::iterator_traits<It>::difference_type)
     {
         return first;
     }
@@ -199,8 +199,8 @@ struct shift_right_algo
     //skip the check for non-bidirectional iterator (forward iterator, etc)
     template <typename It, typename ItExp>
     ::std::enable_if_t<!TestUtils::is_base_of_iterator_category_v<::std::bidirectional_iterator_tag, It>>
-    check(It res, It first, typename ::std::iterator_traits<It>::difference_type m, ItExp first_exp,
-        typename ::std::iterator_traits<It>::difference_type n)
+    check(It, It, typename ::std::iterator_traits<It>::difference_type, ItExp,
+        typename ::std::iterator_traits<It>::difference_type)
     {
     }
 };

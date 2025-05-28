@@ -259,7 +259,7 @@ test_with_multiplies()
         Sequence<T> out(n, [&](size_t) { return trash; });
         Sequence<T> expected(n, [&](size_t) { return trash; });
 
-        Sequence<T> in(n, [](size_t k) { return 1; });
+        Sequence<T> in(n, [](size_t /*index*/) { return 1; });
         std::size_t counter = 0;
         std::generate_n(in.begin(), custom_item_count, [&counter]() { return (counter++) % 3 + 2; } );
         std::default_random_engine gen{42};

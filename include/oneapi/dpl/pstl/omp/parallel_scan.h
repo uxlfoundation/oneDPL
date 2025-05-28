@@ -131,8 +131,8 @@ __parallel_strict_scan(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPol
     }
     else
     {
-        _PSTL_PRAGMA(omp parallel)
-        _PSTL_PRAGMA(omp single nowait)
+        _ONEDPL_PRAGMA(omp parallel)
+        _ONEDPL_PRAGMA(omp single nowait)
         {
             oneapi::dpl::__omp_backend::__parallel_strict_scan_body(__n, __initial, __reduce, __combine, __scan,
                                                                     __apex);

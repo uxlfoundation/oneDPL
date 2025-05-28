@@ -260,8 +260,7 @@ bool check_by_predicate(T t1, T t2)
 
 template <typename InputIterator, typename OutputIterator1, typename OutputIterator2, typename Size>
 void
-copy_data(InputIterator first, OutputIterator1 expected_first, OutputIterator1 expected_last, OutputIterator2 tmp_first,
-          Size n)
+copy_data(InputIterator first, OutputIterator1 expected_first, OutputIterator2 tmp_first, Size n)
 {
     std::copy_n(first, n, expected_first);
     std::copy_n(first, n, tmp_first);
@@ -332,7 +331,7 @@ run_test(SortTestConfig config,
          OutputIterator2 expected_last, InputIterator first, InputIterator /*last*/, Size n, Compare ...compare)
 {
     // Prepare data for sort algorithm
-    copy_data(first, expected_first, expected_last, tmp_first, n);
+    copy_data(first, expected_first, tmp_first, n);
     call_reference_sort(config.is_stable, expected_first + 1, expected_last - 1, compare...);
 
     // Call sort algorithm on prepared data
@@ -354,7 +353,7 @@ test_usm(SortTestConfig config,
          OutputIterator2 expected_last, InputIterator first, InputIterator /* last */, Size n, Compare... compare)
 {
     // Prepare data for sort algorithm
-    copy_data(first, expected_first, expected_last, tmp_first, n);
+    copy_data(first, expected_first, tmp_first, n);
     call_reference_sort(config.is_stable, expected_first + 1, expected_last - 1, compare...);
 
     using ValueType = typename std::iterator_traits<OutputIterator>::value_type;

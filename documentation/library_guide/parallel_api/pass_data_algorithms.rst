@@ -1,3 +1,5 @@
+.. _pass-data-algorithms:
+
 Pass Data to Algorithms
 #######################
 
@@ -233,5 +235,153 @@ data transformation pipelines that also can be used with parallel range algorith
     return 0;
   }
 
+.. _use-iterators:
+
+Use |onedpl_short| Iterators
+----------------------------
+
+You can use iterators defined in ``<oneapi/dpl/iterator>`` header in the ``oneapi::dpl`` namespace:
+
+- ``counting_iterator``
+- ``zip_iterator``
+- ``transform_iterator``
+- ``discard_iterator``
+- ``permutation_iterator``
+
+:ref:`Iterators <iterator-details>` section describes them in detail and provides usage examples.
+
+If you want to use these iterators in combination with your own custom iterators,
+make sure to follow the guidelines in the :ref:`Use Custom Iterators <use-custom-iterators>` section.
+
+.. _use-custom-iterators:
+
+Use Custom Iterators
+--------------------
+
+You can create your own iterators that can be used as input to |onedpl_short| algorithms.
+
+These custom iterators must meet the following requirements:
+
+- They must be random access iterators.
+- They must be SYCL device-copyable.
+- They must be *indirectly device accessible* if they point to data that is accessible on a device.
+
+.. note::
+  If a custom iterator is **not** *indirectly device accessible*,
+  the algorithm will create a temporary memory buffer and
+  copy the data from the iterator to this buffer before processing on a device.
+  This may lead to performance degradation, and also requires that the data be accessible on the host to be
+  copied into the temporary memory buffer.
+
+The term *indirectly device accessible* means that the data referenced by the iterator
+can be accessed from within a SYCL kernel (that is, on a device).
+|onedpl_short| determines this by examining the return type of the free function
+``is_onedpl_indirectly_device_accessible(It)``, where ``It`` is the iterator type.
+If the return type is ``std::true_type``, the iterator is considered *indirectly device accessible*.
+This function is defined in ``<oneapi/dpl/iterator>`` in the ``oneapi::dpl`` namespace.
+
+To make a custom iterator *indirectly device accessible* (assume its type is ``It``),
+define an overload of ``is_onedpl_indirectly_device_accessible``
+that accepts an argument of type ``It`` and returns ``std::true_type``.
+This overload must be visible through argument-dependent lookup.
+If it is found, the trait ``oneapi::dpl::is_onedpl_indirectly_device_accessible_v<It>``,
+which is also defined in ``<oneapi/dpl/iterator>``, evaluates to ``true``.
+The example below shows how to define such an overload:
+
+.. code:: cpp
+
+  #include <oneapi/dpl/execution>
+  #include <oneapi/dpl/iterator>
+  #include <oneapi/dpl/numeric>
+  #include <oneapi/dpl/algorithm>
+  #include <iterator>
+  #include <cstddef>
+  #include <iostream>
+  #include <sycl/sycl.hpp>
+
+  template <typename It>
+  class strided_iterator
+  {
+  public:
+      using value_type = typename std::iterator_traits<It>::value_type;
+      using difference_type = typename std::iterator_traits<It>::difference_type;
+      using iterator_category = std::random_access_iterator_tag;
+      using reference = typename std::iterator_traits<It>::reference;
+      using pointer = typename std::iterator_traits<It>::pointer;
+
+      strided_iterator(It ptr, difference_type stride): ptr(ptr), stride(stride) {}
+
+      reference operator*() const { return *ptr; }
+      pointer operator->() const { return ptr; }
+      reference operator[](difference_type n) const { return *(*this + n);}
+
+      strided_iterator& operator++() { ptr += stride; return *this; }
+      strided_iterator& operator--() { ptr -= stride; return *this; }
+      strided_iterator& operator+=(difference_type n) { ptr += n * stride; return *this;}
+      strided_iterator& operator-=(difference_type n) { ptr -= n * stride; return *this; }
+      strided_iterator operator+(difference_type n) const { return strided_iterator(ptr + n * stride, stride);}
+      strided_iterator operator-(difference_type n) const { return strided_iterator(ptr - n * stride, stride); }
+      difference_type operator-(const strided_iterator& other) const {return (ptr - other.ptr) / stride; }
+
+      bool operator==(const strided_iterator& other) const { return ptr == other.ptr; }
+      bool operator!=(const strided_iterator& other) const { return ptr != other.ptr; }
+      bool operator<(const strided_iterator& other) const { return ptr < other.ptr; }
+      bool operator>(const strided_iterator& other) const { return ptr > other.ptr; }
+      bool operator<=(const strided_iterator& other) const { return ptr <= other.ptr; }
+      bool operator>=(const strided_iterator& other) const { return ptr >= other.ptr; }
+
+      // Another way to make this iterator indirectly device accessible
+      // friend oneapi::dpl::is_indirectly_device_accessible<It> is_onedpl_indirectly_device_accessible(strided_iterator) { return {}; }
+  private:
+      It ptr;
+      difference_type stride;
+  };
+
+  // Make strided_iterator indirectly device accessible when it wraps an indirectly device accessible type
+  template <typename It>
+  auto is_onedpl_indirectly_device_accessible(strided_iterator<It>) -> oneapi::dpl::is_indirectly_device_accessible<It>;
+
+  int main() {
+      sycl::queue q{};
+      const int n = 10;
+      int* d_head = sycl::malloc_device<int>(n, q);
+
+      // Fill the memory with values from 0 to 9
+      oneapi::dpl::copy(oneapi::dpl::execution::make_device_policy<class copy_kernel>(q),
+                        oneapi::dpl::counting_iterator<int>(0),
+                        oneapi::dpl::counting_iterator<int>(n),
+                        d_head);
+
+      // Reduce every second element, 5 elements in total: 0, 2, 4, 6, 8
+      strided_iterator<int*> stride2(d_head, 2);
+      auto res = oneapi::dpl::reduce(oneapi::dpl::execution::make_device_policy<class reduce_kernel>(q),
+                                     stride2, stride2 + 5);
+
+      // is_indirectly_device_accessible_v: 1
+      // result: 20
+      std::cout << "is_indirectly_device_accessible_v: "
+                << (oneapi::dpl::is_indirectly_device_accessible_v<strided_iterator<int*>>) << std::endl;
+      std::cout << "result: " << res << std::endl;
+
+      sycl::free(d_head, q);
+      return 0;
+  }
+
+The example above uses ``oneapi::dpl::is_indirectly_device_accessible<It>``, where ``It`` is ``int*``.
+|onedpl_short| predefines an overload of
+``oneapi::dpl::is_indirectly_device_accessible<int*>`` that returns ``std::true_type``
+assuming that pointers refer to USM-allocated data.
+It also automatically treats the following entities as *indirectly device accessible*:
+
+- Iterators to ``std::vector`` with a USM allocator.
+- Objects returned by ``oneapi::dpl::begin`` and ``oneapi::dpl::end`` functions.
+- ``counting_iterator`` and ``discard_iterator``.
+- ``zip_iterator``, ``transform_iterator``, and ``permutation_iterator``,
+  if their underlying iterators are *indirectly device accessible*.
+
+For more information, refer to the
+`Iterators section of oneDPL specification <https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/parallel_api/iterators.html>`_.
+
 .. _`SYCL buffer`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#subsec:buffers
+.. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
 .. _`unified shared memory`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec:usm

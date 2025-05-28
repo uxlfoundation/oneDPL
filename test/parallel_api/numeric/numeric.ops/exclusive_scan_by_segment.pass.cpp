@@ -119,7 +119,6 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
         TestDataTransfer<UDTKind::eRes, Size> host_val_res(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type KeyT;
         typedef typename ::std::iterator_traits<Iterator2>::value_type ValT;
 
         const ValT zero = 0;
