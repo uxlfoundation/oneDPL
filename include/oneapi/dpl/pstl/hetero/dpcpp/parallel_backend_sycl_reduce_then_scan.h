@@ -567,12 +567,15 @@ struct __get_bounds_partitioned
 
         using _SizeType = decltype(__rng1.size());
 
-        // diagonal indices of the tile
-        _IndexT __wg_begin_idx = (__id / __tile_size) * __tile_size;
-        _IndexT __wg_end_idx = ((__id / __tile_size) + 1) * __tile_size;
-
         //TODO: see if it is beneficial to calculate this within the reduce kernel using a barrier
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
+
+        // diagonal index of the tile begin
+        _IndexT __wg_begin_idx = (__id / __tile_size) * __tile_size;
+
+        //TODO: ensure partitioning fills in last diagonal
+        _IndexT __wg_end_idx = std::min(((__id / __tile_size) + 1) * __tile_size, __rng_tmp_diag.size() - 1);
+
         auto [begin_rng1, begin_rng2, begin_star] = __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
         auto [end_rng1, end_rng2, end_star] = __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
         (void)begin_star; // unused, but required to avoid unused variable warning
