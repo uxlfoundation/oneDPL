@@ -573,81 +573,146 @@ struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<s
 {
 };
 
-// Locates and returns the "intersection" of a diagonal on the balanced path, based on merge path coordinates.
-// It returns coordinates in each set of the intersection with a boolean representing if the diagonal is "starred",
-// meaning that the balanced path "intersection" point does not lie directly on the diagonal, but one step forward in
-// the second set.
-// Some diagonals must be "starred" to ensure that matching elements between rng1 and rng2 are processed in pairs
-// starting from the first of repeating value(s) in each range and a matched pair are not split between work-items.
-template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
+//TODO: check on types here
+template <typename _Rng, typename _IdxT>
 auto
-__find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1,
-                                 const _Index __merge_path_rng2, _Compare __comp)
+__decode_balanced_path_temp_data(const _Rng& __rng, _IdxT __id, std::uint16_t __diagonal_spacing) -> std::tuple<_IdxT, _IdxT, decltype(__rng.size())>
 {
-    // back up to balanced path divergence with a biased binary search
-    bool __star = false;
-    if (__merge_path_rng1 == 0 || __merge_path_rng2 == __rng2.size())
-    {
-        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
-    }
-
-    auto __ele_val = __rng1[__merge_path_rng1 - 1];
-
-    if (__comp(__ele_val, __rng2[__merge_path_rng2]))
-    {
-        // There is no chance that the balanced path differs from the merge path here, because the previous element of
-        // rng1 does not match the next element of rng2. We can just return the merge path.
-        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
-    }
-
-    // find first element of repeating sequence in the first set of the previous element
-    _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
-        __rng1, _Index{0}, __merge_path_rng1, __ele_val, __comp);
-    // find first element of repeating sequence in the second set of the next element
-    _Index __rng2_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
-        __rng2, _Index{0}, __merge_path_rng2, __ele_val, __comp);
-
-    _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
-    _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
-
-    if (__rng2_repeats_bck >= __rng1_repeats)
-    {
-        // If we have at least as many repeated elements in rng2, we end up back on merge path
-        return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
-    }
-
-    // Calculate the number of "unmatched" repeats in the first set, add one and divide by two to round up for a
-    // possible star diagonal.
-    _Index __fwd_search_count = (__rng1_repeats - __rng2_repeats_bck + 1) / 2;
-
-    // Calculate the max location to search in the second set for future repeats, limiting to the edge of the range
-    _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2.size());
-
-    _Index __balanced_path_intersection_rng2 =
-        oneapi::dpl::__internal::__pstl_upper_bound(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
-
-    // Calculate the number of matchable "future" repeats in the second set
-    _Index __matchable_forward_ele_rng2 = __balanced_path_intersection_rng2 - __merge_path_rng2;
-    _Index __total_matched_rng2 = __balanced_path_intersection_rng2 - __rng2_repeat_start;
-
-    // Update balanced path intersection for rng1, must account for cases where there are more repeating elements in
-    // rng1 than matched elements of rng2
-    _Index __balanced_path_intersection_rng1 =
-        __rng1_repeat_start + std::max(__total_matched_rng2, __rng1_repeats - __matchable_forward_ele_rng2);
-
-    // If we needed to step off the diagonal to find the balanced path, mark the diagonal as "starred"
-    __star =
-        __balanced_path_intersection_rng1 + __balanced_path_intersection_rng2 != __merge_path_rng1 + __merge_path_rng2;
-
-    return std::make_tuple(__balanced_path_intersection_rng1, __balanced_path_intersection_rng2, __star);
+    using SizeT = decltype(__rng.size());
+    auto __tmp = __rng[__id];
+    SizeT __star_offset = oneapi::dpl::__internal::__dpl_signbit(__tmp) ? 1 : 0;
+    auto __rng1_idx = std::abs(__tmp);
+    auto __rng2_idx = __id * __diagonal_spacing - __rng1_idx + __star_offset;
+    return std::make_tuple(__rng1_idx, __rng2_idx, __star_offset);
 }
+
+//TODO: check on types here
+template <typename _IdxT>
+auto
+__encode_balanced_path_temp_data(_IdxT __rng1_idx, bool __star)
+{
+    return __rng1_idx * (__star ? -1 : 1);
+}
+
+struct __get_bounds_partitioned
+{
+    template <typename _Rng, typename _IndexT>
+    auto // Returns a tuple of the form (start1, end1, start2, end2)
+    operator()(const _Rng& __in_rng, _IndexT __id) const
+    {
+        auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
+        auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+        auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
+
+        using _SizeType = decltype(__rng1.size());
+
+        // diagonal indices of the tile
+        _IndexT __wg_begin_idx = (__id / __tile_size) * __tile_size;
+        _IndexT __wg_end_idx = ((__id / __tile_size) + 1) * __tile_size;
+
+        //TODO: see if it is beneficial to calculate this within the reduce kernel using a barrier
+        // Establish bounds of ranges for the tile from sparse partitioning pass kernel
+        auto [begin_rng1, begin_rng2, begin_star] = __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
+        auto [end_rng1, end_rng2, end_star] = __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
+        (void)begin_star; // unused, but required to avoid unused variable warning
+        (void)end_star; // unused, but required to avoid unused variable warning
+
+        return std::make_tuple(begin_rng1, end_rng1, begin_rng2, end_rng2);
+    }
+    std::uint16_t __diagonal_spacing;
+    std::size_t __tile_size;
+};
+
+struct __get_bounds_simple
+{
+    template <typename _Rng, typename _IndexT>
+    auto // Returns a tuple of the form (start1, end1, start2, end2)
+    operator()(const _Rng& __in_rng, _IndexT) const
+    {
+        auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
+        auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+
+        using _SizeType = decltype(__rng1.size());
+        return std::make_tuple(_SizeType{0}, __rng1.size(), _SizeType{0}, __rng2.size());
+    }
+};
 
 // Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
 // balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
 // to the output for the reduction operation.
-template <typename _SetOpCount, typename _Compare>
+template <typename _SetOpCount, typename _BoundsProvider, typename _Compare>
 struct __gen_set_balanced_path
 {
+    // Locates and returns the "intersection" of a diagonal on the balanced path, based on merge path coordinates.
+    // It returns coordinates in each set of the intersection with a boolean representing if the diagonal is "starred",
+    // meaning that the balanced path "intersection" point does not lie directly on the diagonal, but one step forward in
+    // the second set.
+    // Some diagonals must be "starred" to ensure that matching elements between rng1 and rng2 are processed in pairs
+    // starting from the first of repeating value(s) in each range and a matched pair are not split between work-items.
+    template <typename _Rng1, typename _Rng2, typename _Index>
+    auto
+    __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1,
+                                    const _Index __merge_path_rng2, const _Index __rng1_begin,
+                                    const _Index __rng2_begin, const _Index __rng2_end) const
+    {
+        // back up to balanced path divergence with a biased binary search
+        bool __star = false;
+        if (__merge_path_rng1 == 0 || __merge_path_rng2 == __rng2.size())
+        {
+            return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+        }
+
+        auto __ele_val = __rng1[__merge_path_rng1 - 1];
+
+        if (__comp(__ele_val, __rng2[__merge_path_rng2]))
+        {
+            // There is no chance that the balanced path differs from the merge path here, because the previous element of
+            // rng1 does not match the next element of rng2. We can just return the merge path.
+            return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+        }
+
+        // find first element of repeating sequence in the first set of the previous element
+        _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
+            __rng1, __rng1_begin, __merge_path_rng1, __ele_val, __comp);
+        // find first element of repeating sequence in the second set of the next element
+        _Index __rng2_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
+            __rng2, __rng2_begin, __merge_path_rng2, __ele_val, __comp);
+
+        _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
+        _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
+
+        if (__rng2_repeats_bck >= __rng1_repeats)
+        {
+            // If we have at least as many repeated elements in rng2, we end up back on merge path
+            return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
+        }
+
+        // Calculate the number of "unmatched" repeats in the first set, add one and divide by two to round up for a
+        // possible star diagonal.
+        _Index __fwd_search_count = (__rng1_repeats - __rng2_repeats_bck + 1) / 2;
+
+        // Calculate the max location to search in the second set for future repeats, limiting to the edge of the range
+        _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2_end);
+
+        _Index __balanced_path_intersection_rng2 =
+            oneapi::dpl::__internal::__pstl_upper_bound(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
+
+        // Calculate the number of matchable "future" repeats in the second set
+        _Index __matchable_forward_ele_rng2 = __balanced_path_intersection_rng2 - __merge_path_rng2;
+        _Index __total_matched_rng2 = __balanced_path_intersection_rng2 - __rng2_repeat_start;
+
+        // Update balanced path intersection for rng1, must account for cases where there are more repeating elements in
+        // rng1 than matched elements of rng2
+        _Index __balanced_path_intersection_rng1 =
+            __rng1_repeat_start + std::max(__total_matched_rng2, __rng1_repeats - __matchable_forward_ele_rng2);
+
+        // If we needed to step off the diagonal to find the balanced path, mark the diagonal as "starred"
+        __star =
+            __balanced_path_intersection_rng1 + __balanced_path_intersection_rng2 != __merge_path_rng1 + __merge_path_rng2;
+
+        return std::make_tuple(__balanced_path_intersection_rng1, __balanced_path_intersection_rng2, __star);
+    }
+
     using TempData = __noop_temp_data;
     template <typename _InRng, typename _IndexT>
     std::uint16_t
@@ -664,20 +729,24 @@ struct __gen_set_balanced_path
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             return 0;
+
+        auto [__rng1_lower, __rng1_upper, __rng2_lower, __rng2_upper] =__get_bounds(__in_rng, __id);
         //find merge path intersection
         auto [__rng1_pos, __rng2_pos] = oneapi::dpl::__par_backend_hetero::__find_start_point(
-            __rng1, _SizeType{0}, __rng1.size(), __rng2, _SizeType{0}, __rng2.size(), __i_elem, __comp);
+            __rng1, __rng1_lower, __rng1_upper, __rng2, __rng2_lower, __rng2_upper, __i_elem, __comp);
 
         //Find balanced path for diagonal start
-        auto [__rng1_balanced_pos, __rng2_balanced_pos, __star_offset] =
-            __find_balanced_path_start_point(__rng1, __rng2, __rng1_pos, __rng2_pos, __comp);
+        auto [__rng1_balanced_pos, __rng2_balanced_pos, __star] =
+            __find_balanced_path_start_point(__rng1, __rng2, __rng1_pos, __rng2_pos, __rng1_lower,
+                                             __rng2_lower, __rng2_upper);
 
         // Use sign bit to represent star offset. Temp storage is a signed type equal to the difference_type of the
         // input iterator range. The index will fit into the positive portion of the type, so the sign may be used to
         // indicate the star offset.
-        __rng1_temp_diag[__id] = __rng1_balanced_pos * (__star_offset ? -1 : 1);
+        __rng1_temp_diag[__id] = oneapi::dpl::__par_backend_hetero::__encode_balanced_path_temp_data(__rng1_balanced_pos,
+                                                                                                    __star);
 
-        _SizeType __eles_to_process = std::min(__diagonal_spacing - (__star_offset ? _SizeType{1} : _SizeType{0}),
+        _SizeType __eles_to_process = std::min(__diagonal_spacing - (__star ? _SizeType{1} : _SizeType{0}),
                                                __rng1.size() + __rng2.size() - (__i_elem - 1));
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
@@ -686,6 +755,7 @@ struct __gen_set_balanced_path
     }
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
+    _BoundsProvider __get_bounds;
     _Compare __comp;
 };
 
@@ -710,14 +780,13 @@ struct __gen_set_op_from_known_balanced_path
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
-        _SizeType __star_offset = oneapi::dpl::__internal::__dpl_signbit(__rng1_temp_diag[__id]) ? 1 : 0;
-        auto __rng1_temp_diag_abs = std::abs(__rng1_temp_diag[__id]);
-        auto __rng2_temp_diag = __i_elem - __rng1_temp_diag_abs + __star_offset;
+        auto [__rng1_idx, __rng2_idx, __star_offset] =
+            oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id, __diagonal_spacing);
 
         _SizeType __eles_to_process =
-            std::min(_SizeType{__diagonal_spacing} - __star_offset, __rng1.size() + __rng2.size() - (__i_elem - 1));
+            std::min(_SizeType{__diagonal_spacing - __star_offset}, __rng1.size() + __rng2.size() - (__i_elem - 1));
 
-        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_temp_diag_abs, __rng2_temp_diag,
+        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx,
                                                __eles_to_process, __output_data, __comp);
         return std::make_tuple(std::uint32_t{__count}, __count);
     }

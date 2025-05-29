@@ -1062,8 +1062,9 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
     using _TempData = __temp_data_array<__diagonal_spacing, _OutValueT>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
     using _ReduceOp = std::plus<_Size>;
+    using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_simple;
 
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _Compare>;
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, _Compare>;
     using _GenScanInput =
         oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_SetOperation, _TempData, _Compare>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
@@ -1086,7 +1087,7 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
                 __temp_diags.get_buffer())),
-        std::forward<_Range3>(__result), _GenReduceInput{_SetOperation{}, __diagonal_spacing, __comp}, _ReduceOp{},
+        std::forward<_Range3>(__result), _GenReduceInput{_SetOperation{}, __diagonal_spacing, _BoundsProvider{}, __comp}, _ReduceOp{},
         _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp}, _ScanInputTransform{}, _WriteOp{},
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{},
         /*__is_unique_pattern=*/std::false_type{});
