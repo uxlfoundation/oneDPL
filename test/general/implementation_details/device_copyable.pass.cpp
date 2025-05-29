@@ -194,6 +194,7 @@ test_device_copyable()
     //__gen_set_balanced_path
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
                       oneapi::dpl::__par_backend_hetero::__set_intersection,
+                      oneapi::dpl::__par_backend_hetero::__get_bounds_simple,
                       binary_op_device_copyable>>,
                   "__gen_set_balanced_path is not device copyable with device copyable types");
 
@@ -476,6 +477,7 @@ test_non_device_copyable()
     //__gen_set_balanced_path
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
                       oneapi::dpl::__par_backend_hetero::__set_intersection,
+                      oneapi::dpl::__par_backend_hetero::__get_bounds_simple,
                       binary_op_non_device_copyable>>,
                   "__gen_set_balanced_path is device copyable with non device copyable types");
 
