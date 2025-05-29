@@ -37,7 +37,6 @@ class policy_base
 
   public:
     using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
-    using wait_type = typename backend_t::wait_type;
     using selection_type = basic_selection_handle_t<Policy, execution_resource_t>;
 
   protected:

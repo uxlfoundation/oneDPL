@@ -14,6 +14,8 @@
 
 #if _DS_BACKEND_SYCL != 0
 #    include "oneapi/dpl/internal/dynamic_selection_impl/sycl_backend.h"
+#else
+#    include "oneapi/dpl/internal/dynamic_selection_impl/default_backend.h"
 #endif
 
 namespace oneapi 
@@ -26,7 +28,7 @@ namespace experimental
 #if _DS_BACKEND_SYCL != 0
 template <typename ResourceType = sycl::queue, typename Backend = default_backend<ResourceType>>
 #else
-template <typename ResourceType, typename Backend>
+template <typename ResourceType, typename Backend = default_backend<ResourceType>>
 #endif
 class round_robin_policy : public policy_base<round_robin_policy<ResourceType, Backend>, ResourceType, Backend> 
 {
@@ -85,6 +87,10 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, B
 	}
     }
 };
+
+//CTAD deduction guide for initializer_list
+template<typename T>
+round_robin_policy(std::initializer_list<T>) -> round_robin_policy<T>; //supports round_robin_policy p{ {t1, t2} }
 
 } // namespace experimental
 } // namespace dpl

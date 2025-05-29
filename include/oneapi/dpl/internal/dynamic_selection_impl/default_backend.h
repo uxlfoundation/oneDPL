@@ -34,11 +34,9 @@ class backend_base
 {
   public:
     using resource_type = ResourceType;
-    using wait_type = resource_type; //TODO: Remove?
     using execution_resource_t = resource_type;
-    using resource_container_t = std::vector<resource_type>;
+    using resource_container_t = std::vector<ResourceType>;
     using report_duration = std::chrono::milliseconds;
-
 
     template <bool needs_scratch = false, typename...Req>
     struct scratch_t_check : public no_scratch_t<Req...>
@@ -57,50 +55,47 @@ class backend_base
     {
     };
 
-
-  private:
-    class async_waiter
-    {
-        wait_type w_;
-
-      public:
-        async_waiter(wait_type w) : w_{w} {}
-        void
-        wait()
-        {
-        }
-        wait_type
-        unwrap()
-        {
-            return w_;
-        }
-    };
-
-    class submission_group
-    {
-      public:
-        void
-        wait()
-        {
-            return;
-        }
-    };
-
-  public:
     backend_base()
     {
     }
 
-    backend_base(const resource_container_t& u)
+    backend_base(const std::vector<ResourceType>& u)
     {
         for (const auto& e : u)
             resources_.push_back(e);
     }
+
+    auto
+    get_submission_group()
+    {
+        return static_cast<Backend*>(this)->get_submission_group_impl();
+    }
+
+    auto get_resources() {
+        return static_cast<Backend*>(this)->get_resources_impl();
+    }
+
+    template <typename SelectionHandle, typename Function, typename... Args>
+    auto
+    submit(SelectionHandle s, Function&& f, Args&&... args)
+    {
+        return static_cast<Backend*>(this)->submit_impl(s, f, args...);
+    }
+
   protected:
+  
+    resource_container_t resources_;
+
     resource_container_t
     get_resources_impl() const noexcept
     {
         return resources_;
+    }
+
+    auto
+    get_submission_group_impl()
+    {
+        return default_submission_group{resources_};
     }
 
     template <typename SelectionHandle>
@@ -113,59 +108,68 @@ class backend_base
     auto
     instrument_after_impl(SelectionHandle /*s*/, WaitType w)
     {
-        return async_waiter{w};
+        return default_submission{w};
     }
 
     template <typename SelectionHandle, typename Function, typename... Args>
     auto
     submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
-	instrument_before(s);
-        auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
-	return instrument_after(s, w);
+      static_cast<Backend*>(this)->instrument_before_impl(s);
+      auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
+	    return static_cast<Backend*>(this)->instrument_after_impl(s, w);
     }
 
-  public:
-    auto
-    get_submission_group()
+    template<typename WaitType>
+     class default_submission
     {
-        return submission_group{};
-    }
+      WaitType w_;
 
-  
-    auto get_resources() {
-        return static_cast<Backend*>(this)->get_resources_impl();
-    }
+      public:
+        default_submission(WaitType w) : w_{w} {}
 
-    template <typename SelectionHandle>
-    void
-    instrument_before(SelectionHandle s)
+        void
+        wait()
+        {
+          if constexpr (internal::has_wait<WaitType>::value)
+            w_.wait();
+        }
+        
+        WaitType
+        unwrap()
+        {
+            return w_;
+        }
+    };
+
+    class default_submission_group
     {
-        return static_cast<Backend *>(this)->instrument_before_impl(s);
-    }
+      std::vector<ResourceType>& r_;
+    
+      public:
+      default_submission_group(std::vector<ResourceType>& r) : r_(r) {}
 
-    template <typename SelectionHandle, typename WaitType>
-    auto
-    instrument_after(SelectionHandle s, WaitType w)
-    {
-        return static_cast<Backend*>(this)->instrument_after_impl(s, w);
-    }
+        void
+        wait()
+        {
+          if constexpr (internal::has_wait<ResourceType>::value) {
+              for (auto& r : r_) 
+                r.wait();
+          } else {
+            throw std::logic_error("wait called on unsupported submission_group.");
+          }
+        }
+    };
 
-    template <typename SelectionHandle, typename Function, typename... Args>
-    auto
-    submit(SelectionHandle s, Function&& f, Args&&... args)
-    {
-        return static_cast<Backend*>(this)->submit_impl(s, f, args...);
-    }
-
-  private:
-    resource_container_t resources_;
 };
 
 template< typename ResourceType >
 class default_backend : public backend_base<ResourceType, default_backend<ResourceType>> {
 public:
     using resource_type = ResourceType;
+    using my_base = backend_base<ResourceType, default_backend<ResourceType>>;
+    default_backend() : my_base() {}
+    default_backend(const std::vector<ResourceType>& u) : my_base(u) {}
 };
 
 } // namespace experimental
