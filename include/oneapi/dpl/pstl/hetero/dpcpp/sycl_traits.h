@@ -486,7 +486,7 @@ struct __red_by_seg_op;
 template <typename _BinaryOp>
 struct __scan_by_seg_op;
 
-template <typename _SetOpCount, typename _Compare>
+template <typename _SetOpCount, typename _BoundsProvider, typename _Compare>
 struct __gen_set_balanced_path;
 
 template <typename _SetOpCount, typename _TempData, typename _Compare>
@@ -626,15 +626,15 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 
 template <typename _SetOpCount, typename _Compare>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path,
-                                                       _SetOpCount, _Compare)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare>
+                                                       _SetOpCount, _BoundsProvider, _Compare)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _BoundsProvider, _Compare>
 {
 };
 
 template <typename _SetOpCount, typename _TempData, typename _Compare>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
     oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path, _SetOpCount, _TempData, _Compare)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _Compare>
 {
 };
 
