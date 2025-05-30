@@ -453,7 +453,7 @@ test_default_name_gen(SortTestConfig config)
     TestUtils::Sequence<int> in({1, 0, 3, 2, 5, 4, 7, 6, 9, 8});
     TestUtils::Sequence<int> expected(in);
     TestUtils::Sequence<int> tmp(in);
-    auto my_policy = TestUtils::make_device_policy(TestUtils::get_test_queue());
+    auto my_policy = TestUtils::get_dpcpp_test_policy();
 
     TestUtils::iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
         my_policy, test_sort_op<int>{config}, tmp.begin(), tmp.end(), expected.begin(), expected.end(),

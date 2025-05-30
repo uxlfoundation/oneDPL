@@ -95,9 +95,7 @@ main()
 #if TEST_DPCPP_BACKEND_PRESENT
     constexpr size_t n = 10;
 
-    auto q = TestUtils::get_test_queue();
-
-    auto policy = TestUtils::make_new_policy<class Kernel1>(q);
+    auto policy = TestUtils::get_dpcpp_test_policy();
 
     auto policy1 = TestUtils::create_new_policy_idx<0>(policy);
     auto policy2 = TestUtils::create_new_policy_idx<1>(policy);
