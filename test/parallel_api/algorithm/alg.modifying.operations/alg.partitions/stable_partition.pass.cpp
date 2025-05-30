@@ -114,13 +114,9 @@ struct test_non_const_stable_partition
 {
     template <typename Policy, typename Iterator>
     void
-        operator()(Policy&& exec, Iterator iter)
+    operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-
+        auto is_even = TestUtils::IsEven<float64_t>{};
         stable_partition(exec, iter, iter, non_const(is_even));
     }
 };
