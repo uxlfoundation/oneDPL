@@ -33,7 +33,6 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    //A checker below modifies a return type; a range based version with policy has another return type.
     auto unique_checker = [](auto&&... args) {
         return std::ranges::unique(std::forward<decltype(args)>(args)...);
     };
@@ -44,7 +43,6 @@ main()
     test_range_algo<3>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, proj);
     test_range_algo<4, P2>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, &P2::x);
     test_range_algo<5, P2>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, &P2::proj);
-
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
