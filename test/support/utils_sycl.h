@@ -112,6 +112,22 @@ sycl::queue get_test_queue()
     }
 }
 
+#if ONEDPL_FPGA_DEVICE
+inline auto&& default_dpcpp_policy =
+#    if TEST_USE_PREDEFINED_POLICIES
+        oneapi::dpl::execution::dpcpp_fpga;
+#    else
+        TestUtils::make_fpga_policy(get_test_queue());
+#    endif
+#else
+inline auto&& default_dpcpp_policy =
+#    if TEST_USE_PREDEFINED_POLICIES
+        oneapi::dpl::execution::dpcpp_default;
+#    else
+        TestUtils::make_device_policy(get_test_queue());
+#    endif
+#endif     // ONEDPL_FPGA_DEVICE
+
 template <sycl::usm::alloc alloc_type>
 constexpr bool
 required_test_sycl_buffer()
