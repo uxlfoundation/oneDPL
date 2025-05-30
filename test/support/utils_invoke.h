@@ -122,15 +122,20 @@ template <int call_id = 0, typename PolicyName = class TestPolicyName>
 auto
 get_dpcpp_test_policy()
 {
+    using _NewKernelName = TestUtils::new_kernel_name<PolicyName, call_id>;
+
+    const auto& __arg =
 #    if TEST_USE_PREDEFINED_POLICIES
 #        if ONEDPL_FPGA_DEVICE
-    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(oneapi::dpl::execution::dpcpp_fpga);
+        oneapi::dpl::execution::dpcpp_fpga;
 #        else
-    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(oneapi::dpl::execution::dpcpp_default);
+        oneapi::dpl::execution::dpcpp_default;
 #        endif // ONEDPL_FPGA_DEVICE
 #    else
-    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(get_test_queue());
+        get_test_queue();
 #    endif // TEST_USE_PREDEFINED_POLICIES
+
+    return TestUtils::make_new_policy<_NewKernelName>(__arg);
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
