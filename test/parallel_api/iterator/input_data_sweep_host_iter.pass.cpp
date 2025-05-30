@@ -59,9 +59,7 @@ main()
 
     constexpr size_t n = 10;
 
-    auto q = TestUtils::get_test_queue();
-
-    auto policy = TestUtils::make_new_policy<class Kernel1>(q);
+    auto policy = TestUtils::dpcpp_policy();
 
     auto policy1 = TestUtils::create_new_policy_idx<0>(policy);
     auto policy2 = TestUtils::create_new_policy_idx<1>(policy);
