@@ -34,11 +34,6 @@
 #include "utils_invoke.h"
 #include "utils_test_base.h"
 
-#ifdef ONEDPL_USE_PREDEFINED_POLICIES
-#  define TEST_USE_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
-#else
-#  define TEST_USE_PREDEFINED_POLICIES 1
-#endif
 #include _PSTL_TEST_HEADER(execution)
 
 namespace TestUtils
@@ -116,22 +111,6 @@ sycl::queue get_test_queue()
         throw;
     }
 }
-
-#if ONEDPL_FPGA_DEVICE
-inline auto&& default_dpcpp_policy =
-#    if TEST_USE_PREDEFINED_POLICIES
-        oneapi::dpl::execution::dpcpp_fpga;
-#    else
-        TestUtils::make_fpga_policy(get_test_queue());
-#    endif
-#else
-inline auto&& default_dpcpp_policy =
-#    if TEST_USE_PREDEFINED_POLICIES
-        oneapi::dpl::execution::dpcpp_default;
-#    else
-        TestUtils::make_device_policy(get_test_queue());
-#    endif
-#endif     // ONEDPL_FPGA_DEVICE
 
 template <sycl::usm::alloc alloc_type>
 constexpr bool

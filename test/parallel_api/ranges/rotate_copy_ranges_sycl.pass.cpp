@@ -38,7 +38,7 @@ main()
     sycl::buffer<int> A(max_n);
 
     auto src = views::iota(0, max_n);
-    auto res = rotate_copy(TestUtils::default_dpcpp_policy, src, rotate_val, A);
+    auto res = rotate_copy(TestUtils::get_dpcpp_test_policy(), src, rotate_val, A);
 
     //check result
     EXPECT_TRUE(res == max_n, "wrong result from rotate_copy");
