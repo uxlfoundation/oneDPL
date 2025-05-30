@@ -358,12 +358,10 @@ test_usm(SortTestConfig config,
 
     using ValueType = typename std::iterator_traits<OutputIterator>::value_type;
 
-    auto queue = exec.queue();
-
     // Call sort algorithm on prepared data
     const auto it_from = tmp_first + 1;
     const auto it_to = tmp_last - 1;
-    TestUtils::usm_data_transfer<alloc_type, ValueType> dt_helper(queue, it_from, it_to);
+    TestUtils::usm_data_transfer<alloc_type, ValueType> dt_helper(exec.queue(), it_from, it_to);
     auto sortingData = dt_helper.get_data();
 
     const std::int32_t count0 = KeyCount;
