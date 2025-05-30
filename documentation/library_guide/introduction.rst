@@ -106,15 +106,19 @@ Restrictions
 When called with device execution policies, |onedpl_short| algorithms apply the same restrictions as
 |dpcpp_short| does (see the |dpcpp_cpp| documentation and the SYCL specification for details), such as:
 
-* Adding buffers to a lambda capture list is not allowed for lambdas passed to an algorithm.
-* Passing data types, which are not trivially copyable, is only allowed via USM,
-  but not via buffers or host-allocated containers.
+* Adding buffers to a lambda capture list is not allowed for lambdas passed to an algorithm, as buffers are not
+  `SYCL device-copyable`_.
+* Data types which are not SYCL device-copyable may only be passed to |onedpl_short| algorithms via USM pointers. 
+  SYCL buffers or host-allocated containers must have a SYCL device-copyable value type.
 * Objects of pointer-to-member types cannot be passed to an algorithm.
 * The definition of lambda functions used with parallel algorithms should not depend on preprocessor macros
   that makes it different for the host and the device. Otherwise, the behavior is undefined.
 * When used within SYCL kernels or transferred to/from a device, a container class can only hold objects
-  whose type meets SYCL requirements for use in kernels and for data transfer, respectively.
+  whose type meets SYCL requirements for use in kernels and for data transfer, respectively. 
 * Calling the API that throws exception is not allowed within callable objects passed to an algorithm.
+
+Please see :ref:`Pass Data to Algorithms <pass-data-algorithms>` for more details on how to pass data to algorithms, and the
+restrictions on the data types that can be passed to algorithms executed with device execution policies.
 
 Known Limitations
 *****************
@@ -182,3 +186,4 @@ Known Limitations
   when it is used to pass data to a range-based algorithm with a device policy.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
+.. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
