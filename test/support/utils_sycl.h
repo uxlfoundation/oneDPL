@@ -81,6 +81,22 @@ auto async_handler = [](sycl::exception_list ex_list) {
     }
 };
 
+#if ONEDPL_FPGA_DEVICE
+inline auto default_selector =
+#    if ONEDPL_FPGA_EMULATOR
+        sycl::ext::intel::fpga_emulator_selector_v;
+#    else
+        sycl::ext::intel::fpga_selector{};
+#    endif // ONEDPL_FPGA_EMULATOR
+#else
+inline auto default_selector =
+#    if TEST_LIBSYCL_VERSION >= 60000
+        sycl::default_selector_v;
+#    else
+        sycl::default_selector{};
+#    endif
+#endif     // ONEDPL_FPGA_DEVICE
+
 inline
 sycl::queue get_test_queue()
 {
@@ -102,13 +118,6 @@ sycl::queue get_test_queue()
 }
 
 #if ONEDPL_FPGA_DEVICE
-inline auto default_selector =
-#    if ONEDPL_FPGA_EMULATOR
-        sycl::ext::intel::fpga_emulator_selector_v;
-#    else
-        sycl::ext::intel::fpga_selector{};
-#    endif // ONEDPL_FPGA_EMULATOR
-
 inline auto&& default_dpcpp_policy =
 #    if TEST_USE_PREDEFINED_POLICIES
         oneapi::dpl::execution::dpcpp_fpga;
@@ -116,12 +125,6 @@ inline auto&& default_dpcpp_policy =
         TestUtils::make_fpga_policy(get_test_queue());
 #    endif
 #else
-inline auto default_selector =
-#    if TEST_LIBSYCL_VERSION >= 60000
-        sycl::default_selector_v;
-#    else
-        sycl::default_selector{};
-#    endif
 inline auto&& default_dpcpp_policy =
 #    if TEST_USE_PREDEFINED_POLICIES
         oneapi::dpl::execution::dpcpp_default;
