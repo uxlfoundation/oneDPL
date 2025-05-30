@@ -715,6 +715,9 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 // find_end
 //------------------------------------------------------------------------
 
+template <typename Name>
+struct equal_wrapper;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Pred>
 _Iterator1
 __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __last,
@@ -725,8 +728,9 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 
     if (__last - __first == __s_last - __s_first)
     {
-        const bool __res =
-            __pattern_equal(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __s_first, __pred);
+        const bool __res = __pattern_equal(
+            __tag, __par_backend_hetero::make_wrapped_policy<equal_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
+            __first, __last, __s_first, __pred);
         return __res ? __first : __last;
     }
     else
@@ -783,11 +787,6 @@ __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
 // search
 //------------------------------------------------------------------------
 
-template <typename Name>
-class equal_wrapper
-{
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Pred>
 _Iterator1
 __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __last,
@@ -841,6 +840,9 @@ struct __search_n_unary_predicate
     }
 };
 
+template <typename Name>
+struct any_of_wrapper;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Size, typename _Tp,
           typename _BinaryPredicate>
 _Iterator
@@ -855,8 +857,10 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 
     if (__last - __first == __count)
     {
-        return (!__internal::__pattern_any_of(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                              __search_n_unary_predicate<_Tp, _BinaryPredicate>{__value, __pred}))
+        return (!__internal::__pattern_any_of(
+                   __tag,
+                   __par_backend_hetero::make_wrapped_policy<any_of_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
+                   __first, __last, __search_n_unary_predicate<_Tp, _BinaryPredicate>{__value, __pred}))
                    ? __first
                    : __last;
     }
@@ -1695,9 +1699,7 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bi
 //2:The average time is better until ~10e8 elements
 //Wrapper needed to avoid kernel problems
 template <typename Name>
-class __rotate_wrapper
-{
-};
+struct __rotate_wrapper;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator>
 _Iterator

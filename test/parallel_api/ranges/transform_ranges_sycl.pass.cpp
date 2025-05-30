@@ -46,7 +46,7 @@ main()
         auto view = views::reverse(sv) | views::transform(lambda1);
 
         auto range_res = all_view<int, sycl::access::mode::write>(B);
-        transform(TestUtils::default_dpcpp_policy, view, range_res, lambda2);
+        transform(TestUtils::get_dpcpp_test_policy(), view, range_res, lambda2);
     }
 
     //check result
