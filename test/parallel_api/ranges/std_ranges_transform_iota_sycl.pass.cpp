@@ -30,7 +30,7 @@ main()
     std::vector<int> src(n), expected(n);
     std::ranges::transform(view1, view2, expected.begin(), binary_f, proj, proj);
 
-    auto exec = dpcpp_policy();
+    auto exec = TestUtils::get_dpcpp_test_policy();
     using Policy = decltype(exec);
     auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
     auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);

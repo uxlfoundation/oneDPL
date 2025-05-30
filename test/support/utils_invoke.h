@@ -20,9 +20,18 @@
 
 #include "iterator_utils.h"
 
+#ifdef ONEDPL_USE_PREDEFINED_POLICIES
+#  define TEST_USE_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
+#else
+#  define TEST_USE_PREDEFINED_POLICIES 1
+#endif
+
 namespace TestUtils
 {
 #if TEST_DPCPP_BACKEND_PRESENT
+
+// Implemented in utils_sycl.h, required to include this file.
+sycl::queue get_test_queue();
 
 template <sycl::usm::alloc alloc_type>
 constexpr ::std::size_t
@@ -109,6 +118,26 @@ make_new_policy(sycl::queue _queue)
 #endif
 }
 
+template <int call_id = 0, typename PolicyName = class TestPolicyName>
+auto
+get_dpcpp_test_policy()
+{
+    using _NewKernelName = TestUtils::new_kernel_name<PolicyName, call_id>;
+
+    const auto& __arg =
+#    if TEST_USE_PREDEFINED_POLICIES
+#        if ONEDPL_FPGA_DEVICE
+        oneapi::dpl::execution::dpcpp_fpga;
+#        else
+        oneapi::dpl::execution::dpcpp_default;
+#        endif // ONEDPL_FPGA_DEVICE
+#    else
+        get_test_queue();
+#    endif // TEST_USE_PREDEFINED_POLICIES
+
+    return TestUtils::make_new_policy<_NewKernelName>(__arg);
+}
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -139,9 +168,6 @@ struct invoke_on_all_host_policies
 };
 
 #if TEST_DPCPP_BACKEND_PRESENT
-
-// Implemented in utils_sycl.h, required to include this file.
-sycl::queue get_test_queue();
 
 ////////////////////////////////////////////////////////////////////////////////
 // check fp16/fp64 support by a device
@@ -195,17 +221,14 @@ inline void unsupported_types_notifier(const sycl::device& device)
 template <::std::size_t CallNumber = 0>
 struct invoke_on_all_hetero_policies
 {
-    sycl::queue queue;
-
-    invoke_on_all_hetero_policies(sycl::queue _queue = get_test_queue())
-        : queue(_queue)
-    {
-    }
-
     template <typename Op, typename... Args>
     void
     operator()(Op op, Args&&... rest)
     {
+        auto my_policy = get_dpcpp_test_policy<CallNumber, Op>();
+
+        sycl::queue queue = my_policy.queue();
+
         // Device may not support some types, e.g. double or sycl::half; test if they are supported or skip otherwise
         if (has_types_support<::std::decay_t<Args>...>(queue.get_device()))
         {
@@ -215,8 +238,6 @@ struct invoke_on_all_hetero_policies
             // For example, param<int*>. In this case the runtime interpreters it as a memory object and
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
-            using kernel_name = unique_kernel_name<Op, CallNumber>;
-            auto my_policy = make_new_policy<kernel_name>(queue);
             iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
                 my_policy, op, ::std::forward<Args>(rest)...);
         }
