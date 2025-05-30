@@ -15,12 +15,11 @@ The feature is proposed as the next step of range-based API support for oneDPL.
 that is based on the [C++ standardization proposal P3179](https://wg21.link/p3179).
 - The proposed implementation should support all oneDPL execution policies: `seq`, `unseq`, `par`, `par_unseq`, and `device_policy`.
 - For the algprithms `reverse_copy`, `rotate_copy` return values semantic might be changed in the future or this algorithms will be not added to oneDPL.
+- To add a new value for the feature testing macro `ONEDPL_HAS_RANGE_ALGORITHMS` in oneDPL documentation.
 
 ### Implementation proposal
 - The implementation is supposed to rely on existing range-based or iterator-based algorithm patterns, which are already
 implemented in oneDPL.
-- Several algorithms described in P3179 have slightly different semantics. To implement these, some existing algorithm patterns
-might require modifications or new versions.
 
 ### Implementation limitation
 - In case of a `device_policy` and `std::vector` with `USM` allocator, `std::vector` cannot be passed into algorithm directly because a `std::vector`
