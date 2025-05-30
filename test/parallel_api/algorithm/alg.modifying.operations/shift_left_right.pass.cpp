@@ -77,10 +77,8 @@ struct test_shift
         using _ValueType = typename ::std::iterator_traits<It>::value_type;
         using _DiffType = typename ::std::iterator_traits<It>::difference_type;
 
-        auto queue = exec.queue();
-
         // allocate USM memory and copying data to USM shared/device memory
-        TestUtils::usm_data_transfer<alloc_type, _ValueType> dt_helper(queue, first, m);
+        TestUtils::usm_data_transfer<alloc_type, _ValueType> dt_helper(exec.queue(), first, m);
 
         auto ptr = dt_helper.get_data();
         auto het_res =
