@@ -20,6 +20,12 @@
 
 #include "iterator_utils.h"
 
+#ifdef ONEDPL_USE_PREDEFINED_POLICIES
+#  define TEST_USE_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
+#else
+#  define TEST_USE_PREDEFINED_POLICIES 1
+#endif
+
 namespace TestUtils
 {
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -112,10 +118,19 @@ make_new_policy(sycl::queue _queue)
 #endif
 }
 
-template<typename PolicyName = class TestPolicyName, int call_id = 0>
-auto get_dpcpp_test_policy(sycl::queue _queue = get_test_queue())
+template <typename PolicyName = class TestPolicyName, int call_id = 0>
+auto
+get_dpcpp_test_policy()
 {
-    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(_queue);
+#    if TEST_USE_PREDEFINED_POLICIES
+#        if ONEDPL_FPGA_DEVICE
+    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(oneapi::dpl::execution::dpcpp_fpga);
+#        else
+    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(oneapi::dpl::execution::dpcpp_default);
+#        endif // ONEDPL_FPGA_DEVICE
+#    else
+    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(get_test_queue());
+#    endif // TEST_USE_PREDEFINED_POLICIES
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
