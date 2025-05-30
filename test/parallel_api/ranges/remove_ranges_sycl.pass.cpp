@@ -43,7 +43,7 @@ main()
     {
         sycl::buffer<T> A(in.data(), sycl::range<1>(in.size()));
 
-        auto exec = TestUtils::default_dpcpp_policy;
+        auto exec = TestUtils::get_dpcpp_test_policy();
         using Policy = decltype(exec);
         auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
         auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
