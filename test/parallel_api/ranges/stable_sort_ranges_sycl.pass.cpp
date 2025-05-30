@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <iostream>
 
@@ -39,11 +40,9 @@ main()
         sycl::buffer<int> B(data2, sycl::range<1>(max_n));
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
 
         stable_sort(exec, A); //check passing sycl buffer directly
-        stable_sort(exec2, all_view<int, sycl::access::mode::read_write>(B), std::greater<int>());
+        stable_sort(CREATE_NEW_POLICY(exec, 2), all_view<int, sycl::access::mode::read_write>(B), std::greater<int>());
     }
 
     //check result

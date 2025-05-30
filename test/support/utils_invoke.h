@@ -138,6 +138,50 @@ get_dpcpp_test_policy()
     return TestUtils::make_new_policy<_NewKernelName>(__arg);
 }
 
+// struct policy_container - a container for policy which return saved policy
+// as l-value or r-value depends on source policy type qualifiers
+template <typename _Policy>
+struct policy_container
+{
+    using _DecayedPolicy = std::decay_t<_Policy>;
+
+    _DecayedPolicy __policy;
+
+    policy_container(_DecayedPolicy&& __policy) : __policy(std::move(__policy))
+    {
+    }
+
+    // Delete copy constructor to avoid copying of policy_container
+    policy_container(const policy_container&) = delete;
+
+    // Delete assignment operator to avoid copying of policy_container
+    policy_container&
+    operator=(const policy_container&) = delete;
+
+    auto get() &&
+    {
+        if constexpr (std::is_rvalue_reference_v<_Policy>)
+        {
+            // Return policy as r-value
+            return std::move(__policy);
+        }
+        else
+        {
+            // Return policy as l-value
+            return __policy;
+        }
+    }
+};
+
+// Create new policy and pass it into called function as l-value / r-value
+// depends on qualifiers of source policy type
+#define CREATE_NEW_POLICY(exec, idx)                                                                                   \
+        TestUtils::policy_container<decltype(exec)>(                                                                   \
+            TestUtils::make_new_policy<TestUtils::new_kernel_name<std::decay_t<decltype(exec)>, idx>>(exec)).get()
+
+#define CREATE_NEW_POLICY_WITH_NAME(NewKernelName, exec)                                                               \
+        TestUtils::policy_container<decltype(exec)>(TestUtils::make_new_policy<NewKernelName>(exec)).get()
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -239,7 +283,27 @@ struct invoke_on_all_hetero_policies
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
             iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
-                my_policy, op, ::std::forward<Args>(rest)...);
+                my_policy, op, std::forward<Args>(rest)...);
+
+            // The goal of this check is to compile the same Kernel code with different policy type qualifiers.
+            // This gives us ability to check that Kernel names generated inside oneDPL code are unique.
+            volatile bool always_false = false;
+            if (always_false)
+            {
+                // We just need to compile some Kernel code and we don't need to run this code in run-time
+                // so we can move the rest of params again
+
+                // Compile for const ExecutionPolicy&
+                // - we able to call std::forward<Args>(rest)... here because it's just for compile
+                const auto& my_policy_ref = my_policy;
+                iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
+                    my_policy_ref, op, std::forward<Args>(rest)...);
+
+                // Compile for ExecutionPolicy&&
+                // - we able to call std::forward<Args>(rest)... here because it's just for compile
+                iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
+                    std::move(my_policy), op, std::forward<Args>(rest)...);
+            }
         }
         else
         {

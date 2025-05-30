@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // for CREATE_NEW_POLICY macro
 
 #include <iostream>
 
@@ -49,12 +50,9 @@ main()
         auto view_b = all_view(B);
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
 
-        res1 = find_first_of(exec1, view_a, view_b);
-        res2 = find_first_of(exec2, A, B, [](auto a, auto b) { return a != b; }); //check passing sycl buffer directly
+        res1 = find_first_of(CREATE_NEW_POLICY(exec, 0), view_a, view_b);
+        res2 = find_first_of(CREATE_NEW_POLICY(exec, 1), A, B, [](auto a, auto b) { return a != b; }); //check passing sycl buffer directly
     }
 
     //check result

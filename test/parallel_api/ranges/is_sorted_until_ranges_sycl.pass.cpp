@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <iostream>
 
@@ -43,11 +44,9 @@ main()
         auto view  = all_view(A);
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
 
         res1 = is_sorted_until(exec, view);
-        res2 = is_sorted_until(exec2, A, [](auto a, auto b) { return a < b; });
+        res2 = is_sorted_until(CREATE_NEW_POLICY(exec, 2), A, [](auto a, auto b) { return a < b; });
     }
 
     //check result

@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // for CREATE_NEW_POLICY macro
 
 #include <iostream>
 
@@ -36,9 +37,6 @@ main()
     auto is_equal = [](auto i, auto j) { return i == j; };
 
     auto exec = TestUtils::get_dpcpp_test_policy();
-    using Policy = decltype(exec);
-    auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
-    auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
 
     using namespace oneapi::dpl::experimental::ranges;
 
@@ -50,8 +48,8 @@ main()
     __nanorange::nano::ranges::copy(__nanorange::nano::views::all(data), views::host_all(A).begin()); 
     __nanorange::nano::ranges::copy(__nanorange::nano::views::all(data), views::host_all(B).begin()); 
     
-    auto res1 = unique(exec1, views::all(A));
-    auto res2 = unique(exec2, B, is_equal);
+    auto res1 = unique(CREATE_NEW_POLICY(exec, 0), views::all(A));
+    auto res2 = unique(CREATE_NEW_POLICY(exec, 1), B, is_equal);
 
     //check result
     EXPECT_TRUE(res1 == n_exp, "wrong return result from unique, sycl ranges");

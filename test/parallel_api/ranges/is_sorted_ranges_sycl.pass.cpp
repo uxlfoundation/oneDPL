@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <iostream>
 
@@ -42,13 +43,10 @@ main()
         sycl::buffer<int> B(data2, sycl::range<1>(max_n));
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
-        auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 3>>(exec);
 
         res1 = is_sorted(exec, all_view(A));
-        res2 = is_sorted(exec2, B);
-        res3 = is_sorted(exec3, A, [](auto a, auto b) { return a > b;});
+        res2 = is_sorted(CREATE_NEW_POLICY(exec, 2), B);
+        res3 = is_sorted(CREATE_NEW_POLICY(exec, 3), A, [](auto a, auto b) { return a > b;});
     }
 
     //check result
