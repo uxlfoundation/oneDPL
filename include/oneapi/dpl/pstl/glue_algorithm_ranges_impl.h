@@ -1125,6 +1125,10 @@ struct __reverse_fn
 
         oneapi::dpl::ranges::swap_ranges(std::forward<_ExecutionPolicy>(__exec), std::move(__r1),std::move(__r2));
         return {std::ranges::begin(__r) + __n};
+        
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_reverse(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r));
     }
 
 }; //__reverse_fn
