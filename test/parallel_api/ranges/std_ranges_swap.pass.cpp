@@ -36,7 +36,6 @@ main()
     };
 
     test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::swap_ranges,  swap_ranges_checker);
-
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
