@@ -24,6 +24,9 @@ namespace TestUtils
 {
 #if TEST_DPCPP_BACKEND_PRESENT
 
+// Implemented in utils_sycl.h, required to include this file.
+sycl::queue get_test_queue();
+
 template <sycl::usm::alloc alloc_type>
 constexpr ::std::size_t
 uniq_kernel_index()
@@ -85,6 +88,12 @@ make_new_policy(_Policy&& __policy)
     return TestUtils::make_device_policy<_NewKernelName>(::std::forward<_Policy>(__policy));
 }
 
+template<typename PolicyName = class TestPolicyName, int call_id = 0>
+auto dpcpp_policy()
+{
+    return make_new_policy<TestUtils::new_kernel_name<PolicyName, call_id>>(get_test_queue());
+}
+
 #if ONEDPL_FPGA_DEVICE
 template <typename _NewKernelName, typename _Policy,
           oneapi::dpl::__internal::__enable_if_fpga_execution_policy<_Policy, int> = 0>
@@ -139,9 +148,6 @@ struct invoke_on_all_host_policies
 };
 
 #if TEST_DPCPP_BACKEND_PRESENT
-
-// Implemented in utils_sycl.h, required to include this file.
-sycl::queue get_test_queue();
 
 ////////////////////////////////////////////////////////////////////////////////
 // check fp16/fp64 support by a device
