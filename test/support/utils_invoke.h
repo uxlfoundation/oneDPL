@@ -201,17 +201,15 @@ inline void unsupported_types_notifier(const sycl::device& device)
 template <::std::size_t CallNumber = 0>
 struct invoke_on_all_hetero_policies
 {
-    sycl::queue queue;
-
-    invoke_on_all_hetero_policies(sycl::queue _queue = get_test_queue())
-        : queue(_queue)
-    {
-    }
-
     template <typename Op, typename... Args>
     void
     operator()(Op op, Args&&... rest)
     {
+        using kernel_name = unique_kernel_name<Op, CallNumber>;
+        auto my_policy = get_dpcpp_test_policy<kernel_name>();
+
+        sycl::queue queue = my_policy.queue();
+
         // Device may not support some types, e.g. double or sycl::half; test if they are supported or skip otherwise
         if (has_types_support<::std::decay_t<Args>...>(queue.get_device()))
         {
@@ -221,8 +219,6 @@ struct invoke_on_all_hetero_policies
             // For example, param<int*>. In this case the runtime interpreters it as a memory object and
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
-            using kernel_name = unique_kernel_name<Op, CallNumber>;
-            auto my_policy = get_dpcpp_test_policy<kernel_name>(queue);
             iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
                 my_policy, op, ::std::forward<Args>(rest)...);
         }
