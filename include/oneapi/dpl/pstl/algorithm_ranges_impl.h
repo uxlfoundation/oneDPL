@@ -741,7 +741,7 @@ __pattern_unique(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, 
     auto __it = oneapi::dpl::__internal::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec),
                                                           __beg, __end, __pred_2);
 
-    return std::ranges::borrowed_subrange_t<_R>(__it, __end);
+    return {__it, __end};
 }
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
@@ -749,6 +749,27 @@ std::ranges::borrowed_subrange_t<_R>
 __pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
 {
     return std::ranges::unique(std::forward<_R>(__r), __comp, __proj);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_reverse(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
+{
+    auto __beg = std::ranges::begin(__r);
+    const auto __n = std::ranges::size(__r);
+    const auto __n_2 = __n / 2;
+    auto __r1 = std::ranges::take_view(__r, __n_2);
+    auto __r2 = std::ranges::take_view(std::ranges::reverse_view(__r), __n_2);
+
+    __pattern_swap_ranges(std::forward<_ExecutionPolicy>(__exec), std::move(__r1), std::move(__r2));
+    return {__beg + __n};
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_reverse(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
+{
+    return std::ranges::reverse(std::forward<_R>(__r));
 }
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
