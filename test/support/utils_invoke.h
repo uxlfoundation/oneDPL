@@ -118,7 +118,7 @@ make_new_policy(sycl::queue _queue)
 #endif
 }
 
-template <typename PolicyName = class TestPolicyName, int call_id = 0>
+template <int call_id = 0, typename PolicyName = class TestPolicyName>
 auto
 get_dpcpp_test_policy()
 {
@@ -220,8 +220,7 @@ struct invoke_on_all_hetero_policies
     void
     operator()(Op op, Args&&... rest)
     {
-        using kernel_name = unique_kernel_name<Op, CallNumber>;
-        auto my_policy = get_dpcpp_test_policy<kernel_name>();
+        auto my_policy = get_dpcpp_test_policy<CallNumber, Op>();
 
         sycl::queue queue = my_policy.queue();
 
