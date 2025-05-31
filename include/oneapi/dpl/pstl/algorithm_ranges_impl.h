@@ -245,8 +245,7 @@ __pattern_adjacent_find_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __pred_2 = [__pred, __proj](auto&& __val, auto&& __next) { return std::invoke(__pred, std::invoke(__proj,
-        std::forward<decltype(__val)>(__val)), std::invoke(__proj, std::forward<decltype(__next)>(__next)));};
+    oneapi::dpl::__internal::__compare __pred_2{__pred, __proj};
 
     auto __res = oneapi::dpl::__internal::__pattern_adjacent_find(__tag, std::forward<_ExecutionPolicy>(__exec),
         std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r), __pred_2,
@@ -406,8 +405,7 @@ __pattern_is_sorted(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __com
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __pred_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
-        std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
+    oneapi::dpl::__internal::__compare __pred_2{__comp, __proj};
 
     return oneapi::dpl::__internal::__pattern_adjacent_find(__tag, std::forward<_ExecutionPolicy>(__exec),
         std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r),
@@ -718,6 +716,85 @@ void
 __pattern_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __r, _OutRange&& __out_r)
 {
     std::ranges::move(std::forward<_InRange>(__r), std::forward<_OutRange>(__out_r));
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2>
+void
+__pattern_swap_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2)
+{
+    auto __end = std::ranges::begin(__r1) + std::ranges::size(__r1);
+    oneapi::dpl::__internal::__pattern_swap(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
+                                            __end, std::ranges::begin(__r2));
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2>
+void
+__pattern_swap_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2)
+{
+    std::ranges::swap_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2));
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_unique(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    oneapi::dpl::__internal::__compare __pred_2{__comp, __proj};
+
+    auto __beg = std::ranges::begin(__r);
+    auto __end = __beg + std::ranges::size(__r);
+    auto __it = oneapi::dpl::__internal::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                          __beg, __end, __pred_2);
+
+    return {__it, __end};
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    return std::ranges::unique(std::forward<_R>(__r), __comp, __proj);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_reverse(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
+{
+    auto __beg = std::ranges::begin(__r);
+    const auto __n = std::ranges::size(__r);
+    const auto __n_2 = __n / 2;
+    auto __r1 = std::ranges::take_view(__r, __n_2);
+    auto __r2 = std::ranges::take_view(std::ranges::reverse_view(__r), __n_2);
+
+    __pattern_swap_ranges(std::forward<_ExecutionPolicy>(__exec), std::move(__r1), std::move(__r2));
+    return {__beg + __n};
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_reverse(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
+{
+    return std::ranges::reverse(std::forward<_R>(__r));
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
+std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
+{
+    oneapi::dpl::__internal::__compare __pred_2{__comp, __proj};
+
+    auto __beg = std::ranges::begin(__r);
+    auto __end = __beg + std::ranges::size(__r);
+    auto __it = oneapi::dpl::__internal::__pattern_unique_copy(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                               __beg, __end, std::ranges::begin(__out_r),__pred_2);
+    return {__end, __it};
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
+std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r,
+                      _Comp __comp, _Proj __proj)
+{
+    return std::ranges::unique_copy(std::forward<_R>(__r), std::forward<_OutRange>(__out_r), __comp, __proj);
 }
 
 } // namespace __ranges
