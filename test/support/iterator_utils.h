@@ -18,6 +18,10 @@
 
 #include "test_config.h"
 
+#include "oneapi/dpl/pstl/utils.h"
+
+#include <iterator>
+
 // File contains common utilities for testing with different types of iterators
 namespace TestUtils
 {
