@@ -28,23 +28,22 @@ DEFINE_TEST_PERM_IT(test_is_heap, PermItIndexTag)
         ::std::iota(itBegin, itEnd, initVal);
     }
 
-    template <typename Policy, typename Size>
+    template <typename Size>
     struct TestImplementation
     {
-        Policy exec;
         Size n;
 
-        template <typename TPermutationIterator>
-        void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        template <typename Policy, typename TPermutationIterator>
+        void operator()(Policy&& exec, TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
         {
             const auto testing_n = permItEnd - permItBegin;
 
-            const auto resultIsHeap = dpl::is_heap(exec, permItBegin, permItEnd);
+            const auto resultIsHeap = dpl::is_heap(CREATE_NEW_POLICY(exec, 0), permItBegin, permItEnd);
             wait_and_throw(exec);
 
             // Copy data back
             std::vector<TestValueType> expected(testing_n);
-            dpl::copy(exec, permItBegin, permItEnd, expected.begin());
+            dpl::copy(CREATE_NEW_POLICY(exec, 1), permItBegin, permItEnd, expected.begin());
             wait_and_throw(exec);
 
             const auto expectedIsHeap = std::is_heap(expected.begin(), expected.end());
@@ -69,8 +68,9 @@ DEFINE_TEST_PERM_IT(test_is_heap, PermItIndexTag)
                     ::std::make_heap(host_keys_ptr, host_keys_ptr + n);
                 host_keys.update_data();
 
+                // we using CREATE_NEW_POLICY instead of std::forward<Policy>(exec) to avoid moving the same policy more then once
                 test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                    TestImplementation<Policy, Size>{exec, n});
+                    CREATE_NEW_POLICY(exec, 0), TestImplementation<Size>{n});
             }
         }
     }

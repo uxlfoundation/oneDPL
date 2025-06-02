@@ -15,6 +15,8 @@
 
 #include "std_ranges_test.h"
 
+#include "support/utils_invoke.h" // for CREATE_NEW_POLICY macro
+
 std::int32_t
 main()
 {
@@ -31,19 +33,16 @@ main()
     std::ranges::transform(view1, view2, expected.begin(), binary_f, proj, proj);
 
     auto exec = TestUtils::get_dpcpp_test_policy();
-    using Policy = decltype(exec);
-    auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
-    auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
 
     usm_subrange<int> cont_out(exec, src.data(), n);
     auto res = cont_out();
 
-    dpl_ranges::transform(exec1, view1, view2, res, binary_f, proj, proj);
+    dpl_ranges::transform(CREATE_NEW_POLICY(exec, 0), view1, view2, res, binary_f, proj, proj);
     EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
 
     //view1 <-> view2
     std::ranges::transform(view2, view1, expected.begin(), binary_f, proj, proj);
-    dpl_ranges::transform(exec2, view2, view1, res, binary_f, proj, proj);
+    dpl_ranges::transform(CREATE_NEW_POLICY(exec, 1), view2, view1, res, binary_f, proj, proj);
     EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
 
 #endif //_ENABLE_STD_RANGES_TESTING

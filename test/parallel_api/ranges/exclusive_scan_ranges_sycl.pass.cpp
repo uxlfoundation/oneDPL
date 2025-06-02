@@ -23,6 +23,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #include <iostream>
 
@@ -45,11 +46,9 @@ main()
         auto view_res1 = ranges::all_view<int, sycl::access::mode::write>(B1);
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
 
-        ranges::exclusive_scan(exec, A, view_res1, 100);
-        ranges::exclusive_scan(exec2, view, B2, 100, ::std::plus<int>());
+        ranges::exclusive_scan(CREATE_NEW_POLICY(exec, 0), A, view_res1, 100);
+        ranges::exclusive_scan(CREATE_NEW_POLICY(exec, 1), view, B2, 100, std::plus<int>());
     }
 
     //check result

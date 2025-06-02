@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // for CREATE_NEW_POLICY macro
 
 #include <iostream>
 
@@ -42,12 +43,9 @@ main()
         auto view = views::all(A);
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
-                                       
-        res1 = count_if(exec1, view, lambda);
-        res2 = count(exec2, A, -1);
+
+        res1 = count_if(CREATE_NEW_POLICY(exec, 0), view, lambda);
+        res2 = count(CREATE_NEW_POLICY(exec, 1), A, -1);
     }
 
     EXPECT_TRUE(res1 == 4, "wrong result from count_if with sycl ranges");

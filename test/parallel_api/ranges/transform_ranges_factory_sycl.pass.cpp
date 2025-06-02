@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // for CREATE_NEW_POLICY macro
 
 #include <iostream>
 
@@ -47,12 +48,9 @@ main()
         auto range_res = all_view<int, sycl::access::mode::write>(B);
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
 
-        transform(exec1, view, range_res, lambda2);
-        transform(exec2, view, C, lambda2); //check passing sycl buffer
+        transform(CREATE_NEW_POLICY(exec, 0), view, range_res, lambda2);
+        transform(CREATE_NEW_POLICY(exec, 1), view, C, lambda2); //check passing sycl buffer
     }
 
     //check result
