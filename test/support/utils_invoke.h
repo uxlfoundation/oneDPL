@@ -174,20 +174,20 @@ struct policy_container
 
 // Create new policy and pass it into called function as l-value / r-value
 // depends on qualifiers of source policy type
-#define CREATE_NEW_POLICY(exec, idx)                                                                                   \
+#define CREATE_NEW_POLICY(policy_src, idx)                                                                             \
         TestUtils::policy_container<                                                                                   \
-            decltype(exec),                                                                                            \
-            decltype(TestUtils::make_new_policy<TestUtils::new_kernel_name<decltype(exec), idx>>(exec))                \
+            decltype(policy_src),                                                                                      \
+            decltype(TestUtils::make_new_policy<TestUtils::new_kernel_name<decltype(policy_src), idx>>(policy_src))    \
         >(                                                                                                             \
-            TestUtils::make_new_policy<TestUtils::new_kernel_name<decltype(exec), idx>>(exec)                          \
+            TestUtils::make_new_policy<TestUtils::new_kernel_name<decltype(policy_src), idx>>(policy_src)              \
          ).get()
 
-#define CREATE_NEW_POLICY_WITH_NAME(NewKernelName, exec)                                                               \
+#define CREATE_NEW_POLICY_WITH_NAME(NewKernelName, policy_src)                                                         \
         TestUtils::policy_container<                                                                                   \
-            decltype(exec),                                                                                            \
-            decltype(TestUtils::make_new_policy<NewKernelName>(exec))                                                  \
+            decltype(policy_src),                                                                                      \
+            decltype(TestUtils::make_new_policy<NewKernelName>(policy_src))                                            \
         >(                                                                                                             \
-            TestUtils::make_new_policy<NewKernelName>(exec)                                                            \
+            TestUtils::make_new_policy<NewKernelName>(policy_src)                                                      \
          ).get()
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
