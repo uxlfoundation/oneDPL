@@ -150,7 +150,14 @@ struct policy_container
     template <typename NewKernelName, typename Policy>
     static auto create_policy(Policy&& exec)
     {
-        return TestUtils::make_new_policy<NewKernelName>(std::forward<Policy>(exec));
+        if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
+        {
+            return TestUtils::make_new_policy<NewKernelName>(std::forward<Policy>(exec));
+        }
+        else
+        {
+            return exec;
+        }
     }
 
     template <int idx, typename Policy>
