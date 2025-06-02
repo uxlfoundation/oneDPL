@@ -275,6 +275,32 @@ inline void unsupported_types_notifier(const sycl::device& device)
     }
 }
 
+template <typename _ExecutionPolicy>
+struct check_compile
+{
+    _ExecutionPolicy my_policy;
+
+    template <typename _CallableTest>
+    void operator()(_CallableTest&& __callable_test)
+    {
+        // The goal of this check is to compile the same Kernel code with different policy type qualifiers.
+        // This gives us ability to check that Kernel names generated inside oneDPL code are unique.
+        volatile bool always_false = false;
+        if (always_false)
+        {
+            // We just need to compile some Kernel code and we don't need to run this code in run-time
+            // so we can move the rest of params again
+
+            // Compile for const ExecutionPolicy&
+            const auto& my_policy_ref = my_policy;
+            __callable_test(my_policy_ref);
+
+            // Compile for ExecutionPolicy&&
+            __callable_test(std::move(my_policy));
+        }
+    }
+};
+
 // Invoke test::operator()(policy,rest...) for each possible policy.
 template <::std::size_t CallNumber = 0>
 struct invoke_on_all_hetero_policies
@@ -299,25 +325,12 @@ struct invoke_on_all_hetero_policies
             iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
                 my_policy, op, std::forward<Args>(rest)...);
 
-            // The goal of this check is to compile the same Kernel code with different policy type qualifiers.
-            // This gives us ability to check that Kernel names generated inside oneDPL code are unique.
-            volatile bool always_false = false;
-            if (always_false)
-            {
-                // We just need to compile some Kernel code and we don't need to run this code in run-time
-                // so we can move the rest of params again
-
-                // Compile for const ExecutionPolicy&
-                // - we able to call std::forward<Args>(rest)... here because it's just for compile
-                const auto& my_policy_ref = my_policy;
-                iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
-                    my_policy_ref, op, std::forward<Args>(rest)...);
-
-                // Compile for ExecutionPolicy&&
-                // - we able to call std::forward<Args>(rest)... here because it's just for compile
-                iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
-                    std::move(my_policy), op, std::forward<Args>(rest)...);
-            }
+            // Check compilation of the kernel with different policy type qualifiers
+            check_compile<decltype(my_policy)> check_compile_code{my_policy};
+            check_compile_code([&](auto&& __policy) {
+                iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
+                    std::forward<decltype(__policy)>(__policy), op, std::forward<Args>(rest)...);
+            });
         }
         else
         {
