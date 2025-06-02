@@ -16,31 +16,27 @@
 #ifndef _ONEDPL_GLUE_MEMORY_RANGES_IMPL_H
 #define _ONEDPL_GLUE_MEMORY_RANGES_IMPL_H
 
-#include <utility>
 #if _ONEDPL_CPP20_RANGES_PRESENT
-#    include <ranges>
-#    include <functional>
-#    include <type_traits>
-#    include <iterator>
-#endif
+
+#include <utility>
+#include <ranges>
+#include <functional>
+#include <type_traits>
+#include <iterator>
 
 #include "execution_defs.h"
 #include "oneapi/dpl/pstl/ranges_defs.h"
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
-#    include "algorithm_ranges_impl.h"
-#endif
+#include "memory_ranges_impl.h"
 
 #if _ONEDPL_HETERO_BACKEND
-#    include "hetero/algorithm_ranges_impl_hetero.h"
+#   include "hetero/memory_ranges_impl_hetero.h"
 #endif
 
 namespace oneapi
 {
 namespace dpl
 {
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
 namespace ranges
 {
 
@@ -80,6 +76,8 @@ struct __uninitialized_default_construct_fn
 
 inline constexpr __internal::__uninitialized_default_construct_fn uninitialized_default_construct;
 
+namespace __internal
+{
 struct __uninitialized_value_construct_fn
 {
     template<typename _ExecutionPolicy, oneapi::dpl::ranges::nothrow_random_access_range _R>
@@ -187,10 +185,8 @@ struct __uninitialized_fill_fn
 inline constexpr __internal::__uninitialized_fill_fn uninitialized_fill;
 
 } // ranges
-
-#endif _ONEDPL_CPP20_RANGES_PRESENT
-
 } // namespace dpl
 } // namespace oneapi
 
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 #endif // _ONEDPL_GLUE_MEMORY_RANGES_IMPL_H
