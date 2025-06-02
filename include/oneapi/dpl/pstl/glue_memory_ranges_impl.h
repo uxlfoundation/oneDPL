@@ -24,19 +24,15 @@
 #    include <iterator>
 #endif
 
-//#include "utils_ranges.h" // __difference_t
-//#include "utils.h"        // oneapi::dpl::__internal::__swap_ranges_fn
-
 #include "execution_defs.h"
 #include "oneapi/dpl/pstl/ranges_defs.h"
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-//#    include "algorithm_ranges_impl.h"
+#    include "algorithm_ranges_impl.h"
 #endif
 
 #if _ONEDPL_HETERO_BACKEND
-//#    include "hetero/algorithm_ranges_impl_hetero.h"
-//#    include "hetero/algorithm_impl_hetero.h" //TODO: for __brick_copy
+#    include "hetero/algorithm_ranges_impl_hetero.h"
 #endif
 
 namespace oneapi
