@@ -16,6 +16,8 @@
 #ifndef _UTILS_INVOKE_H
 #define _UTILS_INVOKE_H
 
+#include <oneapi/dpl/execution>
+
 #include <type_traits>
 
 #include "iterator_utils.h"
