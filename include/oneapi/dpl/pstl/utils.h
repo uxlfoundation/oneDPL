@@ -150,6 +150,21 @@ struct __predicate
 template <typename _Comp, typename _Proj>
 using __compare = __predicate<_Comp, _Proj>;
 
+template <typename _F, typename _Proj>
+struct __unary_op
+{
+    //'mutable' is to relax the requirements for a user functor or/and projection type operator() may be non-const
+    mutable _F __f;
+    mutable _Proj __proj;
+
+    template <typename _TValue>
+    decltype(auto)
+    operator()(_TValue&& __val) const
+    {
+        return std::invoke(__f, std::invoke(__proj, std::forward<_TValue>(__val)));
+    }
+};
+
 template <typename _F, typename _Proj1, typename _Proj2>
 struct __binary_op
 {
@@ -159,7 +174,7 @@ struct __binary_op
     mutable _Proj2 __proj2;
 
     template <typename _TValue1, typename _TValue2>
-    auto
+    decltype(auto)
     operator()(_TValue1&& __val1, _TValue2&& __val2) const
     {
         return std::invoke(__f, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
@@ -299,27 +314,27 @@ class __set_value
 
 //TODO: to do the same fix  for output type (by re-using __transform_functor if applicable) for the other functor below:
 // __transform_if_unary_functor, __transform_if_binary_functor, __replace_functor, __replace_copy_functor
-//TODO: to make input type consistently: const T& or T&&; to think which way is preferable
-template <typename _Pred>
+template <typename _F>
 class __transform_functor
 {
-    mutable _Pred _M_pred;
+    mutable _F __f;
 
   public:
-    explicit __transform_functor(_Pred __pred) : _M_pred(::std::move(__pred)) {}
+    explicit __transform_functor(_F __f) : __f(std::move(__f)) {}
 
     template <typename _Input1Type, typename _Input2Type, typename _OutputType>
     void
-    operator()(const _Input1Type& __x, const _Input2Type& __y, _OutputType&& __output) const
+    operator()(_Input1Type&& __x, _Input2Type&& __y, _OutputType&& __output) const
     {
-        __transform_impl(::std::forward<_OutputType>(__output), __x, __y);
+        __transform_impl(std::forward<_OutputType>(__output), std::forward<_Input1Type>(__x),
+                         std::forward<_Input2Type>(__y));
     }
 
     template <typename _InputType, typename _OutputType>
     void
     operator()(_InputType&& __x, _OutputType&& __output) const
     {
-        __transform_impl(::std::forward<_OutputType>(__output), ::std::forward<_InputType>(__x));
+        __transform_impl(std::forward<_OutputType>(__output), std::forward<_InputType>(__x));
     }
 
   private:
@@ -328,8 +343,8 @@ class __transform_functor
     __transform_impl(_OutputType&& __output, _Args&&... __args) const
     {
         static_assert(sizeof...(_Args) < 3, "A predicate supports either unary or binary transformation");
-        static_assert(::std::is_invocable_v<_Pred, _Args...>, "A predicate cannot be called with the passed arguments");
-        ::std::forward<_OutputType>(__output) = _M_pred(::std::forward<_Args>(__args)...);
+        static_assert(::std::is_invocable_v<_F, _Args...>, "A predicate cannot be called with the passed arguments");
+        std::forward<_OutputType>(__output) = __f(std::forward<_Args>(__args)...);
     }
 };
 

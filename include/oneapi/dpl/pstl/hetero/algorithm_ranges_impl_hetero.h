@@ -68,19 +68,6 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _F, typename _Proj>
-struct __pattern_transform_unary_op
-{
-    _F __op;
-    _Proj __proj;
-
-    template <typename _TValue>
-    auto
-    operator()(_TValue&& __val) const
-    {
-        return std::invoke(__op, std::invoke(__proj, std::forward<_TValue>(__val)));
-    }
-};
 
 //---------------------------------------------------------------------------------------------------------------------
 // pattern_for_each
@@ -89,7 +76,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 void
 __pattern_for_each(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _Proj __proj)
 {
-    __pattern_transform_unary_op<_Fun, _Proj> __f_1{__f, __proj};
+    oneapi::dpl::__internal::__unary_op<_Fun, _Proj> __f_1{__f, __proj};
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f_1,
                                                             oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
@@ -105,7 +92,7 @@ __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
                     _F __op, _Proj __proj)
 {
     assert(std::ranges::size(__in_r) <= std::ranges::size(__out_r)); // for debug purposes only
-    __pattern_transform_unary_op<_F, _Proj> __unary_op{__op, __proj};
+    oneapi::dpl::__internal::__unary_op<_F, _Proj> __unary_op{__op, __proj};
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__transform_functor<decltype(__unary_op)>{std::move(__unary_op)},
@@ -256,7 +243,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 auto
 __pattern_find_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    __pattern_transform_unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
+    oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_find_if(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r), __pred_1);
@@ -379,7 +366,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 bool
 __pattern_any_of(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    __pattern_transform_unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
+    oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
     return oneapi::dpl::__internal::__ranges::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec),
                 oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)), __pred_1);
@@ -605,7 +592,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 std::ranges::range_difference_t<_R>
 __pattern_count_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    __pattern_transform_unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
+    oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
     return oneapi::dpl::__internal::__ranges::__pattern_count(__tag, ::std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(::std::forward<_R>(__r)), __pred_1);
@@ -650,7 +637,7 @@ auto
 __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r,
     _Pred __pred, _Proj __proj)
 {
-    __pattern_transform_unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
+    oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
     auto __res_idx = oneapi::dpl::__internal::__ranges::__pattern_copy_if(__tag,
         std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__in_r),
