@@ -248,7 +248,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     else
 #endif
     {
-        oneapi::dpl::__internal::__transform_functor<_BinaryOperation> __fn{__op};
+        oneapi::dpl::__internal::__transform_functor<_BinaryOperation, std::true_type> __fn{__op};
 
         auto __keep1 =
             oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();
