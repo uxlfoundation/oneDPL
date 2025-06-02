@@ -314,21 +314,21 @@ struct invoke_on_all_hetero_policies
         sycl::queue queue = my_policy.queue();
 
         // Device may not support some types, e.g. double or sycl::half; test if they are supported or skip otherwise
-        if (has_types_support<::std::decay_t<Args>...>(queue.get_device()))
+        if (has_types_support<std::decay_t<Args>...>(queue.get_device()))
         {
             // Since make_device_policy need only one parameter for instance, this alias is used to create unique type
-            // of kernels from operator type and ::std::size_t
+            // of kernels from operator type and std::size_t
             // There may be an issue when there is a kernel parameter which has a pointer in its name.
             // For example, param<int*>. In this case the runtime interpreters it as a memory object and
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
-            iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
+            iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
                 my_policy, op, std::forward<Args>(rest)...);
 
             // Check compilation of the kernel with different policy type qualifiers
             check_compile<decltype(my_policy)> check_compile_code{my_policy};
             check_compile_code([&](auto&& __policy) {
-                iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
+                iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
                     std::forward<decltype(__policy)>(__policy), op, std::forward<Args>(rest)...);
             });
         }
