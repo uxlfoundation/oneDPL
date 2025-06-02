@@ -88,7 +88,10 @@ main()
 
     auto policy = TestUtils::get_dpcpp_test_policy();
     test(policy);
-    test(std::move(policy));
+
+    // Check compilation of the kernel with different policy type qualifiers
+    TestUtils::check_compile<decltype(policy)> check_compile_code{policy};
+    check_compile_code([](auto&& __policy) { test(std::forward<decltype(__policy)>(__policy)); });
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
