@@ -191,7 +191,10 @@ struct policy_container
             TestUtils::policy_container<decltype(exec)>::template create_policy_idx<idx>(exec))                        \
             .get()
 
-#define CREATE_NEW_POLICY_WITH_NAME(NewKernelName, exec) policy_container<decltype(exec)>(make_new_policy<NewKernelName>(exec)).get()
+#define CREATE_NEW_POLICY_WITH_NAME(NewKernelName, exec)                                                               \
+        TestUtils::policy_container<decltype(exec)>(                                                                   \
+            TestUtils::policy_container<decltype(exec)>::template create_policy<NewKernelName>(exec))                  \
+            .get()
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
