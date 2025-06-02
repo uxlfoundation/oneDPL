@@ -261,7 +261,7 @@ DEFINE_TEST(test_destroy)
         host_keys.update_data();
 
         using _NewKernelName = policy_name_wrapper<new_kernel_name<Policy, 0>, T1>;
-        std::destroy(CREATE_NEW_POLICY_WITH_NAME(_NewKernelName, exec), first1 + (n / 3), first1 + (n / 2));
+        std::destroy(CREATE_NEW_POLICY_WITH_NAME(exec, _NewKernelName), first1 + (n / 3), first1 + (n / 2));
         if (!::std::is_trivially_destructible_v<T1>)
             value = T1{-2};
         wait_and_throw(exec);
@@ -289,7 +289,7 @@ DEFINE_TEST(test_destroy_n)
         host_keys.update_data();
 
         using _NewKernelName = policy_name_wrapper<new_kernel_name<Policy, 0>, T1>;
-        std::destroy_n(CREATE_NEW_POLICY_WITH_NAME(_NewKernelName, exec), first1, n);
+        std::destroy_n(CREATE_NEW_POLICY_WITH_NAME(exec, _NewKernelName), first1, n);
         if(!::std::is_trivially_destructible_v<T1>)
             value = T1{-2};
         wait_and_throw(exec);

@@ -182,7 +182,7 @@ struct policy_container
             TestUtils::make_new_policy<TestUtils::new_kernel_name<decltype(policy_src), idx>>(policy_src)              \
          ).get()
 
-#define CREATE_NEW_POLICY_WITH_NAME(NewKernelName, policy_src)                                                         \
+#define CREATE_NEW_POLICY_WITH_NAME(policy_src, NewKernelName)                                                         \
         TestUtils::policy_container<                                                                                   \
             decltype(policy_src),                                                                                      \
             decltype(TestUtils::make_new_policy<NewKernelName>(policy_src))                                            \
