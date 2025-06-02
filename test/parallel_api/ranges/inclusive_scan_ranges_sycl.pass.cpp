@@ -50,8 +50,8 @@ main()
         auto exec = TestUtils::get_dpcpp_test_policy();
 
         ranges::inclusive_scan(exec, A, view_res1);
-        ranges::inclusive_scan(CREATE_NEW_POLICY(exec, 2), view, B2, ::std::plus<int>());
-        ranges::inclusive_scan(CREATE_NEW_POLICY(exec, 3), view, view_res3, ::std::plus<int>(), 100);
+        ranges::inclusive_scan(CREATE_NEW_POLICY(exec, 2), view, B2, std::plus<int>());
+        ranges::inclusive_scan(CREATE_NEW_POLICY(exec, 3), view, view_res3, std::plus<int>(), 100);
     }
 
     //check result

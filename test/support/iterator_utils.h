@@ -375,7 +375,7 @@ struct iterator_invoker
     operator()(Policy&& exec, Op op, Iterator begin, typename ::std::iterator_traits<Iterator>::difference_type n,
         Iterator expected, Rest&&... rest)
     {
-        op(std::forward<Policy>(exec), make_iterator<Iterator>()(begin), n, make_iterator<Iterator>()(expected), ::std::forward<Rest>(rest)...);
+        op(std::forward<Policy>(exec), make_iterator<Iterator>()(begin), n, make_iterator<Iterator>()(expected), std::forward<Rest>(rest)...);
     }
 
     template <typename Policy, typename Op, typename Iterator, typename... Rest>
@@ -483,7 +483,7 @@ struct iterator_invoker<IteratorTag, /* IsReverse = */ ::std::true_type>
     operator()(Policy&& exec, Op op, Iterator begin, typename ::std::iterator_traits<Iterator>::difference_type n, Rest&&... rest)
     {
         if (n <= sizeLimit<decltype(n)>)
-            op(std::forward<Policy>(exec), make_iterator<Iterator>()(begin + n), n, ::std::forward<Rest>(rest)...);
+            op(std::forward<Policy>(exec), make_iterator<Iterator>()(begin + n), n, std::forward<Rest>(rest)...);
     }
 
     template <typename Policy, typename Op, typename Iterator, typename... Rest>
@@ -492,7 +492,7 @@ struct iterator_invoker<IteratorTag, /* IsReverse = */ ::std::true_type>
         Rest&&... rest)
     {
         if (n <= sizeLimit<decltype(n)>)
-            op(std::forward<Policy>(exec), make_iterator<Iterator>()(begin + n), n, make_iterator<Iterator>()(expected + n), ::std::forward<Rest>(rest)...);
+            op(std::forward<Policy>(exec), make_iterator<Iterator>()(begin + n), n, make_iterator<Iterator>()(expected + n), std::forward<Rest>(rest)...);
     }
 
     template <typename Policy, typename Op, typename Iterator, typename... Rest>
@@ -500,7 +500,7 @@ struct iterator_invoker<IteratorTag, /* IsReverse = */ ::std::true_type>
     operator()(Policy&& exec, Op op, Iterator begin, typename ::std::iterator_traits<Iterator>::difference_type n, Iterator expected, Rest&&... rest)
     {
         if (n <= sizeLimit<decltype(n)>)
-            op(std::forward<Policy>(exec), make_iterator<Iterator>()(std::next(begin, n)), n, make_iterator<Iterator>()(std::next(expected, n)), ::std::forward<Rest>(rest)...);
+            op(std::forward<Policy>(exec), make_iterator<Iterator>()(std::next(begin, n)), n, make_iterator<Iterator>()(std::next(expected, n)), std::forward<Rest>(rest)...);
     }
 
     template <typename Policy, typename Op, typename Iterator, typename... Rest>

@@ -68,7 +68,7 @@ DEFINE_TEST(test_remove)
         host_keys.update_data();
 
         auto pos = (last - first) / 2;
-        auto res1 = ::std::remove(CREATE_NEW_POLICY(exec, 0), first, last, T1(222 + pos));
+        auto res1 = std::remove(CREATE_NEW_POLICY(exec, 0), first, last, T1(222 + pos));
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last - 1, "wrong result from remove");
@@ -201,7 +201,7 @@ DEFINE_TEST(test_partition)
 
         // invoke partition
         auto unary_op = IsMultipleOf3And2<IteratorValueType>{};
-        auto res = ::std::partition(CREATE_NEW_POLICY(exec, 0), first, last, unary_op);
+        auto res = std::partition(CREATE_NEW_POLICY(exec, 0), first, last, unary_op);
         wait_and_throw(exec);
 
         // check
@@ -214,7 +214,7 @@ DEFINE_TEST(test_partition)
         host_keys.update_data();
 
         // invoke stable_partition
-        res = ::std::stable_partition(CREATE_NEW_POLICY(exec, 1), first, last, unary_op);
+        res = std::stable_partition(CREATE_NEW_POLICY(exec, 1), first, last, unary_op);
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -448,7 +448,7 @@ DEFINE_TEST(test_partition_copy)
 
         // invoke
         auto res =
-            ::std::partition_copy(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, first3, f);
+            std::partition_copy(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, first3, f);
         wait_and_throw(exec);
 
         retrieve_data(host_keys, host_vals, host_res);
@@ -521,7 +521,7 @@ DEFINE_TEST(test_set_intersection)
         host_keys.update_data(a_size);
         host_vals.update_data(b_size);
 
-        last3 = ::std::set_intersection(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, last2,
+        last3 = std::set_intersection(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, last2,
                                       first3);
         wait_and_throw(exec);
 
@@ -544,7 +544,7 @@ DEFINE_TEST(test_set_intersection)
             host_keys.update_data(a_size);
             host_vals.update_data(b_size);
 
-            last3 = ::std::set_intersection(CREATE_NEW_POLICY(exec, 1), first1, last1, first2,
+            last3 = std::set_intersection(CREATE_NEW_POLICY(exec, 1), first1, last1, first2,
                                           last2, first3);
             wait_and_throw(exec);
 
@@ -575,7 +575,7 @@ DEFINE_TEST(test_set_difference)
         host_keys.update_data(a_size);
         host_vals.update_data(b_size);
 
-        last3 = ::std::set_difference(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, last2, first3);
+        last3 = std::set_difference(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, last2, first3);
         wait_and_throw(exec);
 
         int res_expect[a_size];
@@ -606,7 +606,7 @@ DEFINE_TEST(test_set_union)
         host_keys.update_data(a_size);
         host_vals.update_data(b_size);
 
-        last3 = ::std::set_union(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, last2, first3);
+        last3 = std::set_union(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, last2, first3);
         wait_and_throw(exec);
 
         int res_expect[a_size + b_size];
@@ -638,7 +638,7 @@ DEFINE_TEST(test_set_symmetric_difference)
         host_keys.update_data(a_size);
         host_vals.update_data(b_size);
 
-        last3 = ::std::set_symmetric_difference(CREATE_NEW_POLICY(exec, 0), first1, last1,
+        last3 = std::set_symmetric_difference(CREATE_NEW_POLICY(exec, 0), first1, last1,
                                                 first2, last2, first3);
         wait_and_throw(exec);
 

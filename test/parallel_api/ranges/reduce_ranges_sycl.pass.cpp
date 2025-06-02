@@ -44,7 +44,7 @@ main()
 
         res1 = reduce(exec, A);
         res2 = reduce(CREATE_NEW_POLICY(exec, 2), view, 100);
-        res3 = reduce(CREATE_NEW_POLICY(exec, 3), view, 100, ::std::plus<int>());
+        res3 = reduce(CREATE_NEW_POLICY(exec, 3), view, 100, std::plus<int>());
     }
 
     //check result

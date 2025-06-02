@@ -146,7 +146,7 @@ struct test_set_intersection
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_intersection(first1, last1, first2, last2, expect.begin(), comp);
-        auto res = ::std::set_intersection(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, last2, out.begin(), comp);
+        auto res = std::set_intersection(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, last2, out.begin(), comp);
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_intersection");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_intersection effect");

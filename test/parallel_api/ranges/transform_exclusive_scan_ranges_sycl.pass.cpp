@@ -49,8 +49,8 @@ main()
 
         auto exec = TestUtils::get_dpcpp_test_policy();
 
-        ranges::transform_exclusive_scan(CREATE_NEW_POLICY(exec, 0), view, view_res, 100, ::std::plus<int>(), lambda);
-        ranges::transform_exclusive_scan(CREATE_NEW_POLICY(exec, 1), A, C, 100, ::std::plus<int>(), lambda);
+        ranges::transform_exclusive_scan(CREATE_NEW_POLICY(exec, 0), view, view_res, 100, std::plus<int>(), lambda);
+        ranges::transform_exclusive_scan(CREATE_NEW_POLICY(exec, 1), A, C, 100, std::plus<int>(), lambda);
     }
 
     //check result

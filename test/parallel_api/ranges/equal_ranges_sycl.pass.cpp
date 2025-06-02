@@ -47,7 +47,7 @@ main()
         auto exec = TestUtils::get_dpcpp_test_policy();
 
         res1 = equal(CREATE_NEW_POLICY(exec, 0), view, B);
-        res2 = equal(CREATE_NEW_POLICY(exec, 1), C, view, ::std::equal_to<>{});
+        res2 = equal(CREATE_NEW_POLICY(exec, 1), C, view, std::equal_to<>{});
     }
 
     //check result
