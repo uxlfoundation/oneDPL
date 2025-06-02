@@ -571,10 +571,10 @@ struct __get_bounds_partitioned
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
         // diagonal index of the tile begin
-        _IndexT __wg_begin_idx = (__id / __tile_size) * __tile_size;
-
+        _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
+        _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
         //TODO: ensure partitioning fills in last diagonal
-        _IndexT __wg_end_idx = std::min(((__id / __tile_size) + 1) * __tile_size, __rng_tmp_diag.size() - 1);
+        _SizeType __wg_end_idx = std::min(((static_cast<_SizeType>(__id) / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
 
         auto [begin_rng1, begin_rng2, begin_star] = __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
         auto [end_rng1, end_rng2, end_star] = __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
@@ -607,6 +607,8 @@ struct __get_bounds_simple
 template <typename _SetOpCount, typename _BoundsProvider, typename _Compare>
 struct __gen_set_balanced_path
 {
+    using TempData = __noop_temp_data;
+
     // Locates and returns the "intersection" of a diagonal on the balanced path, based on merge path coordinates.
     // It returns coordinates in each set of the intersection with a boolean representing if the diagonal is "starred",
     // meaning that the balanced path "intersection" point does not lie directly on the diagonal, but one step forward in
@@ -677,10 +679,9 @@ struct __gen_set_balanced_path
         return std::make_tuple(__balanced_path_intersection_rng1, __balanced_path_intersection_rng2, __star);
     }
 
-    using TempData = __noop_temp_data;
-    template <typename _InRng, typename _IndexT>
-    std::uint16_t
-    operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data) const
+    template <typename _InRng, typename _IndexT, typename _BoundsProviderLocal>
+    std::tuple<_IndexT,_IndexT, bool>
+    calc_and_store_balanced_path(const _InRng& __in_rng, _IndexT __id, _BoundsProviderLocal __get_bounds_local) const
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -691,10 +692,8 @@ struct __gen_set_balanced_path
 
         using _SizeType = decltype(__rng1.size());
         _SizeType __i_elem = __id * __diagonal_spacing;
-        if (__i_elem >= __rng1.size() + __rng2.size())
-            return 0;
 
-        auto [__rng1_lower, __rng1_upper, __rng2_lower, __rng2_upper] =__get_bounds(__in_rng, __id);
+        auto [__rng1_lower, __rng1_upper, __rng2_lower, __rng2_upper] =__get_bounds_local(__in_rng, __id);
         //find merge path intersection
         auto [__rng1_pos, __rng2_pos] = oneapi::dpl::__par_backend_hetero::__find_start_point(
             __rng1, __rng1_lower, __rng1_upper, __rng2, __rng2_lower, __rng2_upper, __i_elem, __comp);
@@ -710,8 +709,38 @@ struct __gen_set_balanced_path
         __rng1_temp_diag[__id] = oneapi::dpl::__par_backend_hetero::__encode_balanced_path_temp_data(__rng1_balanced_pos,
                                                                                                     __star);
 
-        _SizeType __eles_to_process = std::min(__diagonal_spacing - (__star ? _SizeType{1} : _SizeType{0}),
-                                               __rng1.size() + __rng2.size() - (__i_elem - 1));
+        return std::make_tuple(__rng1_balanced_pos, __rng2_balanced_pos, __star);
+    }
+
+    //Entry point for partitioning phase
+    template <typename _InRng, typename _IndexT>
+    void
+    __calc_partition_bounds(const _InRng& __in_rng, _IndexT __id) const
+    {
+        auto __n = std::get<2>(__in_rng.tuple()).size();
+        if (__id * __diagonal_spacing >= __n)
+            return;
+        calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple{});
+    }
+
+    // Entry point for reduce then scan reduce input
+    template <typename _InRng, typename _IndexT>
+    std::uint16_t
+    operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data) const
+    {
+        // First we must extract individual sequences from zip iterator because they may not have the same length,
+        // dereferencing is dangerous
+        auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
+        auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+        using _SizeType = decltype(__rng1.size());
+
+        if (__id * __diagonal_spacing >= __rng1.size() + __rng2.size())
+            return 0;
+
+        auto [__rng1_balanced_pos, __rng2_balanced_pos, __star] = calc_and_store_balanced_path(__in_rng, __id, __get_bounds);
+
+        _IndexT __eles_to_process = std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
+                                               __rng1.size() + __rng2.size() - _IndexT{__id * __diagonal_spacing - 1});
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
                                                __eles_to_process, __temp_data, __comp);
@@ -757,6 +786,35 @@ struct __gen_set_op_from_known_balanced_path
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
     _Compare __comp;
+};
+
+// kernel for balanced path to partition the input into tiles by calculating balanced path on diagonals of tile bounds
+template <typename _GenInput, typename _KernelName>
+struct __partition_set_balanced_path_submitter;
+template <typename _GenInput, typename... _KernelName>
+struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional_kernel_name<_KernelName...>>
+{
+    template <typename _InRng>
+    sycl::event
+    operator()(sycl::queue& __q, _InRng&& __in_rng, std::size_t __num_diagonals) const
+    {
+        std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
+        std::size_t __n = oneapi::dpl::__internal::__dpl_ceiling_div(__num_diagonals, __tile_size);
+
+        return __q.submit([&__in_rng, this, __tile_size, __n](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
+
+            __cgh.parallel_for<_KernelName...>(
+                sycl::range</*dim=*/1>(__n), [=, *this](sycl::item</*dim=*/1> __item_id) {
+                    auto __global_idx = __item_id.get_linear_id();
+
+                    std::size_t __id = (__global_idx * __tile_size < __n) ? __global_idx * __tile_size : __n - 1;
+                    __gen_input.__calc_partition_bounds(__in_rng, __id);
+                });
+        });
+
+    }
+    _GenInput __gen_input;
 };
 
 // __parallel_reduce_by_segment_reduce_then_scan
@@ -1178,6 +1236,14 @@ __get_reduce_then_scan_actual_sg_sz_device()
 #endif
 }
 
+inline std::uint32_t
+__get_reduce_then_scan_workgroup_size(sycl::queue& q)
+{
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(q);
+    std::size_t __sg_size = __get_reduce_then_scan_workaround_sg_sz();
+    return (__max_wg_size / __sg_size) * __sg_size;
+}
+
 struct __reduce_then_scan_sub_group_params
 {
     __reduce_then_scan_sub_group_params(std::uint32_t __work_group_size, std::uint8_t __sub_group_size,
@@ -1200,6 +1266,9 @@ struct __reduce_then_scan_sub_group_params
     std::uint32_t __inputs_per_sub_group;
     std::uint32_t __inputs_per_item;
 };
+
+template <typename... _Name>
+class __reduce_then_scan_partition_kernel;
 
 template <typename... _Name>
 class __reduce_then_scan_reduce_kernel;
@@ -1697,8 +1766,8 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
 inline bool
 __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 {
-    return (__q.get_device().is_gpu() &&
-            oneapi::dpl::__internal::__supports_sub_group_size(__q, __get_reduce_then_scan_reqd_sg_sz_host()));
+    return true;//(__q.get_device().is_gpu() &&
+            //oneapi::dpl::__internal::__supports_sub_group_size(__q, __get_reduce_then_scan_reqd_sg_sz_host()));
 }
 
 // General scan-like algorithm helpers
@@ -1715,10 +1784,13 @@ template <std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typena
           typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
           typename _WriteOp, typename _InitType, typename _Inclusive, typename _IsUniquePattern>
 __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
-__parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
-                                      _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
-                                      _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
-                                      _WriteOp __write_op, _InitType __init, _Inclusive, _IsUniquePattern)
+__parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n,
+                                      _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
+                                      _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
+                                      _ScanInputTransform __scan_input_transform, _WriteOp __write_op, _InitType __init,
+                                      _Inclusive, _IsUniquePattern,
+                                      std::uint32_t __work_group_size = 0,
+                                      sycl::event __prior_event = {})
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<_CustomName>>;
@@ -1726,17 +1798,17 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         __reduce_then_scan_scan_kernel<_CustomName>>;
     using _ValueType = typename _InitType::__value_type;
 
+    if (__work_group_size == 0)
+    {
+        __work_group_size = __get_reduce_then_scan_workgroup_size(__q);
+    }
+
     constexpr std::uint8_t __min_sub_group_size = __get_reduce_then_scan_workaround_sg_sz();
-    constexpr std::uint8_t __max_sub_group_size = __get_reduce_then_scan_default_sg_sz();
     // Empirically determined maximum. May be less for non-full blocks.
     constexpr std::uint16_t __max_inputs_per_item =
         std::max(std::uint16_t{1}, std::uint16_t{512 / __bytes_per_work_item_iter});
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
-
-    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, 8192);
-    // Round down to nearest multiple of the subgroup size
-    const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
 
     // TODO: Investigate potentially basing this on some scale of the number of compute units. 128 work-groups has been
     // found to be reasonable number for most devices.
@@ -1745,7 +1817,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // temporary storage to handle both cases.
     const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
     const std::uint32_t __max_num_sub_groups_global = __max_num_sub_groups_local * __num_work_groups;
-    const std::uint32_t __max_inputs_per_block = __work_group_size * __max_inputs_per_item * __num_work_groups;
+    const std::uint32_t __max_inputs_per_work_group = __work_group_size * __max_inputs_per_item;
+    const std::uint32_t __max_inputs_per_block = __max_inputs_per_work_group * __num_work_groups;
     std::size_t __inputs_remaining = __n;
     if constexpr (__is_unique_pattern_v)
     {
@@ -1769,6 +1842,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     __result_and_scratch_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2};
 
     // Reduce and scan step implementations
+
     using _ReduceSubmitter =
         __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v,
                                                      _GenReduceInput, _ReduceOp, _InitType, _ReduceKernel>;
@@ -1796,7 +1870,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                     __scan_input_transform,
                                     __write_op,
                                     __init};
-    sycl::event __event;
+
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
@@ -1809,10 +1883,10 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         auto __local_range = sycl::range<1>(__work_group_size);
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
-        __event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __event,
+        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
                                      __inputs_remaining, __b);
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
-        __event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __event,
+        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __prior_event,
                                    __inputs_remaining, __b);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
@@ -1824,8 +1898,23 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                           __num_work_groups * __work_group_size);
         }
     }
-    return __future{std::move(__event), std::move(__result_and_scratch)};
+    return __future{std::move(__prior_event), std::move(__result_and_scratch)};
 }
+
+template <typename _CustomName, typename _InRng, typename _GenReduceInput>
+sycl::event
+__parallel_set_balanced_path_partition(sycl::queue& __q, _InRng&& __in_rng, std::size_t __num_diagonals,
+                                       _GenReduceInput __gen_reduce_input)
+{
+    using _PartitionKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __reduce_then_scan_partition_kernel<_CustomName>>;
+    using _PartitionSubmitter = __partition_set_balanced_path_submitter<_GenReduceInput, _PartitionKernel>;
+
+    _PartitionSubmitter __partition_submitter{__gen_reduce_input};
+
+    return __partition_submitter(__q, std::forward<_InRng>(__in_rng), __num_diagonals);
+}
+
 
 } // namespace __par_backend_hetero
 } // namespace dpl
