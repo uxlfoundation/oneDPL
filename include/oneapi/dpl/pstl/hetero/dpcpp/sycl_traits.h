@@ -557,7 +557,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _SetOpCount, typename _Compare>
+template <typename _SetOpCount, typename _BoundsProvider, typename _Compare>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path,
                                                        _SetOpCount, _BoundsProvider, _Compare)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _BoundsProvider, _Compare>
