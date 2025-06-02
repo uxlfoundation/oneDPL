@@ -1062,7 +1062,7 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
     using _TempData = __temp_data_array<__diagonal_spacing, _OutValueT>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
     using _ReduceOp = std::plus<_Size>;
-    using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_simple;
+    using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned;
 
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, _Compare>;
     using _GenScanInput =
@@ -1073,24 +1073,37 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
     const std::int32_t __num_diagonals =
         oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size() + __rng2.size(), __diagonal_spacing);
 
+    const std::uint32_t __work_group_size = __get_reduce_then_scan_workgroup_size(__q);
+
     // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
     // portion of the range so star flag can use sign bit.
     using _TemporaryType = decltype(__rng1.size());
     //TODO: limit to diagonals per block, and only write to a block based index of temporary data
     oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
 
-    constexpr std::uint32_t __bytes_per_work_item_iter =
-        ((sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2) * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
-    return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
-        __q, __num_diagonals,
-        oneapi::dpl::__ranges::make_zip_view(
+    constexpr std::uint32_t __average_input_ele_size = (sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2;
+    // Partition into blocks of half SLM size
+    const std::size_t __partition_size =
+         __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
+
+    _GenReduceInput __gen_reduce_input{_SetOperation{}, __diagonal_spacing,
+        _BoundsProvider{__diagonal_spacing, __partition_size}, __comp};
+
+    constexpr std::uint32_t __bytes_per_work_item_iter = __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
+
+    auto __in_rng = oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
-                __temp_diags.get_buffer())),
-        std::forward<_Range3>(__result), _GenReduceInput{_SetOperation{}, __diagonal_spacing, _BoundsProvider{}, __comp}, _ReduceOp{},
+                __temp_diags.get_buffer()));
+
+
+    sycl::event __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, __in_rng, __num_diagonals,
+                                                                                                  __gen_reduce_input);
+    return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
+        __q, __num_diagonals, __in_rng, std::forward<_Range3>(__result), __gen_reduce_input, _ReduceOp{},
         _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp}, _ScanInputTransform{}, _WriteOp{},
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{},
-        /*__is_unique_pattern=*/std::false_type{});
+        /*__is_unique_pattern=*/std::false_type{}, __work_group_size, __partition_event);
 }
 
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
