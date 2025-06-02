@@ -89,6 +89,25 @@ __pattern_uninitialized_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exe
     return {__first1 + __res, __first2 + __res};
 }
 
+template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+std::ranges::uninitialized_move_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                       std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_uninitialized_move(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
+{
+    assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
+
+    const auto __first1 = std::ranges::begin(__in_r);
+    const auto __first2 = std::ranges::begin(__out_r);
+
+    oneapi::dpl::__internal::__op_uninitialized_move<_ExecutionPolicy> __f;
+
+    const auto __res = oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag,
+        std::forward<_ExecutionPolicy>(__exec), __f, oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__in_r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__out_r)));
+
+    return {__first1 + __res, __first2 + __res};
+}
+
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl
