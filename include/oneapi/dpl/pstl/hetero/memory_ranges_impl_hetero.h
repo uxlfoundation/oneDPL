@@ -47,14 +47,46 @@ std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_default_construct(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r)
 {
     const auto __first = std::ranges::begin(__r);
-    const auto __size = std::ranges::size(__r);
 
     oneapi::dpl::__internal::__op_uninitialized_default_construct<_ExecutionPolicy> __f;
 
     const auto __res = oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag,
         std::forward<_ExecutionPolicy>(__exec), __f, oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
 
-    return {__first + __size};
+    return {__first + __res};
+}
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_uninitialized_value_construct(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r)
+{
+    const auto __first = std::ranges::begin(__r);
+
+    oneapi::dpl::__internal::__op_uninitialized_value_construct<_ExecutionPolicy> __f;
+
+    const auto __res = oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag,
+        std::forward<_ExecutionPolicy>(__exec), __f, oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+
+    return {__first + __res};
+}
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+std::ranges::uninitialized_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                       std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_uninitialized_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
+{
+    assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
+
+    const auto __first1 = std::ranges::begin(__in_r);
+    const auto __first2 = std::ranges::begin(__out_r);
+
+    oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy> __f;
+
+    const auto __res = oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag,
+        std::forward<_ExecutionPolicy>(__exec), __f, oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__in_r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__out_r)));
+
+    return {__first1 + __res, __first2 + __res};
 }
 
 } // namespace __ranges
