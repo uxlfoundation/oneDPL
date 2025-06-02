@@ -142,35 +142,14 @@ get_dpcpp_test_policy()
 
 // struct policy_container - a container for policy which return saved policy
 // as l-value or r-value depends on source policy type qualifiers
-template <typename _Policy>
+template <typename _PolicySource, typename _PolicyNew>
 struct policy_container
 {
-    using _DecayedPolicy = std::decay_t<_Policy>;
+    using _PolicyNewDecayed = std::decay_t<_PolicyNew>;
 
-    _DecayedPolicy __policy;
+    _PolicyNewDecayed __policy_new;
 
-    template <typename NewKernelName, typename Policy>
-    static auto create_policy(Policy&& exec)
-    {
-        if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
-        {
-            return TestUtils::make_new_policy<NewKernelName>(std::forward<Policy>(exec));
-        }
-        else
-        {
-            return exec;
-        }
-    }
-
-    template <int idx, typename Policy>
-    static auto create_policy_idx(Policy&& exec)
-    {
-        using NewKernelName = TestUtils::new_kernel_name<_DecayedPolicy, idx>;
-
-        return create_policy<NewKernelName>(std::forward<Policy>(exec));
-    }
-
-    policy_container(_DecayedPolicy&& __policy) : __policy(std::move(__policy))
+    policy_container(_PolicyNewDecayed&& __policy_new) : __policy_new(std::move(__policy_new))
     {
     }
 
@@ -182,28 +161,34 @@ struct policy_container
     operator=(const policy_container&) = delete;
 
     using TestingPolicyType = std::conditional_t<
-        std::is_reference_v<_Policy>,
-        std::conditional_t<std::is_rvalue_reference_v<_Policy>, _DecayedPolicy&&, const _DecayedPolicy&>,
-        _DecayedPolicy>;
+        std::is_reference_v<_PolicySource>,
+        std::conditional_t<std::is_rvalue_reference_v<_PolicySource>, _PolicyNewDecayed&&, const _PolicyNewDecayed&>,
+        _PolicyNewDecayed>;
 
     // Return testing policy
     TestingPolicyType get()
     {
-        return static_cast<TestingPolicyType>(__policy);
+        return static_cast<TestingPolicyType>(__policy_new);
     }
 };
 
 // Create new policy and pass it into called function as l-value / r-value
 // depends on qualifiers of source policy type
 #define CREATE_NEW_POLICY(exec, idx)                                                                                   \
-        TestUtils::policy_container<decltype(exec)>(                                                                   \
-            TestUtils::policy_container<decltype(exec)>::template create_policy_idx<idx>(exec))                        \
-            .get()
+        TestUtils::policy_container<                                                                                   \
+            decltype(exec),                                                                                            \
+            decltype(TestUtils::make_new_policy<TestUtils::new_kernel_name<decltype(exec), idx>>(exec))                \
+        >(                                                                                                             \
+            TestUtils::make_new_policy<TestUtils::new_kernel_name<decltype(exec), idx>>(exec)                          \
+         ).get()
 
 #define CREATE_NEW_POLICY_WITH_NAME(NewKernelName, exec)                                                               \
-        TestUtils::policy_container<decltype(exec)>(                                                                   \
-            TestUtils::policy_container<decltype(exec)>::template create_policy<NewKernelName>(exec))                  \
-            .get()
+        TestUtils::policy_container<                                                                                   \
+            decltype(exec),                                                                                            \
+            decltype(TestUtils::make_new_policy<NewKernelName>(exec))                                                  \
+        >(                                                                                                             \
+            TestUtils::make_new_policy<NewKernelName>(exec)                                                            \
+         ).get()
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
