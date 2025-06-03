@@ -167,6 +167,34 @@ __pattern_uninitialized_move(__serial_tag</*IsVector*/std::false_type>, _Executi
     return std::ranges::uninitialized_move(std::forward<_InRange>(__in_r), std::ranges::begin(__out_r));
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_uninitialized_fill
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    using value_type = std::ranges::range_value_t<_R>;
+
+    const auto __first = std::ranges::begin(__r);
+    const auto __last = __first + std::ranges::size(__r);
+
+    //oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+      //  [](auto& __obj) { ::new (static_cast<void*>(std::addressof(__obj))) value_type();});
+
+    return {__last};
+}
+
+template <typename _ExecutionPolicy, typename _R>
+std::borrowed_iterator_t<_R>
+__pattern_uninitialized_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
+{
+    return std::ranges::uninitialized_fill(std::forward<_R>(__r));
+}
+
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl
