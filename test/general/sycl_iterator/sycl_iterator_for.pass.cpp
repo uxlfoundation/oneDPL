@@ -967,6 +967,16 @@ DEFINE_TEST(test_move)
 
 DEFINE_TEST(test_adjacent_difference)
 {
+    template <typename Iterator1ValueType, typename Iterator2ValueType>
+    struct test_adjacent_difference_fo
+    {
+        Iterator2ValueType
+        operator()(const Iterator1ValueType& a, const Iterator1ValueType& b) const
+        {
+            return a + b;
+        }
+    };
+
     DEFINE_TEST_CONSTRUCTOR(test_adjacent_difference, 1.0f, 1.0f)
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
@@ -982,7 +992,7 @@ DEFINE_TEST(test_adjacent_difference)
         Iterator1ValueType fill_value{1};
         Iterator2ValueType blank_value{0};
 
-        auto __f = [](const Iterator1ValueType& a, const Iterator1ValueType& b) -> Iterator2ValueType { return a + b; };
+        auto __f = test_adjacent_difference_fo<Iterator1ValueType, Iterator2ValueType>{};
 
         // init
         ::std::for_each(host_keys.get(), host_keys.get() + n,
