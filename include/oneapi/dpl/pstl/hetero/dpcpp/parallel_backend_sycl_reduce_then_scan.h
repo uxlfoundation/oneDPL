@@ -731,7 +731,8 @@ struct __gen_set_balanced_path
 
         using _SizeType = decltype(__rng1.size());
         _SizeType __i_elem = __id * __diagonal_spacing;
-
+        if (__i_elem >= __rng1.size() + __rng2.size())
+            __i_elem = __rng1.size() + __rng2.size() - 1; // ensure we do not go out of bounds
         auto [__rng1_lower, __rng1_upper, __rng2_lower, __rng2_upper] =__get_bounds_local(__in_rng, __id);
         //find merge path intersection
         auto [__rng1_pos, __rng2_pos] = oneapi::dpl::__par_backend_hetero::__find_start_point(
@@ -757,8 +758,6 @@ struct __gen_set_balanced_path
     __calc_partition_bounds(const _InRng& __in_rng, _IndexT __id) const
     {
         auto __n = std::get<2>(__in_rng.tuple()).size();
-        if (__id * __diagonal_spacing >= __n)
-            return;
         calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple{});
     }
 
@@ -838,16 +837,15 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
     operator()(sycl::queue& __q, _InRng&& __in_rng, std::size_t __num_diagonals) const
     {
         std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
-        std::size_t __n = oneapi::dpl::__internal::__dpl_ceiling_div(__num_diagonals, __tile_size);
-
-        return __q.submit([&__in_rng, this, __tile_size, __n](sycl::handler& __cgh) {
+        std::size_t __n = oneapi::dpl::__internal::__dpl_ceiling_div(__num_diagonals + __tile_size - 1, __tile_size);
+        return __q.submit([&__in_rng, this, __tile_size, __n, __num_diagonals](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
 
             __cgh.parallel_for<_KernelName...>(
                 sycl::range</*dim=*/1>(__n), [=, *this](sycl::item</*dim=*/1> __item_id) {
                     auto __global_idx = __item_id.get_linear_id();
 
-                    std::size_t __id = (__global_idx * __tile_size < __n) ? __global_idx * __tile_size : __n - 1;
+                    std::size_t __id = (__global_idx * __tile_size < __num_diagonals) ? __global_idx * __tile_size : __num_diagonals - 1;
                     __gen_input.__calc_partition_bounds(__in_rng, __id);
                 });
         });
