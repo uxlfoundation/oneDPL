@@ -32,6 +32,18 @@ using namespace oneapi::dpl::execution;
 
 DEFINE_TEST(test_for_each)
 {
+    template <typename Iterator1>
+    struct test_for_each_fo
+    {
+        typedef typename std::iterator_traits<Iterator1>::value_type T1;
+
+        void
+        operator()(T1& val) const
+        {
+            ++val;
+        }
+    };
+
     DEFINE_TEST_CONSTRUCTOR(test_for_each, 1.0f, 1.0f)
 
     template <typename Policy, typename Iterator1, typename Size>
@@ -43,7 +55,7 @@ DEFINE_TEST(test_for_each)
         typedef typename std::iterator_traits<Iterator1>::value_type T1;
 
         auto value = T1(6);
-        auto f = [](T1& val) { ++val; };
+        test_for_each_fo<Iterator1> f;
         std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
