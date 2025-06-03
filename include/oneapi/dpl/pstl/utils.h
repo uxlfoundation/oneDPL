@@ -346,8 +346,8 @@ class __transform_functor
     void
     __transform_impl(_OutputType&& __output, _Args&&... __args) const
     {
-        static_assert(sizeof...(_Args) < 3, "A predicate supports either unary or binary transformation");
-        static_assert(::std::is_invocable_v<_F, _Args...>, "A predicate cannot be called with the passed arguments");
+        static_assert(sizeof...(_Args) < 3, "A functor supports either unary or binary transformation");
+        static_assert(::std::is_invocable_v<_F, _Args...>, "A functor cannot be called with the passed arguments");
         std::forward<_OutputType>(__output) = __f(std::forward<_Args>(__args)...);
     }
 };
