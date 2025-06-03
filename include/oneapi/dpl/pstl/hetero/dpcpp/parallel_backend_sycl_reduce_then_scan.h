@@ -731,12 +731,29 @@ struct __gen_set_balanced_path
         // dereferencing is dangerous
         auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
         auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+        auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // temp diag sequence
         using _SizeType = decltype(__rng1.size());
+
+        _IndexT __rng1_balanced_pos = 0;
+        _IndexT __rng2_balanced_pos = 0;
+        bool __star = false;
 
         if (__id * __diagonal_spacing >= __rng1.size() + __rng2.size())
             return 0;
-
-        auto [__rng1_balanced_pos, __rng2_balanced_pos, __star] = calc_and_store_balanced_path(__in_rng, __id, __get_bounds);
+        if (__id % __get_bounds.__tile_size == 0)
+        {
+            auto [__idx_rng1, __idx_rng2, __local_star] = __decode_balanced_path_temp_data(__rng_tmp_diag, __id, __diagonal_spacing);
+            __rng1_balanced_pos = __idx_rng1;
+            __rng2_balanced_pos = __idx_rng2;
+            __star = __local_star;
+        }
+        else
+        {
+            auto [__idx_rng1, __idx_rng2, __local_star] = calc_and_store_balanced_path(__in_rng, __id, __get_bounds);
+            __rng1_balanced_pos = __idx_rng1;
+            __rng2_balanced_pos = __idx_rng2;
+            __star = __local_star;
+        }
 
         _IndexT __eles_to_process = std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
                                                __rng1.size() + __rng2.size() - _IndexT{__id * __diagonal_spacing - 1});
