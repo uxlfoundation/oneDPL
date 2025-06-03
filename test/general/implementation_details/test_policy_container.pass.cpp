@@ -38,9 +38,10 @@ void test_policy_container(Policy&& exec, PassTag)
     static_assert(!std::is_same_v<SourcePolicyKernelName, ThisPolicyKernelName>, "Temporary test policy should have unique Kernel name");
 #endif
 
+    using DecayedPolicy = std::decay_t<decltype(exec)>;
+
     if constexpr (std::is_same_v<PassTag, PassByValue>)
     {
-        using DecayedPolicy = std::decay_t<decltype(exec)>;
         using DecayedPolicyRefRef = DecayedPolicy&&;
 
         static_assert(std::is_same_v<decltype(exec), DecayedPolicyRefRef>, "Invalid test policy value category #0");
@@ -48,7 +49,6 @@ void test_policy_container(Policy&& exec, PassTag)
 
     if constexpr (std::is_same_v<PassTag, PassByConstReference>)
     {
-        using DecayedPolicy = std::decay_t<Policy>;
         using DecayedPolicyConstRef = const DecayedPolicy&;
 
         static_assert(std::is_same_v<decltype(exec), DecayedPolicyConstRef>, "Invalid test policy value category #1");
@@ -56,7 +56,6 @@ void test_policy_container(Policy&& exec, PassTag)
 
     if constexpr (std::is_same_v<PassTag, PassByMove>)
     {
-        using DecayedPolicy = std::decay_t<Policy>;
         using DecayedPolicyConstRef = DecayedPolicy&&;
 
         static_assert(std::is_same_v<decltype(exec), DecayedPolicyConstRef>, "Invalid test policy value category #2");
