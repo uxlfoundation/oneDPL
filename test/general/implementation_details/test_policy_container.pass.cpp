@@ -18,8 +18,9 @@
 #include <type_traits>
 #include <utility>
 
-#if TEST_DPCPP_BACKEND_PRESENT
 #include "support/utils.h"
+
+#if TEST_DPCPP_BACKEND_PRESENT
 #include "support/utils_invoke.h"
 #include "oneapi/dpl/pstl/hetero/dpcpp/execution_sycl_defs.h"
 #endif
@@ -62,8 +63,6 @@ void test_policy_container(Policy&& exec, PassTag)
     }
 }
 
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
 template <typename Policy>
 void test_pass_by_value(Policy policy)
 {
@@ -87,6 +86,8 @@ void test_pass_by_rval(Policy&& policy)
 
     test_policy_container<SourcePolicyKernelName>(CREATE_NEW_POLICY(policy, 0), PassByMove{});
 }
+
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
