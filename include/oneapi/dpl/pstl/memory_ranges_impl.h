@@ -173,5 +173,4 @@ __pattern_uninitialized_move(__serial_tag</*IsVector*/std::false_type>, _Executi
 } // namespace oneapi
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
-
 #endif // _ONEDPL_ALGORITHM_RANGES_IMPL_H
