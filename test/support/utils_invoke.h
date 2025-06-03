@@ -191,6 +191,11 @@ struct policy_container
             TestUtils::make_new_policy<NewKernelName>(policy_src)                                                      \
          ).get()
 
+#else
+
+#define CREATE_NEW_POLICY(policy_src, idx)                          policy_src
+#define CREATE_NEW_POLICY_WITH_NAME(policy_src, NewKernelName)      policy_src
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 ////////////////////////////////////////////////////////////////////////////////
