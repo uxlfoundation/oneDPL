@@ -1,6 +1,6 @@
 // -*- C++ -*-
-//===-- parallel_backend_sycl_scan_by_segment.h ---------------------------===//
-/* Copyright (c) 2023 Intel Corporation
+//===----------------------------------------------------------------------===//
+/* Copyright (c) Intel Corporation
  *
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  *  
@@ -28,6 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+//===----------------------------------------------------------------------===//
 
 #ifndef _ONEDPL_PARALLEL_BACKEND_SYCL_SCAN_BY_SEGMENT_H
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_SCAN_BY_SEGMENT_H
