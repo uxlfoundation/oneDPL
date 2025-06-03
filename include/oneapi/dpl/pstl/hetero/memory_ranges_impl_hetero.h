@@ -51,7 +51,7 @@ __pattern_uninitialized_default_construct(__hetero_tag<_BackendTag> __tag, _Exec
     oneapi::dpl::__internal::__op_uninitialized_default_construct<_ExecutionPolicy> __f;
 
     const auto __res = oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag,
-        std::forward<_ExecutionPolicy>(__exec), __f, oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+        std::forward<_ExecutionPolicy>(__exec), __f, oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
 
     return {__first + __res};
 }
@@ -65,7 +65,7 @@ __pattern_uninitialized_value_construct(__hetero_tag<_BackendTag> __tag, _Execut
     oneapi::dpl::__internal::__op_uninitialized_value_construct<_ExecutionPolicy> __f;
 
     const auto __res = oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag,
-        std::forward<_ExecutionPolicy>(__exec), __f, oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+        std::forward<_ExecutionPolicy>(__exec), __f, oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
 
     return {__first + __res};
 }
@@ -106,6 +106,20 @@ __pattern_uninitialized_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
     return {__first1 + __res, __first2 + __res};
+}
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _T>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_uninitialized_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value)
+{
+    const auto __first = std::ranges::begin(__r);
+
+    oneapi::dpl::__internal::__op_uninitialized_fill<_T, _ExecutionPolicy> __f(__value);
+
+    const auto __res = oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag,
+        std::forward<_ExecutionPolicy>(__exec), __f, oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
+
+    return {__first + __res};
 }
 
 } // namespace __ranges
