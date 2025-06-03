@@ -29,7 +29,7 @@
 #include "../pstl/utils.h"
 
 #if _ONEDPL_BACKEND_SYCL
-#   include "../pstl/hetero/algorithm_impl_hetero.h"
+#    include "../pstl/hetero/algorithm_impl_hetero.h"
 #endif
 
 namespace oneapi
