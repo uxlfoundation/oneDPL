@@ -47,7 +47,6 @@ main()
         auto view = all_view(A);
 
         auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
 
         res1 = find(CREATE_NEW_POLICY(exec, 0), view, val); //check passing all_view
         res1 = find(CREATE_NEW_POLICY(exec, 1), A, val);    //check passing sycl::buffer directly
