@@ -973,7 +973,7 @@ struct __count_fn_pred
     _Proj __proj;
 
     template <typename _TValue>
-    auto
+    bool
     operator()(_TValue&& __val) const
     {
         return std::ranges::equal_to{}(std::invoke(__proj, std::forward<_TValue>(__val)), __value);

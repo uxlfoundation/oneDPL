@@ -472,7 +472,7 @@ struct __pattern_search_n_pred
     _Proj __proj;
 
     template <typename _TValue1, typename _TValue2>
-    auto
+    bool
     operator()(_TValue1&& __val1, _TValue2&& __val2) const
     {
         return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue1>(__val1)), std::forward<_TValue2>(__val2));
