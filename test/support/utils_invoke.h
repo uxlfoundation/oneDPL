@@ -174,6 +174,7 @@ struct policy_container
 
 // Create new policy and pass it into called function as l-value / r-value
 // depends on qualifiers of source policy type
+// Attention: new Kernel name generation depends on TEST_EXPLICIT_KERNEL_NAMES macro state
 #define CREATE_NEW_POLICY(policy_src, idx)                                                                             \
         TestUtils::policy_container<                                                                                   \
             decltype(policy_src),                                                                                      \
