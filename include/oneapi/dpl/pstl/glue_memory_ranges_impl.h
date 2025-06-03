@@ -50,7 +50,7 @@ concept nothrow_sentinel_for = std::sentinel_for<_S, _I>;
 
 template<typename _R>
 concept nothrow_random_access_range =
-    std::ranges::range<R> && nothrow_random_access_iterator<std::ranges::iterator_t<_R>> &&
+    std::ranges::range<_R> && nothrow_random_access_iterator<std::ranges::iterator_t<_R>> &&
     nothrow_sentinel_for<std::ranges::sentinel_t<_R>, std::ranges::iterator_t<_R>>;
 
 namespace __internal
@@ -167,7 +167,7 @@ namespace __internal
 struct __uninitialized_fill_fn
 {
     template<typename _ExecutionPolicy, oneapi::dpl::ranges::nothrow_random_access_range _R, typename _T>
-    requires std::constructible_from<std::ranges::range_value_t<_R>, const T&>
+    requires std::constructible_from<std::ranges::range_value_t<_R>, const _T&>
         && oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
         && std::ranges::sized_range<_R>
 
