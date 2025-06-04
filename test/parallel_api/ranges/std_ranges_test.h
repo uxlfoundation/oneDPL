@@ -76,9 +76,9 @@ auto pred = [](auto&& val) { return val == 5; };
 auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
 auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
 
-auto pred1 = [](auto&& val) -> decltype(auto) { return val > 0; };
-auto pred2 = [](auto&& val) -> decltype(auto) { return val == 4; };
-auto pred3 = [](auto&& val) -> decltype(auto) { return val < 0; };
+auto pred1 = [](auto&& val) -> bool { return val > 0; };
+auto pred2 = [](auto&& val) -> bool { return val == 4; };
+auto pred3 = [](auto&& val) -> bool { return val < 0; };
 
 struct P2
 {
