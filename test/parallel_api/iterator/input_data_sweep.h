@@ -23,15 +23,6 @@
 
 #include "support/utils_invoke.h"
 
-struct NoOp
-{
-    template <typename T>
-    T operator()(T value) const
-    {
-        return value;
-    }
-};
-
 #if TEST_DPCPP_BACKEND_PRESENT
 template <int __recurse, int __reverses, bool __read = true, bool __reset_read = true, bool __write = true,
           bool __check_write = true, bool __usable_as_perm_map = true, bool __usable_as_perm_src = true,
@@ -150,7 +141,7 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
 #    endif // _ONEDPL_DEBUG_SYCL
         oneapi::dpl::discard_iterator discard{};
         // iterate through all wrappers and recurse - 1
-        NoOp noop;
+        TestUtils::NoOp noop;
 
         if constexpr (__is_reversible)
         { // std::reverse_iterator(it)
