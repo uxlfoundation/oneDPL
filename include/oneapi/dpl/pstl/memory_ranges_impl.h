@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _ONEDPL_ALGORITHM_RANGES_IMPL_H
-#define _ONEDPL_ALGORITHM_RANGES_IMPL_H
+#ifndef _ONEDPL_MEMORY_RANGES_IMPL_H
+#define _ONEDPL_MEMORY_RANGES_IMPL_H
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
@@ -226,5 +226,5 @@ __pattern_destroy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&
 } // namespace dpl
 } // namespace oneapi
 
-#endif //_ONEDPL_CPP20_RANGES_PRESENT
-#endif // _ONEDPL_ALGORITHM_RANGES_IMPL_H
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
+#endif // _ONEDPL_MEMORY_RANGES_IMPL_H
