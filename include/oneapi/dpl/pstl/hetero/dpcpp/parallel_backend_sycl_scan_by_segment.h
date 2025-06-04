@@ -39,13 +39,11 @@
 #include <utility>
 #include <algorithm>
 
-#include "../../algorithm_fwd.h"
-#include "../../parallel_backend.h"
-#include "../../hetero/utils_hetero.h"
-
+#include "sycl_defs.h"
 #include "utils_ranges_sycl.h"
-#include "unseq_backend_sycl.h"
+#include "execution_sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
+#include "../../utils.h"
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
