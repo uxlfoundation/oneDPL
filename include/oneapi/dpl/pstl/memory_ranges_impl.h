@@ -171,9 +171,36 @@ __pattern_uninitialized_move(__serial_tag</*IsVector*/std::false_type>, _Executi
 // __pattern_uninitialized_fill
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _T>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    oneapi::dpl::__internal::__op_uninitialized_fill<_T, _ExecutionPolicy> __f(__value);
+
+    const auto __first = std::ranges::begin(__r);
+    const auto __last = __first + std::ranges::size(__r);
+
+    oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
+
+    return {__last};
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _T>
+std::borrowed_iterator_t<_R>
+__pattern_uninitialized_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, const _T& __value)
+{
+    return std::ranges::uninitialized_fill(std::forward<_R>(__r), __value);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// pattern_destroy
+//---------------------------------------------------------------------------------------------------------------------
+
 template <typename _Tag, typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
-__pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
+__pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
@@ -182,17 +209,16 @@ __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    //oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-      //  [](auto& __obj) { ::new (static_cast<void*>(std::addressof(__obj))) value_type();});
+    oneapi::dpl::destroy(std::forward<_ExecutionPolicy>(__exec), __first, __last);
 
     return {__last};
 }
 
 template <typename _ExecutionPolicy, typename _R>
 std::borrowed_iterator_t<_R>
-__pattern_uninitialized_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
+__pattern_destroy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
 {
-    return std::ranges::uninitialized_fill(std::forward<_R>(__r));
+    return std::ranges::destroy(std::forward<_R>(__r));
 }
 
 } // namespace __ranges
