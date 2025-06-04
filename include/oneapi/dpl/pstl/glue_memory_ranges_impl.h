@@ -184,6 +184,29 @@ struct __uninitialized_fill_fn
 
 inline constexpr __internal::__uninitialized_fill_fn uninitialized_fill;
 
+namespace __internal
+{
+
+struct __destroy_fn
+{
+    template<typename _ExecutionPolicy, oneapi::dpl::ranges::nothrow_random_access_range _R>
+    requires std::destructible<std::ranges::range_value_t<_R>>
+        && oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+
+        return oneapi::dpl::__internal::__ranges::__pattern_destroy(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r));
+    }
+}; //__destroy_fn
+}  //__internal
+
+inline constexpr __internal::__destroy_fn destroy;
+
 } // ranges
 } // namespace dpl
 } // namespace oneapi
