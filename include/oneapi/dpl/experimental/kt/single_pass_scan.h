@@ -21,6 +21,7 @@
 #include "../../pstl/hetero/dpcpp/parallel_backend_sycl.h"
 #include "../../pstl/hetero/dpcpp/execution_sycl_defs.h"
 #include "../../pstl/utils.h"
+#include "oneapi/dpl/functional" // for oneapi::dpl::identity
 
 #include <cstdint>
 #include <cassert>
@@ -336,7 +337,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     {
         return oneapi::dpl::__par_backend_hetero::__parallel_transform_scan_single_group<_KernelName>(
             __queue, std::forward<_InRange>(__in_rng), std::forward<_OutRange>(__out_rng), __n,
-            oneapi::dpl::__internal::__no_op{}, unseq_backend::__no_init_value<_Type>{}, __binary_op, std::true_type{});
+            oneapi::dpl::identity{}, unseq_backend::__no_init_value<_Type>{}, __binary_op, std::true_type{});
     }
 
     constexpr std::size_t __workgroup_size = _KernelParam::workgroup_size;

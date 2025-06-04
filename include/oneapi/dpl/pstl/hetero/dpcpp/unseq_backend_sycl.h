@@ -24,6 +24,7 @@
 #include "sycl_defs.h"
 #include "utils_ranges_sycl.h"
 #include "parallel_backend_sycl_utils.h"
+#include "oneapi/dpl/functional" // for oneapi::dpl::identity
 
 #define _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT                                                                            \
     (_ONEDPL_SYCL2020_KNOWN_IDENTITY_PRESENT || _ONEDPL_LIBSYCL_KNOWN_IDENTITY_PRESENT)
@@ -114,13 +115,13 @@ struct walk_n
     }
 };
 
-// If read accessor returns temporary value then __no_op returns lvalue reference to it.
+// If read accessor returns temporary value then oneapi::dpl::identity returns lvalue reference to it.
 // After temporary value destroying it will be a reference on invalid object.
-// So let's don't call functor in case of __no_op
+// So let's don't call functor in case of oneapi::dpl::identity
 template <>
-struct walk_n<oneapi::dpl::__internal::__no_op>
+struct walk_n<oneapi::dpl::identity>
 {
-    oneapi::dpl::__internal::__no_op __f;
+    oneapi::dpl::identity __f;
 
     template <typename _ItemId, typename _Range>
     auto

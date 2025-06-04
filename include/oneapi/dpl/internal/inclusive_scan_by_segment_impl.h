@@ -32,6 +32,8 @@
 #    include "../pstl/hetero/algorithm_impl_hetero.h"
 #endif
 
+#include "oneapi/dpl/functional" // for oneapi::dpl::identity
+
 namespace oneapi
 {
 namespace dpl
@@ -130,7 +132,7 @@ __pattern_inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, 
     transform_inclusive_scan(::std::move(policy1), make_zip_iterator(first2, _mask.get()),
                              make_zip_iterator(first2, _mask.get()) + n, make_zip_iterator(result, _mask.get()),
                              internal::segmented_scan_fun<ValueType, FlagType, BinaryOperator>(binary_op),
-                             oneapi::dpl::__internal::__no_op());
+                             oneapi::dpl::identity{});
     return result + n;
 }
 

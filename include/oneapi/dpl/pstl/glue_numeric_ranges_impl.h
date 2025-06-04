@@ -19,6 +19,7 @@
 #include "execution_defs.h"
 #include "utils_ranges.h"
 #include "glue_numeric_defs.h"
+#include "oneapi/dpl/functional" // for oneapi::dpl::identity
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/numeric_ranges_impl_hetero.h"
@@ -39,7 +40,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Tp>
 reduce(_ExecutionPolicy&& __exec, _Range&& __rng, _Tp __init, _BinaryOperation __binary_op)
 {
     return transform_reduce(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __init,
-                            __binary_op, oneapi::dpl::__internal::__no_op());
+                            __binary_op, oneapi::dpl::identity{});
 }
 
 template <typename _ExecutionPolicy, typename _Range, typename _Tp>
@@ -47,7 +48,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Tp>
 reduce(_ExecutionPolicy&& __exec, _Range&& __rng, _Tp __init)
 {
     return transform_reduce(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __init,
-                            ::std::plus<_Tp>(), oneapi::dpl::__internal::__no_op());
+                            ::std::plus<_Tp>(), oneapi::dpl::identity{});
 }
 
 template <typename _ExecutionPolicy, typename _Range>
@@ -56,7 +57,7 @@ reduce(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
     return transform_reduce(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), _ValueType{},
-                            ::std::plus<_ValueType>(), oneapi::dpl::__internal::__no_op());
+                            ::std::plus<_ValueType>(), oneapi::dpl::identity{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Tp>
@@ -106,7 +107,7 @@ exclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _T
 {
     return transform_exclusive_scan(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
                                     ::std::forward<_Range2>(__rng2), __init, ::std::plus<_Tp>(),
-                                    oneapi::dpl::__internal::__no_op());
+                                    oneapi::dpl::identity{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Tp, typename _BinaryOperation>
@@ -116,7 +117,7 @@ exclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _T
 {
     return transform_exclusive_scan(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
                                     ::std::forward<_Range2>(__rng2), __init, __binary_op,
-                                    oneapi::dpl::__internal::__no_op());
+                                    oneapi::dpl::identity{});
 }
 
 // [inclusive.scan]
@@ -129,7 +130,7 @@ inclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
     return transform_inclusive_scan(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
                                     ::std::forward<_Range2>(__rng2), ::std::plus<_ValueType>(),
-                                    oneapi::dpl::__internal::__no_op());
+                                    oneapi::dpl::identity{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryOperation>
@@ -138,7 +139,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
 inclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _BinaryOperation __binary_op)
 {
     return transform_inclusive_scan(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
-                                    ::std::forward<_Range2>(__rng2), __binary_op, oneapi::dpl::__internal::__no_op());
+                                    ::std::forward<_Range2>(__rng2), __binary_op, oneapi::dpl::identity{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Tp, typename _BinaryOperation>
@@ -147,7 +148,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
 inclusive_scan(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _BinaryOperation __binary_op, _Tp __init)
 {
     return transform_inclusive_scan(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
-                                    ::std::forward<_Range2>(__rng2), __binary_op, oneapi::dpl::__internal::__no_op(),
+                                    ::std::forward<_Range2>(__rng2), __binary_op, oneapi::dpl::identity{},
                                     __init);
 }
 

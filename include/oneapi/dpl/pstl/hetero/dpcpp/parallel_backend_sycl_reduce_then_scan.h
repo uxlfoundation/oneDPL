@@ -29,6 +29,7 @@
 #include "execution_sycl_defs.h"
 #include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
+#include "oneapi/dpl/functional" // for oneapi::dpl::identity
 
 #include "../../tuple_impl.h"
 #include "../../utils_ranges.h"
@@ -259,7 +260,7 @@ struct __gen_transform_input
 // Scan copy algorithms (partition_copy, copy_if, unique_copy, set_reduce_then_scan_set_a_write)
 
 // A mask generator to filter the input range based on a predicate, returning true if satisfied at an index.
-template <typename _Predicate, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
+template <typename _Predicate, typename _RangeTransform = oneapi::dpl::identity>
 struct __gen_mask
 {
     template <typename _InRng>
@@ -288,7 +289,7 @@ struct __gen_count_mask
 
 // A generator which expands the mask generator to return a tuple containing the count, mask, and the element at the
 // specified index.
-template <typename _GenMask, typename _RangeTransform = oneapi::dpl::__internal::__no_op>
+template <typename _GenMask, typename _RangeTransform = oneapi::dpl::identity>
 struct __gen_expand_count_mask
 {
     using TempData = __noop_temp_data;
@@ -1199,7 +1200,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                     __scan_through_elements_helper<__sub_group_size, __is_inclusive,
                                                    /*__init_present=*/false,
                                                    /*__capture_output=*/false, __max_inputs_per_item>(
-                        __sub_group, __gen_reduce_input, oneapi::dpl::__internal::__no_op{}, __reduce_op, nullptr,
+                        __sub_group, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr,
                         __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n,
                         __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups);
                     if (__sub_group_local_id == 0)
