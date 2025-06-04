@@ -25,6 +25,7 @@
 #include <type_traits>
 
 #include "execution_impl.h"
+#include "glue_memory_impl.h"
 
 namespace oneapi
 {
@@ -45,19 +46,16 @@ __pattern_uninitialized_default_construct(_Tag __tag, _ExecutionPolicy&& __exec,
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    using value_type = std::ranges::range_value_t<_R>;
-
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-        [](auto& __obj) { ::new (std::addressof(__obj)) value_type;});
+    oneapi::dpl::uninitialized_default_construct(std::forward<_ExecutionPolicy>(__exec), __first, __last);
 
     return {__last};
 }
 
 template <typename _ExecutionPolicy, typename _R>
-std::borrowed_iterator_t<_R>
+std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_default_construct(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
 {
     return std::ranges::uninitialized_default_construct(std::forward<_R>(__r));
@@ -73,19 +71,16 @@ __pattern_uninitialized_value_construct(_Tag __tag, _ExecutionPolicy&& __exec, _
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    using value_type = std::ranges::range_value_t<_R>;
-
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-        [](auto& __obj) { ::new (static_cast<void*>(std::addressof(__obj))) value_type();});
+    oneapi::dpl::uninitialized_value_construct(std::forward<_ExecutionPolicy>(__exec), __first, __last);
 
     return {__last};
 }
 
 template <typename _ExecutionPolicy, typename _R>
-std::borrowed_iterator_t<_R>
+std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_value_construct(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
 {
     return std::ranges::uninitialized_value_construct(std::forward<_R>(__r));
@@ -104,8 +99,6 @@ __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
 
     assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
 
-    using value_type = std::ranges::range_value_t<_OutRange>;
-
     const auto __first1 = std::ranges::begin(__in_r);
     const auto __first2 = std::ranges::begin(__out_r);
     const auto __size = std::ranges::size(__in_r);
@@ -113,10 +106,7 @@ __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     const auto __last1 = __first1 + __size;
     const auto __last2 = __first2 + __size;
 
-    oneapi::dpl::__internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-        __first2, [](auto&& __src, auto& __target) {
-            ::new (static_cast<void*>(std::addressof(__target))) value_type(std::forward<decltype(__src)>(__src));
-            });
+    oneapi::dpl::uninitialized_copy(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2);
 
     return {__last1, __last2};
 }
@@ -142,19 +132,14 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
 
     assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
 
-    using value_type = std::ranges::range_value_t<_OutRange>;
-
     const auto __first1 = std::ranges::begin(__in_r);
     const auto __first2 = std::ranges::begin(__out_r);
-    const auto __size = __first + std::ranges::size(__in_r);
+    const auto __size = __first1 + std::ranges::size(__in_r);
 
     const auto __last1 = __first1 + __size;
     const auto __last2 = __first2 + __size;
 
-    oneapi::dpl::__internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-        __first2, [](auto&& __src, auto& __target) {
-            ::new (static_cast<void*>(std::addressof(__target))) value_type(std::move(std::forward<decltype(__src)>(__src)));
-            });
+    oneapi::dpl::uninitialized_move(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2);
 
     return {__last1, __last2};
 }
@@ -177,18 +162,16 @@ __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, co
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__op_uninitialized_fill<_T, _ExecutionPolicy> __f(__value);
-
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
+    oneapi::dpl::uninitialized_fill(std::forward<_ExecutionPolicy>(__exec), __first, __last);
 
     return {__last};
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _T>
-std::borrowed_iterator_t<_R>
+std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, const _T& __value)
 {
     return std::ranges::uninitialized_fill(std::forward<_R>(__r), __value);
@@ -204,8 +187,6 @@ __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    using value_type = std::ranges::range_value_t<_R>;
-
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
@@ -215,7 +196,7 @@ __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 }
 
 template <typename _ExecutionPolicy, typename _R>
-std::borrowed_iterator_t<_R>
+std::ranges::borrowed_iterator_t<_R>
 __pattern_destroy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
 {
     return std::ranges::destroy(std::forward<_R>(__r));
