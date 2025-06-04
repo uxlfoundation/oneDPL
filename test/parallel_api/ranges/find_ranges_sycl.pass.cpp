@@ -26,11 +26,10 @@
 
 #include <iostream>
 
-std::int32_t
-main()
-{
-
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void test(Policy&& exec)
+{
     const int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
@@ -39,14 +38,11 @@ main()
     data[idx_val] = val;
 
     int res1 = -1, res2 = - 1, res3 = -1;
-    using namespace TestUtils;
     using namespace oneapi::dpl::experimental::ranges;
     {
         sycl::buffer<int> A(data, sycl::range<1>(max_n));
 
         auto view = all_view(A);
-
-        auto exec = TestUtils::get_dpcpp_test_policy();
 
         res1 = find(CREATE_NEW_POLICY(exec, 0), view, val); //check passing all_view
         res1 = find(CREATE_NEW_POLICY(exec, 1), A, val);    //check passing sycl::buffer directly
@@ -60,6 +56,19 @@ main()
     EXPECT_TRUE(res1 == idx_val, "wrong effect from 'find' with sycl ranges");
     EXPECT_TRUE(res2 == idx_val, "wrong effect from 'find_if' with sycl ranges");
     EXPECT_TRUE(res3 == idx_val, "wrong effect from 'find_if_not' with sycl ranges");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test(policy);
+
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
+
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

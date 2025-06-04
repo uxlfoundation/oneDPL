@@ -26,10 +26,10 @@
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void test(Policy&& exec)
+{
     constexpr int max_n = 10;
 
     auto pred = [](auto i) { return i % 2 == 0; };
@@ -42,11 +42,9 @@ main()
 
     auto src = views::iota(0, max_n);
 
-    auto exec = TestUtils::get_dpcpp_test_policy();
-
-    auto res1 = copy_if(exec, src, A, pred);
-    auto res2 = remove_copy_if(CREATE_NEW_POLICY(exec, 0), src, views::all_write(B), pred);
-    auto res3 = remove_copy(CREATE_NEW_POLICY(exec, 1), src, views::all_write(C), 0);
+    auto res1 = copy_if(CREATE_NEW_POLICY(exec, 0), src, A, pred);
+    auto res2 = remove_copy_if(CREATE_NEW_POLICY(exec, 1), src, views::all_write(B), pred);
+    auto res3 = remove_copy(CREATE_NEW_POLICY(exec, 2), src, views::all_write(C), 0);
 
     EXPECT_TRUE(res1 == 5, "wrong return result from copy_if with sycl buffer");
     EXPECT_TRUE(res2 == 5, "wrong return result from remove_copy_if with sycl ranges");
@@ -55,14 +53,27 @@ main()
     //check result
     int expected[max_n];
 
-    ::std::copy_if(src.begin(), src.end(), expected, pred);
+    std::copy_if(src.begin(), src.end(), expected, pred);
     EXPECT_EQ_N(expected, views::host_all(A).begin(), res1, "wrong effect from copy_if with sycl ranges");
 
-    ::std::remove_copy_if(src.begin(), src.end(), expected, pred);
+    std::remove_copy_if(src.begin(), src.end(), expected, pred);
     EXPECT_EQ_N(expected, views::host_all(B).begin(), res2, "wrong effect from remove_copy_if with sycl ranges");
 
-    ::std::remove_copy(src.begin(), src.end(), expected, 0);
+    std::remove_copy(src.begin(), src.end(), expected, 0);
     EXPECT_EQ_N(expected, views::host_all(C).begin(), res3, "wrong effect from remove_copy with sycl ranges");
+}
+#endif //_ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test(policy);
+
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
+
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

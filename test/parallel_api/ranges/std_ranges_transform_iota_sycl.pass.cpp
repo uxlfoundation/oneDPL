@@ -17,10 +17,10 @@
 
 #include "support/utils_invoke.h" // for CREATE_NEW_POLICY macro
 
-std::int32_t
-main()
+#if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void test(Policy&& exec)
 {
-#if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
     const char* err_msg = "Wrong effect algo transform with unsized ranges.";
@@ -32,18 +32,28 @@ main()
     std::vector<int> src(n), expected(n);
     std::ranges::transform(view1, view2, expected.begin(), binary_f, proj, proj);
 
-    auto exec = TestUtils::get_dpcpp_test_policy();
-
-    usm_subrange<int> cont_out(exec, src.data(), n);
+    usm_subrange<int> cont_out((CREATE_NEW_POLICY(exec, 0), src.data(), n);
     auto res = cont_out();
 
-    dpl_ranges::transform(CREATE_NEW_POLICY(exec, 0), view1, view2, res, binary_f, proj, proj);
+    dpl_ranges::transform(CREATE_NEW_POLICY(exec, 1), view1, view2, res, binary_f, proj, proj);
     EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
 
     //view1 <-> view2
     std::ranges::transform(view2, view1, expected.begin(), binary_f, proj, proj);
-    dpl_ranges::transform(CREATE_NEW_POLICY(exec, 1), view2, view1, res, binary_f, proj, proj);
+    dpl_ranges::transform(CREATE_NEW_POLICY(exec, 2), view2, view1, res, binary_f, proj, proj);
     EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test(policy);
+
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
 
 #endif //_ENABLE_STD_RANGES_TESTING
 

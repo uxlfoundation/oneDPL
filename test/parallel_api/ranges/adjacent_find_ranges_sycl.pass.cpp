@@ -58,7 +58,8 @@ main()
 
     auto policy = TestUtils::get_dpcpp_test_policy();
     test(policy);
-    test(std::move(policy));
+
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
 
 #endif //_ENABLE_RANGES_TESTING
 

@@ -26,10 +26,10 @@
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void test(Policy&& exec)
+{
     constexpr int max_n = 10;
     constexpr int max_n_2 = 5;
     int data1[max_n]     = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -44,8 +44,6 @@ main()
         sycl::buffer<int> C(data3, sycl::range<1>(max_n_2));
         sycl::buffer<int> D(data4, sycl::range<1>(max_n));
                           
-        auto exec = TestUtils::get_dpcpp_test_policy();
-
         swap_ranges(CREATE_NEW_POLICY(exec, 0), views::all(A), B);
         swap_ranges(CREATE_NEW_POLICY(exec, 1), B, C);
         swap_ranges(CREATE_NEW_POLICY(exec, 2), C, D);
@@ -72,7 +70,20 @@ main()
     auto expected4_2 = expected3;
     EXPECT_EQ_N(expected4_1.begin(), data4, max_n_2, "wrong result from swap");
     EXPECT_EQ_N(expected4_2.begin(), data4 + max_n_2, max_n_2, "wrong result from swap");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test(policy);
+
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
 
 #endif //_ENABLE_RANGES_TESTING
+
     return TestUtils::done(_ENABLE_RANGES_TESTING);
 }

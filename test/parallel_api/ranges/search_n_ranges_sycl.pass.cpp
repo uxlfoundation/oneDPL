@@ -26,10 +26,10 @@
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void test(Policy&& exec)
+{
     const int count = 10;
     int data[count] = {0, 1, 2, 3, 4, 4, 4, 7, 8, 9};
 
@@ -44,8 +44,6 @@ main()
 
         auto view_a = all_view(A);
 
-        auto exec = TestUtils::get_dpcpp_test_policy();
-
         res1 = search_n(CREATE_NEW_POLICY(exec, 0), view_a, n_val, val, [](auto a, auto b) { return a == b; });
         res2 = search_n(CREATE_NEW_POLICY(exec, 1), A, n_val, val);
     }
@@ -53,6 +51,18 @@ main()
     //check result
     EXPECT_TRUE(res1 == idx, "wrong effect from 'search_n' sycl ranges, with predicate");
     EXPECT_TRUE(res2 == idx, "wrong effect from 'search_n' with sycl buffer");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test(policy);
+
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
 
 #endif //_ENABLE_RANGES_TESTING
 
