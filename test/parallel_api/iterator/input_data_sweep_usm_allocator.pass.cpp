@@ -78,7 +78,7 @@ test_usm_host_alloc(Policy&& policy, T trash, size_t n, const std::string& type_
             __recurse, 0, /*__read =*/true, /*__reset_read=*/true, /*__write=*/true,
             /*__check_write=*/true, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/
             TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(host_data_vec.begin())>,
-            /*__is_reversible=*/true>(policy, host_data_vec.begin(), host_data_vec.end(), counting, copy_out.get_data(),
+            /*__is_reversible=*/true>(CREATE_NEW_POLICY(policy, 0), host_data_vec.begin(), host_data_vec.end(), counting, copy_out.get_data(),
                                       host_data_vec.begin(), copy_out.get_data(), counting, trash,
                                       std::string("usm_host_alloc_vector<") + type_text + std::string(">"));
     }
@@ -117,7 +117,9 @@ main()
 
     auto policy = TestUtils::get_dpcpp_test_policy();
     test(policy);
-    test(std::move(policy));
+
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
+
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 

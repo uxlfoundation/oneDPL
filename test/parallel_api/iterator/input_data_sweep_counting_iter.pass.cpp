@@ -29,20 +29,19 @@
 
 template <typename T, int __recurse, typename Policy>
 void
-test(Policy&& policy, T trash, size_t n, const std::string& type_text)
+test_impl(Policy&& policy, T trash, size_t n, const std::string& type_text)
 {
     if constexpr (std::is_integral_v<T>)
     {
         if (TestUtils::has_types_support<T>(policy.queue().get_device()))
         {
-
             TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(policy.queue(), n);
             oneapi::dpl::counting_iterator<int> counting(0);
             oneapi::dpl::counting_iterator<T> my_counting(0);
             //counting_iterator
             wrap_recurse<__recurse, 0, /*__read =*/true, /*__reset_read=*/false, /*__write=*/false,
                          /*__check_write=*/false, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/true,
-                         /*__is_reversible=*/true>(policy, my_counting, my_counting + n, counting, copy_out.get_data(),
+                         /*__is_reversible=*/true>(CREATE_NEW_POLICY(policy, 0), my_counting, my_counting + n, counting, copy_out.get_data(),
                                                    my_counting, copy_out.get_data(), counting, trash,
                                                    std::string("counting_iterator<") + type_text + std::string(">"));
         }
@@ -53,19 +52,19 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
     }
 }
 
-template <typename T, int __recurse, typename Policy>
+template <typename T>
 void
 test(Policy&& policy)
 {
     constexpr size_t n = 10;
 
     // baseline with no wrapping
-    test<float, 0>(CREATE_NEW_POLICY(policy, 0), -666.0f, n, "float");
-    test<double, 0>(CREATE_NEW_POLICY(policy, 1), -666.0, n, "double");
-    test<std::uint64_t, 0>(CREATE_NEW_POLICY(policy, 2), 999, n, "uint64_t");
+    test_impl<float, 0>(CREATE_NEW_POLICY(policy, 0), -666.0f, n, "float");
+    test_impl<double, 0>(CREATE_NEW_POLICY(policy, 1), -666.0, n, "double");
+    test_impl<std::uint64_t, 0>(CREATE_NEW_POLICY(policy, 2), 999, n, "uint64_t");
 
     // big recursion step: 1 and 2 layers of wrapping
-    test<std::int32_t, 2>(CREATE_NEW_POLICY(policy, 3), -666, n, "int32_t");
+    test_impl<std::int32_t, 2>(CREATE_NEW_POLICY(policy, 3), -666, n, "int32_t");
 
     // special case: discard iterator
     oneapi::dpl::counting_iterator<int> counting(0);
@@ -86,8 +85,7 @@ main()
     auto policy = TestUtils::get_dpcpp_test_policy();
     test(policy);
 
-    const auto& policy_ref = policy;
-    test(policy_ref);
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 

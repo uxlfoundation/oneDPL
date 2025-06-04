@@ -29,7 +29,7 @@
 
 template <typename T, int __recurse, typename Policy>
 void
-test(Policy&& policy, T trash, size_t n, const std::string& type_text)
+test_impl(Policy&& policy, T trash, size_t n, const std::string& type_text)
 {
     if (TestUtils::has_types_support<T>(policy.queue().get_device()))
     {
@@ -40,7 +40,7 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
         //test all modes / wrappers
         wrap_recurse<__recurse, 0, /*__read =*/true, /*__reset_read=*/true, /*__write=*/true,
                      /*__check_write=*/true, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/true,
-                     /*__is_reversible=*/false>(policy, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), counting,
+                     /*__is_reversible=*/false>(CREATE_NEW_POLICY(policy, 0), oneapi::dpl::begin(buf), oneapi::dpl::end(buf), counting,
                                                 copy_out.get_data(), oneapi::dpl::begin(buf), copy_out.get_data(),
                                                 counting, trash,
                                                 std::string("sycl_iterator<") + type_text + std::string(">"));
@@ -58,12 +58,12 @@ test(Policy&& policy)
     constexpr size_t n = 10;
     
     // baseline with no wrapping
-    test<float, 0>(CREATE_NEW_POLICY(policy, 0), -666.0f, n, "float");
-    test<double, 0>(CREATE_NEW_POLICY(policy, 1), -666.0, n, "double");
-    test<std::uint64_t, 0>(CREATE_NEW_POLICY(policy, 2), 999, n, "uint64_t");
+    test_impl<float, 0>(CREATE_NEW_POLICY(policy, 0), -666.0f, n, "float");
+    test_impl<double, 0>(CREATE_NEW_POLICY(policy, 1), -666.0, n, "double");
+    test_impl<std::uint64_t, 0>(CREATE_NEW_POLICY(policy, 2), 999, n, "uint64_t");
 
     // big recursion step: 1 and 2 layers of wrapping
-    test<std::int32_t, 2>(CREATE_NEW_POLICY(policy, 3), -666, n, "int32_t");
+    test_impl<std::int32_t, 2>(CREATE_NEW_POLICY(policy, 3), -666, n, "int32_t");
 }
 
 #endif //TEST_DPCPP_BACKEND_PRESENT
@@ -75,7 +75,9 @@ main()
 
     auto policy = TestUtils::get_dpcpp_test_policy();
     test(policy);
-    test(std::move(policy));
+
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
+
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 

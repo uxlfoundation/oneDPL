@@ -41,9 +41,9 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
             TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> shared_data(policy.queue(), n);
             auto usm_shared = shared_data.get_data();
             //test all modes / wrappers
-            wrap_recurse<__recurse, 0>(std::forward<Policy>(policy), usm_shared, usm_shared + n, counting, copy_out.get_data(), usm_shared,
-                                    copy_out.get_data(), counting, trash,
-                                    std::string("usm_shared<") + type_text + std::string(">"));
+            wrap_recurse<__recurse, 0>(CREATE_NEW_POLICY(policy, 0), usm_shared, usm_shared + n, counting,
+                                       copy_out.get_data(), usm_shared, copy_out.get_data(), counting, trash,
+                                       std::string("usm_shared<") + type_text + std::string(">"));
         }
     }
     else
@@ -89,9 +89,7 @@ main()
     auto policy = TestUtils::get_dpcpp_test_policy();
     test(policy);
 
-    // Check compilation of the kernel with different policy type qualifiers
-    TestUtils::check_compile<decltype(policy)> check_compile_code{policy};
-    check_compile_code([](auto&& __policy) { test(std::forward<decltype(__policy)>(__policy)); });
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
