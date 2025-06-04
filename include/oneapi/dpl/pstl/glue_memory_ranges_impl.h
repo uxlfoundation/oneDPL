@@ -29,10 +29,6 @@
 
 #include "memory_ranges_impl.h"
 
-#if _ONEDPL_HETERO_BACKEND
-#   include "hetero/memory_ranges_impl_hetero.h"
-#endif
-
 namespace oneapi
 {
 namespace dpl
