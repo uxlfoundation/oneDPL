@@ -336,8 +336,8 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     if (oneapi::dpl::__par_backend_hetero::__group_scan_fits_in_slm<_Type>(__queue, __n, __n_uniform, /*limit=*/16384))
     {
         return oneapi::dpl::__par_backend_hetero::__parallel_transform_scan_single_group<_KernelName>(
-            __queue, std::forward<_InRange>(__in_rng), std::forward<_OutRange>(__out_rng), __n,
-            oneapi::dpl::identity{}, unseq_backend::__no_init_value<_Type>{}, __binary_op, std::true_type{});
+            __queue, std::forward<_InRange>(__in_rng), std::forward<_OutRange>(__out_rng), __n, oneapi::dpl::identity{},
+            unseq_backend::__no_init_value<_Type>{}, __binary_op, std::true_type{});
     }
 
     constexpr std::size_t __workgroup_size = _KernelParam::workgroup_size;
