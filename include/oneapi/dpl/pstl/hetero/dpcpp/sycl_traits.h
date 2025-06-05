@@ -413,7 +413,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::experimental
 namespace oneapi::dpl::__par_backend_hetero
 {
 
-template <typename _UnaryOp>
+template <typename _UnaryOp, typename _OutputType>
 struct __gen_transform_input;
 
 template <typename _BinaryPred>
@@ -463,9 +463,9 @@ struct __gen_set_op_from_known_balanced_path;
 
 } // namespace oneapi::dpl::__par_backend_hetero
 
-template <typename _UnaryOp>
+template <typename _UnaryOp, typename _OutputType>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_transform_input,
-                                                       _UnaryOp)>
+                                                       _UnaryOp, _OutputType)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_UnaryOp>
 {
 };
