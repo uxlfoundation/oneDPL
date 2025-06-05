@@ -464,7 +464,7 @@ struct iterator_invoker<IteratorTag, /* IsReverse = */ ::std::true_type>
                          ::std::is_base_of_v<non_const_wrapper, Op>>
     operator()(Policy&& exec, Op op, Iterator iter)
     {
-        op(::std::forward<Policy>(exec), make_iterator<Iterator>()(iter));
+        op(std::forward<Policy>(exec), make_iterator<Iterator>()(iter));
     }
 
     // A version with 2 iterators which is used for non_const testcases
@@ -473,7 +473,7 @@ struct iterator_invoker<IteratorTag, /* IsReverse = */ ::std::true_type>
                          ::std::is_base_of_v<non_const_wrapper, Op>>
     operator()(Policy&& exec, Op op, InputIterator input_iter, OutputIterator out_iter)
     {
-        op(::std::forward<Policy>(exec), make_iterator<InputIterator>()(input_iter),
+        op(std::forward<Policy>(exec), make_iterator<InputIterator>()(input_iter),
            make_iterator<OutputIterator>()(out_iter));
     }
 
