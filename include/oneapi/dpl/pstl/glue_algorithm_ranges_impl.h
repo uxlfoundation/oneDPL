@@ -17,7 +17,7 @@
 #define _ONEDPL_GLUE_ALGORITHM_RANGES_IMPL_H
 
 #include <utility>
-#include "oneapi/dpl/functional" // for oneapi::dpl::identity
+#include "../functional" // for oneapi::dpl::identity
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #    include <ranges>
 #    include <type_traits>

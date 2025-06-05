@@ -16,7 +16,7 @@
 #ifndef _ONEDPL_GLUE_NUMERIC_IMPL_H
 #define _ONEDPL_GLUE_NUMERIC_IMPL_H
 
-#include "oneapi/dpl/functional"
+#include "../functional" // for oneapi::dpl::identity
 
 #include "utils.h"
 

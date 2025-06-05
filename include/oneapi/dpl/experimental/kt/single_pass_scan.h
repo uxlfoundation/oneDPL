@@ -21,7 +21,7 @@
 #include "../../pstl/hetero/dpcpp/parallel_backend_sycl.h"
 #include "../../pstl/hetero/dpcpp/execution_sycl_defs.h"
 #include "../../pstl/utils.h"
-#include "oneapi/dpl/functional" // for oneapi::dpl::identity
+#include "../../functional" // for oneapi::dpl::identity
 
 #include <cstdint>
 #include <cassert>
