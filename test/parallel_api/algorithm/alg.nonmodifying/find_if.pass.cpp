@@ -54,22 +54,11 @@ struct test_find_if_not
     }
 };
 
-template <typename T, typename Predicate>
-struct NotPred
-{
-    Predicate pred;
-
-    auto operator()(T x) const
-    {
-        return !pred(x);
-    }
-};
-
 template <typename T, typename Predicate, typename Hit, typename Miss>
 void
 test(Predicate pred, Hit hit, Miss miss)
 {
-    NotPred<T, Predicate> not_pred{pred};
+    TestUtils::NotPred<T, Predicate> not_pred{pred};
     // Try sequences of various lengths.
     for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {

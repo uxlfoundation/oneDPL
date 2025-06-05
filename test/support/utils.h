@@ -1182,6 +1182,18 @@ struct NoOp
     }
 };
 
+template <typename T, typename Predicate>
+struct NotPred
+{
+    Predicate pred;
+
+    bool
+    operator()(T x) const
+    {
+        return !pred(x);
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
