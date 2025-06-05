@@ -206,7 +206,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 
 template <typename _Pred, typename _RevTag>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__transform_functor, _Pred, _RevTag)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred, _RevTag>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
 

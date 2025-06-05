@@ -592,6 +592,15 @@ test_non_device_copyable()
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::tuple<
                       std::tuple<int_non_device_copyable, int_device_copyable>, int_device_copyable>>,
                   "tuple is device copyable with non device copyable types");
+
+    //__unary_op
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__unary_op<noop_device_copyable,
+                  noop_device_copyable>>, "__unary_op is not device copyable with device copyable types");
+
+    //__binary_op
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__binary_op<noop_device_copyable,
+                  noop_device_copyable, noop_device_copyable>>,
+                  "__binary_op is not device copyable with device copyable types");
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
