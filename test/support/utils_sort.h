@@ -387,7 +387,7 @@ run_test(SortTestConfig config,
     if (config.test_usm_shared)
     {
         // TODO required later to create temporary policy instance here
-        // and pass it to test_usm with value category like exec paramter
+        // and pass it to test_usm with value category like exec parameter
         test_usm<sycl::usm::alloc::shared>(config, exec, tmp_first, tmp_last,
                                            expected_first, expected_last,first, last, n, compare...);
     }
