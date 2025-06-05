@@ -17,7 +17,7 @@
 
 #include "support/utils_invoke.h" // for CREATE_NEW_POLICY macro
 
-#if _ENABLE_RANGES_TESTING
+#if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
 template <typename Policy>
 void test(Policy&& exec)
 {
@@ -43,7 +43,7 @@ void test(Policy&& exec)
     dpl_ranges::transform(CREATE_NEW_POLICY(exec, 2), view2, view1, res, binary_f, proj, proj);
     EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
 }
-#endif // _ENABLE_RANGES_TESTING
+#endif // _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
 
 std::int32_t
 main()
