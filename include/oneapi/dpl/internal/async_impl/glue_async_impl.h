@@ -289,7 +289,7 @@ exclusive_scan_async(_ExecutionPolicy&& __exec, _ForwardIt1 __first1, _ForwardIt
     wait_for_all(std::forward<_Events>(__dependencies)...);
     return oneapi::dpl::__internal::__pattern_transform_scan_async(
         __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, oneapi::dpl::identity{},
-        __init, ::std::plus<_T>(), /*exclusive=*/std::false_type());
+        __init, std::plus<_T>(), /*exclusive=*/std::false_type());
 }
 
 template <class _ExecutionPolicy, class _ForwardIt1, class _ForwardIt2, class _T, class _BinaryOperation,
