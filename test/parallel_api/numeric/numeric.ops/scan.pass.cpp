@@ -63,7 +63,7 @@ struct test_inclusive_scan_with_plus
         ::std::fill_n(out_first, n, trash);
     }
     // inclusive_scan with reverse_iterator between different iterator types results in a compilation error even if
-    // the call should be valid.
+    // the call should be valid. Please see: https://github.com/uxlfoundation/oneDPL/issues/2296
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
     std::enable_if_t<TestUtils::is_reverse_v<Iterator1> && !std::is_same_v<Iterator1, Iterator2>>
     operator()(Policy&& /*exec*/, Iterator1 /*in_first*/, Iterator1 /*in_last*/, Iterator2 /*out_first*/,
@@ -88,6 +88,8 @@ struct test_exclusive_scan_with_plus
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from exclusive_scan");
         ::std::fill_n(out_first, n, trash);
     }
+    // exclusive_scan with reverse_iterator between different iterator types results in a compilation error even if
+    // the call should be valid. Please see: https://github.com/uxlfoundation/oneDPL/issues/2296
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
     std::enable_if_t<TestUtils::is_reverse_v<Iterator1> && !std::is_same_v<Iterator1, Iterator2>>
     operator()(Policy&& /*exec*/, Iterator1 /*in_first*/, Iterator1 /*in_last*/, Iterator2 /*out_first*/,
