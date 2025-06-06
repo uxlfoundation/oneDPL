@@ -916,15 +916,15 @@ struct __scalar_store_transform_op
     // Unary transformations into an output buffer
     template <typename _IdxType1, typename _IdxType2, typename _SourceAcc, typename _DestAcc>
     void
-    operator()(_IdxType1 __idx_source, _IdxType2 __idx_dest, _SourceAcc __source_acc, _DestAcc __dest_acc) const
+    operator()(_IdxType1 __idx_source, _IdxType2 __idx_dest, _SourceAcc&& __source_acc, _DestAcc&& __dest_acc) const
     {
         __transform(__source_acc[__idx_source], __dest_acc[__idx_dest]);
     }
     // Binary transformations into an output buffer
     template <typename _IdxType1, typename _IdxType2, typename _Source1Acc, typename _Source2Acc, typename _DestAcc>
     void
-    operator()(_IdxType1 __idx_source, _IdxType2 __idx_dest, _Source1Acc __source1_acc, _Source2Acc __source2_acc,
-               _DestAcc __dest_acc) const
+    operator()(_IdxType1 __idx_source, _IdxType2 __idx_dest, _Source1Acc&& __source1_acc, _Source2Acc&& __source2_acc,
+               _DestAcc&& __dest_acc) const
     {
         __transform(__source1_acc[__idx_source], __source2_acc[__idx_source], __dest_acc[__idx_dest]);
     }
@@ -992,18 +992,24 @@ struct __vector_reverse
     static_assert(__vec_size <= 4, "Only vector sizes of 4 or less are supported");
     template <typename _Idx, typename _Array>
     void
-    operator()(/*__is_full*/ std::true_type, const _Idx /*__elements_to_process*/, _Array __array) const
+    operator()(/*__is_full*/ std::true_type, const _Idx /*__elements_to_process*/, _Array&& __array) const
     {
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint8_t __i = 0; __i < __vec_size / 2; ++__i)
-            std::swap(__array[__i], __array[__vec_size - __i - 1]);
+        {
+            using std::swap;
+            swap(__array[__i], __array[__vec_size - __i - 1]);
+        }
     }
     template <typename _Idx, typename _Array>
     void
-    operator()(/*__is_full*/ std::false_type, const _Idx __elements_to_process, _Array __array) const
+    operator()(/*__is_full*/ std::false_type, const _Idx __elements_to_process, _Array&& __array) const
     {
         for (std::uint8_t __i = 0; __i < __elements_to_process / 2; ++__i)
-            std::swap(__array[__i], __array[__elements_to_process - __i - 1]);
+        {
+            using std::swap;
+            swap(__array[__i], __array[__elements_to_process - __i - 1]);
+        }
     }
 };
 
