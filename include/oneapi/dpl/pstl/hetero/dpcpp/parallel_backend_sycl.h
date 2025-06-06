@@ -1011,13 +1011,13 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
 // This function is currently unused, but may be utilized for small sizes sets at some point in the future.
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
-          typename _IsOpDifference>
+          typename _SetTag>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
 __parallel_set_reduce_then_scan_set_a_write(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
-                                            _Compare __comp, _IsOpDifference)
+                                            _Compare __comp, _SetTag)
 {
     // fill in reduce then scan impl
-    using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_IsOpDifference, _Compare>;
+    using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_SetTag, _Compare>;
     using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
     using _MaskPredicate = oneapi::dpl::identity;
     using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
@@ -1031,9 +1031,8 @@ __parallel_set_reduce_then_scan_set_a_write(sycl::queue& __q, _Range1&& __rng1, 
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__rng1.size());
-
     const std::size_t __n = __rng1.size();
-    return __parallel_transform_reduce_then_scan<sizeof(_Size), _CustomName>(
+    return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::__value_t<_Range1>), _CustomName>(
         __q, __n,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
@@ -1049,7 +1048,7 @@ __parallel_set_reduce_then_scan_set_a_write(sycl::queue& __q, _Range1&& __rng1, 
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _SetTag>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
-__parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
+__parallel_set_write_a_b_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                                 _Compare __comp, _SetTag)
 {
     constexpr std::uint16_t __diagonal_spacing = 32;
@@ -1160,34 +1159,171 @@ __parallel_set_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range
         __copy_by_mask_op);
 }
 
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+          typename _SetTag>
+std::size_t
+__set_op_impl(sycl::queue&, _Range1&&, _Range2&&, _Range3&&, _Compare, _SetTag);
+                  
+template <typename _CustomName>
+struct __set_union_merge_wrapper;
+
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _UseReduceThenScan>
+std::size_t
+__set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
+                                            _Compare __comp, oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan)
+{
+    std::cout<<"compound\n";
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range3>;
+
+    // temporary buffer to store intermediate result
+    const auto __n2 = __rng2.size();
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
+    auto __buf = __diff.get();
+    auto __keep_tmp = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf)>();
+    auto __tmp_rng1 = __keep_tmp(__buf, __buf + __n2);
+
+    //1. Calc difference {2} \ {1}
+    const std::size_t __n_diff = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(__q, __rng2, __rng1, __tmp_rng1.all_view(), __comp,
+                                                    oneapi::dpl::unseq_backend::_DifferenceTag{});
+    //2. Merge {1} and the difference
+    auto __tmp_rng2 = __keep_tmp(__buf, __buf + __n_diff);
+    return std::get<0>(oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<__set_union_merge_wrapper<_CustomName>>(__q, __rng1, __tmp_rng2.all_view(), __result, __comp).get());
+}
+
+template <typename _CustomName>
+struct __set_symmetric_difference_diff_wrapper;
+
+template <typename _CustomName>
+struct __set_symmetric_difference_merge_wrapper;
+
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _UseReduceThenScan>
+std::size_t
+__set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
+                                            _Compare __comp, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseReduceThenScan)
+{
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range3>;
+
+    // temporary buffers to store intermediate result
+    const auto __n1 = __rng1.size();
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_1(__n1);
+    auto __buf_1 = __diff_1.get();
+    const auto __n2 = __rng2.size();
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_2(__n2);
+    auto __buf_2 = __diff_2.get();
+
+    auto __keep_tmp1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf_1)>();
+    auto __keep_tmp2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf_2)>();
+
+    auto __tmp_rng1 = __keep_tmp1(__buf_1, __buf_1 + __n1);
+    auto __tmp_rng2 = __keep_tmp2(__buf_2, __buf_2 + __n2);
+
+    //1. Calc difference {1} \ {2}
+    const std::size_t __n_diff_1 = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(__q, __rng1, __rng2, __tmp_rng1.all_view(), __comp, oneapi::dpl::unseq_backend::_DifferenceTag{});
+
+    //2. Calc difference {2} \ {1}
+    const std::size_t __n_diff_2 = oneapi::dpl::__par_backend_hetero::__set_op_impl<__set_symmetric_difference_diff_wrapper<_CustomName>>(__q, __rng2, __rng1, __tmp_rng2.all_view(), __comp, oneapi::dpl::unseq_backend::_DifferenceTag{});
+
+    //3. Merge the differences
+    auto __tmp_rng3 = __keep_tmp1(__buf_1, __buf_1 + __n_diff_1);
+    auto __tmp_rng4 = __keep_tmp2(__buf_2, __buf_2 + __n_diff_2);
+    return std::get<0>(oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<__set_symmetric_difference_merge_wrapper<_CustomName>>(__q, __tmp_rng3.all_view(), __tmp_rng4.all_view(), __result, __comp).get());
+}
+
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _UseReduceThenScan>
+std::size_t
+__set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
+                                            _Compare __comp, oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceThenScan)
+{
+    if constexpr (_UseReduceThenScan::value)
+        return __parallel_set_reduce_then_scan_set_a_write<_CustomName>(__q, std::forward<_Range1>(__rng1),
+                                            std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
+                                            oneapi::dpl::unseq_backend::_IntersectionTag{}).get();
+    else
+        return __parallel_set_scan<_CustomName>(__q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                                                std::forward<_Range3>(__result), __comp,
+                                                oneapi::dpl::unseq_backend::_IntersectionTag{}).get();
+}
+
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _UseReduceThenScan>
+std::size_t
+__set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
+                                            _Compare __comp, oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThenScan)
+{
+    if constexpr (_UseReduceThenScan::value)
+        return __parallel_set_reduce_then_scan_set_a_write<_CustomName>(__q, std::forward<_Range1>(__rng1),
+                                            std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
+                                            oneapi::dpl::unseq_backend::_DifferenceTag{}).get();
+    else
+        return __parallel_set_scan<_CustomName>(__q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                                                std::forward<_Range3>(__result), __comp,
+                                                oneapi::dpl::unseq_backend::_DifferenceTag{}).get();
+}
+
+template <typename _CustomName>
+struct reduce_then_scan_wrapper
+{
+};
+
+template <typename _CustomName>
+struct scan_then_propagate_wrapper
+{
+};
+
+// Selects the right implementation of set based on the size and platform
+template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+          typename _SetTag>
+std::size_t
+__set_op_impl(sycl::queue& __q, _Range1&& __rng1,
+                  _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag __set_tag)
+{
+    size_t __n1 = __rng1.size();
+    size_t __n2 = __rng2.size();
+
+    //can we use reduce then scan?
+    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
+    {
+        if (__n1 + __n2 <= 1024 * 1024)
+        {
+            std::cout<<"union compound rts\n";
+            // use reduce then scan with set_a write
+            return __set_write_a_only_op<_CustomName>(__q, std::forward<_Range1>(__rng1),
+                                                            std::forward<_Range2>(__rng2),
+                                                            std::forward<_Range3>(__result), __comp, __set_tag, std::true_type{});
+        }
+        else
+        {
+            std::cout<<"union rts\n";
+
+            return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(__q, std::forward<_Range1>(__rng1),
+                                                            std::forward<_Range2>(__rng2),
+                                                            std::forward<_Range3>(__result), __comp, __set_tag).get();
+        }
+    }
+    else
+    {
+        std::cout<<"union compound old\n";
+
+        return __set_write_a_only_op<scan_then_propagate_wrapper<_CustomName>>(__q, std::forward<_Range1>(__rng1),
+                                                        std::forward<_Range2>(__rng2),
+                                                        std::forward<_Range3>(__result), __comp, __set_tag, std::false_type{});
+    }
+}
+
+
+
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _SetTag>
-__future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
+std::size_t
 __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
                   _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag __set_tag)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
-
-    if constexpr (_SetTag::__can_write_from_rng2_v)
-    {
-        return __parallel_set_reduce_then_scan<_CustomName>(__q_local, std::forward<_Range1>(__rng1),
-                                                            std::forward<_Range2>(__rng2),
-                                                            std::forward<_Range3>(__result), __comp, __set_tag);
-    }
-    else
-    {
-        return __parallel_set_scan<_CustomName>(__q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                                                std::forward<_Range3>(__result), __comp, __set_tag);
-    }
-}
-
-template <typename _ExecutionPolicy>
-bool
-__can_set_op_write_from_set_b(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)
-{
-    return oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__exec.queue());
+    std::cout<<"set op\n";
+    return __set_op_impl<_CustomName>(__q_local, std::forward<_Range1>(__rng1),
+                                            std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
+                                            __set_tag);
 }
 
 //------------------------------------------------------------------------
@@ -1429,8 +1565,8 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
                     const std::size_t __k = oneapi::dpl::__internal::__dpl_bit_ceil(
                         (std::size_t)std::ceil(__desired_iters_per_work_item / __iters_per_work_item));
                     // Proportionally reduce the number of work groups.
-                    __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
-                        __rng_n, __wgroup_size * __iters_per_work_item * __k);
+                    __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size *
+                                                                                         __iters_per_work_item * __k);
                 }
             }
         }
@@ -1878,8 +2014,8 @@ struct __is_radix_sort_usable_for_type
     static constexpr bool value =
 #if _ONEDPL_USE_RADIX_SORT
         (::std::is_arithmetic_v<_T> || ::std::is_same_v<sycl::half, _T>) &&
-            (__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value ||
-            __internal::__is_comp_descending<::std::decay_t<_Compare>>::value);
+        (__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value ||
+         __internal::__is_comp_descending<::std::decay_t<_Compare>>::value);
 #else
         false;
 #endif // _ONEDPL_USE_RADIX_SORT
