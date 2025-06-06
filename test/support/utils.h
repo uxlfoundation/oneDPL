@@ -1170,18 +1170,6 @@ struct IsEqualTo
     }
 };
 
-//! Unary operator that returns reference to its argument.
-// - the same like struct __no_op from oneapi::dpl::__internal namespace
-struct NoOp
-{
-    template <typename _Tp>
-    _Tp&&
-    operator()(_Tp&& __a) const
-    {
-        return std::forward<_Tp>(__a);
-    }
-};
-
 template <typename T, typename Predicate>
 struct NotPred
 {
