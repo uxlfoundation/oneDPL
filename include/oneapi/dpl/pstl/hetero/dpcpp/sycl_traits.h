@@ -71,10 +71,13 @@ class __set_value;
 template <typename _Comp, typename _Proj>
 struct __predicate;
 
+template <typename _F, typename _Proj>
+struct __unary_op;
+
 template <typename _F, typename _Proj1, typename _Proj2>
 struct __binary_op;
 
-template <typename _Pred>
+template <typename _Pred, typename _RevTag>
 class __transform_functor;
 
 template <typename _UnaryOper, typename _UnaryPred>
@@ -151,9 +154,6 @@ struct __parallel_reduce_by_segment_fallback_fn1;
 template <typename _BinaryPredicate>
 struct __parallel_reduce_by_segment_fallback_fn2;
 
-template <typename _Op, typename _It1ValueT, typename _It2ValueTRef>
-struct __pattern_adjacent_difference_op_caller_fn;
-
 } // namespace oneapi::dpl::__internal
 
 template <typename _Pred>
@@ -192,14 +192,20 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 {
 };
 
+template <typename _F, typename _Proj>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__unary_op, _F, _Proj)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_F, _Proj>
+{
+};
+
 template <typename _F, typename _Proj1, typename _Proj2>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__binary_op, _F, _Proj1, _Proj2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F, _Proj1, _Proj2>
 {
 };
 
-template <typename _Pred>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__transform_functor, _Pred)>
+template <typename _Pred, typename _RevTag>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__transform_functor, _Pred, _RevTag)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
@@ -362,13 +368,6 @@ template <typename _BinaryPredicate>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
     oneapi::dpl::__internal::__parallel_reduce_by_segment_fallback_fn2, _BinaryPredicate)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPredicate>
-{
-};
-
-template <typename _Op, typename _It1ValueT, typename _It2ValueTRef>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__internal::__pattern_adjacent_difference_op_caller_fn, _Op, _It1ValueT, _It2ValueTRef)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Op, _It1ValueT, _It2ValueTRef>
 {
 };
 
