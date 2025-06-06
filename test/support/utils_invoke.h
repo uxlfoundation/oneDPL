@@ -91,7 +91,7 @@ auto
 make_new_policy(_Policy&& __policy)
     -> decltype(TestUtils::make_device_policy<_NewKernelName>(::std::forward<_Policy>(__policy)))
 {
-    return TestUtils::make_device_policy<_NewKernelName>(::std::forward<_Policy>(__policy));
+    return TestUtils::make_device_policy<_NewKernelName>(std::forward<_Policy>(__policy));
 }
 
 #if ONEDPL_FPGA_DEVICE
@@ -102,8 +102,8 @@ make_new_policy(_Policy&& __policy)
     -> decltype(TestUtils::make_fpga_policy<::std::decay_t<_Policy>::unroll_factor, _NewKernelName>(
         ::std::forward<_Policy>(__policy)))
 {
-    return TestUtils::make_fpga_policy<::std::decay_t<_Policy>::unroll_factor, _NewKernelName>(
-        ::std::forward<_Policy>(__policy));
+    return TestUtils::make_fpga_policy<std::decay_t<_Policy>::unroll_factor, _NewKernelName>(
+        std::forward<_Policy>(__policy));
 }
 #endif
 
