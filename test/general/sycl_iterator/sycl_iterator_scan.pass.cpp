@@ -333,7 +333,7 @@ DEFINE_TEST(test_copy_if)
         ::std::iota(host_keys.get(), host_keys.get() + n, T1(222));
         host_keys.update_data();
 
-        auto res1 = std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, TestUtils::IsGreatThen<T1>{-1});
+        auto res1 = std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, TestUtils::IsGreatThan<T1>{-1});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from copy_if_1");

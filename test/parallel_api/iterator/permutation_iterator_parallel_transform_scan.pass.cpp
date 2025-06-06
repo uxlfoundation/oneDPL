@@ -47,7 +47,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
             dpl::copy(exec, permItBegin, permItEnd, sourceData.begin());
             wait_and_throw(exec);
 
-            const TestUtils::IsGreatThen<TestValueType> op{0};
+            const TestUtils::IsGreatThan<TestValueType> op{0};
 
             auto itEndNewRes = dpl::remove_if(exec, permItBegin, permItEnd, op);
             wait_and_throw(exec);

@@ -1109,7 +1109,7 @@ struct IsOdd
 };
 
 template <typename T>
-struct IsGreatThen
+struct IsGreatThan
 {
     T value;
 
@@ -1121,7 +1121,7 @@ struct IsGreatThen
 };
 
 template <typename T>
-struct IsLessThen
+struct IsLessThan
 {
     T value;
 
