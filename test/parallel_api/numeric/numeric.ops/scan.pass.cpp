@@ -37,6 +37,7 @@ using namespace TestUtils;
 // flag inclusive, which is set to each alternative by main().
 //static bool inclusive;
 
+template <typename In, typename Out>
 struct test_inclusive_scan_with_plus
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
@@ -73,6 +74,7 @@ struct test_inclusive_scan_with_plus
     }
 };
 
+template <typename In, typename Out>
 struct test_exclusive_scan_with_plus
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
@@ -111,18 +113,18 @@ test_with_plus(Out init, Out trash, Convert convert)
 
 #ifdef _PSTL_TEST_INCLUSIVE_SCAN
 
-        invoke_on_all_policies<0>()(test_inclusive_scan_with_plus(), in.begin(), in.end(), out.begin(), out.end(),
-                                    expected.begin(), expected.end(), in.size(), init, trash);
-        invoke_on_all_policies<1>()(test_inclusive_scan_with_plus(), in.cbegin(), in.cend(), out.begin(), out.end(),
-                                    expected.begin(), expected.end(), in.size(), init, trash);
+        invoke_on_all_policies<0>()(test_inclusive_scan_with_plus<In, Out>(), in.begin(), in.end(), out.begin(),
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+        invoke_on_all_policies<1>()(test_inclusive_scan_with_plus<In, Out>(), in.cbegin(), in.cend(), out.begin(),
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
 #endif
 
 #ifdef _PSTL_TEST_EXCLUSIVE_SCAN
 
-        invoke_on_all_policies<2>()(test_exclusive_scan_with_plus(), in.begin(), in.end(), out.begin(), out.end(),
-                                    expected.begin(), expected.end(), in.size(), init, trash);
-        invoke_on_all_policies<3>()(test_exclusive_scan_with_plus(), in.cbegin(), in.cend(), out.begin(), out.end(),
-                                    expected.begin(), expected.end(), in.size(), init, trash);
+        invoke_on_all_policies<2>()(test_exclusive_scan_with_plus<In, Out>(), in.begin(), in.end(), out.begin(),
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+        invoke_on_all_policies<3>()(test_exclusive_scan_with_plus<In, Out>(), in.cbegin(), in.cend(), out.begin(),
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
 #endif
     }
 
@@ -139,12 +141,12 @@ test_with_plus(Out init, Out trash, Convert convert)
     Sequence<Out> expected(n);
     Sequence<Out> out(n, [&](std::int32_t) { return trash; });
 #ifdef _PSTL_TEST_INCLUSIVE_SCAN
-    invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus(), in.begin(), in.end(), out.begin(), out.end(),
-                                       expected.begin(), expected.end(), in.size(), init, trash);
+    invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus<In, Out>(), in.begin(), in.end(), out.begin(),
+                                       out.end(), expected.begin(), expected.end(), in.size(), init, trash);
 #endif
 #ifdef _PSTL_TEST_EXCLUSIVE_SCAN
-    invoke_on_all_hetero_policies<5>()(test_exclusive_scan_with_plus(), in.begin(), in.end(), out.begin(), out.end(),
-                                       expected.begin(), expected.end(), in.size(), init, trash);
+    invoke_on_all_hetero_policies<5>()(test_exclusive_scan_with_plus<In, Out>(), in.begin(), in.end(), out.begin(),
+                                       out.end(), expected.begin(), expected.end(), in.size(), init, trash);
 #endif
 #endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
