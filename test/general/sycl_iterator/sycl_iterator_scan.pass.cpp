@@ -43,6 +43,16 @@ struct TransformOp
     }
 };
 
+template <typename IteratorValueType>
+struct IsMultipleOf3And2
+{
+    bool
+    operator()(IteratorValueType value) const
+    {
+        return (value % 3 == 0) && (value % 2 == 0);
+    }
+};
+
 DEFINE_TEST(test_remove)
 {
     DEFINE_TEST_CONSTRUCTOR(test_remove, 2.0f, 0.65f)
@@ -176,15 +186,6 @@ DEFINE_TEST(test_unique)
 DEFINE_TEST(test_partition)
 {
     DEFINE_TEST_CONSTRUCTOR(test_partition, 2.0f, 0.65f)
-
-    template <typename IteratorValueType>
-    struct IsMultipleOf3And2
-    {
-        bool operator()(IteratorValueType value) const
-        {
-            return (value % 3 == 0) && (value % 2 == 0);
-        }
-    };
 
     template <typename Policy, typename Iterator, typename Size>
     void
@@ -424,17 +425,6 @@ DEFINE_TEST(test_unique_copy)
 DEFINE_TEST(test_partition_copy)
 {
     DEFINE_TEST_CONSTRUCTOR(test_partition_copy, 2.0f, 0.65f)
-
-    template <typename Iterator1ValueType>
-    struct IsMultipleOf3And2
-    {
-        template <typename T1>
-        bool
-        operator()(T1 x) const
-        {
-            return (x % 3 == 0) && (x % 2 == 0);
-        }
-    };
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     void
