@@ -1137,7 +1137,7 @@ struct IsGreat
 {
     bool operator()(T x, T y) const
     {
-        return x < y;
+        return x > y;
     }
 };
 
