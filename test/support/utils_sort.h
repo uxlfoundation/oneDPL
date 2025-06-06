@@ -386,8 +386,7 @@ run_test(SortTestConfig config,
     // Run tests for USM shared memory (external testing for USM shared memory, once already covered in sycl_iterator.pass.cpp)
     if (config.test_usm_shared)
     {
-        // TODO required later to create temporary policy instance here
-        // and pass it to test_usm with value category like exec parameter
+        // TODO: Create a temporary policy instance and pass it to test_usm with the needed value category
         test_usm<sycl::usm::alloc::shared>(config, exec, tmp_first, tmp_last,
                                            expected_first, expected_last,first, last, n, compare...);
     }
