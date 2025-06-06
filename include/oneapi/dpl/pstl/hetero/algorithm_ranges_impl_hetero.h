@@ -257,7 +257,7 @@ __pattern_find_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R
 //------------------------------------------------------------------------
 
 template <typename Name>
-class __equal_wrapper;
+struct __equal_wrapper;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Pred>
 oneapi::dpl::__internal::__difference_t<_Range1>
