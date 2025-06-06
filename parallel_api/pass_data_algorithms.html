@@ -8,7 +8,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pass Data to Algorithms &#8212; oneDPL Documentation 2022.7.0 documentation</title>
+    <title>Pass Data to Algorithms &#8212; oneDPL Documentation 2022.9.0 documentation</title>
   
   
   
@@ -54,7 +54,7 @@
         var wapLocalCode = 'us-en'; // Dynamically set per localized site, see mapping table for values
         var wapSection = "oneapi-dpl"; // WAP team will give you a unique section for your site
         // Load TMS
-        if(document.location.href.includes("oneapi-src.github.io")){
+        if(document.location.href.includes("uxlfoundation.github.io")){
         (function () {
         var url = 'https://www.intel.com/content/dam/www/global/wap/tms-loader.js'; // WAP file URL
         var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true; po.src = url;
@@ -255,7 +255,7 @@
       
       
       
-      <li><a href="https://github.com/oneapi-src/oneDPL/edit/main/documentation/library_guide/parallel_api/pass_data_algorithms.rst" target="_blank"
+      <li><a href="https://github.com/uxlfoundation/oneDPL/edit/main/documentation/library_guide/parallel_api/pass_data_algorithms.rst" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -272,7 +272,7 @@
       
       
       
-      <li><a href="https://github.com/oneapi-src/oneDPL/issues/new?title=Issue%20on%20page%20%2Fparallel_api/pass_data_algorithms.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/uxlfoundation/oneDPL/issues/new?title=Issue%20on%20page%20%2Fparallel_api/pass_data_algorithms.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -398,6 +398,8 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-unified-shared-memory">Use Unified Shared Memory</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-std-vector">Use std::vector</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-range-views">Use Range Views</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-onedpl-short-iterators">Use oneDPL Iterators</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-custom-iterators">Use Custom Iterators</a></li>
 </ul>
             </nav>
         </div>
@@ -410,7 +412,7 @@ document.write(`
                 <article class="bd-article" role="main">
                   
   <div class="section" id="pass-data-to-algorithms">
-<h1>Pass Data to Algorithms<a class="headerlink" href="#pass-data-to-algorithms" title="Permalink to this headline">#</a></h1>
+<span id="pass-data-algorithms"></span><h1>Pass Data to Algorithms<a class="headerlink" href="#pass-data-to-algorithms" title="Permalink to this headline">#</a></h1>
 <p>For an algorithm to access data, it is important that the used execution policy matches the data storage type.
 The following table shows which execution policies can be used with various data storage types.</p>
 <table class="table">
@@ -647,6 +649,143 @@ data transformation pipelines that also can be used with parallel range algorith
 </pre></div>
 </div>
 </div>
+<div class="section" id="use-onedpl-short-iterators">
+<span id="use-iterators"></span><h2>Use oneDPL Iterators<a class="headerlink" href="#use-onedpl-short-iterators" title="Permalink to this headline">#</a></h2>
+<p>You can use iterators defined in <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/iterator&gt;</span></code> header in the <code class="docutils literal notranslate"><span class="pre">oneapi::dpl</span></code> namespace:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">counting_iterator</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">zip_iterator</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">discard_iterator</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code></p></li>
+</ul>
+<p><a class="reference internal" href="iterators.html#iterator-details"><span class="std std-ref">Iterators</span></a> section describes them in detail and provides usage examples.</p>
+<p>If you want to use these iterators in combination with your own custom iterators,
+make sure to follow the guidelines in the <a class="reference internal" href="#use-custom-iterators"><span class="std std-ref">Use Custom Iterators</span></a> section.</p>
+</div>
+<div class="section" id="use-custom-iterators">
+<span id="id3"></span><h2>Use Custom Iterators<a class="headerlink" href="#use-custom-iterators" title="Permalink to this headline">#</a></h2>
+<p>You can create your own iterators that can be used as input to oneDPL algorithms.</p>
+<p>These custom iterators must meet the following requirements:</p>
+<ul class="simple">
+<li><p>They must be random access iterators.</p></li>
+<li><p>They must be SYCL device-copyable.</p></li>
+<li><p>They must be <em>indirectly device accessible</em> if they point to data that is accessible on a device.</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If a custom iterator is <strong>not</strong> <em>indirectly device accessible</em>,
+the algorithm will create a temporary memory buffer and
+copy the data from the iterator to this buffer before processing on a device.
+This may lead to performance degradation, and also requires that the data be accessible on the host to be
+copied into the temporary memory buffer.</p>
+</div>
+<p>The term <em>indirectly device accessible</em> means that the data referenced by the iterator
+can be accessed from within a SYCL kernel (that is, on a device).
+oneDPL determines this by examining the return type of the free function
+<code class="docutils literal notranslate"><span class="pre">is_onedpl_indirectly_device_accessible(It)</span></code>, where <code class="docutils literal notranslate"><span class="pre">It</span></code> is the iterator type.
+If the return type is <code class="docutils literal notranslate"><span class="pre">std::true_type</span></code>, the iterator is considered <em>indirectly device accessible</em>.
+This function is defined in <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/iterator&gt;</span></code> in the <code class="docutils literal notranslate"><span class="pre">oneapi::dpl</span></code> namespace.</p>
+<p>To make a custom iterator <em>indirectly device accessible</em> (assume its type is <code class="docutils literal notranslate"><span class="pre">It</span></code>),
+define an overload of <code class="docutils literal notranslate"><span class="pre">is_onedpl_indirectly_device_accessible</span></code>
+that accepts an argument of type <code class="docutils literal notranslate"><span class="pre">It</span></code> and returns <code class="docutils literal notranslate"><span class="pre">std::true_type</span></code>.
+This overload must be visible through argument-dependent lookup.
+If it is found, the trait <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::is_onedpl_indirectly_device_accessible_v&lt;It&gt;</span></code>,
+which is also defined in <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/iterator&gt;</span></code>, evaluates to <code class="docutils literal notranslate"><span class="pre">true</span></code>.
+The example below shows how to define such an overload:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;oneapi/dpl/execution&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;oneapi/dpl/iterator&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;oneapi/dpl/numeric&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;oneapi/dpl/algorithm&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iterator&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;cstddef&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;sycl/sycl.hpp&gt;</span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">It</span><span class="o">&gt;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">strided_iterator</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">value_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">It</span><span class="o">&gt;::</span><span class="n">value_type</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">difference_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">It</span><span class="o">&gt;::</span><span class="n">difference_type</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">iterator_category</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">random_access_iterator_tag</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">It</span><span class="o">&gt;::</span><span class="n">reference</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">pointer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">It</span><span class="o">&gt;::</span><span class="n">pointer</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">strided_iterator</span><span class="p">(</span><span class="n">It</span><span class="w"> </span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="n">difference_type</span><span class="w"> </span><span class="n">stride</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="n">ptr</span><span class="p">(</span><span class="n">ptr</span><span class="p">),</span><span class="w"> </span><span class="n">stride</span><span class="p">(</span><span class="n">stride</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="o">*</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">*</span><span class="n">ptr</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">pointer</span><span class="w"> </span><span class="k">operator</span><span class="o">-&gt;</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">ptr</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="p">[](</span><span class="n">difference_type</span><span class="w"> </span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="k">this</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">);}</span>
+
+<span class="w">    </span><span class="n">strided_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">++</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">stride</span><span class="p">;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">*</span><span class="k">this</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">strided_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">--</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">stride</span><span class="p">;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">*</span><span class="k">this</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">strided_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">+=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">stride</span><span class="p">;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">*</span><span class="k">this</span><span class="p">;}</span>
+<span class="w">    </span><span class="n">strided_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">-=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">stride</span><span class="p">;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">*</span><span class="k">this</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">strided_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">+</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">strided_iterator</span><span class="p">(</span><span class="n">ptr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">stride</span><span class="p">,</span><span class="w"> </span><span class="n">stride</span><span class="p">);}</span>
+<span class="w">    </span><span class="n">strided_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">strided_iterator</span><span class="p">(</span><span class="n">ptr</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">stride</span><span class="p">,</span><span class="w"> </span><span class="n">stride</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">difference_type</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">strided_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">ptr</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">other</span><span class="p">.</span><span class="n">ptr</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">stride</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">==</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">strided_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">other</span><span class="p">.</span><span class="n">ptr</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">!=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">strided_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">other</span><span class="p">.</span><span class="n">ptr</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">strided_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">other</span><span class="p">.</span><span class="n">ptr</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">strided_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">other</span><span class="p">.</span><span class="n">ptr</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">strided_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">other</span><span class="p">.</span><span class="n">ptr</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">strided_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">other</span><span class="p">.</span><span class="n">ptr</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// Another way to make this iterator indirectly device accessible</span>
+<span class="w">    </span><span class="c1">// friend oneapi::dpl::is_indirectly_device_accessible&lt;It&gt; is_onedpl_indirectly_device_accessible(strided_iterator) { return {}; }</span>
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="n">It</span><span class="w"> </span><span class="n">ptr</span><span class="p">;</span>
+<span class="w">    </span><span class="n">difference_type</span><span class="w"> </span><span class="n">stride</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// Make strided_iterator indirectly device accessible when it wraps an indirectly device accessible type</span>
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">It</span><span class="o">&gt;</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">is_onedpl_indirectly_device_accessible</span><span class="p">(</span><span class="n">strided_iterator</span><span class="o">&lt;</span><span class="n">It</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">is_indirectly_device_accessible</span><span class="o">&lt;</span><span class="n">It</span><span class="o">&gt;</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">sycl</span><span class="o">::</span><span class="n">queue</span><span class="w"> </span><span class="n">q</span><span class="p">{};</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">d_head</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sycl</span><span class="o">::</span><span class="n">malloc_device</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">q</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Fill the memory with values from 0 to 9</span>
+<span class="w">    </span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">copy</span><span class="p">(</span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">execution</span><span class="o">::</span><span class="n">make_device_policy</span><span class="o">&lt;</span><span class="k">class</span><span class="w"> </span><span class="nc">copy_kernel</span><span class="o">&gt;</span><span class="p">(</span><span class="n">q</span><span class="p">),</span>
+<span class="w">                      </span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">counting_iterator</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+<span class="w">                      </span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">counting_iterator</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">n</span><span class="p">),</span>
+<span class="w">                      </span><span class="n">d_head</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Reduce every second element, 5 elements in total: 0, 2, 4, 6, 8</span>
+<span class="w">    </span><span class="n">strided_iterator</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">stride2</span><span class="p">(</span><span class="n">d_head</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">reduce</span><span class="p">(</span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">execution</span><span class="o">::</span><span class="n">make_device_policy</span><span class="o">&lt;</span><span class="k">class</span><span class="w"> </span><span class="nc">reduce_kernel</span><span class="o">&gt;</span><span class="p">(</span><span class="n">q</span><span class="p">),</span>
+<span class="w">                                   </span><span class="n">stride2</span><span class="p">,</span><span class="w"> </span><span class="n">stride2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// is_indirectly_device_accessible_v: 1</span>
+<span class="w">    </span><span class="c1">// result: 20</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;is_indirectly_device_accessible_v: &quot;</span>
+<span class="w">              </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">is_indirectly_device_accessible_v</span><span class="o">&lt;</span><span class="n">strided_iterator</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">*&gt;&gt;</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;result: &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">res</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">sycl</span><span class="o">::</span><span class="n">free</span><span class="p">(</span><span class="n">d_head</span><span class="p">,</span><span class="w"> </span><span class="n">q</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The example above uses <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::is_indirectly_device_accessible&lt;It&gt;</span></code>, where <code class="docutils literal notranslate"><span class="pre">It</span></code> is <code class="docutils literal notranslate"><span class="pre">int*</span></code>.
+oneDPL predefines an overload of
+<code class="docutils literal notranslate"><span class="pre">oneapi::dpl::is_indirectly_device_accessible&lt;int*&gt;</span></code> that returns <code class="docutils literal notranslate"><span class="pre">std::true_type</span></code>
+assuming that pointers refer to USM-allocated data.
+It also automatically treats the following entities as <em>indirectly device accessible</em>:</p>
+<ul class="simple">
+<li><p>Iterators to <code class="docutils literal notranslate"><span class="pre">std::vector</span></code> with a USM allocator.</p></li>
+<li><p>Objects returned by <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::begin</span></code> and <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::end</span></code> functions.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">counting_iterator</span></code> and <code class="docutils literal notranslate"><span class="pre">discard_iterator</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">zip_iterator</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code>, and <code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code>,
+if their underlying iterators are <em>indirectly device accessible</em>.</p></li>
+</ul>
+<p>For more information, refer to the
+<a class="reference external" href="https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/parallel_api/iterators.html">Iterators section of oneDPL specification</a>.</p>
+</div>
 </div>
 
 
@@ -701,6 +840,8 @@ data transformation pipelines that also can be used with parallel range algorith
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-unified-shared-memory">Use Unified Shared Memory</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-std-vector">Use std::vector</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-range-views">Use Range Views</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-onedpl-short-iterators">Use oneDPL Iterators</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-custom-iterators">Use Custom Iterators</a></li>
 </ul>
   </nav></div>
 

@@ -6,7 +6,7 @@ provide high-productivity APIs to developers, which can minimize SYCL* programmi
 efforts across devices for high performance parallel applications.
 
 For general information, refer to the `oneDPL GitHub* repository
-<https://github.com/oneapi-src/oneDPL>`_.
+<https://github.com/uxlfoundation/oneDPL>`_.
 
 .. toctree::
    :maxdepth: 2

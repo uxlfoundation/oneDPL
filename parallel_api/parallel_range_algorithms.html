@@ -8,7 +8,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Parallel Range Algorithms &#8212; oneDPL Documentation 2022.7.0 documentation</title>
+    <title>Parallel Range Algorithms &#8212; oneDPL Documentation 2022.9.0 documentation</title>
   
   
   
@@ -54,7 +54,7 @@
         var wapLocalCode = 'us-en'; // Dynamically set per localized site, see mapping table for values
         var wapSection = "oneapi-dpl"; // WAP team will give you a unique section for your site
         // Load TMS
-        if(document.location.href.includes("oneapi-src.github.io")){
+        if(document.location.href.includes("uxlfoundation.github.io")){
         (function () {
         var url = 'https://www.intel.com/content/dam/www/global/wap/tms-loader.js'; // WAP file URL
         var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true; po.src = url;
@@ -255,7 +255,7 @@
       
       
       
-      <li><a href="https://github.com/oneapi-src/oneDPL/edit/main/documentation/library_guide/parallel_api/parallel_range_algorithms.rst" target="_blank"
+      <li><a href="https://github.com/uxlfoundation/oneDPL/edit/main/documentation/library_guide/parallel_api/parallel_range_algorithms.rst" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -272,7 +272,7 @@
       
       
       
-      <li><a href="https://github.com/oneapi-src/oneDPL/issues/new?title=Issue%20on%20page%20%2Fparallel_api/parallel_range_algorithms.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/uxlfoundation/oneDPL/issues/new?title=Issue%20on%20page%20%2Fparallel_api/parallel_range_algorithms.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -397,6 +397,7 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#supported-range-views">Supported Range Views</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#supported-algorithms">Supported Algorithms</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#usage-example-for-parallel-range-algorithms">Usage Example for Parallel Range Algorithms</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-notes">Implementation Notes</a></li>
 </ul>
             </nav>
         </div>
@@ -482,6 +483,23 @@ parallel range algorithms.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">copy_if</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">merge</span></code></p></li>
 </ul>
+<p id="range-algorithms-202505l">If <code class="docutils literal notranslate"><span class="pre">ONEDPL_HAS_RANGE_ALGORITHMS</span></code> is defined to <code class="docutils literal notranslate"><span class="pre">202505L</span></code> or a greater value, the following algorithms are provided:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">fill</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">move</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">replace</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">replace_if</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">remove</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">remove_if</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mismatch</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">minmax_element</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">minmax</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">min</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">find_first_of</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">find_end</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">is_sorted_until</span></code></p></li>
+</ul>
 </div>
 <div class="section" id="usage-example-for-parallel-range-algorithms">
 <h2>Usage Example for Parallel Range Algorithms<a class="headerlink" href="#usage-example-for-parallel-range-algorithms" title="Permalink to this headline">#</a></h2>
@@ -505,6 +523,11 @@ parallel range algorithms.</p>
 <span class="p">}</span>
 </pre></div>
 </div>
+</div>
+<div class="section" id="implementation-notes">
+<h2>Implementation Notes<a class="headerlink" href="#implementation-notes" title="Permalink to this headline">#</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">sort</span></code> and <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code> algorithms use <code class="docutils literal notranslate"><span class="pre">std::swap</span></code> and not <code class="docutils literal notranslate"><span class="pre">std::ranges::iter_swap</span></code> for swapping elements.
+As a result, customizations targeting <code class="docutils literal notranslate"><span class="pre">std::ranges::iter_swap</span></code> will not be respected.</p>
 <p class="rubric">See also:</p>
 <p><a class="reference internal" href="range_based_api.html"><span class="doc">Experimental Range-Based API</span></a></p>
 </div>
@@ -561,6 +584,7 @@ parallel range algorithms.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#supported-range-views">Supported Range Views</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#supported-algorithms">Supported Algorithms</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#usage-example-for-parallel-range-algorithms">Usage Example for Parallel Range Algorithms</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-notes">Implementation Notes</a></li>
 </ul>
   </nav></div>
 

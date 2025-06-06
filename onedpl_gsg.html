@@ -8,7 +8,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Get Started with the oneAPI DPC++ Library &#8212; oneDPL Documentation 2022.7.0 documentation</title>
+    <title>Get Started with the oneAPI DPC++ Library &#8212; oneDPL Documentation 2022.9.0 documentation</title>
   
   
   
@@ -52,7 +52,7 @@
         var wapLocalCode = 'us-en'; // Dynamically set per localized site, see mapping table for values
         var wapSection = "oneapi-dpl"; // WAP team will give you a unique section for your site
         // Load TMS
-        if(document.location.href.includes("oneapi-src.github.io")){
+        if(document.location.href.includes("uxlfoundation.github.io")){
         (function () {
         var url = 'https://www.intel.com/content/dam/www/global/wap/tms-loader.js'; // WAP file URL
         var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true; po.src = url;
@@ -253,7 +253,7 @@
       
       
       
-      <li><a href="https://github.com/oneapi-src/oneDPL/edit/main/documentation/library_guide/onedpl_gsg.rst" target="_blank"
+      <li><a href="https://github.com/uxlfoundation/oneDPL/edit/main/documentation/library_guide/onedpl_gsg.rst" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -270,7 +270,7 @@
       
       
       
-      <li><a href="https://github.com/oneapi-src/oneDPL/issues/new?title=Issue%20on%20page%20%2Fonedpl_gsg.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/uxlfoundation/oneDPL/issues/new?title=Issue%20on%20page%20%2Fonedpl_gsg.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -434,7 +434,7 @@ programming efforts across devices for high performance parallel applications.</
 <li><p>API for SYCL Kernels</p></li>
 <li><p>Macros</p></li>
 </ul>
-<p>For general information about oneDPL, visit the <a class="reference external" href="https://github.com/oneapi-src/oneDPL">oneDPL GitHub* repository</a>,
+<p>For general information about oneDPL, visit the <a class="reference external" href="https://github.com/uxlfoundation/oneDPL">oneDPL GitHub* repository</a>,
 or visit the <a class="reference external" href="https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-7/overview.html">Intel® oneAPI DPC++ Library Guide</a> and the <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-library.html">Intel® oneAPI DPC++ Library main page</a>.</p>
 <div class="section" id="quick-start">
 <h2>Quick Start<a class="headerlink" href="#quick-start" title="Permalink to this headline">#</a></h2>
@@ -451,6 +451,13 @@ page for:</p>
 </ul>
 <p>Install the <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html">Intel® oneAPI Base Toolkit (Base Kit)</a>
 to use oneDPL.</p>
+<p>Additionally, to use oneDPL and other Base Kit components on non-Intel GPUs install either the
+<a class="reference external" href="https://developer.codeplay.com/products/oneapi/nvidia/home/">oneAPI for NVIDIA® GPUs plugin</a> or the
+<a class="reference external" href="https://developer.codeplay.com/products/oneapi/amd/home/">oneAPI for AMD GPUs plugin</a>.</p>
+<p>See the oneDPL
+<a class="reference external" href="https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-7/intel-oneapi-dpc-library-introduction.html">System Requirements</a>
+for details on the compiler support required to compile applications using oneDPL on CPU using OpenMP* or Intel®
+oneAPI Threading Building Blocks (oneTBB).</p>
 <p>To use Parallel API, include the corresponding header files in your source code.</p>
 <p>All oneDPL header files are in the <code class="docutils literal notranslate"><span class="pre">oneapi/dpl</span></code> directory. Use <code class="docutils literal notranslate"><span class="pre">#include</span> <span class="pre">&lt;oneapi/dpl/…&gt;</span></code> to include them.
 oneDPL uses the namespace <code class="docutils literal notranslate"><span class="pre">oneapi::dpl</span></code> for most its classes and functions.</p>
@@ -619,10 +626,7 @@ fit into the square <em>S</em>. Random number generation is performed in scalar 
 <tr class="row-odd"><td><p><a class="reference external" href="https://github.com/oneapi-src/oneAPI-samples/tree/master/Libraries/oneDPL">oneDPL Samples</a></p></td>
 <td><p>Learn how to use oneDPL with samples.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference external" href="https://www.intel.com/content/www/us/en/docs/oneapi-iot-toolkit/get-started-guide-linux/2025-0/adding-oneapi-components-to-yocto-project-builds.html">Layers for Yocto* Project</a></p></td>
-<td><p>Add oneAPI components to a Yocto project build using the meta-intel layers.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference external" href="https://oneapi-src.github.io/oneAPI-samples/">oneAPI Samples Catalog</a></p></td>
+<tr class="row-even"><td><p><a class="reference external" href="https://oneapi-src.github.io/oneAPI-samples/">oneAPI Samples Catalog</a></p></td>
 <td><p>Explore the complete list of oneAPI code samples in the oneAPI Samples Catalog (GitHub*).
 These samples were designed to help you develop, offload, and optimize multiarchitecture applications targeting CPUs, GPUs, and FPGAs.</p></td>
 </tr>

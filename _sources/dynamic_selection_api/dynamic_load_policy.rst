@@ -130,7 +130,7 @@ Simplified, expository implementation of the selection algorithm:
       auto least_loaded_resource = find_least_loaded(resources_);
       return selection_type{dynamic_load_policy<Backend>(*this), least_loaded};
     } else {
-      throw std::logic_error("select called before initialialization");
+      throw std::logic_error("select called before initialization");
     }
   }
 

@@ -8,7 +8,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Macros &#8212; oneDPL Documentation 2022.7.0 documentation</title>
+    <title>Macros &#8212; oneDPL Documentation 2022.9.0 documentation</title>
   
   
   
@@ -54,7 +54,7 @@
         var wapLocalCode = 'us-en'; // Dynamically set per localized site, see mapping table for values
         var wapSection = "oneapi-dpl"; // WAP team will give you a unique section for your site
         // Load TMS
-        if(document.location.href.includes("oneapi-src.github.io")){
+        if(document.location.href.includes("uxlfoundation.github.io")){
         (function () {
         var url = 'https://www.intel.com/content/dam/www/global/wap/tms-loader.js'; // WAP file URL
         var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true; po.src = url;
@@ -255,7 +255,7 @@
       
       
       
-      <li><a href="https://github.com/oneapi-src/oneDPL/edit/main/documentation/library_guide/macros.rst" target="_blank"
+      <li><a href="https://github.com/uxlfoundation/oneDPL/edit/main/documentation/library_guide/macros.rst" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -272,7 +272,7 @@
       
       
       
-      <li><a href="https://github.com/oneapi-src/oneDPL/issues/new?title=Issue%20on%20page%20%2Fmacros.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/uxlfoundation/oneDPL/issues/new?title=Issue%20on%20page%20%2Fmacros.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -415,8 +415,8 @@ document.write(`
 <p>Use these macros to get the current version of oneAPI DPC++ Library (oneDPL).</p>
 <table class="table">
 <colgroup>
-<col style="width: 36%" />
-<col style="width: 64%" />
+<col style="width: 30%" />
+<col style="width: 70%" />
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Macro</p></th>
@@ -424,29 +424,33 @@ document.write(`
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ONEDPL_VERSION_MAJOR</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ONEDPL_SPEC_VERSION</span></code></p></td>
+<td><p>The version of the <a class="reference external" href="https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/">specification</a>
+that the implementation is compliant with.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ONEDPL_VERSION_MAJOR</span></code></p></td>
 <td><p>A decimal number for the major version of the library.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ONEDPL_VERSION_MINOR</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ONEDPL_VERSION_MINOR</span></code></p></td>
 <td><p>A decimal number for the minor version.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ONEDPL_VERSION_PATCH</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ONEDPL_VERSION_PATCH</span></code></p></td>
 <td><p>A decimal number for the patch.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">_PSTL_VERSION</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">_PSTL_VERSION</span></code></p></td>
 <td><p>The version of LLVM PSTL code used in oneDPL.</p>
 <p>The value is a decimal numeral of the form <code class="docutils literal notranslate"><span class="pre">xxyyz</span></code>
 where <code class="docutils literal notranslate"><span class="pre">xx</span></code> is the major version number, <code class="docutils literal notranslate"><span class="pre">yy</span></code> is the
 minor version number and <code class="docutils literal notranslate"><span class="pre">z</span></code> is the patch number.</p>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">_PSTL_VERSION_MAJOR</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">_PSTL_VERSION_MAJOR</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">_PSTL_VERSION/1000</span></code>: The major version number.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">_PSTL_VERSION_MINOR</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">_PSTL_VERSION_MINOR</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">(_PSTL_VERSION</span> <span class="pre">%</span> <span class="pre">1000)</span> <span class="pre">/</span> <span class="pre">10</span></code>: The minor version number.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">_PSTL_VERSION_PATCH</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">_PSTL_VERSION_PATCH</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">_PSTL_VERSION</span> <span class="pre">%</span> <span class="pre">10</span></code>: The patch number.</p></td>
 </tr>
 </tbody>
@@ -477,6 +481,7 @@ minor version number and <code class="docutils literal notranslate"><span class=
 <td><p>Parallel range algorithms.</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">202409L</span></code> - see <a class="reference internal" href="parallel_api/parallel_range_algorithms.html#range-algorithms-202409l"><span class="std std-ref">available algorithms</span></a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">202505L</span></code> - see <a class="reference internal" href="parallel_api/parallel_range_algorithms.html#range-algorithms-202505l"><span class="std std-ref">available algorithms</span></a>.</p></li>
 </ul>
 </td>
 </tr>
@@ -547,12 +552,15 @@ with parallel policies are executed sequentially by the calling thread.</p>
 </td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ONEDPL_USE_DPCPP_BACKEND</span></code></p></td>
-<td><p>This macro enables the use of the device execution policies.
-When the macro is not defined (by default)
-or evaluates to non-zero, device policies are enabled.
-When the macro is set to 0 there is no dependency on
-the Intel® oneAPI DPC++/C++ Compiler and runtime libraries.
-Trying to use device policies will lead to compilation errors.</p></td>
+<td><p>This macro enables the use of device execution policies.</p>
+<p>When the macro is not defined (default),
+device policies are enabled only if SYCL support can be detected;
+otherwise, they are disabled.
+If the macro is set to a non-zero value, device policies are enabled unconditionally.
+Setting the macro to 0 disables device policies.</p>
+<p>When device policies are disabled, no SYCL dependency is introduced,
+and their usage will lead to compilation errors.</p>
+</td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ONEDPL_USE_PREDEFINED_POLICIES</span></code></p></td>
 <td><p>This macro enables the use of predefined device policy objects,

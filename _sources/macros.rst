@@ -8,6 +8,10 @@ Use these macros to get the current version of |onedpl_long| (|onedpl_short|).
 ================================= ==============================
 Macro                             Description
 ================================= ==============================
+``ONEDPL_SPEC_VERSION``           The version of the `specification
+                                  <https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/>`_
+                                  that the implementation is compliant with.
+--------------------------------- ------------------------------
 ``ONEDPL_VERSION_MAJOR``          A decimal number for the major version of the library.
 --------------------------------- ------------------------------
 ``ONEDPL_VERSION_MINOR``          A decimal number for the minor version.
@@ -43,6 +47,7 @@ Macro                              Macro values and the functionality
 ``ONEDPL_HAS_RANGE_ALGORITHMS``    Parallel range algorithms.
 
                                    * ``202409L`` - see :ref:`available algorithms <range-algorithms-202409L>`.
+                                   * ``202505L`` - see :ref:`available algorithms <range-algorithms-202505L>`.
 ================================== ===============================================
 
 Additional Macros
@@ -99,12 +104,16 @@ Macro                              Description
                                    If all parallel backends are disabled by setting respective macros to 0, algorithms
                                    with parallel policies are executed sequentially by the calling thread.
 ---------------------------------- ------------------------------
-``ONEDPL_USE_DPCPP_BACKEND``       This macro enables the use of the device execution policies.
-                                   When the macro is not defined (by default)
-                                   or evaluates to non-zero, device policies are enabled.
-                                   When the macro is set to 0 there is no dependency on
-                                   the |dpcpp_cpp| and runtime libraries.
-                                   Trying to use device policies will lead to compilation errors.
+``ONEDPL_USE_DPCPP_BACKEND``       This macro enables the use of device execution policies.
+
+                                   When the macro is not defined (default),
+                                   device policies are enabled only if SYCL support can be detected;
+                                   otherwise, they are disabled.
+                                   If the macro is set to a non-zero value, device policies are enabled unconditionally.
+                                   Setting the macro to 0 disables device policies.
+
+                                   When device policies are disabled, no SYCL dependency is introduced,
+                                   and their usage will lead to compilation errors.
 ---------------------------------- ------------------------------
 ``ONEDPL_USE_PREDEFINED_POLICIES`` This macro enables the use of predefined device policy objects,
                                    such as ``dpcpp_default`` and ``dpcpp_fpga``. When the macro is not defined (by default)

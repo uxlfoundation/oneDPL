@@ -12,7 +12,7 @@ programming efforts across devices for high performance parallel applications.
 * Macros
 
 
-For general information about |onedpl_short|, visit the `oneDPL GitHub* repository <https://github.com/oneapi-src/oneDPL>`_,
+For general information about |onedpl_short|, visit the `oneDPL GitHub* repository <https://github.com/uxlfoundation/oneDPL>`_,
 or visit the |onedpl_library_guide|_ and the `Intel® oneAPI DPC++ Library main page
 <https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-library.html>`_.
 
@@ -34,6 +34,15 @@ page for:
 
 Install the `Intel® oneAPI Base Toolkit (Base Kit) <https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html>`_
 to use |onedpl_short|.
+
+Additionally, to use |onedpl_short| and other Base Kit components on non-Intel GPUs install either the
+`oneAPI for NVIDIA® GPUs plugin <https://developer.codeplay.com/products/oneapi/nvidia/home/>`_ or the
+`oneAPI for AMD GPUs plugin <https://developer.codeplay.com/products/oneapi/amd/home/>`_.
+
+See the |onedpl_short|
+`System Requirements <https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-7/intel-oneapi-dpc-library-introduction.html>`_
+for details on the compiler support required to compile applications using |onedpl_short| on CPU using OpenMP* or Intel®
+oneAPI Threading Building Blocks (oneTBB).
 
 To use Parallel API, include the corresponding header files in your source code.
 
@@ -216,8 +225,6 @@ Find More
      - Check the release notes to learn about updates in the latest release.
    * - `oneDPL Samples <https://github.com/oneapi-src/oneAPI-samples/tree/master/Libraries/oneDPL>`_
      - Learn how to use |onedpl_short| with samples.
-   * - |yocto_layers|_
-     - Add oneAPI components to a Yocto project build using the meta-intel layers.
    * - `oneAPI Samples Catalog <https://oneapi-src.github.io/oneAPI-samples/>`_
      - Explore the complete list of oneAPI code samples in the oneAPI Samples Catalog (GitHub*).
        These samples were designed to help you develop, offload, and optimize multiarchitecture applications targeting CPUs, GPUs, and FPGAs.

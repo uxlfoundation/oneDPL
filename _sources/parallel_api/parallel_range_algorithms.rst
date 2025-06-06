@@ -82,6 +82,25 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202409L`` or a greater value,
 * ``copy_if``
 * ``merge``
 
+.. _range-algorithms-202505L:
+
+If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202505L`` or a greater value, the following algorithms are provided:
+
+* ``fill``
+* ``move``
+* ``replace``
+* ``replace_if``
+* ``remove``
+* ``remove_if``
+* ``mismatch``
+* ``minmax_element``
+* ``minmax``
+* ``min``
+* ``max``
+* ``find_first_of``
+* ``find_end``
+* ``is_sorted_until``
+
 Usage Example for Parallel Range Algorithms
 -------------------------------------------
 
@@ -105,6 +124,11 @@ Usage Example for Parallel Range Algorithms
         auto view_in = std::ranges::subrange(vec_in.begin(), vec_in.end()) | std::ranges::views::reverse;
         oneapi::dpl::ranges::copy(oneapi::dpl::execution::dpcpp_default, view_in, std::span(vec_out));
     }
+
+Implementation Notes
+--------------------
+The ``sort`` and ``stable_sort`` algorithms use ``std::swap`` and not ``std::ranges::iter_swap`` for swapping elements.
+As a result, customizations targeting ``std::ranges::iter_swap`` will not be respected.
 
 .. rubric:: See also:
 

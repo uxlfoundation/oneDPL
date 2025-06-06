@@ -8,7 +8,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>oneAPI DPC++ Library Introduction &#8212; oneDPL Documentation 2022.7.0 documentation</title>
+    <title>oneAPI DPC++ Library Introduction &#8212; oneDPL Documentation 2022.9.0 documentation</title>
   
   
   
@@ -54,7 +54,7 @@
         var wapLocalCode = 'us-en'; // Dynamically set per localized site, see mapping table for values
         var wapSection = "oneapi-dpl"; // WAP team will give you a unique section for your site
         // Load TMS
-        if(document.location.href.includes("oneapi-src.github.io")){
+        if(document.location.href.includes("uxlfoundation.github.io")){
         (function () {
         var url = 'https://www.intel.com/content/dam/www/global/wap/tms-loader.js'; // WAP file URL
         var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true; po.src = url;
@@ -255,7 +255,7 @@
       
       
       
-      <li><a href="https://github.com/oneapi-src/oneDPL/edit/main/documentation/library_guide/introduction.rst" target="_blank"
+      <li><a href="https://github.com/uxlfoundation/oneDPL/edit/main/documentation/library_guide/introduction.rst" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -272,7 +272,7 @@
       
       
       
-      <li><a href="https://github.com/oneapi-src/oneDPL/issues/new?title=Issue%20on%20page%20%2Fintroduction.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/uxlfoundation/oneDPL/issues/new?title=Issue%20on%20page%20%2Fintroduction.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -513,9 +513,10 @@ The <a class="reference external" href="https://registry.khronos.org/SYCL/specs/
 <p>When called with device execution policies, oneDPL algorithms apply the same restrictions as
 DPC++ does (see the Intel® oneAPI DPC++/C++ Compiler documentation and the SYCL specification for details), such as:</p>
 <ul class="simple">
-<li><p>Adding buffers to a lambda capture list is not allowed for lambdas passed to an algorithm.</p></li>
-<li><p>Passing data types, which are not trivially copyable, is only allowed via USM,
-but not via buffers or host-allocated containers.</p></li>
+<li><p>Adding buffers to a lambda capture list is not allowed for lambdas passed to an algorithm, as buffers are not
+<a class="reference external" href="https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable">SYCL device-copyable</a>.</p></li>
+<li><p>Data types which are not SYCL device-copyable may only be passed to oneDPL algorithms via USM pointers.
+SYCL buffers or host-allocated containers must have a SYCL device-copyable value type.</p></li>
 <li><p>Objects of pointer-to-member types cannot be passed to an algorithm.</p></li>
 <li><p>The definition of lambda functions used with parallel algorithms should not depend on preprocessor macros
 that makes it different for the host and the device. Otherwise, the behavior is undefined.</p></li>
@@ -523,6 +524,8 @@ that makes it different for the host and the device. Otherwise, the behavior is 
 whose type meets SYCL requirements for use in kernels and for data transfer, respectively.</p></li>
 <li><p>Calling the API that throws exception is not allowed within callable objects passed to an algorithm.</p></li>
 </ul>
+<p>Please see <a class="reference internal" href="parallel_api/pass_data_algorithms.html#pass-data-algorithms"><span class="std std-ref">Pass Data to Algorithms</span></a> for more details on how to pass data to algorithms, and the
+restrictions on the data types that can be passed to algorithms executed with device execution policies.</p>
 </div>
 <div class="section" id="known-limitations">
 <h3>Known Limitations<a class="headerlink" href="#known-limitations" title="Permalink to this headline">#</a></h3>
@@ -550,8 +553,14 @@ the <code class="docutils literal notranslate"><span class="pre">oneapi::dpl</sp
 <li><p><code class="docutils literal notranslate"><span class="pre">std::array::at</span></code> member function cannot be used in kernels because it may throw an exception;
 use <code class="docutils literal notranslate"><span class="pre">std::array::operator[]</span></code> instead.</p></li>
 <li><p>Due to specifics of Microsoft* Visual C++, some standard floating-point math functions
-(including <code class="docutils literal notranslate"><span class="pre">std::ldexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::frexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::sqrt(std::complex&lt;float&gt;)</span></code>) require device support
-for double precision.</p></li>
+(including: <code class="docutils literal notranslate"><span class="pre">std::ldexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::frexp</span></code>), and the following functions when used with <code class="docutils literal notranslate"><span class="pre">std::complex&lt;float&gt;</span></code>
+as argument(s):  <code class="docutils literal notranslate"><span class="pre">std::acosh</span></code>, <code class="docutils literal notranslate"><span class="pre">std::asin</span></code>, <code class="docutils literal notranslate"><span class="pre">std::asinh</span></code>, <code class="docutils literal notranslate"><span class="pre">std::asoc</span></code>, <code class="docutils literal notranslate"><span class="pre">std::log10</span></code>, <code class="docutils literal notranslate"><span class="pre">std::log</span></code>, <code class="docutils literal notranslate"><span class="pre">std::pow</span></code>,
+<code class="docutils literal notranslate"><span class="pre">std::sqrt</span></code> require device support for double precision.</p></li>
+<li><p>STL algorithm functions (such as <code class="docutils literal notranslate"><span class="pre">std::for_each</span></code>) used in DPC++ kernels do not compile with the debug version of
+the Microsoft Visual C++ standard library.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot be swapped in DPC++ kernels with <code class="docutils literal notranslate"><span class="pre">std::swap</span></code> function or <code class="docutils literal notranslate"><span class="pre">swap</span></code> member function
+in the Microsoft Visual C++ standard library. For a workaround, define the
+<code class="docutils literal notranslate"><span class="pre">_USE_STD_VECTOR_ALGORITHMS</span></code> macro to `` 0`` to the source file before including any headers.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">inclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">exclusive_scan_by_segment</span></code>,
 <code class="docutils literal notranslate"><span class="pre">inclusive_scan_by_segment</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_inclusive_scan</span></code>,
 when used with C++ standard aligned policies, impose limitations on the initial value type if an
@@ -569,6 +578,19 @@ Secondly, a default-constructed instance of that type should act as the identity
 the dereferenced value type of the provided iterators should satisfy the <code class="docutils literal notranslate"><span class="pre">DefaultConstructible</span></code> requirements.</p></li>
 <li><p>For <code class="docutils literal notranslate"><span class="pre">remove</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_if</span></code>, <code class="docutils literal notranslate"><span class="pre">unique</span></code> the dereferenced value type of the provided
 iterators should be <code class="docutils literal notranslate"><span class="pre">MoveConstructible</span></code>.</p></li>
+<li><p>When compiling with <code class="docutils literal notranslate"><span class="pre">-O0</span> <span class="pre">-g</span></code> options on Linux with the Intel® oneAPI DPC++/C++ Compiler version 2025.0 or earlier
+the <code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">sort_by_key</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort_by_key</span></code>, and <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code> may work incorrectly
+or cause a segmentation fault when used with a device execution policy on a CPU device. To avoid this issue, pass the
+<code class="docutils literal notranslate"><span class="pre">-fsycl-device-code-split=per_kernel</span></code> option to the compiler or use Intel® oneAPI DPC++/C++ Compiler version 2025.1
+or newer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">esimd::radix_sort</span></code> and <code class="docutils literal notranslate"><span class="pre">esimd::radix_sort_by_key</span></code> kernel templates fail to compile when a program
+is built with <code class="docutils literal notranslate"><span class="pre">-g</span></code>, <code class="docutils literal notranslate"><span class="pre">-O0</span></code>, <code class="docutils literal notranslate"><span class="pre">-O1</span></code> compiler options and a Linux General Purpose Intel GPUs Driver version older
+than <code class="docutils literal notranslate"><span class="pre">2423.32</span></code> (Rolling) and <code class="docutils literal notranslate"><span class="pre">2350.61</span></code> (LTS) is used.
+See the <a class="reference external" href="https://dgpu-docs.intel.com/releases/releases.html">Release Types</a>
+to find information about the relevant Rolling and LTS releases.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::ranges::drop_view</span></code> from libstdc++ version 10 may throw exceptions.
+This can lead to a “SYCL kernel cannot use exceptions” compilation error
+when it is used to pass data to a range-based algorithm with a device policy.</p></li>
 </ul>
 </div>
 </div>
