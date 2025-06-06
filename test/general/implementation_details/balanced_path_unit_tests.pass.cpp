@@ -23,25 +23,25 @@
 #if TEST_DPCPP_BACKEND_PRESENT
 template <typename... _Args>
 auto
-std_set(oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>, _Args&&... args)
+std_set(oneapi::dpl::unseq_backend::_IntersectionTag, _Args&&... args)
 {
     return std::set_intersection(std::forward<_Args>(args)...);
 }
 template <typename... _Args>
 auto
-std_set(oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>, _Args&&... args)
+std_set(oneapi::dpl::unseq_backend::_DifferenceTag, _Args&&... args)
 {
     return std::set_difference(std::forward<_Args>(args)...);
 }
 template <typename... _Args>
 auto
-std_set(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>, _Args&&... args)
+std_set(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _Args&&... args)
 {
     return std::set_symmetric_difference(std::forward<_Args>(args)...);
 }
 template <typename... _Args>
 auto
-std_set(oneapi::dpl::unseq_backend::_UnionTag<std::true_type>, _Args&&... args)
+std_set(oneapi::dpl::unseq_backend::_UnionTag, _Args&&... args)
 {
     return std::set_union(std::forward<_Args>(args)...);
 }
@@ -451,13 +451,13 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
     std::cout << "Test intersection" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>{});
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_IntersectionTag{});
     std::cout << "Test difference" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>{});
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_DifferenceTag{});
     std::cout << "Test union" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_UnionTag<std::true_type>{});
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_UnionTag{});
     std::cout << "Test symmetric diff" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>{});
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{});
     EXPECT_TRUE(test_right_biased_lower_bound(), "test for right biased lower bound");
     EXPECT_TRUE(test_find_balanced_path(), "test for find balanced path");
 #endif // TEST_DPCPP_BACKEND_PRESENT
