@@ -32,6 +32,18 @@ using namespace oneapi::dpl::execution;
 
 DEFINE_TEST(test_for_each)
 {
+    template <typename Iterator1>
+    struct test_for_each_fo
+    {
+        typedef typename std::iterator_traits<Iterator1>::value_type T1;
+
+        void
+        operator()(T1& val) const
+        {
+            ++val;
+        }
+    };
+
     DEFINE_TEST_CONSTRUCTOR(test_for_each, 1.0f, 1.0f)
 
     template <typename Policy, typename Iterator1, typename Size>
@@ -43,7 +55,7 @@ DEFINE_TEST(test_for_each)
         typedef typename std::iterator_traits<Iterator1>::value_type T1;
 
         auto value = T1(6);
-        auto f = [](T1& val) { ++val; };
+        test_for_each_fo<Iterator1> f;
         std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
@@ -70,6 +82,30 @@ DEFINE_TEST(test_for_each_structured_binding)
 {
     DEFINE_TEST_CONSTRUCTOR(test_for_each_structured_binding, 1.0f, 1.0f)
 
+    template <typename T1>
+    struct PreIncrement
+    {
+        void operator()(T1& val) const
+        {
+            ++val;
+        }
+    };
+
+    template <typename F>
+    struct FncCall
+    {
+        F f;
+
+        template <typename TValue>
+        void
+        operator()(TValue value) const
+        {
+            auto [x, y] = value;
+            f(x);
+            f(y);
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
@@ -79,7 +115,7 @@ DEFINE_TEST(test_for_each_structured_binding)
         typedef typename std::iterator_traits<Iterator1>::value_type T1;
 
         auto value = T1(6);
-        auto f = [](T1& val) { ++val; };
+        PreIncrement<T1> f;
         std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
@@ -93,13 +129,8 @@ DEFINE_TEST(test_for_each_structured_binding)
                         "zip_iterator (structured_binding) not properly copyable");
         }
 
-        std::for_each(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
-                      [f](auto value)
-                      {
-                          auto [x, y] = value;
-                          f(x);
-                          f(y);
-                      });
+        std::for_each(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, FncCall<decltype(f)>{f});
+
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
 #endif
