@@ -37,7 +37,7 @@ using namespace TestUtils;
 // flag inclusive, which is set to each alternative by main().
 //static bool inclusive;
 
-template <typename In, typename Out>
+template <typename In, typename Init, typename Out>
 struct test_inclusive_scan_with_plus
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
@@ -74,7 +74,7 @@ struct test_inclusive_scan_with_plus
     }
 };
 
-template <typename In, typename Out>
+template <typename In, typename Init, typename Out>
 struct test_exclusive_scan_with_plus
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
@@ -101,9 +101,9 @@ struct test_exclusive_scan_with_plus
     }
 };
 
-template <typename In, typename Out, typename Convert>
+template <typename In, typename Init, typename Out, typename Convert>
 void
-test_with_plus(Out init, Out trash, Convert convert)
+test_with_plus(Init init, Out trash, Convert convert)
 {
     for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
@@ -113,17 +113,17 @@ test_with_plus(Out init, Out trash, Convert convert)
 
 #ifdef _PSTL_TEST_INCLUSIVE_SCAN
 
-        invoke_on_all_policies<0>()(test_inclusive_scan_with_plus<In, Out>(), in.begin(), in.end(), out.begin(),
+        invoke_on_all_policies<0>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(), out.begin(),
                                     out.end(), expected.begin(), expected.end(), in.size(), init, trash);
-        invoke_on_all_policies<1>()(test_inclusive_scan_with_plus<In, Out>(), in.cbegin(), in.cend(), out.begin(),
+        invoke_on_all_policies<1>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.cbegin(), in.cend(), out.begin(),
                                     out.end(), expected.begin(), expected.end(), in.size(), init, trash);
 #endif
 
 #ifdef _PSTL_TEST_EXCLUSIVE_SCAN
 
-        invoke_on_all_policies<2>()(test_exclusive_scan_with_plus<In, Out>(), in.begin(), in.end(), out.begin(),
+        invoke_on_all_policies<2>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(), out.begin(),
                                     out.end(), expected.begin(), expected.end(), in.size(), init, trash);
-        invoke_on_all_policies<3>()(test_exclusive_scan_with_plus<In, Out>(), in.cbegin(), in.cend(), out.begin(),
+        invoke_on_all_policies<3>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.cbegin(), in.cend(), out.begin(),
                                     out.end(), expected.begin(), expected.end(), in.size(), init, trash);
 #endif
     }
@@ -141,12 +141,14 @@ test_with_plus(Out init, Out trash, Convert convert)
     Sequence<Out> expected(n);
     Sequence<Out> out(n, [&](std::int32_t) { return trash; });
 #ifdef _PSTL_TEST_INCLUSIVE_SCAN
-    invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus<In, Out>(), in.begin(), in.end(), out.begin(),
-                                       out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+    invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
+                                       out.begin(), out.end(), expected.begin(), expected.end(), in.size(), init,
+                                       trash);
 #endif
 #ifdef _PSTL_TEST_EXCLUSIVE_SCAN
-    invoke_on_all_hetero_policies<5>()(test_exclusive_scan_with_plus<In, Out>(), in.begin(), in.end(), out.begin(),
-                                       out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+    invoke_on_all_hetero_policies<5>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
+                                       out.begin(), out.end(), expected.begin(), expected.end(), in.size(), init,
+                                       trash);
 #endif
 #endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
@@ -318,13 +320,14 @@ main()
 
     // Since the implicit "+" forms of the scan delegate to the generic forms,
     // there's little point in using a highly restricted type, so just use double.
-    test_with_plus<float64_t, float64_t>(0.0, -666.0,
-                                         [](std::uint32_t k) { return float64_t((k % 991 + 1) ^ (k % 997 + 2)); });
-    test_with_plus<std::int32_t, std::int32_t>(
+    test_with_plus<float64_t, float64_t, float64_t>(
+        0.0, -666.0, [](std::uint32_t k) { return float64_t((k % 991 + 1) ^ (k % 997 + 2)); });
+    test_with_plus<std::int32_t, std::int32_t, std::int32_t>(
         0.0, -666.0, [](std::uint32_t k) { return std::int32_t((k % 991 + 1) ^ (k % 997 + 2)); });
 
     // When testing from bool to uint32_t, we must give a uint32_t init type to scan over integers
-    test_with_plus<bool, std::uint32_t>(0, 123456, [](std::uint32_t k) { return std::uint32_t{k % 2 == 0}; });
+    test_with_plus<bool, std::uint32_t, std::uint32_t>(0, 123456,
+                                                       [](std::uint32_t k) { return std::uint32_t{k % 2 == 0}; });
 
     test_with_multiplies<std::uint64_t>();
 
