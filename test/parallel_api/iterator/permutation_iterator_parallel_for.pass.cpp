@@ -40,7 +40,7 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
     }
 
     template <typename Policy, typename Size, typename Iterator2>
-    struct TestImlementation
+    struct TestImplementation
     {
         Policy exec;
         Size n;
@@ -103,7 +103,7 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementation<Policy, Size, Iterator2>{exec, n, host_vals, first2});
+                TestImplementation<Policy, Size, Iterator2>{exec, n, host_vals, first2});
         }
     }
 };

@@ -24,7 +24,7 @@ DEFINE_TEST_PERM_IT(test_sort, PermItIndexTag)
     DEFINE_TEST_PERM_IT_CONSTRUCTOR(test_sort, 2.0f, 0.65f)
 
     template <typename Policy, typename Size>
-    struct TestImlementation
+    struct TestImplementation
     {
         Policy exec;
         Size n;
@@ -80,7 +80,7 @@ DEFINE_TEST_PERM_IT(test_sort, PermItIndexTag)
             TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);     // sorting data
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementation<Policy, Size>{exec, n, host_keys});
+                TestImplementation<Policy, Size>{exec, n, host_keys});
         }
     }
 };

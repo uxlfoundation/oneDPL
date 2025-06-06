@@ -24,7 +24,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
     DEFINE_TEST_PERM_IT_CONSTRUCTOR(test_remove_if, 1.0f, 1.0f)
 
     template <typename Policy, typename Size>
-    struct TestImlementation
+    struct TestImplementation
     {
         Policy exec;
         Size n;
@@ -87,7 +87,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
             TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);     // source data for remove_if
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementation<Policy, Size>{exec, n, host_keys});
+                TestImplementation<Policy, Size>{exec, n, host_keys});
         }
     }
 };
