@@ -23,15 +23,15 @@
 
 using namespace TestUtils;
 
-int
-main()
-{
 #if TEST_DPCPP_BACKEND_PRESENT
+template <typename Policy>
+void test(Policy&& exec)
+{
     const int countingItIndexBegin = 0;
     const int countingItIndexEnd = 20;
     dpl::counting_iterator<int> countingItBegin(countingItIndexBegin);
     dpl::counting_iterator<int> countingItEnd(countingItIndexEnd);
-    const auto countingItDistanceResult = ::std::distance(countingItBegin, countingItEnd);
+    const auto countingItDistanceResult = std::distance(countingItBegin, countingItEnd);
     EXPECT_EQ(countingItIndexEnd - countingItIndexBegin, countingItDistanceResult,
               "Wrong result of std::distance<countingIterator1, countingIterator2)");
 
@@ -42,24 +42,25 @@ main()
     auto permItBegin = dpl::make_permutation_iterator(countingItBegin, kDefaultIndexStepOp);
     auto permItEnd = permItBegin + perm_size_expected;
 
-    static_assert(sycl::is_device_copyable_v<decltype(permItBegin)>,
-                  "permutation_iterator (counting_iterator) is not device copyable");
+    static_assert(
+        sycl::is_device_copyable_v<decltype(permItBegin)>,
+        "permutation_iterator (counting_iterator) is not device copyable");
 
     static_assert(
-        sycl::is_device_copyable_v<
-            oneapi::dpl::permutation_iterator<constant_iterator_device_copyable, constant_iterator_device_copyable>>,
+        sycl::is_device_copyable_v<oneapi::dpl::permutation_iterator<constant_iterator_device_copyable, constant_iterator_device_copyable>>,
         "permutation_iterator is not device copyable with device copyable types");
 
-    static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::permutation_iterator<constant_iterator_device_copyable, noop_device_copyable>>,
-                  "permutation_iterator is not device copyable with device copyable types");
+    static_assert(
+        sycl::is_device_copyable_v<oneapi::dpl::permutation_iterator<constant_iterator_device_copyable, noop_device_copyable>>,
+        "permutation_iterator is not device copyable with device copyable types");
 
-    static_assert(!sycl::is_device_copyable_v<
-                      oneapi::dpl::permutation_iterator<constant_iterator_non_device_copyable, noop_device_copyable>>,
-                  "permutation_iterator is device copyable with non device copyable types");
+    static_assert(
+        !sycl::is_device_copyable_v<oneapi::dpl::permutation_iterator<constant_iterator_non_device_copyable, noop_device_copyable>>,
+        "permutation_iterator is device copyable with non device copyable types");
 
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::permutation_iterator<int*, noop_non_device_copyable>>,
-                  "permutation_iterator is device copyable with non device copyable types");
+    static_assert(
+        !sycl::is_device_copyable_v<oneapi::dpl::permutation_iterator<int*, noop_non_device_copyable>>,
+        "permutation_iterator is device copyable with non device copyable types");
 
     static_assert(
         !sycl::is_device_copyable_v<oneapi::dpl::permutation_iterator<int*, constant_iterator_non_device_copyable>>,
@@ -70,11 +71,24 @@ main()
               "Wrong result of std::distance<permutationIterator1, permutationIterator2)");
 
     std::vector<int> resultCopy(perm_size_result);
-    auto itCopiedDataEnd = dpl::copy(TestUtils::get_dpcpp_test_policy(), permItBegin, permItEnd, resultCopy.begin());
+    auto itCopiedDataEnd = dpl::copy(CREATE_NEW_POLICY(exec, 0), permItBegin, permItEnd, resultCopy.begin());
     EXPECT_EQ(true, resultCopy.end() == itCopiedDataEnd, "Wrong result of dpl::copy");
 
     const std::vector<int> expectedCopy = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18};
     EXPECT_EQ_N(expectedCopy.begin(), resultCopy.begin(), perm_size_result, "Wrong state of dpl::copy data");
+}
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+int
+main()
+{
+#if TEST_DPCPP_BACKEND_PRESENT
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test(policy);
+
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return done(TEST_DPCPP_BACKEND_PRESENT);

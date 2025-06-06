@@ -16,6 +16,7 @@
 #include "zip_iterator_funcs.h"
 #include "support/test_config.h"
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CREATE_NEW_POLICY
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #   include "support/utils_sycl.h"
@@ -56,7 +57,7 @@ DEFINE_TEST(test_transform_reduce_unary)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (reduce_unary) not properly copyable");
         }
 
-        std::transform_reduce(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
+        std::transform_reduce(CREATE_NEW_POLICY(exec, 0), tuple_first1, tuple_last1,
                               std::make_tuple(T1{42}, T1{42}), TupleNoOp{}, TupleNoOp{});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -89,7 +90,7 @@ DEFINE_TEST(test_transform_reduce_binary)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (reduce_binary) not properly copyable");
         }
 
-        std::transform_reduce(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1,
+        std::transform_reduce(CREATE_NEW_POLICY(exec, 0), tuple_first1,
                               tuple_last1, tuple_first1, std::make_tuple(T1{42}, T1{42}), TupleNoOp{}, TupleNoOp{});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -132,7 +133,7 @@ DEFINE_TEST(test_min_element)
         }
 
         auto tuple_result =
-            std::min_element(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first, tuple_last,
+            std::min_element(CREATE_NEW_POLICY(exec, 0), tuple_first, tuple_last,
                              TuplePredicate<std::less<IteratorValueType>, 0>{std::less<IteratorValueType>{}});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -147,6 +148,16 @@ DEFINE_TEST(test_min_element)
 DEFINE_TEST(test_count_if)
 {
     DEFINE_TEST_CONSTRUCTOR(test_count_if, 1.0f, 1.0f)
+
+    template <typename ValueType>
+    struct IsMultipleByTen
+    {
+        bool
+        operator()(ValueType value) const
+        {
+            return value % 10 == 0;
+        }
+    };
 
     template <typename Policy, typename Iterator, typename Size>
     void
@@ -171,10 +182,10 @@ DEFINE_TEST(test_count_if)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first)>, "zip_iterator (count_if) not properly copyable");
         }
 
-        auto comp = [](ValueType const& value) { return value % 10 == 0; };
+        IsMultipleByTen<ValueType> comp;
         ReturnType expected = (n - 1) / 10 + 1;
 
-        auto result = std::count_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first, tuple_last,
+        auto result = std::count_if(CREATE_NEW_POLICY(exec, 0), tuple_first, tuple_last,
                                     TuplePredicate<decltype(comp), 0>{comp});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -222,11 +233,11 @@ DEFINE_TEST(test_lexicographical_compare)
                         "zip_iterator (lexicographical_compare2) not properly copyable");
         }
 
-        auto comp = [](ValueType const& first, ValueType const& second) { return first < second; };
+        TestUtils::IsLess<const ValueType&> comp;
 
         bool is_less_exp = n > 1 ? 1 : 0;
         bool is_less_res =
-            std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
+            std::lexicographical_compare(CREATE_NEW_POLICY(exec, 0), tuple_first1, tuple_last1,
                                            tuple_first2, tuple_last2, TuplePredicate<decltype(comp), 0>{comp});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();

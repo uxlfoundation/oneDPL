@@ -16,6 +16,8 @@
 #ifndef _UTILS_INVOKE_H
 #define _UTILS_INVOKE_H
 
+#include <oneapi/dpl/execution>
+
 #include <type_traits>
 
 #include "iterator_utils.h"
@@ -138,6 +140,62 @@ get_dpcpp_test_policy()
     return TestUtils::make_new_policy<_NewKernelName>(__arg);
 }
 
+// struct policy_container - a container for policy which return saved policy
+// as l-value or r-value depends on source policy type qualifiers
+template <typename _PolicySource, typename _PolicyNew>
+struct policy_container
+{
+    using _PolicyNewDecayed = std::decay_t<_PolicyNew>;
+
+    _PolicyNewDecayed __policy_new;
+
+    policy_container(_PolicyNewDecayed&& __policy_new) : __policy_new(std::move(__policy_new))
+    {
+    }
+
+    // Delete copy constructor to avoid copying of policy_container
+    policy_container(const policy_container&) = delete;
+
+    // Delete assignment operator to avoid copying of policy_container
+    policy_container&
+    operator=(const policy_container&) = delete;
+
+    using TestingPolicyType = std::conditional_t<
+        std::is_reference_v<_PolicySource>,
+        std::conditional_t<std::is_rvalue_reference_v<_PolicySource>, _PolicyNewDecayed&&, const _PolicyNewDecayed&>,
+        _PolicyNewDecayed>;
+
+    // Return testing policy
+    TestingPolicyType get()
+    {
+        return static_cast<TestingPolicyType>(__policy_new);
+    }
+};
+
+// Create new policy and pass it into called function as l-value / r-value
+// depends on qualifiers of source policy type
+// Attention: new Kernel name generation depends on TEST_EXPLICIT_KERNEL_NAMES macro state
+#define CREATE_NEW_POLICY(policy_src, idx)                                                                             \
+        TestUtils::policy_container<                                                                                   \
+            decltype(policy_src),                                                                                      \
+            decltype(TestUtils::make_new_policy<TestUtils::new_kernel_name<decltype(policy_src), idx>>(policy_src))    \
+        >(                                                                                                             \
+            TestUtils::make_new_policy<TestUtils::new_kernel_name<decltype(policy_src), idx>>(policy_src)              \
+         ).get()
+
+#define CREATE_NEW_POLICY_WITH_NAME(policy_src, NewKernelName)                                                         \
+        TestUtils::policy_container<                                                                                   \
+            decltype(policy_src),                                                                                      \
+            decltype(TestUtils::make_new_policy<NewKernelName>(policy_src))                                            \
+        >(                                                                                                             \
+            TestUtils::make_new_policy<NewKernelName>(policy_src)                                                      \
+         ).get()
+
+#else
+
+#define CREATE_NEW_POLICY(policy_src, idx)                          policy_src
+#define CREATE_NEW_POLICY_WITH_NAME(policy_src, NewKernelName)      policy_src
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -217,6 +275,32 @@ inline void unsupported_types_notifier(const sycl::device& device)
     }
 }
 
+template <typename _ExecutionPolicy>
+struct check_compile
+{
+    _ExecutionPolicy my_policy;
+
+    template <typename _CallableTest>
+    void operator()(_CallableTest&& __callable_test)
+    {
+        // The goal of this check is to compile the same Kernel code with different policy type qualifiers.
+        // This gives us ability to check that Kernel names generated inside oneDPL code are unique.
+        volatile bool always_false = false;
+        if (always_false)
+        {
+            // We just need to compile some Kernel code and we don't need to run this code in run-time
+            // so we can move the rest of params again
+
+            // Compile for const ExecutionPolicy&
+            const auto& my_policy_ref = my_policy;
+            __callable_test(my_policy_ref);
+
+            // Compile for ExecutionPolicy&&
+            __callable_test(std::move(my_policy));
+        }
+    }
+};
+
 // Invoke test::operator()(policy,rest...) for each possible policy.
 template <::std::size_t CallNumber = 0>
 struct invoke_on_all_hetero_policies
@@ -230,16 +314,23 @@ struct invoke_on_all_hetero_policies
         sycl::queue queue = my_policy.queue();
 
         // Device may not support some types, e.g. double or sycl::half; test if they are supported or skip otherwise
-        if (has_types_support<::std::decay_t<Args>...>(queue.get_device()))
+        if (has_types_support<std::decay_t<Args>...>(queue.get_device()))
         {
             // Since make_device_policy need only one parameter for instance, this alias is used to create unique type
-            // of kernels from operator type and ::std::size_t
+            // of kernels from operator type and std::size_t
             // There may be an issue when there is a kernel parameter which has a pointer in its name.
             // For example, param<int*>. In this case the runtime interpreters it as a memory object and
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
-            iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
-                my_policy, op, ::std::forward<Args>(rest)...);
+            iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
+                my_policy, op, std::forward<Args>(rest)...);
+
+            // Check compilation of the kernel with different policy type qualifiers
+            check_compile<decltype(my_policy)> check_compile_code{my_policy};
+            check_compile_code([&](auto&& __policy) {
+                iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
+                    std::forward<decltype(__policy)>(__policy), op, std::forward<Args>(rest)...);
+            });
         }
         else
         {

@@ -28,6 +28,29 @@ DEFINE_TEST_PERM_IT(test_is_heap, PermItIndexTag)
         ::std::iota(itBegin, itEnd, initVal);
     }
 
+    template <typename Size>
+    struct TestImplementation
+    {
+        Size n;
+
+        template <typename Policy, typename TPermutationIterator>
+        void operator()(Policy&& exec, TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        {
+            const auto testing_n = permItEnd - permItBegin;
+
+            const auto resultIsHeap = dpl::is_heap(CREATE_NEW_POLICY(exec, 0), permItBegin, permItEnd);
+            wait_and_throw(exec);
+
+            // Copy data back
+            std::vector<TestValueType> expected(testing_n);
+            dpl::copy(CREATE_NEW_POLICY(exec, 1), permItBegin, permItEnd, expected.begin());
+            wait_and_throw(exec);
+
+            const auto expectedIsHeap = std::is_heap(expected.begin(), expected.end());
+            EXPECT_EQ(expectedIsHeap, resultIsHeap, "Wrong result of dpl::is_heap");
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 /*last1*/, Size n)
@@ -45,22 +68,9 @@ DEFINE_TEST_PERM_IT(test_is_heap, PermItIndexTag)
                     ::std::make_heap(host_keys_ptr, host_keys_ptr + n);
                 host_keys.update_data();
 
+                // we using CREATE_NEW_POLICY instead of std::forward<Policy>(exec) to avoid moving the same policy more then once
                 test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                    [&](auto permItBegin, auto permItEnd)
-                    {
-                        const auto testing_n = permItEnd - permItBegin;
-
-                        const auto resultIsHeap = dpl::is_heap(exec, permItBegin, permItEnd);
-                        wait_and_throw(exec);
-
-                        // Copy data back
-                        std::vector<TestValueType> expected(testing_n);
-                        dpl::copy(exec, permItBegin, permItEnd, expected.begin());
-                        wait_and_throw(exec);
-
-                        const auto expectedIsHeap = std::is_heap(expected.begin(), expected.end());
-                        EXPECT_EQ(expectedIsHeap, resultIsHeap, "Wrong result of dpl::is_heap");
-                    });
+                    CREATE_NEW_POLICY(exec, 0), TestImplementation<Size>{n});
             }
         }
     }

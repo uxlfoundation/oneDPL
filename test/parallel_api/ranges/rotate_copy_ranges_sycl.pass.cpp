@@ -26,10 +26,10 @@
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void test(Policy&& exec)
+{
     constexpr int max_n = 10;
     constexpr int rotate_val = 6;
 
@@ -38,12 +38,25 @@ main()
     sycl::buffer<int> A(max_n);
 
     auto src = views::iota(0, max_n);
-    auto res = rotate_copy(TestUtils::get_dpcpp_test_policy(), src, rotate_val, A);
+    auto res = rotate_copy(CREATE_NEW_POLICY(exec, 0), src, rotate_val, A);
 
     //check result
     EXPECT_TRUE(res == max_n, "wrong result from rotate_copy");
     EXPECT_EQ_RANGES(src | views::rotate(rotate_val), views::host_all(A), "wrong effect from rotate_copy");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test(policy);
+
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
 
 #endif //_ENABLE_RANGES_TESTING
+
     return TestUtils::done(_ENABLE_RANGES_TESTING);
 }
