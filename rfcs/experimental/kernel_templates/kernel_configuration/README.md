@@ -59,7 +59,7 @@ and does not support optional kernel names.
 **Note:** The provided name can be augmented by oneDPL
 when used with a template that creates multiple SYCL kernels.
 
-## Open Quesitons
+## Open Questions
 
 ### Runtime Parameters
 

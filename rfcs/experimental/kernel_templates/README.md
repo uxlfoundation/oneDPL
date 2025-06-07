@@ -56,9 +56,6 @@ namespace cpu { /*...*/ }
 } // oneapi::dpl::experimental::kt
 ```
 
-It is possible to implement another approach to select specializations via tags.
-It is denoted in [Open Questions](#open-questions).
-
 ### Abstract Signature
 
 A kernel template is a C++ function invoked from the host.
@@ -102,7 +99,7 @@ for algorithms with device policies.
 Additionally, a plain `sycl::buffer` can also be used.
 Specialized algorithms may impose additional restrictions on how data is passed.
 
-If an algorithm allocates global memory, it must throw `std::bad_alloc` if the allocation is unsuccessfull.
+If an algorithm allocates global memory, it must throw `std::bad_alloc` if the allocation is unsuccessful.
 
 ### Example
 
@@ -176,7 +173,7 @@ There are several design aspects which should be addressed to make it a fully-su
 The name "Kernel Templates" may be misleading because
 these entities more act like algorithms rather than SYCL kernels.
 Probably, a better name is "Algorithm Templates".
-The renaming requires chaning the corresponding namespace.
+The renaming requires changing the corresponding namespace.
 
 ### Specializations and their Differntiation
 
@@ -200,15 +197,15 @@ by providing an easy way to get that information and fallback if necessary.
 
 It must be beneficial to allow passing externally allocated memory to an algorithm.
 For example, a user program may manage a pool of memory, which can be reused.
-It is especially useful if an algorihtm is called in a loop and the allocation overhead
+It is especially useful if an algorithm is called in a loop and the allocation overhead
 cannot be ammortized by memory pools provided by device or compiler runtime.
 
-It may also make sence to make it the only option
+It may also make sense to make it the only option
 and do not allocate global memory internally at all.
 It must be done in conjuciton with
 [Global and Local Memory Requirements](#global-and-local-memory-requirements)
 
-### Asynchronious Execution
+### Asynchronous Execution
 
 The algorithms return a `sycl::event` but do not accept any input events as inputs.
 As a result, they are not fully asynchronous.
