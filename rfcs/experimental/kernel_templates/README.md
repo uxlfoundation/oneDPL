@@ -4,7 +4,6 @@
 
 This RFC describes an experimental set of algorithms with easily tunable controls,
 designed to achieve optimal performance on specific hardware and workloads.
-
 They prioritize efficiency over generality when compared to
 algorithms that conform to standard C++ interfaces and use device execution policies.
 
@@ -13,7 +12,7 @@ These algorithms are intended for use with SYCL and are expected to evolve into 
 This set of algorithms is in an early stage of development, with many questions yet to be addressed.
 
 Algorithms which are already implemented are described in
-https://uxlfoundation.github.io/oneDPL/kernel_templates_main.html
+https://uxlfoundation.github.io/oneDPL/kernel_templates_main.html.
 
 The terms "kernel template" and "algorithm" are used interchangeably in this RFC.
 
