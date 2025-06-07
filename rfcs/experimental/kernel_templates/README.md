@@ -102,23 +102,25 @@ If an algorithm allocates global memory, it must throw `std::bad_alloc` if the a
 
 ### Example
 
-The algorithm in the example below is tuned for better performance using:
-1. An algorithm-specific parameter: the number of bits sorted per radix sort pass (`8`).
-2. A common set of parameters: the number of elements processed per sub-group (`416`)
-  and the work-group size (`64`). [kernel_param](kernel_configuration/README.md)
-  page has for more detailed description.
+The example demonstrates the use of a kernel template
+and describes how it is tuned for better performance and what makes it less portable
+than an alternative algorithm with a standard interface.
+It uses `oneapi::dpl::experimental::kt::gpu::esimd::radix_sort`,
+which can be compared to `oneapi::dpl::stable_sort`.
 
-These parameters affect how many kernels are launched, how much register and local memory is used,
-how much global memory accessed,
-how well the hardware computational resources are utilized for a given number of elements to sort,
-and many other performance factors.
-The parameters differ for each GPU and can be easily adjusted.
-`oneapi::dpl::stable_sort`, an algorithm with a standard interface,
-does not provide such tuning capabilities.
+Performance tuning controls:
+1. Algorithm-specific: the number of bits sorted per radix sort pass (`8`).
+2. Common: the number of elements processed per sub-group (`416`)
+  and the work-group size (`64`).
 
-`oneapi::dpl::experimental::kt::gpu::esimd::radix_sort` kernel template relies on
-ESIMD technology and certain forward progress guarantees between work-groups,
-which allows using hardware resources more effectively, but it limits portability.
+These parameters influence various factors,
+including the number of kernels launched, register and local memory usage,
+global memory access, and the utilization of hardware computational resources.
+They can be easily adjusted for another GPU with different hardware characteristics.
+
+The kernle template relies on ESIMD technology
+and certain forward progress guarantees between work-groups,
+which leads to better performance at the expense of portability.
 
 ```c++
 // icpx -fsycl radix_sort.cpp -o radix_sort -I /path/to/oneDPL/include && ./radix_sort
