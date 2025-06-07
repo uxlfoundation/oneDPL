@@ -111,13 +111,13 @@ The algorithm in the example below is tuned for better performance using:
 
 These parameters affect how many kernels are launched, how much register and local memory is used,
 how much global memory accessed,
-how well the hardware computational resources are utilized for a given the number of elements to sort,
+how well the hardware computational resources are utilized for a given number of elements to sort,
 and many other performance factors.
 The parameters differ for each GPU and can be easily adjusted.
 `oneapi::dpl::stable_sort`, an algorithm with a standard interface,
 does not provide such tuning capabilities.
 
-Also `oneapi::dpl::experimental::kt::gpu::esimd::radix_sort` kernel template relies on
+`oneapi::dpl::experimental::kt::gpu::esimd::radix_sort` kernel template relies on
 ESIMD technology and certain forward progress guarantees between work-groups,
 which allows using hardware resources more effectively, but it limits portability.
 
@@ -183,27 +183,26 @@ for example easier dispatching between specializations and avoiding deeply neste
 
 ### Reporting Global and Local Memory Requirements
 
-Currently, there is no an interface which returns amount of memory to be allocated
-based on the algorithm, its configuration and input parameters.
+Currently, there is no interface that returns the amount of memory to be allocated
+based on the algorithm, its configuration, and input parameters.
 
-Instead there is a description in the documentation which gives an estimation, see
-https://uxlfoundation.github.io/oneDPL/kernel_templates/single_pass_scan.html#memory-requirements
-as an example for `oneapi::dpl::experimental::gpu::inclusive_scan`.
+Instead, the documentation provides only an estimation, for example see
+https://uxlfoundation.github.io/oneDPL/kernel_templates/single_pass_scan.html#memory-requirements.
 
-The corresponding interfaces will make usage of the algorithms safer
-by providing an easy way to get that information and fallback if necessary.
+The corresponding interfaces would make algorithms safer
+by providing an easy way to get memory requirements and apply fallbacks if needed.
 
 ### External Allocation of Global Memory
 
-It must be beneficial to allow passing externally allocated memory to an algorithm.
-For example, a user program may manage a pool of memory, which can be reused.
-It is especially useful if an algorithm is called in a loop and the allocation overhead
-cannot be ammortized by memory pools provided by device or compiler runtime.
+It is possible to pass externally allocated memory to an algorithm.
+For example, a user program may manage a reusable memory pool.
+This is especially useful when an algorithm is called in a loop and the allocation overhead
+cannot be amortized by memory pools provided by the device or compiler runtime.
 
-It may also make sense to make it the only option
-and do not allocate global memory internally at all.
-It must be done in conjuciton with
-[Global and Local Memory Requirements](#global-and-local-memory-requirements)
+It may be preferable to make this the only option and avoid internal global memory allocation.
+
+This should be done in conjunction with the
+[Global and Local Memory Requirements](#global-and-local-memory-requirements) interface.
 
 ### Asynchronous Execution
 
@@ -211,20 +210,20 @@ The algorithms return a `sycl::event` but do not accept any input events as inpu
 As a result, they are not fully asynchronous.
 
 It should be investigated whether full asynchrony is desirable,
-and if so,how to implement it correctly.
+and if so, how to implement it correctly.
 
 ### Separation of Specializations Based on a Problem Size
 
 Different approaches may be more effective when processing different number of elements.
 For example, a small number of elements can be processed by a single work-group.
 
-Separation of these cases may be beneficial to avoid extra compilation time.
+Separating such cases would reduce compilation time.
 
 ### Algorithms to Implement
 
-A list of algorithms to be implemented must be defined.
+A list of algorithms to implement should be defined.
 
 ### Benchmarking
 
-A benchmark suit can help to select
-the best configuration and parameters for a given workload and hardware.
+A benchmark suite can help select the best configuration and parameters
+for a given workload and hardware.

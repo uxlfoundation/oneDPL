@@ -50,13 +50,15 @@ is an implementation-defined vectorization factor.
 `kernel_name` is an optional parameter that is used to set a kernel name.
 If omitted, SYCL kernel name(s) will be automatically generated.
 If provided, it must be a unique C++ typename that satisfies the requirements
-for SYCL kernel names in the `SYCL 2020 Specification`_.
+for SYCL kernel names in the
+[SYCL 2020 Specification](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec:naming.kernels)
 
-**Note:** Passing `kernel_name` might be required in case an implementation of SYCL
-is not fully compliant with the `SYCL 2020 Specification`_
+Passing `kernel_name` might be required in case an implementation of SYCL
+is not fully compliant with the
+[SYCL 2020 Specification](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec:naming.kernels)
 and does not support optional kernel names.
 
-**Note:** The provided name can be augmented by oneDPL
+The provided name can be augmented by oneDPL
 when used with a template that creates multiple SYCL kernels.
 
 ## Open Questions
@@ -68,5 +70,3 @@ but their optimal values depend on the number of elements to process, which is k
 
 It should be investigated whether these parameters can be made run-time configurable
 without compromising efficiency.
-
-.. `SYCL 2020 Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec:naming.kernels
