@@ -93,7 +93,7 @@ sycl::event kernel_template (
 
 `Arg1`, ..., `ArgN` include the sequences to be processed.
 Data can be passed in the same ways as described in the
-[documentation on passing data]((https://uxlfoundation.github.io/oneDPL/parallel_api/pass_data_algorithms.html#pass-data-to-algorithms))
+[documentation on passing data](https://uxlfoundation.github.io/oneDPL/parallel_api/pass_data_algorithms.html#pass-data-to-algorithms)
 for algorithms with device policies.
 Additionally, a plain `sycl::buffer` can also be used.
 Specialized algorithms may impose additional restrictions on how data is passed.
@@ -157,7 +157,8 @@ The testing harness should cover:
  - Edge cases (for example, zero-sized sequences).
 
 Due to the unlimited number of possible kernel parameter combinations, it is recommended to:
- - Always test the most representative configurations for a given algorithm from performance standpoint
+ - Always test the most representative configurations
+  (most likely to be used and achieve the best performance).
  - Randomly select a subset of additional parameter combinations to broaden coverage.
 
 The testing harness should generate or enable tests with limited portability on demand,
@@ -193,7 +194,7 @@ by providing an easy way to get memory requirements and apply fallbacks if neede
 
 ### External Allocation of Global Memory
 
-It is possible to pass externally allocated memory to an algorithm.
+There are scenarios which benefit from passing pre-allocated temporary memory to an algorithm.
 For example, a user program may manage a reusable memory pool.
 This is especially useful when an algorithm is called in a loop and the allocation overhead
 cannot be amortized by memory pools provided by the device or compiler runtime.
