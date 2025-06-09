@@ -97,7 +97,7 @@ Perform the following steps:
    ```
    > **Note**: by default, only CPU devices are run.  Use ``sycl-ls`` to see available devices on your target system.
 
-   Manually envoking the application requires supplying a vector length. 1000 is used in the examples below.
+   Manually invoking the application requires supplying a vector length. 1000 is used in the examples below.
 
    For the basic SYCL implementation:
    ```

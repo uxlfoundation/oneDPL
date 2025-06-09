@@ -133,7 +133,7 @@ make VERBOSE=1
    ```
    ./2_sepia_policies 1000 2 4
    ```
-   The above runs a 1000 iterations of applying the sepia filter to the larger of the supplied images targetting the device with the most availalbe resources:
+   The above runs a 1000 iterations of applying the sepia filter to the larger of the supplied images targeting the device with the most available resources:
 
    Image Mix:
 
