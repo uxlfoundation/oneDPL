@@ -25,3 +25,31 @@ jobs:
       with:
         channel-id: ${{ env.channel }}
         slack-message: "${{ github.actor }} posted a RFC: ${{ github.event.pull_request.title }}. URL: ${{ github.event.pull_request.html_url }}"
+
+name: Slack Discussion Notification
+on:
+  # Allow RFCs to start as labeled discussions as well
+  discussion:
+    types: [created, labeled]
+
+env:
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  channel: "onedpl"
+
+permissions:
+  discussions: read
+
+jobs:
+  rfc:
+    name: RFC Notification
+    runs-on: ubuntu-latest
+    # Trigger when labeling a Discussion with "RFC"
+    if: |
+      (github.event.action == 'labeled' || github.event.action == 'created') &&
+      contains(toJson(github.event.discussion.labels.*.name), '"RFC"')
+    steps:
+    - name: Notify Slack
+      uses: slackapi/slack-github-action@70cd7be8e40a46e8b0eced40b0de447bdb42f68e # v1.26.0
+      with:
+        channel-id: ${{ env.channel }}
+        slack-message: "${{ github.actor }} posted a RFC: ${{ github.event.discussion.title }}. URL: ${{ github.event.discussion.html_url }}"
