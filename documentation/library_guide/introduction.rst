@@ -133,7 +133,9 @@ Known Limitations
   If these conditions are not met, the result of these algorithm calls is undefined.
 * For ``transform_exclusive_scan``, ``transform_inclusive_scan`` algorithms the result of the unary operation should be
   convertible to the type of the initial value if one is provided, otherwise it is convertible to the type of values
-  in the processed data sequence: ``std::iterator_traits<IteratorType>::value_type``.
+  in the processed data sequence: ``std::iterator_traits<InputIt>::value_type``. Similarly, for ``inclusive_scan`` and
+  ``exclusive_scan``, ``std::iterator_traits<InputIt>::value_type`` should be convertible to the initial value type if
+  provided.
 * ``exclusive_scan`` and ``transform_exclusive_scan`` algorithms may provide wrong results with
   unsequenced execution policies when building a program with GCC 10 and using ``-O0`` option.
 * Compiling ``reduce`` and ``transform_reduce`` algorithms with |dpcpp_cpp| versions 2021 and older
