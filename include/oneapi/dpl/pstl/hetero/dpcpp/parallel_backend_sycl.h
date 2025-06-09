@@ -2122,6 +2122,51 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
         oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
 }
 
+template <typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2, typename _Range3,
+          typename _BinaryPredicate, typename _BinaryOperator, typename _T>
+auto
+__parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
+                                            _Range3&& __out_values, _BinaryPredicate __binary_pred,
+                                            _BinaryOperator __binary_op, _T __init, _T __identity)
+{
+    using _GenReduceInput = __gen_red_by_seg_reduce_input<_BinaryPredicate>;
+    using _ReduceOp = __scan_by_seg_op<_BinaryOperator>;
+    using _GenScanInput = __gen_red_by_seg_reduce_input<_BinaryPredicate>;
+    using _ScanInputTransform = oneapi::dpl::__internal::__no_op;
+    using _WriteOp = __write_first_to_id;
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
+    std::size_t __n = __keys.size();
+    // __gen_red_by_seg_scan_input requires that __n > 1
+    assert(__n > 1);
+    return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>),
+                                                 _CustomName>(
+        __q, __n, oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
+        std::forward<_Range3>(__out_values), _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{},
+        _ScanInputTransform{}, _WriteOp{},
+        oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>{},
+        /*Inclusive*/ std::true_type{}, /*_IsUniquePattern=*/std::false_type{});
+}
+
+template <bool __is_inclusive, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
+          typename _BinaryPredicate, typename _BinaryOperator, typename _T>
+void
+__parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __keys,
+                           _Range2&& __values, _Range3&& __out_values, _BinaryPredicate __binary_pred,
+                           _BinaryOperator __binary_op, _T __init, _T __identity)
+{
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+
+    sycl::queue __q_local = __exec.queue();
+
+    __parallel_scan_by_segment_reduce_then_scan<_CustomName, __is_inclusive>(
+        __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
+        __binary_pred, __binary_op, __init, __identity);
+
+    //__sycl_scan_by_segment_impl<_CustomName, __is_inclusive>()(
+    //    __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
+    //    __binary_pred, __binary_op, __init, __identity);
+}
+
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi

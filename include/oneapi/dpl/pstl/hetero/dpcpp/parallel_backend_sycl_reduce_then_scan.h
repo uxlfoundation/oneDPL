@@ -124,6 +124,24 @@ struct __simple_write_to_id
     }
 };
 
+struct __write_first_to_id
+{
+    using _TempData = __noop_temp_data;
+    template <typename _OutRng, typename _ValueType>
+    void
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    {
+        using std::get;
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
+        // through.
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(__v))>,
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(__v));
+    }
+};
+
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1 + __offset`, but only if the
 // condition `get<0>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
 // __parallel_set_reduce_then_scan_set_a_write
@@ -831,6 +849,28 @@ struct __red_by_seg_op
                                                        __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         }
         // We are looking at elements from a previous segment so just update the output index.
+        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup),
+                                                   _OpReturnType{get<1>(__rhs_tup)});
+    }
+    _BinaryOp __binary_op;
+};
+
+template <typename _BinaryOp>
+struct __scan_by_seg_op
+{
+    template <typename _Tup1, typename _Tup2>
+    auto
+    operator()(const _Tup1& __lhs_tup, const _Tup2& __rhs_tup) const
+    {
+        using std::get;
+        using _OpReturnType = decltype(__binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
+        // The left-hand side has processed elements from the same segment, so update the reduction value.
+        if (get<0>(__rhs_tup) == 0)
+        {
+            return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup),
+                                                       __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
+        }
+        // We are looking at elements from a previous segment, so no operation is performed
         return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup),
                                                    _OpReturnType{get<1>(__rhs_tup)});
     }
