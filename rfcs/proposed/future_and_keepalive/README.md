@@ -27,20 +27,20 @@ Using future for keepalives, especially with combined result and scratch storage
 3) Calling `get()` on `__future` with a mixture of return and keepalive data is complicated and requires hacky code to handle.
 
 ## Proposal
-We must take steps to improve our usage of future, specifically to handle keep-alives for SYCL algorithms in a robust and maintainable way. This will help us achieve our longer-term vision of asynchrony in oneDPL.
+We must take steps to improve our usage of future, specifically to handle keepalives for SYCL algorithms in a robust and maintainable way. This will help us achieve our longer-term vision of asynchrony in oneDPL.
 Let's follow these steps:
 1) Break up `__result_and_scratch_storage` into a pair of utility structures: `__kernel_result` and `__kernel_scratch_storage`. For cases with access to both host USM memory and device USM memory, we already separate these allocations. We may see a slight performance regression for hardware that only supports device USM but not host USM, but that is acceptable to remove the complexity of the combined type. For this change, let's keep the `__kernel_scratch_storage` in the `__future` type, so we can do this step-by-step.
 
 2) Improve the system for `__future::get()` to handle the `__kernel_result` type and number of elements appropriately. Allow the caller to specify the number of arguments to return (default to either 1 or to a tuple of all elements in the future).
 
-3) Find and implement an alternative method for preserving keep-alives, and remove them from `__future`.
+3) Find and implement an alternative method for preserving keepalives, and remove them from `__future`.
 
 What is the best alternative for extending the lifetimes of keepalives?
 The following options have been raised:
   a) Use the experimental SYCL feature for asynchronous memory allocation and free to schedule freeing of temporary storage after a kernel completes. This is a good option, but requires a fallback, as it will not always be available in all environments.
   b) Use another location, such as a component of the execution policy, to store keepalives. A type for this purpose can be extracted from the policy within the backend and passed explicitly. For deferred waiting, we can provide tools for the user to clear temporary storage once the event has been waited on.
-  c) Use a globally allocated storage system where keep-alives can be registered. Use a host_task scheduled in the SYCL queue to mark the temporary storage for deletion when the kernels complete. This also requires a separate thread to run cleanup after the host_task marks it as OK, because the deallocation step should not be launched directly from a host_task due to restrictions about initiating an L0 call from an L0 callback. host_task will be L0 callbacks in the future.
-  d) Create a type `event_with_keepalive` similar to `__future` where `get()` is not defined, which can be used as the `event` in a `__future`. This allows us to fix the semantic problem with `__future` by explicitly controlling what is a return value and what is a keepalive, while still relying on future for the functional keep-alive behavior.
+  c) Use a globally allocated storage system where keepalives can be registered. Use a host_task scheduled in the SYCL queue to mark the temporary storage for deletion when the kernels complete. This also requires a separate thread to run cleanup after the host_task marks it as OK, because the deallocation step should not be launched directly from a host_task due to restrictions about initiating an L0 call from an L0 callback. host_task will be L0 callbacks in the future.
+  d) Create a type `event_with_keepalive` similar to `__future` where `get()` is not defined, which can be used as the `event` in a `__future`. This allows us to fix the semantic problem with `__future` by explicitly controlling what is a return value and what is a keepalive, while still relying on future for the functional keepalive behavior.
 
 The following table describes the options presented, whether they resolve the remaining issues, and their biggest downside.
 
