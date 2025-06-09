@@ -1,4 +1,4 @@
-# Future SYCL Keep-alives and Asynchrony
+# Future SYCL Keepalives and Asynchrony
 
 ## Introduction
 
