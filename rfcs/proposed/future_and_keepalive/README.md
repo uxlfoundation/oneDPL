@@ -44,30 +44,42 @@ Lets follow these steps:
    `__kernel_scratch_storage`. For cases which have access to host USM memory and device USM memory, we already break
    these allocations up separately. We may see a slight performance regression for hardware which only supports device
    USM but not host USM, but that is acceptible to remove the complexity of the combined type.  For this change, lets
-   keep the `__kernel_scratch_storage` in the `__future` type, so we can do this step by step. In this process, we must
-   improve the system for `__future::get()` to handle `__kernel_result` type appropriately.  It may include adding in 
-   the ability to specify the number of return values being requested via a template argument.
+   keep the `__kernel_scratch_storage` in the `__future` type, so we can do this step-by-step.
 
-2) Find and implement alternative method for preserving keep-alives, remove them from `__future`.
+2) Improve the system for `__future::get()` to handle `__kernel_result` type and number of elements appropriately.
 
-3) Use new feature to implement a more robust deferred waiting feature, and possibly support asynchronous API
+3) Find and implement alternative method for preserving keep-alives, remove them from `__future`.
 
-## Open Questions
-What is the best alternative for extending lifetimes of keepalives for step (2) above?
+What is the best alternative for extending lifetimes of keepalives?
     The following options have been raised:
-        1) Create a type `event_with_keepalive` similar to `__future` where `get()` is not defined which can be used as
-            the `event` in a `__future`.  This allows the us to fix the semantic problem with `__future`, by controlling
-            explicitly what is a return value and what is a keepalive, while still relying upon future for the
-            functional keep-alive behavior.
-        2) Use the experimental sycl feature for asynchronous memory allocation and free to schedule freeing of
+        a) Use the experimental sycl feature for asynchronous memory allocation and free to schedule freeing of
            temporary storage after a kernel completes. This is a nice option, but requires a fallback, as it will not
            always be available in all environments.
-        3) Use a globally allocated storage system where keep-alives can be registered to be stored. Use host_task
+        b) Use some other location, like a component of the execution policy to store keepalives.  A type for this
+           purpose can be extracted from the policy within the backend and passed explicitly. For deferred waiting, we
+           can provide tools for the user to clear temporary storage once the event has been waited on.
+        c) Use a globally allocated storage system where keep-alives can be registered to be stored. Use host_task
            scheduled in the sycl queue to mark the temporary storage for deletion when the kernels complete. This also
            requires a separate thread to run cleanup after the host_task marks it as OK, because the deallocation step
            should not be launched directly from a host_task due to restrictions about initiating an L0 call from an L0
            callback.  host_task will be L0 callbacks in the future.
-        4) Use some other location, like a component of the execution policy to store keepalives.  A type for this
-           purpose can be extracted from the policy within the backend and passed explicitly. For deferred waiting, we
-           can provide tools for the user to clear temporary storage once the event has been waited on.
+        d) Create a type `event_with_keepalive` similar to `__future` where `get()` is not defined which can be used as
+            the `event` in a `__future`.  This allows the us to fix the semantic problem with `__future`, by controlling
+            explicitly what is a return value and what is a keepalive, while still relying upon future for the
+            functional keep-alive behavior.
+
+
+| Option         |   Return type    | Implementation details | Biggest Downside |
+|----------------|-----------------|------------------------------------------|----------------------------------------------------|
+| Async free | Resolved* (when available) | resolved* (when available)   | Is not available everywhere, needs fallback |
+| Execution policy | Resolved  | Somewhat fixed, requires generic interface  | Possibly not compatible with async free |
+| Global storage | Resolved    | Resolved      | Very ugly, requires extra thread, global memory, complexity |
+| Event with keepalive   | Not fixed, still an issue   |  Mostly fixed, with separation of actual future from keepalive   | Does not fix return type issue |
+
+This infrastructure allows us to proceed with a more robust deferred waiting feature, and better support for the
+existing asynchronous API.
+
+
+
+
 
