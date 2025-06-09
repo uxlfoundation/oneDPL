@@ -103,7 +103,7 @@ If an algorithm allocates global memory, it must throw `std::bad_alloc` if the a
 ### Example
 
 The example demonstrates the use of a kernel template
-and describes how it is tuned for better performance and what makes it less portable
+and describes how it is tuned for better performance and what makes it less general
 than an alternative algorithm with a standard interface.
 It uses `oneapi::dpl::experimental::kt::gpu::esimd::radix_sort`,
 which can be compared to `oneapi::dpl::stable_sort`.
@@ -119,8 +119,7 @@ global memory access, and the utilization of hardware computational resources.
 They can be easily adjusted for another GPU with different hardware characteristics.
 
 The kernle template relies on ESIMD technology
-and certain forward progress guarantees between work-groups,
-which leads to better performance at the expense of portability.
+and certain forward progress guarantees between work-groups.
 
 ```c++
 // icpx -fsycl radix_sort.cpp -o radix_sort -I /path/to/oneDPL/include && ./radix_sort
