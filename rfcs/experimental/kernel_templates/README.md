@@ -7,20 +7,26 @@ designed to achieve optimal performance on specific hardware and workloads.
 They prioritize efficiency over generality when compared to
 algorithms that conform to standard C++ interfaces and use device execution policies.
 
-These algorithms are intended for use with SYCL and are expected to evolve into an extension.
+These algorithms are intended for use with SYCL.
 
-This set of algorithms is in an early stage of development, with many questions yet to be addressed.
+The terms "kernel template" and "algorithm" are used interchangeably in this RFC.
+
+## Status
+
+Kernel Templates proposal is expected to evolve into an extension.
+This set of algorithms is in an early stage of development,
+with many design aspects yet to be addressed.
+See the [Open Questions](#open-questions) list.
 
 Algorithms which are already implemented are described in
 https://uxlfoundation.github.io/oneDPL/kernel_templates_main.html.
 
-The terms "kernel template" and "algorithm" are used interchangeably in this RFC.
-
-## Design
+## Proposal
 
 ### High-Level Structure
 
-The algorithms are defined in `<oneapi/dpl/experimental/kernel_templates>`, in `namespace oneapi::dpl::experimental::kt`.
+The algorithms are defined in `<oneapi/dpl/experimental/kernel_templates>`,
+in `namespace oneapi::dpl::experimental::kt`.
 This namespace contains portable algorithms and namespaces with more specialized implementations.
 
 Below is an example of such a structure with possible algorithms:
@@ -167,8 +173,6 @@ for example through cmake arguments.
 
 ## Open Questions
 
-There are several design aspects which should be addressed to make it a fully-supported extension.
-
 ### Name
 
 The name "Kernel Templates" may be misleading because
@@ -228,3 +232,17 @@ A list of algorithms to implement should be defined.
 
 A benchmark suite can help select the best configuration and parameters
 for a given workload and hardware.
+
+## Exit Criteria
+
+The proposed set of algorithms should transition to an extension if:
+- All the [Open Questions](#open-questions) are addressed.
+  Note, in the future, some questions may arise,
+  addressing which is unnecessary for the transition.
+- A significant portion of the algorithms listed in
+  [Algorithms to Implement](#algorithms-to-implement) is implemented.
+- They are performant.
+- There is a positive adoption feedback.
+
+Some individual algorithms may remain experimental
+and have their own exit criteria.
