@@ -41,9 +41,6 @@ uniq_kernel_index()
     return static_cast<::std::underlying_type_t<sycl::usm::alloc>>(alloc_type);
 }
 
-template <typename Op, ::std::size_t CallNumber>
-struct unique_kernel_name;
-
 /**
  * make_policy functions test wrappers
  * The main purpose of this function wrapper in TestUtils namespace - to cut template params from
