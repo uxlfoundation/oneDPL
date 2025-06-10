@@ -39,7 +39,7 @@ main()
     sycl::buffer<int> A(max_n);
 
     auto src = views::fill(old_val, max_n);
-    auto res = replace_copy(TestUtils::default_dpcpp_policy, src, A, old_val, new_val);
+    auto res = replace_copy(TestUtils::get_dpcpp_test_policy(), src, A, old_val, new_val);
 
     //check result
     EXPECT_TRUE(res == max_n, "wrong result from replace_copy");

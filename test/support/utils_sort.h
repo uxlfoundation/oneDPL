@@ -358,12 +358,10 @@ test_usm(SortTestConfig config,
 
     using ValueType = typename std::iterator_traits<OutputIterator>::value_type;
 
-    auto queue = exec.queue();
-
     // Call sort algorithm on prepared data
     const auto it_from = tmp_first + 1;
     const auto it_to = tmp_last - 1;
-    TestUtils::usm_data_transfer<alloc_type, ValueType> dt_helper(queue, it_from, it_to);
+    TestUtils::usm_data_transfer<alloc_type, ValueType> dt_helper(exec.queue(), it_from, it_to);
     auto sortingData = dt_helper.get_data();
 
     const std::int32_t count0 = KeyCount;
@@ -388,6 +386,7 @@ run_test(SortTestConfig config,
     // Run tests for USM shared memory (external testing for USM shared memory, once already covered in sycl_iterator.pass.cpp)
     if (config.test_usm_shared)
     {
+        // TODO: Create a temporary policy instance and pass it to test_usm with the needed value category
         test_usm<sycl::usm::alloc::shared>(config, exec, tmp_first, tmp_last,
                                            expected_first, expected_last,first, last, n, compare...);
     }
@@ -455,7 +454,7 @@ test_default_name_gen(SortTestConfig config)
     TestUtils::Sequence<int> in({1, 0, 3, 2, 5, 4, 7, 6, 9, 8});
     TestUtils::Sequence<int> expected(in);
     TestUtils::Sequence<int> tmp(in);
-    auto my_policy = TestUtils::make_device_policy(TestUtils::get_test_queue());
+    auto my_policy = TestUtils::get_dpcpp_test_policy();
 
     TestUtils::iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
         my_policy, test_sort_op<int>{config}, tmp.begin(), tmp.end(), expected.begin(), expected.end(),

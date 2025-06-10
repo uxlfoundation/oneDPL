@@ -711,6 +711,9 @@ __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 // find_end
 //------------------------------------------------------------------------
 
+template <typename Name>
+struct equal_wrapper;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Pred>
 _Iterator1
 __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __last,
@@ -721,8 +724,9 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 
     if (__last - __first == __s_last - __s_first)
     {
-        const bool __res =
-            __pattern_equal(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __s_first, __pred);
+        const bool __res = __pattern_equal(
+            __tag, __par_backend_hetero::make_wrapped_policy<equal_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
+            __first, __last, __s_first, __pred);
         return __res ? __first : __last;
     }
     else
@@ -779,11 +783,6 @@ __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
 // search
 //------------------------------------------------------------------------
 
-template <typename Name>
-class equal_wrapper
-{
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Pred>
 _Iterator1
 __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __last,
@@ -837,6 +836,9 @@ struct __search_n_unary_predicate
     }
 };
 
+template <typename Name>
+struct any_of_wrapper;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Size, typename _Tp,
           typename _BinaryPredicate>
 _Iterator
@@ -851,8 +853,10 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 
     if (__last - __first == __count)
     {
-        return (!__internal::__pattern_any_of(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                              __search_n_unary_predicate<_Tp, _BinaryPredicate>{__value, __pred}))
+        return (!__internal::__pattern_any_of(
+                   __tag,
+                   __par_backend_hetero::make_wrapped_policy<any_of_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
+                   __first, __last, __search_n_unary_predicate<_Tp, _BinaryPredicate>{__value, __pred}))
                    ? __first
                    : __last;
     }
@@ -1683,9 +1687,7 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bi
 //2:The average time is better until ~10e8 elements
 //Wrapper needed to avoid kernel problems
 template <typename Name>
-class __rotate_wrapper
-{
-};
+struct __rotate_wrapper;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator>
 _Iterator
@@ -2176,6 +2178,41 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __keys.all_view(), __values.all_view(),
         __out_keys.all_view(), __out_values.all_view(), __binary_pred, __binary_op);
+}
+
+template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
+          typename _OutputIterator, typename _T, typename _BinaryPredicate, typename _Operator, typename _Inclusive>
+_OutputIterator
+__pattern_scan_by_segment(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputIterator1 __first1,
+                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result, _T __init,
+                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive)
+{
+    const auto __n = std::distance(__first1, __last1);
+
+    // Check for empty element ranges
+    if (__n <= 0)
+        return __result;
+
+    namespace __bknd = oneapi::dpl::__par_backend_hetero;
+
+    auto __keep_keys = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, _InputIterator1>();
+    auto __key_buf = __keep_keys(__first1, __last1);
+    auto __keep_values = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read, _InputIterator2>();
+    auto __value_buf = __keep_values(__first2, __first2 + __n);
+    auto __keep_value_outputs =
+        oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write, _OutputIterator>();
+    auto __value_output_buf = __keep_value_outputs(__result, __result + __n);
+    using _IterValueType = typename std::iterator_traits<_InputIterator2>::value_type;
+
+    // Currently, this pattern requires a known identity for the binary operator.
+    static_assert(unseq_backend::__has_known_identity<_Operator, _IterValueType>::value,
+                  "Calls to __pattern_scan_by_segment require a known identity for the provided binary operator");
+    constexpr _IterValueType __identity = unseq_backend::__known_identity<_Operator, _IterValueType>;
+
+    __bknd::__parallel_scan_by_segment<_Inclusive::value>(
+        _BackendTag{}, std::forward<_Policy>(__policy), __key_buf.all_view(), __value_buf.all_view(),
+        __value_output_buf.all_view(), __binary_pred, __binary_op, __init, __identity);
+    return __result + __n;
 }
 
 } // namespace __internal

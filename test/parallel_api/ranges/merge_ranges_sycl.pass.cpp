@@ -47,7 +47,7 @@ main()
         sycl::buffer<T> D(out1, sycl::range<1>(out_n));
         sycl::buffer<T> E(out2, sycl::range<1>(out_n));
 
-        auto exec = TestUtils::default_dpcpp_policy;
+        auto exec = TestUtils::get_dpcpp_test_policy();
 
         merge(exec, all_view(A), all_view(B), all_view<T, sycl::access::mode::write>(D));
         merge(TestUtils::make_device_policy<class merge_2>(exec), A, B, E, ::std::less<T>()); //check passing sycl buffers directly
