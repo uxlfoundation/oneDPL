@@ -256,6 +256,9 @@ __pattern_find_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R
 // find_end
 //------------------------------------------------------------------------
 
+template <typename Name>
+struct __equal_wrapper;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Pred>
 oneapi::dpl::__internal::__difference_t<_Range1>
 __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
@@ -267,8 +270,11 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 
     if (__rng1.size() == __rng2.size())
     {
-        const bool __res = __ranges::__pattern_equal(__tag, ::std::forward<_ExecutionPolicy>(__exec), __rng1,
-                                                     ::std::forward<_Range2>(__rng2), __pred);
+        const bool __res =
+            __ranges::__pattern_equal(__tag,
+                                      oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__equal_wrapper>(
+                                          std::forward<_ExecutionPolicy>(__exec)),
+                                      __rng1, std::forward<_Range2>(__rng2), __pred);
         return __res ? 0 : __rng1.size();
     }
 
@@ -377,11 +383,6 @@ __pattern_any_of(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
 // search
 //------------------------------------------------------------------------
 
-template <typename Name>
-class equal_wrapper
-{
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Pred>
 oneapi::dpl::__internal::__difference_t<_Range1>
 __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
@@ -396,8 +397,8 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
     if (__rng1.size() == __rng2.size())
     {
         const bool __res = __ranges::__pattern_equal(
-            __tag, __par_backend_hetero::make_wrapped_policy<equal_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
-            __rng1, ::std::forward<_Range2>(__rng2), __pred);
+            __tag, __par_backend_hetero::make_wrapped_policy<__equal_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
+            __rng1, std::forward<_Range2>(__rng2), __pred);
         return __res ? 0 : __rng1.size();
     }
 
