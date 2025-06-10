@@ -1,8 +1,7 @@
+project (ParSTLTests)
 
-add_executable (ParSTLTest main.cpp)
+add_executable(${PROJECT_NAME} main.cpp)
+target_link_libraries(${PROJECT_NAME} tbb)
+target_link_libraries(${PROJECT_NAME} oneDPL)
 
-target_link_libraries(ParSTLTest tbb)
-target_link_libraries(ParSTLTest oneDPL)
-
-add_custom_target(run_pstl COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR}/ParSTLTest/ "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ParSTLTest$<IF:$<PLATFORM_ID:Windows>,.exe,>"
-add_test(NAME ParSTLTest COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target run_pstl)
+add_test(NAME ${PROJECT_NAME} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME})

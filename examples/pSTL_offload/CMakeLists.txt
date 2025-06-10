@@ -14,7 +14,6 @@ set(ONEDPL_BACKEND dpcpp)
 # Add oneDPL to the build.
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../ ${CMAKE_CURRENT_BINARY_DIR}/oneDPL)
 
-
 # Set default build type to RelWithDebInfo if not specified
 if (NOT CMAKE_BUILD_TYPE)
 	message (STATUS "Default CMAKE_BUILD_TYPE not set using Release with Debug Info")
@@ -24,10 +23,6 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 enable_testing()
-# Specify oneDPL backend
-set(ONEDPL_BACKEND dpcpp)
-# Add oneDPL to the build.
-
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
