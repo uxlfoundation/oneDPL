@@ -44,8 +44,6 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_default_construct(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
@@ -69,8 +67,6 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_value_construct(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
@@ -95,8 +91,6 @@ std::ranges::uninitialized_copy_result<std::ranges::borrowed_iterator_t<_InRange
                                        std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
     assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
 
     const auto __first1 = std::ranges::begin(__in_r);
@@ -128,8 +122,6 @@ std::ranges::uninitialized_move_result<std::ranges::borrowed_iterator_t<_InRange
                                        std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
     assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
 
     const auto __first1 = std::ranges::begin(__in_r);
@@ -160,8 +152,6 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _T>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
@@ -185,8 +175,6 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
