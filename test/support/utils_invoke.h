@@ -18,6 +18,7 @@
 
 #include <type_traits>
 
+#include "utils_sycl_defs.h"
 #include "iterator_utils.h"
 
 #ifdef ONEDPL_USE_PREDEFINED_POLICIES
@@ -42,9 +43,6 @@ uniq_kernel_index()
 
 template <typename Op, ::std::size_t CallNumber>
 struct unique_kernel_name;
-
-template <typename Policy, int idx>
-using new_kernel_name = unique_kernel_name<::std::decay_t<Policy>, idx>;
 
 /**
  * make_policy functions test wrappers
