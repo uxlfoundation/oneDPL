@@ -6,16 +6,16 @@ Configuration phase can be customized by passing additional variables: `cmake -D
 
 The following variables are provided for oneDPL configuration:
 
-| Variable                     | Type   | Description                                                                                   | Default value |
-|------------------------------|--------|-----------------------------------------------------------------------------------------------|---------------|
-| ONEDPL_BACKEND               | STRING | Threading backend; supported values: tbb, dpcpp, dpcpp_only, serial, ...; the default value is defined by compiler: dpcpp for DPC++ and tbb for others | tbb/dpcpp |
-| ONEDPL_DEVICE_TYPE           | STRING | Select device type for oneDPL test targets; affects only DPC++ backends; supported values: GPU, CPU, FPGA_HW, FPGA_EMU | GPU           |
-| ONEDPL_DEVICE_BACKEND        | STRING | Select device backend type for oneDPL test targets; affects only oneDPL DPC++ backends; supported values: opencl, level_zero, cuda, hip or * (the best backend as per DPC++ runtime heuristics). | * |
-| ONEDPL_USE_UNNAMED_LAMBDA    | BOOL   | Pass `-fsycl-unnamed-lambda`, `-fno-sycl-unnamed-lambda` compile options or nothing           |               |
-| ONEDPL_FPGA_STATIC_REPORT    | BOOL   | Enable the static report generation for the FPGA_HW device type                               | OFF           |
-| ONEDPL_USE_AOT_COMPILATION   | BOOL   | Enable ahead-of-time compilation for the GPU or CPU device types                              | OFF           |
-| ONEDPL_ENABLE_SIMD           | BOOL   | Enable SIMD vectorization by passing an OpenMP SIMD flag to the compiler if supported; the flag is passed to user project compilation string if enabled | ON           |
-| ONEDPL_AOT_ARCH              | STRING | Architecture options for ahead-of-time compilation, supported values can be found [here](https://software.intel.com/content/www/us/en/develop/documentation/oneapi-dpcpp-cpp-compiler-dev-guide-and-reference/top/compilation/ahead-of-time-compilation.html)                                                                                            | "*" for GPU device and "avx" for CPU device |
+| Variable                                 | Type   | Description                                                                                   | Default value |
+|------------------------------------------|--------|-----------------------------------------------------------------------------------------------|---------------|
+| ONEDPL_BACKEND                           | STRING | Threading backend; supported values: tbb, dpcpp, dpcpp_only, serial, ...; the default value is defined by compiler: dpcpp for DPC++ and tbb for others | tbb/dpcpp |
+| ONEDPL_DEVICE_TYPE                       | STRING | Select device type for oneDPL test targets; affects only DPC++ backends; supported values: GPU, CPU, FPGA_HW, FPGA_EMU | GPU           |
+| ONEDPL_DEVICE_BACKEND                    | STRING | Select device backend type for oneDPL test targets; affects only oneDPL DPC++ backends; supported values: opencl, level_zero, cuda, hip or * (the best backend as per DPC++ runtime heuristics). | * |
+| ONEDPL_USE_UNNAMED_LAMBDA                | BOOL   | Pass `-fsycl-unnamed-lambda`, `-fno-sycl-unnamed-lambda` compile options or nothing           |               |
+| ONEDPL_FPGA_STATIC_REPORT                | BOOL   | Enable the static report generation for the FPGA_HW device type                               | OFF           |
+| ONEDPL_USE_AOT_COMPILATION (deprecated)  | BOOL   | Enable ahead-of-time compilation for the GPU or CPU device types                              | OFF           |
+| ONEDPL_ENABLE_SIMD                       | BOOL   | Enable SIMD vectorization by passing an OpenMP SIMD flag to the compiler if supported; the flag is passed to user project compilation string if enabled | ON           |
+| ONEDPL_AOT_ARCH (deprecated)             | STRING | Architecture options for ahead-of-time compilation, supported values can be found [here](https://software.intel.com/content/www/us/en/develop/documentation/oneapi-dpcpp-cpp-compiler-dev-guide-and-reference/top/compilation/ahead-of-time-compilation.html)                                                                                            | "*" for GPU device and "avx" for CPU device |
 | ONEDPL_TEST_EXPLICIT_KERNEL_NAMES   | STRING | Control kernel naming. Affects only oneDPL test targets. Supported values: AUTO, ALWAYS. AUTO: rely on the compiler if "Unnamed SYCL lambda kernels" feature is on, otherwise provide kernel names explicitly; ALWAYS: provide kernel names explicitly | AUTO          |
 | ONEDPL_TEST_WIN_ICX_FIXES     | BOOL   | Affects only oneDPL test targets.  Enable icx, icx-cl workarounds to fix issues in CMake for Windows.                      | ON            |
 | ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION | BOOL | Use as a workaround for incorrect results, which may be produced by reduction algorithms with 64-bit data types compiled by the Intel&reg; oneAPI DPC++/C++ Compiler and executed on GPU devices. |               |
