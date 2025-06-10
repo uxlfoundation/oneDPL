@@ -85,6 +85,12 @@ main()
  
     test_memory_algo<Elem, -1>{}.run_host(dpl_ranges::uninitialized_fill, uninitialized_fill_checker, 2);
 
+#if TEST_DPCPP_BACKEND_PRESENT
+    test_memory_algo<Elem, -1>{}.run_device(dpl_ranges::uninitialized_default_construct, uninitialized_default_construct_checker);
+    test_memory_algo<Elem_0, -1>{}.run_device(dpl_ranges::uninitialized_value_construct, uninitialized_value_construct_checker);
+    test_memory_algo<Elem, -1>{}.run_device(dpl_ranges::uninitialized_fill, uninitialized_fill_checker, 2);
+#endif //TEST_DPCPP_BACKEND_PRESENT
+
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

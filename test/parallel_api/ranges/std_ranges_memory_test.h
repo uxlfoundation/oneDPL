@@ -29,28 +29,32 @@ struct test_memory_algo
 
     void run_host(auto algo, auto checker, auto&&... args)
     {
-        run_host_one_policy(oneapi::dpl::execution::seq, algo, checker, std::forward<decltype(args)>(args)...);
-        run_host_one_policy(oneapi::dpl::execution::unseq, algo, checker, std::forward<decltype(args)>(args)...);
-        run_host_one_policy(oneapi::dpl::execution::par, algo, checker,  std::forward<decltype(args)>(args)...);
-        run_host_one_policy(oneapi::dpl::execution::par_unseq, algo, checker, std::forward<decltype(args)>(args)...);
+        std::allocator<Elem> alloc;
+        run_host_one_policy(alloc, oneapi::dpl::execution::seq, algo, checker, std::forward<decltype(args)>(args)...);
+        run_host_one_policy(alloc, oneapi::dpl::execution::unseq, algo, checker, std::forward<decltype(args)>(args)...);
+        run_host_one_policy(alloc, oneapi::dpl::execution::par, algo, checker,  std::forward<decltype(args)>(args)...);
+        run_host_one_policy(alloc, oneapi::dpl::execution::par_unseq, algo, checker, std::forward<decltype(args)>(args)...);
     }
 #if TEST_DPCPP_BACKEND_PRESENT
-    template<sycl::usm::alloc _alloc_type>
     void run_device(auto algo, auto checker, auto&&... args)
     {
+        //sycl::usm::alloc _alloc_type
+        auto policy = TestUtils::get_dpcpp_test_policy();
+        sycl::queue q = policy.queue();
+        sycl::usm_allocator<Elem, sycl::usm::alloc::shared> q_alloc{policy.queue()};
 
-        sycl::queue __q;
+        run_host_one_policy(q_alloc, policy, algo, checker, std::forward<decltype(args)>(args)...);
+
         //usm_data_transfer(sycl::queue __q, _Size __sz)
-        TestUtils::usm_data_transfer<_alloc_type, T> __mem(q, medium_size);
+        //TestUtils::usm_data_transfer<_alloc_type, T> __mem(q, medium_size);
+        //estUtils::usm_data_transfer<alloc_type, Elem> dt_helper(q, first, m);
     }
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 private:
-//    template<typename Allocator>
-    void run_host_one_policy(auto&& policy, auto algo, auto checker, auto&&... args)
+    void run_host_one_policy(auto& alloc, auto&& policy, auto algo, auto checker, auto&&... args)
     {
         const std::size_t n = medium_size;
-        std::allocator<Elem> alloc;
         Elem* pData = alloc.allocate(n);
 
         std::memset(pData, no_init_val, n*sizeof(Elem));
