@@ -2122,29 +2122,53 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
         oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
 }
 
+//------------------------------------------------------------------------
+// parallel_scan_by_segment - sync pattern
+//------------------------------------------------------------------------
 template <typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2, typename _Range3,
           typename _BinaryPredicate, typename _BinaryOperator, typename _T>
 auto
 __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                             _Range3&& __out_values, _BinaryPredicate __binary_pred,
-                                            _BinaryOperator __binary_op, _T __init, _T __identity)
+                                            _BinaryOperator __binary_op, [[maybe_unused]] _T __init, _T __identity)
 {
     using _GenReduceInput = __gen_red_by_seg_reduce_input<_BinaryPredicate>;
     using _ReduceOp = __scan_by_seg_op<_BinaryOperator>;
-    using _GenScanInput = __gen_red_by_seg_reduce_input<_BinaryPredicate>;
-    using _ScanInputTransform = oneapi::dpl::__internal::__no_op;
-    using _WriteOp = __write_first_to_id;
+    using _GenScanInput = __gen_scan_by_seg_scan_input<_BinaryPredicate>;
+    using _ScanInputTransform = __get_zeroth_element;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
     std::size_t __n = __keys.size();
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
-    return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>),
-                                                 _CustomName>(
-        __q, __n, oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
-        std::forward<_Range3>(__out_values), _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{},
-        _ScanInputTransform{}, _WriteOp{},
-        oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>{},
-        /*Inclusive*/ std::true_type{}, /*_IsUniquePattern=*/std::false_type{});
+    if constexpr (__is_inclusive)
+    {
+        oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>
+            __wrapped_init;
+        using _WriteOp = __write_scan_by_seg<decltype(__wrapped_init), _BinaryOperator>;
+        return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>),
+                                                     _CustomName>(
+            __q, __n,
+            oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
+            std::forward<_Range3>(__out_values), _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op},
+            _GenScanInput{}, _ScanInputTransform{}, _WriteOp{__wrapped_init, __binary_op}, __wrapped_init,
+            /*Inclusive*/ std::true_type{}, /*_IsUniquePattern=*/std::false_type{});
+    }
+    else
+    {
+        // The init value is manually applied through the write functor in exclusive-scan-by-segment and we always pass __no_init_value.
+        // This is because init handling must occur on a per-segment basis and functions differently than the typical scan init.
+        oneapi::dpl::unseq_backend::__init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>
+            __wrapped_init{{0, __init}};
+        using _WriteOp = __write_scan_by_seg<decltype(__wrapped_init), _BinaryOperator>;
+        return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>),
+                                                     _CustomName>(
+            __q, __n,
+            oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
+            std::forward<_Range3>(__out_values), _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op},
+            _GenScanInput{}, _ScanInputTransform{}, _WriteOp{__wrapped_init, __binary_op},
+            oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>{},
+            /*Inclusive*/ std::false_type{}, /*_IsUniquePattern=*/std::false_type{});
+    }
 }
 
 template <bool __is_inclusive, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
@@ -2160,7 +2184,8 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
 
     __parallel_scan_by_segment_reduce_then_scan<_CustomName, __is_inclusive>(
         __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
-        __binary_pred, __binary_op, __init, __identity);
+        __binary_pred, __binary_op, __init, __identity)
+        .wait();
 
     //__sycl_scan_by_segment_impl<_CustomName, __is_inclusive>()(
     //    __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
