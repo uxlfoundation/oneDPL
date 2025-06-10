@@ -20,7 +20,7 @@ enable_testing()
 # Specify oneDPL backend
 set(ONEDPL_BACKEND dpcpp)
 # Add oneDPL to the build.
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../ ${CMAKE_CURRENT_BINARY_DIR}/oneDPL)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../ ${CMAKE_CURRENT_BINARY_DIR}/oneDPL)
 
 if(TARGET_GPU)
   #To build for Intel® Data Center GPU Max 1550 or 1100
