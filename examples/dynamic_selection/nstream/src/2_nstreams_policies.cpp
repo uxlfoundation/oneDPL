@@ -75,11 +75,11 @@ void invokeDS(int length, std::vector<sycl::queue> &universe){
   T policy(universe);
 
   // Start the timer
-  auto begin = std::chrono::high_resolution_clock::now();
+  auto begin = std::chrono::steady_clock::now();
 
   for (int i = 0; i <= iterations; ++i) {
     if (i == num_warmup_iterations) {
-      begin = std::chrono::high_resolution_clock::now();
+      begin = std::chrono::steady_clock::now();
     }
 
     ds::submit_and_wait(policy, [&](sycl::queue e)
@@ -115,7 +115,7 @@ void invokeDS(int length, std::vector<sycl::queue> &universe){
     });
   }
 
-  auto end = std::chrono::high_resolution_clock::now();
+  auto end = std::chrono::steady_clock::now();
   // Calculate time elapsed
   auto nstream_time = std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
   verify(nstream_time, length, iterations, scalar, A);
@@ -134,7 +134,7 @@ void invokeSYCL(int length)
   sycl::queue u(sycl::cpu_selector_v);
 
   // Start the timer
-  auto begin = std::chrono::high_resolution_clock::now();
+  auto begin = std::chrono::steady_clock::now();
 
   for (int i = 0; i <= iterations; ++i) {
     float *d_A = sycl::malloc_device<float>(length, u);
@@ -160,7 +160,7 @@ void invokeSYCL(int length)
   }
 
   // End the timer
-  auto end = std::chrono::high_resolution_clock::now();
+  auto end = std::chrono::steady_clock::now();
   // Calculate time elapsed
   auto nstream_time = std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
   verify(nstream_time, length, iterations, scalar, A);

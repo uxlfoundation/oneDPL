@@ -69,7 +69,7 @@ void invokeSYCL(int length, sycl::queue u)
   const size_t bytes = length * sizeof(float);
 
   // Start the timer
-  auto begin = std::chrono::high_resolution_clock::now();
+  auto begin = std::chrono::steady_clock::now();
 
   for (int i = 0; i <= iterations; ++i) {
     std::cout << u.get_device().get_info<sycl::info::device::name>() <<std::endl;  
@@ -96,7 +96,7 @@ void invokeSYCL(int length, sycl::queue u)
   }
 
   // End the timer
-  auto end = std::chrono::high_resolution_clock::now();
+  auto end = std::chrono::steady_clock::now();
   // Calculate time elapsed
   auto nstream_time = std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
   verify(nstream_time, length, iterations, scalar, A);
