@@ -162,7 +162,7 @@ int invokeDS(int num_offloads,
           accessor image_exp_acc(out, h, write_only);
   
           // This is the simplest form sycl::handler::parallel_for -
-          // - it specifies "flat" 1D ND range(num_pixels), runtime will select
+          // - it specifies "flat" 1D range(num_pixels), runtime will select
           //   local size
           // - kernel lambda accepts single sycl::id argument, which has very
           //   limited API; see the spec for more complex forms
