@@ -24,7 +24,22 @@ We can summarize in a table how these are (or should be) used in different APIs:
 Using future for keepalives, especially with combined result and scratch storage, causes several issues:
 1) Return types are unwieldy and problematic. Especially when different algorithms may be used internally due to runtime branches, we must match return types. When algorithms differ in temporary storage requirements, `__future` return types will not match.
 2) It exposes implementation details of the individual device backend to at least the "hetero" section of the code, if not further, outside the device backend.
-3) Calling `get()` on `__future` with a mixture of return and keepalive data is complicated and requires hacky code to handle.
+3) Calling `get()` on `__future` with a mixture of return and keepalive data is complicated and requires hacky code to handle. For instance, as discussed in [this issue](https://github.com/uxlfoundation/oneDPL/issues/2003#issuecomment-2617343442), we currently
+hardcode that a `__result_and_scratch_storage_base` instance returns a pair of `std::size_t` elements when `get()` is called to serve a specific algorithm.
+
+### Example of issue aligning return types
+Scan is currently implemented in oneDPL in a few ways: 
+1) scan_then_propagate - original scan implementation, most general purpose but also very slow. Used for all scanlike algorithms as a fallback (for CPU, for unsupported types, or hardware without subgroup size 32).
+2) single_workgroup_scan - faster scan implementation for a single workgroup. Used only for `transform_*_scan` algorithms, and only where data fits in a single workgroup.
+3) reduce_then_scan - fast implementation for multi-workgroup. Used for all scanlike algorithms in situations where it is supported.
+
+We must choose between these implementations using runtime decisions, but they all must match return type to the calling pattern(s). These have different needs for temporary storage. Originally (1) used a `sycl::buffer` for temporary storage, (2) has no need for temporary storage, and (3) uses `__result_and_scratch_storage` because it is the fastest. When we implemented (3), we upgraded (1) to use `__result_and_scratch_storage` rather than `sycl::buffer`, and added a "dummy" `__result_and_scratch_storage` to (2) which holds nothing, to align the return type of `__parallel_transform_scan`. This issue was able to be worked around, but is an example of the maintenance burden this imposes.
+
+There is some active work on the set algorithms, which exposes a more acute version of this same problem, and may not be able to worked around so easily. The set algorithms are scan-like algorithms, and have a pair of algorithms which we use to implement them under the hood. 
+a) balanced path, which can write from either of the two input sets
+b) scan across set 1, which only can write from the first input set, and implements `set_union` and `set_symmetric_difference` as a combination of scan-like algorithms and merge algorithms because of the need to write from the second input set.
+
+(a) is better for larger inputs, and (b) is better for smaller inputs, and also may be required when we dont have access to the scan-like algorithm (3). This means that with a run-time decision, we must choose between a set of calls which ends with a scan-like operation, or a merge operation, and we must align their return type. This may be difficult enough when considering the actual result itself, but becomes untenable when also considering keepalives in the return type. One option is to work around this issue by making the calls blocking, but that spoils any hope for asynchrony for these algorithms with deferred waiting or the asynchronous API.
 
 ## Proposal
 We must take steps to improve our usage of future, specifically to handle keepalives for SYCL algorithms in a robust and maintainable way. This will help us achieve our longer-term vision of asynchrony in oneDPL.
@@ -52,6 +67,15 @@ The following table describes the options presented, whether they resolve the re
 | Event with keepalive| Not fixed, still an issue | Mostly fixed, with separation of actual future from keepalive | Does not fix return type issue                           |
 
 This infrastructure allows us to proceed with a more robust deferred waiting feature and better support for the existing asynchronous API.
+
+### Other Options for changes to __future
+* Remove `__future` usage all internal levels of oneDPL and use it only in async algorithm implementations for return value. This is implemented in [this PR](https://github.com/uxlfoundation/oneDPL/pull/2261)
+    This replaces `__future` in our internals with a `std::tuple` of all results and keepalives (or combinations via `__result_and_scratch_storage`). This gets rid of the semantic issues we have with future, where we are including keepalives.  However, it does not change the requirements to align our return type. It may be a step to consider, in combination with a way to address keepalives.
+
+
+### Other Options for changes to __reduce_and_scratch_storage
+* Extend functionality of `__result_and_scratch_storage` to allow independant types for the result and and the scratch storage.
+    This allows more flexibility for `__result_and_scratch_storage`. However, with separate types it really begs the question of why these two entities are fused together.
 
 ## Open Questions
 1) What should the default be for get():  single element, or tuple of all elements in the future
