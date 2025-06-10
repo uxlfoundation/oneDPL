@@ -30,10 +30,10 @@ struct test_memory_algo
     void run_host(auto algo, auto checker, auto&&... args)
     {
         std::allocator<Elem> alloc;
-        run_host_one_policy(alloc, oneapi::dpl::execution::seq, algo, checker, std::forward<decltype(args)>(args)...);
-        run_host_one_policy(alloc, oneapi::dpl::execution::unseq, algo, checker, std::forward<decltype(args)>(args)...);
-        run_host_one_policy(alloc, oneapi::dpl::execution::par, algo, checker,  std::forward<decltype(args)>(args)...);
-        run_host_one_policy(alloc, oneapi::dpl::execution::par_unseq, algo, checker, std::forward<decltype(args)>(args)...);
+        run_one_policy(alloc, oneapi::dpl::execution::seq, algo, checker, std::forward<decltype(args)>(args)...);
+        run_one_policy(alloc, oneapi::dpl::execution::unseq, algo, checker, std::forward<decltype(args)>(args)...);
+        run_one_policy(alloc, oneapi::dpl::execution::par, algo, checker,  std::forward<decltype(args)>(args)...);
+        run_one_policy(alloc, oneapi::dpl::execution::par_unseq, algo, checker, std::forward<decltype(args)>(args)...);
     }
 #if TEST_DPCPP_BACKEND_PRESENT
     void run_device(auto algo, auto checker, auto&&... args)
@@ -43,16 +43,12 @@ struct test_memory_algo
         sycl::queue q = policy.queue();
         sycl::usm_allocator<Elem, sycl::usm::alloc::shared> q_alloc{policy.queue()};
 
-        run_host_one_policy(q_alloc, policy, algo, checker, std::forward<decltype(args)>(args)...);
-
-        //usm_data_transfer(sycl::queue __q, _Size __sz)
-        //TestUtils::usm_data_transfer<_alloc_type, T> __mem(q, medium_size);
-        //estUtils::usm_data_transfer<alloc_type, Elem> dt_helper(q, first, m);
+        run_one_policy(q_alloc, policy, algo, checker, std::forward<decltype(args)>(args)...);
     }
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 private:
-    void run_host_one_policy(auto& alloc, auto&& policy, auto algo, auto checker, auto&&... args)
+    void run_one_policy(auto& alloc, auto&& policy, auto algo, auto checker, auto&&... args)
     {
         const std::size_t n = medium_size;
         Elem* pData = alloc.allocate(n);
