@@ -13,8 +13,8 @@ endif ()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-option (BUILD_NSTREAM "Build targets from subproject nstream" ON)
-option (BUILD_SEPIA-FILTER-DS "Build targets from subproject sepia-filter-ds" ON)
+option (BUILD_NSTREAM "Build targets from subproject nstream" OFF)
+option (BUILD_SEPIA-FILTER-DS "Build targets from subproject sepia-filter-ds" OFF)
 
 if (BUILD_NSTREAM)
 	add_subdirectory (nstream)
