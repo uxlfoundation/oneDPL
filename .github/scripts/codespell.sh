@@ -14,7 +14,7 @@
 
 SCAN_TARGET=$1
 
-SKIP_PATTERN='*/.github/*,examples/pSTL_offload/FileWordCount/*'
+SKIP_PATTERN='*/.github/*,*/examples/pSTL_offload/FileWordCount/*'
 
 # Ignored cases
 IGNORE_COMMAND="sed -e /.*windows.inc.*Od\\s*=.*/d \
