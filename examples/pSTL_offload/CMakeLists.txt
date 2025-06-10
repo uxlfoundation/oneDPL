@@ -23,12 +23,27 @@ if (NOT CMAKE_BUILD_TYPE)
 	     FORCE)
 endif ()
 
+enable_testing()
+# Specify oneDPL backend
+set(ONEDPL_BACKEND dpcpp)
+# Add oneDPL to the build.
+
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 option (TARGET_GPU "Build targets for GPU target" OFF)
 option (BUILD_FILEWORDCOUNT "Build targets from subproject FileWordCount" OFF)
 option (BUILD_WORDCOUNT "Build targets from subproject WordCount" ON)
 option (BUILD_PARSTLTESTS "Build targets from subproject ParSTLTests" OFF)
+
+if(TARGET_GPU)
+  #To build for Intel® Data Center GPU Max 1550 or 1100
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-pstl-offload=gpu -D GPU")
+else()
+  #To build for CPU 
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D CPU ")
+endif()
+
 
 if (BUILD_FILEWORDCOUNT)
 	add_subdirectory (FileWordCount)
