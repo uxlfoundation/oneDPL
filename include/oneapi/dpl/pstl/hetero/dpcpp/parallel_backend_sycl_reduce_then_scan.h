@@ -124,24 +124,6 @@ struct __simple_write_to_id
     }
 };
 
-struct __write_first_to_id
-{
-    using _TempData = __noop_temp_data;
-    template <typename _OutRng, typename _ValueType>
-    void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
-    {
-        using std::get;
-        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
-        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
-        // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
-        __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(__v));
-    }
-};
-
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1 + __offset`, but only if the
 // condition `get<0>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
 // __parallel_set_reduce_then_scan_set_a_write
@@ -227,6 +209,60 @@ struct __write_red_by_seg
     }
     _BinaryPred __binary_pred;
     std::size_t __n;
+};
+
+template <typename _InitWrapper, typename _BinaryOp>
+struct __write_scan_by_seg;
+
+// Inclusive scan by segment
+template <typename _InitType, typename _BinaryOp>
+struct __write_scan_by_seg<unseq_backend::__no_init_value<_InitType>, _BinaryOp>
+{
+    using _TempData = __noop_temp_data;
+    unseq_backend::__no_init_value<_InitType> __init_value;
+    _BinaryOp __binary_op;
+    template <typename _OutRng, typename _ValueType>
+    void
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    {
+        using std::get;
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
+        // through.
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(__v))>,
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
+    }
+};
+
+// Exclusive scan by segment
+template <typename _InitType, typename _BinaryOp>
+struct __write_scan_by_seg<unseq_backend::__init_value<_InitType>, _BinaryOp>
+{
+    using _TempData = __noop_temp_data;
+    unseq_backend::__init_value<_InitType> __init_value;
+    _BinaryOp __binary_op;
+    template <typename _OutRng, typename _ValueType>
+    void
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    {
+        using std::get;
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
+        // through.
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(__v))>,
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        // TODO: see if we can remove the two checks
+        if (get<1>(__v) || __id == 0)
+            __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(__init_value.__value));
+        else
+        {
+            __out_rng[__id] =
+                static_cast<_ConvertedTupleType>(__binary_op(get<1>(__init_value.__value), get<1>(get<0>(__v))));
+        }
+    }
 };
 
 // Writes multiple elements from temp data to the output range. The values to write are stored in `__temp_data` from a
@@ -787,6 +823,31 @@ struct __gen_red_by_seg_scan_input
     std::size_t __n;
 };
 
+template <typename _BinaryPred>
+struct __gen_scan_by_seg_scan_input
+{
+    using TempData = __noop_temp_data;
+    // Returns the following tuple:
+    // (new_seg_mask, value)
+    // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
+    // ValueType value     : Current element's value for reduction
+    template <typename _InRng>
+    auto
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    {
+        const auto __in_keys = std::get<0>(__in_rng.tuple());
+        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
+        // The first segment start (index 0) is not marked with a 1. This is because we need the first
+        // segment's key and value output index to be 0. We begin marking new segments only after the
+        // first.
+        const std::size_t __new_seg_mask = __id > 0 && !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
+        return oneapi::dpl::__internal::make_tuple(
+            oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]}), __new_seg_mask);
+    }
+    _BinaryPred __binary_pred;
+};
+
 // Reduction operation for reduce-by-segment
 template <typename _BinaryOp>
 struct __red_by_seg_op
@@ -871,6 +932,7 @@ struct __scan_by_seg_op
                                                        __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         }
         // We are looking at elements from a previous segment, so no operation is performed
+        // This scan over index is not needed.
         return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup),
                                                    _OpReturnType{get<1>(__rhs_tup)});
     }
