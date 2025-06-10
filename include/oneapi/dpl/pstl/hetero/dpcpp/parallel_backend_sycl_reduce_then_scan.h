@@ -239,8 +239,9 @@ struct __write_multiple_to_id
 
 // __parallel_transform_scan
 
-// A generator which applies a unary operation to the input range element at an index and returns the result.
-template <typename _UnaryOp>
+// A generator which applies a unary operation to the input range element at an index and returns the result
+// converted to an underlying init type.
+template <typename _UnaryOp, typename _InitType>
 struct __gen_transform_input
 {
     using TempData = __noop_temp_data;
@@ -252,7 +253,7 @@ struct __gen_transform_input
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
         // from modifying the input range when altering the return of this functor.
         using _ValueType = oneapi::dpl::__internal::__value_t<_InRng>;
-        return __unary_op(_ValueType{__in_rng[__id]});
+        return static_cast<_InitType>(__unary_op(_ValueType{__in_rng[__id]}));
     }
     _UnaryOp __unary_op;
 };

@@ -701,7 +701,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
         }
         if (__use_reduce_then_scan)
         {
-            using _GenInput = oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation>;
+            using _GenInput =
+                oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation,
+                                                                         typename _InitType::__value_type>;
             using _ScanInputTransform = oneapi::dpl::identity;
             using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 
