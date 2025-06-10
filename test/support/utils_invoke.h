@@ -34,13 +34,6 @@ namespace TestUtils
 // Implemented in utils_sycl.h, required to include this file.
 sycl::queue get_test_queue();
 
-template <sycl::usm::alloc alloc_type>
-constexpr ::std::size_t
-uniq_kernel_index()
-{
-    return static_cast<::std::underlying_type_t<sycl::usm::alloc>>(alloc_type);
-}
-
 /**
  * make_policy functions test wrappers
  * The main purpose of this function wrapper in TestUtils namespace - to cut template params from
