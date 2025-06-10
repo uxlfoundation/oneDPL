@@ -29,7 +29,7 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
     }
 
     template <typename Policy, typename Size, typename Iterator3, typename TPermutationIterator>
-    struct TestImlementationLevel1
+    struct TestImplementationLevel1
     {
         Policy exec;
         Size n;
@@ -75,7 +75,7 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
     };
 
     template <typename Policy, typename Size, typename Iterator1, typename Iterator3>
-    struct TestImlementationLevel0
+    struct TestImplementationLevel0
     {
         Policy exec;
         Size n;
@@ -99,7 +99,7 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
             wait_and_throw(exec1);
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementationLevel1<Policy, Size, Iterator3, TPermutationIterator>{exec, n, srcData1, first3, permItBegin1, permItEnd1});
+                TestImplementationLevel1<Policy, Size, Iterator3, TPermutationIterator>{exec, n, srcData1, first3, permItBegin1, permItEnd1});
         }
     };
 
@@ -131,7 +131,7 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
             assert(::std::distance(first3, last3) >= ::std::distance(first1, last1) + ::std::distance(first2, last2));
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImlementationLevel0<Policy, Size, Iterator1, Iterator3>{exec, n, first1, first3});
+                TestImplementationLevel0<Policy, Size, Iterator1, Iterator3>{exec, n, first1, first3});
         }
     }
 };
