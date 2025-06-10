@@ -454,7 +454,7 @@ SOFTWARE.
 --------------------------------------------------------------------------------
 9. Stream
 
-***NOTE: This is a modified version of Stream, hence sectin 3b of the license applies.
+***NOTE: This is a modified version of Stream, hence section 3b of the license applies.
 
 * Copyright 1991-2003: John D. McCalpin
 *-----------------------------------------------------------------------
