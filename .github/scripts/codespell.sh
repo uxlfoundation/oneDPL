@@ -14,13 +14,13 @@
 
 SCAN_TARGET=$1
 
-SKIP_PATTERN='*/.github/*,*/examples/pSTL_offload/FileWordCount/*'
+SKIP_PATTERN='*/.git/*,*/.github/*,*/examples/pSTL_offload/FileWordCount/*'
 
 # Ignored cases
 IGNORE_COMMAND="sed -e /.*windows.inc.*Od\\s*=.*/d \
 -e /.*README.md.*varN\\s*=.*/d"
 
-SCAN_RESULT=$(codespell -I ${GITHUB_WORKSPACE}/.github/scripts/allowed_words.txt, --ignore-words=FILE --quiet-level=2 --skip "${SKIP_PATTERN}" ${SCAN_TARGET})
+SCAN_RESULT=$(codespell -I ${GITHUB_WORKSPACE}/.github/scripts/allowed_words.txt --quiet-level=2 --skip "${SKIP_PATTERN}" ${SCAN_TARGET})
 SCAN_RESULT=$(echo -e "${SCAN_RESULT}" | ${IGNORE_COMMAND})
 echo "${SCAN_RESULT}"
 
