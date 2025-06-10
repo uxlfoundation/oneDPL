@@ -19,7 +19,7 @@ feature allows more flexibility to express this trait either in the class implem
 leaving the user's namespace.
 
 ### Changes from proposed RFC
-The original RFC as proposed focussed more on the implementation detail "is passed directly", where during discussion
+The original RFC as proposed focused more on the implementation detail "is passed directly", where during discussion
 of the specification, we shifted the semantic meaning of the public trait to only describe whether the type refers
 to data which is accessible on the device. This separates its meaning from other requirements for direct usage within
 a SYCL kernel like random access iterator or SYCL device copyable. The name indirectly device accessible was selected
