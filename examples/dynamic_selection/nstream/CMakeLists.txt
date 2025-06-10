@@ -10,5 +10,5 @@ target_link_libraries(1_nstreams_sycl oneDPL)
 target_link_libraries(2_nstreams_policies tbb)
 target_link_libraries(2_nstreams_policies oneDPL)
 
-add_test(NAME 1_nstreams_sycl COMMAND $<TARGET_FILE:1_nstreams_sycl>)
-add_test(NAME 2_nstreams_policies COMMAND $<TARGET_FILE:2_nstreams_policies>)
+add_test(NAME 1_nstreams_sycl COMMAND $<TARGET_FILE:1_nstreams_sycl> 1000)
+add_test(NAME 2_nstreams_policies COMMAND $<TARGET_FILE:2_nstreams_policies> 1000 1)
