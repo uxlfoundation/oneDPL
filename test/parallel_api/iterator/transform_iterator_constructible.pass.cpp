@@ -32,7 +32,7 @@ struct noop
     }
 };
 
-struct noop_nodefault : noop
+struct noop_nodefault
 {
     noop_nodefault() = delete;
     noop_nodefault(int) {}
