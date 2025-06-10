@@ -165,7 +165,7 @@ __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, co
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    oneapi::dpl::uninitialized_fill(std::forward<_ExecutionPolicy>(__exec), __first, __last);
+    oneapi::dpl::uninitialized_fill(std::forward<_ExecutionPolicy>(__exec), __first, __last, __value);
 
     return {__last};
 }
