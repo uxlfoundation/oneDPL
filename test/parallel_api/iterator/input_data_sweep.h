@@ -33,7 +33,6 @@ struct get_expected_op
     template <typename T>
     auto operator()(T exp) const
     {
-        (void)n; // avoid unused-lambda-capture, bug https://bugs.llvm.org/show_bug.cgi?id=35450
         if constexpr (__reverses % 2 == 0)
         {
             return exp;
