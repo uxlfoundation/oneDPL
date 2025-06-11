@@ -25,7 +25,7 @@
 
 #include "std_ranges_memory_test.h"
 
-//default initialization, initialization by custom value (fill)
+//A type for testing: default initialization, initialization by custom value, initialization via copy constructor
 struct Elem
 {
     int val1;
@@ -36,13 +36,13 @@ struct Elem
     Elem(const Elem& elem) { val2 = elem.val2; }
 };
 
-//value initialization
+//A type for testing: value initialization, initialization via move constructor, destroy
 struct Elem_0
 {
-    int val1; //value initialization
+    int val1;
     int val2;
 
-    Elem_0(): val1() {}
+    Elem_0(): val1() {} //val1 has a value initialization here
     Elem_0(Elem&& elem) { val2 = elem.val2; }
     ~Elem_0() { val2 = 3;}
 };
@@ -146,7 +146,7 @@ main()
     test_memory_algo<Elem, -1>{}.run_device(dpl_ranges::uninitialized_copy, uninitialized_copy_move_checker);
     test_memory_algo<Elem_0, -1>{}.run_device(dpl_ranges::uninitialized_move, uninitialized_copy_move_checker);
 
-    test_memory_algo<Elem_0, -1>{}.runrun_device_host(dpl_ranges::destroy, destroy_checker);
+    test_memory_algo<Elem_0, -1>{}.run_device(dpl_ranges::destroy, destroy_checker);
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 #endif //_ENABLE_STD_RANGES_TESTING
