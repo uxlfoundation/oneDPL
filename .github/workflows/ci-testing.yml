@@ -183,15 +183,18 @@ jobs:
 
           if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
             # build and run the examples
+            example_dirs=()
             for example_dir in ${GITHUB_WORKSPACE}/examples/*; do
-            # Skip the example if it is not a directory
-            if [[ -d "$example_dir" ]]; then
+              if [[ -d "$example_dir" && -f "$example_dir/CMakeLists.txt" ]]; then
+                example_dirs+=("$example_dir")
+              fi
+            done
+            for example_dir in "${example_dirs[@]}"; do
               cd "$example_dir"
               mkdir build && cd build
               cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
               make VERBOSE=1 |& tee build.log
               ctest --timeout ${TEST_TIMEOUT} --output-on-failure |& tee ctest.log
-            fi
             done
 
             #set targets to just sycl iterator for dpcpp tests
@@ -295,9 +298,14 @@ jobs:
           set BASE_DIR=%cd%
           if "${{ matrix.backend }}" == "dpcpp" (
             :: Build and run examples
+            set "example_dirs="
             for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
-              cd "%%i"
-              :: Get current directory name
+              if exist "%%i\CMakeLists.txt" (
+                set "example_dirs=!example_dirs! "%%i""
+              )
+            )
+            for %%d in (!example_dirs!) do (
+              cd "%%d"
               mkdir build && cd build
               cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
               if !errorlevel! neq 0 set exit_code=!errorlevel!
@@ -308,7 +316,7 @@ jobs:
               type ctest_ex.log
               type build_ex.log
               if !exit_code! neq 0 exit /b !exit_code!
-
+              cd %BASE_DIR%
             )
 
             set ninja_targets=build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests
