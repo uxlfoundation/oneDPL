@@ -1010,11 +1010,11 @@ DEFINE_TEST(test_adjacent_difference)
             auto host_first1 = host_keys.get();
             auto host_first2 = host_vals.get();
 
-            bool is_correct = *host_first1 == *host_first2; // for the first element
-            for (int i = 1; i < n; ++i)                     // for subsequent elements
-                is_correct = is_correct && *(host_first2 + i) == __f(*(host_first1 + i), *(host_first1 + i - 1));
-
-            EXPECT_TRUE(is_correct, "wrong effect from adjacent_difference #1");
+            EXPECT_EQ(*host_first1, *host_first2, "wrong effect from adjacent_difference for the first element");
+            for (int i = 1; i < n; ++i)
+            {
+                EXPECT_EQ(*(host_first2 + i), __f(*(host_first1 + i), *(host_first1 + i - 1)), "wrong effect from adjacent_difference for subsequent elements");
+            }
         }
 
         // test with default functor
@@ -1029,11 +1029,10 @@ DEFINE_TEST(test_adjacent_difference)
         auto host_first1 = host_keys.get();
         auto host_first2 = host_vals.get();
 
-        bool is_correct = *host_first1 == *host_first2; // for the first element
-        for (int i = 1; i < n; ++i)                     // for subsequent elements
-            is_correct = is_correct && *(host_first2 + i) == (*(host_first1 + i) - *(host_first1 + i - 1));
+        EXPECT_EQ(*host_first1, *host_first2, "wrong effect from adjacent_difference #2 for the first element");
 
-        EXPECT_TRUE(is_correct, "wrong effect from adjacent_difference #2");
+        for (int i = 1; i < n; ++i)
+            EXPECT_EQ(*(host_first2 + i), *(host_first1 + i) - *(host_first1 + i - 1), "wrong effect from adjacent_difference #2 for subsequent elements");
     }
 };
 
