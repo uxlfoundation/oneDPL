@@ -54,16 +54,22 @@ After learning how to use the extensions for Intel oneAPI Toolkits, return to th
 >For more information on environment variables, see Use the setvars Script for [Linux or macOS](https://www.intel.com/content/www/us/en/develop/documentation/oneapi-programming-guide/top/oneapi-development-environment-setup/use-the-setvars-script-with-linux-or-macos.html), or [Windows](https://www.intel.com/content/www/us/en/develop/documentation/oneapi-programming-guide/top/oneapi-development-environment-setup/use-the-setvars-script-with-windows.html).
 
 ### On a Linux System
-Run `make` to build and run the sample. Two programs are generated: one that uses explicit buffering and one that uses USM.
+Perform the following steps:
 
-You can remove all generated files with `make clean`.
+1. Source Intel&reg; oneAPI DPC++/C++ Compiler and oneDPL
 
-### On a Windows System
-Run `nmake` to build and run the sample.
+2. Build the program using the following `cmake` commands.
+```
+    $ mkdir build
+    $ cd build
+    $ cmake -DCMAKE_CXX_COMPILER=icpx ..
+    $ make
+```
 
-Note: To removes temporary files, run `nmake clean`.
-
-*Warning*: On Windows, static linking with oneMKL currently takes a very long time, due to a known compiler issue. This will be addressed in an upcoming oneMKL compiler release.
+3. Run the tests:
+```
+    $ ctest
+```
 
 ### Example of Output
 If everything is working correctly, each example program will output its target hardware and the location of the maximum value in the input vector:
