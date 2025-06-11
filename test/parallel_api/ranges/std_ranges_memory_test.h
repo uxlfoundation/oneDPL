@@ -42,7 +42,6 @@ struct test_memory_algo
     {
         //sycl::usm::alloc _alloc_type
         auto policy = TestUtils::get_dpcpp_test_policy();
-        sycl::queue q = policy.queue();
         sycl::usm_allocator<Elem, sycl::usm::alloc::shared> q_alloc{policy.queue()};
 
         run_one_policy(q_alloc, policy, algo, checker, std::forward<decltype(args)>(args)...);
@@ -60,7 +59,7 @@ private:
 
         if constexpr (test_mode_id<std::remove_cvref_t<decltype(algo)>> == 1)
         {//two ranges, constructor calls
-            const std::size_t n1 = n1/2;
+            const std::size_t n1 = n/2;
             Elem* pData1 = alloc.allocate(n1);
             std::memset(reinterpret_cast<void*>(pData1), no_init_val, n1*sizeof(Elem));
             std::ranges::subrange r1(pData1, pData1 + n1);
