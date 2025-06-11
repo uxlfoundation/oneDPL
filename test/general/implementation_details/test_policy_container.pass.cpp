@@ -68,8 +68,8 @@ void test_pass_by_value(Policy policy)
 {
     using SourcePolicyKernelName = oneapi::dpl::__internal::__policy_kernel_name<Policy>;
 
-    auto policy0 = make_new_policy<new_kernel_name<Policy, 0>>(policy);
-    test_policy_container<SourcePolicyKernelName>(TestUtils::forward_like<Policy>(policy0), PassByValue{});
+    auto policy0 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(policy);
+    test_policy_container<SourcePolicyKernelName>(TestUtils::forward_like<decltype(policy)>(policy0), PassByValue{});
 }
 
 template <typename Policy>
@@ -77,8 +77,8 @@ void test_pass_by_const_ref(const Policy& policy)
 {
     using SourcePolicyKernelName = oneapi::dpl::__internal::__policy_kernel_name<Policy>;
 
-    auto policy0 = make_new_policy<new_kernel_name<Policy, 0>>(policy);
-    test_policy_container<SourcePolicyKernelName>(TestUtils::forward_like<Policy>(policy0), PassByConstReference{});
+    auto policy0 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(policy);
+    test_policy_container<SourcePolicyKernelName>(TestUtils::forward_like<decltype(policy)>(policy0), PassByConstReference{});
 }
 
 template <typename Policy>
@@ -86,8 +86,8 @@ void test_pass_by_rval(Policy&& policy)
 {
     using SourcePolicyKernelName = oneapi::dpl::__internal::__policy_kernel_name<Policy>;
 
-    auto policy0 = make_new_policy<new_kernel_name<Policy, 0>>(policy);
-    test_policy_container<SourcePolicyKernelName>(TestUtils::forward_like<Policy>(policy0), PassByMove{});
+    auto policy0 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(policy);
+    test_policy_container<SourcePolicyKernelName>(TestUtils::forward_like<decltype(policy)>(policy0), PassByMove{});
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
