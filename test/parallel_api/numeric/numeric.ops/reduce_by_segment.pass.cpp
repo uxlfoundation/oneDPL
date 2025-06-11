@@ -41,10 +41,6 @@
 #endif // TEST_DPCPP_BACKEND_PRESENT
 using namespace TestUtils;
 
-// This macro may be used to analyze source data and test results in test_reduce_by_segment
-// WARNING: in the case of using this macro debug output is very large.
-// #define DUMP_CHECK_RESULTS
-
 DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
 {
     DEFINE_TEST_CONSTRUCTOR(test_reduce_by_segment, 1.0f, 1.0f)
@@ -73,21 +69,6 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
         }
     }
 
-#ifdef DUMP_CHECK_RESULTS
-    template <typename Iterator, typename Size>
-    void display_param(const char* msg, Iterator it, Size n)
-    {
-        ::std::cout << msg;
-        for (Size i = 0; i < n; ++i)
-        {
-            if (i > 0)
-                ::std::cout << ", ";
-            ::std::cout << it[i];
-        }
-        ::std::cout << ::std::endl;
-    }
-#endif // DUMP_CHECK_RESULTS
-
     template <typename Iterator1, typename Iterator2, typename Iterator3, typename Iterator4, typename InputSize,
               typename OutputKeySize, typename OutputValSize,
               typename BinaryPredicateCheck = oneapi::dpl::__internal::__pstl_equal,
@@ -115,16 +96,6 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
         ::std::size_t num_segments =
             reduce_by_segment_serial(host_keys, host_vals, ::std::begin(expected_key_res),
                 ::std::begin(expected_val_res), n, pred, op);
-
-#ifdef DUMP_CHECK_RESULTS
-        ::std::cout << "check_values(n = " << n << ", segments = " << num_keys << ") : " << ::std::endl;
-        display_param("           keys: ", host_keys, n);
-        display_param("         values: ", host_vals, n);
-        display_param("    result keys: ", key_res, num_keys);
-        display_param("  result values: ", val_res, num_vals);
-        display_param("  expected keys: ", expected_key_res.data(), num_segments);
-        display_param("expected values: ", expected_val_res.data(), num_segments);
-#endif // DUMP_CHECK_RESULTS
 
         EXPECT_EQ(num_segments, num_keys, "wrong key size from reduce_by_segment");
         EXPECT_EQ(num_segments, num_vals, "wrong val size from reduce_by_segment");
