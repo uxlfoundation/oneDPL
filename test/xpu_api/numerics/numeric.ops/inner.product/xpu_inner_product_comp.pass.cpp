@@ -26,14 +26,6 @@
 template <typename T1, typename T2>
 class KernelName;
 
-template <typename _T1, typename _T2>
-void
-ASSERT_EQUAL(_T1&& X, _T2&& Y)
-{
-    if (X != Y)
-        std::cout << "CHECK CORRECTNESS (STL WITH SYCL): fail (" << X << "," << Y << ")" << std::endl;
-}
-
 template <class Iter1, class Iter2>
 void
 test()
@@ -74,10 +66,7 @@ test()
         });
     }
     const int ref[8] = {1, 10, 7, 70, 49, 490, 117649, 1176490};
-    for (int i = 0; i < 8; ++i)
-    {
-        ASSERT_EQUAL(ref[i], output[i]);
-    }
+    EXPECT_EQ_N(ref, output, 8, "invalid output state");
 }
 
 int
