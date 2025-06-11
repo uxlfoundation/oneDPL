@@ -27,9 +27,9 @@ enable_testing()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 option (TARGET_GPU "Build targets for GPU target" OFF)
-option (BUILD_FILEWORDCOUNT "Build targets from subproject FileWordCount" OFF)
+option (BUILD_FILEWORDCOUNT "Build targets from subproject FileWordCount" ON)
 option (BUILD_WORDCOUNT "Build targets from subproject WordCount" ON)
-option (BUILD_PARSTLTESTS "Build targets from subproject ParSTLTests" OFF)
+option (BUILD_PARSTLTESTS "Build targets from subproject ParSTLTests" ON)
 
 if(TARGET_GPU)
   #To build for Intel® Data Center GPU Max 1550 or 1100
