@@ -71,11 +71,11 @@ private:
             alloc.deallocate(pData1, n1);
         }
         else if constexpr (test_mode_id<std::remove_cvref_t<decltype(algo)>> == 2)
-        { //one rnage, destructor calls
+        { //one range, destructor calls
             std::uninitialized_fill(pData, pData + n, 5);
             run(std::forward<decltype(policy)>(policy), algo, checker, std::move(r), std::forward<decltype(args)>(args)...);
         }
-        else //one rnage, constructor calls
+        else //one range, constructor calls
             run(std::forward<decltype(policy)>(policy), algo, checker, std::move(r), std::forward<decltype(args)>(args)...);
 
         alloc.deallocate(pData, n);

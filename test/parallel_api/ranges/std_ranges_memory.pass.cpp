@@ -25,7 +25,7 @@
 
 #include "std_ranges_memory_test.h"
 
-//defualt initialization, initialization by custom value (fill)
+//default initialization, initialization by custom value (fill)
 struct Elem
 {
     int val1;
