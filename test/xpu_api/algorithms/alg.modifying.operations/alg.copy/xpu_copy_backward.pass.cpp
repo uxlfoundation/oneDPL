@@ -19,14 +19,6 @@
 
 #include <cassert>
 
-template <typename _T1, typename _T2>
-void
-ASSERT_EQUAL(_T1&& X, _T2&& Y)
-{
-    if (X != Y)
-        std::cout << "CHECK CORRECTNESS (STL WITH SYCL): fail (" << X << "," << Y << ")" << std::endl;
-}
-
 template <class Iter1, class Iter2>
 class KernelTest;
 
@@ -57,11 +49,8 @@ test(sycl::queue& deviceQueue)
             });
         });
     }
-    assert(ret);
-    for (size_t idx = 0; idx < N; ++idx)
-    {
-        ASSERT_EQUAL(ia[idx], ib[idx]);
-    }
+    EXPECT_TRUE(ret, "check ret state");
+    EXPECT_EQ_N(ia, ib, N, "invalid ib state");
 }
 
 int
