@@ -17,8 +17,6 @@
 #include "support/utils.h"
 #include "support/test_iterators.h"
 
-#include <cassert>
-
 template <class Iter1, class Iter2>
 class KernelTest;
 

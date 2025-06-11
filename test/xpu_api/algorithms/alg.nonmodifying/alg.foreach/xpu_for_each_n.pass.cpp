@@ -18,8 +18,6 @@
 #include "support/utils.h"
 #include "support/test_iterators.h"
 
-#include <cassert>
-
 template <typename _T>
 struct plus1
 {
