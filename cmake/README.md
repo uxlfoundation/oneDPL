@@ -13,9 +13,9 @@ The following variables are provided for oneDPL configuration:
 | ONEDPL_DEVICE_BACKEND                    | STRING | Select device backend type for oneDPL test targets; affects only oneDPL DPC++ backends; supported values: opencl, level_zero, cuda, hip or * (the best backend as per DPC++ runtime heuristics). | * |
 | ONEDPL_USE_UNNAMED_LAMBDA                | BOOL   | Pass `-fsycl-unnamed-lambda`, `-fno-sycl-unnamed-lambda` compile options or nothing           |               |
 | ONEDPL_FPGA_STATIC_REPORT                | BOOL   | Enable the static report generation for the FPGA_HW device type                               | OFF           |
-| ONEDPL_USE_AOT_COMPILATION (deprecated)  | BOOL   | Enable ahead-of-time compilation for the GPU or CPU device types                              | OFF           |
+| ONEDPL_USE_AOT_COMPILATION (deprecated)  | BOOL   | Enable ahead-of-time compilation for the GPU or CPU device types. Deprecated, use standard CMake means such as `CMAKE_CXX_FLAGS`   | OFF           |
 | ONEDPL_ENABLE_SIMD                       | BOOL   | Enable SIMD vectorization by passing an OpenMP SIMD flag to the compiler if supported; the flag is passed to user project compilation string if enabled | ON           |
-| ONEDPL_AOT_ARCH (deprecated)             | STRING | Architecture options for ahead-of-time compilation, supported values can be found [here](https://software.intel.com/content/www/us/en/develop/documentation/oneapi-dpcpp-cpp-compiler-dev-guide-and-reference/top/compilation/ahead-of-time-compilation.html)                                                                                            | "*" for GPU device and "avx" for CPU device |
+| ONEDPL_AOT_ARCH (deprecated)             | STRING | Architecture options for ahead-of-time compilation, supported values can be found [here](https://software.intel.com/content/www/us/en/develop/documentation/oneapi-dpcpp-cpp-compiler-dev-guide-and-reference/top/compilation/ahead-of-time-compilation.html). Deprecated, use standard CMake means such as `CMAKE_CXX_FLAGS`    | "*" for GPU device and "avx" for CPU device |
 | ONEDPL_TEST_EXPLICIT_KERNEL_NAMES   | STRING | Control kernel naming. Affects only oneDPL test targets. Supported values: AUTO, ALWAYS. AUTO: rely on the compiler if "Unnamed SYCL lambda kernels" feature is on, otherwise provide kernel names explicitly; ALWAYS: provide kernel names explicitly | AUTO          |
 | ONEDPL_TEST_WIN_ICX_FIXES     | BOOL   | Affects only oneDPL test targets.  Enable icx, icx-cl workarounds to fix issues in CMake for Windows.                      | ON            |
 | ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION | BOOL | Use as a workaround for incorrect results, which may be produced by reduction algorithms with 64-bit data types compiled by the Intel&reg; oneAPI DPC++/C++ Compiler and executed on GPU devices. |               |
@@ -47,15 +47,17 @@ The following targets are available for build system after configuration:
 Sudirectories are added as labels for each test and can be used with `ctest -L <label>`.
 For example, `<root>/test/path/to/test.pass.cpp` will have `path` and `to` labels.
 
-## Using oneDPL with NVIDIA and AMD GPUs
+## Using oneDPL with NVIDIA and AMD GPUs with the oneAPI DPC++ compiler
 
-When using the oneAPI DPC++ compiler, you may need to compile Ahead of Time (AOT) for a specific device target. Usage
-of this compilation mode is required to compile for NVIDIA and AMD GPUs and is optional for Intel devices. To compile
-AOT, you must specify additional compiler and linker flags that can be configured through the `CMAKE_CXX_FLAGS` and
-`CMAKE_EXE_LINKER_FLAGS` variables. For more information regarding this feature, please refer to
-[Ahead of Time Compilation](https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2025-1/ahead-of-time-compilation.html),
-a full list of target options in the [oneAPI DPC++ Compiler documentation Users Manual](https://intel.github.io/llvm/UsersManual.html),
-and the [Codeplay® oneAPI Plugins for NVIDIA® & AMD](https://codeplay.com/solutions/oneapi/plugins/).
+- [Codeplay® oneAPI Plugins for NVIDIA® & AMD](https://codeplay.com/solutions/oneapi/plugins/) may be installed to
+compile Ahead of Time (AOT) for NVIDIA and AMD GPUs.
+- For a guide on AOT compilation options, please refer to
+[Use DPC++ to Target AMD GPUs](https://developer.codeplay.com/products/oneapi/amd/2025.1.1/guides/get-started-guide-amd.html#use-dpc-to-target-amd-gpus)
+and [Use DPC++ to Target NVIDIA GPUs](https://developer.codeplay.com/products/oneapi/nvidia/2025.1.1/guides/get-started-guide-nvidia.html#use-dpc-to-target-nvidia-gpus).
+- A full list of AOT compile target options may be found at
+[oneAPI DPC++ Compiler documentation Users Manual](https://intel.github.io/llvm/UsersManual.html).
+- To compile AOT with oneDPL, use standard CMake means such as `CMAKE_CXX_FLAGS` and `CMAKE_EXE_LINKER_FLAGS` to pass
+relevant options.
 
 If you are not using the oneAPI DPC++ compiler, then please refer to your SYCL compiler's documentation regarding
 support of this feature.
