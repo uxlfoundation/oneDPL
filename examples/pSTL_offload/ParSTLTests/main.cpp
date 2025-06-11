@@ -17,8 +17,8 @@ void RunAndMeasure(const char* title, TFunc func) {
 }
 
 int main() {
-  int size=1024000000;
-  std::vector<double> v(1024000000, 0.5);
+  int size=1024000;
+  std::vector<double> v(size, 0.5);
   std::vector<double> result(v.size());
 
   std::vector<double> v1(size);
@@ -148,17 +148,17 @@ int main() {
     });
 
     RunAndMeasure("std::lexicographical_compare,  seq", [&v] {
-        std::vector<double> v2(1024000000, 0.5);
+        std::vector<double> v2(size, 0.5);
         return std::lexicographical_compare(std::execution::seq, v.begin(), v.end(), v2.begin(), v2.end());
     });
 
     RunAndMeasure("std::lexicographical_compare, par", [&v] {
-        std::vector<double> v2(1024000000, 0.5);
+        std::vector<double> v2(size, 0.5);
         return std::lexicographical_compare(std::execution::par, v.begin(), v.end(), v2.begin(), v2.end());
     });
 
     RunAndMeasure("std::lexicographical_compare, par_unseq", [&v] {
-        std::vector<double> v2(1024000000, 0.5);
+        std::vector<double> v2(size, 0.5);
         return std::lexicographical_compare(std::execution::par_unseq, v.begin(), v.end(), v2.begin(), v2.end());
     });
 
