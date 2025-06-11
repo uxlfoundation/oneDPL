@@ -110,7 +110,7 @@ std::ranges::uninitialized_copy_result<std::ranges::borrowed_iterator_t<_InRange
                                        std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_uninitialized_copy(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r, _OutRange&& __out_r)
 {
-    return std::ranges::uninitialized_copy(std::forward<_InRange>(__in_r), std::ranges::begin(__out_r));
+    return std::ranges::uninitialized_copy(std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r));
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -126,7 +126,7 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
 
     const auto __first1 = std::ranges::begin(__in_r);
     const auto __first2 = std::ranges::begin(__out_r);
-    const auto __size = __first1 + std::ranges::size(__in_r);
+    const auto __size = std::ranges::size(__in_r);
 
     const auto __last1 = __first1 + __size;
     const auto __last2 = __first2 + __size;
@@ -141,7 +141,7 @@ std::ranges::uninitialized_move_result<std::ranges::borrowed_iterator_t<_InRange
                                        std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_uninitialized_move(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r, _OutRange&& __out_r)
 {
-    return std::ranges::uninitialized_move(std::forward<_InRange>(__in_r), std::ranges::begin(__out_r));
+    return std::ranges::uninitialized_move(std::forward<_InRange>(__in_r), std::forward<_InRange>(__out_r));
 }
 
 //---------------------------------------------------------------------------------------------------------------------

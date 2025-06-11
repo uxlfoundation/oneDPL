@@ -23,6 +23,9 @@
 namespace test_std_ranges
 {
 
+template<typename>
+constexpr bool is_two_ranges{false};
+
 template<typename Elem, int no_init_val>
 struct test_memory_algo
 {
@@ -53,10 +56,23 @@ private:
         const std::size_t n = medium_size;
         Elem* pData = alloc.allocate(n);
 
-        std::memset(pData, no_init_val, n*sizeof(Elem));
+        std::memset(reinterpret_cast<void*>(pData), no_init_val, n*sizeof(Elem));
         std::ranges::subrange r(pData, pData + n);
 
-        run(std::forward<decltype(policy)>(policy), algo, checker, std::move(r), std::forward<decltype(args)>(args)...);
+        if constexpr (is_two_ranges<std::remove_cvref_t<decltype(algo)>>)
+        {
+            const std::size_t n1 = n1/2;
+            Elem* pData1 = alloc.allocate(n1);
+            std::memset(reinterpret_cast<void*>(pData1), no_init_val, n1*sizeof(Elem));
+            std::ranges::subrange r1(pData1, pData1 + n1);
+            std::uninitialized_fill(pData1, pData1 + n1, 5);
+
+            run(std::forward<decltype(policy)>(policy), algo, checker, r1, r, std::forward<decltype(args)>(args)...);
+
+            alloc.deallocate(pData1, n1);
+        }
+        else
+            run(std::forward<decltype(policy)>(policy), algo, checker, std::move(r), std::forward<decltype(args)>(args)...);
 
         alloc.deallocate(pData, n);
     }
