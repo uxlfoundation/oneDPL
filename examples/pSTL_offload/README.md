@@ -68,7 +68,7 @@ When working with the command-line interface (CLI), you should configure the one
    ```
    $ mkdir build
    $ cd build
-   $ cmake -DCMAKE_CXX_COMPILER=icpx ..
+   $ cmake ..
    $ make
    ```
 

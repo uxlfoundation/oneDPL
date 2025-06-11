@@ -87,7 +87,7 @@ Perform the following steps:
    ```
    $ mkdir build
    $ cd build
-   $ cmake -DCMAKE_CXX_COMPILER=icpx ..
+   $ cmake ..
    $ make
    ```
 
