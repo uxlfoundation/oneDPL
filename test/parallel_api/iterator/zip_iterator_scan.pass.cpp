@@ -105,13 +105,13 @@ DEFINE_TEST(test_unique)
         exec.queue().wait_and_throw();
 #endif
 
-        bool is_correct = (tuple_lastnew - tuple_first1) == expected_size;
-        host_keys.retrieve_data();
-        for (int i = 0; i < std::min(tuple_lastnew - tuple_first1, expected_size) && is_correct; ++i)
-            if ((*host_keys.get() + i) != i + 1)
-                is_correct = false;
+        EXPECT_EQ(expected_size, tuple_lastnew - tuple_first1, "wrong effect from unique(tuple) : incorrect size");
 
-        EXPECT_TRUE(is_correct, "wrong effect from unique(tuple)");
+        host_keys.retrieve_data();
+        for (int i = 0; i < std::min(tuple_lastnew - tuple_first1, expected_size); ++i)
+        {
+            EXPECT_EQ(i + 1, *host_keys.get() + i, "wrong effect from unique(tuple) : incorrect data");
+        }
     }
 };
 
@@ -154,13 +154,13 @@ DEFINE_TEST(test_unique_copy)
         exec.queue().wait_and_throw();
 #endif
 
-        bool is_correct = (tuple_last2 - tuple_first2) == expected_size;
-        host_vals.retrieve_data();
-        for (int i = 0; i < std::min(tuple_last2 - tuple_first2, expected_size) && is_correct; ++i)
-            if ((*host_vals.get() + i) != i + 1)
-                is_correct = false;
+        EXPECT_EQ(expected_size, tuple_last2 - tuple_first2, "wrong effect from unique_copy(tuple) : incorrect size");
 
-        EXPECT_TRUE(is_correct, "wrong effect from unique_copy(tuple)");
+        host_vals.retrieve_data();
+        for (int i = 0; i < std::min(tuple_last2 - tuple_first2, expected_size); ++i)
+        {
+            EXPECT_EQ(i + 1, *host_vals.get() + i, "wrong effect from unique_copy(tuple) : incorrect data");
+        }
     }
 };
 
