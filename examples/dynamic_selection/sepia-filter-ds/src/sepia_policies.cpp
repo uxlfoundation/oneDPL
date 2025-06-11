@@ -134,7 +134,7 @@ int invokeDS(int num_offloads,
 
   T p(resources);
 
-  auto t_begin = std::chrono::steady_clock::now();
+  auto t_begin = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < num_offloads; ++i) {
     try {
       sycl::buffer<uint8_t>& in = input_buffers[i%g_num_images];
@@ -182,7 +182,7 @@ int invokeDS(int num_offloads,
       return 1;
     }
   }
-  auto t_end = std::chrono::steady_clock::now();
+  auto t_end = std::chrono::high_resolution_clock::now();
   auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(t_end-t_begin).count();
 
   cout << "Total time == " << total_time << " us\n";

@@ -141,10 +141,10 @@ int main(int argc, char *argv[]) {
 
   using ms = std::chrono::milliseconds;
 
-  auto tm_start = std::chrono::steady_clock::now();
+  auto tm_start = std::chrono::high_resolution_clock::now();
   // execution of the quickhull algorithm
   quickhull(points, hull);
-  auto tm_end = std::chrono::steady_clock::now();
+  auto tm_end = std::chrono::high_resolution_clock::now();
 
   std::cout << "Computational time "
             << std::chrono::duration_cast<ms>(tm_end - tm_start).count() << "ms"
