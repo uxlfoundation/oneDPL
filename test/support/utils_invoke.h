@@ -166,6 +166,22 @@ get_dpcpp_test_policy()
     }
 }
 
+// forward_like - function to return passed into it policy
+// as l-value or r-value depends on source policy type qualifiers
+template <typename _PolicySource, typename _PolicyNew>
+decltype(auto)
+forward_like(_PolicyNew&& __policy_new)
+{
+    using _PolicyNewDecayed = std::decay_t<_PolicyNew>;
+
+    using TestingPolicyType = std::conditional_t<
+        std::is_reference_v<_PolicySource>,
+        std::conditional_t<std::is_rvalue_reference_v<_PolicySource>, _PolicyNewDecayed&&, const _PolicyNewDecayed&>,
+        _PolicyNewDecayed>;
+
+    return static_cast<TestingPolicyType>(__policy_new);
+}
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 ////////////////////////////////////////////////////////////////////////////////
