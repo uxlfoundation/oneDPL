@@ -654,7 +654,6 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
 }
 
-
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
 std::tuple<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
