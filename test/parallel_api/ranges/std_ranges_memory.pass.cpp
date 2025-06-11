@@ -44,15 +44,20 @@ struct Elem_0
 
     Elem_0(): val1() {}
     Elem_0(Elem&& elem) { val2 = elem.val2; }
+    ~Elem_0() { val2 = 3;}
 };
 
 namespace test_std_ranges
 {
 template<>
-constexpr int is_two_ranges<std::remove_cvref_t<decltype(oneapi::dpl::ranges::uninitialized_copy)>> = true;
+constexpr int test_mode_id<std::remove_cvref_t<decltype(oneapi::dpl::ranges::uninitialized_copy)>> = 1;
 
 template<>
-constexpr int is_two_ranges<std::remove_cvref_t<decltype(oneapi::dpl::ranges::uninitialized_move)>> = true;
+constexpr int test_mode_id<std::remove_cvref_t<decltype(oneapi::dpl::ranges::uninitialized_move)>> = 1;
+
+template<>
+constexpr int test_mode_id<std::remove_cvref_t<decltype(oneapi::dpl::ranges::destroy)>> = 2;
+
 }
 #endif //_ENABLE_STD_RANGES_TESTING
 
@@ -121,6 +126,18 @@ main()
     test_memory_algo<Elem, -1>{}.run_host(dpl_ranges::uninitialized_copy, uninitialized_copy_move_checker);    
     test_memory_algo<Elem_0, -1>{}.run_host(dpl_ranges::uninitialized_move, uninitialized_copy_move_checker);
 
+    auto destroy_checker = 
+        [](const auto& res, const auto& r) {
+            using R = std::remove_cvref_t<decltype(r)>;
+            bool bres1 = (res == std::ranges::borrowed_iterator_t<R>(std::ranges::begin(r) + std::ranges::size(r)));
+            bool bres2 = std::ranges::all_of(r, [](const auto& v) { return v.val1 == -1;})//-1 means no initialization.
+                && std::ranges::all_of(r, [](const auto& v) { return v.val2 == 3;});
+
+            return std::pair<bool, bool>{bres1, bres2};
+        };
+ 
+    test_memory_algo<Elem_0, -1>{}.run_host(dpl_ranges::destroy, destroy_checker);
+
 #if TEST_DPCPP_BACKEND_PRESENT
     test_memory_algo<Elem, -1>{}.run_device(dpl_ranges::uninitialized_default_construct, uninitialized_default_construct_checker);
     test_memory_algo<Elem_0, -1>{}.run_device(dpl_ranges::uninitialized_value_construct, uninitialized_value_construct_checker);
@@ -128,6 +145,8 @@ main()
 
     test_memory_algo<Elem, -1>{}.run_device(dpl_ranges::uninitialized_copy, uninitialized_copy_move_checker);
     test_memory_algo<Elem_0, -1>{}.run_device(dpl_ranges::uninitialized_move, uninitialized_copy_move_checker);
+
+    test_memory_algo<Elem_0, -1>{}.runrun_device_host(dpl_ranges::destroy, destroy_checker);
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 #endif //_ENABLE_STD_RANGES_TESTING
