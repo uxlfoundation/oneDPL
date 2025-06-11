@@ -147,17 +147,17 @@ int main() {
         return std::is_partitioned(std::execution::par_unseq, v.begin(), v.end(), [](double n) { return n < 1.0; });
     });
 
-    RunAndMeasure("std::lexicographical_compare,  seq", [&v] {
+    RunAndMeasure("std::lexicographical_compare,  seq", [&v, size] {
         std::vector<double> v2(size, 0.5);
         return std::lexicographical_compare(std::execution::seq, v.begin(), v.end(), v2.begin(), v2.end());
     });
 
-    RunAndMeasure("std::lexicographical_compare, par", [&v] {
+    RunAndMeasure("std::lexicographical_compare, par", [&v, size] {
         std::vector<double> v2(size, 0.5);
         return std::lexicographical_compare(std::execution::par, v.begin(), v.end(), v2.begin(), v2.end());
     });
 
-    RunAndMeasure("std::lexicographical_compare, par_unseq", [&v] {
+    RunAndMeasure("std::lexicographical_compare, par_unseq", [&v, size] {
         std::vector<double> v2(size, 0.5);
         return std::lexicographical_compare(std::execution::par_unseq, v.begin(), v.end(), v2.begin(), v2.end());
     });
