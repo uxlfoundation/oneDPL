@@ -18,6 +18,7 @@
 */
 
 #include <sycl/sycl.hpp>
+#include <chrono>
 #include <iostream>
 #include <vector>
 #include <cmath>
