@@ -49,15 +49,13 @@ For example, `<root>/test/path/to/test.pass.cpp` will have `path` and `to` label
 
 ## Using oneDPL with NVIDIA and AMD GPUs with the oneAPI DPC++ compiler
 
-- [Codeplay® oneAPI Plugins for NVIDIA® & AMD](https://codeplay.com/solutions/oneapi/plugins/) may be installed to
-compile Ahead of Time (AOT) for NVIDIA and AMD GPUs.
-- For a guide on AOT compilation options, please refer to
-[Use DPC++ to Target AMD GPUs](https://developer.codeplay.com/products/oneapi/amd/2025.1.1/guides/get-started-guide-amd.html#use-dpc-to-target-amd-gpus)
-and [Use DPC++ to Target NVIDIA GPUs](https://developer.codeplay.com/products/oneapi/nvidia/2025.1.1/guides/get-started-guide-nvidia.html#use-dpc-to-target-nvidia-gpus).
-- A full list of AOT compile target options may be found at
-[oneAPI DPC++ Compiler documentation Users Manual](https://intel.github.io/llvm/UsersManual.html).
-- To compile AOT with oneDPL, use standard CMake means such as `CMAKE_CXX_FLAGS` and `CMAKE_EXE_LINKER_FLAGS` to pass
-relevant options.
+[Codeplay® oneAPI Plugins for NVIDIA® & AMD](https://codeplay.com/solutions/oneapi/plugins/) may be installed to
+compile Ahead of Time (AOT) for NVIDIA and AMD GPUs. For a guide on AOT compilation options, please refer to
+[Use DPC++ to Target AMD GPUs](https://developer.codeplay.com/products/oneapi/amd/latest/guides/get-started-guide-amd.html#use-dpc-to-target-amd-gpus)
+and [Use DPC++ to Target NVIDIA GPUs](https://developer.codeplay.com/products/oneapi/nvidia/latest/guides/get-started-guide-nvidia.html#use-dpc-to-target-nvidia-gpus).
+A full list of AOT compile target options may be found at
+[oneAPI DPC++ Compiler documentation Users Manual](https://intel.github.io/llvm/UsersManual.html). To compile AOT with
+oneDPL, use standard CMake means such as `CMAKE_CXX_FLAGS` to pass relevant options.
 
 If you are not using the oneAPI DPC++ compiler, then please refer to your SYCL compiler's documentation regarding
 support of this feature.
