@@ -715,7 +715,7 @@ __pattern_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2>
 void
-__pattern_swap(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2)
+__pattern_swap(_Tag __tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2)
 {
     auto __end = std::ranges::begin(__r1) + std::ranges::size(__r1);
     oneapi::dpl::__internal::__pattern_swap(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
@@ -748,11 +748,11 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp,
 std::ranges::borrowed_subrange_t<_R>
 __pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    return std::ranges::unique(std::forward<_R>(__r), __comp, __proj);
+    return std::ranges::unique(std::forward<_InRange>(__r), __comp, __proj);
 }
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
-std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
+std::ranges::unique_copy_result<std::ranges::_R>, std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
 {
     auto __pred_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
