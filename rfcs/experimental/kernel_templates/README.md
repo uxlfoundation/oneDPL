@@ -32,36 +32,43 @@ This namespace contains portable algorithms and namespaces with more specialized
 Below is an example of such a structure with possible algorithms:
 
 ```c++
-// Namespace for portable kernels and namespaces with platform-specific implementations
 namespace oneapi::dpl::experimental::kt
 {
+// Portable algorithms
+/*return*/ reduce(/*args*/);
+/*return*/ transform(/*args*/);
+/*return*/ inclusive_scan(/*args*/);
+/*return*/ radix_sort(/*args*/);
+// ...
 
-// The nested namespace for kernels optimized for GPU architectures
-namespace gpu
-{
-  // Algorithms optimized for GPU
-  /*return*/ reduce(/*args*/);
-  /*return*/ transform(/*args*/);
-  /*return*/ inclusive_scan(/*args*/);
-  /*return*/ radix_sort(/*args*/);
-  // ...
-
-  // Algorithms optimized for Intel GPUs supporting ESIMD technology.
-  namespace esimd
+  namespace gpu
   {
-    /*return*/ inclusive_scan(/*args*/);
-    /*return*/ radix_sort(/*args*/);
+    // Algorithms optimized for GPU architectures
+    /*return*/ reduce(/*args*/);
+    /*return*/ transform(/*args*/);
+    // ...
+
+    namespace esimd
+    {
+      // Algorithms optimized for Intel GPUs supporting ESIMD technology.
+      /*return*/ reduce(/*args*/);
+      /*return*/ transform(/*args*/);
+      // ...
+    }
+  } // namespace oneapi::dpl::experimental::kt::gpu
+
+  namespace cpu
+  {
+    // Algorithms optimized for CPU architectures
     // ...
   }
-}
 
-// The nested namespace for kernels optimized for CPU architectures
-namespace cpu { /*...*/ }
-
-} // oneapi::dpl::experimental::kt
+} // namespace oneapi::dpl::experimental::kt
 ```
 
-### Abstract Signature
+There is no requirement for the sets of algorithms in each namespace to be identical.
+
+### Abstract Algorithm Signature
 
 A kernel template is a C++ function invoked from the host.
 
@@ -183,7 +190,7 @@ these entities more act like algorithms rather than SYCL kernels.
 Probably, a better name is "Algorithm Templates".
 The renaming requires changing the corresponding namespace.
 
-### Specializations and their Differntiation
+### Specializations and their Differentiation
 
 Currently, the specializations of the algorithms belong to different namespaces.
 Using tags instead namespaces offers several advantages,
