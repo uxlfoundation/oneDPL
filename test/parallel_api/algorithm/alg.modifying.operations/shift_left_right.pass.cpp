@@ -123,8 +123,8 @@ struct test_shift
 
 #if _PSTL_SYCL_TEST_USM
         //3. run a test with hetero policy and USM shared/device memory pointers
-        test_usm<sycl::usm::alloc::shared>(exec, first, m, first_exp, n, algo);
-        test_usm<sycl::usm::alloc::device>(std::forward<Policy>(exec), first, m, first_exp, n, algo);
+        test_usm<sycl::usm::alloc::shared>(CLONE_NEW_POLICY(exec), first, m, first_exp, n, algo);
+        test_usm<sycl::usm::alloc::device>(CLONE_NEW_POLICY(exec), first, m, first_exp, n, algo);
 #endif
     }
 #endif
