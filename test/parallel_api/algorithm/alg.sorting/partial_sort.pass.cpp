@@ -88,10 +88,7 @@ struct test_brick_partial_sort
 #else
                 auto p = 1;
 #endif
-                if (count_comp > complex * p)
-                {
-                    ::std::cout << "complexity exceeded" << ::std::endl;
-                }
+                EXPECT_FALSE(count_comp > complex * p, "complexity exceeded");
             }
 #endif // !TEST_DPCPP_BACKEND_PRESENT && PSTL_USE_DEBUG
         }
