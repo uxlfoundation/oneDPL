@@ -53,7 +53,7 @@ struct test_is_heap
     {
         using namespace std;
         bool expected = is_heap(first, last);
-        bool actual = is_heap(exec, first, last);
+        bool actual = is_heap(std::forward<Policy>(exec), first, last);
         EXPECT_TRUE(expected == actual, "wrong return value from is_heap");
     }
 
@@ -74,7 +74,7 @@ struct test_is_heap_predicate
     {
         using namespace std;
         bool expected = is_heap(first, last, pred);
-        bool actual = is_heap(exec, first, last, pred);
+        bool actual = is_heap(std::forward<Policy>(exec), first, last, pred);
         EXPECT_TRUE(expected == actual, "wrong return value from is_heap with predicate");
     }
 
@@ -95,7 +95,7 @@ struct test_is_heap_until
     {
         using namespace std;
         Iterator expected = is_heap_until(first, last);
-        Iterator actual = is_heap_until(exec, first, last);
+        Iterator actual = is_heap_until(std::forward<Policy>(exec), first, last);
         EXPECT_TRUE(expected == actual, "wrong return value from is_heap_until");
     }
 
@@ -116,7 +116,7 @@ struct test_is_heap_until_predicate
     {
         using namespace std;
         const Iterator expected = is_heap_until(first, last, pred);
-        const Iterator actual = is_heap_until(exec, first, last, pred);
+        const Iterator actual = is_heap_until(std::forward<Policy>(exec), first, last, pred);
         EXPECT_TRUE(expected == actual, "wrong return value from is_heap_until with predicate");
     }
 
@@ -193,7 +193,7 @@ struct test_non_const_is_heap
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        is_heap(exec, iter, iter, non_const(::std::less<T>()));
+        is_heap(std::forward<Policy>(exec), iter, iter, non_const(::std::less<T>()));
     }
 };
 
@@ -204,7 +204,7 @@ struct test_non_const_is_heap_until
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        is_heap_until(exec, iter, iter, non_const(::std::less<T>()));
+        is_heap_until(std::forward<Policy>(exec), iter, iter, non_const(::std::less<T>()));
     }
 };
 

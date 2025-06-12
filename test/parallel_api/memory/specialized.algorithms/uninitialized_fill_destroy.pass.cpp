@@ -42,7 +42,7 @@ struct test_uninitialized_fill
     {
         using namespace std;
 
-        uninitialized_fill(exec, first, last, in);
+        uninitialized_fill(std::forward<Policy>(exec), first, last, in);
         size_t count = count_if(first, last, [&in](T& x) -> bool { return x == in; });
         EXPECT_TRUE(n == count, "wrong work of uninitialized_fill");
 
@@ -55,7 +55,7 @@ struct test_uninitialized_fill
     {
         using namespace std;
 
-        uninitialized_fill(exec, first, last, in);
+        uninitialized_fill(std::forward<Policy>(exec), first, last, in);
         size_t count = count_if(first, last, [&in](T& x) -> bool { return x == in; });
         EXPECT_EQ(n, count, "wrong work of uninitialized_fill");
     }
@@ -70,7 +70,7 @@ struct test_uninitialized_fill_n
     {
         using namespace std;
 
-        auto res = uninitialized_fill_n(exec, first, n, in);
+        auto res = uninitialized_fill_n(std::forward<Policy>(exec), first, n, in);
         EXPECT_TRUE(res == last, "wrong result of uninitialized_fill_n");
         size_t count = count_if(first, last, [&in](T& x) -> bool { return x == in; });
         EXPECT_TRUE(n == count, "wrong work of uninitialized_fill_n");
@@ -83,7 +83,7 @@ struct test_uninitialized_fill_n
     {
         using namespace std;
 
-        auto res = uninitialized_fill_n(exec, first, n, in);
+        auto res = uninitialized_fill_n(std::forward<Policy>(exec), first, n, in);
         size_t count = count_if(first, last, [&in](T& x) -> bool { return x == in; });
         EXPECT_EQ(n, count, "wrong work of uninitialized_fill_n");
         EXPECT_TRUE(res == last, "wrong result of uninitialized_fill_n");
@@ -105,7 +105,7 @@ struct test_destroy
 #else
         uninitialized_fill(first, last, in);
 #endif
-        destroy(exec, first, last);
+        destroy(std::forward<Policy>(exec), first, last);
         EXPECT_TRUE(T::Count() == 0, "wrong work of destroy");
     }
 
@@ -120,7 +120,7 @@ struct test_destroy
 #else
         uninitialized_fill(first, last, in);
 #endif
-        destroy(exec, first, last);
+        destroy(std::forward<Policy>(exec), first, last);
         size_t count = count_if(first, last, [&in](T& x) -> bool { return x != in; });
         size_t tmp_n = 0;
         EXPECT_EQ(tmp_n, count, "wrong work of destroy");
@@ -142,7 +142,7 @@ struct test_destroy_n
 #else
         uninitialized_fill(first, last, in);
 #endif
-        auto dres = destroy_n(exec, first, n);
+        auto dres = destroy_n(std::forward<Policy>(exec), first, n);
         EXPECT_TRUE(dres == last, "wrong result of destroy_n");
         EXPECT_TRUE(T::Count() == 0, "wrong work of destroy_n");
     }
@@ -158,7 +158,7 @@ struct test_destroy_n
 #else
         uninitialized_fill(first, last, in);
 #endif
-        auto dres = destroy_n(exec, first, n);
+        auto dres = destroy_n(std::forward<Policy>(exec), first, n);
         EXPECT_TRUE(dres == last, "wrong result of destroy_n");
         size_t count = count_if(first, last, [&in](T& x) -> bool { return x != in; });
         size_t tmp_n = 0;

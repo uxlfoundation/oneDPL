@@ -208,7 +208,7 @@ DEFINE_TEST_1(test_scan_non_inplace, TestingAlgoritm)
         // Initialize source data in the buffer [keys_first, keys_last)
         initialize_data(keys_first, n);
 
-        testingAlgo.call_onedpl(exec, keys_first, keys_last, vals_first);
+        testingAlgo.call_onedpl(std::forward<Policy>(exec), keys_first, keys_last, vals_first);
 
         std::vector<ValT> expected(n);
         testingAlgo.call_serial(keys_first, keys_last + n, expected.data());
@@ -243,7 +243,7 @@ DEFINE_TEST_1(test_scan_inplace, TestingAlgoritm)
         const std::vector<KeyT> source_host_keys_state(keys_first, keys_first + n);
 
         // Now we are ready to call the tested algorithm
-        testingAlgo.call_onedpl(exec, keys_first, keys_last, keys_first);
+        testingAlgo.call_onedpl(std::forward<Policy>(exec), keys_first, keys_last, keys_first);
 
         std::vector<KeyT> expected(n);
         testingAlgo.call_serial(source_host_keys_state.cbegin(), source_host_keys_state.cend(), expected.data());

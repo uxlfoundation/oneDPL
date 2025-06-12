@@ -54,7 +54,7 @@ struct test_without_compare
     operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2)
     {
         auto expect_res = ::std::includes(first1, last1, first2, last2);
-        auto res = ::std::includes(exec, first1, last1, first2, last2);
+        auto res = ::std::includes(std::forward<Policy>(exec), first1, last1, first2, last2);
 
         EXPECT_TRUE(expect_res == res, "wrong result for includes without predicate");
     }
@@ -76,7 +76,7 @@ struct test_with_compare
     {
 
         auto expect_res = ::std::includes(first1, last1, first2, last2, comp);
-        auto res = ::std::includes(exec, first1, last1, first2, last2, comp);
+        auto res = ::std::includes(std::forward<Policy>(exec), first1, last1, first2, last2, comp);
 
         EXPECT_TRUE(expect_res == res, "wrong result for includes with predicate");
     }

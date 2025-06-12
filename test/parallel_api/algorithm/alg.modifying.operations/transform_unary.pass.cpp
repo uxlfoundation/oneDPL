@@ -31,7 +31,7 @@ struct test_one_policy
     operator()(Policy&& exec, InputIterator first, InputIterator last, OutputIterator out_first,
                OutputIterator out_last, UnaryOp op)
     {
-        auto orr = ::std::transform(exec, first, last, out_first, op);
+        auto orr = ::std::transform(std::forward<Policy>(exec), first, last, out_first, op);
         EXPECT_TRUE(out_last == orr, "transform returned wrong iterator");
         check_and_reset(first, last, out_first);
     }
@@ -108,7 +108,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        transform(exec, input_iter, input_iter, out_iter, non_const(::std::negate<T>()));
+        transform(std::forward<Policy>(exec), input_iter, input_iter, out_iter, non_const(::std::negate<T>()));
     }
 };
 

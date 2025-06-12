@@ -61,7 +61,7 @@ struct run_unique_copy
 
         // Run unique_copy
         [[maybe_unused]] auto i = unique_copy(first, last, expected_first);
-        auto k = unique_copy(exec, first, last, out_first);
+        auto k = unique_copy(std::forward<Policy>(exec), first, last, out_first);
 #if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong unique_copy effect");
         for (size_t j = 0; j < GuardSize; ++j)
@@ -120,7 +120,7 @@ struct run_unique_copy_predicate
 
         // Run unique_copy with predicate
         [[maybe_unused]] auto i = unique_copy(first, last, expected_first, pred);
-        auto k = unique_copy(exec, first, last, out_first, pred);
+        auto k = unique_copy(std::forward<Policy>(exec), first, last, out_first, pred);
 #if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong unique_copy with predicate effect");
         for (size_t j = 0; j < GuardSize; ++j)
@@ -178,7 +178,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        unique_copy(exec, input_iter, input_iter, out_iter, non_const(::std::equal_to<T>()));
+        unique_copy(std::forward<Policy>(exec), input_iter, input_iter, out_iter, non_const(::std::equal_to<T>()));
     }
 };
 

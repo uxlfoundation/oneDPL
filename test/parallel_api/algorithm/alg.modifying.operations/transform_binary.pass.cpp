@@ -30,7 +30,7 @@ struct test_one_policy
     operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 /* last2 */,
                OutputIterator out_first, OutputIterator /* out_last */, BinaryOp op)
     {
-        ::std::transform(exec, first1, last1, first2, out_first, op);
+        ::std::transform(std::forward<Policy>(exec), first1, last1, first2, out_first, op);
         check_and_reset(first1, last1, first2, out_first);
     }
 
@@ -133,7 +133,7 @@ struct test_non_const
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
         InputIterator input_iter2 = input_iter;
-        transform(exec, input_iter, input_iter, input_iter2, out_iter, non_const(::std::plus<T>()));
+        transform(std::forward<Policy>(exec), input_iter, input_iter, input_iter2, out_iter, non_const(::std::plus<T>()));
     }
 };
 
