@@ -23,20 +23,53 @@ DEFINE_TEST_PERM_IT(test_sort, PermItIndexTag)
 {
     DEFINE_TEST_PERM_IT_CONSTRUCTOR(test_sort, 2.0f, 0.65f)
 
-    template <typename TIterator, typename Size>
-    void generate_data(TIterator itBegin, TIterator itEnd, Size n)
+    template <typename Policy, typename Size>
+    struct TestImplementation
     {
-        Size index = 0;
-        for (auto it = itBegin; it != itEnd; ++it, ++index)
-            *it = n - index;
-    }
+        Policy exec;
+        Size n;
+        TestDataTransfer<UDTKind::eKeys, Size>& host_keys;
 
-    template <typename TIterator>
-    void check_results(TIterator itBegin, TIterator itEnd)
-    {
-        const auto result = std::is_sorted(itBegin, itEnd);
-        EXPECT_TRUE(result, "Wrong sort data results");
-    }
+        template <typename TPermutationIterator>
+        void
+        operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        {
+            const auto host_keys_ptr = host_keys.get();
+
+            const auto testing_n = permItEnd - permItBegin;
+
+            // Fill full source data set (not only values iterated by permutation iterator)
+            generate_data(host_keys_ptr, host_keys_ptr + n, n);
+            host_keys.update_data();
+
+            dpl::sort(exec, permItBegin, permItEnd);
+            wait_and_throw(exec);
+
+            // Copy data back
+            std::vector<TestValueType> resultTest(testing_n);
+            dpl::copy(exec, permItBegin, permItEnd, resultTest.begin());
+            wait_and_throw(exec);
+
+            // Check results
+            check_results(resultTest.begin(), resultTest.end());
+        }
+
+        template <typename TIterator>
+        void generate_data(TIterator itBegin, TIterator itEnd, Size n) const
+        {
+            Size index = 0;
+            for (auto it = itBegin; it != itEnd; ++it, ++index)
+                *it = n - index;
+        }
+
+        template <typename TIterator>
+        void
+        check_results(TIterator itBegin, TIterator itEnd) const
+        {
+            const auto result = std::is_sorted(itBegin, itEnd);
+            EXPECT_TRUE(result, "Wrong sort data results");
+        }
+    };
 
     template <typename Policy, typename Iterator1, typename Size>
     void
@@ -45,28 +78,9 @@ DEFINE_TEST_PERM_IT(test_sort, PermItIndexTag)
         if constexpr (is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>)
         {
             TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);     // sorting data
-            const auto host_keys_ptr = host_keys.get();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin, auto permItEnd)
-                {
-                    const auto testing_n = permItEnd - permItBegin;
-
-                    // Fill full source data set (not only values iterated by permutation iterator)
-                    generate_data(host_keys_ptr, host_keys_ptr + n, n);
-                    host_keys.update_data();
-
-                    dpl::sort(exec, permItBegin, permItEnd);
-                    wait_and_throw(exec);
-
-                    // Copy data back
-                    std::vector<TestValueType> resultTest(testing_n);
-                    dpl::copy(exec, permItBegin, permItEnd, resultTest.begin());
-                    wait_and_throw(exec);
-
-                    // Check results
-                    check_results(resultTest.begin(), resultTest.end());
-                });
+                TestImplementation<Policy, Size>{exec, n, host_keys});
         }
     }
 };

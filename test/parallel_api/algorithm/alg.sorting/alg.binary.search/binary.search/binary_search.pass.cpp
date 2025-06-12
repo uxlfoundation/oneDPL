@@ -82,8 +82,7 @@ DEFINE_TEST(test_binary_search)
 
         // call algorithm with comparator
         auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
-        auto res2 = oneapi::dpl::binary_search(new_policy2, first, last, value_first, value_last, result_first,
-                                               [](ValueT first, ValueT second) { return first < second; });
+        auto res2 = oneapi::dpl::binary_search(new_policy2, first, last, value_first, value_last, result_first, TestUtils::IsLess<ValueT>{});
         exec.queue().wait_and_throw();
 
         EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, device policy");
@@ -112,8 +111,7 @@ DEFINE_TEST(test_binary_search)
         check_and_clean(result_first, n);
 
         // call algorithm with comparator
-        auto res2 = oneapi::dpl::binary_search(exec, first, last, value_first, value_last, result_first,
-                                               [](ValueT first, ValueT second) { return first < second; });
+        auto res2 = oneapi::dpl::binary_search(exec, first, last, value_first, value_last, result_first, TestUtils::IsLess<ValueT>{});
         EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, host policy");
         check_and_clean(result_first, n);
     }

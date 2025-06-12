@@ -37,20 +37,6 @@ struct wrapper
     }
 };
 
-template <typename T1, typename T2>
-bool
-eq(const wrapper<T1>& a, const wrapper<T2>& b)
-{
-    return a.t == b.t;
-}
-
-template <typename T1, typename T2>
-bool
-eq(const T1& a, const T2& b)
-{
-    return a == b;
-}
-
 template<typename T1, typename T2>
 struct test_one_policy
 {

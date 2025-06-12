@@ -83,6 +83,23 @@ DEFINE_TEST(test_equal_structured_binding)
 {
     DEFINE_TEST_CONSTRUCTOR(test_equal_structured_binding, 1.0f, 1.0f)
 
+    struct CompareOp
+    {
+        template <typename Tuple1, typename Tuple2>
+        bool operator()(Tuple1 tuple_first1, Tuple2 tuple_first2) const
+        {
+            const auto& [a, b] = tuple_first1;
+            const auto& [c, d] = tuple_first2;
+
+            static_assert(std::is_reference_v<decltype(a)>, "tuple element type is not a reference");
+            static_assert(std::is_reference_v<decltype(b)>, "tuple element type is not a reference");
+            static_assert(std::is_reference_v<decltype(c)>, "tuple element type is not a reference");
+            static_assert(std::is_reference_v<decltype(d)>, "tuple element type is not a reference");
+
+            return (a == c) && (b == d);
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 /* last2 */, Size n)
@@ -110,19 +127,7 @@ DEFINE_TEST(test_equal_structured_binding)
                         "zip_iterator (equal_structured_binding2) not properly copyable");
         }
 
-        auto compare = [](auto tuple_first1, auto tuple_first2)
-        {
-            const auto& [a, b] = tuple_first1;
-            const auto& [c, d] = tuple_first2;
-
-            static_assert(std::is_reference_v<decltype(a)>, "tuple element type is not a reference");
-            static_assert(std::is_reference_v<decltype(b)>, "tuple element type is not a reference");
-            static_assert(std::is_reference_v<decltype(c)>, "tuple element type is not a reference");
-            static_assert(std::is_reference_v<decltype(d)>, "tuple element type is not a reference");
-
-            return (a == c) && (b == d);
-        };
-
+        CompareOp compare;
         bool is_equal = std::equal(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2,
                                    compare);
 #if _PSTL_SYCL_TEST_USM
