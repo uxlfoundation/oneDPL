@@ -242,7 +242,7 @@ main(int argc, char** argv)
                                 [=](auto i) { ApplyFilter(image_acc.get_pointer(), image_exp_acc.get_pointer(), i); });
              }).wait();
         }
-        catch (sycl::exception e)
+        catch (const sycl::exception& e)
         {
             // This catches only synchronous exceptions that happened in current thread
             // during execution. The asynchronous exceptions caused by execution of the

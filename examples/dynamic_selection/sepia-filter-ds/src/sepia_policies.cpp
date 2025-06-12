@@ -176,7 +176,7 @@ invokeDS(int num_offloads, std::vector<sycl::queue>& resources, std::vector<size
             };
             ex::submit_and_wait(p, f1, num_pixels);
         }
-        catch (sycl::exception e)
+        catch (const sycl::exception& e)
         {
             // This catches only synchronous exceptions that happened in current thread
             // during execution. The asynchronous exceptions caused by execution of the
