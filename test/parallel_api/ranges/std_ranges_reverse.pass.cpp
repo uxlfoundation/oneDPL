@@ -22,6 +22,7 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
+    //A checker below modifies a return type; a range based version with policy has another return type.
     auto reverse_checker = [](auto&&... args) {
         return std::ranges::reverse(std::forward<decltype(args)>(args)...);
     };
