@@ -127,7 +127,7 @@ which can be compared to `oneapi::dpl::stable_sort`.
 Performance tuning controls:
 1. Algorithm-specific: the number of bits sorted per radix sort pass (`8`).
 2. Common: the number of elements processed per sub-group (`416`)
-  and the work-group size (`64`).
+  and the number of sub-groups per work-group (`64`).
 
 These parameters influence various factors,
 including the number of kernels launched, register and local memory usage,
