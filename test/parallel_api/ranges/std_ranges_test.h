@@ -442,8 +442,6 @@ private:
             return std::distance(begin, ret.out);
         else if constexpr (is_iterator<Ret>)
             return std::distance(begin, ret);
-        else if constexpr (check_in2<Ret>)
-            return std::distance(begin, ret.in2);
         else if constexpr(is_range<Ret>)
             return std::pair{std::distance(begin, ret.begin()), std::ranges::distance(ret.begin(), ret.end())};
         else
