@@ -104,7 +104,11 @@ for algorithms with device policies.
 Additionally, a plain `sycl::buffer` can also be used.
 Specialized algorithms may impose additional restrictions on how data is passed.
 
-If an algorithm allocates global memory, it must throw `std::bad_alloc` if the allocation is unsuccessful.
+If an algorithm allocates global memory and that allocation is unsuccessful,
+it must throw `std::bad_alloc`.
+That behaviour may change depending on how
+[External Allocation of Global Memory](#external-allocation-of-global-memory)
+is addressed.
 
 ### Example
 
@@ -183,7 +187,7 @@ The renaming requires changing the corresponding namespace.
 ### Specializations and their Differntiation
 
 Currently, the specializations of the algorithms belong to different namespaces.
-Using tags instead tags offers several advantages,
+Using tags instead namespaces offers several advantages,
 for example easier dispatching between specializations and avoiding deeply nested namespaces.
 
 ### Reporting Global and Local Memory Requirements
@@ -237,7 +241,7 @@ for a given workload and hardware.
 
 The proposed set of algorithms should transition to an extension if:
 - All the [Open Questions](#open-questions) are addressed.
-  Note, in the future, some questions may arise,
+  Note that in the future, some questions may arise
   addressing which is unnecessary for the transition.
 - A significant portion of the algorithms listed in
   [Algorithms to Implement](#algorithms-to-implement) is implemented.
