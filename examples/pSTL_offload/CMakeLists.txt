@@ -10,7 +10,6 @@ endif()
 
 project (pSTL_offload)
 
-set(ONEDPL_BACKEND dpcpp)
 # Add oneDPL to the build.
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../ ${CMAKE_CURRENT_BINARY_DIR}/oneDPL)
 

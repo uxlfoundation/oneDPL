@@ -10,7 +10,7 @@ endif()
 
 project (maxloc_reductions LANGUAGES CXX)
 
-set(ONEDPL_BACKEND dpcpp)
+set(ONEDPL_BACKEND dpcpp_only)
 # Add oneDPL to the build.
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../ ${CMAKE_CURRENT_BINARY_DIR}/oneDPL)
 
@@ -32,13 +32,9 @@ add_executable(maxloc_implicit maxloc_implicit.cpp)
 add_executable(maxloc_operator maxloc_operator.cpp)
 add_executable(maxloc_usm maxloc_usm.cpp)
 # Specify libraries to link with
-target_link_libraries(maxloc_buffered tbb)
 target_link_libraries(maxloc_buffered oneDPL)
-target_link_libraries(maxloc_implicit tbb)
 target_link_libraries(maxloc_implicit oneDPL)
-target_link_libraries(maxloc_operator tbb)
 target_link_libraries(maxloc_operator oneDPL)
-target_link_libraries(maxloc_usm tbb)
 target_link_libraries(maxloc_usm oneDPL)
 
 add_test(NAME maxloc_buffered COMMAND $<TARGET_FILE:maxloc_buffered>)

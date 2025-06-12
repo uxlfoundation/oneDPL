@@ -3,9 +3,7 @@ project(sepia-filter-ds)
 add_executable(sepia_sycl src/sepia_sycl.cpp)
 add_executable (sepia_policies src/sepia_policies.cpp)
 
-target_link_libraries(sepia_sycl tbb)
 target_link_libraries(sepia_sycl oneDPL)
-target_link_libraries(sepia_policies tbb)
 target_link_libraries(sepia_policies oneDPL)
 
 add_test(NAME sepia_sycl
