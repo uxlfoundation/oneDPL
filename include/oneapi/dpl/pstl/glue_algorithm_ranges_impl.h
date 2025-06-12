@@ -859,7 +859,7 @@ struct __swap_ranges_fn
         const _Size __size = std::ranges::min((_Size)std::ranges::size(__r1), (_Size)std::ranges::size(__r2));
 
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        oneapi::dpl::__internal::__ranges::__pattern_swap_ranges(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__internal::__ranges::__pattern_swap(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
             std::ranges::take_view(__r1, __size), std::ranges::take_view(__r2, __size));
 
        return {std::ranges::begin(__r1) + __size, std::ranges::begin(__r2) + __size};
