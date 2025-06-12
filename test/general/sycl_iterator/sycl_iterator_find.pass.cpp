@@ -931,7 +931,7 @@ test_usm_and_buffer()
     test1buffer<alloc_type, test_search_n<ValueType>>();
     PRINT_DEBUG("test_is_heap_until");
     test1buffer<alloc_type, test_is_heap_until<ValueType>>();
-    print_debug("test_is_heap");
+    PRINT_DEBUG("test_is_heap");
     test1buffer<alloc_type, test_is_heap<ValueType>>();
 
     //test2buffers
