@@ -26,6 +26,7 @@
 #endif
 
 #include "utils_ranges.h" // __difference_t
+#include "utils.h"        // oneapi::dpl::__internal::__swap_fn
 
 #include "execution_defs.h"
 #include "oneapi/dpl/pstl/ranges_defs.h"
@@ -1062,6 +1063,7 @@ namespace __internal
 {
 struct __unique_fn
 {
+
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_R>, _Proj>>
                 _Comp = std::ranges::equal_to>
