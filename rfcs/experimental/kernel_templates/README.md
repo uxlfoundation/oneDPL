@@ -104,8 +104,8 @@ sycl::event kernel_template (
 );
 ```
 
-`Arg1`, ..., `ArgN` include the sequences to be processed.
-Data can be passed using the same mechanisms described in the
+`Arg1`, ..., `ArgN` include sequences to process.
+Data must be passed using the same mechanisms described in the
 [documentation on passing data](https://uxlfoundation.github.io/oneDPL/parallel_api/pass_data_algorithms.html#pass-data-to-algorithms)
 for algorithms with device policies.
 Specialized algorithms may extend or restrict the supported data passing mechanisms.
@@ -134,7 +134,7 @@ including the number of kernels launched, register and local memory usage,
 global memory access, and the utilization of hardware computational resources.
 They can be easily adjusted for another GPU with different hardware characteristics.
 
-The kernle template relies on ESIMD technology
+The kernel template relies on ESIMD technology
 and certain forward progress guarantees between work-groups.
 
 ```c++
