@@ -145,7 +145,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        adjacent_find(std::forward<Policy>(exec), iter, iter, non_const(::std::equal_to<T>()));
+        adjacent_find(std::forward<Policy>(exec), iter, iter, non_const(std::equal_to<T>()));
     }
 };
 

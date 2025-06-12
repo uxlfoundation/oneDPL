@@ -178,7 +178,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        unique_copy(std::forward<Policy>(exec), input_iter, input_iter, out_iter, non_const(::std::equal_to<T>()));
+        unique_copy(std::forward<Policy>(exec), input_iter, input_iter, out_iter, non_const(std::equal_to<T>()));
     }
 };
 

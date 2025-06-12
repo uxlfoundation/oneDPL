@@ -29,7 +29,7 @@ struct test_long_reduce
     void
     operator()(Policy&& exec, Iterator first, Iterator last, T init, BinaryOp binary, T expected)
     {
-        T result_r = ::std::reduce(std::forward<Policy>(exec), first, last, init, binary);
+        T result_r = std::reduce(std::forward<Policy>(exec), first, last, init, binary);
         EXPECT_EQ(expected, result_r, "bad result from reduce(exec, first, last, init, binary_op)");
     }
 };
