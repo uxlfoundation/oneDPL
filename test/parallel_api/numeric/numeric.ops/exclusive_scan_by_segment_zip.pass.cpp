@@ -78,13 +78,6 @@ test_with_usm()
     dt_helper5.retrieve_data(output_values1);
     dt_helper6.retrieve_data(output_values2);
 
-//Dump
-#if 0
-    for(int i=0; i < n; i++) {
-        std::cout << "{" << output_values1[i] << ", " << output_values2[i] << "}" << std::endl;
-    }
-#endif
-
     // Expected output
     // {11, 11}: {1, 1}
     // {21, 20}: {1}
