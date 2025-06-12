@@ -122,8 +122,8 @@ template <typename InputIterator, typename OutputIterator, typename OutputIterat
         ::std::fill_n(out_first, n, trash);
 
         // Run remove_copy_if
-        [[maybe_unused]] auto i = remove_copy_if(first, last, expected_first, [=](const T& x) { return !pred(x); });
-        auto k = remove_copy_if(exec, first, last, out_first, [=](const T& x) { return !pred(x); });
+        [[maybe_unused]] auto i = remove_copy_if(first, last, expected_first, TestUtils::NotPred<T, Predicate>{pred});
+        auto k = remove_copy_if(exec, first, last, out_first, TestUtils::NotPred<T, Predicate>{pred});
 #if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong remove_copy_if effect");
         for (size_t j = 0; j < GuardSize; ++j)
@@ -191,10 +191,7 @@ struct test_non_const_copy_if
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
+        auto is_even = TestUtils::IsEven<float64_t>{};
         copy_if(exec, input_iter, input_iter, out_iter, non_const(is_even));
     }
 };
@@ -203,12 +200,9 @@ struct test_non_const_remove_copy_if
 {
     template <typename Policy, typename InputIterator, typename OutputInterator>
     void
-        operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
+    operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
+        auto is_even = TestUtils::IsEven<float64_t>{};
         remove_copy_if(exec, input_iter, input_iter, out_iter, non_const(is_even));
     }
 };
