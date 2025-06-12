@@ -8,10 +8,12 @@ else()
     cmake_minimum_required(VERSION 3.11)
 endif()
 
-project (pSTL_offload)
+project (dynamic_selection)
 
+set(ONEDPL_BACKEND dpcpp_only)
 # Add oneDPL to the build.
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../ ${CMAKE_CURRENT_BINARY_DIR}/oneDPL)
+
 
 # Set default build type to RelWithDebInfo if not specified
 if (NOT CMAKE_BUILD_TYPE)
@@ -25,28 +27,13 @@ enable_testing()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-option (TARGET_GPU "Build targets for GPU target" OFF)
-option (BUILD_FILEWORDCOUNT "Build targets from subproject FileWordCount" ON)
-option (BUILD_WORDCOUNT "Build targets from subproject WordCount" ON)
-option (BUILD_PARSTLTESTS "Build targets from subproject ParSTLTests" ON)
+option (BUILD_NSTREAM "Build targets from subproject nstream" ON)
+option (BUILD_SEPIA-FILTER-DS "Build targets from subproject sepia-filter-ds" ON)
 
-if(TARGET_GPU)
-  #To build for Intel® Data Center GPU Max 1550 or 1100
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-pstl-offload=gpu -D GPU")
-else()
-  #To build for CPU 
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D CPU ")
+if (BUILD_NSTREAM)
+	add_subdirectory (nstream)
+endif ()
+
+if (BUILD_SEPIA-FILTER-DS)
+	add_subdirectory (sepia-filter-ds)
 endif()
-
-
-if (BUILD_FILEWORDCOUNT)
-	add_subdirectory (FileWordCount)
-endif ()
-
-if (BUILD_WORDCOUNT)
-	add_subdirectory (WordCount)
-endif ()
-
-if (BUILD_PARSTLTESTS)
-	add_subdirectory (ParSTLTests)
-endif ()

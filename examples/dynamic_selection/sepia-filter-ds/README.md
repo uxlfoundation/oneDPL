@@ -14,8 +14,8 @@ For comprehensive information about oneAPI programming, see the [Intel&reg; oneA
 The `Sepia Filter` sample is a SYCL-compliant application that accepts a color image as an input and converts it to a sepia tone image by applying the sepia filter coefficients to every pixel of the image. The sample offloads the compute intensive part of the application, the processing of individual pixels, to an accelerator with the help of lambda and functor kernels.
 
 This sample includes two versions:
-1. `1_sepia_sycl.cpp`: basic SYCL implementation.
-2. `2_sepia_policies.cpp`: Dynamic Device Selection iteration version that includes five policies:
+1. `sepia_sycl.cpp`: basic SYCL implementation.
+2. `sepia_policies.cpp`: Dynamic Device Selection iteration version that includes five policies:
 
   The Dynamic Device Selection API provides functions for choosing a resource using a selection policy. By default, the resources selected via these APIs in oneDPL are SYCL queues. There are several functions and selection policies provided as part of the API.
 
@@ -107,9 +107,9 @@ make VERBOSE=1
 ## Run the Sample
 1. Run the program.
 
-   Usage: ./1_sepia_sycl <num_images> <image_mix>
+   Usage: ./sepia_sycl <num_images> <image_mix>
    ```
-   $ ./1_sepia_sycl 1000 2
+   $ ./sepia_sycl 1000 2
    ```
    This runs 1000 iterations of the base SYCL implementation applying the sepia filter to the larger of the supplied images using the default device for the platform.
 
@@ -127,11 +127,11 @@ make VERBOSE=1
 
    The application requires arguments to determine the number of images (iterations), image size, and finally the Dynamic Device Policy to use. Note that for this sample application, a single image is provided in different sizes and is processed multiple times. Varying the image mix helps to mimic different workloads on your available hardware.
 
-   Usage: ./2_sepia_policies <num_images> <image_mix> <policy>  
+   Usage: ./sepia_policies <num_images> <image_mix> <policy>  
 
    For example:
    ```
-   ./2_sepia_policies 1000 2 4
+   ./sepia_policies 1000 2 4
    ```
    The above runs a 1000 iterations of applying the sepia filter to the larger of the supplied images targeting the device with the most available resources:
 
@@ -168,7 +168,7 @@ make VERBOSE=1
 ## Example Output
 Basic SYCL version:
 ```
-$ ./1_sepia_sycl 1000 2
+$ ./sepia_sycl 1000 2
 Processing 1000 images
 Only large images
 Will submit all offloads to default device: Intel(R) Iris(R) Xe Graphics [0x9a49]
@@ -177,7 +177,7 @@ Total time == 1772250 us
 ```
 Dynamic Device Selection implementation:
 ```
- ./2_sepia_policies 1000 2 4
+ ./sepia_policies 1000 2 4
 Processing 1000 images
 Only large images
 Using dynamic_load_policy to select least loaded device
