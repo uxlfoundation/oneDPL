@@ -368,7 +368,7 @@ DEFINE_TEST(test_unique_copy)
         std::int64_t expected_size = (n - 1) / 4 + 1;
 
         // check
-        EXPECT_EQ(expected_size, result_size, "wrong effect from unique_copy : incorrect size")
+        EXPECT_EQ(expected_size, result_size, "wrong effect from unique_copy : incorrect size");
 
         host_vals.retrieve_data();
         auto host_first2 = host_vals.get();
