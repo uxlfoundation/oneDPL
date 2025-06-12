@@ -25,6 +25,28 @@
 #include "support/utils_invoke.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
+
+template <typename Size, int __reverses>
+struct get_expected_op
+{
+    Size n;
+
+    template <typename T>
+    auto operator()(T exp) const
+    {
+        if constexpr (__reverses % 2 == 0)
+        {
+            return exp;
+        }
+        else
+        {
+            return std::make_reverse_iterator(exp + n);
+        }
+    }
+};
+
+static auto noop = [](auto i) { return i; };
+
 template <int __recurse, int __reverses, bool __read = true, bool __reset_read = true, bool __write = true,
           bool __check_write = true, bool __usable_as_perm_map = true, bool __usable_as_perm_src = true,
           bool __is_reversible = true, typename Policy, typename InputIterator1, typename InputIterator2,
@@ -54,17 +76,7 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
     const auto n = last - first;
 
     //Run the tests
-    auto get_expect = [n](auto exp) {
-        (void)n; // avoid unused-lambda-capture, bug https://bugs.llvm.org/show_bug.cgi?id=35450
-        if constexpr (__reverses % 2 == 0)
-        {
-            return exp;
-        }
-        else
-        {
-            return std::make_reverse_iterator(exp + n);
-        }
-    };
+    get_expected_op<decltype(n), __reverses> get_expect{n};
 
 #    if _ONEDPL_DEBUG_SYCL
     std::cout << input_descr << ":";
