@@ -775,23 +775,6 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
     return res;
 }
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
-std::ranges::borrowed_subrange_t<_R>
-__pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
-{
-    auto __pred_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
-    std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
-
-    auto __it = std::ranges::begin(__r);
-    auto __end = __t + std::ranges::size(__r);
-    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)), __pred_2);
-
-    return std::ranges::borrowed_subrange_t<_R>(__it + __idx, __end);
-}
-#endif //_ONEDPL_CPP20_RANGES_PRESENT
-
 //------------------------------------------------------------------------
 // merge
 //------------------------------------------------------------------------
