@@ -44,7 +44,7 @@ struct test_replace_copy
         ::std::fill_n(out_first, n, trash);
         // Run replace_copy
         ::std::replace_copy(first, last, expected_first, old_value, new_value);
-        auto k = ::std::replace_copy(std::forward<Policy>(exec), first, last, out_first, old_value, new_value);
+        auto k = std::replace_copy(std::forward<Policy>(exec), first, last, out_first, old_value, new_value);
         EXPECT_EQ_N(expected_first, out_first, n, "wrong replace_copy effect");
         EXPECT_TRUE(out_last == k, "wrong return value from replace_copy");
     }

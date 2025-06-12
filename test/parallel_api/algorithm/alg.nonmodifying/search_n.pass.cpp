@@ -92,7 +92,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        search_n(std::forward<Policy>(exec), iter, iter, 0, T(0), non_const(::std::equal_to<T>()));
+        search_n(std::forward<Policy>(exec), iter, iter, 0, T(0), non_const(std::equal_to<T>()));
     }
 };
 

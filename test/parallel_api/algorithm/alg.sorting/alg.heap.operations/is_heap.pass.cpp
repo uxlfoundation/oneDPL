@@ -193,7 +193,7 @@ struct test_non_const_is_heap
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        is_heap(std::forward<Policy>(exec), iter, iter, non_const(::std::less<T>()));
+        is_heap(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
     }
 };
 
@@ -204,7 +204,7 @@ struct test_non_const_is_heap_until
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        is_heap_until(std::forward<Policy>(exec), iter, iter, non_const(::std::less<T>()));
+        is_heap_until(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
     }
 };
 

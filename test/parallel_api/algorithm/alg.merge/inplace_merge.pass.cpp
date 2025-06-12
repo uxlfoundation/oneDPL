@@ -34,7 +34,7 @@ struct test_one_policy
     {
         auto mid = init(first1, last1, first2, last2, generator1, generator2, m);
         ::std::inplace_merge(first1, mid.first, last1, comp);
-        ::std::inplace_merge(std::forward<Policy>(exec), first2, mid.second, last2, comp);
+        std::inplace_merge(std::forward<Policy>(exec), first2, mid.second, last2, comp);
         EXPECT_EQ_N(first1, first2, n, "wrong effect from inplace_merge with predicate");
     }
 
@@ -45,7 +45,7 @@ struct test_one_policy
     {
         auto mid = init(first1, last1, first2, last2, generator1, generator2, m);
         ::std::inplace_merge(first1, mid.first, last1);
-        ::std::inplace_merge(std::forward<Policy>(exec), first2, mid.second, last2);
+        std::inplace_merge(std::forward<Policy>(exec), first2, mid.second, last2);
         EXPECT_EQ_N(first1, first2, n, "wrong effect from inplace_merge without predicate");
     }
 
@@ -155,7 +155,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        inplace_merge(std::forward<Policy>(exec), iter, iter, iter, non_const(::std::less<T>()));
+        inplace_merge(std::forward<Policy>(exec), iter, iter, iter, non_const(std::less<T>()));
     }
 };
 

@@ -39,7 +39,7 @@ void test_policy_instance(Policy&& policy)
     static ::std::vector<int> a(n);
 
     ::std::fill(a.begin(), a.end(), 0);
-    ::std::fill(std::forward<Policy>(policy), a.begin(), a.end(), -1);
+    std::fill(std::forward<Policy>(policy), a.begin(), a.end(), -1);
 #if _PSTL_SYCL_TEST_USM
     queue.wait_and_throw();
 #endif
