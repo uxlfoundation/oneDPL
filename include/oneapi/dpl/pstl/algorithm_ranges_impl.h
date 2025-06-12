@@ -647,7 +647,10 @@ __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__binary_op __bin_pred{__pred, __proj1, __proj2};
+    auto __bin_pred = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) {
+        return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
+                           std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));
+    };
 
     return oneapi::dpl::__internal::__pattern_mismatch(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
@@ -671,9 +674,9 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj,
 auto
 __pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
-    oneapi::dpl::__internal::__predicate __pred_1{__pred, __proj};
+    auto __pred_1 = [__pred, __proj](auto&& __val) {
+        return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));
+    };
 
     auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
 
@@ -712,8 +715,6 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2>
 void
 __pattern_swap_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
     auto __end = std::ranges::begin(__r1) + std::ranges::size(__r1);
     oneapi::dpl::__internal::__pattern_swap(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
                                             __end, std::ranges::begin(__r2));
@@ -730,8 +731,6 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp,
 std::ranges::borrowed_subrange_t<_R>
 __pattern_unique(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
     oneapi::dpl::__internal::__compare __pred_2{__comp, __proj};
 
     auto __beg = std::ranges::begin(__r);
@@ -753,8 +752,6 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_subrange_t<_R>
 __pattern_reverse(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
     auto __beg = std::ranges::begin(__r);
     const auto __n = std::ranges::size(__r);
     const auto __n_2 = __n / 2;
@@ -776,8 +773,6 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRa
 std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
     oneapi::dpl::__internal::__compare __pred_2{__comp, __proj};
 
     auto __beg = std::ranges::begin(__r);
