@@ -193,7 +193,7 @@ The renaming requires changing the corresponding namespace.
 ### Specializations and their Differentiation
 
 Currently, the specializations of the algorithms belong to different namespaces.
-Using tags instead namespaces offers several advantages,
+Using tags instead of namespaces offers several advantages,
 for example easier dispatching between specializations and avoiding deeply nested namespaces.
 
 ### Reporting Global and Local Memory Requirements
@@ -243,7 +243,7 @@ A list of algorithms to implement should be defined.
 A benchmark suite can help select the best configuration and parameters
 for a given workload and hardware.
 
-### Default KernelParam Values
+### Default Kernel Configuration Values
 
 `KernelParam` template parameter
 is placed before all the deduced parameters to simplify
