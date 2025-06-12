@@ -221,7 +221,7 @@ which retains temporary memory until an algorithm completes its asynchronous exe
 Additionally, it reduces the number of interfaces that need to be supported.
 
 This should be done in conjunction with the
-[Global and Local Memory Requirements](#global-and-local-memory-requirements) interface.
+[Global and Local Memory Requirements](#reporting-global-and-local-memory-requirements) interface.
 
 ### Asynchronous Execution
 
