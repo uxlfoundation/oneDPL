@@ -430,7 +430,7 @@ DEFINE_TEST(test_partition_copy)
 
         for (int i = 0; i < std::min(exp.second - exp_false_first, res.second - first3); ++i)
         {
-            EXPECT_EQ(*(exp_false_first + i), *(host_res.get() + i), "wrong effect from partition_copy : incorrect data #1");
+            EXPECT_EQ(*(exp_false_first + i), *(host_res.get() + i), "wrong effect from partition_copy : incorrect data #2");
         }
     }
 };
