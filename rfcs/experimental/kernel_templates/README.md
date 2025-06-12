@@ -211,10 +211,14 @@ by providing an easy way to get memory requirements and apply fallbacks if neede
 
 There are scenarios which benefit from passing pre-allocated temporary memory to an algorithm.
 For example, a user program may manage a reusable memory pool.
-This is especially useful when an algorithm is called in a loop and the allocation overhead
+Also, this is especially useful when an algorithm is called in a loop and the allocation overhead
 cannot be amortized by memory pools provided by the device or compiler runtime.
 
-It may be preferable to make this the only option and avoid internal global memory allocation.
+It may be preferable to make this the only option and
+avoid internal global memory allocations altogether.
+This approach eliminates the overhead associated with `host_task`,
+which retains temporary memory until an algorithm completes its asynchronous execution.
+Additionally, it reduces the number of interfaces that need to be supported.
 
 This should be done in conjunction with the
 [Global and Local Memory Requirements](#global-and-local-memory-requirements) interface.
