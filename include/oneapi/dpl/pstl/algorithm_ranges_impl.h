@@ -713,22 +713,6 @@ __pattern_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
     std::ranges::move(std::forward<_InRange>(__r), std::forward<_OutRange>(__out_r));
 }
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2>
-void
-__pattern_swap(_Tag __tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2)
-{
-    auto __end = std::ranges::begin(__r1) + std::ranges::size(__r1);
-    oneapi::dpl::__internal::__pattern_swap(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
-                                            __end, std::ranges::begin(__r2));
-}
-
-template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2>
-void
-__pattern_swap(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2)
-{
-    std::ranges::swap_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2));
-}
-
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
 std::ranges::borrowed_subrange_t<_R>
 __pattern_unique(_Tag __tag, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)

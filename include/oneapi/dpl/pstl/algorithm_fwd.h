@@ -1221,9 +1221,9 @@ __pattern_lexicographical_compare(__parallel_tag<_IsVector>, _ExecutionPolicy&&,
                                   _RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator2,
                                   _Compare) noexcept;
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2>
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function>
 _ForwardIterator2
-__pattern_swap(_Tag, _ExecutionPolicy&&, _ForwardIterator1, _ForwardIterator1, _ForwardIterator2);
+__pattern_swap(_Tag, _ExecutionPolicy&&, _ForwardIterator1, _ForwardIterator1, _ForwardIterator2, _Function);
 
 //------------------------------------------------------------------------
 // shift_left

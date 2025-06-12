@@ -152,12 +152,10 @@ struct __swap1_wrapper;
 template <typename _Name>
 struct __swap2_wrapper;
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Function>
 oneapi::dpl::__internal::__difference_t<_Range1>
-__pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
+__pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Function __f)
 {
-    using _Function = oneapi::dpl::__internal::__swap_fn;
-
     if (__rng1.size() <= __rng2.size())
     {
         const std::size_t __n = __rng1.size();
@@ -165,7 +163,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            unseq_backend::__brick_swap<_Function>{_Function{}, __n}, __n, __rng1, __rng2)
+            unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng1, __rng2)
             .__checked_deferrable_wait();
         return __n;
     }
@@ -173,20 +171,10 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-        unseq_backend::__brick_swap<_Function>{_Function{}, __n}, __n, __rng2, __rng1)
+        unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng2, __rng1)
         .__checked_deferrable_wait();
     return __n;
 }
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template<typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2>
-bool
-__pattern_swap(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2)
-{
-    return oneapi::dpl::__internal::__ranges::__pattern_swap(__tag, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all(std::forward<_R1>(__r1)), oneapi::dpl::__ranges::views::all(::std::forward<_R2>(__r2));
-}
-#endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
 // equal
