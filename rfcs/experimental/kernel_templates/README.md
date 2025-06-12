@@ -236,6 +236,31 @@ A list of algorithms to implement should be defined.
 A benchmark suite can help select the best configuration and parameters
 for a given workload and hardware.
 
+### Default KernelParam Values
+
+`KernelParam` template parameter
+is placed before all the deduced parameters to simplify
+a potential addition of a default value in the future.
+However, it is unclear if a default value should be provided,
+especially given the extension's focus on performance tuning.
+
+Creation of a default value with optimal settings is impossible right now.
+`kernel_param` template argument, which substitutes `KernelParam`,
+includes compile-time values, whose optimal selection depends on run-time information,
+such is the number of elements to process.
+
+[Runtime Parameters](kernel_configuration/README.md#runtime-parameters) raises a question
+of providing them at run-time.
+However, doing so would likely require querying device properties, introducing overhead.
+
+The complexity of manual selection of these values may be reduced by the [Benchmarks](#benchmarking),
+making default values less relevant.
+
+### Configuring an Algorithm with Multiple Kernels
+
+It needs to be explored how to configure algorithms with multiple performance-critical kernels.
+The `kernel_param` targets a single kernel, and currently, only one instance can be passed.
+
 ## Exit Criteria
 
 The proposed set of algorithms should transition to an extension if:
