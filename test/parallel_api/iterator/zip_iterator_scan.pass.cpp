@@ -110,7 +110,7 @@ DEFINE_TEST(test_unique)
         host_keys.retrieve_data();
         for (int i = 0; i < std::min(tuple_lastnew - tuple_first1, expected_size); ++i)
         {
-            EXPECT_EQ(i + 1, *host_keys.get() + i, "wrong effect from unique(tuple) : incorrect data");
+            EXPECT_EQ(i + 1, *(host_keys.get() + i), "wrong effect from unique(tuple) : incorrect data");
         }
     }
 };
