@@ -19,17 +19,6 @@
 
 #include <cassert>
 
-struct eq
-{
-    eq(int val) : v(val) {}
-    bool
-    operator()(int v2) const
-    {
-        return v == v2;
-    }
-    int v;
-};
-
 template <class Iter>
 void
 test(sycl::queue& deviceQueue)
@@ -43,9 +32,9 @@ test(sycl::queue& deviceQueue)
             cgh.single_task<Iter>([=]() {
                 int ia[] = {0, 1, 2, 3, 4, 5};
                 const unsigned s = sizeof(ia) / sizeof(ia[0]);
-                auto r = dpl::find_if(Iter(ia), Iter(ia + s), eq(3));
+                auto r = dpl::find_if(Iter(ia), Iter(ia + s), TestUtils::IsEqualTo<int>{3});
                 ret_acc[0] &= (*r == 3);
-                r = dpl::find_if(Iter(ia), Iter(ia + s), eq(10));
+                r = dpl::find_if(Iter(ia), Iter(ia + s), TestUtils::IsEqualTo<int>{10});
                 ret_acc[0] &= (r == Iter(ia + s));
             });
         });

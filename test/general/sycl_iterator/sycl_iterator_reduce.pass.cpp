@@ -278,8 +278,7 @@ DEFINE_TEST(test_count_if)
 
         // check when arbitrary should be counted
         ReturnType expected = (n - 1) / 10 + 1;
-        ReturnType result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last,
-                                            [](ValueType const& value) { return value % 10 == 0; });
+        ReturnType result = std::count_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, TestUtils::IsMultipleOf<ValueType>{10});
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #1 arbitrary to count)");
@@ -289,8 +288,7 @@ DEFINE_TEST(test_count_if)
 
         // check when none should be counted
         expected = 0;
-        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first, last,
-                                 [](ValueType const& value) { return value > 10; });
+        result = std::count_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first, last, TestUtils::IsGreatThan<ValueType>{10});
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #2 none to count)");
@@ -300,8 +298,7 @@ DEFINE_TEST(test_count_if)
 
         // check when all should be counted
         expected = n;
-        result = ::std::count_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), first, last,
-                                 [](ValueType const& value) { return value < 10; });
+        result = std::count_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), first, last, TestUtils::IsLessThan<ValueType>{10});
         wait_and_throw(exec);
 
         EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #3 all to count)");
@@ -326,8 +323,8 @@ DEFINE_TEST(test_is_partitioned)
         if (n < 2)
             return;
 
-        auto less_than = [](const ValueType& value) -> bool { return value < 10; };
-        auto is_odd = [](const ValueType& value) -> bool { return value % 2; };
+        auto less_than = TestUtils::IsLessThan<ValueType>{10};
+        auto is_odd = TestUtils::IsOdd<ValueType>{};
 
         bool expected_bool_less_then = false;
         bool expected_bool_is_odd = false;
@@ -411,7 +408,7 @@ DEFINE_TEST(test_lexicographical_compare)
             update_data(host_keys, host_vals);
         }
 
-        auto comp = [](ValueType const& first, ValueType const& second) { return first < second; };
+        auto comp = TestUtils::IsLess<const ValueType&>{};
 
         // CHECK 1.1: S1 == S2 && len(S1) == len(S2)
         bool is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1,
