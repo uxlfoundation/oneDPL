@@ -97,7 +97,7 @@ DEFINE_TEST(test_merge)
         auto host_first1 = host_keys.get();
         auto host_first3 = host_res_merge.get();
 
-        for (size_t i = 0; i < std::min(res_size, exp_size) && is_correct; ++i)
+        for (size_t i = 0; i < std::min(res_size, exp_size); ++i)
         {
             if (i < size2 * 2)
                 EXPECT_EQ(*(host_first3 + i), i, "wrong effect from merge (tuple) #1");
