@@ -112,11 +112,7 @@ struct test_non_const_partition
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-
+        auto is_even = TestUtils::IsEven<float64_t>{};
         partition(exec, iter, iter, non_const(is_even));
     }
 };

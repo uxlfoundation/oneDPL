@@ -178,8 +178,7 @@ main()
     EXPECT_TRUE(count_val == 0, "cleanup error");
 #endif
 
-    test_partial_sort<std::int32_t>(
-        [](std::int32_t x, std::int32_t y) { return x > y; }); // Reversed so accidental use of < will be detected.
+    test_partial_sort<std::int32_t>(TestUtils::IsGreat<std::int32_t>{}); // Reversed so accidental use of < will be detected.
 
     test_algo_basic_single<std::int32_t>(run_for_rnd<test_non_const<std::int32_t>>());
 
