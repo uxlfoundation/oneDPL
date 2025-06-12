@@ -97,12 +97,12 @@ DEFINE_TEST(test_merge)
         auto host_first1 = host_keys.get();
         auto host_first3 = host_res_merge.get();
 
-        bool is_correct = true;
         for (size_t i = 0; i < std::min(res_size, exp_size) && is_correct; ++i)
-            if ((i < size2 * 2 && *(host_first3 + i) != i) ||
-                (i >= size2 * 2 && *(host_first3 + i) != *(host_first1 + i - size2)))
-                is_correct = false;
-        EXPECT_TRUE(is_correct, "wrong effect from merge (tuple)");
+        {
+            EXPECT_FALSE((i < size2 * 2 && *(host_first3 + i) == i) &&
+                             (i >= size2 * 2 && *(host_first3 + i) == *(host_first1 + i - size2)),
+                         "wrong effect from merge (tuple)");
+        }
     }
 };
 
