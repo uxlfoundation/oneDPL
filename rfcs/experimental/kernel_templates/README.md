@@ -98,11 +98,10 @@ sycl::event kernel_template (
 ```
 
 `Arg1`, ..., `ArgN` include the sequences to be processed.
-Data can be passed in the same ways as described in the
+Data can be passed using the same mechanisms described in the
 [documentation on passing data](https://uxlfoundation.github.io/oneDPL/parallel_api/pass_data_algorithms.html#pass-data-to-algorithms)
 for algorithms with device policies.
-Additionally, a plain `sycl::buffer` can also be used.
-Specialized algorithms may impose additional restrictions on how data is passed.
+Specialized algorithms may extend or restrict the supported data passing mechanisms.
 
 If an algorithm allocates global memory and that allocation is unsuccessful,
 it must throw `std::bad_alloc`.
@@ -215,7 +214,7 @@ This should be done in conjunction with the
 
 ### Asynchronous Execution
 
-The algorithms return a `sycl::event` but do not accept any input events as inputs.
+The algorithms return a `sycl::event` but do not accept any input events.
 As a result, they are not fully asynchronous.
 
 It should be investigated whether full asynchrony is desirable,
