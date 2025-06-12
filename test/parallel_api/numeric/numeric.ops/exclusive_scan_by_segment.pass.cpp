@@ -106,7 +106,7 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
             oneapi::dpl::exclusive_scan_by_segment(new_policy, keys_first, keys_last, vals_first, val_res_first);
         exec.queue().wait_and_throw();
 
-        EXPECT_TRUE(std::distance(val_res_first, res1) == n, "wrong return value, device policy");
+        EXPECT_EQ(n, std::distance(val_res_first, res1), "wrong return value, device policy");
         retrieve_data(host_vals, host_val_res);
         check_values(host_keys.get(), host_vals.get(), host_val_res.get(), n, zero);
 
@@ -119,7 +119,7 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
             oneapi::dpl::exclusive_scan_by_segment(new_policy2, keys_first, keys_last, vals_first, val_res_first, init);
         exec.queue().wait_and_throw();
 
-        EXPECT_TRUE(std::distance(val_res_first, res2) == n, "wrong return value, init, device policy");
+        EXPECT_EQ(n, std::distance(val_res_first, res2), "wrong return value, init, device policy");
         retrieve_data(host_vals, host_val_res);
         check_values(host_keys.get(), host_vals.get(), host_val_res.get(), n, init);
 
@@ -132,7 +132,7 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
                                                            val_res_first, init, BinaryPredicate());
         exec.queue().wait_and_throw();
 
-        EXPECT_TRUE(std::distance(val_res_first, res3) == n, "wrong return value, init and predicate, device policy");
+        EXPECT_EQ(n, std::distance(val_res_first, res3), "wrong return value, init and predicate, device policy");
         retrieve_data(host_vals, host_val_res);
         check_values(host_keys.get(), host_vals.get(), host_val_res.get(), n, init, BinaryPredicate());
 
@@ -145,7 +145,7 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
                                                            val_res_first, init, BinaryPredicate(), BinaryOperation());
         exec.queue().wait_and_throw();
 
-        EXPECT_TRUE(std::distance(val_res_first, res4) == n, "wrong return value, init and predicate and operator, device policy");
+        EXPECT_EQ(n, std::distance(val_res_first, res4), "wrong return value, init and predicate and operator, device policy");
         retrieve_data(host_vals, host_val_res);
         check_values(host_keys.get(), host_vals.get(), host_val_res.get(), n, init, BinaryPredicate(),
                      BinaryOperation());
@@ -170,28 +170,28 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         // call algorithm with no optional arguments
         initialize_data(keys_first, vals_first, val_res_first, n);
         auto res1 = oneapi::dpl::exclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first);
-        EXPECT_TRUE(std::distance(val_res_first, res1) == n, "wrong return value, host policy");
+        EXPECT_EQ(n, std::distance(val_res_first, res1), "wrong return value, host policy");
         check_values(keys_first, vals_first, val_res_first, n, zero);
 
         // call algorithm with init
         initialize_data(keys_first, vals_first, val_res_first, n);
         auto res2 =
             oneapi::dpl::exclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first, init);
-        EXPECT_TRUE(std::distance(val_res_first, res2) == n, "wrong return value, init, host policy");
+        EXPECT_EQ(n, std::distance(val_res_first, res2), "wrong return value, init, host policy");
         check_values(keys_first, vals_first, val_res_first, n, init);
 
         // call algorithm with init and predicate
         initialize_data(keys_first, vals_first, val_res_first, n);
         auto res3 = oneapi::dpl::exclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first, init,
                                                            BinaryPredicate());
-        EXPECT_TRUE(std::distance(val_res_first, res3) == n, "wrong return value, init and predicate, host policy");
+        EXPECT_EQ(n, std::distance(val_res_first, res3), "wrong return value, init and predicate, host policy");
         check_values(keys_first, vals_first, val_res_first, n, init, BinaryPredicate());
 
         // call algorithm with init, predicate, and operator
         initialize_data(keys_first, vals_first, val_res_first, n);
         auto res4 = oneapi::dpl::exclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first, init,
                                                            BinaryPredicate(), BinaryOperation());
-        EXPECT_TRUE(std::distance(val_res_first, res4) == n, "wrong return value, init and predicate and operator, host policy");
+        EXPECT_EQ(n, std::distance(val_res_first, res4), "wrong return value, init and predicate and operator, host policy");
         check_values(keys_first, vals_first, val_res_first, n, init, BinaryPredicate(), BinaryOperation());
     }
 
