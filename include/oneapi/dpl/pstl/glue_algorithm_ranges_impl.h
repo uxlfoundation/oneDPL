@@ -1059,8 +1059,6 @@ inline constexpr __internal::__remove_fn remove;
 
 // [alg.unique]
 
-namespace __internal
-{
 struct __unique_fn
 {
 
@@ -1082,13 +1080,11 @@ struct __unique_fn
 
 inline constexpr __internal::__unique_fn unique;
 
-namespace __internal
-{
 struct __unique_copy_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
              std::ranges::random_access_range _OutRange, typename _Proj = std::identity,
-             std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_InRange>, _Proj>>
+             std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_R>, _Proj>>
                 _Comp = std::ranges::equal_to>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
         && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
@@ -1111,6 +1107,7 @@ inline constexpr __internal::__unique_copy_fn unique_copy;
 
 namespace __internal
 {
+
 struct __reverse_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R>
@@ -1136,6 +1133,7 @@ inline constexpr __internal::__reverse_fn reverse;
 
 namespace __internal
 {
+
 struct __reverse_copy_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
