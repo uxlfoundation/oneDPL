@@ -41,7 +41,7 @@ struct test_all_of
     operator()(ExecutionPolicy&& exec, Iterator begin, Iterator end, Predicate pred, bool expected)
     {
 
-        auto actualr = ::std::all_of(exec, begin, end, pred);
+        auto actualr = ::std::all_of(std::forward<ExecutionPolicy>(exec), begin, end, pred);
         EXPECT_EQ(expected, actualr, "result for all_of");
     }
 };
@@ -102,7 +102,7 @@ struct test_non_const
     operator()(Policy&& exec, Iterator iter)
     {
         auto is_even = TestUtils::IsEven<float64_t>{};
-        all_of(exec, iter, iter, non_const(is_even));
+        all_of(std::forward<Policy>(exec), iter, iter, non_const(is_even));
     }
 };
 

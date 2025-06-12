@@ -34,7 +34,7 @@ struct test_one_policy
                Predicate pred)
     {
         const bool expected = ::std::lexicographical_compare(begin1, end1, begin2, end2, pred);
-        const bool actual = ::std::lexicographical_compare(exec, begin1, end1, begin2, end2, pred);
+        const bool actual = ::std::lexicographical_compare(std::forward<ExecutionPolicy>(exec), begin1, end1, begin2, end2, pred);
         EXPECT_TRUE(actual == expected, "wrong return result from lexicographical compare with predicate");
     }
 
@@ -43,7 +43,7 @@ struct test_one_policy
     operator()(ExecutionPolicy&& exec, Iterator1 begin1, Iterator1 end1, Iterator2 begin2, Iterator2 end2)
     {
         const bool expected = ::std::lexicographical_compare(begin1, end1, begin2, end2);
-        const bool actual = ::std::lexicographical_compare(exec, begin1, end1, begin2, end2);
+        const bool actual = ::std::lexicographical_compare(std::forward<ExecutionPolicy>(exec), begin1, end1, begin2, end2);
         EXPECT_TRUE(actual == expected, "wrong return result from lexicographical compare without predicate");
     }
 };
@@ -161,7 +161,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, FirstIterator first_iter, SecondInterator second_iter)
     {
-        lexicographical_compare(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::less<T>()));
+        lexicographical_compare(std::forward<Policy>(exec), first_iter, first_iter, second_iter, second_iter, non_const(::std::less<T>()));
     }
 };
 

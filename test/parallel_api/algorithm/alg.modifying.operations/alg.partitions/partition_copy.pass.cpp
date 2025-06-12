@@ -36,7 +36,7 @@ struct test_partition_copy
                OutputIterator, OutputIterator2 false_first, OutputIterator2, UnaryOp unary_op)
     {
 
-        auto actual_ret = ::std::partition_copy(exec, first, last, true_first, false_first, unary_op);
+        auto actual_ret = ::std::partition_copy(std::forward<Policy>(exec), first, last, true_first, false_first, unary_op);
 
         EXPECT_TRUE(::std::distance(true_first, actual_ret.first) == ::std::count_if(first, last, unary_op),
                     "partition_copy has wrong effect from true sequence");
@@ -93,7 +93,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        partition_copy(exec, input_iter, input_iter, out_iter, out_iter, non_const(TestUtils::IsEven<float64_t>{}));
+        partition_copy(std::forward<Policy>(exec), input_iter, input_iter, out_iter, out_iter, non_const(TestUtils::IsEven<float64_t>{}));
     }
 };
 

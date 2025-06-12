@@ -36,7 +36,7 @@ struct test_find_end
     {
         using namespace std;
         auto expected = find_end(b, e, bsub, esub, pred);
-        auto actual = find_end(exec, b, e, bsub, esub);
+        auto actual = find_end(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub);
         EXPECT_TRUE(actual == expected, "wrong return result from find_end");
     }
 };
@@ -50,7 +50,7 @@ struct test_find_end_predicate
     {
         using namespace std;
         auto expected = find_end(b, e, bsub, esub, pred);
-        auto actual = find_end(exec, b, e, bsub, esub, pred);
+        auto actual = find_end(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub, pred);
         EXPECT_TRUE(actual == expected, "wrong return result from find_end with a predicate");
     }
 };
@@ -64,7 +64,7 @@ struct test_search
     {
         using namespace std;
         auto expected = search(b, e, bsub, esub, pred);
-        auto actual = search(exec, b, e, bsub, esub);
+        auto actual = search(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub);
         EXPECT_TRUE(actual == expected, "wrong return result from search");
     }
 };
@@ -78,7 +78,7 @@ struct test_search_predicate
     {
         using namespace std;
         auto expected = search(b, e, bsub, esub, pred);
-        auto actual = search(exec, b, e, bsub, esub, pred);
+        auto actual = search(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub, pred);
         EXPECT_TRUE(actual == expected, "wrong return result from search with a predicate");
     }
 };
@@ -139,7 +139,7 @@ struct test_non_const_find_end
     void
     operator()(Policy&& exec, FirstIterator first_iter, SecondInterator second_iter)
     {
-        find_end(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::equal_to<T>()));
+        find_end(std::forward<Policy>(exec), first_iter, first_iter, second_iter, second_iter, non_const(::std::equal_to<T>()));
     }
 };
 
@@ -150,7 +150,7 @@ struct test_non_const_search
     void
     operator()(Policy&& exec, FirstIterator first_iter, SecondInterator second_iter)
     {
-        search(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::equal_to<T>()));
+        search(std::forward<Policy>(exec), first_iter, first_iter, second_iter, second_iter, non_const(::std::equal_to<T>()));
     }
 };
 

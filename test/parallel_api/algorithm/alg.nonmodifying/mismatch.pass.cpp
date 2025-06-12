@@ -33,7 +33,7 @@ struct test_mismatch
         typedef typename iterator_traits<Iterator1>::value_type T;
         {
             const auto expected = ::std::mismatch(first1, last1, first2, ::std::equal_to<T>());
-            const auto res4 = mismatch(exec, first1, last1, first2);
+            const auto res4 = mismatch(std::forward<Policy>(exec), first1, last1, first2);
             EXPECT_TRUE(expected == res4, "wrong return result from mismatch");
         }
     }
@@ -45,7 +45,7 @@ struct test_mismatch
         typedef typename iterator_traits<Iterator1>::value_type T;
         {
             const auto expected = mismatch(oneapi::dpl::execution::seq, first1, last1, first2, last2, ::std::equal_to<T>());
-            const auto res2 = mismatch(exec, first1, last1, first2, last2);
+            const auto res2 = mismatch(std::forward<Policy>(exec), first1, last1, first2, last2);
             EXPECT_TRUE(expected == res2, "wrong return result from mismatch");
         }
     }
@@ -62,7 +62,7 @@ struct test_mismatch_predicate
         typedef typename iterator_traits<Iterator1>::value_type T;
         {
             const auto expected = ::std::mismatch(first1, last1, first2, ::std::equal_to<T>());
-            const auto res3 = mismatch(exec, first1, last1, first2, ::std::equal_to<T>());
+            const auto res3 = mismatch(std::forward<Policy>(exec), first1, last1, first2, ::std::equal_to<T>());
             EXPECT_TRUE(expected == res3, "wrong return result from mismatch with predicate");
         }
     }
@@ -74,7 +74,7 @@ struct test_mismatch_predicate
         typedef typename iterator_traits<Iterator1>::value_type T;
         {
             const auto expected = mismatch(oneapi::dpl::execution::seq, first1, last1, first2, last2, ::std::equal_to<T>());
-            const auto res1 = mismatch(exec, first1, last1, first2, last2, ::std::equal_to<T>());
+            const auto res1 = mismatch(std::forward<Policy>(exec), first1, last1, first2, last2, ::std::equal_to<T>());
             EXPECT_TRUE(expected == res1, "wrong return result from mismatch with predicate");
         }
     }
@@ -173,7 +173,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, FirstIterator first_iter, SecondInterator second_iter)
     {
-        mismatch(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::less<T>()));
+        mismatch(std::forward<Policy>(exec), first_iter, first_iter, second_iter, second_iter, non_const(::std::less<T>()));
     }
 };
 

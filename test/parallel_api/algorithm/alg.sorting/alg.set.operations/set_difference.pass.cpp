@@ -22,7 +22,7 @@ struct test_non_const_set_difference
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        set_difference(exec, input_iter, input_iter, input_iter, input_iter, out_iter, non_const(::std::less<T>()));
+        set_difference(std::forward<Policy>(exec), input_iter, input_iter, input_iter, input_iter, out_iter, non_const(::std::less<T>()));
     }
 };
 

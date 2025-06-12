@@ -92,7 +92,7 @@ struct test_3_iters_default_ops
                T init)
     {
         auto expectedB = ::std::inner_product(first1, last1, first2, init);
-        T resRA = ::std::transform_reduce(exec, first1, last1, first2, init);
+        T resRA = ::std::transform_reduce(std::forward<Policy>(exec), first1, last1, first2, init);
         CheckResults(expectedB, resRA, "wrong result with tranform_reduce (3 iterators, default predicates)");
     }
 };
@@ -107,7 +107,7 @@ struct test_3_iters_custom_ops
                T init, BinaryOperation1 opB1, BinaryOperation2 opB2)
     {
         auto expectedB = ::std::inner_product(first1, last1, first2, init, opB1, opB2);
-        T resRA = ::std::transform_reduce(exec, first1, last1, first2, init, opB1, opB2);
+        T resRA = ::std::transform_reduce(std::forward<Policy>(exec), first1, last1, first2, init, opB1, opB2);
         CheckResults(expectedB, resRA, "wrong result with tranform_reduce (3 iterators, custom predicates)");
     }
 };
@@ -121,7 +121,7 @@ struct test_2_iters
     operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, T init, BinaryOperation opB, UnaryOp opU)
     {
         auto expectedU = transform_reduce_serial(first1, last1, init, opB, opU);
-        T resRA = ::std::transform_reduce(exec, first1, last1, init, opB, opU);
+        T resRA = ::std::transform_reduce(std::forward<Policy>(exec), first1, last1, init, opB, opU);
         CheckResults(expectedU, resRA, "wrong result with tranform_reduce (2 iterators)");
     }
 };
