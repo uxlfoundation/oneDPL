@@ -159,7 +159,7 @@ DEFINE_TEST(test_unique_copy)
         host_vals.retrieve_data();
         for (int i = 0; i < std::min(tuple_last2 - tuple_first2, expected_size); ++i)
         {
-            EXPECT_EQ(i + 1, *host_vals.get() + i, "wrong effect from unique_copy(tuple) : incorrect data");
+            EXPECT_EQ(i + 1, *(host_vals.get() + i), "wrong effect from unique_copy(tuple) : incorrect data");
         }
     }
 };
