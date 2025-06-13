@@ -959,6 +959,46 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
 }
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
+          typename _Comp typename _Proj1, typename _Proj2>
+auto
+__pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    using __return_t = std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                                     std::ranges::borrowed_iterator_t<_OutRange>>;
+
+    const auto __first1 = std:::ranges::begin(__r1);
+    const auto __first2 = std:::ranges::begin(__r2);
+    const auto __result = std:::ranges::begin(__out_r);
+
+        // intersection is empty
+    if (__r1.empty() || __r2.empty())
+        return __return_t{__first1, __first2, __result};
+
+    oneapi::dpl::__internal::__binary_op<_Comp, _Proj1, _Proj2> __comp_2{__comp, __proj1, __proj2};
+
+    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
+    {
+        const auto __idx = __par_backend_hetero::__parallel_set_op(__tag, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)),
+            __comp_2, unseq_backend::_IntersectionTag<std::true_type>());
+
+        return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
+    }
+
+    const auto __idx = __par_backend_hetero::__parallel_set_op(__tag,
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_intersection_scan_then_propagate>(
+        std::forward<_ExecutionPolicy>(__exec)), oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+        oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp_2,
+        unseq_backend::_IntersectionTag<std::false_type>());
+
+    return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
+}
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
