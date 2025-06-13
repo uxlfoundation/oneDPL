@@ -8,8 +8,9 @@ else()
     cmake_minimum_required(VERSION 3.11)
 endif()
 
-project (pSTL_offload)
+project (maxloc_reductions LANGUAGES CXX)
 
+set(ONEDPL_BACKEND dpcpp_only)
 # Add oneDPL to the build.
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../ ${CMAKE_CURRENT_BINARY_DIR}/oneDPL)
 
@@ -25,28 +26,18 @@ enable_testing()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-option (TARGET_GPU "Build targets for GPU target" OFF)
-option (BUILD_FILEWORDCOUNT "Build targets from subproject FileWordCount" ON)
-option (BUILD_WORDCOUNT "Build targets from subproject WordCount" ON)
-option (BUILD_PARSTLTESTS "Build targets from subproject ParSTLTests" ON)
+# Add an executable target from source files
+add_executable(maxloc_buffered maxloc_buffered.cpp)
+add_executable(maxloc_implicit maxloc_implicit.cpp)
+add_executable(maxloc_operator maxloc_operator.cpp)
+add_executable(maxloc_usm maxloc_usm.cpp)
+# Specify libraries to link with
+target_link_libraries(maxloc_buffered oneDPL)
+target_link_libraries(maxloc_implicit oneDPL)
+target_link_libraries(maxloc_operator oneDPL)
+target_link_libraries(maxloc_usm oneDPL)
 
-if(TARGET_GPU)
-  #To build for Intel® Data Center GPU Max 1550 or 1100
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-pstl-offload=gpu -D GPU")
-else()
-  #To build for CPU 
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D CPU ")
-endif()
-
-
-if (BUILD_FILEWORDCOUNT)
-	add_subdirectory (FileWordCount)
-endif ()
-
-if (BUILD_WORDCOUNT)
-	add_subdirectory (WordCount)
-endif ()
-
-if (BUILD_PARSTLTESTS)
-	add_subdirectory (ParSTLTests)
-endif ()
+add_test(NAME maxloc_buffered COMMAND $<TARGET_FILE:maxloc_buffered>)
+add_test(NAME maxloc_implicit COMMAND $<TARGET_FILE:maxloc_implicit>)
+add_test(NAME maxloc_operator COMMAND $<TARGET_FILE:maxloc_operator>)
+add_test(NAME maxloc_usm COMMAND $<TARGET_FILE:maxloc_usm>)
