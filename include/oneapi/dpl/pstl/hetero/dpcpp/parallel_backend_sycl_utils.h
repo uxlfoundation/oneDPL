@@ -667,9 +667,15 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else if (__supports_USM_device)
         {
-            _T __tmp;
-            __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
-            return __tmp;
+            static_assert(sycl::is_device_copyable_v<_T>,
+                          "The type _T must be device copyable to use __result_and_scratch_storage with USM.");
+            // Avoid default constructor for _T, we know that _T is device copyable and therefore a copy construction 
+            // is equivalent to a bitwise copy
+            _T* __tmp = static_cast<_T*>(malloc(sizeof(_T)));
+            __q.memcpy(__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
+            _T __return_tmp = std::move(*__tmp);
+            free(__tmp);
+            return __return_tmp;
         }
         else
         {

@@ -22,6 +22,60 @@
 
 using namespace TestUtils;
 
+template <typename _T>
+struct MoveOnlyWrapper {
+    _T value;
+
+    // Default constructor
+    MoveOnlyWrapper() = delete;
+
+    MoveOnlyWrapper(_T v) : value(v) {}
+
+    operator _T() const { return value; }
+
+    // Move constructor
+    MoveOnlyWrapper(MoveOnlyWrapper&&) = default;
+
+    // Move assignment operator
+    MoveOnlyWrapper& operator=(MoveOnlyWrapper&&) = default;
+
+    // Deleted copy constructor and copy assignment operator
+    MoveOnlyWrapper(const MoveOnlyWrapper&) = delete;
+    MoveOnlyWrapper& operator=(const MoveOnlyWrapper&) = delete;
+    
+    friend MoveOnlyWrapper operator+(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value + b.value};
+    } 
+};
+
+template <typename _T>
+struct NoDefaultCtorWrapper {
+    _T value;
+
+    // Default constructor
+    NoDefaultCtorWrapper() = delete;
+
+    NoDefaultCtorWrapper(_T v) : value(v) {}
+
+    operator _T() const { return value; }
+
+    // Move constructor
+    NoDefaultCtorWrapper(NoDefaultCtorWrapper&&) = default;
+
+    // Move assignment operator
+    NoDefaultCtorWrapper& operator=(NoDefaultCtorWrapper&&) = default;
+
+    // Deleted copy constructor and copy assignment operator
+    NoDefaultCtorWrapper(const NoDefaultCtorWrapper&) = default;
+    NoDefaultCtorWrapper& operator=(const NoDefaultCtorWrapper&) = default;
+    
+    friend NoDefaultCtorWrapper operator+(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return NoDefaultCtorWrapper{a.value + b.value};
+    } 
+};
+
 template <typename Type>
 struct test_long_reduce
 {
@@ -41,7 +95,7 @@ test_long_form(T init, BinaryOp binary_op, F f)
     // Try sequences of various lengths
     for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
-        T expected(init);
+        T expected(std::move(init));
         Sequence<T> in(n, [n, f](size_t k) { return f((std::int32_t(k ^ n) % 1000 - 500)); });
         for (size_t k = 0; k < n; ++k)
             expected = binary_op(expected, in[k]);
@@ -53,6 +107,9 @@ test_long_form(T init, BinaryOp binary_op, F f)
 
         invoke_on_all_policies<0>()(test_long_reduce<T>(), in.begin(), in.end(), init, binary_op, expected);
         invoke_on_all_policies<1>()(test_long_reduce<T>(), in.cbegin(), in.cend(), init, binary_op, expected);
+        invoke_on_all_policies<2>()(test_long_reduce<T>(), in.begin(), in.end(), NoDefaultCtorWrapper{init}, binary_op, NoDefaultCtorWrapper{expected});
+        // Test with MoveOnlyWrapper on host policies
+        invoke_on_all_host_policies()(test_long_reduce<T>(), in.begin(), in.end(), MoveOnlyWrapper{init}, binary_op, MoveOnlyWrapper{expected});
     }
 }
 
