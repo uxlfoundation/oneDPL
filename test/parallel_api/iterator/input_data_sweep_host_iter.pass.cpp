@@ -40,7 +40,7 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
         std::vector<T> host_iter(n);
         wrap_recurse<__recurse, 0, /*__read =*/true, /*__reset_read=*/true, /*__write=*/true,
                      /*__check_write=*/true, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/false,
-                     /*__is_reversible=*/true>(policy, host_iter.begin(), host_iter.end(), copy_from,
+                     /*__is_reversible=*/true>(std::forward<Policy>(policy), host_iter.begin(), host_iter.end(), copy_from,
                                                copy_out.get_data(), host_iter.begin(), copy_out.get_data(), copy_from,
                                                trash, std::string("host_iterator<") + type_text + std::string(">"));
     }

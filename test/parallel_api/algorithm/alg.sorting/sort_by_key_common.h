@@ -106,14 +106,14 @@ template<typename Policy, typename KeyIt, typename ValIt, typename Size, typenam
 void
 call_sort(Policy&& policy, KeyIt keys_begin, ValIt vals_begin, Size n, StableSortTag, Compare... compare)
 {
-    oneapi::dpl::stable_sort_by_key(policy, keys_begin, keys_begin + n, vals_begin, compare...);
+    oneapi::dpl::stable_sort_by_key(std::forward<Policy>(policy), keys_begin, keys_begin + n, vals_begin, compare...);
 }
 
 template<typename Policy, typename KeyIt, typename ValIt, typename Size, typename... Compare>
 void
 call_sort(Policy&& policy, KeyIt keys_begin, ValIt vals_begin, Size n, UnstableSortTag, Compare... compare)
 {
-    oneapi::dpl::sort_by_key(policy, keys_begin, keys_begin + n, vals_begin, compare...);
+    oneapi::dpl::sort_by_key(std::forward<Policy>(policy), keys_begin, keys_begin + n, vals_begin, compare...);
 }
 
 template<typename KeyIt, typename ValIt, typename Size, typename Compare = std::less<>>
@@ -183,7 +183,7 @@ test_with_std_policy(Policy&& policy, Size n, StabilityTag stability_tag, Compar
     std::vector<KeyT> keys(origin_keys);
     std::vector<ValT> vals(origin_vals);
 
-    call_sort(policy, keys.begin(), vals.begin(), keys_n, stability_tag, compare...);
+    call_sort(std::forward<Policy>(policy), keys.begin(), vals.begin(), keys_n, stability_tag, compare...);
     check_sort(keys.begin(), vals.begin(), origin_keys.begin(), origin_vals.begin(), keys_n, vals_n, stability_tag, compare...);
 }
 
