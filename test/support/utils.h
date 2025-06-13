@@ -1056,7 +1056,8 @@ get_pattern_for_test_sizes()
     // implementation with the standard input sizes providing full coverage, and testing large inputs is slow with the
     // FPGA emulator.
 #if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
-    sycl::queue q = TestUtils::get_test_queue();
+    auto policy = get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
     sycl::device d = q.get_device();
     constexpr std::size_t max_iters_per_item = 16;
     constexpr std::size_t multiplier = 4;
