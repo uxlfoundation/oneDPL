@@ -272,7 +272,6 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
                                                                  std::forward<_Ranges>(__rngs)...);
 }
 
-
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi
