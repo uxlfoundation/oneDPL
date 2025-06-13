@@ -59,10 +59,10 @@ test_body_induction(Policy&& exec, Iterator /* first */, Iterator /* last */, It
             EXPECT_TRUE(sind1 == (ind_init + idx * stride), "wrong induction value");
         });
 
-    EXPECT_TRUE(lval_ind == n, "wrong result of induction");
+    EXPECT_EQ(n, lval_ind, "wrong result of induction");
     EXPECT_TRUE(clval_ind == ind_init, "wrong result of induction");
 
-    EXPECT_TRUE(lval_sind == n * stride, "wrong result of induction");
+    EXPECT_EQ(n * stride, lval_sind, "wrong result of induction");
     EXPECT_TRUE(clval_sind == ind_init, "wrong result of induction");
 }
 
@@ -92,7 +92,7 @@ test_body_induction_strided(Policy&& exec, Iterator first, Iterator last, Iterat
                                                   EXPECT_TRUE(ind == (ind_init + real_idx), "wrong induction value");
                                               });
 
-        EXPECT_TRUE(lval_ind == n, "wrong result of induction");
+        EXPECT_EQ(n, lval_ind, "wrong result of induction");
 
         // Negative strides are not allowed with forward iterators
         if (loop_stride < 0 &&

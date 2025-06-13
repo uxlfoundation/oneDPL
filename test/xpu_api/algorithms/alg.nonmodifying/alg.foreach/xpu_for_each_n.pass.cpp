@@ -18,16 +18,6 @@
 #include "support/utils.h"
 #include "support/test_iterators.h"
 
-#include <cassert>
-
-template <typename _T1, typename _T2>
-void
-ASSERT_EQUAL(_T1&& X, _T2&& Y)
-{
-    if (X != Y)
-        std::cout << "CHECK CORRECTNESS (STL WITH SYCL): fail (" << X << "," << Y << ")" << std::endl;
-}
-
 template <typename _T>
 struct plus1
 {
@@ -86,10 +76,7 @@ test(sycl::queue& deviceQueue)
         });
     }
 
-    for (size_t idx = 0; idx < 6; ++idx)
-    {
-        ASSERT_EQUAL(ref[idx], arr[idx]);
-    }
+    EXPECT_EQ_N(ref, arr, 6, "invalid ib state");
 }
 
 void

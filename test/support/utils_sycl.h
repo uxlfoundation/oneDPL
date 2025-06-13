@@ -99,6 +99,16 @@ sycl::queue get_test_queue()
     {
         // create the queue with custom asynchronous exceptions handler
         static sycl::queue my_queue(default_selector, async_handler);
+
+#    if _ONEDPL_DEBUG_SYCL
+        static bool device_name_logged = false;
+        if (!device_name_logged)
+        {
+            device_name_logged = true;
+            std::cout << "    Device Name = " << my_queue.get_device().get_info<sycl::info::device::name>().c_str() << std::endl;
+        }
+#endif // _ONEDPL_DEBUG_SYCL
+
         return my_queue;
     }
     catch (const std::exception& exc)

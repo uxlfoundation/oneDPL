@@ -23,12 +23,6 @@
 
 template <class T> class KernelTest;
 
-template <typename _T1, typename _T2> void ASSERT_EQUAL(_T1 &&X, _T2 &&Y) {
-  if (X != Y)
-    std::cout << "CHECK CORRECTNESS (STL WITH SYCL): fail (" << X << "," << Y
-              << ")" << std::endl;
-}
-
 template <class InIter> void test() {
   sycl::queue deviceQueue = TestUtils::get_test_queue();
   int output[5] = {1, 2, 3, 4, 5};
@@ -44,9 +38,7 @@ template <class InIter> void test() {
     });
   }
   const int ref[5] = {5, 6, 7, 8, 9};
-  for (int i = 0; i < 5; ++i) {
-    ASSERT_EQUAL(ref[i], output[i]);
-  }
+  EXPECT_EQ_N(ref, output, 5, "invalid output state");
 }
 
 int main() {
