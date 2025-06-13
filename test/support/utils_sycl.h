@@ -145,9 +145,10 @@ test1buffer(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 #    if _ONEDPL_DEBUG_SYCL
             ::std::cout << "n = " << n << ::std::endl;
 #    endif
-            invoke_on_all_hetero_policies<0>()(create_test_obj<TestValueType, TestName>(test_base_data),
-                                               inout1_offset_first, inout1_offset_first + n,
-                                               n);
+            invoke_on_all_hetero_policies<0, decltype(policy)>{policy}(
+                create_test_obj<TestValueType, TestName>(test_base_data),
+                inout1_offset_first, inout1_offset_first + n,
+                n);
         }
     }
 #endif
@@ -168,9 +169,10 @@ test1buffer(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 #if _ONEDPL_DEBUG_SYCL
             ::std::cout << "n = " << n << ::std::endl;
 #endif
-            invoke_on_all_hetero_policies<1>()(create_test_obj<TestValueType, TestName>(test_base_data),
-                                               inout1_offset_first, inout1_offset_first + n,
-                                               n);
+            invoke_on_all_hetero_policies<1, decltype(policy)>{policy}(
+                create_test_obj<TestValueType, TestName>(test_base_data),
+                inout1_offset_first, inout1_offset_first + n,
+                n);
         }
     }
 }
@@ -204,10 +206,11 @@ test2buffers(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 #    if _ONEDPL_DEBUG_SYCL
             ::std::cout << "n = " << n << ::std::endl;
 #    endif
-            invoke_on_all_hetero_policies<0>()(create_test_obj<TestValueType, TestName>(test_base_data),
-                                               inout1_offset_first, inout1_offset_first + n,
-                                               inout2_offset_first, inout2_offset_first + n,
-                                               n);
+            invoke_on_all_hetero_policies<0, decltype(policy)>{policy}(
+                create_test_obj<TestValueType, TestName>(test_base_data),
+                inout1_offset_first, inout1_offset_first + n,
+                inout2_offset_first, inout2_offset_first + n,
+                n);
         }
     }
 #endif
@@ -230,10 +233,11 @@ test2buffers(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 #if _ONEDPL_DEBUG_SYCL
             ::std::cout << "n = " << n << ::std::endl;
 #endif
-            invoke_on_all_hetero_policies<1>()(create_test_obj<TestValueType, TestName>(test_base_data),
-                                               inout1_offset_first, inout1_offset_first + n,
-                                               inout2_offset_first, inout2_offset_first + n,
-                                               n);
+            invoke_on_all_hetero_policies<1decltype(policy)>{policy}(
+                create_test_obj<TestValueType, TestName>(test_base_data),
+                inout1_offset_first, inout1_offset_first + n,
+                inout2_offset_first, inout2_offset_first + n,
+                n);
         }
     }
 }
@@ -270,11 +274,12 @@ test3buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
 #    if _ONEDPL_DEBUG_SYCL
             ::std::cout << "n = " << n << ::std::endl;
 #    endif
-            invoke_on_all_hetero_policies<0>()(create_test_obj<TestValueType, TestName>(test_base_data),
-                                               inout1_offset_first, inout1_offset_first + n,
-                                               inout2_offset_first, inout2_offset_first + n,
-                                               inout3_offset_first, inout3_offset_first + n * mult,
-                                               n);
+            invoke_on_all_hetero_policies<0, decltype(policy)>{policy}(
+                create_test_obj<TestValueType, TestName>(test_base_data),
+                inout1_offset_first, inout1_offset_first + n,
+                inout2_offset_first, inout2_offset_first + n,
+                inout3_offset_first, inout3_offset_first + n * mult,
+                n);
         }
     }
 #endif
@@ -299,11 +304,12 @@ test3buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
 #if _ONEDPL_DEBUG_SYCL
             ::std::cout << "n = " << n << ::std::endl;
 #endif
-            invoke_on_all_hetero_policies<1>()(create_test_obj<TestValueType, TestName>(test_base_data),
-                                               inout1_offset_first, inout1_offset_first + n,
-                                               inout2_offset_first, inout2_offset_first + n,
-                                               inout3_offset_first, inout3_offset_first + n * mult,
-                                               n);
+            invoke_on_all_hetero_policies<1, decltype(policy)>{policy}(
+                create_test_obj<TestValueType, TestName>(test_base_data),
+                inout1_offset_first, inout1_offset_first + n,
+                inout2_offset_first, inout2_offset_first + n,
+                inout3_offset_first, inout3_offset_first + n * mult,
+                n);
         }
     }
 }
@@ -342,12 +348,13 @@ test4buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
 #    if _ONEDPL_DEBUG_SYCL
             ::std::cout << "n = " << n << ::std::endl;
 #    endif
-            invoke_on_all_hetero_policies<0>()(create_test_obj<TestValueType, TestName>(test_base_data),
-                                               inout1_offset_first, inout1_offset_first + n,
-                                               inout2_offset_first, inout2_offset_first + n,
-                                               inout3_offset_first, inout3_offset_first + n * mult,
-                                               inout4_offset_first, inout4_offset_first + n * mult,
-                                               n);
+            invoke_on_all_hetero_policies<0, decltype(policy)>{policy}(
+                create_test_obj<TestValueType, TestName>(test_base_data),
+                inout1_offset_first, inout1_offset_first + n,
+                inout2_offset_first, inout2_offset_first + n,
+                inout3_offset_first, inout3_offset_first + n * mult,
+                inout4_offset_first, inout4_offset_first + n * mult,
+                n);
         }
     }
 #endif
@@ -374,12 +381,13 @@ test4buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
 #if _ONEDPL_DEBUG_SYCL
             ::std::cout << "n = " << n << ::std::endl;
 #endif
-            invoke_on_all_hetero_policies<1>()(create_test_obj<TestValueType, TestName>(test_base_data),
-                                               inout1_offset_first, inout1_offset_first + n,
-                                               inout2_offset_first, inout2_offset_first + n,
-                                               inout3_offset_first, inout3_offset_first + n * mult,
-                                               inout4_offset_first, inout4_offset_first + n * mult,
-                                               n);
+            invoke_on_all_hetero_policies<1, decltype(policy)>{policy}(
+                create_test_obj<TestValueType, TestName>(test_base_data),
+                inout1_offset_first, inout1_offset_first + n,
+                inout2_offset_first, inout2_offset_first + n,
+                inout3_offset_first, inout3_offset_first + n * mult,
+                inout4_offset_first, inout4_offset_first + n * mult,
+                n);
         }
     }
 }
