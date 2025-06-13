@@ -49,7 +49,7 @@ uniq_kernel_index()
 template <typename Op, std::size_t CallNumber>
 struct unique_kernel_name;
 
-template <typename Policy, int idx>
+template <typename Policy, std::size_t idx>
 using new_kernel_name = unique_kernel_name<typename std::decay_t<Policy>::kernel_name, idx>;
 
 } /* namespace TestUtils */
