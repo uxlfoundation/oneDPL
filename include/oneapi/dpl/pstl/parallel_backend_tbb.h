@@ -24,6 +24,7 @@
 
 #include "parallel_backend_utils.h"
 #include "execution_impl.h"
+#include "utils.h"
 
 // Bring in minimal required subset of Intel(R) Threading Building Blocks (Intel(R) TBB)
 #include <tbb/blocked_range.h>
@@ -131,21 +132,21 @@ __parallel_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&
 template <class _Index, class _Up, class _Tp, class _Cp, class _Rp>
 struct __par_trans_red_body
 {
-    alignas(_Tp) char _M_sum_storage[sizeof(_Tp)]; // Holds generalized non-commutative sum when has_sum==true
-    _Rp _M_brick_reduce;                           // Most likely to have non-empty layout
+    oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __lazy_sum;
+    _Rp _M_brick_reduce;
     _Up _M_u;
     _Cp _M_combine;
     bool _M_has_sum; // Put last to minimize size of class
-    _Tp&
+    _Tp
     sum()
     {
         __TBB_ASSERT(_M_has_sum, "sum expected");
-        return *(_Tp*)_M_sum_storage;
+        return std::move(__lazy_sum.__v);
     }
     __par_trans_red_body(_Up __u, _Tp __init, _Cp __c, _Rp __r)
         : _M_brick_reduce(__r), _M_u(__u), _M_combine(__c), _M_has_sum(true)
     {
-        new (_M_sum_storage) _Tp(__init);
+        __lazy_sum.__setup(std::move(__init));
     }
 
     __par_trans_red_body(__par_trans_red_body& __left, tbb::split)
@@ -157,13 +158,13 @@ struct __par_trans_red_body
     {
         // 17.6.5.12 tells us to not worry about catching exceptions from destructors.
         if (_M_has_sum)
-            sum().~_Tp();
+            __lazy_sum.__destroy();
     }
 
     void
     join(__par_trans_red_body& __rhs)
     {
-        sum() = _M_combine(sum(), __rhs.sum());
+        __lazy_sum.__v = _M_combine(std::move(__lazy_sum.__v), std::move(__rhs.__lazy_sum.__v));
     }
 
     void
@@ -174,14 +175,13 @@ struct __par_trans_red_body
         if (!_M_has_sum)
         {
             __TBB_ASSERT(__range.size() > 1, "there should be at least 2 elements");
-            new (&_M_sum_storage)
-                _Tp(_M_combine(_M_u(__i), _M_u(__i + 1))); // The condition i+1 < j is provided by the grain size of 3
+            __lazy_sum.__setup(_M_combine(_M_u(__i), _M_u(__i + 1)));
             _M_has_sum = true;
             ::std::advance(__i, 2);
             if (__i == __j)
                 return;
         }
-        sum() = _M_brick_reduce(__i, __j, sum());
+        __lazy_sum.__v = _M_brick_reduce(__i, __j, std::move(__lazy_sum.__v));
     }
 };
 
@@ -190,7 +190,8 @@ _Tp
 __parallel_transform_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first,
                             _Index __last, _Up __u, _Tp __init, _Cp __combine, _Rp __brick_reduce)
 {
-    __tbb_backend::__par_trans_red_body<_Index, _Up, _Tp, _Cp, _Rp> __body(__u, __init, __combine, __brick_reduce);
+    __tbb_backend::__par_trans_red_body<_Index, _Up, _Tp, _Cp, _Rp> __body(__u, std::move(__init), __combine,
+                                                                           __brick_reduce);
     // The grain size of 3 is used in order to provide minimum 2 elements for each body
     tbb::this_task_arena::isolate(
         [__first, __last, &__body]() { tbb::parallel_reduce(tbb::blocked_range<_Index>(__first, __last, 3), __body); });
