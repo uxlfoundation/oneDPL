@@ -43,6 +43,7 @@
 #include "utils_ranges_sycl.h"
 #include "execution_sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
+#include "unseq_backend_sycl.h"
 #include "../../utils.h"
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
@@ -359,6 +360,31 @@ struct __sycl_scan_by_segment_impl
             .wait();
     }
 };
+
+template <typename _CustomName, bool __is_inclusive, typename _ExecutionPolicy, typename _Range1, typename _Range2,
+          typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
+void
+__parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+                                    _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
+                                    _BinaryPredicate __binary_pred, _BinaryOperator __binary_op,
+                                    _InitType __wrapped_init, /*has_known_identity*/ std::true_type)
+{
+    sycl::queue __q_local = __exec.queue();
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
+    _ValueType __identity = unseq_backend::__known_identity<_BinaryOperator, _ValueType>;
+    if constexpr (__is_inclusive)
+    {
+        __sycl_scan_by_segment_impl<_CustomName, __is_inclusive>{}(
+            __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
+            std::forward<_Range3>(__out_values), __binary_pred, __binary_op, /*__init*/ __identity, __identity);
+    }
+    else
+    {
+        __sycl_scan_by_segment_impl<_CustomName, __is_inclusive>{}(
+            __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
+            std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __wrapped_init.__value, __identity);
+    }
+}
 
 } //namespace __par_backend_hetero
 } // namespace dpl
