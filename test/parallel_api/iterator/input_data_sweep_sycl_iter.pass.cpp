@@ -29,7 +29,7 @@
 
 template <typename T, int __recurse, typename Policy>
 void
-test(Policy&& policy, T trash, size_t n, const std::string& type_text)
+test_impl(Policy&& policy, T trash, size_t n, const std::string& type_text)
 {
     if (TestUtils::has_types_support<T>(policy.queue().get_device()))
     {
@@ -40,7 +40,7 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
         //test all modes / wrappers
         wrap_recurse<__recurse, 0, /*__read =*/true, /*__reset_read=*/true, /*__write=*/true,
                      /*__check_write=*/true, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/true,
-                     /*__is_reversible=*/false>(policy, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), counting,
+                     /*__is_reversible=*/false>(std::forward<Policy>(policy), oneapi::dpl::begin(buf), oneapi::dpl::end(buf), counting,
                                                 copy_out.get_data(), oneapi::dpl::begin(buf), copy_out.get_data(),
                                                 counting, trash,
                                                 std::string("sycl_iterator<") + type_text + std::string(">"));
@@ -51,6 +51,21 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
     }
 }
 
+template <typename Policy>
+void
+test(Policy&& policy)
+{
+    constexpr size_t n = 10;
+    
+    // baseline with no wrapping
+    test_impl<float, 0>(CREATE_NEW_POLICY(policy, 0), -666.0f, n, "float");
+    test_impl<double, 0>(CREATE_NEW_POLICY(policy, 1), -666.0, n, "double");
+    test_impl<std::uint64_t, 0>(CREATE_NEW_POLICY(policy, 2), 999, n, "uint64_t");
+
+    // big recursion step: 1 and 2 layers of wrapping
+    test_impl<std::int32_t, 2>(CREATE_NEW_POLICY(policy, 3), -666, n, "int32_t");
+}
+
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 int
@@ -58,22 +73,11 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
 
-    constexpr size_t n = 10;
-
     auto policy = TestUtils::get_dpcpp_test_policy();
+    test(policy);
 
-    auto policy1 = TestUtils::create_new_policy_idx<0>(policy);
-    auto policy2 = TestUtils::create_new_policy_idx<1>(policy);
-    auto policy3 = TestUtils::create_new_policy_idx<2>(policy);
-    auto policy4 = TestUtils::create_new_policy_idx<3>(policy);
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
 
-    // baseline with no wrapping
-    test<float, 0>(policy1, -666.0f, n, "float");
-    test<double, 0>(policy2, -666.0, n, "double");
-    test<std::uint64_t, 0>(policy3, 999, n, "uint64_t");
-
-    // big recursion step: 1 and 2 layers of wrapping
-    test<std::int32_t, 2>(policy4, -666, n, "int32_t");
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 

@@ -52,12 +52,12 @@ struct test_inclusive_scan_with_plus
         if constexpr (use_init)
         {
             inclusive_scan_serial(in_first, in_last, expected_first, std::plus<>{}, init);
-            orr = inclusive_scan(exec, in_first, in_last, out_first, std::plus<>{}, init);
+            orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, std::plus<>{}, init);
         }
         else
         {
             inclusive_scan_serial(in_first, in_last, expected_first);
-            orr = inclusive_scan(exec, in_first, in_last, out_first);
+            orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first);
         }
         EXPECT_TRUE(out_last == orr, "inclusive_scan returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan");
@@ -85,7 +85,7 @@ struct test_exclusive_scan_with_plus
         using namespace std;
 
         exclusive_scan_serial(in_first, in_last, expected_first, init);
-        auto orr = exclusive_scan(exec, in_first, in_last, out_first, init);
+        auto orr = exclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, init);
         EXPECT_TRUE(out_last == orr, "exclusive_scan returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from exclusive_scan");
         ::std::fill_n(out_first, n, trash);
@@ -165,7 +165,7 @@ struct test_inclusive_scan_with_binary_op
         using namespace std;
 
         inclusive_scan_serial(in_first, in_last, expected_first, binary_op, init);
-        auto orr = inclusive_scan(exec, in_first, in_last, out_first, binary_op, init);
+        auto orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, binary_op, init);
 
         EXPECT_TRUE(out_last == orr, "inclusive_scan with binary operator returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan with binary operator");
@@ -181,7 +181,7 @@ struct test_inclusive_scan_with_binary_op
         using namespace std;
 
         inclusive_scan_serial(in_first, in_last, expected_first, binary_op);
-        auto orr = inclusive_scan(exec, in_first, in_last, out_first, binary_op);
+        auto orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, binary_op);
 
         EXPECT_TRUE(out_last == orr, "inclusive_scan with binary operator without init returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan with binary operator without init");
@@ -218,7 +218,7 @@ struct test_exclusive_scan_with_binary_op
 
         exclusive_scan_serial(in_first, in_last, expected_first, init, binary_op);
 
-        auto orr = exclusive_scan(exec, in_first, in_last, out_first, init, binary_op);
+        auto orr = exclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, init, binary_op);
 
         EXPECT_TRUE(out_last == orr, "exclusive_scan with binary operator returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from exclusive_scan with binary operator");

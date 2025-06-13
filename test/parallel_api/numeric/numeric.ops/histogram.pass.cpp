@@ -35,7 +35,7 @@ struct test_histogram_even_bins
     {
         const Size bin_size = bin_last - bin_first;
         histogram_sequential(in_first, in_last, bin_size, bin_min, bin_max, expected_bin_first);
-        auto orr = ::oneapi::dpl::histogram(exec, in_first, in_last, bin_size, bin_min, bin_max, bin_first);
+        auto orr = ::oneapi::dpl::histogram(std::forward<Policy>(exec), in_first, in_last, bin_size, bin_min, bin_max, bin_first);
         EXPECT_TRUE(bin_last == orr, "histogram returned wrong iterator");
         EXPECT_EQ_N(expected_bin_first, bin_first, bin_size, "wrong result from histogram");
         ::std::fill_n(bin_first, bin_size, trash);
@@ -59,7 +59,7 @@ struct test_histogram_range_bins
     {
         const Size bin_size = boundary_last - boundary_first - 1;
         histogram_sequential(in_first, in_last, boundary_first, boundary_last, expected_bin_first);
-        auto orr = ::oneapi::dpl::histogram(exec, in_first, in_last, boundary_first, boundary_last, bin_first);
+        auto orr = ::oneapi::dpl::histogram(std::forward<Policy>(exec), in_first, in_last, boundary_first, boundary_last, bin_first);
         EXPECT_TRUE(bin_last == orr, "histogram returned wrong iterator");
         EXPECT_EQ_N(expected_bin_first, bin_first, bin_size, "wrong result from histogram");
         ::std::fill_n(bin_first, bin_size, trash);

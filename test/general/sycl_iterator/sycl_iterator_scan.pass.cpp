@@ -68,7 +68,7 @@ DEFINE_TEST(test_remove)
         host_keys.update_data();
 
         auto pos = (last - first) / 2;
-        auto res1 = ::std::remove(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, T1(222 + pos));
+        auto res1 = std::remove(CREATE_NEW_POLICY(exec, 0), first, last, T1(222 + pos));
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last - 1, "wrong result from remove");
@@ -113,7 +113,7 @@ DEFINE_TEST(test_remove_if)
         host_keys.update_data();
 
         auto pos = (last - first) / 2;
-        auto res1 = std::remove_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, CheckState<T1, decltype(pos)>{pos});
+        auto res1 = std::remove_if(CREATE_NEW_POLICY(exec, 0), first, last, CheckState<T1, decltype(pos)>{pos});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last - 1, "wrong result from remove_if");
@@ -152,7 +152,7 @@ DEFINE_TEST(test_unique)
         host_keys.update_data();
 
         // invoke
-        auto result_last = std::unique(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, TestUtils::IsEqual<IteratorValueType>{});
+        auto result_last = std::unique(CREATE_NEW_POLICY(exec, 0), first, last, TestUtils::IsEqual<IteratorValueType>{});
         wait_and_throw(exec);
 
         auto result_size = result_last - first;
@@ -201,7 +201,7 @@ DEFINE_TEST(test_partition)
 
         // invoke partition
         auto unary_op = IsMultipleOf3And2<IteratorValueType>{};
-        auto res = ::std::partition(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, unary_op);
+        auto res = std::partition(CREATE_NEW_POLICY(exec, 0), first, last, unary_op);
         wait_and_throw(exec);
 
         // check
@@ -214,7 +214,7 @@ DEFINE_TEST(test_partition)
         host_keys.update_data();
 
         // invoke stable_partition
-        res = ::std::stable_partition(make_new_policy<new_kernel_name<Policy, 1>>(exec), first, last, unary_op);
+        res = std::stable_partition(CREATE_NEW_POLICY(exec, 1), first, last, unary_op);
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -243,7 +243,7 @@ DEFINE_TEST(test_transform_inclusive_scan)
         ::std::fill(host_keys.get(), host_keys.get() + n, T1(1));
         host_keys.update_data();
 
-        auto res1 = std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, std::plus<T1>(), TransformOp<T1>{}, value);
+        auto res1 = std::transform_inclusive_scan(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, std::plus<T1>(), TransformOp<T1>{}, value);
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from transform_inclusive_scan_1");
@@ -263,7 +263,7 @@ DEFINE_TEST(test_transform_inclusive_scan)
         }
 
         // without initial value
-        auto res2 = std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2, std::plus<T1>(), TransformOp<T1>{});
+        auto res2 = std::transform_inclusive_scan(CREATE_NEW_POLICY(exec, 1), first1, last1, first2, std::plus<T1>(), TransformOp<T1>{});
         EXPECT_TRUE(res2 == last2, "wrong result from transform_inclusive_scan_2");
 
         retrieve_data(host_keys, host_vals);
@@ -298,7 +298,7 @@ DEFINE_TEST(test_transform_exclusive_scan)
         ::std::fill(host_keys.get(), host_keys.get() + n, T1(1));
         host_keys.update_data();
 
-        auto res1 = std::transform_exclusive_scan(make_new_policy<new_kernel_name<Policy, 2>>(exec), first1, last1, first2, T1{}, std::plus<T1>(), TransformOp<T1>{});
+        auto res1 = std::transform_exclusive_scan(CREATE_NEW_POLICY(exec, 2), first1, last1, first2, T1{}, std::plus<T1>(), TransformOp<T1>{});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from transform_exclusive_scan");
@@ -334,7 +334,7 @@ DEFINE_TEST(test_copy_if)
         ::std::iota(host_keys.get(), host_keys.get() + n, T1(222));
         host_keys.update_data();
 
-        auto res1 = std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, TestUtils::IsGreatThan<T1>{-1});
+        auto res1 = std::copy_if(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, TestUtils::IsGreatThan<T1>{-1});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res1 == last2, "wrong result from copy_if_1");
@@ -351,7 +351,7 @@ DEFINE_TEST(test_copy_if)
             EXPECT_TRUE(host_first2[i] == exp, "wrong effect from copy_if_1");
         }
 
-        auto res2 = std::copy_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2, TestUtils::IsOdd<T1>{});
+        auto res2 = std::copy_if(CREATE_NEW_POLICY(exec, 1), first1, last1, first2, TestUtils::IsOdd<T1>{});
         wait_and_throw(exec);
 
         EXPECT_TRUE(res2 == first2 + (last2 - first2) / 2, "wrong result from copy_if_2");
@@ -391,7 +391,7 @@ DEFINE_TEST(test_unique_copy)
 
         // invoke
         auto result_first = first2;
-        auto result_last = std::unique_copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1,
+        auto result_last = std::unique_copy(CREATE_NEW_POLICY(exec, 0), first1, last1,
                                             result_first, TestUtils::IsEqual<Iterator1ValueType>{});
         wait_and_throw(exec);
 
@@ -448,7 +448,7 @@ DEFINE_TEST(test_partition_copy)
 
         // invoke
         auto res =
-            ::std::partition_copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, first3, f);
+            std::partition_copy(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, first3, f);
         wait_and_throw(exec);
 
         retrieve_data(host_keys, host_vals, host_res);
@@ -521,7 +521,7 @@ DEFINE_TEST(test_set_intersection)
         host_keys.update_data(a_size);
         host_vals.update_data(b_size);
 
-        last3 = ::std::set_intersection(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, last2,
+        last3 = std::set_intersection(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, last2,
                                       first3);
         wait_and_throw(exec);
 
@@ -544,7 +544,7 @@ DEFINE_TEST(test_set_intersection)
             host_keys.update_data(a_size);
             host_vals.update_data(b_size);
 
-            last3 = ::std::set_intersection(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2,
+            last3 = std::set_intersection(CREATE_NEW_POLICY(exec, 1), first1, last1, first2,
                                           last2, first3);
             wait_and_throw(exec);
 
@@ -575,7 +575,7 @@ DEFINE_TEST(test_set_difference)
         host_keys.update_data(a_size);
         host_vals.update_data(b_size);
 
-        last3 = ::std::set_difference(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, last2, first3);
+        last3 = std::set_difference(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, last2, first3);
         wait_and_throw(exec);
 
         int res_expect[a_size];
@@ -606,7 +606,7 @@ DEFINE_TEST(test_set_union)
         host_keys.update_data(a_size);
         host_vals.update_data(b_size);
 
-        last3 = ::std::set_union(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, last2, first3);
+        last3 = std::set_union(CREATE_NEW_POLICY(exec, 0), first1, last1, first2, last2, first3);
         wait_and_throw(exec);
 
         int res_expect[a_size + b_size];
@@ -638,7 +638,7 @@ DEFINE_TEST(test_set_symmetric_difference)
         host_keys.update_data(a_size);
         host_vals.update_data(b_size);
 
-        last3 = ::std::set_symmetric_difference(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1,
+        last3 = std::set_symmetric_difference(CREATE_NEW_POLICY(exec, 0), first1, last1,
                                                 first2, last2, first3);
         wait_and_throw(exec);
 

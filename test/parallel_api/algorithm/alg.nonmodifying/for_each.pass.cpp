@@ -60,7 +60,7 @@ struct test_for_each
 
         // Try for_each
         ::std::for_each(expected_first, expected_last, Flip<T>(1));
-        for_each(exec, first, last, Flip<T>(1));
+        for_each(std::forward<Policy>(exec), first, last, Flip<T>(1));
         EXPECT_EQ_N(expected_first, first, n, "wrong effect from for_each");
     }
 };
@@ -76,7 +76,7 @@ struct test_for_each_n
 
         // Try for_each_n
         ::std::for_each_n(oneapi::dpl::execution::seq, expected_first, n, Flip<T>(1));
-        for_each_n(exec, first, n, Flip<T>(1));
+        for_each_n(std::forward<Policy>(exec), first, n, Flip<T>(1));
         EXPECT_EQ_N(expected_first, first, n, "wrong effect from for_each_n");
     }
 };
@@ -116,7 +116,7 @@ struct test_non_const_for_each
     operator()(Policy&& exec, Iterator iter)
     {
         auto f = TransformOp<typename std::iterator_traits<Iterator>::reference>{};
-        for_each(exec, iter, iter, non_const(f));
+        for_each(std::forward<Policy>(exec), iter, iter, non_const(f));
     }
 };
 
@@ -127,7 +127,7 @@ struct test_non_const_for_each_n
     operator()(Policy&& exec, Iterator iter)
     {
         auto f = TransformOp<typename std::iterator_traits<Iterator>::reference>{};
-        for_each_n(exec, iter, 0, non_const(f));
+        for_each_n(std::forward<Policy>(exec), iter, 0, non_const(f));
     }
 };
 
