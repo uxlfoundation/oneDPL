@@ -124,7 +124,9 @@ template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName
 void
 test1buffer(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
-    sycl::queue queue = get_test_queue(); // usm and allocator requires queue
+    auto policy = get_dpcpp_test_policy();
+    sycl::queue queue = policy.queue();
+
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
     const size_t local_step = 3.1415 * ScaleStep;
@@ -178,7 +180,9 @@ template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName
 void
 test2buffers(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
-    sycl::queue queue = get_test_queue(); // usm and allocator requires queue
+    auto policy = get_dpcpp_test_policy();
+    sycl::queue queue = policy.queue();
+
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
     const size_t local_step = 3.1415 * ScaleStep;
@@ -239,7 +243,9 @@ template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName
 void
 test3buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
-    sycl::queue queue = get_test_queue(); // usm requires queue
+    auto policy = get_dpcpp_test_policy();
+    sycl::queue queue = policy.queue();
+
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
     const size_t local_step = 3.1415 * ScaleStep;
@@ -307,7 +313,9 @@ template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName
 void
 test4buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
-    sycl::queue queue = get_test_queue(); // usm requires queue
+    auto policy = get_dpcpp_test_policy();
+    sycl::queue queue = policy.queue();
+
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
     const size_t local_step = 3.1415 * ScaleStep;
