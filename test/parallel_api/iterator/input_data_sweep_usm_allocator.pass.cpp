@@ -87,35 +87,41 @@ test_usm_host_alloc(Policy&& policy, T trash, size_t n, const std::string& type_
         TestUtils::unsupported_types_notifier(policy.queue().get_device());
     }
 }
+
+template <typename Policy>
+void
+test(Policy&& policy)
+{
+    constexpr size_t n = 10;
+
+    // baseline with no wrapping
+    test_usm_shared_alloc<float, 0>(CREATE_NEW_POLICY(policy, 0), -666.0f, n, "float");
+    test_usm_shared_alloc<double, 0>(CREATE_NEW_POLICY(policy, 1), -666.0, n, "double");
+    test_usm_shared_alloc<std::uint64_t, 0>(CREATE_NEW_POLICY(policy, 2), 999, n, "uint64_t");
+
+#if !_PSTL_ICPX_FPGA_TEST_USM_VECTOR_ITERATOR_BROKEN
+    // big recursion step: 1 and 2 layers of wrapping
+    test_usm_shared_alloc<std::int32_t, 2>(CREATE_NEW_POLICY(policy, 3), -666, n, "int32_t");
+#endif // !_PSTL_ICPX_FPGA_TEST_USM_VECTOR_ITERATOR_BROKEN
+
+    //only use host alloc for int, it follows the same path as shared alloc
+    test_usm_host_alloc<int, 0>(CREATE_NEW_POLICY(policy, 4), 666, n, "int");
+}
+
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    constexpr size_t n = 10;
 
     auto policy = TestUtils::get_dpcpp_test_policy();
+    test(policy);
 
-    auto policy1 = TestUtils::create_new_policy_idx<0>(policy);
-    auto policy2 = TestUtils::create_new_policy_idx<1>(policy);
-    auto policy3 = TestUtils::create_new_policy_idx<2>(policy);
-    auto policy4 = TestUtils::create_new_policy_idx<3>(policy);
-    auto policy5 = TestUtils::create_new_policy_idx<4>(policy);
+    TestUtils::check_compile([](auto&& policy) { test(std::forward<decltype(policy)>(policy)); });
 
-    // baseline with no wrapping
-    test_usm_shared_alloc<float, 0>(policy1, -666.0f, n, "float");
-    test_usm_shared_alloc<double, 0>(policy2, -666.0, n, "double");
-    test_usm_shared_alloc<std::uint64_t, 0>(policy3, 999, n, "uint64_t");
-
-    #if !_PSTL_ICPX_FPGA_TEST_USM_VECTOR_ITERATOR_BROKEN
-    // big recursion step: 1 and 2 layers of wrapping
-    test_usm_shared_alloc<std::int32_t, 2>(policy4, -666, n, "int32_t");
-    #endif // !_PSTL_ICPX_FPGA_TEST_USM_VECTOR_ITERATOR_BROKEN
-
-    //only use host alloc for int, it follows the same path as shared alloc
-    test_usm_host_alloc<int, 0>(policy5, 666, n, "int");
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
+
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
