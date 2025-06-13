@@ -229,7 +229,7 @@ struct __write_scan_by_seg<unseq_backend::__no_init_value<_InitType>, _BinaryOp>
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(__v))>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(get<0>(__v)))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
         __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
     }
@@ -251,7 +251,7 @@ struct __write_scan_by_seg<unseq_backend::__init_value<_InitType>, _BinaryOp>
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(__v))>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(get<0>(__v)))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
         // TODO: see if we can remove the two checks
         if (get<1>(__v) || __id == 0)
