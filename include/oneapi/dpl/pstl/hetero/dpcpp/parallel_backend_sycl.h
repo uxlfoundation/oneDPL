@@ -2059,11 +2059,11 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 // parallel_scan_by_segment - sync pattern
 //------------------------------------------------------------------------
 template <typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2, typename _Range3,
-          typename _BinaryPredicate, typename _BinaryOperator, typename _T>
+          typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
 auto
 __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                             _Range3&& __out_values, _BinaryPredicate __binary_pred,
-                                            _BinaryOperator __binary_op, [[maybe_unused]] _T __init, _T __identity)
+                                            _BinaryOperator __binary_op, [[maybe_unused]] _InitType __init)
 {
     using _GenReduceInput = __gen_red_by_seg_reduce_input<_BinaryPredicate>;
     using _ReduceOp = __scan_by_seg_op<_BinaryOperator>;
@@ -2071,8 +2071,6 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
     using _ScanInputTransform = __get_zeroth_element;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
     std::size_t __n = __keys.size();
-    // __gen_red_by_seg_scan_input requires that __n > 1
-    assert(__n > 1);
     if constexpr (__is_inclusive)
     {
         oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>
@@ -2091,7 +2089,7 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
         // The init value is manually applied through the write functor in exclusive-scan-by-segment and we always pass __no_init_value.
         // This is because init handling must occur on a per-segment basis and functions differently than the typical scan init.
         oneapi::dpl::unseq_backend::__init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>
-            __wrapped_init{{0, __init}};
+            __wrapped_init{{0, __init.__value}};
         using _WriteOp = __write_scan_by_seg<decltype(__wrapped_init), _BinaryOperator>;
         return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>),
                                                      _CustomName>(
@@ -2104,25 +2102,188 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
     }
 }
 
+template <typename _ValueType, typename _FlagType, typename _BinaryOp>
+struct __segmented_scan_fun
+{
+    __segmented_scan_fun(_BinaryOp __input) : __binary_op(__input) {}
+
+    template <typename _T1, typename _T2>
+    _T1
+    operator()(const _T1& __x, const _T2& __y) const
+    {
+        using std::get;
+        using __x_t = std::tuple_element_t<0, _T1>;
+        auto __new_x =
+            std::get<1>(__y) ? __x_t(std::get<0>(__y)) : __x_t(__binary_op(std::get<0>(__x), std::get<0>(__y)));
+        auto __new_y = std::get<1>(__x) | std::get<1>(__y);
+        return _T1(__new_x, __new_y);
+    }
+
+  private:
+    _BinaryOp __binary_op;
+};
+
+template <typename _T, typename _Predicate>
+struct __replace_if_fun
+{
+    using __result_of = _T;
+
+    __replace_if_fun(_Predicate __pred, _T __new_value) : __pred(__pred), __new_value(__new_value) {}
+
+    template <typename _T1, typename _T2>
+    _T
+    operator()(_T1&& __a, _T2&& __s) const
+    {
+        return __pred(__s) ? __new_value : __a;
+    }
+
+  private:
+    _Predicate __pred;
+    const _T __new_value;
+};
+
+template <typename _CustomName>
+struct __scan_by_seg_fallback;
+
+template <typename _CustomName>
+struct __scan_by_seg_transform_wrapper1;
+
+template <typename _CustomName>
+struct __scan_by_seg_transform_wrapper2;
+
+template <typename _CustonName, bool __is_inclusive, typename _ExecutionPolicy, typename _Range1, typename _Range2,
+          typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
+void
+__parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+                                    _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
+                                    _BinaryPredicate __binary_pred, _BinaryOperator __binary_op, _InitType __init,
+                                    /*has_known_identity*/ std::false_type)
+{
+    using _FlagType = unsigned int;
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
+    using _OutputType = oneapi::dpl::__internal::__value_t<_Range3>;
+
+    const auto __n = __keys.size();
+
+    assert(__n > 0);
+
+    _FlagType __initial_mask = 1;
+
+    oneapi::dpl::__par_backend_hetero::__buffer<_FlagType> __mask(__n);
+    {
+        auto __mask_buf = __mask.get_buffer();
+        auto __mask_acc = __mask_buf.get_host_access(sycl::read_write);
+
+        __mask_acc[0] = __initial_mask;
+    }
+    auto __mask_view =
+        oneapi::dpl::__ranges::all_view<_FlagType, __par_backend_hetero::access_mode::read_write>(__mask.get_buffer());
+    if (__n > 1)
+    {
+        auto __mask_view_shifted =
+            oneapi::dpl::__ranges::all_view<_FlagType, __par_backend_hetero::access_mode::read_write>(
+                __mask.get_buffer(), 1, __n - 1);
+        using _NegateTransform =
+            oneapi::dpl::__internal::__transform_functor<oneapi::dpl::__internal::__not_pred<_BinaryPredicate>>;
+        _NegateTransform __tf{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>(__binary_pred)};
+        auto __keys_shifted = oneapi::dpl::__ranges::drop_view_simple(__keys, 1);
+        __parallel_for(
+            oneapi::dpl::__internal::__device_backend_tag{},
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__scan_by_seg_transform_wrapper1>(__exec),
+            unseq_backend::walk_n_vectors_or_scalars<_NegateTransform>(__tf, static_cast<std::size_t>(__n - 1)),
+            __n - 1, __keys, __keys_shifted, __mask_view_shifted)
+            .wait();
+    }
+    if constexpr (__is_inclusive)
+    {
+        using _ScanInitType = oneapi::dpl::__internal::__value_t<decltype(oneapi::dpl::__ranges::zip_view(
+            std::forward<_Range2>(__values), __mask_view))>;
+        __parallel_transform_scan(
+            oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::zip_view(std::forward<_Range2>(__values), __mask_view),
+            oneapi::dpl::__ranges::zip_view(std::forward<_Range3>(__out_values), __mask_view), __n,
+            oneapi::dpl::__internal::__no_op{}, oneapi::dpl::unseq_backend::__no_init_value<_ScanInitType>{},
+            __segmented_scan_fun<_BinaryOperator, _FlagType, _BinaryOperator>{__binary_op},
+            std::bool_constant<__is_inclusive>{})
+            .wait();
+    }
+    else
+    {
+        // shift input one to the right and initialize segments with init
+        oneapi::dpl::__par_backend_hetero::__buffer<_OutputType> __temp(__n);
+        {
+            auto __temp_buf = __temp.get_buffer();
+            auto __temp_acc = __temp_buf.get_host_access(sycl::read_write);
+
+            __temp_acc[0] = __init.__value;
+        }
+        auto __temp_view = oneapi::dpl::__ranges::all_view<_OutputType, __par_backend_hetero::access_mode::read_write>(
+            __temp.get_buffer());
+        if (__n > 1)
+        {
+            auto __mask_view_shifted =
+                oneapi::dpl::__ranges::all_view<_FlagType, __par_backend_hetero::access_mode::read_write>(
+                    __mask.get_buffer(), 1, __n - 1);
+            auto __temp_view_shifted =
+                oneapi::dpl::__ranges::all_view<_OutputType, __par_backend_hetero::access_mode::read_write>(
+                    __temp.get_buffer(), 1, __n - 1);
+            __replace_if_fun<typename _InitType::__value_type, std::negate<_FlagType>> __replace_fun(
+                std::negate<_FlagType>(), __init.__value);
+            using _ReplaceTransform = oneapi::dpl::__internal::__transform_functor<decltype(__replace_fun)>;
+            _ReplaceTransform __tf{__replace_fun};
+            __parallel_for(
+                oneapi::dpl::__internal::__device_backend_tag{},
+                oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__scan_by_seg_transform_wrapper2>(__exec),
+                unseq_backend::walk_n_vectors_or_scalars<_ReplaceTransform>(__tf, static_cast<std::size_t>(__n - 1)),
+                __n - 1, __values, __mask_view_shifted, __temp_view_shifted)
+                .wait();
+        }
+        using _ScanInitType =
+            oneapi::dpl::__internal::__value_t<decltype(oneapi::dpl::__ranges::zip_view(__temp_view, __mask_view))>;
+        __parallel_transform_scan(
+            oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::zip_view(__temp_view, __mask_view),
+            oneapi::dpl::__ranges::zip_view(std::forward<_Range3>(__out_values), __mask_view), __n,
+            oneapi::dpl::__internal::__no_op{},
+            oneapi::dpl::unseq_backend::__init_value<_ScanInitType>{
+                oneapi::dpl::__internal::make_tuple(__init.__value, _FlagType(1))},
+            __segmented_scan_fun<_BinaryOperator, _FlagType, _BinaryOperator>{__binary_op}, std::true_type{})
+            .wait();
+    }
+}
+
 template <bool __is_inclusive, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
-          typename _BinaryPredicate, typename _BinaryOperator, typename _T>
+          typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
 void
 __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __keys,
                            _Range2&& __values, _Range3&& __out_values, _BinaryPredicate __binary_pred,
-                           _BinaryOperator __binary_op, _T __init, _T __identity)
+                           _BinaryOperator __binary_op, _InitType __init)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
+    assert(__keys.size() > 0);
 
-    sycl::queue __q_local = __exec.queue();
-
-    __parallel_scan_by_segment_reduce_then_scan<_CustomName, __is_inclusive>(
-        __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
-        __binary_pred, __binary_op, __init, __identity)
-        .wait();
-
-    //__sycl_scan_by_segment_impl<_CustomName, __is_inclusive>()(
-    //    __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
-    //    __binary_pred, __binary_op, __init, __identity);
+    if constexpr (std::is_trivially_copyable_v<_ValueType>)
+    {
+        sycl::queue __q_local = __exec.queue();
+        if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+        {
+            __parallel_scan_by_segment_reduce_then_scan<_CustomName, __is_inclusive>(
+                __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
+                std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init)
+                .wait();
+            return;
+        }
+    }
+    // Implicit synchronization in this call. We need to wrap the policy as the implementation may still call
+    // reduce-then-scan and needs to avoid duplicate kernel names.
+    __parallel_scan_by_segment_fallback<_CustomName, __is_inclusive>(
+        oneapi::dpl::__internal::__device_backend_tag{},
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__scan_by_seg_fallback>(
+            std::forward<_ExecutionPolicy>(__exec)),
+        std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
+        __binary_pred, __binary_op, __init,
+        oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, _ValueType>{});
 }
 
 } // namespace __par_backend_hetero
