@@ -1325,7 +1325,8 @@ struct __consider_write_a_alg
 template <>
 struct __consider_write_a_alg<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag>
 {
-    static constexpr bool __value = false;
+    static constexpr std::size_t __threshold = 4096;
+    static constexpr bool __value = true;
 };
 
 // Selects the right implementation of set based on the size and platform
