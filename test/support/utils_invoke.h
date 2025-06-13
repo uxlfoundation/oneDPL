@@ -225,9 +225,8 @@ struct invoke_on_all_hetero_policies
     void
     operator()(Op op, Args&&... rest)
     {
-        auto my_policy = get_dpcpp_test_policy<CallNumber, Op>();
-
-        sycl::queue queue = my_policy.queue();
+        auto policy = get_dpcpp_test_policy<CallNumber, Op>();
+        sycl::queue queue = policy.queue();
 
         // Device may not support some types, e.g. double or sycl::half; test if they are supported or skip otherwise
         if (has_types_support<::std::decay_t<Args>...>(queue.get_device()))
@@ -239,7 +238,7 @@ struct invoke_on_all_hetero_policies
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
             iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
-                my_policy, op, ::std::forward<Args>(rest)...);
+                policy, op, ::std::forward<Args>(rest)...);
         }
         else
         {
