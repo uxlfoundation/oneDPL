@@ -664,6 +664,45 @@ __pattern_includes(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// __pattern_set_union
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
+          typename _Comp typename _Proj1, typename _Proj2>
+auto
+__pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+                    _Proj1 __proj1, _Proj2 __proj2)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    using __return_t = std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                                     std::ranges::borrowed_iterator_t<_OutRange>>;
+                                                     
+    __pattern_transform_binary_op<_Comp, _Proj1, _Proj2> __comp_2{__comp, __proj1, __proj2};
+
+    const auto __first1 = std:::ranges::begin(__r1);
+    const auto __first2 = std:::ranges::begin(__r2);
+    
+    const auto __last1 = __first1 + std:::ranges::size(__r1);
+    const auto __last2 = __first2 + std:::ranges::size(__r2);
+
+    auto __res = oneapi::dpl::__internal::__pattern_set_union(__tag, std::forward<_ExecutionPolicy>(__exec),
+        __first1, __last1, __first2, __last2, std::ranges::begin(__out_r), __comp_2);
+
+    return __return_t{__last1, __last2, __res};
+}
+
+template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
+          typename _Comp typename _Proj1, typename _Proj2>
+auto
+__pattern_set_union(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return std::ranges::set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+        __comp, __proj1, __proj2);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // __pattern_mismatch
 //---------------------------------------------------------------------------------------------------------------------
 
