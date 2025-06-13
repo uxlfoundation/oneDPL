@@ -1312,6 +1312,22 @@ struct scan_then_propagate_wrapper
 {
 };
 
+
+
+template <typename _SetTag>
+struct __consider_write_a_alg
+{
+    static constexpr std::size_t __threshold = 1024 * 1024;
+    static constexpr bool __value = true;
+};
+
+// With complex compound alg, symmetric difference should always use single shot algorithm when available
+template <>
+struct __consider_write_a_alg<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag>
+{
+    static constexpr bool __value = false;
+};
+
 // Selects the right implementation of set based on the size and platform
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
           typename _SetTag>
@@ -1325,19 +1341,19 @@ __set_op_impl(sycl::queue& __q, _Range1&& __rng1,
     //can we use reduce then scan?
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
     {
-        if (__n1 + __n2 <= 1024 * 1024)
+        if constexpr (__consider_write_a_alg<_SetTag>::__value)
         {
-            // use reduce then scan with set_a write
-            return __set_write_a_only_op<_CustomName>(__q, std::forward<_Range1>(__rng1),
-                                                            std::forward<_Range2>(__rng2),
-                                                            std::forward<_Range3>(__result), __comp, __set_tag, std::true_type{});
+            if (__n1 + __n2 <= __consider_write_a_alg<_SetTag>::__threshold)
+            {
+                // use reduce then scan with set_a write
+                return __set_write_a_only_op<_CustomName>(__q, std::forward<_Range1>(__rng1),
+                                                                std::forward<_Range2>(__rng2),
+                                                                std::forward<_Range3>(__result), __comp, __set_tag, std::true_type{});
+            }
         }
-        else
-        {
-            return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(__q, std::forward<_Range1>(__rng1),
-                                                            std::forward<_Range2>(__rng2),
-                                                            std::forward<_Range3>(__result), __comp, __set_tag).get();
-        }
+        return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(__q, std::forward<_Range1>(__rng1),
+                                                        std::forward<_Range2>(__rng2),
+                                                        std::forward<_Range3>(__result), __comp, __set_tag).get();
     }
     else
     {
