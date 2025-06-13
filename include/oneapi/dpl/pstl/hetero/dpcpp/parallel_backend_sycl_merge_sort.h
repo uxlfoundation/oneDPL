@@ -564,7 +564,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
   public:
     template <typename _Range, typename _Compare, typename _TempBuf, typename _LeafSizeT>
-    std::tuple<sycl::event, bool, std::shared_ptr<__result_and_scratch_storage_base>>
+    std::tuple<sycl::event, bool, __result_and_scratch_storage_base_ptr>
     operator()(sycl::queue& __q, _Range& __rng, _Compare __comp, _LeafSizeT __leaf_size, _TempBuf& __temp_buf,
                sycl::event __event_chain) const
     {
@@ -591,8 +591,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         // Storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
         __base_diagonals_sp_storage_t* __p_base_diagonals_sp_global_storage = nullptr;
 
-        // shared_ptr instance to return it in __future and extend the lifetime of the storage.
-        std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base;
+        // __result_and_scratch_storage_base_ptr instance to return it in tuple and extend the lifetime of the storage.
+        __result_and_scratch_storage_base_ptr __p_result_and_scratch_storage_base;
 
         // Max amount of base diagonals
         const std::size_t __max_base_diags_count =
@@ -615,7 +615,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                     __p_base_diagonals_sp_global_storage =
                         new __base_diagonals_sp_storage_t(__q, __max_base_diags_count);
 
-                    // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
+                    // Save the raw pointer into a __result_and_scratch_storage_base_ptr to return it in tuple and extend the lifetime of the storage.
                     __p_result_and_scratch_storage_base.reset(
                         static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
                 }
@@ -692,7 +692,7 @@ template <typename... _Name>
 class __sort_copy_back_kernel;
 
 template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare, typename _LeafSorter>
-__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+std::tuple<sycl::event, __result_and_scratch_storage_base_ptr>
 __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
 {
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
@@ -728,11 +728,11 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
         __event_sort = __merge_sort_copy_back_submitter<_CopyBackKernel>()(__q, __rng, __temp_buf, __event_sort);
     }
 
-    return __future{std::move(__event_sort), std::move(__temp_sp_storages)};
+    return std::tuple{std::move(__event_sort), std::move(__temp_sp_storages)};
 }
 
 template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare>
-__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+std::tuple<sycl::event, __result_and_scratch_storage_base_ptr>
 __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
 {
     using _Leaf = __leaf_sorter<std::decay_t<_Range>, _Compare>;
@@ -785,7 +785,7 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
 };
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
-__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+std::tuple<sycl::event, __result_and_scratch_storage_base_ptr>
 __parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                      _Compare __comp)
 {
