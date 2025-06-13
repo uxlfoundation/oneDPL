@@ -5,7 +5,9 @@
 
 // Using oneDPL max_element with USM.
 
-int main() {
+int
+main()
+{
 
     auto policy = oneapi::dpl::execution::dpcpp_default;
 
@@ -22,13 +24,8 @@ int main() {
 
     auto maxloc = oneapi::dpl::max_element(policy, data, data + n);
 
-    std::cout << "Run on "
-              << policy.queue().get_device().template
-                                        get_info<sycl::info::device::name>()
-              << std::endl;
-    std::cout << "Maximum value is at element "
-              << oneapi::dpl::distance(data, maxloc)
-              << std::endl;
+    std::cout << "Run on " << policy.queue().get_device().template get_info<sycl::info::device::name>() << std::endl;
+    std::cout << "Maximum value is at element " << oneapi::dpl::distance(data, maxloc) << std::endl;
 
     sycl::free(data, policy.queue());
     return 0;

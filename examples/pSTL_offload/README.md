@@ -68,7 +68,7 @@ When working with the command-line interface (CLI), you should configure the one
    ```
    $ mkdir build
    $ cd build
-   $ ( cmake -D GPU=1 .. ) or ( cmake -D CPU=1 .. )
+   $ cmake ..
    $ make
    ```
 
