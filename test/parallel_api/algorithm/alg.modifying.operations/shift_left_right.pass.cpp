@@ -81,9 +81,8 @@ struct test_shift
         TestUtils::usm_data_transfer<alloc_type, _ValueType> dt_helper(exec.queue(), first, m);
 
         auto ptr = dt_helper.get_data();
-        auto het_res =
-            algo(TestUtils::make_device_policy<USMKernelName<Algo, _ValueType>>(std::forward<Policy>(exec)), ptr,
-                 ptr + m, n);
+        using _NewKernelName = USMKernelName<Algo, _ValueType>;
+        auto het_res = algo(CREATE_NEW_POLICY_WITH_NAME(exec, _NewKernelName), ptr, ptr + m, n);
         _DiffType res_idx = het_res - ptr;
 
         //3.2 check result
@@ -100,7 +99,7 @@ struct test_shift
     {
         using _ValueType = typename std::iterator_traits<It>::value_type;
         using _DiffType = typename std::iterator_traits<It>::difference_type;
-        auto buffer_policy = TestUtils::make_device_policy<BufferKernelName<_ValueType, Algo>>(exec);
+
         //1.1 run a test with hetero policy and host iterators
         auto res = algo(buffer_policy, first, first + m, n);
         //1.2 check result
@@ -115,7 +114,8 @@ struct test_shift
 
             auto het_begin = oneapi::dpl::begin(buf);
 
-            auto het_res = algo(buffer_policy, het_begin, het_begin + m, n);
+            using _NewKernelName = BufferKernelName<_ValueType, Algo>;
+            auto het_res = algo(CREATE_NEW_POLICY_WITH_NAME(exec, _NewKernelName), het_begin, het_begin + m, n);
             res_idx = het_res - het_begin;
         }
         //2.2 check result
