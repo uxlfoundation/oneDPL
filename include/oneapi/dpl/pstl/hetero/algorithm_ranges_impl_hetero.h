@@ -878,6 +878,86 @@ __pattern_includes(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{},
         std::forward<_ExecutionPolicy>(__exec), __comp_2, oneapi::dpl::__par_backend_hetero::__parallel_or_tag{},
         oneapi::dpl::__ranges::views::all_read(__r1), oneapi::dpl::__ranges::views::all_read(__r2));
+
+}
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
+          typename _Comp typename _Proj1, typename _Proj2>
+auto
+__pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    using __return_t = std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                                     std::ranges::borrowed_iterator_t<_OutRange>>;
+
+    const auto __first1 = std:::ranges::begin(__r1);
+    const auto __first2 = std:::ranges::begin(__r2);
+    const auto __result = std:::ranges::begin(__out_r);
+
+    if (__r1.empty() && __r2.empty())
+        return __return_t{__first1, __first2, __result};
+
+    const auto __sz1 = std:::ranges::size(__r1);
+    const auto __sz2 = std:::ranges::size(__r2);
+        
+    //{1} is empty
+    if (__r1.empty())
+    {
+        const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag,
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_1>(std::forward<_ExecutionPolicy>(__exec)),
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{}, oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+
+        return __return_t{__first1, __first2 + __sz2, __result + __idx};
+    }
+
+    //{2} is empty
+    if (__r2.empty())
+    {
+        const auto __idx = oneapi::dpl::__internal::__pattern_walk_n(__tag,
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_2>(std::forward<_ExecutionPolicy>(__exec)),
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{}, oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+
+        return __return_t{__first1 + __sz1, __first2, __result + __idx};
+    }
+
+    oneapi::dpl::__internal::__binary_op<_Comp, _Proj1, _Proj2> __comp_2{__comp, __proj1, __proj2};
+
+    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
+    {
+        const auto __idx = __par_backend_hetero::__parallel_set_op(__tag, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)),
+            __comp_2, unseq_backend::_UnionTag<std::true_type>());
+
+        return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
+    }
+
+    using _ValueType = typename std::iterator_traits<_OutputIterator>::value_type;
+
+    // temporary buffer to store intermediate result
+    const auto __n2 = __r2.size();
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
+    auto __buf = oneapi::dpl::__ranges::views::all(__diff.get_buffer());
+
+    //1. Calc difference {2} \ {1}
+    const auto __n_diff =
+        oneapi::dpl::__internal::__par_backend_hetero::__parallel_set_op(
+            __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_scan_then_propagate>(__exec),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+            __buf, __comp_2, unseq_backend::_DifferenceTag<std::false_type>());
+
+    //2. Merge {1} and the difference
+    const auto __idx = oneapi::dpl::__internal::__pattern_merge(__tag,
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_2>(std::forward<_ExecutionPolicy>(__exec)),
+        oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+        oneapi::dpl::__ranges::drop_view_simple(__buf, __n_diff),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp_2);
+
+    return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
