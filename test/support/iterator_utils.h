@@ -383,7 +383,7 @@ struct iterator_invoker
     operator()(Policy&& exec, Op op, Iterator begin, typename ::std::iterator_traits<Iterator>::difference_type n, Rest&&... rest)
     {
         invoke_if<Iterator>()(n <= sizeLimit<decltype(n)>, op, std::forward<Policy>(exec), make_iterator<Iterator>()(begin), n,
-                              ::std::forward<Rest>(rest)...);
+                              std::forward<Rest>(rest)...);
     }
 
     template <typename Policy, typename Op, typename Iterator, typename... Rest>

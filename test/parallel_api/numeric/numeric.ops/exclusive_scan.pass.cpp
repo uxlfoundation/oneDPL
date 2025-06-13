@@ -32,7 +32,7 @@
 
 template <typename Policy, sycl::usm::alloc alloc_type>
 void
-test_with_usm(Policy&& policy, const ::std::size_t count)
+test_with_usm(Policy&& policy, const std::size_t count)
 {
     // Prepare source data
     std::vector<int> h_idx(count);
@@ -40,7 +40,7 @@ test_with_usm(Policy&& policy, const ::std::size_t count)
         h_idx[i] = i + 1;
 
     // Copy source data to USM shared/device memory
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper_h_idx(policy.queue(), ::std::begin(h_idx), ::std::end(h_idx));
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper_h_idx(policy.queue(), std::begin(h_idx), std::end(h_idx));
     auto d_idx = dt_helper_h_idx.get_data();
 
     TestUtils::usm_data_transfer<alloc_type, int> dt_helper_h_val(policy.queue(), count);
