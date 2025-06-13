@@ -14,8 +14,8 @@ For comprehensive instructions, see the [Intel® oneAPI Programming Guide](https
 This sample performs a simple element-wise parallel computation on three vectors: `A`, `B` and `C`.  For each element `i`, it computes `A[i] += B[i] + scalar * C[i]`. Additional information can be found on the [Optimizing Memory Bandwidth on Stream Triad](https://www.intel.com/content/www/us/en/developer/articles/technical/optimizing-memory-bandwidth-on-stream-triad.html) page. This sample starts with a simple implementation of device offload using SYCL*. The second version of the code shows how to introduce Dynamic Device Selection and uses device specific policies that can be selected by supplying different arguments when invoking the application.
 
 The sample includes two different versions of the nstreams project:
-1. `1_nstreams_sycl.cpp`: basic SYCL implementation; creates a kernel that targets the system's CPU.
-2. `2_nstreams_policies.cpp`: version of the sample that includes five policies:
+1. `nstreams_sycl.cpp`: basic SYCL implementation; creates a kernel that targets the system's CPU.
+2. `nstreams_policies.cpp`: version of the sample that includes five policies:
     1. Static CPU
     2. Static GPU
     3. Round Robin policy CPU/GPU
@@ -101,12 +101,12 @@ Perform the following steps:
 
    For the basic SYCL implementation:
    ```
-   $  ./1_nstreams_sycl 1000
+   $  ./nstreams_sycl 1000
    ```
 
-    For Dynamic Device Selection, usage:  ./2_nstreams_policies 1000 <policy>. For example, Fixed Resource Policy (CPU):
+    For Dynamic Device Selection, usage:  ./nstreams_policies 1000 <policy>. For example, Fixed Resource Policy (CPU):
     ```
-   $  ./2_nstreams_policies 1000 1
+   $  ./nstreams_policies 1000 1
     ```   
 
     | Arg | Dynamic Device Selection Policy
@@ -154,12 +154,12 @@ You can run individual nstream executables and modify parameters from the comman
 For example:
 
 ```
-$ ./2_nstreams_policy 1000 2
+$ ./nstreams_policy 1000 2
 ```
 Where:
 
     vector length          : The size of the A, B and C vectors.
-    Policy                 : Specifies the dynamic device selection policy (only valid for 2_nstreams_policy).
+    Policy                 : Specifies the dynamic device selection policy (only valid for nstreams_policy).
 
 ## Example Output
 

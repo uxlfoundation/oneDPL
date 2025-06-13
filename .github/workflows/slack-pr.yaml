@@ -2,7 +2,9 @@ name: Slack PR Notification
 on:
   # use pull_request_target to run on PRs from forks and have access to secrets
   pull_request_target:
-    types: [labeled]
+    types: [opened, labeled]
+  discussion:
+    types: [created, labeled]
 
 env:
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -10,18 +12,27 @@ env:
 
 permissions:
   pull-requests: read
+  discussions: read
 
 jobs:
   rfc:
     name: RFC Notification
     runs-on: ubuntu-latest
-    # Trigger when labeling a PR with "RFC"
+    # Trigger when labeling a PR or Discussion with "RFC"
     if: |
-      github.event.action == 'labeled' &&
-      contains(toJson(github.event.pull_request.labels.*.name), '"RFC"')
-    steps: 
-    - name: Notify Slack
+      contains(toJson(github.event.pull_request.labels.*.name), '"RFC"') ||
+      contains(toJson(github.event.discussion.labels.*.name), '"RFC"')
+    steps:
+    - name: Notify Slack for Pull Request
+      if: ${{ github.event_name == 'pull_request' }}
       uses: slackapi/slack-github-action@70cd7be8e40a46e8b0eced40b0de447bdb42f68e # v1.26.0
       with:
         channel-id: ${{ env.channel }}
         slack-message: "${{ github.actor }} posted a RFC: ${{ github.event.pull_request.title }}. URL: ${{ github.event.pull_request.html_url }}"
+
+    - name: Notify Slack for a Discussion
+      if: ${{ github.event_name == 'discussion' }}
+      uses: slackapi/slack-github-action@70cd7be8e40a46e8b0eced40b0de447bdb42f68e # v1.26.0
+      with:
+        channel-id: ${{ env.channel }}
+        slack-message: "${{ github.actor }} posted a RFC: ${{ github.event.discussion.title }}. URL: ${{ github.event.discussion.html_url }}"

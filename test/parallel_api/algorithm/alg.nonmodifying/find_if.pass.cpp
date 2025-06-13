@@ -58,7 +58,7 @@ template <typename T, typename Predicate, typename Hit, typename Miss>
 void
 test(Predicate pred, Hit hit, Miss miss)
 {
-    auto not_pred = [pred](T x) { return !pred(x); };
+    TestUtils::NotPred<T, Predicate> not_pred{pred};
     // Try sequences of various lengths.
     for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
@@ -88,11 +88,7 @@ struct test_non_const_find_if
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-
+        TestUtils::IsEven<float64_t> is_even;
         find_if(exec, iter, iter, non_const(is_even));
     }
 };
@@ -103,11 +99,7 @@ struct test_non_const_find_if_not
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-
+        TestUtils::IsEven<float64_t> is_even;
         find_if_not(exec, iter, iter, non_const(is_even));
     }
 };
