@@ -93,7 +93,8 @@ test_random_iterator_skip_default_ctor_check(const RandomIt& it)
     EXPECT_TRUE((it + 1) - it == 1, "wrong result with iterator subtraction");
 
     // There is a bug in clang when we pass the same arguments in the function
-    EXPECT_EQ(it[1], *(it + 1), "wrong result with operator[]");
+    if (it[1] != *(it + 1))
+        EXPECT_TRUE(false, "wrong result with operator[]");
 
     EXPECT_TRUE(it < it + 1, "operator< returned false negative");
     EXPECT_TRUE(!(it < it),  "operator< returned false positive");
