@@ -397,14 +397,21 @@ check_compilation(const _ExecutionPolicy& policy, _CallableTest&& __callable_tes
 }
 
 // Invoke test::operator()(policy,rest...) for each possible policy.
-template <::std::size_t CallNumber = 0>
+template <::std::size_t CallNumber = 0, typename Policy = decltype(get_dpcpp_test_policy())>
 struct invoke_on_all_hetero_policies
 {
+    Policy policy;
+
+    invoke_on_all_hetero_policies(Policy policy = get_dpcpp_test_policy())
+        : policy(policy)
+    {
+    }
+
     template <typename Op, typename... Args>
     void
     operator()(Op op, Args&&... rest)
     {
-        auto policy = get_dpcpp_test_policy<CallNumber, Op>();
+        //auto policy = get_dpcpp_test_policy<CallNumber, Op>();
         sycl::queue queue = policy.queue();
 
         // Device may not support some types, e.g. double or sycl::half; test if they are supported or skip otherwise
