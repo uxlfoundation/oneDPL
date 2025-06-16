@@ -65,13 +65,13 @@ class policy_base
     }
 
     template <typename... Args>
-    selection_type 
+    auto
     select(Args&&... args) 
     {
         return static_cast<Policy*>(this)->select_impl(std::forward<Args>(args)...);
     }
 
-    template <typename Function, typename... Args>
+    template <typename selection_type, typename Function, typename... Args>
     auto 
     submit(selection_type e, Function&& f, Args&&... args) 
     {
