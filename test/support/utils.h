@@ -232,6 +232,9 @@ expect_equal(Iterator1 expected_first, Iterator2 actual_first, Size n, const cha
         {
             ::std::stringstream outstr;
             outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k;
+            log_value(outstr, TagExpected{}, *expected_first, false);
+            log_value(outstr, TagActual{}, *actual_first, false);
+
             issue_error_message(outstr);
             ++error_count;
         }
