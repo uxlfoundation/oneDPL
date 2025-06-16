@@ -123,6 +123,54 @@ is_equal_val(const T1& val1, const T2& val2)
     }
 }
 
+template <typename T, typename TOutputStream, typename = void>
+struct IsSupportStreamOutput : std::false_type
+{
+};
+
+template <typename T, typename TOutputStream>
+struct IsSupportStreamOutput<T, TOutputStream,
+                             std::void_t<decltype(std::declval<TOutputStream>() << std::declval<T>())>> : std::true_type
+{
+};
+
+struct TagExpected{};
+struct TagActual{};
+
+template <typename Tag, typename TValue>
+std::string log_value(Tag, const TValue& value, bool bCommaNeeded)
+{
+    std::stringstream outstr;
+
+    if constexpr (std::is_same_v<Tag, TagExpected>)
+    {
+        if (bCommaNeeded)
+            outstr << ",";
+        outstr << " expected ";
+    }
+    else if constexpr (std::is_same_v<Tag, TagActual>)
+    {
+        if (bCommaNeeded)
+            outstr << ",";
+        outstr << " got ";
+    }
+    else
+    {
+        static_assert(false, "Unknown tag");
+    }
+
+    if constexpr (IsSupportStreamOutput<TValue, decltype(outstr)>::value)
+    {
+        outstr << value;
+    }
+    else
+    {
+        outstr << "(unable to log value)";
+    }
+
+    return outstr.str();
+}
+
 // Do not change signature to const T&.
 // Function must be able to detect const differences between expected and actual.
 template <typename T1, typename T2>
