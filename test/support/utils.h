@@ -137,27 +137,26 @@ struct IsSupportStreamOutput<T, TOutputStream,
 struct TagExpected{};
 struct TagActual{};
 
+inline
+std::string log_value_title(TagExpected)
+{
+    return " expected ";
+}
+
+inline
+std::string log_value_title(TagActual)
+{
+    return " got ";
+}
+
 template <typename Tag, typename TValue>
 std::string log_value(Tag, const TValue& value, bool bCommaNeeded)
 {
     std::stringstream outstr;
 
-    if constexpr (std::is_same_v<Tag, TagExpected>)
-    {
-        if (bCommaNeeded)
-            outstr << ",";
-        outstr << " expected ";
-    }
-    else if constexpr (std::is_same_v<Tag, TagActual>)
-    {
-        if (bCommaNeeded)
-            outstr << ",";
-        outstr << " got ";
-    }
-    else
-    {
-        static_assert(false, "Unknown tag");
-    }
+    if (bCommaNeeded)
+        outstr << ",";
+    outstr << log_value_title(Tag{});
 
     if constexpr (IsSupportStreamOutput<TValue, decltype(outstr)>::value)
     {
