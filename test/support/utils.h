@@ -180,8 +180,7 @@ expect_equal_val(const T1& expected, const T2& actual, const char* file, std::in
     if (!is_equal_val(expected, actual))
     {
         std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message << ", expected " << expected << " got "
-               << actual;
+        outstr << "error at " << file << ":" << line << " - " << message << log_value(TagExpected{}, expected, true) << log_value(TagActual{}, actual, true);
         issue_error_message(outstr);
     }
 }
@@ -206,8 +205,7 @@ expect_equal(const R1& expected, const R2& actual, const char* file, std::int32_
         if (!is_equal_val(expected[k], actual[k]))
         {
             ::std::stringstream outstr;
-            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k << " expected "
-                   << expected[k] << " got " << actual[k];
+            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k << log_value(TagExpected{}, expected[k], false) << log_value(TagActual{}, actual[k], false);
             issue_error_message(outstr);
             ++error_count;
         }
