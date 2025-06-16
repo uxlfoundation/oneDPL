@@ -77,7 +77,7 @@ __pattern_inclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1
 
     inclusive_scan(std::forward<Policy>(policy), make_zip_iterator(first2, _mask.get()),
                    make_zip_iterator(first2, _mask.get()) + n, make_zip_iterator(result, _mask.get()),
-                   internal::segmented_scan_fun<ValueType, FlagType, BinaryOperator>(binary_op));
+                   oneapi::dpl::__internal::__segmented_scan_fun<ValueType, FlagType, BinaryOperator>(binary_op));
 
     return result + n;
 }

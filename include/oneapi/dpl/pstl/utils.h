@@ -17,6 +17,7 @@
 #define _ONEDPL_UTILS_H
 
 #include "onedpl_config.h"
+#include "tuple_impl.h" // Internal tuple and get specializations need by __segmented_scan_fun
 
 #include <new>
 #include <tuple>
@@ -969,6 +970,45 @@ struct __count_fn_pred
     }
 };
 #endif
+
+template <typename _ValueType, typename _FlagType, typename _BinaryOp>
+struct __segmented_scan_fun
+{
+    __segmented_scan_fun(_BinaryOp __input) : __binary_op(__input) {}
+
+    template <typename _T1, typename _T2>
+    _T1
+    operator()(const _T1& __x, const _T2& __y) const
+    {
+        using std::get;
+        using __x_t = std::tuple_element_t<0, _T1>;
+        auto __new_x = get<1>(__y) ? __x_t(get<0>(__y)) : __x_t(__binary_op(get<0>(__x), get<0>(__y)));
+        auto __new_y = get<1>(__x) | get<1>(__y);
+        return _T1(__new_x, __new_y);
+    }
+
+  private:
+    _BinaryOp __binary_op;
+};
+
+template <typename _T, typename _Predicate>
+struct __replace_if_fun
+{
+    using __result_of = _T;
+
+    __replace_if_fun(_Predicate __pred, _T __new_value) : __pred(__pred), __new_value(__new_value) {}
+
+    template <typename _T1, typename _T2>
+    _T
+    operator()(_T1&& __a, _T2&& __s) const
+    {
+        return __pred(__s) ? __new_value : __a;
+    }
+
+  private:
+    _Predicate __pred;
+    const _T __new_value;
+};
 
 } // namespace __internal
 } // namespace dpl

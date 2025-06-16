@@ -2102,46 +2102,6 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
     }
 }
 
-template <typename _ValueType, typename _FlagType, typename _BinaryOp>
-struct __segmented_scan_fun
-{
-    __segmented_scan_fun(_BinaryOp __input) : __binary_op(__input) {}
-
-    template <typename _T1, typename _T2>
-    _T1
-    operator()(const _T1& __x, const _T2& __y) const
-    {
-        using std::get;
-        using __x_t = std::tuple_element_t<0, _T1>;
-        auto __new_x =
-            std::get<1>(__y) ? __x_t(std::get<0>(__y)) : __x_t(__binary_op(std::get<0>(__x), std::get<0>(__y)));
-        auto __new_y = std::get<1>(__x) | std::get<1>(__y);
-        return _T1(__new_x, __new_y);
-    }
-
-  private:
-    _BinaryOp __binary_op;
-};
-
-template <typename _T, typename _Predicate>
-struct __replace_if_fun
-{
-    using __result_of = _T;
-
-    __replace_if_fun(_Predicate __pred, _T __new_value) : __pred(__pred), __new_value(__new_value) {}
-
-    template <typename _T1, typename _T2>
-    _T
-    operator()(_T1&& __a, _T2&& __s) const
-    {
-        return __pred(__s) ? __new_value : __a;
-    }
-
-  private:
-    _Predicate __pred;
-    const _T __new_value;
-};
-
 template <typename _CustomName>
 struct __scan_by_seg_fallback;
 
@@ -2203,7 +2163,7 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
             oneapi::dpl::__ranges::zip_view(std::forward<_Range2>(__values), __mask_view),
             oneapi::dpl::__ranges::zip_view(std::forward<_Range3>(__out_values), __mask_view), __n,
             oneapi::dpl::__internal::__no_op{}, oneapi::dpl::unseq_backend::__no_init_value<_ScanInitType>{},
-            __segmented_scan_fun<_BinaryOperator, _FlagType, _BinaryOperator>{__binary_op},
+            oneapi::dpl::__internal::__segmented_scan_fun<_BinaryOperator, _FlagType, _BinaryOperator>{__binary_op},
             std::bool_constant<__is_inclusive>{})
             .wait();
     }
@@ -2227,8 +2187,8 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
             auto __temp_view_shifted =
                 oneapi::dpl::__ranges::all_view<_OutputType, __par_backend_hetero::access_mode::read_write>(
                     __temp.get_buffer(), 1, __n - 1);
-            __replace_if_fun<typename _InitType::__value_type, std::negate<_FlagType>> __replace_fun(
-                std::negate<_FlagType>(), __init.__value);
+            oneapi::dpl::__internal::__replace_if_fun<typename _InitType::__value_type, std::negate<_FlagType>>
+                __replace_fun(std::negate<_FlagType>(), __init.__value);
             using _ReplaceTransform = oneapi::dpl::__internal::__transform_functor<decltype(__replace_fun)>;
             _ReplaceTransform __tf{__replace_fun};
             __parallel_for(
@@ -2247,7 +2207,8 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
             oneapi::dpl::__internal::__no_op{},
             oneapi::dpl::unseq_backend::__init_value<_ScanInitType>{
                 oneapi::dpl::__internal::make_tuple(__init.__value, _FlagType(1))},
-            __segmented_scan_fun<_BinaryOperator, _FlagType, _BinaryOperator>{__binary_op}, std::true_type{})
+            oneapi::dpl::__internal::__segmented_scan_fun<_BinaryOperator, _FlagType, _BinaryOperator>{__binary_op},
+            std::true_type{})
             .wait();
     }
 }
