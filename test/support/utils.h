@@ -149,25 +149,21 @@ std::string log_value_title(TagActual)
     return " got ";
 }
 
-template <typename Tag, typename TValue>
-std::string log_value(Tag, const TValue& value, bool bCommaNeeded)
+template <typename TStream, typename Tag, typename TValue>
+ void log_value(TStream& os, Tag, const TValue& value, bool bCommaNeeded)
 {
-    std::stringstream outstr;
-
     if (bCommaNeeded)
-        outstr << ",";
-    outstr << log_value_title(Tag{});
+        os << ",";
+    os << log_value_title(Tag{});
 
-    if constexpr (IsSupportStreamOutput<TValue, decltype(outstr)>::value)
+    if constexpr (IsSupportStreamOutput<TValue, decltype(os)>::value)
     {
-        outstr << value;
+        os << value;
     }
     else
     {
-        outstr << "(unable to log value)";
+        os << "(unable to log value)";
     }
-
-    return outstr.str();
 }
 
 // Do not change signature to const T&.
@@ -179,7 +175,10 @@ expect_equal_val(const T1& expected, const T2& actual, const char* file, std::in
     if (!is_equal_val(expected, actual))
     {
         std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message << log_value(TagExpected{}, expected, true) << log_value(TagActual{}, actual, true);
+        outstr << "error at " << file << ":" << line << " - " << message;
+        log_value(outstr, TagExpected{}, expected, true);
+        log_value(outstr, TagActual{}, actual, true);
+
         issue_error_message(outstr);
     }
 }
@@ -203,8 +202,11 @@ expect_equal(const R1& expected, const R2& actual, const char* file, std::int32_
     {
         if (!is_equal_val(expected[k], actual[k]))
         {
-            ::std::stringstream outstr;
-            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k << log_value(TagExpected{}, expected[k], false) << log_value(TagActual{}, actual[k], false);
+            std::stringstream outstr;
+            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k;
+            log_value(outstr, TagExpected{}, expected[k], false);
+            log_value(outstr, TagActual{}, actual[k], false);
+
             issue_error_message(outstr);
             ++error_count;
         }
