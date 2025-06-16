@@ -242,7 +242,9 @@ class zip_view
     using value_type = oneapi::dpl::__internal::tuple<oneapi::dpl::__internal::__value_t<_Ranges>...>;
     static constexpr ::std::size_t __num_ranges = sizeof...(_Ranges);
 
-    explicit zip_view(_Ranges... __args) : __m_ranges(oneapi::dpl::__internal::make_tuple(__args...)) {}
+    template <typename... _Rs>
+    explicit zip_view(_Rs&&... __args) : __m_ranges(oneapi::dpl::__internal::make_tuple(std::forward<_Rs>(__args)...))
+    {}
 
     auto
     size() const -> decltype(::std::get<0>(::std::declval<_tuple_ranges_t>()).size())
