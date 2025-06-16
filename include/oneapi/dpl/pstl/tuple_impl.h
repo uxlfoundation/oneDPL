@@ -278,7 +278,7 @@ struct __value_holder
     __value_holder(_Up&& t) : value(::std::forward<_Up>(t))
     {
     }
-    _Tp value;
+    std::remove_cv_t<std::remove_reference_t<_Tp>> value;
 };
 
 // Necessary to make tuple trivially_copy_assignable. This type decided
