@@ -42,7 +42,7 @@ test_usm_shared_alloc(Policy&& policy, T trash, size_t n, const std::string& typ
         //test all modes / wrappers
 
         //Only test as source iterator for permutation iterator if we can expect it to work
-        // (if the vector implementation distiguishes its iterator for this type)
+        // (if the vector implementation distinguishes its iterator for this type)
         wrap_recurse<
             __recurse, 0, /*__read =*/true, /*__reset_read=*/true, /*__write=*/true,
             /*__check_write=*/true, /*__usable_as_perm_map=*/true,
