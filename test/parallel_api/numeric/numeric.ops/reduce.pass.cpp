@@ -29,7 +29,7 @@ struct test_long_reduce
     void
     operator()(Policy&& exec, Iterator first, Iterator last, T init, BinaryOp binary, T expected)
     {
-        T result_r = ::std::reduce(exec, first, last, init, binary);
+        T result_r = std::reduce(std::forward<Policy>(exec), first, last, init, binary);
         EXPECT_EQ(expected, result_r, "bad result from reduce(exec, first, last, init, binary_op)");
     }
 };
@@ -64,7 +64,7 @@ struct test_short_reduce
     {
         using namespace std;
 
-        Sum r0 = init + reduce(exec, first, last);
+        Sum r0 = init + reduce(std::forward<Policy>(exec), first, last);
         EXPECT_EQ(expected, r0, "bad result from reduce(exec, first, last)");
     }
 };
@@ -77,7 +77,7 @@ struct test_short_reduce_init
     {
         using namespace std;
 
-        Sum r1 = reduce(exec, first, last, init);
+        Sum r1 = reduce(std::forward<Policy>(exec), first, last, init);
         EXPECT_EQ(expected, r1, "bad result from reduce(exec, first, last, init)");
     }
 };

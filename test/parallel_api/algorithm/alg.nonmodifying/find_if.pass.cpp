@@ -36,7 +36,7 @@ struct test_find_if
     operator()(Policy&& exec, Iterator first, Iterator last, Predicate pred, NotPredicate /* not_pred */)
     {
         auto i = ::std::find_if(first, last, pred);
-        auto j = find_if(exec, first, last, pred);
+        auto j = find_if(std::forward<Policy>(exec), first, last, pred);
         EXPECT_TRUE(i == j, "wrong return value from find_if");
     }
 };
@@ -49,7 +49,7 @@ struct test_find_if_not
     operator()(Policy&& exec, Iterator first, Iterator last, Predicate pred, NotPredicate not_pred)
     {
         auto i = ::std::find_if(first, last, pred);
-        auto i_not = find_if_not(exec, first, last, not_pred);
+        auto i_not = find_if_not(std::forward<Policy>(exec), first, last, not_pred);
         EXPECT_TRUE(i_not == i, "wrong return value from find_if_not");
     }
 };
@@ -89,7 +89,7 @@ struct test_non_const_find_if
     operator()(Policy&& exec, Iterator iter)
     {
         TestUtils::IsEven<float64_t> is_even;
-        find_if(exec, iter, iter, non_const(is_even));
+        find_if(std::forward<Policy>(exec), iter, iter, non_const(is_even));
     }
 };
 
@@ -100,7 +100,7 @@ struct test_non_const_find_if_not
     operator()(Policy&& exec, Iterator iter)
     {
         TestUtils::IsEven<float64_t> is_even;
-        find_if_not(exec, iter, iter, non_const(is_even));
+        find_if_not(std::forward<Policy>(exec), iter, iter, non_const(is_even));
     }
 };
 

@@ -51,7 +51,7 @@ struct test_one_policy
 
         copy(data_b, data_e, actual_b);
 
-        reverse(exec, actual_b, actual_e);
+        reverse(std::forward<ExecutionPolicy>(exec), actual_b, actual_e);
 
         bool check = equal(data_b, data_e, reverse_iterator<Iterator2>(actual_e));
 

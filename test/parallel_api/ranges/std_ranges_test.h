@@ -200,7 +200,7 @@ private:
 
         typename Container::type& A = cont_in();
         decltype(auto) r_in = tr_in(A);
-        auto res = algo(exec, r_in, args...);
+        auto res = algo(std::forward<decltype(exec)>(exec), r_in, args...);
 
         //check result
         static_assert(std::is_same_v<decltype(res), decltype(checker(r_in, args...))>, "Wrong return type");
@@ -240,7 +240,7 @@ private:
         typename Container::type& A = cont_in();
         typename Container::type& B = cont_out();
 
-        auto res = algo(exec, tr_in(A), tr_out(B), args...);
+        auto res = algo(std::forward<Policy>(exec), tr_in(A), tr_out(B), args...);
 
         //check result
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_out(B), args...))>, "Wrong return type");
@@ -315,7 +315,7 @@ private:
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
 
-        auto res = algo(exec, tr_in(A), tr_in(B), args...);
+        auto res = algo(std::forward<decltype(exec)>(exec), tr_in(A), tr_in(B), args...);
 
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), args...))>, "Wrong return type");
 
@@ -358,7 +358,7 @@ private:
         typename Container::type& B = cont_in2();
         typename Container::type& C = cont_out();
 
-        auto res = algo(exec, tr_in(A), tr_in(B), tr_out(C), args...);
+        auto res = algo(std::forward<Policy>(exec), tr_in(A), tr_in(B), tr_out(C), args...);
 
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), tr_out(C), args...))>, "Wrong return type");
 
