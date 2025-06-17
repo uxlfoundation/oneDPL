@@ -119,10 +119,6 @@ make_new_policy(sycl::queue _queue)
 #endif
 }
 
-#    if _ONEDPL_DEBUG_SYCL
-static std::once_flag device_name_in_get_dpcpp_test_policy_logged;
-#    endif // _ONEDPL_DEBUG_SYCL
-
 template <typename OutputStream>
 inline void
 log_device_name(OutputStream& os, const sycl::queue& queue);
@@ -149,6 +145,9 @@ get_dpcpp_test_policy()
         auto policy = TestUtils::make_new_policy<_NewKernelName>(__arg);
 
 #    if _ONEDPL_DEBUG_SYCL
+
+        static std::once_flag device_name_in_get_dpcpp_test_policy_logged;
+
         std::call_once(device_name_in_get_dpcpp_test_policy_logged, [&]() {
             TestUtils::log_device_name(std::cout, policy.queue());
         });

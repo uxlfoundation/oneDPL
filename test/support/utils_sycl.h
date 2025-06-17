@@ -93,10 +93,6 @@ inline auto default_selector =
 #    endif
 #endif     // ONEDPL_FPGA_DEVICE
 
-#if _ONEDPL_DEBUG_SYCL
-static std::once_flag device_name_in_get_test_queue_logged;
-#endif // _ONEDPL_DEBUG_SYCL
-
 template <typename OutputStream>
 inline void
 log_device_name(OutputStream& os, const sycl::queue& queue)
@@ -113,6 +109,9 @@ sycl::queue get_test_queue()
         static sycl::queue my_queue(default_selector, async_handler);
 
 #if _ONEDPL_DEBUG_SYCL
+
+        static std::once_flag device_name_in_get_test_queue_logged;
+
         std::call_once(device_name_in_get_test_queue_logged, [&]() {
             log_device_name(std::cout, my_queue);
         });
