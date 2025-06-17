@@ -70,7 +70,7 @@ struct test_replace
         copy(data_b, data_e, actual_b);
 
         replace(expected_b, expected_e, old_value, value);
-        replace(exec, actual_b, actual_e, old_value, value);
+        replace(std::forward<ExecutionPolicy>(exec), actual_b, actual_e, old_value, value);
 
         EXPECT_TRUE((check<T, Iterator2>(actual_b, actual_e)), "wrong result of self assignment check");
         EXPECT_TRUE(equal(expected_b, expected_e, actual_b), "wrong result of replace");
@@ -105,7 +105,7 @@ struct test_replace_if
         copy(data_b, data_e, actual_b);
 
         replace_if(expected_b, expected_e, pred, value);
-        replace_if(exec, actual_b, actual_e, pred, value);
+        replace_if(std::forward<ExecutionPolicy>(exec), actual_b, actual_e, pred, value);
         EXPECT_TRUE(equal(expected_b, expected_e, actual_b), "wrong result of replace_if");
     }
 };
@@ -152,7 +152,7 @@ struct test_non_const
     operator()(Policy&& exec, Iterator iter)
     {
         auto is_even = TestUtils::IsEven<float64_t>{};
-        replace_if(exec, iter, iter, non_const(is_even), T(0));
+        replace_if(std::forward<Policy>(exec), iter, iter, non_const(is_even), T(0));
     }
 };
 

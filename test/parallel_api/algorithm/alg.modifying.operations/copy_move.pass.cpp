@@ -45,7 +45,7 @@ struct run_copy
 
         // Run copy
         copy(first, last, expected_first);
-        auto k = copy(exec, first, last, out_first);
+        auto k = copy(std::forward<Policy>(exec), first, last, out_first);
         for (size_t j = 0; j < GuardSize; ++j)
             ++k;
         EXPECT_EQ_N(expected_first, out_first, size, "wrong effect from copy");
@@ -68,7 +68,7 @@ struct run_copy_n
 
         // Run copy_n
         copy(first, last, expected_first);
-        auto k = copy_n(exec, first, n, out_first);
+        auto k = copy_n(std::forward<Policy>(exec), first, n, out_first);
         for (size_t j = 0; j < GuardSize; ++j)
             ++k;
         EXPECT_EQ_N(expected_first, out_first, size, "wrong effect from copy_n");
@@ -91,7 +91,7 @@ struct run_move
 
         // Run move
         move(first, last, expected_first);
-        auto k = move(exec, first, last, out_first);
+        auto k = move(std::forward<Policy>(exec), first, last, out_first);
         for (size_t j = 0; j < GuardSize; ++j)
             ++k;
         EXPECT_EQ_N(expected_first, out_first, size, "wrong effect from move");
@@ -113,7 +113,7 @@ struct run_move<Wrapper<T>>
         Wrapper<T>::SetMoveCount(0);
 
         // Run move
-        auto k = move(exec, first, last, out_first);
+        auto k = move(std::forward<Policy>(exec), first, last, out_first);
         for (size_t j = 0; j < GuardSize; ++j)
             ++k;
         EXPECT_TRUE(Wrapper<T>::MoveCount() == size, "wrong effect from move");

@@ -46,7 +46,7 @@ struct test_fill
     {
         fill(first, last, T(value + 1)); // initialize memory with different value
 
-        fill(exec, first, last, value);
+        fill(std::forward<Policy>(exec), first, last, value);
         EXPECT_TRUE(check(first, last, value), "fill wrong result");
     }
 };

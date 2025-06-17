@@ -106,7 +106,7 @@ test_body_for_loop_strided(Policy&& exec, Iterator first, Iterator last, Iterato
 
     char single_stride = loop_stride > 0 ? 1 : -1;
 
-    ::std::experimental::for_loop_strided(exec, first, last, loop_stride, [&flip](Iterator iter) { flip(*iter); });
+    std::experimental::for_loop_strided(std::forward<Policy>(exec), first, last, loop_stride, [&flip](Iterator iter) { flip(*iter); });
 
     ::std::make_signed_t<Size> idx = 0;
     for (auto iter = expected_first; iter != expected_last; ::std::advance(iter, single_stride), ++idx)
@@ -136,7 +136,7 @@ test_body_for_loop_strided_n(Policy&& exec, Iterator first, Iterator /* last */,
 
     auto num_iters = n / loop_stride + !!(n % loop_stride);
 
-    ::std::experimental::for_loop_n_strided(exec, first, num_iters, loop_stride, [&flip](Iterator iter) { flip(*iter); });
+    std::experimental::for_loop_n_strided(std::forward<Policy>(exec), first, num_iters, loop_stride, [&flip](Iterator iter) { flip(*iter); });
 
     size_t idx = 0;
     for (auto iter = expected_first; iter != expected_last; ++iter, ++idx)
@@ -159,7 +159,7 @@ test_body_for_loop_strided_integral(Policy&& exec, Iterator first, Iterator /* l
 
     auto flip = Flip<T>(1);
 
-    ::std::experimental::for_loop_strided(exec, Size(0), n, loop_stride, [&flip, first](Size idx) {
+    std::experimental::for_loop_strided(std::forward<Policy>(exec), Size(0), n, loop_stride, [&flip, first](Size idx) {
         auto iter = first;
         ::std::advance(iter, idx);
         flip(*iter);
@@ -200,7 +200,7 @@ test_body_for_loop_strided_n_integral(Policy&& exec, Iterator first, Iterator /*
     // update the elements of first-last sequence at ::std::abs(idx) positions,
     // this works for both positive and negative values of idx and there is no
     // need to care about which base iterator to use: simply use first for both cases.
-    ::std::experimental::for_loop_n_strided(exec, S(0), S(num_iters), loop_stride, [&flip, first](S idx) {
+    std::experimental::for_loop_n_strided(std::forward<Policy>(exec), S(0), S(num_iters), loop_stride, [&flip, first](S idx) {
         auto iter = first;
         ::std::advance(iter, ::std::abs(idx));
         flip(*iter);

@@ -31,7 +31,7 @@ struct test_find
     operator()(Policy&& exec, Iterator first, Iterator last, Value value)
     {
         auto i = ::std::find(first, last, value);
-        auto j = find(exec, first, last, value);
+        auto j = find(std::forward<Policy>(exec), first, last, value);
         EXPECT_TRUE(i == j, "wrong return value from find");
     }
 };
