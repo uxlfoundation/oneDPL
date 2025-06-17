@@ -131,9 +131,9 @@ using tuplewrapper = oneapi::dpl::__internal::tuple<typename oneapi::dpl::__inte
 // __internal::make_tuple
 template <typename... T>
 constexpr oneapi::dpl::__internal::tuple<T...>
-make_tuple(T&&... args)
+make_tuple(T... args)
 {
-    return oneapi::dpl::__internal::tuple<T...>{std::forward<T>(args)...};
+    return oneapi::dpl::__internal::tuple<T...>{args...};
 }
 
 // __internal::make_tuplewrapper
