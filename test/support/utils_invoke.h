@@ -135,7 +135,19 @@ get_dpcpp_test_policy()
         get_test_queue();
 #    endif // TEST_USE_PREDEFINED_POLICIES
 
-    return TestUtils::make_new_policy<_NewKernelName>(__arg);
+    try
+    {
+        return TestUtils::make_new_policy<_NewKernelName>(__arg);
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Exception occurred in get_dpcpp_test_policy()";
+        if (exc.what())
+            std::cerr << ": " << exc.what();
+        std::cerr << std::endl;
+
+        throw;
+    }
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
