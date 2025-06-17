@@ -154,6 +154,9 @@ struct __parallel_reduce_by_segment_fallback_fn1;
 template <typename _BinaryPredicate>
 struct __parallel_reduce_by_segment_fallback_fn2;
 
+template <typename _ValueType, typename _FlagType, typename _BinaryOp>
+struct __segmented_scan_fun;
+
 } // namespace oneapi::dpl::__internal
 
 template <typename _Pred>
@@ -371,6 +374,13 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
 {
 };
 
+template <typename _ValueType, typename _FlagType, typename _BinaryOp>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__segmented_scan_fun, _ValueType,
+                                                       _FlagType, _BinaryOp)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOp>
+{
+};
+
 namespace oneapi::dpl::__internal::__ranges
 {
 
@@ -422,6 +432,12 @@ struct __gen_red_by_seg_reduce_input;
 template <typename _BinaryPred>
 struct __gen_red_by_seg_scan_input;
 
+template <typename _BinaryPred>
+struct __gen_scan_by_seg_reduce_input;
+
+template <typename _BinaryPred>
+struct __gen_scan_by_seg_scan_input;
+
 template <typename _Predicate, typename _RangeTransform>
 struct __gen_mask;
 
@@ -443,6 +459,9 @@ struct __write_to_id_if_else;
 template <typename _BinaryPred>
 struct __write_red_by_seg;
 
+template <typename _InitWrapper, typename _BinaryOp>
+struct __write_scan_by_seg;
+
 template <typename _Assign>
 struct __write_multiple_to_id;
 
@@ -454,6 +473,9 @@ struct __leaf_sorter;
 
 template <typename _BinaryOp>
 struct __red_by_seg_op;
+
+template <typename _BinaryOp>
+struct __scan_by_seg_op;
 
 template <typename _SetOpCount, typename _Compare>
 struct __gen_set_balanced_path;
@@ -486,6 +508,20 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 
 template <typename _BinaryPred>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_scan_input,
+                                                       _BinaryPred)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPred>
+{
+};
+
+template <typename _BinaryPred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__par_backend_hetero::__gen_scan_by_seg_reduce_input, _BinaryPred)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPred>
+{
+};
+
+template <typename _BinaryPred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_scan_by_seg_scan_input,
                                                        _BinaryPred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPred>
 {
@@ -531,6 +567,13 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
+template <typename _InitWrapper, typename _BinaryOp>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_scan_by_seg,
+                                                       _InitWrapper, _BinaryOp)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_InitWrapper, _BinaryOp>
+{
+};
+
 template <typename _Assign>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_multiple_to_id,
                                                        _Assign)>
@@ -553,6 +596,12 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 
 template <typename _BinaryOp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__red_by_seg_op, _BinaryOp)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOp>
+{
+};
+
+template <typename _BinaryOp>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__scan_by_seg_op, _BinaryOp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOp>
 {
 };
@@ -775,9 +824,6 @@ struct replace_if_fun;
 template <typename ValueType, typename FlagType, typename BinaryOp>
 struct scan_by_key_fun;
 
-template <typename ValueType, typename FlagType, typename BinaryOp>
-struct segmented_scan_fun;
-
 template <typename Output1, typename Output2>
 class scatter_and_accumulate_fun;
 
@@ -800,13 +846,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::re
 
 template <typename ValueType, typename FlagType, typename BinaryOp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::scan_by_key_fun, ValueType, FlagType,
-                                                       BinaryOp)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<BinaryOp>
-{
-};
-
-template <typename ValueType, typename FlagType, typename BinaryOp>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::segmented_scan_fun, ValueType, FlagType,
                                                        BinaryOp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<BinaryOp>
 {
