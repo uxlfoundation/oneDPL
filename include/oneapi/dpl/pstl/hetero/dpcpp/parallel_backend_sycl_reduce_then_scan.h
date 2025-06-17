@@ -253,8 +253,7 @@ struct __write_scan_by_seg<unseq_backend::__init_value<_InitType>, _BinaryOp>
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(get<0>(__v)))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
-        // TODO: see if we can remove the two checks
-        if (get<1>(__v) || __id == 0)
+        if (get<1>(__v))
             __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(__init_value.__value));
         else
         {
@@ -769,6 +768,27 @@ struct __gen_red_by_seg_reduce_input
     _BinaryPred __binary_pred;
 };
 
+template <typename _BinaryPred>
+struct __gen_scan_by_seg_reduce_input
+{
+    using TempData = __noop_temp_data;
+    // Returns the following tuple:
+    // (new_seg_mask, value)
+    // bool new_seg_mask : true for a start of a new segment, false otherwise
+    // ValueType value   : Current element's value for reduction
+    template <typename _InRng>
+    auto
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    {
+        const auto __in_keys = std::get<0>(__in_rng.tuple());
+        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
+        const std::uint32_t __new_seg_mask = __id == 0 || !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
+        return oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]});
+    }
+    _BinaryPred __binary_pred;
+};
+
 // Generates input for a scan operation by applying a binary predicate to the keys of the input range.
 template <typename _BinaryPred>
 struct __gen_red_by_seg_scan_input
@@ -827,9 +847,9 @@ struct __gen_scan_by_seg_scan_input
 {
     using TempData = __noop_temp_data;
     // Returns the following tuple:
-    // (new_seg_mask, value)
-    // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
-    // ValueType value     : Current element's value for reduction
+    // ((new_seg_mask, value), new_seg_mask)
+    // bool new_seg_mask : true for a start of a new segment, false otherwise
+    // ValueType value   : Current element's value for reduction
     template <typename _InRng>
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
@@ -837,10 +857,11 @@ struct __gen_scan_by_seg_scan_input
         const auto __in_keys = std::get<0>(__in_rng.tuple());
         const auto __in_vals = std::get<1>(__in_rng.tuple());
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
-        // The first segment start (index 0) is not marked with a 1. This is because we need the first
-        // segment's key and value output index to be 0. We begin marking new segments only after the
-        // first.
-        const std::size_t __new_seg_mask = __id > 0 && !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
+        // Mark the first index as a new segment as well as an indexing corresponding to any key
+        // that does not satisfy the binary predicate with the previous key. The first tuple mask element
+        // is scanned over, and the third is a placeholder for exclusive_scan_by_segment to perfom init
+        // handling in the output write.
+        const std::uint32_t __new_seg_mask = __id == 0 || !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
         return oneapi::dpl::__internal::make_tuple(
             oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]}), __new_seg_mask);
     }
@@ -932,8 +953,7 @@ struct __scan_by_seg_op
         }
         // We are looking at elements from a previous segment, so no operation is performed
         // This scan over index is not needed.
-        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup),
-                                                   _OpReturnType{get<1>(__rhs_tup)});
+        return oneapi::dpl::__internal::make_tuple(std::uint32_t{1}, _OpReturnType{get<1>(__rhs_tup)});
     }
     _BinaryOp __binary_op;
 };
