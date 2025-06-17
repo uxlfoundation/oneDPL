@@ -91,7 +91,7 @@ __pattern_inclusive_scan_by_segment(__internal::__hetero_tag<_BackendTag> __tag,
                                     BinaryPredicate binary_pred, BinaryOperator binary_op)
 {
     return __pattern_scan_by_segment(__tag, std::forward<Policy>(policy), first1, last1, first2, result, binary_pred,
-                                     binary_op, std::true_type{});
+                                     binary_op, /*_Inclusive*/ std::true_type{});
 }
 
 #endif
