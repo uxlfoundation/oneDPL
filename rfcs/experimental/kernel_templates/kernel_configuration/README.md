@@ -12,15 +12,12 @@ as well as on the used device.
 
 ```c++
 // defined in <oneapi/dpl/experimental/kernel_templates>
-
-namespace oneapi::dpl::experimental::kt {
+// in namespace oneapi::dpl::experimental::kt
 
 template <std::uint16_t DataPerWorkItem,
           std::uint16_t WorkGroupSize,
           typename KernelName = /*unspecified*/>
 struct kernel_param;
-
-}
 ```
 
 The library guide describes all the signature details in
