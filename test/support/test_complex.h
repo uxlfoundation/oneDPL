@@ -125,6 +125,8 @@ namespace TestUtils
     template <typename T>
     static constexpr float infinity_val = std::numeric_limits<T>::infinity();
 
+    class TestType;
+
     // Run test in Kernel as single task
     template <typename TFncDoubleHasSupportInRuntime, typename TFncDoubleHasntSupportInRuntime>
     void
@@ -147,7 +149,7 @@ namespace TestUtils
             {
                 deviceQueue.submit(
                     [&](sycl::handler& cgh) {
-                        cgh.single_task<TestUtils::new_kernel_name<class TestType, 0>>(
+                        cgh.single_task<TestUtils::new_kernel_name<TestType, 0>>(
                             [fncDoubleHasSupportInRuntime]() { fncDoubleHasSupportInRuntime(); });
                     });
             }
@@ -155,7 +157,7 @@ namespace TestUtils
             {
                 deviceQueue.submit(
                     [&](sycl::handler& cgh) {
-                        cgh.single_task<TestUtils::new_kernel_name<class TestType, 1>>(
+                        cgh.single_task<TestUtils::new_kernel_name<TestType, 1>>(
                             [fncDoubleHasntSupportInRuntime]() { fncDoubleHasntSupportInRuntime(); });
                     });
             }
