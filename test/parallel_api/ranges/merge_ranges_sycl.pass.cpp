@@ -25,6 +25,10 @@
 
 #include <iostream>
 
+#if _ENABLE_RANGES_TESTING
+class merge_2;
+#endif
+
 std::int32_t
 main()
 {
@@ -50,7 +54,7 @@ main()
         auto exec = TestUtils::get_dpcpp_test_policy();
 
         merge(exec, all_view(A), all_view(B), all_view<T, sycl::access::mode::write>(D));
-        merge(TestUtils::make_device_policy<class merge_2>(exec), A, B, E, ::std::less<T>()); //check passing sycl buffers directly
+        merge(TestUtils::make_device_policy<merge_2>(exec), A, B, E, ::std::less<T>()); //check passing sycl buffers directly
     }
 
     //check result
