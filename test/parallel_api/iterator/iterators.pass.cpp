@@ -93,10 +93,8 @@ test_random_iterator_skip_default_ctor_check(const RandomIt& it)
     EXPECT_TRUE((it + 1) - it == 1, "wrong result with iterator subtraction");
 
     // There is a bug in clang when we pass the same arguments in the function
-    if(it[1]!=*(it + 1)){
-        ::std::cout<<"wrong result with operator[]"<<::std::endl;
-        exit(1);
-    }
+    if (it[1] != *(it + 1))
+        EXPECT_TRUE(false, "wrong result with operator[]");
 
     EXPECT_TRUE(it < it + 1, "operator< returned false negative");
     EXPECT_TRUE(!(it < it),  "operator< returned false positive");
@@ -239,10 +237,7 @@ void test_transform_effect(VecIt1 first1, VecIt1 last1, VecIt2 first2) {
     );
 
     for (typename ::std::iterator_traits<VecIt1>::difference_type i = 0; i < last1 - first1; ++i)
-        if ( first2[i] != (typename ::std::iterator_traits<VecIt2>::value_type) triple(first1[i]) ) {
-            ::std::cout << "wrong effect with transform iterator" << ::std::endl;
-            exit(1);
-        }
+        EXPECT_EQ(static_cast<typename ::std::iterator_traits<VecIt2>::value_type>(triple(first1[i])), first2[i], "wrong effect with transform iterator");
 }
 
 //We need this functor to run fill algorithm with transform iterators. Operator() should return lvalue reference.

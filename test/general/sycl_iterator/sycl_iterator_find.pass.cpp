@@ -41,11 +41,7 @@ DEFINE_TEST(test_adjacent_find)
         Iterator expected = last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from adjacent_find (Test #1 no elements)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: [" << ::std::distance(first, result) << "], "
-                    << "expected: [" << ::std::distance(first, expected) << "]" << ::std::endl;
- #endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #1 no elements)");
 
         // check with the last adjacent element
         ::std::size_t max_dis = n;
@@ -58,11 +54,7 @@ DEFINE_TEST(test_adjacent_find)
         expected = max_dis > 1 ? last - 2 : last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from adjacent_find (Test #2 the last element)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: [" << ::std::distance(first, result) << "], "
-                  << "expected: [" << ::std::distance(first, expected) << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #2 the last element)");
 
         // check with an adjacent element
         max_dis = n;
@@ -77,21 +69,13 @@ DEFINE_TEST(test_adjacent_find)
         expected = max_dis > 1 ? it - 1 : last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from adjacent_find (Test #3 middle element)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: [" << ::std::distance(first, result) << "], "
-                  << "expected: [" << ::std::distance(first, expected) << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #3 middle element)");
 
         // check with an adjacent element (no predicate)
         result = ::std::adjacent_find(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last);
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from adjacent_find (Test #4 middle element (no predicate))");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: [" << ::std::distance(first, result) << "], "
-                  << "expected: [" << ::std::distance(first, expected) << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #4 middle element (no predicate))");
 
         // check with the first adjacent element
         max_dis = n;
@@ -104,11 +88,7 @@ DEFINE_TEST(test_adjacent_find)
         expected = max_dis > 1 ? first : last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from adjacent_find (Test #5 the first element)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: [" << ::std::distance(first, result) << "], "
-                  << "expected: [" << ::std::distance(first, expected) << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #5 the first element)");
     }
 };
 
@@ -136,11 +116,7 @@ DEFINE_TEST(test_is_sorted_until)
         Iterator expected = last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from is_sorted_until (Test #1 sorted sequence)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: [" << ::std::distance(first, result) << "], "
-                  << "expected: [" << ::std::distance(first, expected) << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from is_sorted_until (Test #1 sorted sequence)");
 
         // check unsorted: the last element
         ::std::size_t max_dis = n;
@@ -153,12 +129,7 @@ DEFINE_TEST(test_is_sorted_until)
         expected = max_dis > 1 ? last - 1 : last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected,
-                    "wrong effect from is_sorted_until (Test #2 unsorted sequence - the last element)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: [" << ::std::distance(first, result) << "], "
-                  << "expected: [" << ::std::distance(first, expected) << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from is_sorted_until (Test #2 unsorted sequence - the last element)");
 
         // check unsorted: the middle element
         max_dis = n;
@@ -173,24 +144,13 @@ DEFINE_TEST(test_is_sorted_until)
         expected = it;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected,
-                    "wrong effect from is_sorted_until (Test #3 unsorted sequence - the middle element)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: [" << ::std::distance(first, result) << "], "
-                  << "expected: [" << ::std::distance(first, expected) << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from is_sorted_until (Test #3 unsorted sequence - the middle element)");
 
         // check unsorted: the middle element (no predicate)
         result = ::std::is_sorted_until(make_new_policy<new_kernel_name<Policy, 3>>(exec), first, last);
         wait_and_throw(exec);
 
-        EXPECT_TRUE(
-            result == expected,
-            "wrong effect from is_sorted_until (Test #4 unsorted sequence - the middle element (no predicate))");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: [" << ::std::distance(first, result) << "], "
-                  << "expected: [" << ::std::distance(first, expected) << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result,  "wrong effect from is_sorted_until (Test #4 unsorted sequence - the middle element (no predicate))");
 
         // check unsorted: the first element
         if (n > 1)
@@ -202,12 +162,7 @@ DEFINE_TEST(test_is_sorted_until)
         expected = n > 1 ? first + 1 : last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected,
-                    "wrong effect from is_sorted_until (Test #5 unsorted sequence - the first element)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: [" << ::std::distance(first, result) << "], "
-                  << "expected: [" << ::std::distance(first, expected) << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from is_sorted_until (Test #5 unsorted sequence - the first element)");
     }
 };
 
@@ -235,11 +190,7 @@ DEFINE_TEST(test_is_sorted)
         bool expected_bool = true;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result_bool == expected_bool, "wrong effect from is_sorted (Test #1 sorted sequence)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: " << result_bool << ", "
-                    << "expected: " << expected_bool << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected_bool, result_bool, "wrong effect from is_sorted (Test #1 sorted sequence)");
 
         // check unsorted: the last element
         ::std::size_t max_dis = n;
@@ -252,12 +203,7 @@ DEFINE_TEST(test_is_sorted)
         expected_bool = max_dis > 1 ? false : true;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result_bool == expected_bool,
-                    "wrong effect from is_sorted (Test #2 unsorted sequence - the last element)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: " << result_bool << ", "
-                    << "expected: " << expected_bool << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected_bool, result_bool, "wrong effect from is_sorted (Test #2 unsorted sequence - the last element)");
 
         // check unsorted: the middle element
         max_dis = n;
@@ -270,23 +216,13 @@ DEFINE_TEST(test_is_sorted)
         expected_bool = max_dis > 1 ? false : true;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result_bool == expected_bool,
-                    "wrong effect from is_sorted (Test #3 unsorted sequence - the middle element)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: " << result_bool << ", "
-                    << "expected: " << expected_bool << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected_bool, result_bool, "wrong effect from is_sorted (Test #3 unsorted sequence - the middle element)");
 
         // check unsorted: the middle element (no predicate)
         result_bool = ::std::is_sorted(make_new_policy<new_kernel_name<Policy, 3>>(exec), first, last);
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result_bool == expected_bool,
-                    "wrong effect from is_sorted (Test #4 unsorted sequence - the middle element (no predicate))");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: " << result_bool << ", "
-                    << "expected: " << expected_bool << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected_bool, result_bool, "wrong effect from is_sorted (Test #4 unsorted sequence - the middle element (no predicate))");
 
         // check unsorted: the first element
         max_dis = n;
@@ -299,12 +235,7 @@ DEFINE_TEST(test_is_sorted)
         expected_bool = max_dis > 1 ? false : true;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result_bool == expected_bool,
-                    "wrong effect from is_sorted Test #5 unsorted sequence - the first element");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: " << result_bool << ", "
-                    << "expected: " << expected_bool << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected_bool, result_bool, "wrong effect from is_sorted Test #5 unsorted sequence - the first element");
     }
 };
 
@@ -1000,7 +931,7 @@ test_usm_and_buffer()
     test1buffer<alloc_type, test_search_n<ValueType>>();
     PRINT_DEBUG("test_is_heap_until");
     test1buffer<alloc_type, test_is_heap_until<ValueType>>();
-    print_debug("test_is_heap");
+    PRINT_DEBUG("test_is_heap");
     test1buffer<alloc_type, test_is_heap<ValueType>>();
 
     //test2buffers
