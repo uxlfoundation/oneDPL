@@ -22,8 +22,6 @@
 #include "xpu_std_ranges_test.h"
 #endif //_ENABLE_STD_RANGES_TESTING
 
-class std_reverse_test;
-
 int
 main()
 {
@@ -33,7 +31,7 @@ main()
         return res.size() == 4 && res[0] == 3 && res[1] == 2 && res[2] == 1 && res[3] == 0 &&
               *(res.begin() + 2) == 1 && res.end() - res.begin() == 4;
     };
-    const bool res = kernel_test<std_reverse_test>(test);
+    const bool res = kernel_test<class std_reverse_test>(test);
     EXPECT_TRUE(res, "Wrong result of reverse_view check within a kernel");
 #endif //_ENABLE_STD_RANGES_TESTING
 
