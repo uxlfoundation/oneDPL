@@ -102,7 +102,7 @@ struct test_one_policy
         iota(data_b, data_e, 0);
         iota(actual_b, actual_e, ::std::distance(data_b, data_e));
 
-        Iterator2 actual_return = swap_ranges(exec, data_b, data_e, actual_b);
+        Iterator2 actual_return = swap_ranges(std::forward<ExecutionPolicy>(exec), data_b, data_e, actual_b);
         bool check_return = (actual_return == actual_e);
         EXPECT_TRUE(check_return, "wrong result of swap_ranges");
         if (check_return)
