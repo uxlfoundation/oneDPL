@@ -153,23 +153,25 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res_keys, host_res);
 
+        sycl::queue queue = exec.queue();
+
         std::pair<Iterator3, Iterator4> res;
         if constexpr (std::is_same_v<std::equal_to<KeyT>, std::decay_t<BinaryPredicate>> &&
                       std::is_same_v<std::plus<ValT>, std::decay_t<BinaryOperation>>)
         {
-            res = oneapi::dpl::reduce_by_segment(exec, keys_first, keys_last, vals_first, key_res_first, val_res_first);
+            res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), keys_first, keys_last, vals_first, key_res_first, val_res_first);
         }
         else if constexpr (std::is_same_v<std::plus<ValT>, std::decay_t<BinaryOperation>>)
         {
-            res = oneapi::dpl::reduce_by_segment(exec, keys_first, keys_last, vals_first, key_res_first, val_res_first,
+            res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), keys_first, keys_last, vals_first, key_res_first, val_res_first,
                                                  BinaryPredicate());
         }
         else
         {
-            res = oneapi::dpl::reduce_by_segment(exec, keys_first, keys_last, vals_first, key_res_first, val_res_first,
+            res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), keys_first, keys_last, vals_first, key_res_first, val_res_first,
                                                  BinaryPredicate(), BinaryOperation());
         }
-        exec.queue().wait_and_throw();
+        queue.wait_and_throw();
 
         retrieve_data(host_keys, host_vals, host_res_keys, host_res);
         size_t segments_key_ret = ::std::distance(key_res_first, res.first);

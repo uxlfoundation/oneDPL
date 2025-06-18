@@ -60,7 +60,7 @@ struct test_shift
     operator()(Policy&& exec, It first, typename ::std::iterator_traits<It>::difference_type m,
         It first_exp, typename ::std::iterator_traits<It>::difference_type n, Algo algo)
     {
-        //run a test with host policy and host itertors
+        //run a test with host policy and host iterators
         It res = algo(::std::forward<Policy>(exec), first, ::std::next(first, m), n);
         //check result
         algo.check(res, first, m, first_exp, n);
@@ -101,12 +101,12 @@ struct test_shift
         using _ValueType = typename std::iterator_traits<It>::value_type;
         using _DiffType = typename std::iterator_traits<It>::difference_type;
         auto buffer_policy = TestUtils::make_device_policy<BufferKernelName<_ValueType, Algo>>(exec);
-        //1.1 run a test with hetero policy and host itertors
+        //1.1 run a test with hetero policy and host iterators
         auto res = algo(buffer_policy, first, first + m, n);
         //1.2 check result
         algo.check(res, first, m, first_exp, n);
 
-        //2.1 run a test with hetero policy and hetero itertors
+        //2.1 run a test with hetero policy and hetero iterators
         _DiffType res_idx(0);
         {//scope for SYCL buffer lifetime
             sycl::buffer<_ValueType> buf(first, first + m);

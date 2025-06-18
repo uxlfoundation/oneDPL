@@ -54,7 +54,7 @@ struct test_generate
     {
         using namespace std;
         Generator_count<T> g;
-        generate(exec, first, last, g);
+        generate(std::forward<Policy>(exec), first, last, g);
         EXPECT_TRUE(::std::count(first, last, g.default_value()) == n, "generate wrong result for generate");
         ::std::fill(first, last, T(0));
     }
@@ -71,7 +71,7 @@ struct test_generate_n
 
         Generator_count<T> g;
         const auto m = n / 2;
-        auto gen_last = generate_n(exec, first, m, g);
+        auto gen_last = generate_n(std::forward<Policy>(exec), first, m, g);
         EXPECT_TRUE(::std::count(first, gen_last, g.default_value()) == m && gen_last == ::std::next(first, m),
                     "generate_n wrong result for generate_n");
         ::std::fill(first, gen_last, T(0));
@@ -114,7 +114,7 @@ struct test_non_const_generate
     operator()(Policy&& exec, Iterator iter)
     {
         auto gen = GenerateOp<T>{};
-        generate(exec, iter, iter, non_const(gen));
+        generate(std::forward<Policy>(exec), iter, iter, non_const(gen));
     }
 };
 
@@ -126,7 +126,7 @@ struct test_non_const_generate_n
     operator()(Policy&& exec, Iterator iter)
     {
         auto gen = GenerateOp<T>{};
-        generate_n(exec, iter, 0, non_const(gen));
+        generate_n(std::forward<Policy>(exec), iter, 0, non_const(gen));
     }
 };
 

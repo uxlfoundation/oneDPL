@@ -40,7 +40,7 @@ struct test_none_of
     void
     operator()(ExecutionPolicy&& exec, Iterator begin, Iterator end, Predicate pred, bool expected)
     {
-        auto actualr = ::std::none_of(exec, begin, end, pred);
+        auto actualr = std::none_of(std::forward<ExecutionPolicy>(exec), begin, end, pred);
         EXPECT_EQ(expected, actualr, "result for none_of");
     }
 };
@@ -84,7 +84,7 @@ struct test_non_const
     operator()(Policy&& exec, Iterator iter)
     {
         TestUtils::IsEven<float64_t> is_even;
-        none_of(exec, iter, iter, non_const(is_even));
+        none_of(std::forward<Policy>(exec), iter, iter, non_const(is_even));
     }
 };
 

@@ -75,7 +75,7 @@ struct test_brick_partial_sort
 #if !TEST_DPCPP_BACKEND_PRESENT && PSTL_USE_DEBUG
             count_comp = 0;
 #endif
-            ::std::partial_sort(exec, tmp_first, m1, tmp_last, compare);
+            std::partial_sort(std::forward<Policy>(exec), tmp_first, m1, tmp_last, compare);
             EXPECT_EQ_N(exp_first, tmp_first, m, "wrong effect from partial_sort with predicate");
 
 #if !TEST_DPCPP_BACKEND_PRESENT && PSTL_USE_DEBUG
@@ -120,7 +120,7 @@ struct test_brick_partial_sort
             auto m2 = exp_first + p;
 
             ::std::partial_sort(exp_first, m2, exp_last);
-            ::std::partial_sort(exec, tmp_first, m1, tmp_last);
+            std::partial_sort(std::forward<Policy>(exec), tmp_first, m1, tmp_last);
             EXPECT_EQ_N(exp_first, tmp_first, p, "wrong effect from partial_sort without predicate");
         }
     }
@@ -162,7 +162,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        partial_sort(exec, iter, iter, iter, non_const(::std::less<T>()));
+        partial_sort(std::forward<Policy>(exec), iter, iter, iter, non_const(std::less<T>()));
     }
 };
 

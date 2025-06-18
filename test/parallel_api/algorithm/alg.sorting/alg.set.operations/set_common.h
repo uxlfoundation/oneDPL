@@ -86,7 +86,7 @@ struct test_set_union
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_union(first1, last1, first2, last2, expect.begin(), comp);
-        auto res = ::std::set_union(exec, first1, last1, first2, last2, out.begin(), comp);
+        auto res = std::set_union(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin(), comp);
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_union");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_union effect");
@@ -100,7 +100,7 @@ struct test_set_union
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_union(first1, last1, first2, last2, expect.begin());
-        auto res = ::std::set_union(exec, first1, last1, first2, last2, out.begin());
+        auto res = std::set_union(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin());
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_union without comparator");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_union effect without comparator");
@@ -190,7 +190,7 @@ struct test_set_intersection
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_intersection(first1, last1, first2, last2, expect.begin());
-        auto res = ::std::set_intersection(exec, first1, last1, first2, last2, out.begin());
+        auto res = std::set_intersection(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin());
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_intersection without comparator");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_intersection effect without comparator");
@@ -221,7 +221,7 @@ struct test_set_difference
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_difference(first1, last1, first2, last2, expect.begin(), comp);
-        auto res = ::std::set_difference(exec, first1, last1, first2, last2, out.begin(), comp);
+        auto res = std::set_difference(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin(), comp);
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_difference");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_difference effect");
@@ -235,7 +235,7 @@ struct test_set_difference
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_difference(first1, last1, first2, last2, expect.begin());
-        auto res = ::std::set_difference(exec, first1, last1, first2, last2, out.begin());
+        auto res = std::set_difference(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin());
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(),
                     "wrong result for set_difference without comparator");
@@ -268,7 +268,7 @@ struct test_set_symmetric_difference
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_symmetric_difference(first1, last1, first2, last2, expect.begin(), comp);
-        auto res = ::std::set_symmetric_difference(exec, first1, last1, first2, last2, out.begin(), comp);
+        auto res = std::set_symmetric_difference(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin(), comp);
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_symmetric_difference");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res),
@@ -283,7 +283,7 @@ struct test_set_symmetric_difference
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_symmetric_difference(first1, last1, first2, last2, expect.begin());
-        auto res = ::std::set_symmetric_difference(exec, first1, last1, first2, last2, out.begin());
+        auto res = std::set_symmetric_difference(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin());
 
         EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(),
                     "wrong result for set_symmetric_difference without comparator");

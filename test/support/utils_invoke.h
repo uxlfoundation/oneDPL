@@ -17,6 +17,7 @@
 #define _UTILS_INVOKE_H
 
 #include <type_traits>
+#include <mutex>            // for std::once_flag
 
 #include "iterator_utils.h"
 
@@ -118,6 +119,10 @@ make_new_policy(sycl::queue _queue)
 #endif
 }
 
+template <typename OutputStream>
+inline void
+log_device_name(OutputStream& os, const sycl::queue& queue);
+
 template <int call_id = 0, typename PolicyName = class TestPolicyName>
 auto
 get_dpcpp_test_policy()
@@ -135,7 +140,30 @@ get_dpcpp_test_policy()
         get_test_queue();
 #    endif // TEST_USE_PREDEFINED_POLICIES
 
-    return TestUtils::make_new_policy<_NewKernelName>(__arg);
+    try
+    {
+        auto policy = TestUtils::make_new_policy<_NewKernelName>(__arg);
+
+#    if _ONEDPL_DEBUG_SYCL
+
+        static std::once_flag device_name_in_get_dpcpp_test_policy_logged;
+
+        std::call_once(device_name_in_get_dpcpp_test_policy_logged, [&]() {
+            TestUtils::log_device_name(std::cout, policy.queue());
+        });
+#    endif // _ONEDPL_DEBUG_SYCL
+
+        return policy;
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Exception occurred in get_dpcpp_test_policy()";
+        if (exc.what())
+            std::cerr << ": " << exc.what();
+        std::cerr << std::endl;
+
+        throw;
+    }
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT

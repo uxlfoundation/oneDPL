@@ -58,7 +58,7 @@ main()
     ::std::exclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected2, 100, ::std::plus<int>());
 
     EXPECT_EQ_N(expected1, data1, max_n, "wrong effect from exclusive_scan with init, sycl ranges");
-    EXPECT_EQ_N(expected2, data2, max_n, "wrong effect from exclusive_scan with init andbinary operation, sycl ranges");
+    EXPECT_EQ_N(expected2, data2, max_n, "wrong effect from exclusive_scan with init and binary operation, sycl ranges");
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

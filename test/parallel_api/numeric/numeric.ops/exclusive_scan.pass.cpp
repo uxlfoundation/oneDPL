@@ -79,9 +79,6 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
     sycl::queue q = TestUtils::get_test_queue();
-#if _ONEDPL_DEBUG_SYCL
-    std::cout << "    Device Name = " << q.get_device().get_info<sycl::info::device::name>().c_str() << "\n";
-#endif // _ONEDPL_DEBUG_SYCL
 
     // Run tests for USM shared memory
     test_with_usm<sycl::usm::alloc::shared>(q);
