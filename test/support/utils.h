@@ -165,9 +165,6 @@ template <typename TStream, typename Tag, typename TValue>
 
     if constexpr (IsOutputStreamable<TValue, decltype(os)>::value)
     {
-        if constexpr (std::is_pointer_v<TValue>)
-            os << "0x";
-
         os << value;
     }
     else
