@@ -38,7 +38,7 @@ struct test_is_sorted
 
         //try random-access iterator
         bool exam = is_sorted(first, last);
-        bool res = is_sorted(exec, first, last);
+        bool res = is_sorted(std::forward<Policy>(exec), first, last);
         EXPECT_TRUE(exam == res, "is_sorted wrong result for random-access iterator");
     }
 };
@@ -55,7 +55,7 @@ struct test_is_sorted_predicate
 
         //try random-access iterator with a predicate
         bool exam = is_sorted(first, last, ::std::less<T>());
-        bool res = is_sorted(exec, first, last, ::std::less<T>());
+        bool res = is_sorted(std::forward<Policy>(exec), first, last, std::less<T>());
         EXPECT_TRUE(exam == res, "is_sorted wrong result for random-access iterator");
     }
 };
@@ -71,7 +71,7 @@ struct test_is_sorted_until
 
         //try random-access iterator
         auto iexam = is_sorted_until(first, last);
-        auto ires = is_sorted_until(exec, first, last);
+        auto ires = is_sorted_until(std::forward<Policy>(exec), first, last);
         EXPECT_TRUE(iexam == ires, "is_sorted_until wrong result for random-access iterator");
     }
 };
@@ -88,7 +88,7 @@ struct test_is_sorted_until_predicate
 
         //try random-access iterator with a predicate
         auto iexam = is_sorted_until(first, last, ::std::less<T>());
-        auto ires = is_sorted_until(exec, first, last, ::std::less<T>());
+        auto ires = is_sorted_until(std::forward<Policy>(exec), first, last, std::less<T>());
         EXPECT_TRUE(iexam == ires, "is_sorted_until with predicate wrong result for random-access iterator");
     }
 };
@@ -207,7 +207,7 @@ struct test_non_const_is_sorted
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        is_sorted(exec, iter, iter, ::std::less<T>());
+        is_sorted(std::forward<Policy>(exec), iter, iter, std::less<T>());
     }
 };
 
@@ -218,7 +218,7 @@ struct test_non_const_is_sorted_until
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        is_sorted_until(exec, iter, iter, ::std::less<T>());
+        is_sorted_until(std::forward<Policy>(exec), iter, iter, std::less<T>());
     }
 };
 

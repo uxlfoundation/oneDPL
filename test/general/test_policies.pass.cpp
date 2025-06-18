@@ -26,20 +26,22 @@
 #if TEST_DPCPP_BACKEND_PRESENT
 
 template<typename Policy>
-void test_policy_instance(const Policy& policy)
+void test_policy_instance(Policy&& policy)
 {
-    auto __max_work_group_size = policy.queue().get_device().template get_info<sycl::info::device::max_work_group_size>();
+    sycl::queue queue = policy.queue();
+
+    auto __max_work_group_size = queue.get_device().template get_info<sycl::info::device::max_work_group_size>();
     EXPECT_TRUE(__max_work_group_size > 0, "policy: wrong work group size");
-    auto __max_compute_units = policy.queue().get_device().template get_info<sycl::info::device::max_compute_units>();
+    auto __max_compute_units = queue.get_device().template get_info<sycl::info::device::max_compute_units>();
     EXPECT_TRUE(__max_compute_units > 0, "policy: wrong number of compute units");
 
     const int n = 10;
     static ::std::vector<int> a(n);
 
     ::std::fill(a.begin(), a.end(), 0);
-    ::std::fill(policy, a.begin(), a.end(), -1);
+    std::fill(std::forward<Policy>(policy), a.begin(), a.end(), -1);
 #if _PSTL_SYCL_TEST_USM
-    policy.queue().wait_and_throw();
+    queue.wait_and_throw();
 #endif
     EXPECT_TRUE(::std::all_of(a.begin(), a.end(), [](int i) { return i == -1; }), "wrong result of ::std::fill with policy");
 }

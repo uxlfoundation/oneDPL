@@ -31,7 +31,7 @@ struct test_find_first_of
     {
         using namespace std;
         Iterator1 expected = find_first_of(b, e, bsub, esub);
-        Iterator1 actual = find_first_of(exec, b, e, bsub, esub);
+        Iterator1 actual = find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub);
         EXPECT_TRUE(actual == expected, "wrong return result from find_first_of");
     }
 };
@@ -45,7 +45,7 @@ struct test_find_first_of_predicate
     {
         using namespace std;
         Iterator1 expected = find_first_of(b, e, bsub, esub, pred);
-        Iterator1 actual = find_first_of(exec, b, e, bsub, esub, pred);
+        Iterator1 actual = find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub, pred);
         EXPECT_TRUE(actual == expected, "wrong return result from find_first_of with a predicate");
     }
 };
@@ -108,7 +108,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, FirstIterator first_iter, SecondInterator second_iter)
     {
-        find_first_of(exec, first_iter, first_iter, second_iter, second_iter, non_const(::std::equal_to<T>()));
+        find_first_of(std::forward<Policy>(exec), first_iter, first_iter, second_iter, second_iter, non_const(std::equal_to<T>()));
     }
 };
 

@@ -42,7 +42,7 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
             //counting_iterator
             wrap_recurse<__recurse, 0, /*__read =*/true, /*__reset_read=*/false, /*__write=*/false,
                          /*__check_write=*/false, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/true,
-                         /*__is_reversible=*/true>(policy, my_counting, my_counting + n, counting, copy_out.get_data(),
+                         /*__is_reversible=*/true>(std::forward<Policy>(policy), my_counting, my_counting + n, counting, copy_out.get_data(),
                                                    my_counting, copy_out.get_data(), counting, trash,
                                                    std::string("counting_iterator<") + type_text + std::string(">"));
         }

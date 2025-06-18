@@ -41,7 +41,7 @@ test(Policy&& policy, T trash, size_t n, const std::string& type_text)
             TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> shared_data(policy.queue(), n);
             auto usm_shared = shared_data.get_data();
             //test all modes / wrappers
-            wrap_recurse<__recurse, 0>(policy, usm_shared, usm_shared + n, counting, copy_out.get_data(), usm_shared,
+            wrap_recurse<__recurse, 0>(std::forward<Policy>(policy), usm_shared, usm_shared + n, counting, copy_out.get_data(), usm_shared,
                                     copy_out.get_data(), counting, trash,
                                     std::string("usm_shared<") + type_text + std::string(">"));
         }
