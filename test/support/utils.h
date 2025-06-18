@@ -89,13 +89,20 @@ issue_error_message(::std::stringstream& outstr)
     ::std::exit(EXIT_FAILURE);
 }
 
+template <typename TStream>
+inline void
+log_file_lineno_msg(TStream& os, const char* file, std::int32_t line, const char* message)
+{
+    os << "error at " << file << ":" << line << " - " << message;
+}
+
 inline void
 expect(bool expected, bool condition, const char* file, std::int32_t line, const char* message)
 {
     if (condition != expected)
     {
-        ::std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message;
+        std::stringstream outstr;
+        log_file_lineno_msg(outstr, file, line, message);
         issue_error_message(outstr);
     }
 }
@@ -178,7 +185,7 @@ expect_equal_val(const T1& expected, const T2& actual, const char* file, std::in
     if (!is_equal_val(expected, actual))
     {
         std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message;
+        log_file_lineno_msg(outstr, file, line, message);
         log_value(outstr, TagExpected{}, expected, true);
         log_value(outstr, TagActual{}, actual, true);
 
@@ -194,9 +201,9 @@ expect_equal(const R1& expected, const R2& actual, const char* file, std::int32_
     size_t m = actual.size();
     if (n != m)
     {
-        ::std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message << ", expected sequence of size " << n
-               << " got sequence of size " << m;
+        std::stringstream outstr;
+        log_file_lineno_msg(outstr, file, line, message);
+        outstr << ", expected sequence of size " << n << " got sequence of size " << m;
         issue_error_message(outstr);
         return;
     }
@@ -206,7 +213,8 @@ expect_equal(const R1& expected, const R2& actual, const char* file, std::int32_
         if (!is_equal_val(expected[k], actual[k]))
         {
             std::stringstream outstr;
-            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k;
+            log_file_lineno_msg(outstr, file, line, message);
+            outstr << ", at index " << k;
             log_value(outstr, TagExpected{}, expected[k], false);
             log_value(outstr, TagActual{}, actual[k], false);
 
@@ -233,8 +241,9 @@ expect_equal(Iterator1 expected_first, Iterator2 actual_first, Size n, const cha
     {
         if (!is_equal_val(*expected_first, *actual_first))
         {
-            ::std::stringstream outstr;
-            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k;
+            std::stringstream outstr;
+            log_file_lineno_msg(outstr, file, line, message);
+            outstr << ", at index " << k;
             log_value(outstr, TagExpected{}, *expected_first, false);
             log_value(outstr, TagActual{}, *actual_first, false);
 
