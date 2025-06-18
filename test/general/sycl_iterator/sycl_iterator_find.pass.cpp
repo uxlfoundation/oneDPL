@@ -41,7 +41,7 @@ DEFINE_TEST(test_adjacent_find)
         Iterator expected = last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from adjacent_find (Test #1 no elements)");
+        EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #1 no elements)");
 
         // check with the last adjacent element
         ::std::size_t max_dis = n;
@@ -54,7 +54,7 @@ DEFINE_TEST(test_adjacent_find)
         expected = max_dis > 1 ? last - 2 : last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from adjacent_find (Test #2 the last element)");
+        EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #2 the last element)");
 
         // check with an adjacent element
         max_dis = n;
@@ -69,13 +69,13 @@ DEFINE_TEST(test_adjacent_find)
         expected = max_dis > 1 ? it - 1 : last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from adjacent_find (Test #3 middle element)");
+        EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #3 middle element)");
 
         // check with an adjacent element (no predicate)
         result = ::std::adjacent_find(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last);
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from adjacent_find (Test #4 middle element (no predicate))");
+        EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #4 middle element (no predicate))");
 
         // check with the first adjacent element
         max_dis = n;
@@ -88,7 +88,7 @@ DEFINE_TEST(test_adjacent_find)
         expected = max_dis > 1 ? first : last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from adjacent_find (Test #5 the first element)");
+        EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #5 the first element)");
     }
 };
 
@@ -116,7 +116,7 @@ DEFINE_TEST(test_is_sorted_until)
         Iterator expected = last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from is_sorted_until (Test #1 sorted sequence)");
+        EXPECT_EQ(expected, result, "wrong effect from is_sorted_until (Test #1 sorted sequence)");
 
         // check unsorted: the last element
         ::std::size_t max_dis = n;
@@ -129,7 +129,7 @@ DEFINE_TEST(test_is_sorted_until)
         expected = max_dis > 1 ? last - 1 : last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from is_sorted_until (Test #2 unsorted sequence - the last element)");
+        EXPECT_EQ(expected, result, "wrong effect from is_sorted_until (Test #2 unsorted sequence - the last element)");
 
         // check unsorted: the middle element
         max_dis = n;
@@ -144,13 +144,13 @@ DEFINE_TEST(test_is_sorted_until)
         expected = it;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from is_sorted_until (Test #3 unsorted sequence - the middle element)");
+        EXPECT_EQ(expected, result, "wrong effect from is_sorted_until (Test #3 unsorted sequence - the middle element)");
 
         // check unsorted: the middle element (no predicate)
         result = ::std::is_sorted_until(make_new_policy<new_kernel_name<Policy, 3>>(exec), first, last);
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected,  "wrong effect from is_sorted_until (Test #4 unsorted sequence - the middle element (no predicate))");
+        EXPECT_EQ(expected, result,  "wrong effect from is_sorted_until (Test #4 unsorted sequence - the middle element (no predicate))");
 
         // check unsorted: the first element
         if (n > 1)
@@ -162,7 +162,7 @@ DEFINE_TEST(test_is_sorted_until)
         expected = n > 1 ? first + 1 : last;
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from is_sorted_until (Test #5 unsorted sequence - the first element)");
+        EXPECT_EQ(expected, result, "wrong effect from is_sorted_until (Test #5 unsorted sequence - the first element)");
     }
 };
 
