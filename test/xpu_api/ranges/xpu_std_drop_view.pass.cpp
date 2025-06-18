@@ -22,6 +22,8 @@
 #include "xpu_std_ranges_test.h"
 #endif //_ENABLE_STD_RANGES_TESTING
 
+class std_drop_test;
+
 int
 main()
 {
@@ -31,7 +33,7 @@ main()
         return res.size() == 2 && res[0] == 2 && res[1] == 3 && *res.begin() == 2
                && res.end() - res.begin() == 2;
     };
-    const bool res = kernel_test<class std_drop_test>(test);
+    const bool res = kernel_test<std_drop_test>(test);
     EXPECT_TRUE(res, "Wrong result of drop_view check within a kernel");
 #endif //_ENABLE_STD_RANGES_TESTING
 

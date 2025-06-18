@@ -22,6 +22,8 @@
 #include "xpu_std_ranges_test.h"
 #endif //_ENABLE_STD_RANGES_TESTING
 
+class std_single_test;
+
 int
 main()
 {
@@ -30,7 +32,7 @@ main()
         auto res = std::ranges::views::single(1);
         return res.size() == 1 && res[0] == 1 && *res.begin() == 1 && res.end() - res.begin() == 1 && *res.data() == 1;
     };
-    const bool res = kernel_test<class std_single_test>(test);
+    const bool res = kernel_test<std_single_test>(test);
     EXPECT_TRUE(res, "Wrong result of single_view check within a kernel");
 #endif //_ENABLE_STD_RANGES_TESTING
 

@@ -22,6 +22,8 @@
 #include "xpu_std_ranges_test.h"
 #endif //_ENABLE_STD_RANGES_TESTING
 
+class std_all_test;
+
 int
 main()
 {
@@ -31,7 +33,7 @@ main()
         return res.size() == 4 && res[0] == 0 && res[1] == 1 && res[2] == 2 && res[3] == 3 &&
                *(res.begin() + 2) == res[2] && res.end() - res.begin() == 4;
     };
-    const bool res = kernel_test<class std_all_test>(test);
+    const bool res = kernel_test<std_all_test>(test);
     EXPECT_TRUE(res, "Wrong result of all_view check within a kernel");
 #endif //_ENABLE_STD_RANGES_TESTING
 
