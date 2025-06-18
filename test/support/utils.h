@@ -131,12 +131,12 @@ is_equal_val(const T1& val1, const T2& val2)
 }
 
 template <typename T, typename TOutputStream, typename = void>
-struct IsSupportStreamOutput : std::false_type
+struct IsOutputStreamable : std::false_type
 {
 };
 
 template <typename T, typename TOutputStream>
-struct IsSupportStreamOutput<T, TOutputStream,
+struct IsOutputStreamable<T, TOutputStream,
                              std::void_t<decltype(std::declval<TOutputStream>() << std::declval<T>())>> : std::true_type
 {
 };
@@ -163,7 +163,7 @@ template <typename TStream, typename Tag, typename TValue>
         os << ",";
     os << log_value_title(Tag{});
 
-    if constexpr (IsSupportStreamOutput<TValue, decltype(os)>::value)
+    if constexpr (IsOutputStreamable<TValue, decltype(os)>::value)
     {
         if constexpr (std::is_pointer_v<TValue>)
             os << "0x";
