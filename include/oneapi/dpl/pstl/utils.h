@@ -17,7 +17,7 @@
 #define _ONEDPL_UTILS_H
 
 #include "onedpl_config.h"
-#include "tuple_impl.h" // Internal tuple and get specializations need by __segmented_scan_fun
+#include "tuple_impl.h" // Internal tuple and get specializations needed by __segmented_scan_fun
 
 #include <new>
 #include <tuple>
