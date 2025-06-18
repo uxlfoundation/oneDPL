@@ -38,6 +38,9 @@
 struct StableSortTag{};
 struct UnstableSortTag{};
 
+class TagUSM;
+class TagBuffer;
+
 struct Particle
 {
     float mass = 0;
@@ -205,7 +208,7 @@ test_with_usm(sycl::queue& q, Size n, StabilityTag stability_tag, Compare... com
     TestUtils::usm_data_transfer<alloc_type, ValT> vals_device(q, vals.begin(), vals.end());
 
     // calling sort
-    auto policy = TestUtils::make_device_policy<TestUtils::unique_kernel_name<class USM, KernelNameID>>(q);
+    auto policy = TestUtils::make_device_policy<TestUtils::unique_kernel_name<TagUSM, KernelNameID>>(q);
     call_sort(policy, keys_device.get_data(), vals_device.get_data(), keys_n, stability_tag, compare...);
 
     // checking results
@@ -228,7 +231,7 @@ test_with_buffers(sycl::queue& q, Size n, StabilityTag stability_tag, Compare...
     {
         sycl::buffer<KeyT> keys_device(keys.data(), n);
         sycl::buffer<ValT> vals_device(vals.data(), n);
-        auto policy = TestUtils::make_device_policy<TestUtils::unique_kernel_name<class Buffer, KernelNameID>>(q);
+        auto policy = TestUtils::make_device_policy<TestUtils::unique_kernel_name<TagBuffer, KernelNameID>>(q);
         call_sort(policy, oneapi::dpl::begin(keys_device), oneapi::dpl::begin(vals_device), n, stability_tag, compare...);
     }
    // sort_by_key with device policy guarantees stability, hence StableSortTag{} is passed
