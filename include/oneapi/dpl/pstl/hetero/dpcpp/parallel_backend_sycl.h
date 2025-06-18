@@ -2146,7 +2146,7 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
     {
         oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<_FlagType, _ValueType>>
             __wrapped_init;
-        using _WriteOp = __write_scan_by_seg<decltype(__wrapped_init), _BinaryOperator>;
+        using _WriteOp = __write_scan_by_seg<__is_inclusive, decltype(__wrapped_init), _BinaryOperator>;
         return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<_FlagType, _ValueType>),
                                                      _CustomName>(
             __q, __n,
@@ -2161,7 +2161,7 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
         // This is because init handling must occur on a per-segment basis and functions differently than the typical scan init.
         oneapi::dpl::unseq_backend::__init_value<oneapi::dpl::__internal::tuple<_FlagType, _ValueType>> __wrapped_init{
             {0, __init.__value}};
-        using _WriteOp = __write_scan_by_seg<decltype(__wrapped_init), _BinaryOperator>;
+        using _WriteOp = __write_scan_by_seg<__is_inclusive, decltype(__wrapped_init), _BinaryOperator>;
         return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<_FlagType, _ValueType>),
                                                      _CustomName>(
             __q, __n,
