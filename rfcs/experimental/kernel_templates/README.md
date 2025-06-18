@@ -275,13 +275,13 @@ The `kernel_param` targets a single kernel, and currently, only one instance can
 ## Exit Criteria
 
 The proposed set of algorithms should transition to an extension if:
-- All the [Open Questions](#open-questions) are addressed.
-  Note that in the future, some questions may arise
-  addressing which is unnecessary for the transition.
+- All the questions under [Kernel Templates](#open-questions) and
+  [Kernel Configuration](kernel_configuration/README.md#open-questions) sections are addressed,
+  unless a question is marked as not mandatory.
 - A significant portion of the algorithms listed in
   [Algorithms to Implement](#algorithms-to-implement) is implemented.
 - They are performant.
-- There is a positive adoption feedback.
+- There is positive adoption feedback.
 
 Some individual algorithms may remain experimental
 and have their own exit criteria.
