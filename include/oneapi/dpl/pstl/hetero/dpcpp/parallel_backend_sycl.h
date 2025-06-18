@@ -2123,8 +2123,6 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
                                     /*has_known_identity*/ std::false_type)
 {
     using _FlagType = unsigned int;
-    using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
-    using _OutputType = oneapi::dpl::__internal::__value_t<_Range3>;
 
     const auto __n = __keys.size();
 
@@ -2172,6 +2170,7 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
     }
     else
     {
+        using _OutputType = oneapi::dpl::__internal::__value_t<_Range3>;
         // shift input one to the right and initialize segments with init
         oneapi::dpl::__par_backend_hetero::__buffer<_OutputType> __temp(__n);
         {
