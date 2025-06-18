@@ -211,15 +211,11 @@ struct __write_red_by_seg
     std::size_t __n;
 };
 
-template <typename _InitWrapper, typename _BinaryOp>
-struct __write_scan_by_seg;
-
-// Inclusive scan by segment
-template <typename _InitType, typename _BinaryOp>
-struct __write_scan_by_seg<unseq_backend::__no_init_value<_InitType>, _BinaryOp>
+template <bool __is_inclusive, typename _InitType, typename _BinaryOp>
+struct __write_scan_by_seg
 {
     using _TempData = __noop_temp_data;
-    unseq_backend::__no_init_value<_InitType> __init_value;
+    _InitType __init_value;
     _BinaryOp __binary_op;
     template <typename _OutRng, typename _ValueType>
     void
@@ -232,34 +228,25 @@ struct __write_scan_by_seg<unseq_backend::__no_init_value<_InitType>, _BinaryOp>
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(get<0>(__v)))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
-        __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
-    }
-};
-
-// Exclusive scan by segment
-template <typename _InitType, typename _BinaryOp>
-struct __write_scan_by_seg<unseq_backend::__init_value<_InitType>, _BinaryOp>
-{
-    using _TempData = __noop_temp_data;
-    unseq_backend::__init_value<_InitType> __init_value;
-    _BinaryOp __binary_op;
-    template <typename _OutRng, typename _ValueType>
-    void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
-    {
-        using std::get;
-        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
-        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
-        // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(get<0>(__v)))>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
-        if (get<1>(__v))
-            __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(__init_value.__value));
+        if constexpr (__is_inclusive)
+        {
+            static_assert(std::is_same_v<_InitType,
+                                         oneapi::dpl::unseq_backend::__no_init_value<typename _InitType::__value_type>>,
+                          "inclusive_scan_by_segment must not have an initial element");
+            __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
+        }
         else
         {
-            __out_rng[__id] =
-                static_cast<_ConvertedTupleType>(__binary_op(get<1>(__init_value.__value), get<1>(get<0>(__v))));
+            static_assert(
+                std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__init_value<typename _InitType::__value_type>>,
+                "exclusive_scan_by_segment must have an initial element");
+            if (get<1>(__v))
+                __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(__init_value.__value));
+            else
+            {
+                __out_rng[__id] =
+                    static_cast<_ConvertedTupleType>(__binary_op(get<1>(__init_value.__value), get<1>(get<0>(__v))));
+            }
         }
     }
 };

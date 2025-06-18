@@ -468,7 +468,7 @@ struct __write_to_id_if_else;
 template <typename _BinaryPred>
 struct __write_red_by_seg;
 
-template <typename _InitWrapper, typename _BinaryOp>
+template <bool __is_inclusive, typename _InitWrapper, typename _BinaryOp>
 struct __write_scan_by_seg;
 
 template <typename _Assign>
@@ -576,9 +576,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _InitWrapper, typename _BinaryOp>
+template <bool __is_inclusive, typename _InitWrapper, typename _BinaryOp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_scan_by_seg,
-                                                       _InitWrapper, _BinaryOp)>
+                                                       __is_inclusive, _InitWrapper, _BinaryOp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_InitWrapper, _BinaryOp>
 {
 };
