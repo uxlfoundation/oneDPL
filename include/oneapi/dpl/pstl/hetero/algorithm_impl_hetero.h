@@ -2202,7 +2202,6 @@ __pattern_scan_by_segment(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputI
     auto __keep_value_outputs =
         oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write, _OutputIterator>();
     auto __value_output_buf = __keep_value_outputs(__result, __result + __n);
-    using _IterValueType = typename std::iterator_traits<_InputIterator2>::value_type;
 
     __bknd::__parallel_scan_by_segment<_Inclusive::value>(
         _BackendTag{}, std::forward<_Policy>(__policy), __key_buf.all_view(), __value_buf.all_view(),
