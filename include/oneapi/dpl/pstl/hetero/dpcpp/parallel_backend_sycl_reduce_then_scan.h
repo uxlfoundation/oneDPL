@@ -846,7 +846,7 @@ struct __gen_scan_by_seg_scan_input
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         // Mark the first index as a new segment as well as an indexing corresponding to any key
         // that does not satisfy the binary predicate with the previous key. The first tuple mask element
-        // is scanned over, and the third is a placeholder for exclusive_scan_by_segment to perfom init
+        // is scanned over, and the third is a placeholder for exclusive_scan_by_segment to perform init
         // handling in the output write.
         const std::uint32_t __new_seg_mask = __id == 0 || !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
         return oneapi::dpl::__internal::make_tuple(
