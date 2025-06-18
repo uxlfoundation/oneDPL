@@ -272,6 +272,11 @@ making default values less relevant.
 It needs to be explored how to configure algorithms with multiple performance-critical kernels.
 The `kernel_param` targets a single kernel, and currently, only one instance can be passed.
 
+### Compiler Extension and Differentiation of Algorithms
+
+Currently, it is unclear if we should defferentiate algorithms
+which rely compiler extensions.
+
 ## Exit Criteria
 
 The proposed set of algorithms should transition to an extension if:

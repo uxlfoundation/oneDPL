@@ -36,8 +36,6 @@ but their optimal values depend on the number of elements to process, which is k
 It should be investigated whether these parameters can be made run-time configurable
 without compromising efficiency.
 
-.. `SYCL 2020 Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec:naming.kernels
-
 ### Sub-group Size as a Parameter
 
 Choosing an appropriate sub-group size is important for performance,
