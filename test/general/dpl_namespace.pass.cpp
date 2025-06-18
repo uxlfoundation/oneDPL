@@ -23,6 +23,10 @@
 #include <iostream>
 #include <tuple>
 
+class ForEach;
+class Transform;
+class Scan;
+
 int main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -41,16 +45,16 @@ int main()
     auto zip_first = dpl::make_zip_iterator(counting_first, key_first);
 
     // key_buf = {0,0,...0,1,1,...,1}
-    std::for_each(TestUtils::make_device_policy<class ForEach>(dpl::execution::dpcpp_default),
+    std::for_each(TestUtils::make_device_policy<ForEach>(dpl::execution::dpcpp_default),
 		zip_first, zip_first + n,
         [](std::tuple<T, T> x){
             std::get<1>(x) = (2 * std::get<0>(x)) / n;
         });
     // val_buf = {0,1,2,...,n-1}
-    std::transform(TestUtils::make_device_policy<class Transform>(dpl::execution::dpcpp_default),
+    std::transform(TestUtils::make_device_policy<Transform>(dpl::execution::dpcpp_default),
 		counting_first, counting_first + n, val_first, dpl::identity());
     auto result = dpl::inclusive_scan_by_segment(
-		TestUtils::make_device_policy<class Scan>(dpl::execution::dpcpp_default),
+		TestUtils::make_device_policy<Scan>(dpl::execution::dpcpp_default),
 		key_first, key_first + n, val_first, res_first);
 
     if (result - res_first != k){
