@@ -157,6 +157,9 @@ struct __parallel_reduce_by_segment_fallback_fn2;
 template <typename _ValueType, typename _FlagType, typename _BinaryOp>
 struct __segmented_scan_fun;
 
+template <typename _T, typename _Predicate>
+struct __replace_if_fun;
+
 } // namespace oneapi::dpl::__internal
 
 template <typename _Pred>
@@ -378,6 +381,12 @@ template <typename _ValueType, typename _FlagType, typename _BinaryOp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__segmented_scan_fun, _ValueType,
                                                        _FlagType, _BinaryOp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOp>
+{
+};
+
+template <typename _T, typename _Predicate>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__replace_if_fun, _T, _Predicate)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_T, _Predicate>
 {
 };
 
@@ -818,9 +827,6 @@ enum class search_algorithm;
 template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick;
 
-template <typename T, typename Predicate>
-struct replace_if_fun;
-
 template <typename ValueType, typename FlagType, typename BinaryOp>
 struct scan_by_key_fun;
 
@@ -835,12 +841,6 @@ class transform_if_stencil_fun;
 template <typename Comp, typename T, oneapi::dpl::internal::search_algorithm func>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::__custom_brick, Comp, T, func)>
     : oneapi::dpl::__internal::__are_all_device_copyable<Comp, T>
-{
-};
-
-template <typename T, typename Predicate>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::replace_if_fun, T, Predicate)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<T, Predicate>
 {
 };
 
