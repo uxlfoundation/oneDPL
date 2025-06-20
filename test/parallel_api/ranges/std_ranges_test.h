@@ -73,17 +73,7 @@ auto f = [](auto&& val) { return val * val; };
 auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
 auto proj = [](auto&& val){ return val * 2; };
 auto pred = [](auto&& val) { return val == 5; };
-
-struct binary_pred_fo
-{
-    template <typename T1, typename T2>
-    bool
-    operator()(T1&& val1, T2&& val2) const
-    {
-        return val1 == val2;
-    }
-};
-auto binary_pred = binary_pred_fo{};
+auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
 auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
 
 auto pred1 = [](auto&& val) -> bool { return val > 0; };
@@ -298,14 +288,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in(max_n, r_size, r_size, CLONE_NEW_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size, exec, algo, checker, tr_in, args...);
 
         //test case the sizes of input ranges are different
-        process_data_in_in(max_n, r_size/2, r_size, CLONE_NEW_POLICY(exec), algo, checker, tr_in, args...);
-        process_data_in_in(max_n, r_size, r_size/2, CLONE_NEW_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size/2, r_size, exec, algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size/2, exec, algo, checker, tr_in, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in(max_n, 0, 0, CLONE_NEW_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -398,14 +388,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size, CLONE_NEW_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_NEW_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size/2, r_size, r_size, CLONE_NEW_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size/2, r_size, CLONE_NEW_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size/2, CLONE_NEW_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size/2, r_size, r_size, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size/2, r_size, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size/2, exec, algo, checker, args...);
 
 	    //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, CLONE_NEW_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 private:
 
