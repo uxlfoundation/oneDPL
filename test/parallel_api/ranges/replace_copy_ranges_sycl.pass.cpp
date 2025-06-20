@@ -26,10 +26,11 @@
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
     constexpr int max_n = 10;
     constexpr int old_val = -1;
     constexpr int new_val = 1;
@@ -39,12 +40,25 @@ main()
     sycl::buffer<int> A(max_n);
 
     auto src = views::fill(old_val, max_n);
-    auto res = replace_copy(TestUtils::get_dpcpp_test_policy(), src, A, old_val, new_val);
+    auto res = replace_copy(std::forward<Policy>(exec), src, A, old_val, new_val);
 
     //check result
     EXPECT_TRUE(res == max_n, "wrong result from replace_copy");
     EXPECT_EQ_RANGES(views::fill(new_val, max_n), views::host_all(A), "wrong effect from replace_copy");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
 
 #endif //_ENABLE_RANGES_TESTING
+
     return TestUtils::done(_ENABLE_RANGES_TESTING);
 }
