@@ -269,7 +269,7 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     sycl::queue __q_local = __exec.queue();
     return oneapi::dpl::__par_backend_hetero::__parallel_for_impl<_CustomName>(__q_local, __brick, __count,
-                                                                 std::forward<_Ranges>(__rngs)...);
+                                                                               std::forward<_Ranges>(__rngs)...);
 }
 
 } // namespace __par_backend_hetero
