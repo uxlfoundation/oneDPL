@@ -1245,28 +1245,37 @@ __set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
 
     //1. Calc difference {1} \ {2}
     const std::size_t __n_diff_1 = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(__q, __rng1, __rng2, __tmp_rng1.all_view(), __comp, oneapi::dpl::unseq_backend::_DifferenceTag{});
-
+    
     //2. Calc difference {2} \ {1}
     const std::size_t __n_diff_2 = oneapi::dpl::__par_backend_hetero::__set_op_impl<__set_symmetric_difference_diff_wrapper<_CustomName>>(__q, std::forward<_Range2>(__rng2), std::forward<_Range1>(__rng1), __tmp_rng2.all_view(), __comp, oneapi::dpl::unseq_backend::_DifferenceTag{});
-
+    
     auto __keep_tmp3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__buf_1)>();
     auto __keep_tmp4 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__buf_2)>();
-    auto __tmp_rng3 = __keep_tmp3(__buf_1, __buf_1 + __n_diff_1);
-    auto __tmp_rng4 = __keep_tmp4(__buf_2, __buf_2 + __n_diff_2);
-
+    
     //3. Merge the differences
-    if (__n_diff_1 == 0)
+    if (__n_diff_1 == 0 && __n_diff_2 == 0)
+    {
+        // If both differences are empty, the result is empty
+        return 0;
+    }
+    else if (__n_diff_1 == 0)
     {
         // If the first difference is empty, just copy the second range to the result
+        auto __tmp_rng4 = __keep_tmp4(__buf_2, __buf_2 + __n_diff_2);
         oneapi::dpl::__par_backend_hetero::__parallel_copy_impl<__set_symmetric_difference_copy1_wrapper<_CustomName>>(__q, __n_diff_2, __tmp_rng4.all_view(), std::forward<_Range3>(__result)).wait();
         return __n_diff_2;
     }
     else if (__n_diff_2 == 0)
     {
         // If the second difference is empty, just copy the first range to the result
+        auto __tmp_rng3 = __keep_tmp3(__buf_1, __buf_1 + __n_diff_1);
         oneapi::dpl::__par_backend_hetero::__parallel_copy_impl<__set_symmetric_difference_copy1_wrapper<_CustomName>>(__q, __n_diff_1, __tmp_rng3.all_view(), std::forward<_Range3>(__result)).wait();
         return __n_diff_1;
     }
+
+    // Otherwise, merge the sequences together
+    auto __tmp_rng4 = __keep_tmp4(__buf_2, __buf_2 + __n_diff_2);
+    auto __tmp_rng3 = __keep_tmp3(__buf_1, __buf_1 + __n_diff_1);
 
     oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<__set_symmetric_difference_merge_wrapper<_CustomName>>(__q, __tmp_rng3.all_view(), __tmp_rng4.all_view(), std::forward<_Range3>(__result), __comp).wait();
     return __n_diff_1 + __n_diff_2;
