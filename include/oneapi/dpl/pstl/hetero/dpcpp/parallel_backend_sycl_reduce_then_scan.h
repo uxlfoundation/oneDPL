@@ -393,7 +393,7 @@ struct __gen_set_mask
 
         auto __res = oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a, __comp);
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
-        
+
         //initialization is true in case of difference operation; false - intersection.
         bool bres = __is_difference;
 
