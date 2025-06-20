@@ -1978,7 +1978,6 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     __result_and_scratch_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2};
 
     // Reduce and scan step implementations
-
     using _ReduceSubmitter =
         __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v,
                                                      _GenReduceInput, _ReduceOp, _InitType, _ReduceKernel>;
