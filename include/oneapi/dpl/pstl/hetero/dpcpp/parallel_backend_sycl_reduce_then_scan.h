@@ -576,7 +576,8 @@ struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<s
 //TODO: check on types here
 template <typename _Rng, typename _IdxT>
 auto
-__decode_balanced_path_temp_data(const _Rng& __rng, _IdxT __id, std::uint16_t __diagonal_spacing) -> std::tuple<_IdxT, _IdxT, decltype(__rng.size())>
+__decode_balanced_path_temp_data(const _Rng& __rng, _IdxT __id, std::uint16_t __diagonal_spacing)
+    -> std::tuple<_IdxT, _IdxT, decltype(__rng.size())>
 {
     using SizeT = decltype(__rng.size());
     auto __tmp = __rng[__id];
@@ -600,8 +601,8 @@ struct __get_bounds_partitioned
     auto // Returns a tuple of the form (start1, end1, start2, end2)
     operator()(const _Rng& __in_rng, _IndexT __id) const
     {
-        auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
-        auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+        auto __rng1 = std::get<0>(__in_rng.tuple());         // first sequence
+        auto __rng2 = std::get<1>(__in_rng.tuple());         // second sequence
         auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
 
         using _SizeType = decltype(__rng1.size());
@@ -613,12 +614,15 @@ struct __get_bounds_partitioned
         _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
         _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
         //TODO: ensure partitioning fills in last diagonal
-        _SizeType __wg_end_idx = std::min(((static_cast<_SizeType>(__id) / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
+        _SizeType __wg_end_idx = std::min(
+            ((static_cast<_SizeType>(__id) / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
 
-        auto [begin_rng1, begin_rng2, begin_star] = __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
-        auto [end_rng1, end_rng2, end_star] = __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
+        auto [begin_rng1, begin_rng2, begin_star] =
+            __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
+        auto [end_rng1, end_rng2, end_star] =
+            __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
         (void)begin_star; // unused, but required to avoid unused variable warning
-        (void)end_star; // unused, but required to avoid unused variable warning
+        (void)end_star;   // unused, but required to avoid unused variable warning
 
         return std::make_tuple(begin_rng1, end_rng1, begin_rng2, end_rng2);
     }
@@ -657,8 +661,8 @@ struct __gen_set_balanced_path
     template <typename _Rng1, typename _Rng2, typename _Index>
     auto
     __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1,
-                                    const _Index __merge_path_rng2, const _Index __rng1_begin,
-                                    const _Index __rng2_begin, const _Index __rng2_end) const
+                                     const _Index __merge_path_rng2, const _Index __rng1_begin,
+                                     const _Index __rng2_begin, const _Index __rng2_end) const
     {
         // back up to balanced path divergence with a biased binary search
         bool __star = false;
@@ -699,8 +703,8 @@ struct __gen_set_balanced_path
         // Calculate the max location to search in the second set for future repeats, limiting to the edge of the range
         _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2_end);
 
-        _Index __balanced_path_intersection_rng2 =
-            oneapi::dpl::__internal::__pstl_upper_bound(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
+        _Index __balanced_path_intersection_rng2 = oneapi::dpl::__internal::__pstl_upper_bound(
+            __rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
 
         // Calculate the number of matchable "future" repeats in the second set
         _Index __matchable_forward_ele_rng2 = __balanced_path_intersection_rng2 - __merge_path_rng2;
@@ -712,14 +716,14 @@ struct __gen_set_balanced_path
             __rng1_repeat_start + std::max(__total_matched_rng2, __rng1_repeats - __matchable_forward_ele_rng2);
 
         // If we needed to step off the diagonal to find the balanced path, mark the diagonal as "starred"
-        __star =
-            __balanced_path_intersection_rng1 + __balanced_path_intersection_rng2 != __merge_path_rng1 + __merge_path_rng2;
+        __star = __balanced_path_intersection_rng1 + __balanced_path_intersection_rng2 !=
+                 __merge_path_rng1 + __merge_path_rng2;
 
         return std::make_tuple(__balanced_path_intersection_rng1, __balanced_path_intersection_rng2, __star);
     }
 
     template <typename _InRng, typename _IndexT, typename _BoundsProviderLocal>
-    std::tuple<_IndexT,_IndexT, bool>
+    std::tuple<_IndexT, _IndexT, bool>
     calc_and_store_balanced_path(const _InRng& __in_rng, _IndexT __id, _BoundsProviderLocal __get_bounds_local) const
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
@@ -733,21 +737,20 @@ struct __gen_set_balanced_path
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             __i_elem = __rng1.size() + __rng2.size() - 1; // ensure we do not go out of bounds
-        auto [__rng1_lower, __rng1_upper, __rng2_lower, __rng2_upper] =__get_bounds_local(__in_rng, __id);
+        auto [__rng1_lower, __rng1_upper, __rng2_lower, __rng2_upper] = __get_bounds_local(__in_rng, __id);
         //find merge path intersection
         auto [__rng1_pos, __rng2_pos] = oneapi::dpl::__par_backend_hetero::__find_start_point(
             __rng1, __rng1_lower, __rng1_upper, __rng2, __rng2_lower, __rng2_upper, __i_elem, __comp);
 
         //Find balanced path for diagonal start
-        auto [__rng1_balanced_pos, __rng2_balanced_pos, __star] =
-            __find_balanced_path_start_point(__rng1, __rng2, __rng1_pos, __rng2_pos, __rng1_lower,
-                                             __rng2_lower, __rng2_upper);
+        auto [__rng1_balanced_pos, __rng2_balanced_pos, __star] = __find_balanced_path_start_point(
+            __rng1, __rng2, __rng1_pos, __rng2_pos, __rng1_lower, __rng2_lower, __rng2_upper);
 
         // Use sign bit to represent star offset. Temp storage is a signed type equal to the difference_type of the
         // input iterator range. The index will fit into the positive portion of the type, so the sign may be used to
         // indicate the star offset.
-        __rng1_temp_diag[__id] = oneapi::dpl::__par_backend_hetero::__encode_balanced_path_temp_data(__rng1_balanced_pos,
-                                                                                                    __star);
+        __rng1_temp_diag[__id] =
+            oneapi::dpl::__par_backend_hetero::__encode_balanced_path_temp_data(__rng1_balanced_pos, __star);
 
         return std::make_tuple(__rng1_balanced_pos, __rng2_balanced_pos, __star);
     }
@@ -768,8 +771,8 @@ struct __gen_set_balanced_path
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
-        auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+        auto __rng1 = std::get<0>(__in_rng.tuple());         // first sequence
+        auto __rng2 = std::get<1>(__in_rng.tuple());         // second sequence
         auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // temp diag sequence
         using _SizeType = decltype(__rng1.size());
 
@@ -781,7 +784,8 @@ struct __gen_set_balanced_path
             return 0;
         if (__id % __get_bounds.__tile_size == 0)
         {
-            auto [__idx_rng1, __idx_rng2, __local_star] = __decode_balanced_path_temp_data(__rng_tmp_diag, __id, __diagonal_spacing);
+            auto [__idx_rng1, __idx_rng2, __local_star] =
+                __decode_balanced_path_temp_data(__rng_tmp_diag, __id, __diagonal_spacing);
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
@@ -795,7 +799,7 @@ struct __gen_set_balanced_path
         }
 
         _IndexT __eles_to_process = std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
-                                               __rng1.size() + __rng2.size() - _IndexT{__id * __diagonal_spacing - 1});
+                                             __rng1.size() + __rng2.size() - _IndexT{__id * __diagonal_spacing - 1});
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
                                                __eles_to_process, __temp_data, __comp);
@@ -829,13 +833,14 @@ struct __gen_set_op_from_known_balanced_path
         if (__i_elem >= __rng1.size() + __rng2.size())
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
         auto [__rng1_idx, __rng2_idx, __star_offset] =
-            oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id, __diagonal_spacing);
+            oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id,
+                                                                                __diagonal_spacing);
 
         _SizeType __eles_to_process =
             std::min(_SizeType{__diagonal_spacing - __star_offset}, __rng1.size() + __rng2.size() - (__i_elem - 1));
 
-        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx,
-                                               __eles_to_process, __output_data, __comp);
+        std::uint16_t __count =
+            __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data, __comp);
         return std::make_tuple(std::uint32_t{__count}, __count);
     }
     _SetOpCount __set_op_count;
@@ -862,11 +867,11 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
                 sycl::range</*dim=*/1>(__n), [=, *this](sycl::item</*dim=*/1> __item_id) {
                     auto __global_idx = __item_id.get_linear_id();
 
-                    std::size_t __id = (__global_idx * __tile_size < __num_diagonals) ? __global_idx * __tile_size : __num_diagonals - 1;
+                    std::size_t __id = (__global_idx * __tile_size < __num_diagonals) ? __global_idx * __tile_size
+                                                                                      : __num_diagonals - 1;
                     __gen_input.__calc_partition_bounds(__in_rng, __id);
                 });
         });
-
     }
     _GenInput __gen_input;
 };
@@ -1917,13 +1922,11 @@ template <std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typena
           typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
           typename _WriteOp, typename _InitType, typename _Inclusive, typename _IsUniquePattern>
 __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
-__parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n,
-                                      _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
-                                      _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
-                                      _ScanInputTransform __scan_input_transform, _WriteOp __write_op, _InitType __init,
-                                      _Inclusive, _IsUniquePattern,
-                                      std::uint32_t __work_group_size = 0,
-                                      sycl::event __prior_event = {})
+__parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
+                                      _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
+                                      _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
+                                      _WriteOp __write_op, _InitType __init, _Inclusive, _IsUniquePattern,
+                                      std::uint32_t __work_group_size = 0, sycl::event __prior_event = {})
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<_CustomName>>;
@@ -2017,10 +2020,10 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n,
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
-                                     __inputs_remaining, __b);
+                                           __inputs_remaining, __b);
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
-        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __prior_event,
-                                   __inputs_remaining, __b);
+        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
+                                         __prior_event, __inputs_remaining, __b);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
         {
@@ -2047,7 +2050,6 @@ __parallel_set_balanced_path_partition(sycl::queue& __q, _InRng&& __in_rng, std:
 
     return __partition_submitter(__q, std::forward<_InRng>(__in_rng), __num_diagonals);
 }
-
 
 } // namespace __par_backend_hetero
 } // namespace dpl
