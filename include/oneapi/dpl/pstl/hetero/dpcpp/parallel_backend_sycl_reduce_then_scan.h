@@ -537,8 +537,8 @@ struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<s
 //TODO: check on types here
 template <typename _Rng, typename _IdxT>
 auto
-__decode_balanced_path_temp_data(const _Rng& __rng, _IdxT __id, std::uint16_t __diagonal_spacing)
-    -> std::tuple<_IdxT, _IdxT, decltype(__rng.size())>
+__decode_balanced_path_temp_data(const _Rng& __rng, _IdxT __id,
+                                 std::uint16_t __diagonal_spacing) -> std::tuple<_IdxT, _IdxT, decltype(__rng.size())>
 {
     using SizeT = decltype(__rng.size());
     auto __tmp = __rng[__id];
