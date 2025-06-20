@@ -134,7 +134,8 @@ namespace TestUtils
 #if TEST_DPCPP_BACKEND_PRESENT
         try
         {
-            sycl::queue deviceQueue = TestUtils::get_test_queue();
+            auto policy = TestUtils::get_dpcpp_test_policy();
+            sycl::queue deviceQueue = policy.queue()
 
             const auto device = deviceQueue.get_device();
 

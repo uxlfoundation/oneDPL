@@ -29,12 +29,10 @@
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "support/sycl_alloc_utils.h"
 
-template <sycl::usm::alloc alloc_type, typename KernelName>
+template <typename Policy, sycl::usm::alloc alloc_type, typename KernelName>
 void
-test_with_usm()
+test_with_usm(Policy&& policy)
 {
-    sycl::queue q = TestUtils::get_test_queue();
-
     constexpr int n = 9;
 
     //data initialization
@@ -46,12 +44,12 @@ test_with_usm()
     int output_values2[n] = { };
 
     // allocate USM memory and copying data to USM shared/device memory
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper1(q, keys1, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper2(q, keys2, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper3(q, values1, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper4(q, values2, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper5(q, output_values1, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper6(q, output_values2, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper1(policy.queue(), keys1, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper2(policy.queue(), keys2, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper3(policy.queue(), values1, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper4(policy.queue(), values2, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper5(policy.queue(), output_values1, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper6(policy.queue(), output_values2, n);
     auto d_keys1          = dt_helper1.get_data();
     auto d_keys2          = dt_helper2.get_data();
     auto d_values1        = dt_helper3.get_data();
@@ -67,20 +65,14 @@ test_with_usm()
 
     //run exclusive_scan_by_segment algorithm 
     oneapi::dpl::exclusive_scan_by_segment(
-        TestUtils::make_device_policy<KernelName>(q), begin_keys_in,
-        end_keys_in, begin_vals_in, begin_vals_out, std::make_tuple(int(1), int(1)),
+        CLONE_NEW_POLICY_WITH_NAME(policy, KernelName),
+        begin_keys_in, end_keys_in,
+        begin_vals_in, begin_vals_out, std::make_tuple(int(1), int(1)),
         std::equal_to<>(), TestUtils::TupleAddFunctor1());
 
     //retrieve result on the host and check the result
     dt_helper5.retrieve_data(output_values1);
     dt_helper6.retrieve_data(output_values2);
-
-//Dump
-#if 0
-    for(int i=0; i < n; i++) {
-        std::cout << "{" << output_values1[i] << ", " << output_values2[i] << "}" << std::endl;
-    }
-#endif
 
     // Expected output
     // {11, 11}: {1, 1}
@@ -94,16 +86,27 @@ test_with_usm()
     EXPECT_EQ_N(exp_values1, output_values1, n, "wrong values1 from exclusive_scan_by_segment");
     EXPECT_EQ_N(exp_values2, output_values2, n, "wrong values2 from exclusive_scan_by_segment");
 }
-#endif
+
+template <typename Policy>
+void test_impl(Policy&& policy)
+{
+    // Run tests for USM shared/device memory
+    test_with_usm<sycl::usm::alloc::shared, class KernelName1>(CLONE_NEW_POLICY(policy));
+    test_with_usm<sycl::usm::alloc::device, class KernelName2>(CLONE_NEW_POLICY(policy));
+}
+
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    // Run tests for USM shared memory
-    test_with_usm<sycl::usm::alloc::shared, class KernelName1>();
-    // Run tests for USM device memory
-    test_with_usm<sycl::usm::alloc::device, class KernelName2>();
-#endif
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
