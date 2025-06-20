@@ -1802,8 +1802,8 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     // intersection is empty
     if (__first1 == __last1 || __first2 == __last2)
         return __result;
-    return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                       __last2, __result, __comp, unseq_backend::_IntersectionTag{});
+    return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+                                   __result, __comp, unseq_backend::_IntersectionTag{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1832,8 +1832,8 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
-    return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                       __last2, __result, __comp, oneapi::dpl::unseq_backend::_DifferenceTag{});
+    return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+                                   __result, __comp, oneapi::dpl::unseq_backend::_DifferenceTag{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1877,8 +1877,8 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
 
-    return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                   __last2, __result, __comp, oneapi::dpl::unseq_backend::_UnionTag{});
+    return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+                                   __result, __comp, oneapi::dpl::unseq_backend::_UnionTag{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1928,8 +1928,8 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
-    return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                   __last2, __result, __comp, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{});
+    return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+                                   __result, __comp, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{});
 }
 
 template <typename _Name>

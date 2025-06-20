@@ -1228,17 +1228,21 @@ struct __rotate_copy
 // brick_set_op for difference and intersection operations
 //------------------------------------------------------------------------
 
+struct _IntersectionTag
+{
+};
 
+struct _DifferenceTag
+{
+};
 
+struct _UnionTag
+{
+};
 
-
-struct _IntersectionTag{};
-
-struct _DifferenceTag{};
-
-struct _UnionTag{};
-
-struct _SymmetricDifferenceTag{};
+struct _SymmetricDifferenceTag
+{
+};
 
 template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
 class __brick_set_op
