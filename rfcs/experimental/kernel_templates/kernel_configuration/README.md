@@ -28,14 +28,14 @@ https://github.com/uxlfoundation/oneDPL/blob/oneDPL-2022.8.0-release/documentati
 ### Runtime Parameters
 
 The `data_per_workitem` and `workgroup_size` parameters are currently provided at compile time,
-but their optimal values depend on the number of elements to process, which is known only at run time.
+but their optimal values may depend on the number of elements to process, which is known only at run time.
 
-It should be investigated whether these parameters can be made run-time configurable
+It should be investigated whether dynamic, run-time configurable parameters can be supported
 without compromising efficiency.
 
 ### Sub-group Size as a Parameter
 
-Choosing an appropriate sub-group size is important for performance,
+For some devices configuring a sub-group size might be important for performance,
 as it impacts factors such as register pressure and
 the number of sub-groups to synchronize.
 The optimal value depends on the device architecture and

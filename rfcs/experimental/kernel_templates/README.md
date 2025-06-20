@@ -5,7 +5,7 @@
 This RFC describes an experimental set of algorithms with easily tunable controls,
 designed to achieve optimal performance on specific hardware and workloads.
 They prioritize efficiency over generality when compared to
-algorithms that conform to standard C++ interfaces and use device execution policies.
+algorithms that conform to the standard C++ interfaces.
 
 These algorithms are intended for use with SYCL.
 
@@ -74,7 +74,7 @@ A kernel template is a C++ function invoked from the host.
 
 Each function takes a `sycl::queue` as its first argument and
 an instance of the [kernel_param](kernel_configuration/README.md) template,
-which applies settings common to all kernel templates, as its last argument.
+which specializes parameters common to all kernel templates, as its last argument.
 The arguments in between vary depending on the specific algorithm.
 The function may also have algorithm-specific non-deducible template parameters.
 
@@ -187,8 +187,7 @@ for example through cmake arguments.
 
 The name "Kernel Templates" may be misleading because
 these entities more act like algorithms rather than SYCL kernels.
-Probably, a better name is "Algorithm Templates".
-The renaming requires changing the corresponding namespace.
+Renaming would require changing the top-level namespace.
 
 ### Specializations and their Differentiation
 
@@ -216,8 +215,8 @@ cannot be amortized by memory pools provided by the device or compiler runtime.
 
 It may be preferable to make this the only option and
 avoid internal global memory allocations altogether.
-This approach eliminates the overhead associated with `host_task`,
-which retains temporary memory until an algorithm completes its asynchronous execution.
+This approach eliminates the overhead associated with retaining temporary memory
+until an algorithm completes its asynchronous execution.
 Additionally, it reduces the number of interfaces that need to be supported.
 
 This should be done in conjunction with the
@@ -281,11 +280,11 @@ which rely compiler extensions.
 
 The proposed set of algorithms should transition to an extension if:
 - All the questions under [Kernel Templates](#open-questions) and
-  [Kernel Configuration](kernel_configuration/README.md#open-questions) sections are addressed,
-  unless a question is marked as not mandatory.
+  [Kernel Configuration](kernel_configuration/README.md#open-questions) sections are either addressed
+  or provided with a justification to postpone or ignore.
 - A significant portion of the algorithms listed in
   [Algorithms to Implement](#algorithms-to-implement) is implemented.
-- They are performant.
+- Evidence of sufficiently good performance is provided.
 - There is positive adoption feedback.
 
 Some individual algorithms may remain experimental
