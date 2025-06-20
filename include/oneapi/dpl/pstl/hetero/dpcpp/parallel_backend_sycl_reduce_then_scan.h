@@ -735,7 +735,6 @@ struct __gen_set_balanced_path
         auto __rng1 = std::get<0>(__in_rng.tuple());         // first sequence
         auto __rng2 = std::get<1>(__in_rng.tuple());         // second sequence
         auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // temp diag sequence
-        using _SizeType = decltype(__rng1.size());
 
         _IndexT __rng1_balanced_pos = 0;
         _IndexT __rng2_balanced_pos = 0;
