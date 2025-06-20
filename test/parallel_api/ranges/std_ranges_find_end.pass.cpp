@@ -30,9 +30,9 @@ main()
 
     //false result
     test_range_algo<1, int, data_in_in>{big_sz}(dpl_ranges::find_end, find_end_checker, binary_pred);
-    test_range_algo<2, int, data_in_in>{}(dpl_ranges::find_end, find_end_checker, binary_pred_const, proj, proj);
+    test_range_algo<2, int, data_in_in>{}(dpl_ranges::find_end, find_end_checker, binary_pred_const, std::identity{}, proj);
 
-    test_range_algo<3, int, data_in_in>{}(dpl_ranges::find_end, find_end_checker, binary_pred, proj, proj);
+    test_range_algo<3, int, data_in_in>{}(dpl_ranges::find_end, find_end_checker, binary_pred, proj, std::identity{});
     test_range_algo<4, P2, data_in_in>{}(dpl_ranges::find_end, find_end_checker, binary_pred, &P2::x, &P2::x);
     test_range_algo<5, P2, data_in_in>{}(dpl_ranges::find_end, find_end_checker, binary_pred, &P2::proj, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING

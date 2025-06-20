@@ -362,13 +362,19 @@ private:
 
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), tr_out(C), args...))>, "Wrong return type");
 
-        auto bres_in = ret_in_val(expected_res, src_view1.begin()) == ret_in_val(res, tr_in(A).begin());
-        EXPECT_TRUE(bres_in, (std::string("wrong return value from algo: ") + typeid(Algo).name() +
-            typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+        auto bres_in1 = ret_in_val(expected_res, src_view1.begin()) == ret_in_val(res, tr_in(A).begin());
+        EXPECT_TRUE(bres_in1, (std::string("wrong return value from algo with input range 1: ") + typeid(Algo).name()).c_str());
+
+        auto bres_in2 = ret_in_val(expected_res, src_view2.begin()) == ret_in_val(res, tr_in(B).begin());
+        EXPECT_TRUE(bres_in2, (std::string("wrong return value from algo with input range 2: ") + typeid(Algo).name()).c_str());
+
+        auto bres_out = ret_out_val(expected_res, expected_view.begin()) == ret_out_val(res, tr_out(C).begin());
+        EXPECT_TRUE(bres_out, (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
-        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Policy).name() 
+            + typeid(Algo).name()).c_str());
     }
 
 public:
