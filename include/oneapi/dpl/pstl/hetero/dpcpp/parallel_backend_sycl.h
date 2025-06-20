@@ -1081,7 +1081,7 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
     constexpr std::uint32_t __average_input_ele_size = (sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2;
     // Partition into blocks of half SLM size
     const std::size_t __partition_size =
-        __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 4);
+        __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
 
     _GenReduceInput __gen_reduce_input{_SetOperation{}, __diagonal_spacing,
                                        _BoundsProvider{__diagonal_spacing, __partition_size}, __comp};
