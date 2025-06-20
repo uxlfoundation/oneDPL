@@ -562,11 +562,9 @@ struct __get_bounds_partitioned
     auto // Returns a tuple of the form (start1, end1, start2, end2)
     operator()(const _Rng& __in_rng, _IndexT __id) const
     {
-        auto __rng1 = std::get<0>(__in_rng.tuple());         // first sequence
-        auto __rng2 = std::get<1>(__in_rng.tuple());         // second sequence
         auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
 
-        using _SizeType = decltype(__rng1.size());
+        using _SizeType = decltype(std::get<0>(__in_rng.tuple()).size());
 
         //TODO: see if it is beneficial to calculate this within the reduce kernel using a barrier
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
@@ -721,7 +719,6 @@ struct __gen_set_balanced_path
     void
     __calc_partition_bounds(const _InRng& __in_rng, _IndexT __id) const
     {
-        auto __n = std::get<2>(__in_rng.tuple()).size();
         calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple{});
     }
 
