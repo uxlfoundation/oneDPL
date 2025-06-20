@@ -1070,7 +1070,8 @@ __parallel_set_write_a_b_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2
     using _ReduceOp = std::plus<_Size>;
     using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned;
 
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, _Compare>;
+    using _GenReduceInput =
+        oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, _Compare>;
     using _GenScanInput =
         oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_SetOperation, _TempData, _Compare>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
@@ -1090,12 +1091,13 @@ __parallel_set_write_a_b_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2
     constexpr std::uint32_t __average_input_ele_size = (sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2;
     // Partition into blocks of half SLM size
     const std::size_t __partition_size =
-         __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 4);
+        __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 4);
 
     _GenReduceInput __gen_reduce_input{_SetOperation{}, __diagonal_spacing,
-        _BoundsProvider{__diagonal_spacing, __partition_size}, __comp};
+                                       _BoundsProvider{__diagonal_spacing, __partition_size}, __comp};
 
-    constexpr std::uint32_t __bytes_per_work_item_iter = __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
+    constexpr std::uint32_t __bytes_per_work_item_iter =
+        __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
 
     auto __in_rng = oneapi::dpl::__ranges::zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
@@ -1103,8 +1105,8 @@ __parallel_set_write_a_b_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2
                 __temp_diags.get_buffer()));
 
 
-    sycl::event __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, __in_rng, __num_diagonals,
-                                                                                                  __gen_reduce_input);
+    sycl::event __partition_event =
+        __parallel_set_balanced_path_partition<_CustomName>(__q, __in_rng, __num_diagonals, __gen_reduce_input);
     return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
         __q, __num_diagonals, __in_rng, std::forward<_Range3>(__result), __gen_reduce_input, _ReduceOp{},
         _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp}, _ScanInputTransform{}, _WriteOp{},
