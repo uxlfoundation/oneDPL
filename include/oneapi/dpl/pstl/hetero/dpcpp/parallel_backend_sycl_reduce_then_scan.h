@@ -530,8 +530,7 @@ struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag> : public __set
 };
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag>
-    : public __set_symmetric_difference
+struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag> : public __set_symmetric_difference
 {
 };
 
@@ -1627,7 +1626,7 @@ inline bool
 __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 {
     return (__q.get_device().is_gpu() &&
-           oneapi::dpl::__internal::__supports_sub_group_size(__q, __get_reduce_then_scan_reqd_sg_sz_host()));
+            oneapi::dpl::__internal::__supports_sub_group_size(__q, __get_reduce_then_scan_reqd_sg_sz_host()));
 }
 
 // General scan-like algorithm helpers
