@@ -37,7 +37,6 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
     using base_t = policy_base<dynamic_load_policy<ResourceType, Backend>, ResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
 
-    using resource_type = typename base_t::resource_type;
     using execution_resource_t = typename base_t::execution_resource_t;
     using load_t = int;
 
@@ -96,6 +95,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
   public:
     using selection_type = dl_selection_handle_t<dynamic_load_policy<ResourceType, Backend>>;
+    using resource_type = typename base_t::resource_type;
 
     dynamic_load_policy() { base_t::initialize(); }
     dynamic_load_policy(deferred_initialization_t) {}
