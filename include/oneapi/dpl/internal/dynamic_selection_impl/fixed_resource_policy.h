@@ -47,6 +47,7 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
   public:
     using resource_type = typename base_t::resource_type;
     using typename base_t::selection_type;
+    using wait_type = typename Backend::wait_type; //TODO: Get from policy_base instead?
 
     fixed_resource_policy(::std::size_t index = 0) 
     { 
