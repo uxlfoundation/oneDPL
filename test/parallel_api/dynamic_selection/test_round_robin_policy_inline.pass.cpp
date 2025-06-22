@@ -18,7 +18,7 @@
 int
 main()
 {
-    using policy_t = oneapi::dpl::experimental::round_robin_policy<TestUtils::int_inline_backend_t>;
+    using policy_t = oneapi::dpl::experimental::round_robin_policy<int, TestUtils::int_inline_backend_t>;
     std::vector<int> u{4, 5, 6, 7};
     auto f = [u](int i) { return u[(i - 1) % 4]; };
 
