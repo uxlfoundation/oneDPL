@@ -245,7 +245,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
+          - os: windows-2019
             cxx_compiler: icx-cl
             std: 17
             build_type: release
