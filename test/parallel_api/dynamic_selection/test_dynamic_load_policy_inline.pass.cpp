@@ -18,7 +18,7 @@
 int
 main()
 {
-    using policy_t = oneapi::dpl::experimental::dynamic_load_policy<TestUtils::int_inline_backend_t>;
+    using policy_t = oneapi::dpl::experimental::dynamic_load_policy<int, TestUtils::int_inline_backend_t>;
     std::vector<int> u{4, 5, 6, 7};
 
     // should always pick the "offset" device since executed inline
