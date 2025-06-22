@@ -257,6 +257,9 @@ jobs:
             build_type: release
             backend: tbb
             device_type: HOST
+            # TODO: replace with windows-latest once icpx 2025.2 is released.
+            # The latest updates of VS 2022 in newer images have compatibility issues with icpx 2025.1.
+            # windows-2019 uses VS 2019.
           - os: windows-2019
             cxx_compiler: icx
             std: 17
