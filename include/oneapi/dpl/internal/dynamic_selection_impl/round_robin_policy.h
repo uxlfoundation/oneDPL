@@ -48,6 +48,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, B
   public:
     using resource_type = typename base_t::resource_type;
     using typename base_t::selection_type;
+    using typename base_t::wait_type;
 
     round_robin_policy() { base_t::initialize(); }
     round_robin_policy(deferred_initialization_t) {}
