@@ -96,6 +96,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
   public:
     using selection_type = dl_selection_handle_t<dynamic_load_policy<ResourceType, Backend>>;
     using resource_type = typename base_t::resource_type;
+    using wait_type = typename Backend::wait_type; //TODO: Get from policy_base instead?
 
     dynamic_load_policy() { base_t::initialize(); }
     dynamic_load_policy(deferred_initialization_t) {}
