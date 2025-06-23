@@ -20,6 +20,9 @@
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 
+class load1;
+class load2;
+
 namespace TestUtils
 {
 template <typename Op, ::std::size_t CallNumber>
@@ -173,7 +176,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                         auto accessorA = bufferA.get_access<sycl::access::mode::read>(cgh);
                         auto accessorB = bufferB.get_access<sycl::access::mode::read>(cgh);
                         auto accessorResultMatrix = bufferResultMatrix.get_access<sycl::access::mode::write>(cgh);
-                        cgh.parallel_for<TestUtils::unique_kernel_name<class load2, 0>>(
+                        cgh.parallel_for<TestUtils::unique_kernel_name<load2, 0>>(
                             sycl::range<1>(rows_c), [=](sycl::item<1> row_c) {
                                 for (size_t col_c = 0; col_c < cols_c; ++col_c)
                                 {
@@ -219,7 +222,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                             auto accessorA = bufferA.get_access<sycl::access::mode::read>(cgh);
                             auto accessorB = bufferB.get_access<sycl::access::mode::read>(cgh);
                             auto accessorResultMatrix = bufferResultMatrix.get_access<sycl::access::mode::write>(cgh);
-                            cgh.parallel_for<TestUtils::unique_kernel_name<class load1, 0>>(
+                            cgh.parallel_for<TestUtils::unique_kernel_name<load1, 0>>(
                                 sycl::range<1>(rows_c), [=](sycl::item<1> row_c) {
                                     for (size_t col_c = 0; col_c < cols_c; ++col_c)
                                     {
