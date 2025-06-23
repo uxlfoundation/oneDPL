@@ -13,7 +13,6 @@ The terms "kernel template" and "algorithm" are used interchangeably in this RFC
 
 ## Status
 
-Kernel Templates proposal is expected to evolve into an extension.
 This set of algorithms is in an early stage of development,
 with many design aspects yet to be addressed.
 See the [Open Questions](#open-questions) list.
@@ -252,7 +251,7 @@ for a given workload and hardware.
 is placed before all the deduced parameters to simplify
 a potential addition of a default value in the future.
 However, it is unclear if a default value should be provided,
-especially given the extension's focus on performance tuning.
+especially given the focus on performance tuning.
 
 Creation of a default value with optimal settings is impossible right now.
 `kernel_param` template argument, which substitutes `KernelParam`,
@@ -278,7 +277,7 @@ which rely compiler extensions.
 
 ## Exit Criteria
 
-The proposed set of algorithms should transition to an extension if:
+The proposed set of algorithms should become fully supported if:
 - All the questions under [Kernel Templates](#open-questions) and
   [Kernel Configuration](kernel_configuration/README.md#open-questions) sections are either addressed
   or provided with a justification to postpone or ignore.
