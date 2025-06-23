@@ -221,12 +221,12 @@ Additionally, it reduces the number of interfaces that need to be supported.
 This should be done in conjunction with the
 [Global and Local Memory Requirements](#reporting-global-and-local-memory-requirements) interface.
 
-### Asynchronous Execution
+### Asynchronous Execution and Dependency Chaining
 
 The algorithms return a `sycl::event` but do not accept any input events.
-As a result, they are not fully asynchronous.
+That limits how they can be embedded in asynchronous dependency chains.
 
-It should be investigated whether full asynchrony is desirable,
+It should be investigated whether passing input events is desirable,
 and if so, how to implement it correctly.
 
 ### Separation of Specializations Based on a Problem Size
