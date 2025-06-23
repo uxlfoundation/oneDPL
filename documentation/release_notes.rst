@@ -43,10 +43,6 @@ Existing Issues
 ^^^^^^^^^^^^^^^
 See oneDPL Guide for other `restrictions and known limitations`_.
 
-- Incorrect results may be observed when calling ``sort`` with a device policy on Intel® Arc™ graphics 140V with data
-  sizes of 4-8 million elements on Windows.
-  That issue is resolved in
-  Intel® oneAPI DPC++/C++ Compiler 2025.1 or later and Intel® Graphics Driver 32.0.101.6647 or later.
 - ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
   when used with a device policy on hardware that does not support 64-bit atomic operations.
 - ``histogram`` may provide incorrect results with device policies in a program built with ``-O0`` option and the driver
