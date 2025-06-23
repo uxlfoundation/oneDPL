@@ -784,15 +784,11 @@ struct __copy1_wrapper;
 template <typename _Name>
 struct __copy2_wrapper;
 
-struct __out_size_limit : public std::true_type
-{
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare>
+          typename _Compare, typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 std::pair<oneapi::dpl::__internal::__difference_t<_Range1>, oneapi::dpl::__internal::__difference_t<_Range2>>
 __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
-                _Range3&& __rng3, _Compare __comp)
+                _Range3&& __rng3, _Compare __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
     if (__rng3.empty())
         return {0, 0};
@@ -823,9 +819,9 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         return {__res, 0};
     }
 
-    auto __res = __par_backend_hetero::__parallel_merge(
+    auto __res = __par_backend_hetero::__parallel_merge<std::true_type /*out size limit*/>(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
-        ::std::forward<_Range2>(__rng2), ::std::forward<_Range3>(__rng3), __comp, __out_size_limit{});
+        ::std::forward<_Range2>(__rng2), ::std::forward<_Range3>(__rng3), __comp, __proj1, __proj2);
 
     auto __val = __res.get();
     return {__val.first, __val.second};
@@ -835,11 +831,9 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
 template<typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
          typename _Proj1, typename _Proj2>
 auto
-__pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+__pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj1, _Proj2> __comp_2{__comp, __proj1, __proj2};
-
     using _Index1 = std::ranges::range_difference_t<_R1>;
     using _Index2 = std::ranges::range_difference_t<_R2>;
     using _Index3 = std::ranges::range_difference_t<_OutRange>;
@@ -850,7 +844,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&
 
     const std::pair __res = oneapi::dpl::__internal::__ranges::__pattern_merge(
         __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r1),
-        oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_write(__out_r), __comp_2);
+        oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_write(__out_r), __comp, __proj1, __proj2);
 
     using __return_t = std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
         std::ranges::borrowed_iterator_t<_OutRange>>;

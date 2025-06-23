@@ -25,6 +25,7 @@
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
+#include "../../../functional" //for oneapi::dpl::identity
 
 namespace oneapi
 {
@@ -47,10 +48,11 @@ using _split_point_t = std::pair<_Index, _Index>;
 // 2 | 0   0  0  0 | 1
 //   |             ---->
 // 3 | 0   0  0  0   0 |
-template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare>
+template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare, typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 _split_point_t<_Index>
 __find_start_point(const _Rng1& __rng1, const _Index __rng1_from, _Index __rng1_to, const _Rng2& __rng2,
-                   const _Index __rng2_from, _Index __rng2_to, const _Index __i_elem, _Compare __comp)
+                   const _Index __rng2_from, _Index __rng2_to, const _Index __i_elem, _Compare __comp,
+                   _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
     // ----------------------- EXAMPLE ------------------------
     // Let's consider the following input data:
@@ -124,8 +126,9 @@ __find_start_point(const _Rng1& __rng1, const _Index __rng1_from, _Index __rng1_
 
     const __it_t __res =
         std::lower_bound(__diag_it_begin, __diag_it_end, false,
-                         [&__rng1, &__rng2, __index_sum, __comp](_Index __idx, const bool __value) mutable {
-                             return __value == __comp(__rng2[__index_sum - __idx], __rng1[__idx]);
+                         [&__rng1, &__rng2, __index_sum, __comp, __proj1, __proj2](_Index __idx, const bool __value) mutable {
+                             return __value == std::invoke(__comp, std::invoke(__proj2, __rng2[__index_sum - __idx]),
+                                                           std::invoke(__proj1, __rng1[__idx]));
                          });
 
     return _split_point_t<_Index>{*__res, __index_sum - *__res + 1};
@@ -148,11 +151,12 @@ constexpr static bool __can_use_ternary_op_v = __can_use_ternary_op<_Rng1DataTyp
 
 // Do serial merge of the data from rng1 (starting from start1) and rng2 (starting from start2) and writing
 // to rng3 (starting from start3) in 'chunk' steps, but do not exceed the total size of the sequences (n1 and n2)
-template <typename _Rng1, typename _Rng2, typename _Rng3, typename _Index, typename _Compare>
+template <typename _Rng1, typename _Rng2, typename _Rng3, typename _Index, typename _Compare,
+          typename _Proj1  = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 std::pair<_Index, _Index>
 __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _Index __start1, const _Index __start2,
                const _Index __start3, const _Index __chunk, const _Index __n1, const _Index __n2, _Compare __comp,
-               const _Index __n3 = 0)
+               const _Index __n3 = 0, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
     const _Index __rng1_size = std::min<_Index>(__n1 > __start1 ? __n1 - __start1 : _Index{0}, __chunk);
     const _Index __rng2_size = std::min<_Index>(__n2 > __start2 ? __n2 - __start2 : _Index{0}, __chunk);
@@ -180,7 +184,8 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
         {
             // This implementation is required for performance optimization
             __rng3[__rng3_idx] = (!__rng1_idx_less_n1 || (__rng1_idx_less_n1 && __rng2_idx_less_n2 &&
-                                                          __comp(__rng2[__rng2_idx], __rng1[__rng1_idx])))
+                                                          std::invoke(__comp, std::invoke(__proj2, __rng2[__rng2_idx]), 
+                                                          std::invoke(__proj1, __rng1[__rng1_idx]))))
                                      ? __rng2[__rng2_idx++]
                                      : __rng1[__rng1_idx++];
         }
@@ -188,7 +193,7 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
         {
             // TODO required to understand why the usual if-else is slower then ternary operator
             if (!__rng1_idx_less_n1 ||
-                (__rng1_idx_less_n1 && __rng2_idx_less_n2 && __comp(__rng2[__rng2_idx], __rng1[__rng1_idx])))
+                (__rng1_idx_less_n1 && __rng2_idx_less_n2 && __comp(__proj2(__rng2[__rng2_idx]), __proj1(__rng1[__rng1_idx]))))
                 __rng3[__rng3_idx] = __rng2[__rng2_idx++];
             else
                 __rng3[__rng3_idx] = __rng1[__rng1_idx++];
@@ -204,9 +209,10 @@ struct __parallel_merge_submitter;
 template <typename _OutSizeLimit, typename _IdType, typename... _Name>
 struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare>
+    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
     __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
-    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp) const
+    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
+               _Proj1 __proj1, _Proj2 __proj2) const
     {
         const _IdType __n1 = __rng1.size();
         const _IdType __n2 = __rng2.size();
@@ -235,8 +241,8 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base(
             static_cast<__result_and_scratch_storage_base*>(__p_res_storage));
 
-        auto __event = __q.submit([&__rng1, &__rng2, &__rng3, __p_res_storage, __comp, __chunk, __steps, __n, __n1,
-                                   __n2](sycl::handler& __cgh) {
+        auto __event = __q.submit([&__rng1, &__rng2, &__rng3, __p_res_storage, __comp, __proj1, __proj2, __chunk,
+                                   __steps, __n, __n1, __n2](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
             auto __result_acc = __get_acc(__p_res_storage, __cgh);
 
@@ -246,11 +252,12 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
 
                 const auto __n_merge = std::min<_IdType>(__chunk, __n - __i_elem);
                 const auto __start =
-                    __find_start_point(__rng1, _IdType{0}, __n1, __rng2, _IdType{0}, __n2, __i_elem, __comp);
+                    __find_start_point(__rng1, _IdType{0}, __n1, __rng2, _IdType{0}, __n2, __i_elem, __comp,
+                                       __proj1, __proj2);
 
                 [[maybe_unused]] const std::pair __ends =
                     __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem, __n_merge, __n1,
-                                   __n2, __comp, __n);
+                                   __n2, __comp, __n, __proj1, __proj2);
 
                 if constexpr (_OutSizeLimit{})
                     if (__id == __steps - 1) //the last WI does additional work
@@ -315,9 +322,10 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     }
 
     // Calculation of split points on each base diagonal
-    template <typename _Range1, typename _Range2, typename _Compare, typename _Storage>
+    template <typename _Range1, typename _Range2, typename _Compare, typename _Proj1, typename _Proj2, typename _Storage>
     sycl::event
     eval_split_points_for_groups(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _IdType __n, _Compare __comp,
+                                 _Proj1 __proj1, _Proj2 __proj2,
                                  const nd_range_params& __nd_range_params,
                                  _Storage& __base_diagonals_sp_global_storage) const
     {
@@ -326,7 +334,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
         const _IdType __base_diag_chunk = __nd_range_params.steps_between_two_base_diags * __nd_range_params.chunk;
 
-        return __q.submit([&__rng1, &__rng2, __comp, __nd_range_params, __base_diagonals_sp_global_storage, __n1, __n2,
+        return __q.submit([&__rng1, &__rng2, __comp, __proj1, __proj2, __nd_range_params,
+                           __base_diagonals_sp_global_storage, __n1, __n2,
                            __n, __base_diag_chunk](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2);
             auto __base_diagonals_sp_global_acc =
@@ -344,24 +353,27 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                     __base_diagonals_sp_global_ptr[__global_idx] =
                         __i_elem == 0 ? _split_point_t<_IdType>{0, 0}
                                       : (__i_elem < __n ? __find_start_point(__rng1, _IdType{0}, __n1, __rng2,
-                                                                             _IdType{0}, __n2, __i_elem, __comp)
+                                                                             _IdType{0}, __n2, __i_elem, __comp,
+                                                                             __proj1, __proj2)
                                                         : _split_point_t<_IdType>{__n1, __n2});
                 });
         });
     }
 
     // Process parallel merge
-    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Storage>
+    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Proj1, typename _Proj2,
+              typename _Storage>
     sycl::event
     run_parallel_merge(const sycl::event& __event, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2,
-                       _Range3&& __rng3, _Compare __comp, const nd_range_params& __nd_range_params,
+                       _Range3&& __rng3, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
+                       const nd_range_params& __nd_range_params,
                        const _Storage& __base_diagonals_sp_global_storage) const
     {
         const _IdType __n1 = __rng1.size();
         const _IdType __n2 = __rng2.size();
         const _IdType __n = std::min<_IdType>(__n1 + __n2, __rng3.size());
 
-        return __q.submit([&__event, &__rng1, &__rng2, &__rng3, __n, __comp, __nd_range_params,
+        return __q.submit([&__event, &__rng1, &__rng2, &__rng3, __n, __comp, __proj1, __proj2, __nd_range_params,
                            __base_diagonals_sp_global_storage, __n1, __n2](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
             auto __base_diagonals_sp_global_acc =
@@ -387,7 +399,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                         const _split_point_t<_IdType> __sp_right = __base_diagonals_sp_global_ptr[__diagonal_idx + 1];
 
                         __start = __find_start_point(__rng1, __sp_left.first, __sp_right.first, __rng2,
-                                                     __sp_left.second, __sp_right.second, __i_elem, __comp);
+                                                     __sp_left.second, __sp_right.second, __i_elem, __comp,
+                                                     __proj1, __proj2);
                     }
                     else
                     {
@@ -396,7 +409,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
                     [[maybe_unused]] const std::pair __ends =
                         __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem,
-                                       __nd_range_params.chunk, __n1, __n2, __comp, __n);
+                                       __nd_range_params.chunk, __n1, __n2, __comp, __n, __proj1, __proj2);
 
                     if constexpr (_OutSizeLimit{})
                         if (__global_idx == __nd_range_params.steps - 1)
@@ -420,9 +433,10 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     }
 
   public:
-    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare>
+    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
     __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
-    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp) const
+    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
+               _Proj1 __proj1, _Proj2 __proj2) const
     {
         const _IdType __n1 = __rng1.size();
         const _IdType __n2 = __rng2.size();
@@ -448,11 +462,12 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
             static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
 
         // Find split-points on the base diagonals
-        sycl::event __event = eval_split_points_for_groups(__q, __rng1, __rng2, __n, __comp, __nd_range_params,
+        sycl::event __event = eval_split_points_for_groups(__q, __rng1, __rng2, __n, __comp, __proj1, __proj2,
+                                                           __nd_range_params,
                                                            *__p_base_diagonals_sp_global_storage);
 
         // Merge data using split points on each diagonal
-        __event = run_parallel_merge(__event, __q, __rng1, __rng2, __rng3, __comp, __nd_range_params,
+        __event = run_parallel_merge(__event, __q, __rng1, __rng2, __rng3, __comp, __proj1, __proj2, __nd_range_params,
                                      *__p_base_diagonals_sp_global_storage);
 
         return __future{std::move(__event), std::move(__p_result_and_scratch_storage_base)};
@@ -482,11 +497,11 @@ __get_starting_size_limit_for_large_submitter<int>()
     return 16 * 1'048'576; // 16 MB
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
-          typename _OutSizeLimit = std::false_type>
+template <typename _OutSizeLimit = std::false_type, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
-                 _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _OutSizeLimit = {})
+                 _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -504,7 +519,7 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
             __merge_kernel_name<_CustomName, _WiIndex>>;
         return __parallel_merge_submitter<_OutSizeLimit, _WiIndex, _MergeKernelName>()(
             __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__rng3),
-            __comp);
+            __comp, __proj1, __proj2);
     }
     else
     {
@@ -518,7 +533,8 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
             return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
                                                     _MergeKernelName>()(__q_local, std::forward<_Range1>(__rng1),
                                                                         std::forward<_Range2>(__rng2),
-                                                                        std::forward<_Range3>(__rng3), __comp);
+                                                                        std::forward<_Range3>(__rng3), __comp,
+                                                                        __proj1, __proj2);
         }
         else
         {
@@ -530,7 +546,8 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
             return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
                                                     _MergeKernelName>()(__q_local, std::forward<_Range1>(__rng1),
                                                                         std::forward<_Range2>(__rng2),
-                                                                        std::forward<_Range3>(__rng3), __comp);
+                                                                        std::forward<_Range3>(__rng3), __comp,
+                                                                        __proj1, __proj2);
         }
     }
 }

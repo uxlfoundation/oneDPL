@@ -603,13 +603,13 @@ __pattern_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-// pattern_merge
+// __pattern_merge_ranges
 //---------------------------------------------------------------------------------------------------------------------
 
 template<typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
          typename _Proj1, typename _Proj2>
 auto
-__pattern_merge(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+__pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                 _Proj1 __proj1, _Proj2 __proj2)
 {
     using __return_type =
