@@ -1355,7 +1355,7 @@ template <typename _SetTag>
 struct __consider_write_a_alg
 {
     // empirically determined threshold for using write_a algorithm
-    static constexpr std::size_t __threshold = 1024 * 1024;
+    static constexpr std::size_t __threshold = 65536;
     static constexpr bool __value = true;
 };
 
