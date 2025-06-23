@@ -98,7 +98,7 @@ New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - Incorrect results may be observed when calling ``sort`` with a device policy on Intel® Arc™ graphics 140V with data
   sizes of 4-8 million elements on Windows.
-  That issue is resolved in
+  This issue is resolved in
   Intel® oneAPI DPC++/C++ Compiler 2025.1 or later and Intel® Graphics Driver 32.0.101.6647 or later.
 - ``sort``, ``stable_sort``, ``sort_by_key`` and ``stable_sort_by_key`` algorithms fail to compile
   when using Clang 17 and earlier versions, as well as compilers based on these versions,
