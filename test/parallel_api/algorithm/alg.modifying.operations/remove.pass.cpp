@@ -44,7 +44,7 @@ struct run_remove
         // Run remove
         OutputIterator i = remove(expected_first, expected_last, value);
         OutputIterator k = remove(std::forward<Policy>(exec), out_first, out_last, value);
-        EXPECT_TRUE(::std::distance(expected_first, i) == ::std::distance(out_first, k), "wrong return value from remove");
+        EXPECT_EQ(std::distance(expected_first, i), std::distance(out_first, k), "wrong return value from remove");
         EXPECT_EQ_N(expected_first, out_first, ::std::distance(expected_first, i), "wrong remove effect");
     }
 };
@@ -65,8 +65,8 @@ struct run_remove_if
         // Run remove_if
         OutputIterator i = remove_if(expected_first, expected_last, pred);
         OutputIterator k = remove_if(std::forward<Policy>(exec), out_first, out_last, pred);
-        EXPECT_TRUE(::std::distance(expected_first, i) == ::std::distance(out_first, k),
-                    "wrong return value from remove_if");
+        EXPECT_EQ(std::distance(expected_first, i), std::distance(out_first, k),
+                  "wrong return value from remove_if");
         EXPECT_EQ_N(expected_first, out_first, ::std::distance(expected_first, i), "wrong remove_if effect");
     }
 };
