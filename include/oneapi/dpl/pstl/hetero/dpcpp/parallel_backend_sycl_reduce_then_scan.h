@@ -257,7 +257,7 @@ struct __write_multiple_to_id
 {
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, _SizeType, const _ValueType& __v, _TempData& __temp_data) const
+    operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -265,7 +265,8 @@ struct __write_multiple_to_id
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
-        for (std::size_t __i = 0; __i < std::get<1>(__v); ++__i)
+        const std::size_t __n = std::get<1>(__v);
+        for (std::size_t __i = 0; __i < __n; ++__i)
         {
             __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
                      __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
@@ -433,8 +434,8 @@ template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBo
           typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
 void
 __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
-                                  std::size_t& __idx2, _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                  _SizeType& __idx, std::uint16_t& __count, _Compare __comp)
+                                  std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
+                                  _SizeType& __idx, std::uint16_t& __count, const _Compare __comp)
 {
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
@@ -514,7 +515,7 @@ struct __set_generic_operation
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
     std::uint16_t
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               _SizeType __num_eles_min, _TempOutput& __temp_out, _Compare __comp) const
+               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp) const
     {
 
         std::uint16_t __count = 0;
@@ -573,24 +574,45 @@ struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<s
 {
 };
 
-//TODO: check on types here
-template <typename _Rng, typename _IdxT>
+template <bool __return_star, typename _Rng, typename _IdxT>
 auto
-__decode_balanced_path_temp_data(const _Rng& __rng, _IdxT __id,
-                                 std::uint16_t __diagonal_spacing) -> std::tuple<_IdxT, _IdxT, decltype(__rng.size())>
+__decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
 {
     using SizeT = decltype(__rng.size());
-    auto __tmp = __rng[__id];
-    SizeT __star_offset = oneapi::dpl::__internal::__dpl_signbit(__tmp) ? 1 : 0;
-    auto __rng1_idx = std::abs(__tmp);
-    auto __rng2_idx = __id * __diagonal_spacing - __rng1_idx + __star_offset;
-    return std::make_tuple(__rng1_idx, __rng2_idx, __star_offset);
+    const auto __tmp = __rng[__id];
+    const SizeT __star_offset = oneapi::dpl::__internal::__dpl_signbit(__tmp) ? 1 : 0;
+    const auto __rng1_idx = std::abs(__tmp);
+    const auto __rng2_idx = __id * __diagonal_spacing - __rng1_idx + __star_offset;
+    if constexpr (__return_star)
+    {
+        return std::make_tuple(__rng1_idx, __rng2_idx, __star_offset);
+    }
+    else
+    {
+        return std::make_tuple(__rng1_idx, __rng2_idx);
+    }
+}
+
+template <typename _Rng, typename _IdxT>
+auto
+__decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
+    -> std::tuple<_IdxT, _IdxT>
+{
+    return __decode_balanced_path_temp_data_impl<false>(__rng, __id, __diagonal_spacing);
+}
+
+template <typename _Rng, typename _IdxT>
+auto
+__decode_balanced_path_temp_data(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
+    -> std::tuple<_IdxT, _IdxT, decltype(__rng.size())>
+{
+    return __decode_balanced_path_temp_data_impl<true>(__rng, __id, __diagonal_spacing);
 }
 
 //TODO: check on types here
 template <typename _IdxT>
 auto
-__encode_balanced_path_temp_data(_IdxT __rng1_idx, bool __star)
+__encode_balanced_path_temp_data(const _IdxT __rng1_idx, const bool __star)
 {
     return __rng1_idx * (__star ? -1 : 1);
 }
@@ -599,7 +621,7 @@ struct __get_bounds_partitioned
 {
     template <typename _Rng, typename _IndexT>
     auto // Returns a tuple of the form (start1, end1, start2, end2)
-    operator()(const _Rng& __in_rng, _IndexT __id) const
+    operator()(const _Rng& __in_rng, const _IndexT __id) const
     {
         auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
 
@@ -615,13 +637,10 @@ struct __get_bounds_partitioned
         _SizeType __wg_end_idx = std::min(
             ((static_cast<_SizeType>(__id) / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
 
-        auto [begin_rng1, begin_rng2, begin_star] =
-            __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
-        auto [end_rng1, end_rng2, end_star] =
-            __decode_balanced_path_temp_data(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
-        (void)begin_star; // unused, but required to avoid unused variable warning
-        (void)end_star;   // unused, but required to avoid unused variable warning
-
+        const auto [begin_rng1, begin_rng2] =
+            __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
+        const auto [end_rng1, end_rng2] =
+            __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
         return std::make_tuple(begin_rng1, end_rng1, begin_rng2, end_rng2);
     }
     std::uint16_t __diagonal_spacing;
@@ -632,7 +651,7 @@ struct __get_bounds_simple
 {
     template <typename _Rng, typename _IndexT>
     auto // Returns a tuple of the form (start1, end1, start2, end2)
-    operator()(const _Rng& __in_rng, _IndexT) const
+    operator()(const _Rng& __in_rng, const _IndexT) const
     {
         auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
         auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
@@ -669,7 +688,7 @@ struct __gen_set_balanced_path
             return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
         }
 
-        auto __ele_val = __rng1[__merge_path_rng1 - 1];
+        const auto __ele_val = __rng1[__merge_path_rng1 - 1];
 
         if (__comp(__ele_val, __rng2[__merge_path_rng2]))
         {
