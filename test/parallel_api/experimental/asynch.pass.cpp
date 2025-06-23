@@ -30,6 +30,28 @@
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "support/sycl_alloc_utils.h"
 
+template <size_t idx>
+class Copy;
+
+template <size_t idx>
+class Fill;
+
+class ForEach1;
+
+template <size_t idx>
+class Transform;
+
+template <size_t idx>
+class Reduce;
+
+template <size_t idx>
+class Scan;
+
+class Sort;
+
+template <size_t idx>
+class Async;
+
 void test1_with_buffers()
 {
     const int n = 100;
@@ -38,46 +60,46 @@ void test1_with_buffers()
         sycl::buffer<int> y{n};
         sycl::buffer<int> z{n};
 
-        auto my_policy = TestUtils::make_device_policy<class Copy1>(oneapi::dpl::execution::dpcpp_default);
+        auto my_policy = TestUtils::make_device_policy<Copy<1>>(oneapi::dpl::execution::dpcpp_default);
         auto res_1a = oneapi::dpl::experimental::copy_async(my_policy, oneapi::dpl::counting_iterator<int>(0),
                                                             oneapi::dpl::counting_iterator<int>(n),
                                                             oneapi::dpl::begin(x)); // x = [0..n]
-        auto my_policy1 = TestUtils::make_device_policy<class Fill1>(my_policy);
+        auto my_policy1 = TestUtils::make_device_policy<Fill<1>>(my_policy);
         auto res_1b = oneapi::dpl::experimental::fill_async(my_policy1, oneapi::dpl::begin(y), oneapi::dpl::end(y),
                                                             7); // y = [7..7]
-        auto my_policy2 = TestUtils::make_device_policy<class ForEach1>(my_policy);
+        auto my_policy2 = TestUtils::make_device_policy<ForEach1>(my_policy);
         auto res_2a = oneapi::dpl::experimental::for_each_async(
             my_policy2, oneapi::dpl::begin(x), oneapi::dpl::end(x), [](int& e) { ++e; }, res_1a); // x = [1..n]
-        auto my_policy3 = TestUtils::make_device_policy<class Transform1>(my_policy);
+        auto my_policy3 = TestUtils::make_device_policy<Transform<1>>(my_policy);
         auto res_2b = oneapi::dpl::experimental::transform_async(
             my_policy3, oneapi::dpl::begin(y), oneapi::dpl::end(y), oneapi::dpl::begin(y),
             [](const int& e) { return e / 2; },
             res_1b); // y = [3..3]
 
-        auto my_policy4 = TestUtils::make_device_policy<class Transform2>(my_policy);
+        auto my_policy4 = TestUtils::make_device_policy<Transform<2>>(my_policy);
         auto res_3 = oneapi::dpl::experimental::transform_async(my_policy4, oneapi::dpl::begin(x), oneapi::dpl::end(x),
                                                                 oneapi::dpl::begin(y), oneapi::dpl::begin(z),
                                                                 std::plus<int>(), res_2a, res_2b); // z = [4..n+3]
-        auto my_policy5 = TestUtils::make_device_policy<class Reduce1>(my_policy);
+        auto my_policy5 = TestUtils::make_device_policy<Reduce<1>>(my_policy);
         auto alpha = oneapi::dpl::experimental::reduce_async(my_policy5, oneapi::dpl::begin(x), oneapi::dpl::end(x), 0,
                                                              std::plus<int>(),
                                                              res_2a)
                          .get(); // alpha = n*(n+1)/2
-        auto my_policy6 = TestUtils::make_device_policy<class Reduce2>(my_policy);
+        auto my_policy6 = TestUtils::make_device_policy<Reduce<2>>(my_policy);
         auto beta =
             oneapi::dpl::experimental::transform_reduce_async(my_policy6, oneapi::dpl::begin(z), oneapi::dpl::end(z), 0,
                                                               std::plus<int>(), [=](int e) { return alpha * e; });
 
-        auto my_policy7 = TestUtils::make_device_policy<class Scan>(my_policy);
+        auto my_policy7 = TestUtils::make_device_policy<Scan<0>>(my_policy);
         auto gamma = oneapi::dpl::experimental::transform_inclusive_scan_async(my_policy6, oneapi::dpl::begin(x), oneapi::dpl::end(x),oneapi::dpl::begin(y), std::plus<int>(), [](auto x) { return x * 10; }, 0);
 
-        auto my_policy8 = TestUtils::make_device_policy<class Sort>(my_policy);
+        auto my_policy8 = TestUtils::make_device_policy<Sort>(my_policy);
         auto delta = oneapi::dpl::experimental::sort_async(my_policy8, oneapi::dpl::begin(y), oneapi::dpl::end(y), std::greater<int>(), gamma);
 
         int small_nonzero_values[3] = {2, 3, 4};
         sycl::buffer small_nonzero{small_nonzero_values, sycl::range{3}};
 
-        auto my_policy9 = TestUtils::make_device_policy<class Reduce3>(my_policy);
+        auto my_policy9 = TestUtils::make_device_policy<Reduce<3>>(my_policy);
         auto epsilon = oneapi::dpl::experimental::reduce_async(my_policy9, oneapi::dpl::begin(small_nonzero),
                                                                oneapi::dpl::end(small_nonzero), 1,
                                                                std::multiplies<int>()); // epsilon = 1 * 2 * 3 * 4 = 24
@@ -105,20 +127,20 @@ void test2_with_buffers()
         sycl::buffer<float> y{n};
         sycl::buffer<float> z{n};
 
-        auto my_policy = TestUtils::make_device_policy<class Copy2a>(oneapi::dpl::execution::dpcpp_default);
+        auto my_policy = TestUtils::make_device_policy<Copy<21>>(oneapi::dpl::execution::dpcpp_default);
         auto res_1a = oneapi::dpl::experimental::copy_async(my_policy, oneapi::dpl::counting_iterator<int>(0),
                                                                 oneapi::dpl::counting_iterator<int>(n),
                                                                 oneapi::dpl::begin(x)); // x = [1..n]
         auto alpha = 1.0f;
-        auto my_policy6 = TestUtils::make_device_policy<class Scan2a>(my_policy);
+        auto my_policy6 = TestUtils::make_device_policy<Scan<21>>(my_policy);
         auto beta = oneapi::dpl::experimental::transform_inclusive_scan_async(my_policy6, oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y), std::plus<float>(), [=](auto x) { return x * alpha; }, 0.0f, res_1a);
         
-        auto my_policy1 = TestUtils::make_device_policy<class Fill2a>(my_policy);
+        auto my_policy1 = TestUtils::make_device_policy<Fill<21>>(my_policy);
         auto res_1b = oneapi::dpl::experimental::fill_async(my_policy1, oneapi::dpl::begin(x), oneapi::dpl::end(x),
                                                             -1.0f, beta);
 
         auto input1 = oneapi::dpl::counting_iterator<int>(0);
-        auto my_policy7 = TestUtils::make_device_policy<class Scan2b>(my_policy);
+        auto my_policy7 = TestUtils::make_device_policy<Scan<22>>(my_policy);
         auto gamma = oneapi::dpl::experimental::inclusive_scan_async(my_policy7, input1, input1 + n, oneapi::dpl::begin(z), std::plus<float>(), 0.0f);
 
         auto result1 = gamma.get().get_buffer().get_host_access(sycl::read_only)[n-1];
@@ -172,19 +194,19 @@ test_with_usm()
 
     // call first algorithm
     auto new_policy1 = TestUtils::make_device_policy<
-        TestUtils::unique_kernel_name<class async1, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
+        TestUtils::unique_kernel_name<Async<1>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
     auto fut1 =
         oneapi::dpl::experimental::transform_reduce_async(new_policy1, data2, data2 + n, data1, 0,
                                                           std::plus<std::uint64_t>(), std::multiplies<std::uint64_t>());
 
     // call second algorithm and wait for result
     auto new_policy2 = TestUtils::make_device_policy<
-        TestUtils::unique_kernel_name<class async2, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
+        TestUtils::unique_kernel_name<Async<2>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
     auto res2 = oneapi::dpl::experimental::reduce_async(new_policy2, data1, data1 + n_small).get();
 
     // call third algorithm that has to wait for first to complete
     auto new_policy3 = TestUtils::make_device_policy<
-        TestUtils::unique_kernel_name<class async3, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
+        TestUtils::unique_kernel_name<Async<3>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
     oneapi::dpl::experimental::sort_async(new_policy3, data2, data2 + n, fut1);
 
     // check values

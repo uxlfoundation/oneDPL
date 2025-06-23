@@ -30,6 +30,8 @@
 
 #include "support/sycl_alloc_utils.h"
 
+class TagCopy;
+
 template <sycl::usm::alloc alloc_type>
 void
 test_with_usm(sycl::queue& q, const ::std::size_t count)
@@ -48,7 +50,7 @@ test_with_usm(sycl::queue& q, const ::std::size_t count)
 
     // Run dpl::exclusive_scan algorithm on USM shared-device memory
     auto myPolicy = TestUtils::make_device_policy<
-        TestUtils::unique_kernel_name<class copy, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
+        TestUtils::unique_kernel_name<TagCopy, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
     oneapi::dpl::exclusive_scan(myPolicy, d_idx, d_idx + count, d_val, 0);
 
     // Copy results from USM shared/device memory to host

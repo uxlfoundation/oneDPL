@@ -29,6 +29,9 @@
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "support/sycl_alloc_utils.h"
 
+class KernelName1;
+class KernelName2;
+
 template <sycl::usm::alloc alloc_type, typename KernelName>
 void
 test_with_usm()
@@ -100,9 +103,9 @@ int main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
     // Run tests for USM shared memory
-    test_with_usm<sycl::usm::alloc::shared, class KernelName1>();
+    test_with_usm<sycl::usm::alloc::shared, KernelName1>();
     // Run tests for USM device memory
-    test_with_usm<sycl::usm::alloc::device, class KernelName2>();
+    test_with_usm<sycl::usm::alloc::device, KernelName2>();
 #endif
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
