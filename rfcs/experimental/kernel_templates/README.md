@@ -89,7 +89,7 @@ template <
     typename AlgorithmParameter2,  // ...
     typename AlgorithmParameterN,  // manually specified, may have a default
 
-    typename KernelParam,          // manually specified, may have a default in future
+    typename KernelParam,          // deduced, may have a default in future
 
     typename Arg1,                 // deduced, may have a default
     typename Arg2,                 // ...
@@ -100,7 +100,7 @@ sycl::event kernel_template (
     /* any cvref */ Arg1 arg1,
     /* any cvref */ Arg2 arg2,
     /* any cvref */ ArgN argn,
-    KernelParam param
+    KernelParam param              // manually specified, may have a default in future
 );
 ```
 
@@ -126,8 +126,8 @@ which can be compared to `oneapi::dpl::stable_sort`.
 
 Performance tuning controls:
 1. Algorithm-specific: the number of bits sorted per radix sort pass (`8`).
-2. Common: the number of elements processed per sub-group (`416`)
-  and the number of sub-groups per work-group (`64`).
+2. Common: the number of elements processed per work-item (`416`)
+  and the number of work-items in a work-group (`64`).
 
 These parameters influence various factors,
 including the number of kernels launched, register and local memory usage,
