@@ -1142,12 +1142,22 @@ struct __reverse_copy_fn
         && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
         && std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
 
-    std::ranges::reverse_copy_result<std::ranges::borrowed_subrange_t<_InRange>,
-                                     std::ranges::borrowed_subrange_t<_OutRange>>
+    std::ranges::in_in_out_result<std::ranges::borrowed_subrange_t<_InRange>,
+                                  std::ranges::borrowed_subrange_t<_InRange>,
+                                  std::ranges::borrowed_subrange_t<_OutRange>>
     operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r) const
     {
-        return oneapi::dpl::ranges::copy(std::forward<_ExecutionPolicy>(__exec), std::ranges::reverse_view(__in_r),
-            std::forward<_OutRange>(__out_r));
+        using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
+        const _Size __sz = std::ranges::min((_Size)std::ranges::size(__in_r), (_Size)std::ranges::size(__out_r));
+
+        auto __last_in = std::ranges::begin(__in_r) + std::ranges::size(__in_r);
+        auto __last_pos = std::ranges::begin(__in_r) + std::ranges::size(__in_r) - __sz;
+        auto __res_out = std::ranges::begin(__out_r) + __sz;
+
+        oneapi::dpl::ranges::copy(std::forward<_ExecutionPolicy>(__exec),
+            std::ranges::take_view(std::ranges::reverse_view(__in_r), __sz), std::ranges::take_view(__out_r, __sz));
+
+        return {__last_in, __last_pos, __res_out};
     }
 
 }; //__reverse_fn
