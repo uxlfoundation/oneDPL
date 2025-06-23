@@ -34,7 +34,7 @@ struct test_mismatch
         {
             const auto expected = ::std::mismatch(first1, last1, first2, ::std::equal_to<T>());
             const auto res4 = mismatch(std::forward<Policy>(exec), first1, last1, first2);
-            EXPECT_TRUE(expected == res4, "wrong return result from mismatch");
+            EXPECT_EQ(expected, res4, "wrong return result from mismatch");
         }
     }
     template <typename Policy, typename Iterator1, typename Iterator2>
@@ -46,7 +46,7 @@ struct test_mismatch
         {
             const auto expected = mismatch(oneapi::dpl::execution::seq, first1, last1, first2, last2, ::std::equal_to<T>());
             const auto res2 = mismatch(std::forward<Policy>(exec), first1, last1, first2, last2);
-            EXPECT_TRUE(expected == res2, "wrong return result from mismatch");
+            EXPECT_EQ(expected, res2, "wrong return result from mismatch");
         }
     }
 };
@@ -63,7 +63,7 @@ struct test_mismatch_predicate
         {
             const auto expected = ::std::mismatch(first1, last1, first2, ::std::equal_to<T>());
             const auto res3 = mismatch(std::forward<Policy>(exec), first1, last1, first2, std::equal_to<T>());
-            EXPECT_TRUE(expected == res3, "wrong return result from mismatch with predicate");
+            EXPECT_EQ(expected, res3, "wrong return result from mismatch with predicate");
         }
     }
     template <typename Policy, typename Iterator1, typename Iterator2>
@@ -75,7 +75,7 @@ struct test_mismatch_predicate
         {
             const auto expected = mismatch(oneapi::dpl::execution::seq, first1, last1, first2, last2, ::std::equal_to<T>());
             const auto res1 = mismatch(std::forward<Policy>(exec), first1, last1, first2, last2, std::equal_to<T>());
-            EXPECT_TRUE(expected == res1, "wrong return result from mismatch with predicate");
+            EXPECT_EQ(expected, res1, "wrong return result from mismatch with predicate");
         }
     }
 };
