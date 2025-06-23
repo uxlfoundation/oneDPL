@@ -6,7 +6,7 @@
 Each kernel template is invoked with a `kernel_param` type or object.
 Typically, a kernel template supports multiple values for the configuration parameters.
 Optimal values may depend on the invoked kernel, the data size and type(s),
-as well as on the used device.
+and underlying hardware characteristics.
 
 ## Signature
 

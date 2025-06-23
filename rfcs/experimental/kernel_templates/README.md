@@ -277,7 +277,7 @@ The `kernel_param` targets a single kernel, and currently, only one instance can
 ### Compiler Extension and Differentiation of Algorithms
 
 Currently, it is unclear if we should defferentiate algorithms
-which rely compiler extensions.
+which rely on compiler extensions.
 
 ## Exit Criteria
 
@@ -286,7 +286,7 @@ The proposed set of algorithms should become fully supported if:
   [Kernel Configuration](kernel_configuration/README.md#open-questions) sections are either addressed
   or provided with a justification to postpone or ignore.
 - A significant portion of the algorithms listed in
-  [Algorithms to Implement](#algorithms-to-implement) is implemented.
+  [Algorithms to Implement](#algorithms-to-implement) are implemented.
 - Evidence of sufficiently good performance is provided.
 - There is positive adoption feedback.
 
