@@ -1,0 +1,29 @@
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#include "support/test_bessel.h"
+
+//  cyl_bessel_jl
+#include <cmath>
+
+void
+test()
+{
+    double nud = 1.0 / 3.0, xd = 0.5;
+
+    [[maybe_unused]] auto t = std::cyl_bessel_k(nud, xd);
+}
+
+ONEDPL_TEST_NUM_MAIN
+{
+#if _PSTL_TEST_BESSEL_STD_LIB_IMPL_COMPLIANT
+    IF_DOUBLE_SUPPORT(test())
+#endif
+
+    return 0;
+}
