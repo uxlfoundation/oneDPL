@@ -349,6 +349,9 @@ run_test()
     run_test_on_device<use_device_alloc, ValueType, BinaryPredicate, BinaryOperation>();
 }
 
+class KernelName1;
+class KernelName2;
+
 int
 main()
 {
@@ -361,8 +364,8 @@ main()
 
 #if TEST_DPCPP_BACKEND_PRESENT
     // test with flag pred
-    test_flag_pred<sycl::usm::alloc::device, class KernelName1, std::uint64_t>();
-    test_flag_pred<sycl::usm::alloc::device, class KernelName2, MatrixPoint<float>>();
+    test_flag_pred<sycl::usm::alloc::device, KernelName1, std::uint64_t>();
+    test_flag_pred<sycl::usm::alloc::device, KernelName2, MatrixPoint<float>>();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 #if !_PSTL_RED_BY_SEG_WINDOWS_COMPILE_ORDER_BROKEN

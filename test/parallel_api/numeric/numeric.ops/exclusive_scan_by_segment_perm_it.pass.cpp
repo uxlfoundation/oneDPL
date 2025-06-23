@@ -29,6 +29,10 @@
 template <sycl::usm::alloc alloc_type>
 using usm_alloc_type = ::std::integral_constant<sycl::usm::alloc, alloc_type>;
 
+class KernelName;
+class KernelName1;
+class KernelName2;
+
 template <std::size_t N, typename TestValueType, typename USMAllocType>
 void
 test_exclusive_scan(sycl::queue q,
@@ -43,7 +47,7 @@ test_exclusive_scan(sycl::queue q,
     TestUtils::usm_data_transfer<alloc_type, TestValueType> dt_helper_res(q, N);
 
     auto policy = TestUtils::make_device_policy<TestUtils::unique_kernel_name<
-        TestUtils::unique_kernel_name<class KernelName, 1>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
+        TestUtils::unique_kernel_name<KernelName, 1>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
 
     oneapi::dpl::exclusive_scan_by_segment(
         policy,
@@ -79,7 +83,7 @@ test_exclusive_scan(sycl::queue q,
     auto it_key_end = it_key_begin + N;
 
     auto policy = TestUtils::make_device_policy<TestUtils::unique_kernel_name<
-        TestUtils::unique_kernel_name<class KernelName, 2>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
+        TestUtils::unique_kernel_name<KernelName, 2>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
 
     oneapi::dpl::exclusive_scan_by_segment(
         policy,
@@ -103,7 +107,7 @@ test_exclusive_scan(sycl::queue q, std::vector<TestValueType>& srcKeys, std::vec
 {
     std::vector<TestValueType> results(N);
 
-    auto policy = TestUtils::make_device_policy<class KernelName1>(q);
+    auto policy = TestUtils::make_device_policy<KernelName1>(q);
 
     oneapi::dpl::exclusive_scan_by_segment(policy,
                                            srcKeys.begin(),                 /* key begin */
@@ -126,7 +130,7 @@ test_exclusive_scan(sycl::queue q, std::vector<size_t>& perms, std::vector<TestV
 
     std::vector<TestValueType> results(N);
 
-    auto policy = TestUtils::make_device_policy<class KernelName2>(q);
+    auto policy = TestUtils::make_device_policy<KernelName2>(q);
 
     oneapi::dpl::exclusive_scan_by_segment(policy,
                                            it_key_begin,                    /* key begin */
