@@ -24,6 +24,8 @@
 
 using namespace TestUtils;
 
+class ForEach;
+
 // This is the simple test for compilation only, to check if lambda naming works correctly
 int main() {
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -59,7 +61,7 @@ int main() {
 
 #else
     // ::std::for_each(policy, buf_begin, buf_end, [](int& x) { x++; }); // It's not allowed. Policy with different name is needed
-    ::std::for_each(TestUtils::make_device_policy<class ForEach>(policy), buf_begin, buf_end, [](int& x) { x++; });
+    ::std::for_each(TestUtils::make_device_policy<ForEach>(policy), buf_begin, buf_end, [](int& x) { x++; });
     auto red_val = ::std::reduce(policy, buf_begin, buf_end, 1);
     EXPECT_TRUE(red_val == 2001, "wrong return value from reduce");
 #endif // __SYCL_UNNAMED_LAMBDA__
