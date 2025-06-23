@@ -28,15 +28,15 @@ main()
     std::ranges::iota_view view2(0, std::unreachable_sentinel_t{}); //unsized
 
     std::vector<int> res(n), expected(n);
-    std::ranges::transform(view1, view2, expected.begin(), binary_f, proj, proj);
+    std::ranges::transform(view1, view2, expected.begin(), binary_f, proj, std::identity{});
 
-    dpl_ranges::transform(oneapi::dpl::execution::seq, view1, view2, res, binary_f, proj, proj);
+    dpl_ranges::transform(oneapi::dpl::execution::seq, view1, view2, res, binary_f, proj, std::identity{});
     EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
 
-    dpl_ranges::transform(oneapi::dpl::execution::unseq, view1, view2, res, binary_f, proj, proj);
+    dpl_ranges::transform(oneapi::dpl::execution::unseq, view1, view2, res, binary_f, proj, std::identity{});
     EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
 
-    dpl_ranges::transform(oneapi::dpl::execution::par, view1, view2, res, binary_f, proj, proj);
+    dpl_ranges::transform(oneapi::dpl::execution::par, view1, view2, res, binary_f, proj, std::identity{});
     EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
 
     dpl_ranges::transform(oneapi::dpl::execution::par_unseq, view1, view2, res, binary_f);
