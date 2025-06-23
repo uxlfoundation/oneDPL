@@ -232,13 +232,15 @@ private:
         static_assert(mode == data_in_out || mode == data_in_out_lim);
 
         Container cont_in(exec, n_in, DataGen1{});
+        Container cont_in_exp(exec, n_in, DataGen1{});
+
         Container cont_out(exec, n_out, data_gen_zero);
         Container cont_exp(exec, n_out, data_gen_zero);
 
         assert(n_in <= max_n);
         assert(n_out <= max_n);
 
-        auto src_view = tr_in(std::views::all(cont_in()));
+        auto src_view = tr_in(std::views::all(cont_in_exp()));
         auto exp_view = tr_out(std::views::all(cont_exp()));
         auto expected_res = checker(src_view, exp_view, args...);
 
@@ -259,6 +261,10 @@ private:
         //check result
         auto n = std::ranges::size(exp_view);
         EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+
+        //check result
+        auto n_in_exp = std::ranges::size(src_view);
+        EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
     }
 
 public:
