@@ -22,9 +22,7 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    auto reverse_checker = [](auto&&... args) {
-        return std::ranges::reverse(std::forward<decltype(args)>(args)...);
-    };
+    auto reverse_checker = TEST_PREPARE_CALLABLE(std::ranges::reverse);
 
     test_range_algo<0>{big_sz}(dpl_ranges::reverse, reverse_checker);
 #endif //_ENABLE_STD_RANGES_TESTING
