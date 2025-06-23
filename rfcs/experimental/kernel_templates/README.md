@@ -166,11 +166,15 @@ int main()
 
 The testing harness should cover:
  - Varying numbers of elements to process, from thousands to millions.
- - Different element types.
- - Diverse types of input sequences.
- - Representative data distributions.
+ - Different element types, depending on the algorithm and its implementation details.
+   For example, tests for radix should cover various arithmetic types
+   due to differing ordered bit transformations.
+ - All supported input sequence types.
+   For example, if the algorithm supports
+   `sycl::buffer`, `oneapi::dpl::begin`/`oneapi::dpl::end`, or USM pointers, each should be tested.
  - Various combinations of other parameters, depending on the signature of the algorithm.
- - Edge cases (for example, zero-sized sequences).
+ - Edge cases.
+   For example, zero-sized sequences.
 
 Due to the unlimited number of possible kernel parameter combinations, it is recommended to:
  - Always test the most representative configurations
