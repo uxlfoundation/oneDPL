@@ -148,7 +148,7 @@ namespace kt = oneapi::dpl::experimental::kt;
 
 int main()
 {
-   std::size_t n = 6;
+   const std::size_t n = 6;
    sycl::queue q{sycl::gpu_selector_v};
    std::uint32_t* keys = sycl::malloc_shared<std::uint32_t>(n, q);
 
