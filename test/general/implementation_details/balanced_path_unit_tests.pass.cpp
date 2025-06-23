@@ -357,14 +357,25 @@ template <typename _Rng1, typename _Rng2, typename _Comp>
 bool
 test_find_balanced_path_impl(_Rng1 __rng1, _Rng2 __rng2, _Comp __comp)
 {
+    using _SetOperation = oneapi::dpl::__par_backend_hetero::__get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>>;
+    using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_simple;
+
+    using _GenReduceInput =
+        oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, _Comp>;
+
+    std::uint16_t __diagonal_spacing = 16; // arbitrary value, should not matter for the test
+
+    _GenReduceInput _gen_reduce_input{_SetOperation{}, __diagonal_spacing, _BoundsProvider{}, __comp};
     for (std::size_t diag_idx = 0; diag_idx < __rng1.size() + __rng2.size(); ++diag_idx)
     {
         auto [merge_path_idx1, merge_path_idx2] = find_merge_path_intersection(__rng1, __rng2, diag_idx, __comp);
         auto [expected_balanced_path_idx1, expected_balanced_path_idx2, expected_star] =
             find_balanced_path_intersection(__rng1, __rng2, diag_idx, __comp);
         auto [balanced_path_idx1, balanced_path_idx2, star] =
-            oneapi::dpl::__par_backend_hetero::__find_balanced_path_start_point(__rng1, __rng2, merge_path_idx1,
-                                                                                merge_path_idx2, __comp);
+            _gen_reduce_input.__find_balanced_path_start_point(__rng1, __rng2, merge_path_idx1,
+                                                                                merge_path_idx2, std::size_t{0}, std::size_t{0},
+                                                                                std::size_t{__rng2.size()});
+
         if (balanced_path_idx1 != expected_balanced_path_idx1 || balanced_path_idx2 != expected_balanced_path_idx2 ||
             star != expected_star)
         {
