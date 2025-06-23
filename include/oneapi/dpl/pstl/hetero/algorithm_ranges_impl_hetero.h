@@ -187,7 +187,7 @@ template<typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename
 void
 __pattern_swap_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2)
 {
-    return oneapi::dpl::__internal::__ranges::__pattern_swap(__tag, std::forward<_ExecutionPolicy>(__exec),
+    oneapi::dpl::__internal::__ranges::__pattern_swap(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all(std::forward<_R1>(__r1)), oneapi::dpl::__ranges::views::all(std::forward<_R2>(__r2)));
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT

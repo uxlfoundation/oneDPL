@@ -1123,7 +1123,10 @@ struct __reverse_fn
         auto __r1 = std::ranges::take_view(__r, __n_2);
         auto __r2 = std::ranges::take_view(std::ranges::reverse_view(__r), __n_2);
 
-        oneapi::dpl::ranges::swap_ranges(std::forward<_ExecutionPolicy>(__exec), std::move(__r1),std::move(__r2));
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+
+        oneapi::dpl::__internal::__ranges::__pattern_swap_ranges(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+            std::move(__r1), std::move(__r2));
         return {std::ranges::begin(__r) + __n};
     }
 
