@@ -237,7 +237,7 @@ void test_transform_effect(VecIt1 first1, VecIt1 last1, VecIt2 first2) {
     );
 
     for (typename ::std::iterator_traits<VecIt1>::difference_type i = 0; i < last1 - first1; ++i)
-        EXPECT_EQ(static_cast<typename ::std::iterator_traits<VecIt2>::value_type>(triple(first1[i])), first2[i], "wrong effect with transform iterator");
+        EXPECT_EQ(static_cast<typename std::iterator_traits<VecIt2>::value_type>(triple(first1[i])), first2[i], "wrong effect with transform iterator");
 }
 
 //We need this functor to run fill algorithm with transform iterators. Operator() should return lvalue reference.

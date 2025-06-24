@@ -509,9 +509,7 @@ DEFINE_TEST(test_reverse)
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
-        auto host_first1 = host_keys.get();
-        for (int i = 0; i < (last - first); ++i)
-            EXPECT_TRUE(local_copy[i] == host_first1[i], "wrong effect from reverse");
+        EXPECT_EQ_N(local_copy.begin(), host_keys.get(), last - first, "wrong effect from reverse");
     }
 };
 
@@ -536,9 +534,7 @@ DEFINE_TEST(test_rotate)
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
-        auto host_first1 = host_keys.get();
-        for (int i = 0; i < (last - first); ++i)
-            EXPECT_TRUE(local_copy[i] == host_first1[i], "wrong effect from rotate");
+        EXPECT_EQ_N(local_copy.begin(), host_keys.get(), last - first, "wrong effect from rotate");
     }
 };
 
@@ -642,9 +638,7 @@ DEFINE_TEST(test_reverse_copy)
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
-        auto host_first2 = host_vals.get();
-        for (int i = 0; i < n; ++i)
-            EXPECT_TRUE(local_copy[i] == host_first2[i], "wrong effect from reverse_copy");
+        EXPECT_EQ_N(local_copy.begin(), host_vals.get(), n, "wrong effect from reverse_copy");
     }
 };
 
@@ -671,8 +665,7 @@ DEFINE_TEST(test_rotate_copy)
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
-        for (int i = 0; i < n; ++i)
-            EXPECT_TRUE(local_copy[i] == host_vals.get()[i], "wrong effect from rotate_copy");
+        EXPECT_EQ_N(local_copy.begin(), host_vals.get(), n, "wrong effect from rotate_copy");
     }
 };
 
