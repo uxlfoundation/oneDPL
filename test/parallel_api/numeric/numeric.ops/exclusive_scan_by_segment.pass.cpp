@@ -29,6 +29,10 @@ using namespace oneapi::dpl::execution;
 #endif // TEST_DPCPP_BACKEND_PRESENT
 using namespace TestUtils;
 
+// This macro may be used to analyze source data and test results in test_exclusive_scan_by_segment
+// WARNING: in the case of using this macro debug output is very large.
+// #define DUMP_CHECK_RESULTS
+
 DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
 {
     DEFINE_TEST_CONSTRUCTOR(test_exclusive_scan_by_segment, 1.0f, 1.0f)
@@ -56,6 +60,21 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         }
     }
 
+#ifdef DUMP_CHECK_RESULTS
+    template <typename Iterator, typename Size>
+    void display_param(const char* msg, Iterator it, Size n)
+    {
+        ::std::cout << msg;
+        for (Size i = 0; i < n; ++i)
+        {
+            if (i > 0)
+                ::std::cout << ", ";
+            ::std::cout << it[i];
+        }
+        ::std::cout << ::std::endl;
+    }
+#endif // DUMP_CHECK_RESULTS
+
     template <typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
               typename BinaryPredicateCheck = oneapi::dpl::__internal::__pstl_equal,
               typename BinaryOperationCheck = oneapi::dpl::__internal::__pstl_plus>
@@ -76,6 +95,14 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         ::std::vector<value_type> expected_val_res(n);
         exclusive_scan_by_segment_serial(host_keys, host_vals, ::std::begin(expected_val_res), n,
             init, pred, op);
+
+#ifdef DUMP_CHECK_RESULTS
+        ::std::cout << "check_values(n = " << n << "), init = " << init << ":" << ::std::endl;
+        display_param("         keys:   ", host_keys, n);
+        display_param("         values: ", host_vals, n);
+        display_param("         result: ", val_res, n);
+        display_param("expected result: ", expected_val_res.data(), n);
+#endif // DUMP_CHECK_RESULTS
 
         EXPECT_EQ_N(expected_val_res.data(), val_res, n, "Wrong effect from exclusive_scan_by_segment");
     }
