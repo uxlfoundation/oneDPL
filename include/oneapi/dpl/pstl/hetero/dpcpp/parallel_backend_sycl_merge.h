@@ -48,7 +48,8 @@ using _split_point_t = std::pair<_Index, _Index>;
 // 2 | 0   0  0  0 | 1
 //   |             ---->
 // 3 | 0   0  0  0   0 |
-template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare, typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
+          typename _Proj2 = oneapi::dpl::identity>
 _split_point_t<_Index>
 __find_start_point(const _Rng1& __rng1, const _Index __rng1_from, _Index __rng1_to, const _Rng2& __rng2,
                    const _Index __rng2_from, _Index __rng2_to, const _Index __i_elem, _Compare __comp,
@@ -124,12 +125,12 @@ __find_start_point(const _Rng1& __rng1, const _Index __rng1_from, _Index __rng1_
     __it_t __diag_it_begin(idx1_from);
     __it_t __diag_it_end(idx1_to);
 
-    const __it_t __res =
-        std::lower_bound(__diag_it_begin, __diag_it_end, false,
-                         [&__rng1, &__rng2, __index_sum, __comp, __proj1, __proj2](_Index __idx, const bool __value) mutable {
-                             return __value == std::invoke(__comp, std::invoke(__proj2, __rng2[__index_sum - __idx]),
-                                                           std::invoke(__proj1, __rng1[__idx]));
-                         });
+    const __it_t __res = std::lower_bound(
+        __diag_it_begin, __diag_it_end, false,
+        [&__rng1, &__rng2, __index_sum, __comp, __proj1, __proj2](_Index __idx, const bool __value) mutable {
+            return __value == std::invoke(__comp, std::invoke(__proj2, __rng2[__index_sum - __idx]),
+                                          std::invoke(__proj1, __rng1[__idx]));
+        });
 
     return _split_point_t<_Index>{*__res, __index_sum - *__res + 1};
 }
@@ -152,7 +153,7 @@ constexpr static bool __can_use_ternary_op_v = __can_use_ternary_op<_Rng1DataTyp
 // Do serial merge of the data from rng1 (starting from start1) and rng2 (starting from start2) and writing
 // to rng3 (starting from start3) in 'chunk' steps, but do not exceed the total size of the sequences (n1 and n2)
 template <typename _Rng1, typename _Rng2, typename _Rng3, typename _Index, typename _Compare,
-          typename _Proj1  = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 std::pair<_Index, _Index>
 __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _Index __start1, const _Index __start2,
                const _Index __start3, const _Index __chunk, const _Index __n1, const _Index __n2, _Compare __comp,
@@ -184,16 +185,16 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
         {
             // This implementation is required for performance optimization
             __rng3[__rng3_idx] = (!__rng1_idx_less_n1 || (__rng1_idx_less_n1 && __rng2_idx_less_n2 &&
-                                                          std::invoke(__comp, std::invoke(__proj2, __rng2[__rng2_idx]), 
-                                                          std::invoke(__proj1, __rng1[__rng1_idx]))))
+                                                          std::invoke(__comp, std::invoke(__proj2, __rng2[__rng2_idx]),
+                                                                      std::invoke(__proj1, __rng1[__rng1_idx]))))
                                      ? __rng2[__rng2_idx++]
                                      : __rng1[__rng1_idx++];
         }
         else
         {
             // TODO required to understand why the usual if-else is slower then ternary operator
-            if (!__rng1_idx_less_n1 ||
-                (__rng1_idx_less_n1 && __rng2_idx_less_n2 && __comp(__proj2(__rng2[__rng2_idx]), __proj1(__rng1[__rng1_idx]))))
+            if (!__rng1_idx_less_n1 || (__rng1_idx_less_n1 && __rng2_idx_less_n2 &&
+                                        __comp(__proj2(__rng2[__rng2_idx]), __proj1(__rng1[__rng1_idx]))))
                 __rng3[__rng3_idx] = __rng2[__rng2_idx++];
             else
                 __rng3[__rng3_idx] = __rng1[__rng1_idx++];
@@ -322,7 +323,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     }
 
     // Calculation of split points on each base diagonal
-    template <typename _Range1, typename _Range2, typename _Compare, typename _Proj1, typename _Proj2, typename _Storage>
+    template <typename _Range1, typename _Range2, typename _Compare, typename _Proj1, typename _Proj2,
+              typename _Storage>
     sycl::event
     eval_split_points_for_groups(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _IdType __n, _Compare __comp,
                                  _Proj1 __proj1, _Proj2 __proj2,
@@ -497,8 +499,9 @@ __get_starting_size_limit_for_large_submitter<int>()
     return 16 * 1'048'576; // 16 MB
 }
 
-template <typename _OutSizeLimit = std::false_type, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
-          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+template <typename _OutSizeLimit = std::false_type, typename _ExecutionPolicy, typename _Range1, typename _Range2,
+          typename _Range3, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
+          typename _Proj2 = oneapi::dpl::identity>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
                  _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
