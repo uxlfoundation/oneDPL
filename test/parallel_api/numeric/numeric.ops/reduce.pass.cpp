@@ -83,7 +83,7 @@ struct test_long_reduce
     void
     operator()(Policy&& exec, Iterator first, Iterator last, T init, BinaryOp binary, T expected)
     {
-        T result_r = std::reduce(std::forward<Policy>(exec), first, last, init, binary);
+        T result_r = std::reduce(std::forward<Policy>(exec), first, last, std::move(init), binary);
         EXPECT_EQ(expected, result_r, "bad result from reduce(exec, first, last, init, binary_op)");
     }
 };
@@ -109,7 +109,7 @@ test_long_form(T init, BinaryOp binary_op, F f)
         invoke_on_all_policies<1>()(test_long_reduce<T>(), in.cbegin(), in.cend(), init, binary_op, expected);
         invoke_on_all_policies<2>()(test_long_reduce<T>(), in.begin(), in.end(), NoDefaultCtorWrapper{init}, binary_op, NoDefaultCtorWrapper{expected});
         // Test with MoveOnlyWrapper on host policies
-        invoke_on_all_host_policies()(test_long_reduce<T>(), in.begin(), in.end(), MoveOnlyWrapper{init}, binary_op, MoveOnlyWrapper{expected});
+        iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/ std::false_type>()(oneapi::dpl::execution::par_unseq, test_long_reduce<T>(), in.begin(), in.end(), MoveOnlyWrapper{init}, std::plus{}, MoveOnlyWrapper{expected});
     }
 }
 
