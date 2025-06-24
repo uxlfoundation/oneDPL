@@ -603,7 +603,7 @@ __pattern_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-// __pattern_merge_ranges
+// pattern_merge_ranges
 //---------------------------------------------------------------------------------------------------------------------
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
