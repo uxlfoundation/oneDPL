@@ -42,7 +42,7 @@ struct check_minelement
     {
         const Iterator expect = ::std::min_element(begin, end);
         const Iterator result = std::min_element(std::forward<Policy>(exec), begin, end);
-        EXPECT_TRUE(expect == result, "wrong return result from min_element");
+        EXPECT_EQ(expect, result, "wrong return result from min_element");
     }
 };
 
@@ -56,7 +56,7 @@ struct check_minelement_predicate
         typedef typename ::std::iterator_traits<Iterator>::value_type T;
         const Iterator expect = ::std::min_element(begin, end);
         const Iterator result_pred = std::min_element(std::forward<Policy>(exec), begin, end, std::less<T>());
-        EXPECT_TRUE(expect == result_pred, "wrong return result from min_element with predicate");
+        EXPECT_EQ(expect, result_pred, "wrong return result from min_element with predicate");
     }
 };
 
@@ -69,7 +69,7 @@ struct check_maxelement
     {
         const Iterator expect = ::std::max_element(begin, end);
         const Iterator result = std::max_element(std::forward<Policy>(exec), begin, end);
-        EXPECT_TRUE(expect == result, "wrong return result from max_element");
+        EXPECT_EQ(expect, result, "wrong return result from max_element");
     }
 };
 
@@ -83,7 +83,7 @@ struct check_maxelement_predicate
         typedef typename ::std::iterator_traits<Iterator>::value_type T;
         const Iterator expect = ::std::max_element(begin, end);
         const Iterator result_pred = std::max_element(std::forward<Policy>(exec), begin, end, std::less<T>());
-        EXPECT_TRUE(expect == result_pred, "wrong return result from max_element with predicate");
+        EXPECT_EQ(expect, result_pred, "wrong return result from max_element with predicate");
     }
 };
 
@@ -96,8 +96,8 @@ struct check_minmaxelement
     {
         const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
         const std::pair<Iterator, Iterator> got = std::minmax_element(std::forward<Policy>(exec), begin, end);
-        EXPECT_TRUE(expect.first == got.first, "wrong return result from minmax_element (min part)");
-        EXPECT_TRUE(expect.second == got.second, "wrong return result from minmax_element (max part)");
+        EXPECT_EQ(expect.first, got.first, "wrong return result from minmax_element (min part)");
+        EXPECT_EQ(expect.second, got.second, "wrong return result from minmax_element (max part)");
     }
 };
 
@@ -111,7 +111,7 @@ struct check_minmaxelement_predicate
         typedef typename ::std::iterator_traits<Iterator>::value_type T;
         const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
         const std::pair<Iterator, Iterator> got_pred = std::minmax_element(std::forward<Policy>(exec), begin, end, std::less<T>());
-        EXPECT_TRUE(expect == got_pred, "wrong return result from minmax_element with predicate");
+        EXPECT_EQ(expect, got_pred, "wrong return result from minmax_element with predicate");
     }
 };
 

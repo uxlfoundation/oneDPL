@@ -54,8 +54,8 @@ main()
     auto res2 = unique(exec2, B, is_equal);
 
     //check result
-    EXPECT_TRUE(res1 == n_exp, "wrong return result from unique, sycl ranges");
-    EXPECT_TRUE(res2 == n_exp, "wrong return result from unique with predicate, sycl ranges");
+    EXPECT_EQ(n_exp, res1, "wrong return result from unique, sycl ranges");
+    EXPECT_EQ(n_exp, res2, "wrong return result from unique with predicate, sycl ranges");
 
     EXPECT_EQ_N(expected, views::host_all(A).begin(), n_exp, "wrong effect from unique, sycl ranges");
     EXPECT_EQ_N(expected, views::host_all(B).begin(), n_exp, "wrong effect from unique with predicate, sycl ranges");
