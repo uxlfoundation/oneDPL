@@ -20,6 +20,7 @@
 #include <functional>
 
 #include "oneapi/dpl/utility"
+#include "oneapi/dpl/pstl/functional_impl.h"    // for oneapi::dpl::identity, oneapi::dpl::maximum, oneapi::dpl::minimum
 
 namespace oneapi
 {
@@ -55,37 +56,6 @@ using ::std::unary_negate;  // Deprecated in C++17, removed in C++20
 #endif                      // _ONEDPL___cplusplus < 202002L
 using ::std::bit_not;
 
-struct identity
-{
-    using is_transparent = void;
-
-    template <typename _T>
-    constexpr _T&&
-    operator()(_T&& t) const noexcept
-    {
-        return ::std::forward<_T>(t);
-    }
-};
-
-template <typename _T>
-struct maximum
-{
-    constexpr const _T&
-    operator()(const _T& a, const _T& b) const
-    {
-        return ::std::greater<_T>()(a, b) ? a : b;
-    }
-};
-
-template <typename _T>
-struct minimum
-{
-    constexpr const _T&
-    operator()(const _T& a, const _T& b) const
-    {
-        return ::std::less<_T>()(a, b) ? a : b;
-    }
-};
 } // end namespace dpl
 } // end namespace oneapi
 
