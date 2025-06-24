@@ -1263,10 +1263,23 @@ struct MoveOnlyWrapper {
     // Deleted copy constructor and copy assignment operator
     MoveOnlyWrapper(const MoveOnlyWrapper&) = delete;
     MoveOnlyWrapper& operator=(const MoveOnlyWrapper&) = delete;
-    
+
+    MoveOnlyWrapper operator-() const
+    {
+        return MoveOnlyWrapper{-value};
+    }
+    friend MoveOnlyWrapper operator==(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value == b.value};
+    } 
     friend MoveOnlyWrapper operator+(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
     {
         return MoveOnlyWrapper{a.value + b.value};
+    } 
+
+    friend MoveOnlyWrapper operator*(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value * b.value};
     } 
 };
 
@@ -1291,9 +1304,23 @@ struct NoDefaultCtorWrapper {
     NoDefaultCtorWrapper(const NoDefaultCtorWrapper&) = default;
     NoDefaultCtorWrapper& operator=(const NoDefaultCtorWrapper&) = default;
     
+    NoDefaultCtorWrapper operator-() const
+    {
+        return NoDefaultCtorWrapper{-value};
+    }
+
+    friend NoDefaultCtorWrapper operator==(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return NoDefaultCtorWrapper{a.value == b.value};
+    } 
     friend NoDefaultCtorWrapper operator+(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
     {
         return NoDefaultCtorWrapper{a.value + b.value};
+    } 
+
+    friend NoDefaultCtorWrapper operator*(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return NoDefaultCtorWrapper{a.value * b.value};
     } 
 };
 
