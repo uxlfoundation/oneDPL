@@ -21,6 +21,12 @@
 #include "support/utils.h"
 #include "support/test_iterators.h"
 
+template <typename _T1, typename _T2> void ASSERT_EQUAL(_T1 &&X, _T2 &&Y) {
+  if (X != Y)
+    std::cout << "CHECK CORRECTNESS (STL WITH SYCL): fail (" << X << "," << Y
+              << ")" << std::endl;
+}
+
 template <class InIter, class OutIter, class Test> void test() {
   sycl::queue deviceQueue = TestUtils::get_test_queue();
   int input[5] = {1, 2, 3, 4, 5};
@@ -44,8 +50,10 @@ template <class InIter, class OutIter, class Test> void test() {
     });
   }
   int ref[5] = {1, 3, 6, 10, 15};
-  EXPECT_EQ_N(ref, output, 5, "invalid output state");
-  EXPECT_EQ(5, result_distance[0], "invalid result_distance state");
+  for (int i = 0; i < 5; ++i) {
+    ASSERT_EQUAL(ref[i], output[i]);
+  }
+  ASSERT_EQUAL(5, result_distance[0]);
 }
 
 class KernelTest1;

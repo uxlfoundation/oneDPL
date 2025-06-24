@@ -21,6 +21,14 @@
 #include "support/utils.h"
 #include "support/test_iterators.h"
 
+template <typename _T1, typename _T2>
+void
+ASSERT_EQUAL(_T1&& X, _T2&& Y)
+{
+    if (X != Y)
+        std::cout << "CHECK CORRECTNESS (STL WITH SYCL): fail (" << X << "," << Y << ")" << std::endl;
+}
+
 template <typename T1, typename T2>
 class KernelName;
 
@@ -56,7 +64,10 @@ test()
         });
     }
     const int ref[8] = {0, 10, 6, 16, 16, 26, 56, 66};
-    EXPECT_EQ_N(ref, output, 8, "invalid output state");
+    for (int i = 0; i < 8; ++i)
+    {
+        ASSERT_EQUAL(ref[i], output[i]);
+    }
 }
 
 int
