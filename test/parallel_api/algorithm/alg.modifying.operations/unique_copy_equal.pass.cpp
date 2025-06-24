@@ -73,7 +73,7 @@ struct run_unique_copy
         auto expected_count = ::std::distance(expected_first, i);
         auto out_count = ::std::distance(out_first, k);
 
-        EXPECT_TRUE(expected_count == out_count, "wrong return value from unique_copy");
+        EXPECT_EQ(expected_count, out_count, "wrong return value from unique_copy");
         EXPECT_EQ_N(expected_first, out_first, expected_count, "wrong unique_copy effect");
 #endif
     }
@@ -132,7 +132,7 @@ struct run_unique_copy_predicate
         auto expected_count = ::std::distance(expected_first, i);
         auto out_count = ::std::distance(out_first, k);
 
-        EXPECT_TRUE(expected_count == out_count, "wrong return value from unique_copy with predicate");
+        EXPECT_EQ(expected_count, out_count, "wrong return value from unique_copy with predicate");
         EXPECT_EQ_N(expected_first, out_first, expected_count, "wrong unique_copy with predicate effect");
 #endif
     }

@@ -80,8 +80,8 @@ struct test_stable_partition
         fill_data(first, last, generator);
         BiDirIt actual_ret = std::stable_partition(std::forward<Policy>(exec), first, last, unary_op);
 
-        EXPECT_TRUE(::std::distance(first, actual_ret) == ::std::distance(exp_first, exp_ret),
-                    "wrong result from stable_partition");
+        EXPECT_EQ(std::distance(exp_first, exp_ret), std::distance(first, actual_ret),
+                  "wrong result from stable_partition");
         EXPECT_TRUE((is_equal<BiDirIt>(exp_first, exp_last, first)), "wrong effect from stable_partition");
     }
 

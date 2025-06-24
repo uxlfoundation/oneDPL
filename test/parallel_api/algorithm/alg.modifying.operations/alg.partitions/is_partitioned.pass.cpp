@@ -31,7 +31,7 @@ struct test_is_partitioned
     {
         const bool expected = ::std::is_partitioned(begin1, end1, pred);
         const bool actual = std::is_partitioned(std::forward<ExecutionPolicy>(exec), begin1, end1, pred);
-        EXPECT_TRUE(actual == expected, "wrong return result from is_partitioned");
+        EXPECT_EQ(expected, actual, "wrong return result from is_partitioned");
     }
 };
 

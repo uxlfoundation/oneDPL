@@ -612,12 +612,12 @@ DEFINE_TEST(test_equal)
                                    first1 + new_end, first2 + new_start);
         wait_and_throw(exec);
 
-        EXPECT_TRUE(expected == result, "wrong effect from equal with 3 iterators");
+        EXPECT_EQ(expected, result, "wrong effect from equal with 3 iterators");
         result = ::std::equal(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1 + new_start, first1 + new_end,
                               first2 + new_start, first2 + new_end);
         wait_and_throw(exec);
 
-        EXPECT_TRUE(expected == result, "wrong effect from equal with 4 iterators");
+        EXPECT_EQ(expected, result, "wrong effect from equal with 4 iterators");
     }
 };
 
