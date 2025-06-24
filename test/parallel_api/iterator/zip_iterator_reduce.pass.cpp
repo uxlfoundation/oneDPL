@@ -139,8 +139,8 @@ DEFINE_TEST(test_min_element)
 #endif
         auto expected_min = std::min_element(host_keys.get(), host_keys.get() + n);
 
-        EXPECT_TRUE((tuple_result - tuple_first) == (expected_min - host_keys.get()),
-                    "wrong effect from min_element(tuple)");
+        EXPECT_EQ(expected_min - host_keys.get(), tuple_result - tuple_first,
+                  "wrong effect from min_element(tuple)");
     }
 };
 
@@ -190,7 +190,7 @@ DEFINE_TEST(test_count_if)
         exec.queue().wait_and_throw();
 #endif
 
-        EXPECT_TRUE(result == expected, "wrong effect from count_if(tuple)");
+        EXPECT_EQ(expected, result, "wrong effect from count_if(tuple)");
     }
 };
 

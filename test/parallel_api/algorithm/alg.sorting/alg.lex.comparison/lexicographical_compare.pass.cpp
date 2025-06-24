@@ -35,7 +35,7 @@ struct test_one_policy
     {
         const bool expected = ::std::lexicographical_compare(begin1, end1, begin2, end2, pred);
         const bool actual = std::lexicographical_compare(std::forward<ExecutionPolicy>(exec), begin1, end1, begin2, end2, pred);
-        EXPECT_TRUE(actual == expected, "wrong return result from lexicographical compare with predicate");
+        EXPECT_EQ(expected, actual, "wrong return result from lexicographical compare with predicate");
     }
 
     template <typename ExecutionPolicy, typename Iterator1, typename Iterator2>
@@ -44,7 +44,7 @@ struct test_one_policy
     {
         const bool expected = ::std::lexicographical_compare(begin1, end1, begin2, end2);
         const bool actual = std::lexicographical_compare(std::forward<ExecutionPolicy>(exec), begin1, end1, begin2, end2);
-        EXPECT_TRUE(actual == expected, "wrong return result from lexicographical compare without predicate");
+        EXPECT_EQ(expected, actual, "wrong return result from lexicographical compare without predicate");
     }
 };
 

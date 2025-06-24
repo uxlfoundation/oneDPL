@@ -73,7 +73,7 @@ struct test_fill_n
         const Iterator one_past_last = fill_n(exec, first, n, value);
         const Iterator expected_return = ::std::next(first, n);
 
-        EXPECT_TRUE(expected_return == one_past_last, "fill_n should return Iterator to one past the element assigned");
+        EXPECT_EQ(expected_return, one_past_last, "fill_n should return Iterator to one past the element assigned");
         EXPECT_TRUE(check(first, n, value), "fill_n wrong result");
 
         //n == -1
