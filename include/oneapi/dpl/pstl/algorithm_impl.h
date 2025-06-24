@@ -2953,8 +2953,6 @@ __pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 //------------------------------------------------------------------------
 // merge
 //------------------------------------------------------------------------
-// Serial version of ___merge_path_out_lim merges the 1st sequence and the 2nd sequence in "reverse order":
-// the identical elements from the 2nd sequence are merged first.
 template <typename _Iterator1, typename _Iterator2, typename _Iterator3, typename _Comp,
           typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 std::pair<_Iterator1, _Iterator2>
@@ -3035,8 +3033,6 @@ ___merge_path_out_lim(_Tag, _ExecutionPolicy&&, _It1 __it_1, _Index1 __n_1, _It2
 
 inline constexpr std::size_t __merge_path_cut_off = 2000;
 
-// Parallel version of ___merge_path_out_lim merges the 1st sequence and the 2nd sequence in "reverse order":
-// the identical elements from the 2nd sequence are merged first.
 template <typename _IsVector, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2,
           typename _Index2, typename _OutIt, typename _Index3, typename _Comp, typename _Proj1, typename _Proj2>
 std::pair<_It1, _It2>
