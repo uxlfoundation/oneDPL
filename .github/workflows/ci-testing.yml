@@ -161,12 +161,17 @@ jobs:
         run: |
           sudo apt-get install intel-oneapi-tbb-devel -y
       - name: Install Intel® oneAPI DPC++/C++ Compiler
-        if: (matrix.cxx_compiler == 'icpx' || matrix.cxx_compiler == 'icx' || matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'dpcpp' || matrix.cxx_compiler == 'dpcpp-cl')
+        if: (matrix.device_type != 'FPGA_EMU' &&
+              (matrix.cxx_compiler == 'icpx'  ||
+               matrix.cxx_compiler == 'icx'   ||
+               matrix.cxx_compiler == 'icx-cl'||
+               matrix.cxx_compiler == 'dpcpp' ||
+               matrix.cxx_compiler == 'dpcpp-cl'))
         run: |
           sudo apt-get install intel-oneapi-compiler-dpcpp-cpp -y
           # Avoid accidental use of a released version, keeping libpstloffload.so
           sudo rm -rf ${LINUX_ONEAPI_PATH}/dpl/latest/include
-      - name: Install Intel® oneAPI DPC++/C++ Compiler SYCL* FPGA Emulator Runtime
+      - name: Install Intel® oneAPI DPC++/C++ Compiler with SYCL* FPGA Emulator Runtime
         if: (matrix.device_type == 'FPGA_EMU')
         run: |
           sudo apt-get install intel-oneapi-compiler-fpga -y
