@@ -242,9 +242,7 @@ DEFINE_TEST(test_lexicographical_compare)
         exec.queue().wait_and_throw();
 #endif
 
-        if (is_less_res != is_less_exp)
-            std::cout << "N=" << n << ": got " << is_less_res << ", expected " << is_less_exp << std::endl;
-        EXPECT_TRUE(is_less_res == is_less_exp, "wrong effect from lex_compare (tuple)");
+        EXPECT_EQ(is_less_exp, is_less_res, "wrong effect from lex_compare (tuple)");
     }
 };
 

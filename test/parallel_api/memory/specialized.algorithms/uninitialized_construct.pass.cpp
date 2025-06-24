@@ -63,7 +63,7 @@ struct test_uninit_default_construct
         T::SetCount(0);
 
         std::uninitialized_default_construct(std::forward<Policy>(exec), begin, end);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_default_construct");
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_default_construct");
 
     }
 
@@ -90,7 +90,7 @@ struct test_uninit_default_construct_n
         T::SetCount(0);
 
         std::uninitialized_default_construct_n(std::forward<Policy>(exec), begin, n);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_default_construct_n");
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_default_construct_n");
     }
 
     template <typename Policy, typename Iterator>
@@ -116,7 +116,7 @@ struct test_uninit_value_construct
         T::SetCount(0);
 
         std::uninitialized_value_construct(std::forward<Policy>(exec), begin, end);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_value_construct");
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_value_construct");
     }
 
     template <typename Policy, typename Iterator>
@@ -145,7 +145,7 @@ struct test_uninit_value_construct_n
         T::SetCount(0);
 
         std::uninitialized_value_construct_n(std::forward<Policy>(exec), begin, n);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_value_construct_n");
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_value_construct_n");
     }
 
     template <typename Policy, typename Iterator>

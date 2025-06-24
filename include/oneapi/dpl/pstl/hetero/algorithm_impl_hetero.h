@@ -1311,7 +1311,7 @@ void
 __pattern_sort(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
                _Compare __comp, _LeafSort = {})
 {
-    __stable_sort_with_projection(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __comp,
+    __stable_sort_with_projection(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __comp,
                                   oneapi::dpl::identity{});
 }
 
