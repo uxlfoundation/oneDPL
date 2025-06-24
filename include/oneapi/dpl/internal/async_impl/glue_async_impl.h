@@ -18,7 +18,7 @@
 
 #include "../async_extension_defs.h"
 #include "async_impl_hetero.h"
-#include "../../functional" // for oneapi::dpl::identity
+#include "../../pstl/functional_impl.h" // for oneapi::dpl::identity
 
 namespace oneapi
 {

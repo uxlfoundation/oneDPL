@@ -24,7 +24,7 @@
 #include "sycl_defs.h"
 #include "utils_ranges_sycl.h"
 #include "parallel_backend_sycl_utils.h"
-#include "../../../functional" // for oneapi::dpl::identity
+#include "../../functional_impl.h" // for oneapi::dpl::identity
 
 #define _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT                                                                            \
     (_ONEDPL_SYCL2020_KNOWN_IDENTITY_PRESENT || _ONEDPL_LIBSYCL_KNOWN_IDENTITY_PRESENT)

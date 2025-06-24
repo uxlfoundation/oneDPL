@@ -19,7 +19,7 @@
 #include "execution_defs.h"
 #include "utils_ranges.h"
 #include "glue_numeric_defs.h"
-#include "../functional" // for oneapi::dpl::identity
+#include "functional_impl.h" // for oneapi::dpl::identity
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/numeric_ranges_impl_hetero.h"

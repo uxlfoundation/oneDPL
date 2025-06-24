@@ -29,7 +29,7 @@
 #include "execution_sycl_defs.h"
 #include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
-#include "../../../functional" // for oneapi::dpl::identity
+#include "../../functional_impl.h" // for oneapi::dpl::identity
 
 #include "../../tuple_impl.h"
 #include "../../utils_ranges.h"

@@ -48,7 +48,7 @@
 #include "sycl_iterator.h"
 #include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
-#include "../../../functional" // for oneapi::dpl::identity
+#include "../../functional_impl.h" // for oneapi::dpl::identity
 
 #define _ONEDPL_USE_RADIX_SORT (_ONEDPL_USE_SUB_GROUPS && _ONEDPL_USE_GROUP_ALGOS)
 

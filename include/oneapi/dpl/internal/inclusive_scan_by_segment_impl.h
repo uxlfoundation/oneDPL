@@ -32,7 +32,7 @@
 #    include "../pstl/hetero/algorithm_impl_hetero.h"
 #endif
 
-#include "../functional" // for oneapi::dpl::identity
+#include "../pstl/functional_impl.h" // for oneapi::dpl::identity
 
 namespace oneapi
 {
