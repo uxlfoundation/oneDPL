@@ -57,7 +57,7 @@ template <class Iter> void test() {
     });
   }
   int ref[8] = {1, 10, 1, 10, 2, 20, 720, 7200};
-  EXPECT_EQ_N(ref, output, 7, "invalid output state");
+  EXPECT_EQ_N(ref, output, 8, "invalid output state");
 }
 
 int main() {
