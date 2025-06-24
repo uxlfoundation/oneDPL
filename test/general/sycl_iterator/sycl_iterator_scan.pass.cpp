@@ -160,7 +160,7 @@ DEFINE_TEST(test_unique)
 
         host_keys.retrieve_data();
         auto host_first1 = host_keys.get();
-        for (int i = 0; i < ::std::min(result_size, expected_size); ++i)
+        for (int i = 0; i < std::min(result_size, expected_size); ++i)
         {
             EXPECT_EQ(i + 1, *(host_first1 + i), "wrong effect from unique : incorrect data");
         }
