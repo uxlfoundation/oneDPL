@@ -250,10 +250,7 @@ DEFINE_TEST(test_inplace_merge)
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
-        for (size_t i = 0; i < n; ++i)
-        {
-            EXPECT_EQ(exp[i], host_keys.get()[i], "wrong effect from inplace_merge");
-        }
+        EXPECT_EQ_N(exp, host_keys.get(), n, "wrong effect from inplace_merge");
     }
 };
 
