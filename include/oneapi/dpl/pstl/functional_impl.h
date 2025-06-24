@@ -18,8 +18,8 @@
 
 #include "onedpl_config.h"
 
-#include <utility>          // for  std::forward
-#include <functional>       // for std::greater, std::less
+#include <utility>    // for  std::forward
+#include <functional> // for std::greater, std::less
 
 namespace oneapi
 {
