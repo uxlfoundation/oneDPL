@@ -40,16 +40,10 @@ DEFINE_TEST(test_sort)
             host_keys.retrieve_data();
             auto host_first1 = host_keys.get();
 
-#if _ONEDPL_DEBUG_SYCL
             for (int i = 0; i < n; ++i)
             {
-                if (host_first1[i] != value + i)
-                {
-                    ::std::cout << "Error_1. i = " << i << ", expected = " << value + i << ", got = " << host_first1[i]
-                                << ::std::endl;
-                }
+                EXPECT_EQ(value + i, host_first1[i], "wrong effect from sort_1 : incorrect data");
             }
-#endif // _ONEDPL_DEBUG_SYCL
 
             EXPECT_TRUE(::std::is_sorted(host_first1, host_first1 + n), "wrong effect from sort_1");
         }
@@ -60,16 +54,10 @@ DEFINE_TEST(test_sort)
         host_keys.retrieve_data();
         auto host_first1 = host_keys.get();
 
-#if _ONEDPL_DEBUG_SYCL
         for (int i = 0; i < n; ++i)
         {
-            if (host_first1[i] != value + n - 1 - i)
-            {
-                ::std::cout << "Error_2. i = " << i << ", expected = " << value + n - 1 - i
-                          << ", got = " << host_first1[i] << ::std::endl;
-            }
+            EXPECT_EQ(value + n - 1 - i, host_first1[i], "wrong effect from sort_2 : incorrect data");
         }
-#endif // _ONEDPL_DEBUG_SYCL
 
         EXPECT_TRUE(::std::is_sorted(host_first1, host_first1 + n, ::std::greater<T1>()), "wrong effect from sort_2");
     }
@@ -98,16 +86,10 @@ DEFINE_TEST(test_stable_sort)
             host_keys.retrieve_data();
             auto host_first1 = host_keys.get();
 
-#if _ONEDPL_DEBUG_SYCL
             for (int i = 0; i < n; ++i)
             {
-                if (host_first1[i] != value + i)
-                {
-                    ::std::cout << "Error_1. i = " << i << ", expected = " << value + i << ", got = " << host_first1[i]
-                              << ::std::endl;
-                }
+                EXPECT_EQ(value + i, host_first1[i], "wrong effect from stable_sort_1 : incorrect data");
             }
-#endif // _ONEDPL_DEBUG_SYCL
 
             EXPECT_TRUE(::std::is_sorted(host_first1, host_first1 + n), "wrong effect from stable_sort_1");
         }
@@ -118,16 +100,10 @@ DEFINE_TEST(test_stable_sort)
         host_keys.retrieve_data();
         auto host_first1 = host_keys.get();
 
-#if _ONEDPL_DEBUG_SYCL
         for (int i = 0; i < n; ++i)
         {
-            if (host_first1[i] != value + n - 1 - i)
-            {
-                ::std::cout << "Error_2. i = " << i << ", expected = " << value + n - 1 - i
-                            << ", got = " << host_first1[i] << ::std::endl;
-            }
+            EXPECT_EQ(value + n - 1 - i, host_first1[i], "wrong effect from stable_sort_3 : incorrect data");
         }
-#endif // _ONEDPL_DEBUG_SYCL
 
         EXPECT_TRUE(::std::is_sorted(host_first1, host_first1 + n, ::std::greater<T1>()),
                     "wrong effect from stable_sort_3");
@@ -274,14 +250,7 @@ DEFINE_TEST(test_inplace_merge)
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
-        for (size_t i = 0; i < n; ++i)
-        {
-            if (host_keys.get()[i] != exp[i])
-            {
-                ::std::cout << "Error: i = " << i << ", expected " << exp[i] << ", got " << host_keys.get()[i] << ::std::endl;
-            }
-            EXPECT_TRUE(host_keys.get()[i] == exp[i], "wrong effect from inplace_merge");
-        }
+        EXPECT_EQ_N(exp.begin(), host_keys.get(), n, "wrong effect from inplace_merge");
     }
 };
 
@@ -322,14 +291,10 @@ DEFINE_TEST(test_nth_element)
 
         // check
         auto median = *(host_first1 + n / 2);
-        bool is_correct = median == *(host_first2 + n / 2);
-        if (!is_correct)
-        {
-            ::std::cout << "wrong nth element value got: " << median << ", expected: " << *(host_first2 + n / 2)
-                      << ::std::endl;
-        }
-        is_correct =
-            ::std::find_first_of(host_first1, host_first1 + n / 2, host_first1 + n / 2, host_first1 + n,
+        EXPECT_EQ(median, *(host_first2 + n / 2), "wrong effect from nth_element : wrong nth element value");
+
+        bool is_correct =
+            std::find_first_of(host_first1, host_first1 + n / 2, host_first1 + n / 2, host_first1 + n,
                                [comp](T1& x, T2& y) { return comp(y, x); }) ==
                      host_first1 + n / 2;
         EXPECT_TRUE(is_correct, "wrong effect from nth_element");
@@ -367,15 +332,7 @@ DEFINE_TEST(test_merge)
         // Special case, because we have more results then source data
         host_res.retrieve_data();
         auto host_first3 = host_res.get();
-#if _ONEDPL_DEBUG_SYCL
-        for (size_t i = 0; i < res1 - first3; ++i)
-        {
-            if (host_first3[i] != exp[i])
-            {
-                ::std::cout << "Error: i = " << i << ", expected " << exp[i] << ", got " << host_first3[i] << ::std::endl;
-            }
-        }
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ_N(exp.begin(), host_first3, res1 - first3, "wrong result from merge_1 : incorrect data");
 
         EXPECT_TRUE(res1 - first3 == exp1 - exp.begin(), "wrong result from merge_1");
         EXPECT_TRUE(::std::is_sorted(host_first3, host_first3 + (res1 - first3)), "wrong effect from merge_1");

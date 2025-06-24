@@ -89,20 +89,21 @@ DEFINE_TEST(test_merge)
         size_t res_size = tuple_last3 - tuple_first3;
         TestDataTransfer<UDTKind::eRes, Size> host_res_merge(*this, res_size);
 
-        size_t exp_size = size1 + size2;
-        bool is_correct = res_size == exp_size;
-        EXPECT_TRUE(is_correct, "wrong result from merge (tuple)");
+        const size_t exp_size = size1 + size2;
+        EXPECT_EQ(exp_size, res_size, "wrong result from merge (tuple)");
 
         retrieve_data(host_keys, host_vals, host_res_merge);
 
         auto host_first1 = host_keys.get();
         auto host_first3 = host_res_merge.get();
 
-        for (size_t i = 0; i < std::min(res_size, exp_size) && is_correct; ++i)
-            if ((i < size2 * 2 && *(host_first3 + i) != i) ||
-                (i >= size2 * 2 && *(host_first3 + i) != *(host_first1 + i - size2)))
-                is_correct = false;
-        EXPECT_TRUE(is_correct, "wrong effect from merge (tuple)");
+        for (size_t i = 0; i < std::min(res_size, exp_size); ++i)
+        {
+            if (i < size2 * 2)
+                EXPECT_EQ(i, *(host_first3 + i), "wrong effect from merge (tuple) #1");
+            else
+                EXPECT_EQ(*(host_first1 + i - size2), *(host_first3 + i), "wrong effect from merge (tuple) #2");
+        }
     }
 };
 
