@@ -102,7 +102,7 @@ DEFINE_TEST(test_merge)
             if (i < size2 * 2)
                 EXPECT_EQ(i, *(host_first3 + i), "wrong effect from merge (tuple) #1");
             else
-                EXPECT_EQ(*(host_first3 + i), *(host_first1 + i - size2), "wrong effect from merge (tuple) #2");
+                EXPECT_EQ(*(host_first1 + i - size2), *(host_first3 + i), "wrong effect from merge (tuple) #2");
         }
     }
 };
