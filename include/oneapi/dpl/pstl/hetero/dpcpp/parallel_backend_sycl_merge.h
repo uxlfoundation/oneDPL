@@ -25,7 +25,7 @@
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
-#include "../../../functional" //for oneapi::dpl::identity
+#include "../../functional_impl.h" // for oneapi::dpl::identity
 
 namespace oneapi
 {
