@@ -55,7 +55,7 @@ struct test_generate
         using namespace std;
         Generator_count<T> g;
         generate(std::forward<Policy>(exec), first, last, g);
-        EXPECT_TRUE(::std::count(first, last, g.default_value()) == n, "generate wrong result for generate");
+        EXPECT_EQ(n, std::count(first, last, g.default_value()), "generate wrong result for generate");
         ::std::fill(first, last, T(0));
     }
 };

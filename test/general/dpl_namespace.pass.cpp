@@ -57,13 +57,7 @@ int main()
 		TestUtils::make_device_policy<Scan>(dpl::execution::dpcpp_default),
 		key_first, key_first + n, val_first, res_first);
 
-    if (result - res_first != k){
-        std::cout << "size of keys output is not valid: expected = "<< k <<", got: "<< result - res_first << std::endl;
-    }
-    else{
-        std::cout << "done" << std::endl;
-    }
-
+    EXPECT_EQ(k, result - res_first, "size of keys output is not valid");
 #endif
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);

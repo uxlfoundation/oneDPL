@@ -105,14 +105,7 @@ DEFINE_TEST(test_min_element)
 
         auto expected_min = ::std::min_element(host_keys.get(), host_keys.get() + n);
 
-        EXPECT_TRUE(result_min - first == expected_min - host_keys.get(),
-                    "wrong effect from min_element");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: " << *(host_keys.get() + (result_min - first)) << "["
-                    << result_min - first << "], "
-                    << "expected: " << *(host_keys.get() + (expected_min - host_keys.get())) << "["
-                    << expected_min - host_keys.get() << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected_min - host_keys.get(), result_min - first, "wrong effect from min_element");
     }
 };
 
@@ -147,12 +140,7 @@ DEFINE_TEST(test_max_element)
 
         host_keys.retrieve_data();
 
-        EXPECT_TRUE(result_max_offset == expected_max_offset, "wrong effect from max_element");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got: "      << *(host_keys.get() + result_max_offset)   << "[" << result_max_offset   << "], "
-                    << "expected: " << *(host_keys.get() + expected_max_offset) << "[" << expected_max_offset << "]"
-                    << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected_max_offset, result_max_offset, "wrong effect from max_element");
     }
 };
 
@@ -192,18 +180,8 @@ DEFINE_TEST(test_minmax_element)
 
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result_min == expected_min && result_max == expected_max, "wrong effect from minmax_element");
-        if (!(result_min == expected_min && result_max == expected_max))
-        {
-            host_keys.retrieve_data();
-
-            auto got_min = host_keys.get() + (result.first - first);
-            auto got_max = host_keys.get() + (result.second - first);
-            ::std::cout << "MIN got: " << got_min << "[" << result_min << "], "
-                        << "expected: " << *(host_keys.get() + expected_offset.first) << "[" << expected_min << "]" << ::std::endl;
-            ::std::cout << "MAX got: " << got_max << "[" << result_max << "], "
-                        << "expected: " << *(host_keys.get() + expected_offset.second) << "[" << expected_max << "]" << ::std::endl;
-        }
+        EXPECT_EQ(expected_min, result_min,  "wrong effect from minmax_element: result_min");
+        EXPECT_EQ(expected_max, result_max,  "wrong effect from minmax_element: result_max");
     }
 };
 
@@ -229,20 +207,14 @@ DEFINE_TEST(test_count)
         ReturnType result = ::std::count(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, ValueType{0});
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from count (Test #1 arbitrary to count)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got " << result << ", expected " << expected << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from count (Test #1 arbitrary to count)");
 
         // check when none should be counted
         expected = 0;
         result = ::std::count(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, ValueType{12});
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from count (Test #2 none to count)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got " << result << ", expected " << expected << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from count (Test #2 none to count)");
 
         // check when all should be counted
         ::std::fill(host_keys.get(), host_keys.get() + n, ValueType{7});
@@ -252,10 +224,7 @@ DEFINE_TEST(test_count)
         result = ::std::count(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, ValueType{7});
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from count (Test #3 all to count)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got " << result << ", expected " << expected << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from count (Test #3 all to count)");
     }
 };
 
@@ -281,30 +250,21 @@ DEFINE_TEST(test_count_if)
         ReturnType result = std::count_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, TestUtils::IsMultipleOf<ValueType>{10});
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #1 arbitrary to count)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got " << result << ", expected " << expected << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from count_if (Test #1 arbitrary to count)");
 
         // check when none should be counted
         expected = 0;
         result = std::count_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first, last, TestUtils::IsGreatThan<ValueType>{10});
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #2 none to count)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got " << result << ", expected " << expected << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from count_if (Test #2 none to count)");
 
         // check when all should be counted
         expected = n;
         result = std::count_if(make_new_policy<new_kernel_name<Policy, 2>>(exec), first, last, TestUtils::IsLessThan<ValueType>{10});
         wait_and_throw(exec);
 
-        EXPECT_TRUE(result == expected, "wrong effect from count_if (Test #3 all to count)");
-#if _ONEDPL_DEBUG_SYCL
-        ::std::cout << "got " << result << ", expected " << expected << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected, result, "wrong effect from count_if (Test #3 all to count)");
     }
 };
 
@@ -415,27 +375,21 @@ DEFINE_TEST(test_lexicographical_compare)
                                                           last1, first2, last2, comp);
         wait_and_throw(exec);
 
-        if (is_less_res != 0)
-            ::std::cout << "N=" << n << ": got " << is_less_res << ", expected 0" << ::std::endl;
-        EXPECT_TRUE(is_less_res == 0, "wrong effect from lex_compare Test 1.1: S1 == S2 && len(S1) == len(S2)");
+        EXPECT_EQ(0, is_less_res, "wrong effect from lex_compare Test 1.1: S1 == S2 && len(S1) == len(S2)");
 
         // CHECK 1.2: S1 == S2 && len(S1) < len(S2)
         is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1 - 1,
                                                    first2, last2, comp);
         wait_and_throw(exec);
 
-        if (is_less_res != 1)
-            ::std::cout << "N=" << n << ": got " << is_less_res << ", expected 1" << ::std::endl;
-        EXPECT_TRUE(is_less_res == 1, "wrong effect from lex_compare Test 1.2: S1 == S2 && len(S1) < len(S2)");
+        EXPECT_EQ(1, is_less_res, "wrong effect from lex_compare Test 1.2: S1 == S2 && len(S1) < len(S2)");
 
         // CHECK 1.3: S1 == S2 && len(S1) > len(S2)
         is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 2>>(exec), first1, last1, first2,
                                                    last2 - 1, comp);
         wait_and_throw(exec);
 
-        if (is_less_res != 0)
-            ::std::cout << "N=" << n << ": got " << is_less_res << ", expected 0" << ::std::endl;
-        EXPECT_TRUE(is_less_res == 0, "wrong effect from lex_compare Test 1.3: S1 == S2 && len(S1) > len(S2)");
+        EXPECT_EQ(0, is_less_res, "wrong effect from lex_compare Test 1.3: S1 == S2 && len(S1) > len(S2)");
 
         if (n > 1)
         {
@@ -449,20 +403,14 @@ DEFINE_TEST(test_lexicographical_compare)
         wait_and_throw(exec);
 
         bool is_less_exp = n > 1 ? 1 : 0;
-        if (is_less_res != is_less_exp)
-            ::std::cout << "N=" << n << ": got " << is_less_res << ", expected " << is_less_exp << ::std::endl;
-        EXPECT_TRUE(is_less_res == is_less_exp,
-                    "wrong effect from lex_compare Test 2.1: S1 < S2 (PRE-LAST) && len(S1) == len(S2)");
+        EXPECT_EQ(is_less_exp, is_less_res, "wrong effect from lex_compare Test 2.1: S1 < S2 (PRE-LAST) && len(S1) == len(S2)");
 
         // CHECK 2.2: S1 < S2 (PRE-LAST ELEMENT) && len(S1) > len(S2)
         is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 4>>(exec), first1, last1, first2,
                                                    last2 - 1, comp);
         wait_and_throw(exec);
 
-        if (is_less_res != is_less_exp)
-            ::std::cout << "N=" << n << ": got " << is_less_res << ", expected " << is_less_exp << ::std::endl;
-        EXPECT_TRUE(is_less_res == is_less_exp,
-                    "wrong effect from lex_compare Test 2.2: S1 < S2 (PRE-LAST) && len(S1) > len(S2)");
+        EXPECT_EQ(is_less_exp, is_less_res, "wrong effect from lex_compare Test 2.2: S1 < S2 (PRE-LAST) && len(S1) > len(S2)");
 
         if (n > 1)
         {
@@ -475,10 +423,7 @@ DEFINE_TEST(test_lexicographical_compare)
                                                    last2, comp);
         wait_and_throw(exec);
 
-        if (is_less_res != 0)
-            ::std::cout << "N=" << n << ": got " << is_less_res << ", expected 0" << ::std::endl;
-        EXPECT_TRUE(is_less_res == 0,
-                    "wrong effect from lex_compare Test 3.1: S1 > S2 (PRE-LAST) && len(S1) == len(S2)");
+        EXPECT_EQ(0, is_less_res, "wrong effect from lex_compare Test 3.1: S1 > S2 (PRE-LAST) && len(S1) == len(S2)");
 
         // CHECK 3.2: S1 > S2 (PRE-LAST ELEMENT) && len(S1) < len(S2)
         is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 6>>(exec), first1, last1 - 1,
@@ -486,10 +431,7 @@ DEFINE_TEST(test_lexicographical_compare)
         wait_and_throw(exec);
 
         is_less_exp = n > 1 ? 0 : 1;
-        if (is_less_res != is_less_exp)
-            ::std::cout << "N=" << n << ": got " << is_less_res << ", expected " << is_less_exp << ::std::endl;
-        EXPECT_TRUE(is_less_res == is_less_exp,
-                    "wrong effect from lex_compare Test 3.2: S1 > S2 (PRE-LAST) && len(S1) < len(S2)");
+        EXPECT_EQ(is_less_exp, is_less_res, "wrong effect from lex_compare Test 3.2: S1 > S2 (PRE-LAST) && len(S1) < len(S2)");
         {
             *host_vals.get() = 444;
             host_vals.update_data();
@@ -500,9 +442,7 @@ DEFINE_TEST(test_lexicographical_compare)
                                                    last2, comp);
         wait_and_throw(exec);
 
-        if (is_less_res != 1)
-            ::std::cout << "N=" << n << ": got " << is_less_res << ", expected 1" << ::std::endl;
-        EXPECT_TRUE(is_less_res == 1, "wrong effect from lex_compare Test 4.1: S1 < S2 (FIRST) && len(S1) == len(S2)");
+        EXPECT_EQ(1, is_less_res, "wrong effect from lex_compare Test 4.1: S1 < S2 (FIRST) && len(S1) == len(S2)");
 
         // CHECK 4.2: S1 < S2 (FIRST ELEMENT) && len(S1) > len(S2)
         is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 8>>(exec), first1, last1, first2,
@@ -510,10 +450,7 @@ DEFINE_TEST(test_lexicographical_compare)
         wait_and_throw(exec);
 
         is_less_exp = n > 1 ? 1 : 0;
-        if (is_less_res != is_less_exp)
-            ::std::cout << "N=" << n << ": got " << is_less_res << ", expected " << is_less_exp << ::std::endl;
-        EXPECT_TRUE(is_less_res == is_less_exp,
-                    "wrong effect from lex_compare Test 4.2: S1 < S2 (FIRST) && len(S1) > len(S2)");
+        EXPECT_EQ(is_less_exp, is_less_res, "wrong effect from lex_compare Test 4.2: S1 < S2 (FIRST) && len(S1) > len(S2)");
         {
             *host_keys.get() = 555;
             host_keys.update_data();
@@ -524,9 +461,7 @@ DEFINE_TEST(test_lexicographical_compare)
                                                    last2, comp);
         wait_and_throw(exec);
 
-        if (is_less_res != 0)
-            ::std::cout << "N=" << n << ": got " << is_less_res << ", expected 0" << ::std::endl;
-        EXPECT_TRUE(is_less_res == 0, "wrong effect from lex_compare Test 5.1: S1 > S2 (FIRST) && len(S1) == len(S2)");
+        EXPECT_EQ(0, is_less_res, "wrong effect from lex_compare Test 5.1: S1 > S2 (FIRST) && len(S1) == len(S2)");
 
         // CHECK 5.2: S1 > S2 (FIRST ELEMENT) && len(S1) < len(S2)
         is_less_res = ::std::lexicographical_compare(make_new_policy<new_kernel_name<Policy, 10>>(exec), first1, last1 - 1,
@@ -534,10 +469,7 @@ DEFINE_TEST(test_lexicographical_compare)
         wait_and_throw(exec);
 
         is_less_exp = n > 1 ? 0 : 1;
-        if (is_less_res != is_less_exp)
-            ::std::cout << "N=" << n << ": got " << is_less_res << ", expected " << is_less_exp << ::std::endl;
-        EXPECT_TRUE(is_less_res == is_less_exp,
-                    "wrong effect from lex_compare Test 5.2: S1 > S2 (FIRST) && len(S1) < len(S2)");
+        EXPECT_EQ(is_less_exp, is_less_res, "wrong effect from lex_compare Test 5.2: S1 > S2 (FIRST) && len(S1) < len(S2)");
     }
 };
 

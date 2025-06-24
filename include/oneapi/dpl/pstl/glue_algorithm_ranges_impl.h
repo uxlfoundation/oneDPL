@@ -17,9 +17,9 @@
 #define _ONEDPL_GLUE_ALGORITHM_RANGES_IMPL_H
 
 #include <utility>
+#include "functional_impl.h" // for oneapi::dpl::identity
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #    include <ranges>
-#    include <functional>
 #    include <type_traits>
 #    include <iterator>
 #    include <algorithm> // std::ranges::sort, std::ranges::stable_sort
