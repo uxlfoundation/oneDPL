@@ -332,10 +332,7 @@ DEFINE_TEST(test_merge)
         // Special case, because we have more results then source data
         host_res.retrieve_data();
         auto host_first3 = host_res.get();
-        for (size_t i = 0; i < res1 - first3; ++i)
-        {
-            EXPECT_EQ(exp[i], host_first3[i], "wrong result from merge_1 : incorrect data");
-        }
+        EXPECT_EQ_N(exp, host_first3, res1 - first3, "wrong result from merge_1 : incorrect data");
 
         EXPECT_TRUE(res1 - first3 == exp1 - exp.begin(), "wrong result from merge_1");
         EXPECT_TRUE(::std::is_sorted(host_first3, host_first3 + (res1 - first3)), "wrong effect from merge_1");
