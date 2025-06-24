@@ -107,9 +107,9 @@ test_long_form(T init, BinaryOp binary_op, F f)
 
         invoke_on_all_policies<0>()(test_long_reduce<T>(), in.begin(), in.end(), init, binary_op, expected);
         invoke_on_all_policies<1>()(test_long_reduce<T>(), in.cbegin(), in.cend(), init, binary_op, expected);
-        invoke_on_all_policies<2>()(test_long_reduce<T>(), in.begin(), in.end(), NoDefaultCtorWrapper{init}, binary_op, NoDefaultCtorWrapper{expected});
+        invoke_on_all_policies<2>()(test_long_reduce<T>(), in.begin(), in.end(), NoDefaultCtorWrapper<T>{init}, std::plus<NoDefaultCtorWrapper<T>>{}, NoDefaultCtorWrapper<T>{expected});
         // Test with MoveOnlyWrapper on host policies
-        iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/ std::false_type>()(oneapi::dpl::execution::par_unseq, test_long_reduce<T>(), in.begin(), in.end(), MoveOnlyWrapper{init}, std::plus{}, MoveOnlyWrapper{expected});
+        iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/ std::false_type>()(oneapi::dpl::execution::par_unseq, test_long_reduce<T>(), in.begin(), in.end(), MoveOnlyWrapper<T>{init}, std::plus<MoveOnlyWrapper<T>>{}, MoveOnlyWrapper<T>{expected});
     }
 }
 
