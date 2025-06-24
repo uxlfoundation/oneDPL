@@ -22,59 +22,6 @@
 
 using namespace TestUtils;
 
-template <typename _T>
-struct MoveOnlyWrapper {
-    _T value;
-
-    // Default constructor
-    MoveOnlyWrapper() = delete;
-
-    MoveOnlyWrapper(_T v) : value(v) {}
-
-    operator _T() const { return value; }
-
-    // Move constructor
-    MoveOnlyWrapper(MoveOnlyWrapper&&) = default;
-
-    // Move assignment operator
-    MoveOnlyWrapper& operator=(MoveOnlyWrapper&&) = default;
-
-    // Deleted copy constructor and copy assignment operator
-    MoveOnlyWrapper(const MoveOnlyWrapper&) = delete;
-    MoveOnlyWrapper& operator=(const MoveOnlyWrapper&) = delete;
-    
-    friend MoveOnlyWrapper operator+(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
-    {
-        return MoveOnlyWrapper{a.value + b.value};
-    } 
-};
-
-template <typename _T>
-struct NoDefaultCtorWrapper {
-    _T value;
-
-    // Default constructor
-    NoDefaultCtorWrapper() = delete;
-
-    NoDefaultCtorWrapper(_T v) : value(v) {}
-
-    operator _T() const { return value; }
-
-    // Move constructor
-    NoDefaultCtorWrapper(NoDefaultCtorWrapper&&) = default;
-
-    // Move assignment operator
-    NoDefaultCtorWrapper& operator=(NoDefaultCtorWrapper&&) = default;
-
-    // Deleted copy constructor and copy assignment operator
-    NoDefaultCtorWrapper(const NoDefaultCtorWrapper&) = default;
-    NoDefaultCtorWrapper& operator=(const NoDefaultCtorWrapper&) = default;
-    
-    friend NoDefaultCtorWrapper operator+(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
-    {
-        return NoDefaultCtorWrapper{a.value + b.value};
-    } 
-};
 
 template <typename Type>
 struct test_long_reduce
@@ -107,9 +54,12 @@ test_long_form(T init, BinaryOp binary_op, F f)
 
         invoke_on_all_policies<0>()(test_long_reduce<T>(), in.begin(), in.end(), init, binary_op, expected);
         invoke_on_all_policies<1>()(test_long_reduce<T>(), in.cbegin(), in.cend(), init, binary_op, expected);
-        invoke_on_all_policies<2>()(test_long_reduce<T>(), in.begin(), in.end(), NoDefaultCtorWrapper<T>{init}, std::plus<NoDefaultCtorWrapper<T>>{}, NoDefaultCtorWrapper<T>{expected});
-        // Test with MoveOnlyWrapper on host policies
-        iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/ std::false_type>()(oneapi::dpl::execution::par_unseq, test_long_reduce<T>(), in.begin(), in.end(), MoveOnlyWrapper<T>{init}, std::plus<MoveOnlyWrapper<T>>{}, MoveOnlyWrapper<T>{expected});
+        if constexpr (std::is_same_v<BinaryOp, std::plus<T>>)
+        {
+            invoke_on_all_policies<2>()(test_long_reduce<T>(), in.begin(), in.end(), NoDefaultCtorWrapper<T>{init}, std::plus<NoDefaultCtorWrapper<T>>{}, NoDefaultCtorWrapper<T>{expected});
+            // Test with MoveOnlyWrapper on host policies
+            iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/ std::false_type>()(oneapi::dpl::execution::par_unseq, test_long_reduce<T>(), in.begin(), in.end(), MoveOnlyWrapper<T>{init}, std::plus<MoveOnlyWrapper<T>>{}, MoveOnlyWrapper<T>{expected});
+        }
     }
 }
 
