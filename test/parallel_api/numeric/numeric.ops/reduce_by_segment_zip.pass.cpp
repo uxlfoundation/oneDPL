@@ -87,6 +87,14 @@ test_with_usm(BinaryOp binary_op)
     dt_helper7.retrieve_data(output_values1);
     dt_helper8.retrieve_data(output_values2);
 
+//Dump
+#if 0
+    for(int i=0; i < n; i++) {
+      std::cout << "{" << output_keys1[i] << ", " << output_keys2[i] << "}: "
+                << "{" << output_values1[i] << ", " << output_values2[i] << "}" << std::endl;
+    }
+#endif
+
     // Expected output
     // {11, 11}: 1
     // {21, 20}: 2
