@@ -304,7 +304,7 @@ DEFINE_TEST(test_is_partitioned)
         result_bool = ::std::is_partitioned(make_new_policy<new_kernel_name<Policy, 1>>(exec), first, last, is_odd);
         wait_and_throw(exec);
 
-        EXPECT_TRUE(expected_bool_is_odd, result_bool, "wrong effect from is_partitioned (Test #2 is odd)");
+        EXPECT_EQ(expected_bool_is_odd, result_bool, "wrong effect from is_partitioned (Test #2 is odd)");
 
         // The code as below was added to prevent accessor destruction working with host memory
         ::std::partition(host_keys.get(), host_keys.get() + n, is_odd);
