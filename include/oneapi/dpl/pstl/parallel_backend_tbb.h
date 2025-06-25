@@ -234,7 +234,7 @@ class __trans_scan_body
     sum() const
     {
         __TBB_ASSERT(_M_has_sum, "sum expected");
-        return *const_cast<_Tp*>(reinterpret_cast<_Tp const*>(std::move(_M_sum_storage)));
+        return *const_cast<_Tp*>(reinterpret_cast<_Tp const*>(_M_sum_storage));
     }
 
     void
