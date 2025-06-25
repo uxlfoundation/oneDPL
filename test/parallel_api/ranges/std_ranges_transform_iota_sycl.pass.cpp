@@ -28,7 +28,7 @@ main()
     std::ranges::iota_view view2(0, std::unreachable_sentinel_t{}); //unsized
 
     std::vector<int> src(n), expected(n);
-    std::ranges::transform(view1, view2, expected.begin(), binary_f, proj, std::identity{});
+    std::ranges::transform(view1, view2, expected.begin(), binary_f, proj, proj);
 
     auto exec = TestUtils::get_dpcpp_test_policy();
     using Policy = decltype(exec);
@@ -38,12 +38,12 @@ main()
     usm_subrange<int> cont_out(exec, src.data(), n);
     auto res = cont_out();
 
-    dpl_ranges::transform(exec1, view1, view2, res, binary_f, proj, std::identity{});
+    dpl_ranges::transform(exec1, view1, view2, res, binary_f, proj, proj);
     EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
 
     //view1 <-> view2
-    std::ranges::transform(view2, view1, expected.begin(), binary_f, proj, std::identity{});
-    dpl_ranges::transform(exec2, view2, view1, res, binary_f, proj, std::identity{});
+    std::ranges::transform(view2, view1, expected.begin(), binary_f, proj, proj);
+    dpl_ranges::transform(exec2, view2, view1, res, binary_f, proj, proj);
     EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
 
 #endif //_ENABLE_STD_RANGES_TESTING

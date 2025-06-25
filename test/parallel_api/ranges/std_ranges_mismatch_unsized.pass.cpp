@@ -27,29 +27,29 @@ main()
     std::ranges::iota_view view1(0, n); //size range
     std::ranges::iota_view view2(0, std::unreachable_sentinel_t{}); //unsized
 
-    auto [ex_res1, ex_res2] = std::ranges::mismatch(view1, view2, binary_pred, proj, proj2);
+    auto [ex_res1, ex_res2] = std::ranges::mismatch(view1, view2, binary_pred, proj, proj);
 
     {
-    auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::seq, view1, view2, binary_pred, proj, proj2);
+    auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::seq, view1, view2, binary_pred, proj, proj);
     EXPECT_TRUE(ex_res1 == res1, err_msg);
     EXPECT_TRUE(ex_res2 == res2, err_msg);
     }
 
     {
-    auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::unseq, view1, view2, binary_pred, proj, proj2);
+    auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::unseq, view1, view2, binary_pred, proj, proj);
     EXPECT_TRUE(ex_res1 == res1, err_msg);
     EXPECT_TRUE(ex_res2 == res2, err_msg);
     }
 
     {
-    auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::par, view1, view2, binary_pred, proj, proj2);
+    auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::par, view1, view2, binary_pred, proj, proj);
     EXPECT_TRUE(ex_res1 == res1, err_msg);
     EXPECT_TRUE(ex_res2 == res2, err_msg);
     }
 
     {
-    auto [ex_res1, ex_res2] = std::ranges::mismatch(view2, view1, binary_pred, proj, proj2);
-    auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::par_unseq, view2, view1, binary_pred, proj, proj2);
+    auto [ex_res1, ex_res2] = std::ranges::mismatch(view2, view1, binary_pred, proj, proj);
+    auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::par_unseq, view2, view1, binary_pred, proj, proj);
     EXPECT_TRUE(ex_res1 == res1, err_msg);
     EXPECT_TRUE(ex_res2 == res2, err_msg);
     }
@@ -57,7 +57,7 @@ main()
 #if TEST_DPCPP_BACKEND_PRESENT
     auto exec = TestUtils::get_dpcpp_test_policy();
     {
-    auto [res1, res2] = dpl_ranges::mismatch(exec, view1, view2, binary_pred, proj, proj2);
+    auto [res1, res2] = dpl_ranges::mismatch(exec, view1, view2, binary_pred, proj, proj);
     EXPECT_TRUE(ex_res1 == res1, err_msg);
     EXPECT_TRUE(ex_res2 == res2, err_msg);
     }
