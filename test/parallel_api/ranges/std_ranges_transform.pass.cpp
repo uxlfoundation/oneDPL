@@ -66,7 +66,7 @@ main()
     };
 
     test_range_algo<4, int, data_in_in_out_lim>{big_sz}(dpl_ranges::transform, transform_binary_checker, binary_f);
-    test_range_algo<5, int, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, proj, std::identity{});
+    test_range_algo<5, int, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, proj, proj2);
     test_range_algo<6, P2, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, &P2::x, &P2::x);
     test_range_algo<7, P2, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, &P2::proj, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
