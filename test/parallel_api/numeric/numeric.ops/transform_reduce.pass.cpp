@@ -149,26 +149,31 @@ test_by_type(T init, BinaryOperation1 opB1, BinaryOperation2 opB2, UnaryOp opU, 
 #endif
         if constexpr (std::is_same_v<BinaryOperation1, std::plus<T>>)
         {
-            if constexpr(std::is_same_v<BinaryOperation2, std::multiplies<T>>)
+            if constexpr (std::is_same_v<BinaryOperation2, std::multiplies<T>>)
             {
-                invoke_on_all_policies<5>()(test_3_iters_custom_ops<NoDefaultCtorWrapper<T>>(),
-                    in1.begin(), in1.begin() + n, in2.begin(), in2.begin() + n, NoDefaultCtorWrapper<T>{init}, NoDefaultCtorWrapper<T>{init}, std::plus<NoDefaultCtorWrapper<T>>{}, std::multiplies<NoDefaultCtorWrapper<T>>{});
-                
+                invoke_on_all_policies<5>()(
+                    test_3_iters_custom_ops<NoDefaultCtorWrapper<T>>(), in1.begin(), in1.begin() + n, in2.begin(),
+                    in2.begin() + n, NoDefaultCtorWrapper<T>{init}, NoDefaultCtorWrapper<T>{init},
+                    std::plus<NoDefaultCtorWrapper<T>>{}, std::multiplies<NoDefaultCtorWrapper<T>>{});
+
                 iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/std::false_type>()(
-                    oneapi::dpl::execution::par_unseq, test_3_iters_custom_ops<T>(), in1.begin(), in1.begin() + n, in2.begin(), in2.begin() + n,
-                    MoveOnlyWrapper<T>{init}, MoveOnlyWrapper<T>{init}, std::plus<MoveOnlyWrapper<T>>{}, std::multiplies<MoveOnlyWrapper<T>>{});
+                    oneapi::dpl::execution::par_unseq, test_3_iters_custom_ops<T>(), in1.begin(), in1.begin() + n,
+                    in2.begin(), in2.begin() + n, MoveOnlyWrapper<T>{init}, MoveOnlyWrapper<T>{init},
+                    std::plus<MoveOnlyWrapper<T>>{}, std::multiplies<MoveOnlyWrapper<T>>{});
             }
             if constexpr (std::is_same_v<UnaryOp, std::negate<T>>)
             {
-                invoke_on_all_policies<5>()(test_2_iters<NoDefaultCtorWrapper<T>>(),
-                    in1.begin(), in1.begin() + n, NoDefaultCtorWrapper<T>{init}, NoDefaultCtorWrapper<T>{init}, std::plus<NoDefaultCtorWrapper<T>>{}, std::negate<NoDefaultCtorWrapper<T>>{});
-                
+                invoke_on_all_policies<5>()(test_2_iters<NoDefaultCtorWrapper<T>>(), in1.begin(), in1.begin() + n,
+                                            NoDefaultCtorWrapper<T>{init}, NoDefaultCtorWrapper<T>{init},
+                                            std::plus<NoDefaultCtorWrapper<T>>{},
+                                            std::negate<NoDefaultCtorWrapper<T>>{});
+
                 iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/std::false_type>()(
                     oneapi::dpl::execution::par_unseq, test_2_iters<T>(), in1.begin(), in1.begin() + n,
-                    MoveOnlyWrapper<T>{init}, MoveOnlyWrapper<T>{init}, std::plus<MoveOnlyWrapper<T>>{}, std::negate<MoveOnlyWrapper<T>>{});
+                    MoveOnlyWrapper<T>{init}, MoveOnlyWrapper<T>{init}, std::plus<MoveOnlyWrapper<T>>{},
+                    std::negate<MoveOnlyWrapper<T>>{});
             }
         }
-
     }
 }
 

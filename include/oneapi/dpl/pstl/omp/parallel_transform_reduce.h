@@ -95,8 +95,8 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__omp_backend_tag, _Executi
     {
         // We don't create a nested parallel region in an existing parallel
         // region: just create tasks
-        __result = oneapi::dpl::__omp_backend::__transform_reduce_body(__first, __last, __unary_op, std::move(__result), __combiner,
-                                                                       __reduction);
+        __result = oneapi::dpl::__omp_backend::__transform_reduce_body(__first, __last, __unary_op, std::move(__result),
+                                                                       __combiner, __reduction);
     }
     else
     {
@@ -105,8 +105,8 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__omp_backend_tag, _Executi
         _ONEDPL_PRAGMA(omp parallel)
         _ONEDPL_PRAGMA(omp single nowait)
         {
-            __result = oneapi::dpl::__omp_backend::__transform_reduce_body(__first, __last, __unary_op, std::move(__result),
-                                                                           __combiner, __reduction);
+            __result = oneapi::dpl::__omp_backend::__transform_reduce_body(
+                __first, __last, __unary_op, std::move(__result), __combiner, __reduction);
         }
     }
 
