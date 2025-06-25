@@ -20,6 +20,7 @@
 #include "../parallel_backend.h"
 #include "../utils_ranges.h"
 #include "utils_hetero.h"
+#include "../functional_impl.h" // for oneapi::dpl::identity
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "dpcpp/utils_ranges_sycl.h"
