@@ -90,14 +90,14 @@ The following options have been raised:
 - a) Use the experimental SYCL feature for asynchronous memory allocation and free to schedule freeing of temporary 
 storage after a kernel completes. This is a good option, but requires a fallback, as it will not always be available in 
 all environments.
-- b) Use another location, such as a component of the execution policy, to store keepalives. A type for this purpose 
-can be extracted from the policy within the backend and passed explicitly. For deferred waiting, we can provide tools 
-for the user to clear temporary storage once the event has been waited on.
+- b) Use another location, such as a component of the execution policy, to store keepalives. A container for this 
+purpose can be extracted from the policy within the backend and passed explicitly. For deferred waiting, we can provide
+tools for the user to clear temporary storage once the event has been waited on.
 - c) Use a globally allocated storage system where keepalives can be registered. Use a host_task scheduled in the SYCL 
 queue to mark the temporary storage for deletion when the kernels complete. This also requires a separate thread to run 
 cleanup after the host_task marks it as OK, because the deallocation step should not be launched directly from a 
-host_task due to restrictions about initiating an L0 call from an L0 callback. host_task will be L0 callbacks in the 
-future.
+host_task due to restrictions about initiating an L0 call from an L0 callback and host_task will be implemented as a
+L0 callbacks in the future.
 - d) Create a type `event_with_keepalive` similar to `__future` where `get()` is not defined, which can be used as the 
 `event` in a `__future`. This allows us to fix the semantic problem with `__future` by explicitly controlling what is a 
 return value and what is a keepalive, while still relying on future for the functional keepalive behavior.
@@ -105,12 +105,12 @@ return value and what is a keepalive, while still relying on future for the func
 The following table describes the options presented, whether they resolve the remaining issues, and their biggest 
 downside.
 
-| Option              | Return Type         | Implementation Details                        | Biggest Downside                                         |
-|---------------------|--------------------|-----------------------------------------------|----------------------------------------------------------|
-| Async free          | Resolved* (when available) | Resolved* (when available)                  | Not available everywhere, needs fallback                 |
-| Execution policy    | Resolved           | Somewhat fixed, requires generic interface    | Possibly not compatible with async free                  |
-| Global storage      | Resolved           | Resolved                                      | Very complex, requires extra thread, global memory, complexity |
-| Event with keepalive| Not fixed, still an issue | Mostly fixed, with separation of actual future from keepalive | Does not fix return type issue                           |
+| Option              | Return Type                | Implementation Details                        | Biggest Downside                                         |
+|---------------------|----------------------------|-----------------------------------------------|----------------------------------------------------------|
+| Async free          | Resolved* (when available) | Resolved* (when available)                    | Not available everywhere, needs fallback                 |
+| Execution policy    | Resolved                   | Somewhat fixed, requires generic interface    | Possibly not compatible with async free                  |
+| Global storage      | Resolved                   | Resolved                                      | Very complex, requires extra thread, global memory, complexity |
+| Event with keepalive| Not fixed, still an issue  | Mostly fixed, with separation of actual future from keepalive | Does not fix return type issue                           |
 
 This infrastructure allows us to proceed with a more robust deferred waiting feature and better support for the 
 existing asynchronous API.
