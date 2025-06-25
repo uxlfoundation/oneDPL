@@ -195,7 +195,7 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _Executi
     // The grain size of 3 is used in order to provide minimum 2 elements for each body
     tbb::this_task_arena::isolate(
         [__first, __last, &__body]() { tbb::parallel_reduce(tbb::blocked_range<_Index>(__first, __last, 3), __body); });
-    return std::move(__body.sum());
+    return __body.sum();
 }
 
 //------------------------------------------------------------------------
