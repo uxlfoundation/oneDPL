@@ -28,6 +28,8 @@ main()
     test_range_algo<1, int, data_in_in>{}(dpl_ranges::equal, equal_checker, binary_pred, proj, proj);
     test_range_algo<2, P2, data_in_in>{}(dpl_ranges::equal, equal_checker, binary_pred, &P2::x, &P2::x);
     test_range_algo<3, P2, data_in_in>{}(dpl_ranges::equal, equal_checker, binary_pred, &P2::proj, &P2::proj);
+    test_range_algo<4, int, data_in_in>{}(dpl_ranges::equal, equal_checker, binary_pred, proj);
+
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
