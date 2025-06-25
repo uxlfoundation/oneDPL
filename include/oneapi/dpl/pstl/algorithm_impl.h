@@ -2953,11 +2953,11 @@ __pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 //------------------------------------------------------------------------
 // merge
 //------------------------------------------------------------------------
-template <typename _Iterator1, typename _Iterator2, typename _Iterator3, typename _Comp,
-          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+template <typename _Iterator1, typename _Iterator2, typename _Iterator3, typename _Comp, typename _Proj1,
+          typename _Proj2>
 std::pair<_Iterator1, _Iterator2>
 __serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterator2 __y_e, _Iterator3 __out_b,
-                       _Iterator3 __out_e, _Comp __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+                       _Iterator3 __out_e, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     for (_Iterator3 __k = __out_b; __k != __out_e; ++__k)
     {
