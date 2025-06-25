@@ -336,7 +336,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             });
         });
 
-        return __future{std::move(__final_event), std::move(__result_and_scratch)};
+        return __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>{
+            std::move(__final_event), std::move(__result_and_scratch)};
     }
 };
 
@@ -549,7 +550,7 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
                 });
         });
 
-        return __future{std::move(__event), std::move(__result)};
+        return __future<sycl::event, __result_and_scratch_storage<_Size>>{std::move(__event), std::move(__result)};
     }
 };
 
@@ -696,7 +697,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                 // a placeholder here to match the return type of the non-single-work-group implementation
                 __result_and_scratch_storage<_Type> __dummy_result_and_scratch{__q_local, 0};
 
-                return __future{std::move(__event), std::move(__dummy_result_and_scratch)};
+                return __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>{
+                    std::move(__event), std::move(__dummy_result_and_scratch)};
             }
         }
         if (__use_reduce_then_scan)
@@ -1756,7 +1758,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
             });
         }
         // return future and extend lifetime of temporary buffer
-        return __future{std::move(__event1)};
+        return __future<sycl::event>{std::move(__event1)};
     }
 };
 
@@ -1817,7 +1819,7 @@ template <
     typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
     ::std::enable_if_t<
         !__is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
-__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+__future<sycl::event, __result_and_scratch_storage_base_ptr_t>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                        _Compare __comp, _Proj __proj)
 {
