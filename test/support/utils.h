@@ -1268,9 +1268,9 @@ struct MoveOnlyWrapper {
     {
         return MoveOnlyWrapper{-value};
     }
-    friend MoveOnlyWrapper operator==(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    friend bool operator==(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
     {
-        return MoveOnlyWrapper{a.value == b.value};
+        return a.value == b.value;
     } 
     friend MoveOnlyWrapper operator+(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
     {
@@ -1309,9 +1309,9 @@ struct NoDefaultCtorWrapper {
         return NoDefaultCtorWrapper{-value};
     }
 
-    friend NoDefaultCtorWrapper operator==(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    friend bool operator==(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
     {
-        return NoDefaultCtorWrapper{a.value == b.value};
+        return a.value == b.value;
     } 
     friend NoDefaultCtorWrapper operator+(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
     {
