@@ -190,7 +190,8 @@ _Tp
 __parallel_transform_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first,
                             _Index __last, _Up __u, _Tp __init, _Cp __combine, _Rp __brick_reduce)
 {
-    __tbb_backend::__par_trans_red_body<_Index, _Up, _Tp, _Cp, _Rp> __body(__u, std::move(__init), __combine, __brick_reduce);
+    __tbb_backend::__par_trans_red_body<_Index, _Up, _Tp, _Cp, _Rp> __body(__u, std::move(__init), __combine,
+                                                                           __brick_reduce);
     // The grain size of 3 is used in order to provide minimum 2 elements for each body
     tbb::this_task_arena::isolate(
         [__first, __last, &__body]() { tbb::parallel_reduce(tbb::blocked_range<_Index>(__first, __last, 3), __body); });

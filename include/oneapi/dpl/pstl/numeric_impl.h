@@ -93,8 +93,8 @@ __pattern_transform_reduce(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             __binary_op1, // Combine
             [__first1, __first2, __binary_op1, __binary_op2](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j,
                                                              _Tp __init) -> _Tp {
-                return __internal::__brick_transform_reduce(__i, __j, __first2 + (__i - __first1), std::move(__init), __binary_op1,
-                                                            __binary_op2, _IsVector{});
+                return __internal::__brick_transform_reduce(__i, __j, __first2 + (__i - __first1), std::move(__init),
+                                                            __binary_op1, __binary_op2, _IsVector{});
             });
     });
 }
@@ -151,9 +151,11 @@ __pattern_transform_reduce(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     return __internal::__except_handler([&]() {
         return __par_backend::__parallel_transform_reduce(
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            [__unary_op](_RandomAccessIterator __i) mutable { return __unary_op(*__i); }, std::move(__init), __binary_op,
+            [__unary_op](_RandomAccessIterator __i) mutable { return __unary_op(*__i); }, std::move(__init),
+            __binary_op,
             [__unary_op, __binary_op](_RandomAccessIterator __i, _RandomAccessIterator __j, _Tp __init) {
-                return __internal::__brick_transform_reduce(__i, __j, std::move(__init), __binary_op, __unary_op, _IsVector{});
+                return __internal::__brick_transform_reduce(__i, __j, std::move(__init), __binary_op, __unary_op,
+                                                            _IsVector{});
             });
     });
 }
@@ -369,8 +371,8 @@ __brick_adjacent_difference(_RandomAccessIterator1 __first, _RandomAccessIterato
 
     auto __n = __last - __first;
     *__d_first = *__first;
-    return __unseq_backend::__simd_walk_n(__n - 1,
-        [&__op](_ReferenceType1 __x, _ReferenceType1 __y, _ReferenceType2 __z) { __z = __op(__x, __y); },
+    return __unseq_backend::__simd_walk_n(
+        __n - 1, [&__op](_ReferenceType1 __x, _ReferenceType1 __y, _ReferenceType2 __z) { __z = __op(__x, __y); },
         __first + 1, __first, __d_first + 1);
 }
 
