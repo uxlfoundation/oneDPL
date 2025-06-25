@@ -668,7 +668,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         else if (__supports_USM_device)
         {
             static_assert(sycl::is_device_copyable_v<_T>,
-                          "The type _T must be device copyable to use __result_and_scratch_storage with USM.");
+                          "The type _T must be device copyable to use __result_and_scratch_storage.");
             // Avoid default constructor for _T, we know that _T is device copyable and therefore a copy construction
             // is equivalent to a bitwise copy
             _T* __tmp = static_cast<_T*>(malloc(sizeof(_T)));
