@@ -87,7 +87,7 @@ future).
 
 What is the best alternative for extending the lifetimes of keepalives?
 The following options have been raised:
-- a) Use the experimental SYCL feature for asynchronous memory allocation and free to schedule freeing of temporary 
+- a) Use the experimental SYCL feature for [asynchronous memory allocation](https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/proposed/sycl_ext_oneapi_async_memory_alloc.asciidoc) and free to schedule freeing of temporary 
 storage after a kernel completes. This is a good option, but requires a fallback, as it will not always be available in 
 all environments.
 - b) Use another location, such as a component of the execution policy, to store keepalives. A container for this 
