@@ -72,7 +72,6 @@ auto proj_mutuable = [](auto&& val) { return val *= 2; };
 auto f = [](auto&& val) { return val * val; };
 auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
 auto proj = [](auto&& val){ return val * 2; };
-auto proj2 = [](auto&& val){ return val; }; // to use with proj to check if different projections work correctly
 auto pred = [](auto&& val) { return val == 5; };
 auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
 auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
