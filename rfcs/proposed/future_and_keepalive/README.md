@@ -108,7 +108,7 @@ downside.
 | Option              | Return Type                | Implementation Details                        | Biggest Downside                                         |
 |---------------------|----------------------------|-----------------------------------------------|----------------------------------------------------------|
 | Async free          | Resolved* (when available) | Resolved* (when available)                    | Not available everywhere, needs fallback                 |
-| Execution policy    | Resolved                   | Somewhat fixed, requires generic interface    | Possibly not compatible with async free                  |
+| Execution policy    | Resolved                   | Somewhat fixed, requires public interface     | Possibly not compatible with async free                  |
 | Global storage      | Resolved                   | Resolved                                      | Very complex, requires extra thread, global memory, complexity |
 | Event with keepalive| Not fixed, still an issue  | Mostly fixed, with separation of actual future from keepalive | Does not fix return type issue                           |
 
