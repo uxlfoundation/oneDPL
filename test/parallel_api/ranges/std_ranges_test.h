@@ -73,7 +73,17 @@ auto f = [](auto&& val) { return val * val; };
 auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
 auto proj = [](auto&& val){ return val * 2; };
 auto pred = [](auto&& val) { return val == 5; };
-auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
+
+struct binary_pred_fo
+{
+    template <typename T1, typename T2>
+    bool
+    operator()(T1&& val1, T2&& val2) const
+    {
+        return val1 == val2;
+    }
+};
+auto binary_pred = binary_pred_fo{};
 auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
 
 auto pred1 = [](auto&& val) -> bool { return val > 0; };

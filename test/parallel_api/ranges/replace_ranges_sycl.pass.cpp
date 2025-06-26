@@ -22,13 +22,15 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // for CLONE_TEST_POLICY macro
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
     constexpr int max_n = 10;
     int data[max_n]     = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     int expected[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -43,19 +45,28 @@ main()
 
         auto view = views::all(A);
 
-        auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
-                                       
-        replace_if(exec1, view, lambda, val1);
-        replace(exec2, A, val1, val2);
+        replace_if(CLONE_TEST_POLICY_IDX(exec, 0), view, lambda, val1);
+        replace(CLONE_TEST_POLICY_IDX(exec, 1), A, val1, val2);
     }
 
     //check result
-    ::std::replace_if(expected, expected + max_n, lambda, val2);
+    std::replace_if(expected, expected + max_n, lambda, val2);
 
     EXPECT_EQ_N(expected, data, max_n, "wrong effect from replace(_if) with sycl ranges");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+
 #endif //_ENABLE_RANGES_TESTING
+
     return TestUtils::done(_ENABLE_RANGES_TESTING);
 }
