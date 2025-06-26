@@ -22,12 +22,37 @@
 
 #include "support/utils.h"
 
+#if _ENABLE_RANGES_TESTING
+
+struct CustomPredicate
+{
+    template <typename T>
+    bool
+    operator()(const T& value) const
+    {
+        return value == -1;
+    }
+};
+
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
+    using namespace oneapi::dpl::experimental::ranges;
+    all_of(std::forward<Policy>(exec), views::fill(-1, 10), CustomPredicate{});
+}
+#endif // _ENABLE_RANGES_TESTING
+
 int
 main()
 {
 #if _ENABLE_RANGES_TESTING
-    using namespace oneapi::dpl::experimental::ranges;
-    all_of(TestUtils::get_dpcpp_test_policy(), views::fill(-1, 10), [](auto i) { return i == -1;});
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+
 #endif
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

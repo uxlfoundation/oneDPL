@@ -29,9 +29,9 @@ class Kernel;
 #if TEST_DPCPP_BACKEND_PRESENT
 
 template<typename Policy>
-void test_policy_instance(Policy&& policy)
+void test_policy_instance(Policy&& exec)
 {
-    sycl::queue queue = policy.queue();
+    sycl::queue queue = exec.queue();
 
     auto __max_work_group_size = queue.get_device().template get_info<sycl::info::device::max_work_group_size>();
     EXPECT_TRUE(__max_work_group_size > 0, "policy: wrong work group size");
@@ -42,11 +42,11 @@ void test_policy_instance(Policy&& policy)
     static ::std::vector<int> a(n);
 
     ::std::fill(a.begin(), a.end(), 0);
-    std::fill(std::forward<Policy>(policy), a.begin(), a.end(), -1);
+    std::fill(std::forward<Policy>(exec), a.begin(), a.end(), -1);
 #if _PSTL_SYCL_TEST_USM
     queue.wait_and_throw();
 #endif
-    EXPECT_TRUE(::std::all_of(a.begin(), a.end(), [](int i) { return i == -1; }), "wrong result of ::std::fill with policy");
+    EXPECT_TRUE(::std::all_of(a.begin(), a.end(), [](int i) { return i == -1; }), "wrong result of ::std::fill with v");
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
