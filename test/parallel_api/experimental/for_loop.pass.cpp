@@ -52,12 +52,12 @@ test_body_for_loop(Policy&& exec, Iterator first, Iterator last, Iterator expect
 
     auto flip = Flip<T>(1);
 
-    ::std::experimental::for_loop(exec, first, last, [&flip](Iterator iter) { flip(*iter); });
+    ::std::experimental::for_loop(CLONE_TEST_POLICY(exec), first, last, [&flip](Iterator iter) { flip(*iter); });
 
     ::std::for_each(expected_first, expected_last, flip);
     EXPECT_EQ_N(expected_first, first, n, "wrong effect from for_loop");
 
-    ::std::experimental::for_loop_n(exec, first, n, [&flip](Iterator iter) { flip(*iter); });
+    ::std::experimental::for_loop_n(CLONE_TEST_POLICY(exec), first, n, [&flip](Iterator iter) { flip(*iter); });
     ::std::for_each_n(oneapi::dpl::execution::seq, expected_first, n, flip);
     EXPECT_EQ_N(expected_first, first, n, "wrong effect from for_loop_n");
 }
@@ -71,7 +71,7 @@ test_body_for_loop_integral(Policy&& exec, Iterator first, Iterator /* last */, 
 
     auto flip = Flip<T>(1);
 
-    ::std::experimental::for_loop(exec, Size(0), n, [&flip, first](Size idx) {
+    ::std::experimental::for_loop(CLONE_TEST_POLICY(exec), Size(0), n, [&flip, first](Size idx) {
         auto iter = first;
         ::std::advance(iter, idx);
         flip(*iter);
@@ -80,7 +80,7 @@ test_body_for_loop_integral(Policy&& exec, Iterator first, Iterator /* last */, 
     ::std::for_each(expected_first, expected_last, flip);
     EXPECT_EQ_N(expected_first, first, n, "wrong effect from for_loop with integral");
 
-    ::std::experimental::for_loop_n(exec, Size(0), n, [&flip, first](Size idx) {
+    ::std::experimental::for_loop_n(CLONE_TEST_POLICY(exec), Size(0), n, [&flip, first](Size idx) {
         auto iter = first;
         ::std::advance(iter, idx);
         flip(*iter);
@@ -224,8 +224,8 @@ struct test_for_loop_impl
     void
     operator()(Policy&& exec, Iterator first, Iterator last, Iterator expected_first, Iterator expected_last, Size n)
     {
-        test_body_for_loop(::std::forward<Policy>(exec), first, last, expected_first, expected_last, n);
-        test_body_for_loop_integral(::std::forward<Policy>(exec), first, last, expected_first, expected_last, n);
+        test_body_for_loop(CLONE_TEST_POLICY(exec), first, last, expected_first, expected_last, n);
+        test_body_for_loop_integral(CLONE_TEST_POLICY(exec), first, last, expected_first, expected_last, n);
     }
 };
 
@@ -270,20 +270,16 @@ struct test_for_loop_strided_impl
     operator()(Policy&& exec, Iterator first, Iterator last, Iterator expected_first, Iterator expected_last, Size n,
                size_t stride)
     {
-        test_body_for_loop_strided(::std::forward<Policy>(exec), first, last, expected_first, expected_last, n, stride);
-        test_body_for_loop_strided_n(::std::forward<Policy>(exec), first, last, expected_first, expected_last, n, stride);
+        test_body_for_loop_strided(CLONE_TEST_POLICY(exec), first, last, expected_first, expected_last, n, stride);
+        test_body_for_loop_strided_n(CLONE_TEST_POLICY(exec), first, last, expected_first, expected_last, n, stride);
 
-        test_body_for_loop_strided_integral(::std::forward<Policy>(exec), first, last, expected_first, expected_last, n,
-                                            stride);
+        test_body_for_loop_strided_integral(CLONE_TEST_POLICY(exec), first, last, expected_first, expected_last, n, stride);
 
-        test_body_for_loop_strided_n_integral(::std::forward<Policy>(exec), first, last, expected_first, expected_last, n,
-                                              (long)stride);
+        test_body_for_loop_strided_n_integral(CLONE_TEST_POLICY(exec), first, last, expected_first, expected_last, n, (long)stride);
 
         // Additionally check negative stride with integral and iterator sequence.
-        test_body_for_loop_strided_n_integral(::std::forward<Policy>(exec), first, last, expected_first, expected_last, n,
-                                              -(long)stride);
-        test_body_for_loop_strided_neg(::std::forward<Policy>(exec), first, last, expected_first, expected_last, n,
-                                       -(long)stride);
+        test_body_for_loop_strided_n_integral(CLONE_TEST_POLICY(exec), first, last, expected_first, expected_last, n, -(long)stride);
+        test_body_for_loop_strided_neg(CLONE_TEST_POLICY(exec), first, last, expected_first, expected_last, n, -(long)stride);
     }
 };
 
