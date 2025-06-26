@@ -422,8 +422,11 @@ test_base_with_reverse_iter()
 int
 main()
 {
-
 #if TEST_DPCPP_BACKEND_PRESENT
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
+
     // counting_iterator
     test_with_base_iterator<true, oneapi::dpl::counting_iterator<std::int32_t>>();
     test_base_with_reverse_iter<true, oneapi::dpl::counting_iterator<std::int32_t>>();
@@ -433,7 +436,6 @@ main()
     test_base_with_reverse_iter<true, int*>();
 
     // create a usm allocated vector
-    sycl::queue q;
     sycl::usm_allocator<int, sycl::usm::alloc::shared> alloc(q);
     std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>> vec(alloc);
     test_with_base_iterator<TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(vec.begin())>,
@@ -472,5 +474,6 @@ main()
     // Do not test with reverse_iterator, because buffer_wrapper is not a random access iterator
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
+
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }

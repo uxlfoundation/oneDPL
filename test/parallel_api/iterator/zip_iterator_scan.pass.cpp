@@ -16,6 +16,7 @@
 #include "zip_iterator_funcs.h"
 #include "support/test_config.h"
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #   include "support/utils_sycl.h"
@@ -60,7 +61,7 @@ DEFINE_TEST(test_transform_inclusive_scan)
 
         auto value = T1(333);
 
-        auto res = std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1,
+        auto res = std::transform_inclusive_scan(CLONE_TEST_POLICY_IDX(exec, 0), tuple_first1,
                                                  tuple_last1, tuple_first2, TupleNoOp{}, TupleNoOp{},
                                                  std::make_tuple(value, value));
 #if _PSTL_SYCL_TEST_USM
@@ -99,7 +100,7 @@ DEFINE_TEST(test_unique)
         }
 
         auto tuple_lastnew =
-            std::unique(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
+            std::unique(CLONE_TEST_POLICY_IDX(exec, 0), tuple_first1, tuple_last1,
                         TuplePredicate<std::equal_to<Iterator1ValueType>, 0>{std::equal_to<Iterator1ValueType>{}});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -148,7 +149,7 @@ DEFINE_TEST(test_unique_copy)
         }
 
         auto tuple_last2 = std::unique_copy(
-            make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2,
+            CLONE_TEST_POLICY_IDX(exec, 0), tuple_first1, tuple_last1, tuple_first2,
             TuplePredicate<std::equal_to<Iterator1ValueType>, 0>{std::equal_to<Iterator1ValueType>{}});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -218,7 +219,7 @@ DEFINE_TEST(test_counting_zip_transform)
         // This usage pattern can be rewritten equivalently and more simply using zip_iterator and discard_iterator,
         // see test_counting_zip_discard
         auto res =
-            std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), start, start + n,
+            std::copy_if(CLONE_TEST_POLICY_IDX(exec, 0), start, start + n,
                          oneapi::dpl::make_transform_iterator(first2, ForwardAsTuple<ValueType>{}),
                          Assigner{});
 #if _PSTL_SYCL_TEST_USM
@@ -266,7 +267,7 @@ DEFINE_TEST(test_counting_zip_discard)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(out)>, "zip_iterator (discard_iterator2) not properly copyable");
         }
 
-        auto res = std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), start, start + n, out, Assigner{});
+        auto res = std::copy_if(CLONE_TEST_POLICY_IDX(exec, 0), start, start + n, out, Assigner{});
 
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
