@@ -23,6 +23,7 @@
 #include "oneapi/dpl/iterator"
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 #include "support/scan_serial_impl.h"
 
 using namespace TestUtils;
@@ -177,7 +178,7 @@ DEFINE_TEST_1(test_scan_non_inplace, TestingAlgoritm)
         update_data(host_keys);
 
         // Now we are ready to call the tested algorithm
-        testingAlgo.call_onedpl(make_new_policy<new_kernel_name<Policy, 0>>(exec), keys_first, keys_last, vals_first);
+        testingAlgo.call_onedpl(CLONE_TEST_POLICY_IDX(exec, 0), keys_first, keys_last, vals_first);
 
         // After the tested algorithm finished we should check the results.
         // For that, at first we copy data from the buffer described by iterators
@@ -272,7 +273,7 @@ DEFINE_TEST_1(test_scan_inplace, TestingAlgoritm)
         update_data(host_keys);
 
         // Now we are ready to call tested algorithm
-        testingAlgo.call_onedpl(make_new_policy<new_kernel_name<Policy, 0>>(exec), keys_first, keys_last, keys_first);
+        testingAlgo.call_onedpl(CLONE_TEST_POLICY_IDX(exec, 0), keys_first, keys_last, keys_first);
 
         retrieve_data(host_keys);
 
