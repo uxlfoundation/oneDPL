@@ -112,7 +112,7 @@ _Tp
 __parallel_transform_reduce(oneapi::dpl::__internal::__serial_backend_tag, _ExecutionPolicy&&, _Index __first,
                             _Index __last, _UnaryOp, _Tp __init, _BinaryOp, _Reduce __reduce)
 {
-    return __reduce(__first, __last, __init);
+    return __reduce(__first, __last, std::move(__init));
 }
 
 template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
