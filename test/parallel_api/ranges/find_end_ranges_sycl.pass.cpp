@@ -22,15 +22,13 @@
 #endif
 
 #include "support/utils.h"
-#include "support/utils_invoke.h" // for CLONE_TEST_POLICY macro
 
 #include <iostream>
 
-#if _ENABLE_RANGES_TESTING
-template <typename Policy>
-void
-test_impl(Policy&& exec)
+std::int32_t
+main()
 {
+#if _ENABLE_RANGES_TESTING
     const int count1 = 10;
     int data1[count1] = {5, 6, 7, 3, 4, 5, 6, 7, 8, 9};
 
@@ -50,26 +48,18 @@ test_impl(Policy&& exec)
         auto view_a = all_view(A);
         auto view_b = all_view(B);
 
-        res1 = find_end(CLONE_TEST_POLICY_IDX(exec, 0), view_a, view_b);
-        res2 = find_end(CLONE_TEST_POLICY_IDX(exec, 1), A, B, [](auto a, auto b) { return a != b; }); //check passing sycl buffer directly
+        auto exec = TestUtils::get_dpcpp_test_policy();
+        using Policy = decltype(exec);
+        auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
+        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
+
+        res1 = find_end(exec1, view_a, view_b);
+        res2 = find_end(exec2, A, B, [](auto a, auto b) { return a != b; }); //check passing sycl buffer directly
     }
 
     //check result
     EXPECT_TRUE(res1 == idx1, "wrong effect from 'find_end' with sycl ranges");
     EXPECT_TRUE(res2 == idx2, "wrong effect from 'find_end', sycl ranges, with predicate");
-}
-#endif // _ENABLE_RANGES_TESTING
-
-std::int32_t
-main()
-{
-#if _ENABLE_RANGES_TESTING
-
-    auto policy = TestUtils::get_dpcpp_test_policy();
-    test_impl(policy);
-
-    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
-
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

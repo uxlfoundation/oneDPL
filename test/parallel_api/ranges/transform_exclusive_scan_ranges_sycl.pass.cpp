@@ -23,15 +23,13 @@
 #endif
 
 #include "support/utils.h"
-#include "support/utils_invoke.h" // for CLONE_TEST_POLICY macro
 
 #include <iostream>
 
-#if _ENABLE_RANGES_TESTING
-template <typename Policy>
-void
-test_impl(Policy&& exec)
+std::int32_t
+main()
 {
+#if _ENABLE_RANGES_TESTING
     constexpr int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     int data1[max_n];
@@ -48,28 +46,21 @@ test_impl(Policy&& exec)
         auto view = ranges::all_view<int, sycl::access::mode::read>(A);
         auto view_res = ranges::all_view<int, sycl::access::mode::write>(B);
 
-        ranges::transform_exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 0), view, view_res, 100, std::plus<int>(), lambda);
-        ranges::transform_exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 1), A, C, 100, std::plus<int>(), lambda);
+        auto exec = TestUtils::get_dpcpp_test_policy();
+        using Policy = decltype(exec);
+        auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
+        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
+
+        ranges::transform_exclusive_scan(exec1, view, view_res, 100, ::std::plus<int>(), lambda);
+        ranges::transform_exclusive_scan(exec2, A, C, 100, ::std::plus<int>(), lambda);
     }
 
     //check result
     int expected[max_n];
-    std::transform_exclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected, 100, std::plus<int>(), lambda);
+    ::std::transform_exclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected, 100, ::std::plus<int>(), lambda);
 
     EXPECT_EQ_N(expected, data1, max_n, "wrong effect from transform_exclusive_scan with init, sycl ranges");
     EXPECT_EQ_N(expected, data2, max_n, "wrong effect from transform_exclusive_scan with init, sycl buffers");
-}
-#endif // _ENABLE_RANGES_TESTING
-
-std::int32_t
-main()
-{
-#if _ENABLE_RANGES_TESTING
-
-    auto policy = TestUtils::get_dpcpp_test_policy();
-    test_impl(policy);
-
-    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
 
 #endif //_ENABLE_RANGES_TESTING
 

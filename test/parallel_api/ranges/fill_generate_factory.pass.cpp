@@ -22,15 +22,13 @@
 #endif
 
 #include "support/utils.h"
-#include "support/utils_invoke.h" // for CLONE_TEST_POLICY macro
 
 #include <iostream>
 
-#if _ENABLE_RANGES_TESTING
-template <typename Policy>
-void
-test_impl(Policy&& exec)
+std::int32_t
+main()
 {
+#if _ENABLE_RANGES_TESTING
     constexpr int max_n = 10;
     int expected1[max_n] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     int expected2[max_n] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -54,8 +52,13 @@ test_impl(Policy&& exec)
         sycl::buffer<int> A(expected1, sycl::range<1>(max_n));
         sycl::buffer<int> B(expected2, sycl::range<1>(max_n));
 
-        ranges::copy(CLONE_TEST_POLICY_IDX(exec, 0), view1, A);
-        ranges::copy(CLONE_TEST_POLICY_IDX(exec, 1), view2, B);
+        auto exec = TestUtils::get_dpcpp_test_policy();
+        using Policy = decltype(exec);
+        auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
+        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
+
+        ranges::copy(exec1, view1, A);
+        ranges::copy(exec2, view2, B);
     }
 
     auto res3 = std::all_of(expected1, expected1 + max_n, [](auto i) { return i == 1;});
@@ -64,18 +67,6 @@ test_impl(Policy&& exec)
     //check result
     EXPECT_TRUE(res3, "wrong result from fill factory on a device");
     EXPECT_TRUE(res4, "wrong result from generate factory on a device");
-}
-#endif // _ENABLE_RANGES_TESTING
-
-std::int32_t
-main()
-{
-#if _ENABLE_RANGES_TESTING
-
-    auto policy = TestUtils::get_dpcpp_test_policy();
-    test_impl(policy);
-
-    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
 
 #endif //_ENABLE_RANGES_TESTING
     return TestUtils::done(_ENABLE_RANGES_TESTING);
