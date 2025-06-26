@@ -21,6 +21,7 @@
 #include _PSTL_TEST_HEADER(algorithm)
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #include <cmath>
 #include <chrono>
@@ -145,8 +146,7 @@ struct test_set_intersection
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_intersection(first1, last1, first2, last2, expect.begin(), comp);
-        auto res = ::std::set_intersection(create_new_policy_idx<0>(std::forward<Policy>(exec)), first1, last1, first2,
-                                           last2, out.begin(), comp);
+        auto res = std::set_intersection(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2, last2, out.begin(), comp);
 
         EXPECT_EQ(expect_res - expect.begin(), res - out.begin(), "wrong result for set_intersection");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_intersection effect");
@@ -175,8 +175,8 @@ struct test_set_intersection
 
             auto zip_expect_res = std::set_intersection(zip_first1, zip_last1, zip_first2, zip_last2, zip_expect,
                                                         comp_select_first(comp));
-            auto zip_res = std::set_intersection(create_new_policy_idx<1>(std::forward<Policy>(exec)), zip_first1,
-                                                 zip_last1, zip_first2, zip_last2, zip_out, comp_select_first(comp));
+            auto zip_res = std::set_intersection(CLONE_TEST_POLICY_IDX(exec, 1), zip_first1, zip_last1, zip_first2,
+                                                 zip_last2, zip_out, comp_select_first(comp));
             EXPECT_EQ(zip_expect_res - zip_expect, zip_res - zip_out, "wrong result for zipped set_intersection");
             EXPECT_EQ_N(zip_expect, zip_out, std::distance(zip_out, zip_res), "wrong zipped set_intersection effect");
         }
