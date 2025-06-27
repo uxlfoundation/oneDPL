@@ -54,9 +54,9 @@ main()
     auto expected2 = ::std::accumulate(data, data + max_n, 100);
     auto expected3 = expected2;
 
-    EXPECT_TRUE(res1 == expected1, "wrong effect from reduce with sycl ranges");
-    EXPECT_TRUE(res2 == expected2, "wrong effect from reduce with init, sycl ranges");
-    EXPECT_TRUE(res3 == expected3, "wrong effect from reduce with init and binary operation, sycl ranges");
+    EXPECT_EQ(expected1, res1, "wrong effect from reduce with sycl ranges");
+    EXPECT_EQ(expected2, res2, "wrong effect from reduce with init, sycl ranges");
+    EXPECT_EQ(expected3, res3, "wrong effect from reduce with init and binary operation, sycl ranges");
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

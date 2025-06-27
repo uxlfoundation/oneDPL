@@ -183,17 +183,11 @@ reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& pol
     //          keys_result   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 } -- result1
     //          values_result = { 1, 2, 3, 4, 2, 6, 2, 6, 0 } -- result2
 
-    using _CountType = std::uint64_t;
-
-    namespace __bknd = __par_backend_hetero;
-
-    const auto n = std::distance(first1, last1);
-
-    if (n == 0)
+    if (first1 == last1)
         return std::make_pair(result1, result2);
 
     // number of unique keys
-    _CountType __n = oneapi::dpl::__internal::__pattern_reduce_by_segment(
+    const auto __n = oneapi::dpl::__internal::__pattern_reduce_by_segment(
         __tag, std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred, binary_op);
 
     return std::make_pair(result1 + __n, result2 + __n);

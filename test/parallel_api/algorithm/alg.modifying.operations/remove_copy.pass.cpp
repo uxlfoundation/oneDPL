@@ -52,7 +52,7 @@ struct run_remove_copy
 #else
         auto expected_count = ::std::distance(expected_first, i);
         auto out_count = ::std::distance(out_first, k);
-        EXPECT_TRUE(expected_count == out_count, "wrong return value from remove_copy");
+        EXPECT_EQ(expected_count, out_count, "wrong return value from remove_copy");
         EXPECT_EQ_N(expected_first, out_first, expected_count, "wrong remove_copy effect");
 #endif
     }

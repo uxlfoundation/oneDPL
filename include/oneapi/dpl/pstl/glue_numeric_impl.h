@@ -16,7 +16,7 @@
 #ifndef _ONEDPL_GLUE_NUMERIC_IMPL_H
 #define _ONEDPL_GLUE_NUMERIC_IMPL_H
 
-#include <functional>
+#include "functional_impl.h" // for oneapi::dpl::identity
 
 #include "utils.h"
 
@@ -40,16 +40,16 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Tp>
 reduce(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, _Tp __init,
        _BinaryOperation __binary_op)
 {
-    return transform_reduce(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __init, __binary_op,
-                            oneapi::dpl::__internal::__no_op());
+    return transform_reduce(std::forward<_ExecutionPolicy>(__exec), __first, __last, __init, __binary_op,
+                            oneapi::dpl::identity{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Tp>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Tp>
 reduce(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, _Tp __init)
 {
-    return transform_reduce(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __init, ::std::plus<_Tp>(),
-                            oneapi::dpl::__internal::__no_op());
+    return transform_reduce(std::forward<_ExecutionPolicy>(__exec), __first, __last, __init, std::plus<_Tp>(),
+                            oneapi::dpl::identity{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator>
@@ -57,9 +57,9 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       typename ::std::iterator_traits<_ForwardIterator>::value_type>
 reduce(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    typedef typename ::std::iterator_traits<_ForwardIterator>::value_type _ValueType;
-    return transform_reduce(::std::forward<_ExecutionPolicy>(__exec), __first, __last, _ValueType{},
-                            ::std::plus<_ValueType>(), oneapi::dpl::__internal::__no_op());
+    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    return transform_reduce(std::forward<_ExecutionPolicy>(__exec), __first, __last, _ValueType{},
+                            std::plus<_ValueType>(), oneapi::dpl::identity{});
 }
 
 // [transform.reduce]
@@ -109,8 +109,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 exclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                _ForwardIterator2 __result, _Tp __init)
 {
-    return transform_exclusive_scan(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result, __init,
-                                    ::std::plus<_Tp>(), oneapi::dpl::__internal::__no_op());
+    return transform_exclusive_scan(std::forward<_ExecutionPolicy>(__exec), __first, __last, __result, __init,
+                                    std::plus<_Tp>(), oneapi::dpl::identity{});
 }
 
 #if !_ONEDPL_EXCLUSIVE_SCAN_WITH_BINARY_OP_AMBIGUITY
@@ -119,8 +119,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 exclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                _ForwardIterator2 __result, _Tp __init, _BinaryOperation __binary_op)
 {
-    return transform_exclusive_scan(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result, __init,
-                                    __binary_op, oneapi::dpl::__internal::__no_op());
+    return transform_exclusive_scan(std::forward<_ExecutionPolicy>(__exec), __first, __last, __result, __init,
+                                    __binary_op, oneapi::dpl::identity{});
 }
 #else
 template <class _ForwardIterator1, class _ForwardIterator2, class _Tp, class _BinaryOperation>
@@ -128,8 +128,7 @@ _ForwardIterator2
 exclusive_scan(oneapi::dpl::execution::sequenced_policy __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                _ForwardIterator2 __result, _Tp __init, _BinaryOperation __binary_op)
 {
-    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op,
-                                    oneapi::dpl::__internal::__no_op());
+    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op, oneapi::dpl::identity{});
 }
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _Tp, class _BinaryOperation>
@@ -137,8 +136,7 @@ _ForwardIterator2
 exclusive_scan(oneapi::dpl::execution::unsequenced_policy __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                _ForwardIterator2 __result, _Tp __init, _BinaryOperation __binary_op)
 {
-    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op,
-                                    oneapi::dpl::__internal::__no_op());
+    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op, oneapi::dpl::identity{});
 }
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _Tp, class _BinaryOperation>
@@ -146,8 +144,7 @@ _ForwardIterator2
 exclusive_scan(oneapi::dpl::execution::parallel_policy __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                _ForwardIterator2 __result, _Tp __init, _BinaryOperation __binary_op)
 {
-    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op,
-                                    oneapi::dpl::__internal::__no_op());
+    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op, oneapi::dpl::identity{});
 }
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _Tp, class _BinaryOperation>
@@ -155,8 +152,7 @@ _ForwardIterator2
 exclusive_scan(oneapi::dpl::execution::parallel_unsequenced_policy __exec, _ForwardIterator1 __first,
                _ForwardIterator1 __last, _ForwardIterator2 __result, _Tp __init, _BinaryOperation __binary_op)
 {
-    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op,
-                                    oneapi::dpl::__internal::__no_op());
+    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op, oneapi::dpl::identity{});
 }
 
 #    if _ONEDPL_BACKEND_SYCL
@@ -165,8 +161,7 @@ _ForwardIterator2
 exclusive_scan(const oneapi::dpl::execution::device_policy<PolicyParams...>& __exec, _ForwardIterator1 __first,
                _ForwardIterator1 __last, _ForwardIterator2 __result, _Tp __init, _BinaryOperation __binary_op)
 {
-    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op,
-                                    oneapi::dpl::__internal::__no_op());
+    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op, oneapi::dpl::identity{});
 }
 
 #        if _ONEDPL_FPGA_DEVICE
@@ -176,8 +171,7 @@ _ForwardIterator2
 exclusive_scan(const oneapi::dpl::execution::fpga_policy<factor, KernelName>& __exec, _ForwardIterator1 __first,
                _ForwardIterator1 __last, _ForwardIterator2 __result, _Tp __init, _BinaryOperation __binary_op)
 {
-    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op,
-                                    oneapi::dpl::__internal::__no_op());
+    return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op, oneapi::dpl::identity{});
 }
 #        endif // _ONEDPL_FPGA_DEVICE
 #    endif     // _ONEDPL_BACKEND_SYCL
@@ -191,9 +185,9 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 inclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                _ForwardIterator2 __result)
 {
-    typedef typename ::std::iterator_traits<_ForwardIterator1>::value_type _InputType;
-    return transform_inclusive_scan(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
-                                    ::std::plus<_InputType>(), oneapi::dpl::__internal::__no_op());
+    typedef typename std::iterator_traits<_ForwardIterator1>::value_type _InputType;
+    return transform_inclusive_scan(std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+                                    std::plus<_InputType>(), oneapi::dpl::identity{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryOperation>
@@ -201,8 +195,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 inclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                _ForwardIterator2 __result, _BinaryOperation __binary_op)
 {
-    return transform_inclusive_scan(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result, __binary_op,
-                                    oneapi::dpl::__internal::__no_op());
+    return transform_inclusive_scan(std::forward<_ExecutionPolicy>(__exec), __first, __last, __result, __binary_op,
+                                    oneapi::dpl::identity{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Tp, class _BinaryOperation>
@@ -210,8 +204,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 inclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                _ForwardIterator2 __result, _BinaryOperation __binary_op, _Tp __init)
 {
-    return transform_inclusive_scan(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result, __binary_op,
-                                    oneapi::dpl::__internal::__no_op(), __init);
+    return transform_inclusive_scan(std::forward<_ExecutionPolicy>(__exec), __first, __last, __result, __binary_op,
+                                    oneapi::dpl::identity{}, __init);
 }
 
 // [transform.exclusive.scan]

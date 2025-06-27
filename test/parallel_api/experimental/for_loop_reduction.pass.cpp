@@ -55,8 +55,8 @@ test_body_reduction(Policy&& exec, Iterator first, Iterator last, Iterator /* ex
         var2_exp = ::std::min(var2_exp, *iter);
     }
 
-    EXPECT_TRUE(var1 == var1_exp, "wrong result of reduction 1");
-    EXPECT_TRUE(var2 == var2_exp, "wrong result of reduction 2");
+    EXPECT_EQ(var1_exp, var1, "wrong result of reduction 1");
+    EXPECT_EQ(var2_exp, var2, "wrong result of reduction 2");
 }
 
 struct test_body
@@ -119,10 +119,10 @@ struct test_body_predefined
             max_exp = ::std::max(max_exp, *iter);
         }
 
-        EXPECT_TRUE(plus_var == plus_exp, "wrong result of reduction_plus");
-        EXPECT_TRUE(mult_var == mult_exp, "wrong result of reduction_multiplies");
-        EXPECT_TRUE(min_var == min_exp, "wrong result of reduction_min");
-        EXPECT_TRUE(max_var == max_exp, "wrong result of reduction_max");
+        EXPECT_EQ(plus_exp, plus_var, "wrong result of reduction_plus");
+        EXPECT_EQ(mult_exp, mult_var, "wrong result of reduction_multiplies");
+        EXPECT_EQ(min_exp, min_var, "wrong result of reduction_min");
+        EXPECT_EQ(max_exp, max_var, "wrong result of reduction_max");
     }
 };
 
@@ -157,9 +157,9 @@ struct test_body_predefined_bits
             bit_xor_exp ^= *iter;
         }
 
-        EXPECT_TRUE(bit_or_exp == bit_or_var, "wrong result of reduction_bit_or");
-        EXPECT_TRUE(bit_and_exp == bit_and_var, "wrong result of reduction_bit_and");
-        EXPECT_TRUE(bit_xor_exp == bit_xor_var, "wrong result of reduction_bit_xor");
+        EXPECT_EQ(bit_or_exp, bit_or_var, "wrong result of reduction_bit_or");
+        EXPECT_EQ(bit_and_exp, bit_and_var, "wrong result of reduction_bit_and");
+        EXPECT_EQ(bit_xor_exp, bit_xor_var, "wrong result of reduction_bit_xor");
     }
 
     template <typename Policy, typename Iterator, typename Size>

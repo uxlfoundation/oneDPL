@@ -32,7 +32,7 @@ struct test_search_n
         using namespace std;
         auto expected = search_n(b, e, count, value, pred);
         auto actual = search_n(std::forward<ExecutionPolicy>(exec), b, e, count, value);
-        EXPECT_TRUE(actual == expected, "wrong return result from search_n");
+        EXPECT_EQ(expected, actual, "wrong return result from search_n");
     }
 };
 
@@ -46,7 +46,7 @@ struct test_search_n_predicate
         using namespace std;
         auto expected = search_n(b, e, count, value, pred);
         auto actual = search_n(std::forward<ExecutionPolicy>(exec), b, e, count, value, pred);
-        EXPECT_TRUE(actual == expected, "wrong return result from search_n with a predicate");
+        EXPECT_EQ(expected, actual, "wrong return result from search_n with a predicate");
     }
 };
 

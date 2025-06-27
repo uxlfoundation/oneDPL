@@ -40,7 +40,7 @@ struct run_unique
         ForwardIt k = unique(std::forward<Policy>(exec), first2, last2);
 
         auto n = ::std::distance(first1, i);
-        EXPECT_TRUE(::std::distance(first2, k) == n, "wrong return value from unique without predicate");
+        EXPECT_EQ(n, std::distance(first2, k), "wrong return value from unique without predicate");
         EXPECT_EQ_N(first1, first2, n, "wrong effect from unique without predicate");
     }
 };
@@ -63,7 +63,7 @@ struct run_unique_predicate
         ForwardIt k = unique(std::forward<Policy>(exec), first2, last2, pred);
 
         auto n = ::std::distance(first1, i);
-        EXPECT_TRUE(::std::distance(first2, k) == n, "wrong return value from unique with predicate");
+        EXPECT_EQ(n, std::distance(first2, k), "wrong return value from unique with predicate");
         EXPECT_EQ_N(first1, first2, n, "wrong effect from unique with predicate");
     }
 };

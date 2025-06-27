@@ -58,9 +58,9 @@ main()
     auto data_view = __nanorange::nano::views::all(data) | oneapi::dpl::experimental::ranges::views::transform(lambda1);
     auto expected3 = ::std::accumulate(data_view.begin(), data_view.end(), 0);
 
-    EXPECT_TRUE(res1 == expected1, "wrong effect from transform_reduce1 with sycl ranges");
-    EXPECT_TRUE(res2 == expected2, "wrong effect from transform_reduce2 with sycl ranges");
-    EXPECT_TRUE(res3 == expected3, "wrong effect from transform_reduce3 with sycl ranges");
+    EXPECT_EQ(expected1, res1, "wrong effect from transform_reduce1 with sycl ranges");
+    EXPECT_EQ(expected2, res2, "wrong effect from transform_reduce2 with sycl ranges");
+    EXPECT_EQ(expected3, res3, "wrong effect from transform_reduce3 with sycl ranges");
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

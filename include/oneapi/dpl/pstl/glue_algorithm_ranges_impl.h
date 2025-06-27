@@ -17,9 +17,9 @@
 #define _ONEDPL_GLUE_ALGORITHM_RANGES_IMPL_H
 
 #include <utility>
+#include "functional_impl.h" // for oneapi::dpl::identity
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #    include <ranges>
-#    include <functional>
 #    include <type_traits>
 #    include <iterator>
 #    include <algorithm> // std::ranges::sort, std::ranges::stable_sort
@@ -778,8 +778,9 @@ struct __merge_fn
     {
         // TODO: develop a strategy to get a common minimum size
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_merge(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
+        return oneapi::dpl::__internal::__ranges::__pattern_merge_ranges(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+            std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
     }
 }; //__merge_fn
 }  //__internal

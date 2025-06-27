@@ -74,17 +74,6 @@ __except_handler(_Fp __f) -> decltype(__f())
     }
 }
 
-//! Unary operator that returns reference to its argument.
-struct __no_op
-{
-    template <typename _Tp>
-    _Tp&&
-    operator()(_Tp&& __a) const
-    {
-        return ::std::forward<_Tp>(__a);
-    }
-};
-
 //! Logical negation of a predicate
 template <typename _Pred>
 class __not_pred

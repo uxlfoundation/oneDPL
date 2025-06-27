@@ -80,9 +80,8 @@ DEFINE_TEST(test_remove)
             auto exp = i + 222;
             if (i >= pos)
                 ++exp;
-            if (host_first1[i] != exp)
-                ::std::cout << "Error_1: i = " << i << ", expected " << exp << ", got " << host_first1[i] << ::std::endl;
-            EXPECT_TRUE(host_first1[i] == exp, "wrong effect from remove");
+
+            EXPECT_EQ(exp, host_first1[i], "wrong effect from remove");
         }
     }
 };
@@ -125,11 +124,8 @@ DEFINE_TEST(test_remove_if)
             auto exp = i + 222;
             if (i >= pos)
                 ++exp;
-            if (host_first1[i] != exp)
-            {
-                ::std::cout << "Error_1: i = " << i << ", expected " << exp << ", got " << host_first1[i] << ::std::endl;
-            }
-            EXPECT_TRUE(host_first1[i] == exp, "wrong effect from remove_if");
+
+            EXPECT_EQ(exp, host_first1[i], "wrong effect from remove_if");
         }
     }
 };
@@ -160,25 +156,13 @@ DEFINE_TEST(test_unique)
         std::int64_t expected_size = (n - 1) / 4 + 1;
 
         // check
-        bool is_correct = result_size == expected_size;
-#if _ONEDPL_DEBUG_SYCL
-        if (!is_correct)
-            ::std::cout << "buffer size: got " << result_last - first << ", expected " << expected_size << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected_size, result_size, "wrong effect from unique : incorrect size");
 
         host_keys.retrieve_data();
         auto host_first1 = host_keys.get();
-        for (int i = 0; i < ::std::min(result_size, expected_size) && is_correct; ++i)
+        for (int i = 0; i < std::min(result_size, expected_size); ++i)
         {
-            if (*(host_first1 + i) != i + 1)
-            {
-                is_correct = false;
-#if _ONEDPL_DEBUG_SYCL
-                ::std::cout << "got: " << *(host_first1 + i) << "[" << i << "], "
-                          << "expected: " << i + 1 << "[" << i << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
-            }
-            EXPECT_TRUE(is_correct, "wrong effect from unique");
+            EXPECT_EQ(i + 1, *(host_first1 + i), "wrong effect from unique : incorrect data");
         }
     }
 };
@@ -254,12 +238,8 @@ DEFINE_TEST(test_transform_inclusive_scan)
         for (int i = 0; i < last2 - first2; ++i)
         {
             ii += 2 * host_keys.get()[i];
-            if (host_vals.get()[i] != ii)
-            {
-                ::std::cout << "Error in scan_1: i = " << i << ", expected " << ii << ", got " << host_vals.get()[i]
-                            << ::std::endl;
-            }
-            EXPECT_TRUE(host_vals.get()[i] == ii, "wrong effect from transform_inclusive_scan_1");
+
+            EXPECT_EQ(ii, host_vals.get()[i], "wrong effect from transform_inclusive_scan_1");
         }
 
         // without initial value
@@ -272,12 +252,8 @@ DEFINE_TEST(test_transform_inclusive_scan)
         for (int i = 0; i < last2 - first2; ++i)
         {
             ii += 2 * host_keys.get()[i];
-            if (host_vals.get()[i] != ii)
-            {
-                ::std::cout << "Error in scan_2: i = " << i << ", expected " << ii << ", got " << host_vals.get()[i]
-                            << ::std::endl;
-            }
-            EXPECT_TRUE(host_vals.get()[i] == ii, "wrong effect from transform_inclusive_scan_2");
+
+            EXPECT_EQ(ii, host_vals.get()[i], "wrong effect from transform_inclusive_scan_2");
         }
     }
 };
@@ -309,10 +285,8 @@ DEFINE_TEST(test_transform_exclusive_scan)
 
         for (size_t i = 0; i < last2 - first2; ++i)
         {
-            if (host_vals.get()[i] != ii)
-                ::std::cout << "Error: i = " << i << ", expected " << ii << ", got " << host_vals.get()[i] << ::std::endl;
+            EXPECT_EQ(ii, host_vals.get()[i], "wrong effect from transform_exclusive_scan : incorrect data");
 
-            //EXPECT_TRUE(host_vals.get()[i] == ii, "wrong effect from transform_exclusive_scan");
             ii += 2 * host_keys.get()[i];
         }
     }
@@ -344,11 +318,8 @@ DEFINE_TEST(test_copy_if)
         for (int i = 0; i < res1 - first2; ++i)
         {
             auto exp = i + 222;
-            if (host_first2[i] != exp)
-            {
-                ::std::cout << "Error_1: i = " << i << ", expected " << exp << ", got " << host_first2[i] << ::std::endl;
-            }
-            EXPECT_TRUE(host_first2[i] == exp, "wrong effect from copy_if_1");
+
+            EXPECT_EQ(exp, host_first2[i], "wrong effect from copy_if_1 : incorrect data");
         }
 
         auto res2 = std::copy_if(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2, TestUtils::IsOdd<T1>{});
@@ -361,11 +332,8 @@ DEFINE_TEST(test_copy_if)
         for (int i = 0; i < res2 - first2; ++i)
         {
             auto exp = 2 * i + 1 + 222;
-            if (host_first2[i] != exp)
-            {
-                ::std::cout << "Error_2: i = " << i << ", expected " << exp << ", got " << host_first2[i] << ::std::endl;
-            }
-            EXPECT_TRUE(host_first2[i] == exp, "wrong effect from copy_if_2");
+
+            EXPECT_EQ(exp, host_first2[i], "wrong effect from copy_if_2 : incorrect data");
         }
     }
 };
@@ -400,24 +368,13 @@ DEFINE_TEST(test_unique_copy)
         std::int64_t expected_size = (n - 1) / 4 + 1;
 
         // check
-        bool is_correct = result_size == expected_size;
-#if _ONEDPL_DEBUG_SYCL
-        if (!is_correct)
-            ::std::cout << "buffer size: got " << result_last - result_first << ", expected " << expected_size
-                      << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(expected_size, result_size, "wrong effect from unique_copy : incorrect size");
 
         host_vals.retrieve_data();
         auto host_first2 = host_vals.get();
-        for (int i = 0; i < ::std::min(result_size, expected_size) && is_correct; ++i)
+        for (int i = 0; i < std::min(result_size, expected_size); ++i)
         {
-            if (*(host_first2 + i) != i + 1)
-            {
-                is_correct = false;
-                ::std::cout << "got: " << *(host_first2 + i) << "[" << i << "], "
-                          << "expected: " << i + 1 << "[" << i << "]" << ::std::endl;
-            }
-            EXPECT_TRUE(is_correct, "wrong effect from unique_copy");
+            EXPECT_EQ(i + 1, *(host_first2 + i), "wrong effect from unique_copy : incorrect data");
         }
     }
 };
@@ -460,43 +417,21 @@ DEFINE_TEST(test_partition_copy)
         auto exp_false_first = exp_false.begin();
 
         // invoke for expected
-        auto exp = ::std::partition_copy(host_keys.get(), host_keys.get() + n, exp_true_first, exp_false_first, f);
+        auto exp = std::partition_copy(host_keys.get(), host_keys.get() + n, exp_true_first, exp_false_first, f);
 
         // check
-        bool is_correct = (exp.first - exp_true_first) == (res.first - first2) &&
-                          (exp.second - exp_false_first) == (res.second - first3);
-#if _ONEDPL_DEBUG_SYCL
-        if (!is_correct)
-            ::std::cout << "N =" << n << ::std::endl
-                      << "buffer size: got {" << res.first - first2 << "," << res.second - first3 << "}, expected {"
-                      << exp.first - exp_true_first << "," << exp.second - exp_false_first << "}" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
+        EXPECT_EQ(exp.first - exp_true_first, res.first - first2, "wrong effect from partition_copy : incorrect result #1");
+        EXPECT_EQ(exp.second - exp_false_first, res.second - first3, "wrong effect from partition_copy : incorrect result #2");
 
-        for (int i = 0; i < ::std::min(exp.first - exp_true_first, res.first - first2) && is_correct; ++i)
+        for (int i = 0; i < std::min(exp.first - exp_true_first, res.first - first2); ++i)
         {
-            if (*(exp_true_first + i) != *(host_vals.get() + i))
-            {
-                is_correct = false;
-#if _ONEDPL_DEBUG_SYCL
-                ::std::cout << "TRUE> got: " << *(host_vals.get() + i) << "[" << i << "], "
-                          << "expected: " << *(exp_true_first + i) << "[" << i << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
-            }
+            EXPECT_EQ(*(exp_true_first + i), *(host_vals.get() + i), "wrong effect from partition_copy : incorrect data #1");
         }
 
-        for (int i = 0; i < ::std::min(exp.second - exp_false_first, res.second - first3) && is_correct; ++i)
+        for (int i = 0; i < std::min(exp.second - exp_false_first, res.second - first3); ++i)
         {
-            if (*(exp_false_first + i) != *(host_res.get() + i))
-            {
-                is_correct = false;
-#if _ONEDPL_DEBUG_SYCL
-                ::std::cout << "FALSE> got: " << *(host_res.get() + i) << "[" << i << "], "
-                          << "expected: " << *(exp_false_first + i) << "[" << i << "]" << ::std::endl;
-#endif // _ONEDPL_DEBUG_SYCL
-            }
+            EXPECT_EQ(*(exp_false_first + i), *(host_res.get() + i), "wrong effect from partition_copy : incorrect data #2");
         }
-
-        EXPECT_TRUE(is_correct, "wrong effect from partition_copy");
     }
 };
 

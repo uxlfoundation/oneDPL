@@ -25,6 +25,7 @@
 #include "execution_sycl_defs.h"
 #include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
+#include "../../functional_impl.h" // for oneapi::dpl::identity
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
@@ -235,7 +236,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
     {
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
 
-        using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
+        using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::identity>;
         auto __transform_pattern =
             unseq_backend::transform_reduce<_ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{__reduce_op,
                                                                                                   _NoOpFunctor{}};
@@ -305,7 +306,7 @@ struct __parallel_transform_reduce_impl
     submit(sycl::queue& __q, _Size __n, _Size __work_group_size, const _Size __iters_per_work_item,
            _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
     {
-        using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
+        using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::identity>;
         using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             __reduce_kernel, _CustomName, _ReduceOp, _TransformOp, _NoOpFunctor, _Ranges...>;
 

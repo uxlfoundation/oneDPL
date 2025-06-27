@@ -57,7 +57,7 @@ main()
     auto exp_end = ::std::remove_if(exp.begin(), exp.end(), lambda1);
     exp_end = ::std::remove_if(exp.begin(), exp_end, lambda2);
 
-    EXPECT_TRUE(::std::distance(exp.begin(), exp_end) == in_end_n, "wrong effect from remove with sycl ranges");
+    EXPECT_EQ(std::distance(exp.begin(), exp_end), in_end_n, "wrong effect from remove with sycl ranges");
     EXPECT_EQ_N(exp.begin(), in.begin(), in_end_n, "wrong effect from remove with sycl ranges");
 #endif //_ENABLE_RANGES_TESTING
     return TestUtils::done(_ENABLE_RANGES_TESTING);

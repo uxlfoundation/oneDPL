@@ -37,7 +37,7 @@ struct test_find_end
         using namespace std;
         auto expected = find_end(b, e, bsub, esub, pred);
         auto actual = find_end(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub);
-        EXPECT_TRUE(actual == expected, "wrong return result from find_end");
+        EXPECT_EQ(expected, actual, "wrong return result from find_end");
     }
 };
 
@@ -51,7 +51,7 @@ struct test_find_end_predicate
         using namespace std;
         auto expected = find_end(b, e, bsub, esub, pred);
         auto actual = find_end(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub, pred);
-        EXPECT_TRUE(actual == expected, "wrong return result from find_end with a predicate");
+        EXPECT_EQ(expected, actual, "wrong return result from find_end with a predicate");
     }
 };
 
@@ -65,7 +65,7 @@ struct test_search
         using namespace std;
         auto expected = search(b, e, bsub, esub, pred);
         auto actual = search(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub);
-        EXPECT_TRUE(actual == expected, "wrong return result from search");
+        EXPECT_EQ(expected, actual, "wrong return result from search");
     }
 };
 
@@ -79,7 +79,7 @@ struct test_search_predicate
         using namespace std;
         auto expected = search(b, e, bsub, esub, pred);
         auto actual = search(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub, pred);
-        EXPECT_TRUE(actual == expected, "wrong return result from search with a predicate");
+        EXPECT_EQ(expected, actual, "wrong return result from search with a predicate");
     }
 };
 

@@ -48,6 +48,7 @@
 #include "sycl_iterator.h"
 #include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
+#include "../../functional_impl.h" // for oneapi::dpl::identity
 
 #define _ONEDPL_USE_RADIX_SORT (_ONEDPL_USE_SUB_GROUPS && _ONEDPL_USE_GROUP_ALGOS)
 
@@ -703,7 +704,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
             using _GenInput =
                 oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation,
                                                                          typename _InitType::__value_type>;
-            using _ScanInputTransform = oneapi::dpl::__internal::__no_op;
+            using _ScanInputTransform = oneapi::dpl::identity;
             using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 
             _GenInput __gen_transform{__unary_op};
@@ -720,7 +721,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
     using _UnaryFunctor = unseq_backend::walk_n<_UnaryOperation>;
-    using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
+    using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::identity>;
 
     _Assigner __assign_op;
     _NoAssign __no_assign_op;
@@ -815,7 +816,7 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_no_assign;
     using _MaskAssigner = unseq_backend::__mask_assigner<1>;
-    using _DataAcc = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
+    using _DataAcc = unseq_backend::walk_n<oneapi::dpl::identity>;
     using _InitType = unseq_backend::__no_init_value<_Size>;
 
     _Assigner __assign_op;
@@ -1016,7 +1017,7 @@ __parallel_set_reduce_then_scan_set_a_write(sycl::queue& __q, _Range1&& __rng1, 
     // fill in reduce then scan impl
     using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_IsOpDifference, _Compare>;
     using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
-    using _MaskPredicate = oneapi::dpl::__internal::__no_op;
+    using _MaskPredicate = oneapi::dpl::identity;
     using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
@@ -1106,7 +1107,7 @@ __parallel_set_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range
     using _NoAssign = unseq_backend::__scan_no_assign;
     using _MaskAssigner = unseq_backend::__mask_assigner<2>;
     using _InitType = unseq_backend::__no_init_value<_Size1>;
-    using _DataAcc = unseq_backend::walk_n<oneapi::dpl::__internal::__no_op>;
+    using _DataAcc = unseq_backend::walk_n<oneapi::dpl::identity>;
 
     _ReduceOp __reduce_op;
     _Assigner __assign_op;

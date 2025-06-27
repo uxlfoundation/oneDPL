@@ -148,7 +148,7 @@ struct shift_left_algo
         It __last = ::std::next(first, m);
         auto res_exp = (n > 0 && n < m ? ::std::next(first, m - n) : (n > 0 ? first : __last));
 
-        EXPECT_TRUE(res_exp == res, "wrong return value of shift_left");
+        EXPECT_EQ(res_exp, res, "wrong return value of shift_left");
 
         if(res != first && res != __last)
         {
@@ -185,7 +185,7 @@ struct shift_right_algo
         It __last = ::std::next(first, m);
         auto res_exp = (n > 0 && n < m ? ::std::next(first, n) : (n > 0 ? __last : first));
 
-        EXPECT_TRUE(res_exp == res, "wrong return value of shift_right");
+        EXPECT_EQ(res_exp, res, "wrong return value of shift_right");
 
         if (res != first && res != __last)
         {
