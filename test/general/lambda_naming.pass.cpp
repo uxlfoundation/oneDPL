@@ -58,7 +58,7 @@ test_impl(Policy&& exec)
 
     std::fill(CLONE_TEST_POLICY(exec), buf_begin_discard_write, buf_begin_discard_write + n, 1);
 
-#if __SYCL_UNNAMED_LAMBDA__
+#if __SYCL_UNNAMED_LAMBDA__ && !TEST_EXPLICIT_KERNEL_NAMES
 
     std::sort(CLONE_TEST_POLICY(exec), buf_begin, buf_end);
     std::for_each(CLONE_TEST_POLICY(exec), buf_begin, buf_end, Add41Op<int>());
@@ -88,7 +88,7 @@ test_impl(Policy&& exec)
     auto red_val = std::reduce(CLONE_TEST_POLICY(exec), buf_begin, buf_end, 1);
     EXPECT_TRUE(red_val == 2001, "wrong return value from reduce");
 
-#endif // __SYCL_UNNAMED_LAMBDA__
+#endif // __SYCL_UNNAMED_LAMBDA__ && !TEST_EXPLICIT_KERNEL_NAMES
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
