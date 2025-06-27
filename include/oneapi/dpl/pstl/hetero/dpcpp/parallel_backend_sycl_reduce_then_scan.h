@@ -606,6 +606,7 @@ struct __get_bounds_partitioned
     }
     std::uint16_t __diagonal_spacing;
     std::size_t __tile_size;
+    std::size_t __partition_threshold;
 };
 
 struct __get_bounds_simple
@@ -756,19 +757,30 @@ struct __gen_set_balanced_path
         _IndexT __rng2_balanced_pos = 0;
         bool __star = false;
 
-        if (__id * __diagonal_spacing >= __rng1.size() + __rng2.size())
+        const auto __total_size = __rng1.size() + __rng2.size();
+        const bool __is_partitioned = __total_size >= __get_bounds.__partition_threshold;
+
+        if (__id * __diagonal_spacing >= __total_size)
             return 0;
-        if (__id % __get_bounds.__tile_size == 0)
+        if (!__is_partitioned)
         {
-            auto [__idx_rng1, __idx_rng2, __local_star] =
-                __decode_balanced_path_temp_data(__rng_tmp_diag, __id, __diagonal_spacing);
+            auto [__idx_rng1, __idx_rng2, __local_star] = calc_and_store_balanced_path(__in_rng, __id,
+                                                                                       __get_bounds_simple{});
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
         }
-        else
+        else if(__id % __get_bounds.__tile_size != 0)
         {
             auto [__idx_rng1, __idx_rng2, __local_star] = calc_and_store_balanced_path(__in_rng, __id, __get_bounds);
+            __rng1_balanced_pos = __idx_rng1;
+            __rng2_balanced_pos = __idx_rng2;
+            __star = __local_star;
+        }
+        else // if we are at the start of a tile, we can decode the balanced path from the existing temporary data
+        {
+            auto [__idx_rng1, __idx_rng2, __local_star] =
+                __decode_balanced_path_temp_data(__rng_tmp_diag, __id, __diagonal_spacing);
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
