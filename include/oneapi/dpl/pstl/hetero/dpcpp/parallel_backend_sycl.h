@@ -1072,9 +1072,9 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
 
     const std::int32_t __num_diagonals =
         oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size() + __rng2.size(), __diagonal_spacing);
-
     const std::uint32_t __work_group_size = __get_reduce_then_scan_workgroup_size(__q);
-
+    const std::size_t __partition_threshold = 2 * 1024 * 1024;
+    const std::size_t __total_size = __rng1.size() + __rng2.size();
     // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
     // portion of the range so star flag can use sign bit.
     using _TemporaryType = decltype(__rng1.size());
@@ -1087,7 +1087,7 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
         __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
 
     _GenReduceInput __gen_reduce_input{_SetOperation{}, __diagonal_spacing,
-                                       _BoundsProvider{__diagonal_spacing, __partition_size}, __comp};
+                                       _BoundsProvider{__diagonal_spacing, __partition_size, __partition_threshold}, __comp};
 
     constexpr std::uint32_t __bytes_per_work_item_iter =
         __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
@@ -1096,9 +1096,13 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
         std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
         oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
             __temp_diags.get_buffer()));
+    sycl::event __partition_event{};
 
-    sycl::event __partition_event =
-        __parallel_set_balanced_path_partition<_CustomName>(__q, __in_rng, __num_diagonals, __gen_reduce_input);
+    if (__total_size >= __partition_threshold)
+    {
+        __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, __in_rng, __num_diagonals,
+                                                                                __gen_reduce_input);
+    }
     return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
         __q, __num_diagonals, __in_rng, std::forward<_Range3>(__result), __gen_reduce_input, _ReduceOp{},
         _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp}, _ScanInputTransform{}, _WriteOp{},
