@@ -45,12 +45,15 @@ struct __subgroup_radix_sort
         using __call_2_t = std::integral_constant<::std::uint16_t, 2>;
         using __is_asc_t = std::integral_constant<bool, __is_asc>;
 
-        using _SortKernelLoc = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_0_t, __is_asc_t>>;
-        using _SortKernelPartGlob = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_1_t, __is_asc_t>>;
-        using _SortKernelGlob = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_2_t, __is_asc_t>>;
+        using _SortKernelLoc =
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg_kernel<
+                _KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_0_t, __is_asc_t>>;
+        using _SortKernelPartGlob =
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg_kernel<
+                _KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_1_t, __is_asc_t>>;
+        using _SortKernelGlob =
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg_kernel<
+                _KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_2_t, __is_asc_t>>;
 
         using _KeyT = oneapi::dpl::__internal::__value_t<_RangeIn>;
         //check SLM size
