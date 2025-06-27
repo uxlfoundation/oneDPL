@@ -78,12 +78,11 @@ struct test_shift
         using _DiffType = typename ::std::iterator_traits<It>::difference_type;
 
         // allocate USM memory and copying data to USM shared/device memory
-        TestUtils::usm_data_transfer<alloc_type, _ValueType> dt_helper(exec.queue(), first, m);
+        TestUtils::usm_data_transfer<alloc_type, _ValueType> dt_helper(exec, first, m);
 
         auto ptr = dt_helper.get_data();
-        auto het_res =
-            algo(TestUtils::make_device_policy<USMKernelName<Algo, _ValueType>>(std::forward<Policy>(exec)), ptr,
-                 ptr + m, n);
+        using _NewKernelName = USMKernelName<Algo, _ValueType>;
+        auto het_res = algo(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), ptr, ptr + m, n);
         _DiffType res_idx = het_res - ptr;
 
         //3.2 check result
@@ -100,9 +99,11 @@ struct test_shift
     {
         using _ValueType = typename std::iterator_traits<It>::value_type;
         using _DiffType = typename std::iterator_traits<It>::difference_type;
-        auto buffer_policy = TestUtils::make_device_policy<BufferKernelName<_ValueType, Algo>>(exec);
+
+        using _NewKernelName = BufferKernelName<_ValueType, Algo>;
+
         //1.1 run a test with hetero policy and host iterators
-        auto res = algo(buffer_policy, first, first + m, n);
+        auto res = algo(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), first, first + m, n);
         //1.2 check result
         algo.check(res, first, m, first_exp, n);
 
@@ -115,7 +116,7 @@ struct test_shift
 
             auto het_begin = oneapi::dpl::begin(buf);
 
-            auto het_res = algo(buffer_policy, het_begin, het_begin + m, n);
+            auto het_res = algo(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), het_begin, het_begin + m, n);
             res_idx = het_res - het_begin;
         }
         //2.2 check result
@@ -123,8 +124,8 @@ struct test_shift
 
 #if _PSTL_SYCL_TEST_USM
         //3. run a test with hetero policy and USM shared/device memory pointers
-        test_usm<sycl::usm::alloc::shared>(exec, first, m, first_exp, n, algo);
-        test_usm<sycl::usm::alloc::device>(std::forward<Policy>(exec), first, m, first_exp, n, algo);
+        test_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec), first, m, first_exp, n, algo);
+        test_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec), first, m, first_exp, n, algo);
 #endif
     }
 #endif

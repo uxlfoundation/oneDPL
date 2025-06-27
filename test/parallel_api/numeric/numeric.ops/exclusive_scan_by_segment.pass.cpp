@@ -20,6 +20,7 @@
 #include "oneapi/dpl/iterator"
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 #include "support/scan_serial_impl.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -128,9 +129,8 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_val_res.get(), n);
         update_data(host_keys, host_vals, host_val_res);
 
-        auto new_policy = make_new_policy<new_kernel_name<Policy, 0>>(exec);
         auto res1 =
-            oneapi::dpl::exclusive_scan_by_segment(new_policy, keys_first, keys_last, vals_first, val_res_first);
+            oneapi::dpl::exclusive_scan_by_segment(CLONE_TEST_POLICY_IDX(exec, 0), keys_first, keys_last, vals_first, val_res_first);
         exec.queue().wait_and_throw();
 
         EXPECT_EQ(n, std::distance(val_res_first, res1), "wrong return value, device policy");
@@ -141,9 +141,8 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_val_res.get(), n);
         update_data(host_keys, host_vals, host_val_res);
 
-        auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
         auto res2 =
-            oneapi::dpl::exclusive_scan_by_segment(new_policy2, keys_first, keys_last, vals_first, val_res_first, init);
+            oneapi::dpl::exclusive_scan_by_segment(CLONE_TEST_POLICY_IDX(exec, 1), keys_first, keys_last, vals_first, val_res_first, init);
         exec.queue().wait_and_throw();
 
         EXPECT_EQ(n, std::distance(val_res_first, res2), "wrong return value, init, device policy");
@@ -154,8 +153,8 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_val_res.get(), n);
         update_data(host_keys, host_vals, host_val_res);
 
-        auto new_policy3 = make_new_policy<new_kernel_name<Policy, 2>>(exec);
-        auto res3 = oneapi::dpl::exclusive_scan_by_segment(new_policy3, keys_first, keys_last, vals_first,
+        auto binary_op = [](ValT first, ValT second) { return first + second; };
+        auto res3 = oneapi::dpl::exclusive_scan_by_segment(CLONE_TEST_POLICY_IDX(exec, 2), keys_first, keys_last, vals_first,
                                                            val_res_first, init, BinaryPredicate());
         exec.queue().wait_and_throw();
 
@@ -167,8 +166,7 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_val_res.get(), n);
         update_data(host_keys, host_vals, host_val_res);
 
-        auto new_policy4 = make_new_policy<new_kernel_name<Policy, 3>>(exec);
-        auto res4 = oneapi::dpl::exclusive_scan_by_segment(new_policy4, keys_first, keys_last, vals_first,
+        auto res4 = oneapi::dpl::exclusive_scan_by_segment(CLONE_TEST_POLICY_IDX(exec, 3), keys_first, keys_last, vals_first,
                                                            val_res_first, init, BinaryPredicate(), BinaryOperation());
         exec.queue().wait_and_throw();
 
@@ -196,27 +194,27 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
 
         // call algorithm with no optional arguments
         initialize_data(keys_first, vals_first, val_res_first, n);
-        auto res1 = oneapi::dpl::exclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first);
+        auto res1 = oneapi::dpl::exclusive_scan_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, val_res_first);
         EXPECT_EQ(n, std::distance(val_res_first, res1), "wrong return value, host policy");
         check_values(keys_first, vals_first, val_res_first, n, zero);
 
         // call algorithm with init
         initialize_data(keys_first, vals_first, val_res_first, n);
         auto res2 =
-            oneapi::dpl::exclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first, init);
+            oneapi::dpl::exclusive_scan_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, val_res_first, init);
         EXPECT_EQ(n, std::distance(val_res_first, res2), "wrong return value, init, host policy");
         check_values(keys_first, vals_first, val_res_first, n, init);
 
         // call algorithm with init and predicate
         initialize_data(keys_first, vals_first, val_res_first, n);
-        auto res3 = oneapi::dpl::exclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first, init,
+        auto res3 = oneapi::dpl::exclusive_scan_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, val_res_first, init,
                                                            BinaryPredicate());
         EXPECT_EQ(n, std::distance(val_res_first, res3), "wrong return value, init and predicate, host policy");
         check_values(keys_first, vals_first, val_res_first, n, init, BinaryPredicate());
 
         // call algorithm with init, predicate, and operator
         initialize_data(keys_first, vals_first, val_res_first, n);
-        auto res4 = oneapi::dpl::exclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first, init,
+        auto res4 = oneapi::dpl::exclusive_scan_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, val_res_first, init,
                                                            BinaryPredicate(), BinaryOperation());
         EXPECT_EQ(n, std::distance(val_res_first, res4), "wrong return value, init and predicate and operator, host policy");
         check_values(keys_first, vals_first, val_res_first, n, init, BinaryPredicate(), BinaryOperation());

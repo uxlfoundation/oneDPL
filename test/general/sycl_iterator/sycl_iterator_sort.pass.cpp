@@ -33,7 +33,7 @@ DEFINE_TEST(test_sort)
         ::std::iota(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::sort(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1);
+        std::sort(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1);
         wait_and_throw(exec);
 
         {
@@ -48,7 +48,7 @@ DEFINE_TEST(test_sort)
             EXPECT_TRUE(::std::is_sorted(host_first1, host_first1 + n), "wrong effect from sort_1");
         }
 
-        ::std::sort(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, ::std::greater<T1>());
+        std::sort(CLONE_TEST_POLICY_IDX(exec, 1), first1, last1, std::greater<T1>());
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -79,7 +79,7 @@ DEFINE_TEST(test_stable_sort)
         ::std::iota(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::stable_sort(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1);
+        std::stable_sort(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1);
         wait_and_throw(exec);
 
         {
@@ -94,7 +94,7 @@ DEFINE_TEST(test_stable_sort)
             EXPECT_TRUE(::std::is_sorted(host_first1, host_first1 + n), "wrong effect from stable_sort_1");
         }
 
-        ::std::stable_sort(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, ::std::greater<T1>());
+        std::stable_sort(CLONE_TEST_POLICY_IDX(exec, 1), first1, last1, std::greater<T1>());
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -134,7 +134,7 @@ DEFINE_TEST(test_partial_sort)
         // Sort a subrange
         {
             auto end1 = first1 + end_idx;
-            ::std::partial_sort(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, end1, last1);
+            std::partial_sort(CLONE_TEST_POLICY_IDX(exec, 0), first1, end1, last1);
             wait_and_throw(exec);
 
             // Make sure that elements up to end are sorted and remaining elements are bigger
@@ -151,7 +151,7 @@ DEFINE_TEST(test_partial_sort)
         // Sort a whole sequence
         if (end_idx > last1 - first1)
         {
-            ::std::partial_sort(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, last1);
+            std::partial_sort(CLONE_TEST_POLICY_IDX(exec, 1), first1, last1, last1);
             wait_and_throw(exec);
 
             host_keys.retrieve_data();
@@ -188,7 +188,7 @@ DEFINE_TEST(test_partial_sort_copy)
             auto end2 = first2 + end_idx;
 
             auto last_sorted =
-                ::std::partial_sort_copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, end2);
+                std::partial_sort_copy(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2, end2);
             wait_and_throw(exec);
 
             auto host_first1 = host_keys.get();
@@ -208,7 +208,7 @@ DEFINE_TEST(test_partial_sort_copy)
         if (end_idx > last1 - first1)
         {
             auto last_sorted =
-                ::std::partial_sort_copy(make_new_policy<new_kernel_name<Policy, 2>>(exec), first1, last1, first2, last2);
+                std::partial_sort_copy(CLONE_TEST_POLICY_IDX(exec, 2), first1, last1, first2, last2);
             wait_and_throw(exec);
 
             auto host_first1 = host_keys.get();
@@ -246,7 +246,7 @@ DEFINE_TEST(test_inplace_merge)
         auto middle = ::std::stable_partition(host_keys.get(), host_keys.get() + n, [](const T& x) { return x % 2; });
         host_keys.update_data();
 
-        ::std::inplace_merge(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, first + (middle - host_keys.get()), last);
+        std::inplace_merge(CLONE_TEST_POLICY_IDX(exec, 0), first, first + (middle - host_keys.get()), last);
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -279,7 +279,7 @@ DEFINE_TEST(test_nth_element)
 
         // invoke
         auto comp = ::std::less<T1>{};
-        ::std::nth_element(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, middle1, last1, comp);
+        std::nth_element(CLONE_TEST_POLICY_IDX(exec, 0), first1, middle1, last1, comp);
         wait_and_throw(exec);
 
         retrieve_data(host_keys, host_vals);
@@ -325,7 +325,7 @@ DEFINE_TEST(test_merge)
 
         ::std::vector<T3> exp(2 * n);
         auto exp1 = ::std::merge(host_keys.get(), host_keys.get() + n, host_vals.get(), host_vals.get() + x, exp.begin());
-        auto res1 = ::std::merge(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, first2 + x, first3);
+        auto res1 = std::merge(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2, first2 + x, first3);
         TestDataTransfer<UDTKind::eRes, Size> host_res(*this, res1 - first3);
         wait_and_throw(exec);
 
