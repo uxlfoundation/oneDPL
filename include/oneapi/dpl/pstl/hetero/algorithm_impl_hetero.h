@@ -2163,7 +2163,7 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
                             _Iterator1 __keys_last, _Iterator2 __values_first, _Iterator3 __out_keys_first,
                             _Iterator4 __out_values_first, _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
-    std::size_t __n = std::distance(__keys_first, __keys_last);
+    const std::size_t __n = std::distance(__keys_first, __keys_last);
 
     if (__n == 0)
         return 0;
