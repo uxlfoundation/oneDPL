@@ -1082,7 +1082,7 @@ __parallel_set_write_a_b_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2
     const std::uint32_t __work_group_size = __get_reduce_then_scan_workgroup_size(__q);
     const std::size_t __partition_threshold_bytes = 2 * 1024 * 1024 * 4;
     const std::size_t __total_size = __rng1.size() + __rng2.size();
-    const std::size_t __total_size_bytes = __total_size * (sizeof(_In1ValueT) + sizeof(_In2ValueT));
+    const std::size_t __total_size_bytes = __rng1.size() * sizeof(_In1ValueT) +  __rng2.size() * sizeof(_In2ValueT);
     // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
     // portion of the range so star flag can use sign bit.
     using _TemporaryType = decltype(__rng1.size());

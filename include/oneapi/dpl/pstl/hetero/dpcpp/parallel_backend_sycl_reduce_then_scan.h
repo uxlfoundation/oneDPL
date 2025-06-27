@@ -758,7 +758,8 @@ struct __gen_set_balanced_path
         bool __star = false;
 
         const std::size_t __total_size = __rng1.size() + __rng2.size();
-        const std::size_t __total_size_bytes = __total_size * sizeof(oneapi::dpl::__internal::__value_t<_InRng>);
+        const std::size_t __total_size_bytes = __rng1.size() * sizeof(oneapi::dpl::__internal::__value_t<decltype(__rng1)>) +
+                                               __rng2.size() * sizeof(oneapi::dpl::__internal::__value_t<decltype(__rng2)>);
         const bool __is_partitioned = __total_size_bytes >= __get_bounds.__partition_threshold_bytes;
 
         if (__id * __diagonal_spacing >= __total_size)
