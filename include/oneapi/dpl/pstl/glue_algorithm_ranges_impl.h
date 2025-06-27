@@ -778,8 +778,9 @@ struct __merge_fn
     {
         // TODO: develop a strategy to get a common minimum size
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_merge(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
+        return oneapi::dpl::__internal::__ranges::__pattern_merge_ranges(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+            std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
     }
 }; //__merge_fn
 }  //__internal
