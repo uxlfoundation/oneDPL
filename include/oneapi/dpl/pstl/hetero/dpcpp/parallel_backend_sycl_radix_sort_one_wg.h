@@ -37,18 +37,20 @@ struct __subgroup_radix_sort
     sycl::event
     operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj)
     {
-        using __wg_size_t = ::std::integral_constant<::std::uint16_t, __wg_size>;
-        using __block_size_t = ::std::integral_constant<::std::uint16_t, __block_size>;
-        using __call_0_t = ::std::integral_constant<::std::uint16_t, 0>;
-        using __call_1_t = ::std::integral_constant<::std::uint16_t, 1>;
-        using __call_2_t = ::std::integral_constant<::std::uint16_t, 2>;
+        using __wg_size_t = std::integral_constant<::std::uint16_t, __wg_size>;
+        using __block_size_t = std::integral_constant<::std::uint16_t, __block_size>;
+        using __radix_t = std::integral_constant<::std::uint32_t, __radix>;
+        using __call_0_t = std::integral_constant<::std::uint16_t, 0>;
+        using __call_1_t = std::integral_constant<::std::uint16_t, 1>;
+        using __call_2_t = std::integral_constant<::std::uint16_t, 2>;
+        using __is_asc_t = std::integral_constant<bool, __is_asc>;
 
         using _SortKernelLoc = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __call_0_t>>;
+            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_0_t, __is_asc_t>>;
         using _SortKernelPartGlob = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __call_1_t>>;
+            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_1_t, __is_asc_t>>;
         using _SortKernelGlob = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __call_2_t>>;
+            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_2_t, __is_asc_t>>;
 
         using _KeyT = oneapi::dpl::__internal::__value_t<_RangeIn>;
         //check SLM size
