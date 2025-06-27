@@ -185,8 +185,6 @@ reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& pol
 
     using _CountType = std::uint64_t;
 
-    namespace __bknd = __par_backend_hetero;
-
     const auto n = std::distance(first1, last1);
 
     if (n == 0)
