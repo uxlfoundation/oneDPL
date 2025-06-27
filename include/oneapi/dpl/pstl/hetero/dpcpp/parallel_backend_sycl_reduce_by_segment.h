@@ -127,11 +127,11 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
         __par_backend_hetero::__internal::__kernel_compiler<_SegReduceWgKernel>::__compile(__q);
     auto __seg_reduce_prefix_kernel =
         __par_backend_hetero::__internal::__kernel_compiler<_SegReducePrefixKernel>::__compile(__q);
-    __wgroup_size = std::min(
-        {__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_count_kernel),
-         oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_offset_kernel),
-         oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_wg_kernel),
-         oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_prefix_kernel)});
+    __wgroup_size =
+        std::min({__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_count_kernel),
+                  oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_offset_kernel),
+                  oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_wg_kernel),
+                  oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_prefix_kernel)});
 #endif
 
     std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);
@@ -459,8 +459,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     sycl::queue __q_local = __exec.queue();
 
     return __parallel_reduce_by_segment_fallback_has_known_identity<__CustomName>(
-        __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
-        std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
+        __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
+        std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
 }
 
 } // namespace __par_backend_hetero
