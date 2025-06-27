@@ -1374,8 +1374,8 @@ __set_op_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __
 {
     std::size_t __n1 = __rng1.size();
     std::size_t __n2 = __rng2.size();
-    std::size_t __total_bytes = __n1 * sizeof(typename std::iterator_traits<decltype(__rng1.begin())>::value_type) +
-                                __n2 * sizeof(typename std::iterator_traits<decltype(__rng2.begin())>::value_type);
+    std::size_t __total_bytes = __n1 * sizeof(oneapi::dpl::__internal::__value_t<_Range1>) +
+                                __n2 * sizeof(oneapi::dpl::__internal::__value_t<_Range2>);
 
     //can we use reduce then scan?
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
