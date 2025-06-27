@@ -1080,8 +1080,9 @@ __parallel_set_write_a_b_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2
     const std::int32_t __num_diagonals =
         oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size() + __rng2.size(), __diagonal_spacing);
     const std::uint32_t __work_group_size = __get_reduce_then_scan_workgroup_size(__q);
-    const std::size_t __partition_threshold = 2 * 1024 * 1024;
+    const std::size_t __partition_threshold_bytes = 2 * 1024 * 1024 * 4;
     const std::size_t __total_size = __rng1.size() + __rng2.size();
+    const std::size_t __total_size_bytes = __total_size * (sizeof(_In1ValueT) + sizeof(_In2ValueT));
     // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
     // portion of the range so star flag can use sign bit.
     using _TemporaryType = decltype(__rng1.size());
@@ -1094,7 +1095,9 @@ __parallel_set_write_a_b_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2
         __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
 
     _GenReduceInput __gen_reduce_input{_SetOperation{}, __diagonal_spacing,
-                                       _BoundsProvider{__diagonal_spacing, __partition_size, __partition_threshold}, __comp};
+                                       _BoundsProvider{__diagonal_spacing, __partition_size, 
+                                                       __partition_threshold_bytes}, 
+                                       __comp};
 
     constexpr std::uint32_t __bytes_per_work_item_iter =
         __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
@@ -1107,7 +1110,7 @@ __parallel_set_write_a_b_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2
 
     sycl::event __partition_event{};
 
-    if (__total_size >= __partition_threshold)
+    if (__total_size_bytes >= __partition_threshold_bytes)
     {
         __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, __in_rng, __num_diagonals,
                                                                                 __gen_reduce_input);
@@ -1351,7 +1354,7 @@ template <typename _SetTag>
 struct __consider_write_a_alg
 {
     // empirically determined threshold for using write_a algorithm
-    static constexpr std::size_t __threshold = 65536;
+    static constexpr std::size_t __threshold_bytes = 4 * 65536;
     static constexpr bool __value = true;
 };
 
@@ -1369,15 +1372,17 @@ std::size_t
 __set_op_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
               _SetTag __set_tag)
 {
-    size_t __n1 = __rng1.size();
-    size_t __n2 = __rng2.size();
+    std::size_t __n1 = __rng1.size();
+    std::size_t __n2 = __rng2.size();
+    std::size_t __total_bytes = __n1 * sizeof(typename std::iterator_traits<decltype(__rng1.begin())>::value_type) +
+                                __n2 * sizeof(typename std::iterator_traits<decltype(__rng2.begin())>::value_type);
 
     //can we use reduce then scan?
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
     {
         if constexpr (__consider_write_a_alg<_SetTag>::__value)
         {
-            if (__n1 + __n2 <= __consider_write_a_alg<_SetTag>::__threshold)
+            if (__total_bytes <= __consider_write_a_alg<_SetTag>::__threshold_bytes)
             {
                 // use reduce then scan with set_a write
                 return __set_write_a_only_op<_CustomName>(

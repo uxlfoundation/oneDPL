@@ -606,7 +606,7 @@ struct __get_bounds_partitioned
     }
     std::uint16_t __diagonal_spacing;
     std::size_t __tile_size;
-    std::size_t __partition_threshold;
+    std::size_t __partition_threshold_bytes;
 };
 
 struct __get_bounds_simple
@@ -757,8 +757,9 @@ struct __gen_set_balanced_path
         _IndexT __rng2_balanced_pos = 0;
         bool __star = false;
 
-        const auto __total_size = __rng1.size() + __rng2.size();
-        const bool __is_partitioned = __total_size >= __get_bounds.__partition_threshold;
+        const std::size_t __total_size = __rng1.size() + __rng2.size();
+        const std::size_t __total_size_bytes = __total_size * sizeof(oneapi::dpl::__internal::__value_t<_InRng>);
+        const bool __is_partitioned = __total_size_bytes >= __get_bounds.__partition_threshold_bytes;
 
         if (__id * __diagonal_spacing >= __total_size)
             return 0;
