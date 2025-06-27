@@ -770,21 +770,21 @@ struct __gen_set_balanced_path
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
         }
-        else if(__id % __get_bounds.__tile_size != 0)
+        else //if(__id % __get_bounds.__tile_size != 0)
         {
             auto [__idx_rng1, __idx_rng2, __local_star] = calc_and_store_balanced_path(__in_rng, __id, __get_bounds);
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
         }
-        else // if we are at the start of a tile, we can decode the balanced path from the existing temporary data
-        {
-            auto [__idx_rng1, __idx_rng2, __local_star] =
-                __decode_balanced_path_temp_data(__rng_tmp_diag, __id, __diagonal_spacing);
-            __rng1_balanced_pos = __idx_rng1;
-            __rng2_balanced_pos = __idx_rng2;
-            __star = __local_star;
-        }
+        // else // if we are at the start of a tile, we can decode the balanced path from the existing temporary data
+        // {
+        //     auto [__idx_rng1, __idx_rng2, __local_star] =
+        //         __decode_balanced_path_temp_data(__rng_tmp_diag, __id, __diagonal_spacing);
+        //     __rng1_balanced_pos = __idx_rng1;
+        //     __rng2_balanced_pos = __idx_rng2;
+        //     __star = __local_star;
+        // }
 
         _IndexT __eles_to_process = std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
                                              __rng1.size() + __rng2.size() - _IndexT{__id * __diagonal_spacing - 1});
