@@ -33,7 +33,7 @@ int
 test_dl_initialization(const std::vector<sycl::queue>& u)
 {
     // initialize
-    oneapi::dpl::experimental::dynamic_load_policy p{u};
+    oneapi::dpl::experimental::dynamic_load_policy<sycl::queue> p{u}; //TODO:Remove need for type specification
     auto u2 = oneapi::dpl::experimental::get_resources(p);
     if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
     {
@@ -42,7 +42,7 @@ test_dl_initialization(const std::vector<sycl::queue>& u)
     }
 
     // deferred initialization
-    oneapi::dpl::experimental::dynamic_load_policy p2{oneapi::dpl::experimental::deferred_initialization};
+    oneapi::dpl::experimental::dynamic_load_policy<sycl::queue> p2{oneapi::dpl::experimental::deferred_initialization};
     try
     {
         auto u3 = oneapi::dpl::experimental::get_resources(p2);
