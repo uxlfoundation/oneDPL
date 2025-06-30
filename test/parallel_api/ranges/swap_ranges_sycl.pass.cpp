@@ -22,13 +22,15 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // for CLONE_TEST_POLICY macro
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
     constexpr int max_n = 10;
     constexpr int max_n_2 = 5;
     int data1[max_n]     = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -43,15 +45,9 @@ main()
         sycl::buffer<int> C(data3, sycl::range<1>(max_n_2));
         sycl::buffer<int> D(data4, sycl::range<1>(max_n));
                           
-        auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
-        auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
-             
-        swap_ranges(exec1, views::all(A), B);
-        swap_ranges(exec2, B, C);
-        swap_ranges(exec3, C, D);
+        swap_ranges(CLONE_TEST_POLICY_IDX(exec, 0), views::all(A), B);
+        swap_ranges(CLONE_TEST_POLICY_IDX(exec, 1), B, C);
+        swap_ranges(CLONE_TEST_POLICY_IDX(exec, 2), C, D);
     }
 
     //check result
@@ -75,7 +71,20 @@ main()
     auto expected4_2 = expected3;
     EXPECT_EQ_N(expected4_1.begin(), data4, max_n_2, "wrong result from swap");
     EXPECT_EQ_N(expected4_2.begin(), data4 + max_n_2, max_n_2, "wrong result from swap");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
 
 #endif //_ENABLE_RANGES_TESTING
+
     return TestUtils::done(_ENABLE_RANGES_TESTING);
 }

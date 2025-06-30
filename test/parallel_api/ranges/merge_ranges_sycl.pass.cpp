@@ -25,10 +25,11 @@
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
     using T = int;
 
     const int in_n = 10;
@@ -39,7 +40,6 @@ main()
     T out1[out_n] = {};
     T out2[out_n] = {};
 
-    using namespace TestUtils;
     using namespace oneapi::dpl::experimental::ranges;
     {
         sycl::buffer<T> A(in1, sycl::range<1>(in_n));
@@ -47,22 +47,33 @@ main()
         sycl::buffer<T> D(out1, sycl::range<1>(out_n));
         sycl::buffer<T> E(out2, sycl::range<1>(out_n));
 
-        auto exec = TestUtils::get_dpcpp_test_policy();
-
-        merge(exec, all_view(A), all_view(B), all_view<T, sycl::access::mode::write>(D));
-        merge(TestUtils::make_device_policy<class merge_2>(exec), A, B, E, ::std::less<T>()); //check passing sycl buffers directly
+        merge(CLONE_TEST_POLICY_IDX(exec, 0), all_view(A), all_view(B), all_view<T, sycl::access::mode::write>(D));
+        merge(CLONE_TEST_POLICY_IDX(exec, 1), A, B, E, std::less<T>()); //check passing sycl buffers directly
     }
 
     //check result
-    bool res1 = ::std::is_sorted(out1, out1 + out_n, ::std::less<T>());
-    res1 &= ::std::includes(out1, out1 + out_n, in1, in1 + in_n, ::std::less<T>());
-    res1 &= ::std::includes(out1, out1 + out_n, in2, in2 + in_n, ::std::less<T>());
+    bool res1 = std::is_sorted(out1, out1 + out_n, std::less<T>());
+    res1 &= std::includes(out1, out1 + out_n, in1, in1 + in_n, std::less<T>());
+    res1 &= std::includes(out1, out1 + out_n, in2, in2 + in_n, std::less<T>());
     EXPECT_TRUE(res1, "wrong effect from 'merge' with sycl ranges");
 
-    bool res2 = ::std::is_sorted(out2, out2 + out_n, ::std::less<T>());
-    res2 &= ::std::includes(out2, out2 + out_n, in1, in1 + in_n, ::std::less<T>());
-    res2 &= ::std::includes(out2, out2 + out_n, in2, in2 + in_n, ::std::less<T>());
+    bool res2 = std::is_sorted(out2, out2 + out_n, std::less<T>());
+    res2 &= std::includes(out2, out2 + out_n, in1, in1 + in_n, std::less<T>());
+    res2 &= std::includes(out2, out2 + out_n, in2, in2 + in_n, std::less<T>());
     EXPECT_TRUE(res2, "wrong effect from 'merge' with sycl ranges with predicate");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

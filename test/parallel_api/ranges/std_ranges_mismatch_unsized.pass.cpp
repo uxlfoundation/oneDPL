@@ -15,6 +15,24 @@
 
 #include "std_ranges_test.h"
 
+#if _ENABLE_RANGES_TESTING
+
+#if TEST_DPCPP_BACKEND_PRESENT
+template <typename Policy, typename TView1, typename TView2, typename TRes1, typename TRes2>
+void
+test_impl(Policy&& exec, TView1 view1, TView2 view2, TRes1 ex_res1, TRes2 ex_res2)
+{
+    using namespace test_std_ranges;
+    namespace dpl_ranges = oneapi::dpl::ranges;
+    const char* err_msg = "Wrong effect algo mismatch with unsized ranges.";
+
+    auto [res1, res2] = dpl_ranges::mismatch(std::forward<Policy>(exec), view1, view2, binary_pred, proj, proj);
+    EXPECT_TRUE(ex_res1 == res1, err_msg);
+    EXPECT_TRUE(ex_res2 == res2, err_msg);
+}
+#endif // TEST_DPCPP_BACKEND_PRESENT
+#endif // _ENABLE_RANGES_TESTING
+
 std::int32_t
 main()
 {
@@ -55,12 +73,12 @@ main()
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    auto exec = TestUtils::get_dpcpp_test_policy();
-    {
-    auto [res1, res2] = dpl_ranges::mismatch(exec, view1, view2, binary_pred, proj, proj);
-    EXPECT_TRUE(ex_res1 == res1, err_msg);
-    EXPECT_TRUE(ex_res2 == res2, err_msg);
-    }
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy, view1, view2, ex_res1, ex_res2);
+
+    TestUtils::check_compilation(policy, [&](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy), view1, view2, ex_res1, ex_res2); });
+
 #endif //TEST_DPCPP_BACKEND_PRESENT
 #endif //_ENABLE_STD_RANGES_TESTING
 

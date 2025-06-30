@@ -41,9 +41,9 @@ main()
     auto view2 = views::rotate(__nanorange::nano::ranges::views::all(data), rotate_val);
 
     //check result
-    ::std::rotate_copy(data, data + rotate_val, data + max_n, expected);
+    std::rotate_copy(data, data + rotate_val, data + max_n, expected);
 
-    //check aasigment
+    //check assignment
     view1[0] = -1;
     expected[0] = -1;
 
@@ -51,5 +51,6 @@ main()
     EXPECT_EQ_N(expected, view2.begin(), max_n, "wrong result from rotate view, a single CPO call");
 
 #endif //_ENABLE_RANGES_TESTING
+
     return TestUtils::done(_ENABLE_RANGES_TESTING);
 }
