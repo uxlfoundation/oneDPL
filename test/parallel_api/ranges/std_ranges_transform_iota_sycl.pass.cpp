@@ -50,7 +50,7 @@ main()
 
     bProcessed = true;
 
-#endif //_ENABLE_STD_RANGES_TESTING
+#endif //_ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(bProcessed);
 }
