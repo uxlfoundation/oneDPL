@@ -150,7 +150,9 @@ test_copyable()
     static_assert(sycl::is_device_copyable_v<decltype(trans_count)>,
                   "transform_iterator is not device copyable with a counting iterator and noop lambda");
 
-    sycl::queue q;
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
+
     int* ptr = sycl::malloc_shared<int>(1, q);
     auto trans_array = ::dpl::make_transform_iterator(ptr, [](auto i) { return i; });
     static_assert(sycl::is_device_copyable_v<decltype(trans_array)>,

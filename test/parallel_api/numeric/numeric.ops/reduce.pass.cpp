@@ -65,7 +65,7 @@ struct test_short_reduce
         using namespace std;
 
         Sum r0 = init + reduce(std::forward<Policy>(exec), first, last);
-        EXPECT_EQ(expected, r0, "bad result from reduce(exec, first, last)");
+        EXPECT_EQ(expected, r0, "bad result from reduce(std::forward<Policy>(exec), first, last)");
     }
 };
 
@@ -78,7 +78,7 @@ struct test_short_reduce_init
         using namespace std;
 
         Sum r1 = reduce(std::forward<Policy>(exec), first, last, init);
-        EXPECT_EQ(expected, r1, "bad result from reduce(exec, first, last, init)");
+        EXPECT_EQ(expected, r1, "bad result from reduce(std::forward<Policy>(exec), first, last, init)");
     }
 };
 

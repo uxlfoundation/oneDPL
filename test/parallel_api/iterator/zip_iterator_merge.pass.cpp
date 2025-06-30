@@ -16,6 +16,7 @@
 #include "zip_iterator_funcs.h"
 #include "support/test_config.h"
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #   include "support/utils_sycl.h"
@@ -80,7 +81,7 @@ DEFINE_TEST(test_merge)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first3)>, "zip_iterator (merge3) not properly copyable");
         }
 
-        auto tuple_last3 = std::merge(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2,
+        auto tuple_last3 = std::merge(CLONE_TEST_POLICY_IDX(exec, 0), tuple_first1, tuple_last1, tuple_first2,
                                       tuple_last2, tuple_first3, TuplePredicate<std::less<T2>, 0>{std::less<T2>{}});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();

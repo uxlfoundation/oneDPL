@@ -16,6 +16,7 @@
 #include "zip_iterator_funcs.h"
 #include "support/test_config.h"
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #   include "support/utils_sycl.h"
@@ -68,7 +69,7 @@ DEFINE_TEST(test_for_each)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (for_each) not properly copyable");
         }
 
-        std::for_each(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
+        std::for_each(CLONE_TEST_POLICY_IDX(exec, 0), tuple_first1, tuple_last1,
                       TuplePredicate<decltype(f), 0>{f});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -129,7 +130,7 @@ DEFINE_TEST(test_for_each_structured_binding)
                         "zip_iterator (structured_binding) not properly copyable");
         }
 
-        std::for_each(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, FncCall<decltype(f)>{f});
+        std::for_each(CLONE_TEST_POLICY_IDX(exec, 0), tuple_first1, tuple_last1, FncCall<decltype(f)>{f});
 
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
