@@ -29,7 +29,7 @@ struct test_long_reduce
     void
     operator()(Policy&& exec, Iterator first, Iterator last, T init, BinaryOp binary, T expected)
     {
-        T result_r = std::reduce(std::forward<Policy>(exec), first, last, init, binary);
+        T result_r = std::reduce(std::forward<Policy>(exec), first, last, std::move(init), binary);
         EXPECT_EQ(expected, result_r, "bad result from reduce(exec, first, last, init, binary_op)");
     }
 };
@@ -41,7 +41,7 @@ test_long_form(T init, BinaryOp binary_op, F f)
     // Try sequences of various lengths
     for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
-        T expected(init);
+        T expected(std::move(init));
         Sequence<T> in(n, [n, f](size_t k) { return f((std::int32_t(k ^ n) % 1000 - 500)); });
         for (size_t k = 0; k < n; ++k)
             expected = binary_op(expected, in[k]);
@@ -53,6 +53,15 @@ test_long_form(T init, BinaryOp binary_op, F f)
 
         invoke_on_all_policies<0>()(test_long_reduce<T>(), in.begin(), in.end(), init, binary_op, expected);
         invoke_on_all_policies<1>()(test_long_reduce<T>(), in.cbegin(), in.cend(), init, binary_op, expected);
+        if constexpr (std::is_same_v<BinaryOp, std::plus<T>>)
+        {
+            invoke_on_all_policies<2>()(test_long_reduce<T>(), in.begin(), in.end(), NoDefaultCtorWrapper<T>{init},
+                                        std::plus<NoDefaultCtorWrapper<T>>{}, NoDefaultCtorWrapper<T>{expected});
+            // Test with MoveOnlyWrapper on host policies
+            iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/std::false_type>()(
+                oneapi::dpl::execution::par_unseq, test_long_reduce<T>(), in.begin(), in.end(),
+                MoveOnlyWrapper<T>{init}, std::plus<MoveOnlyWrapper<T>>{}, MoveOnlyWrapper<T>{expected});
+        }
     }
 }
 

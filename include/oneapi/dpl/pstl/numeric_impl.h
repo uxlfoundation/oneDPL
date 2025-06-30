@@ -44,7 +44,7 @@ __brick_transform_reduce(_ForwardIterator1 __first1, _ForwardIterator1 __last1, 
                          _BinaryOperation1 __binary_op1, _BinaryOperation2 __binary_op2,
                          /*is_vector=*/::std::false_type) noexcept
 {
-    return ::std::inner_product(__first1, __last1, __first2, __init, __binary_op1, __binary_op2);
+    return ::std::inner_product(__first1, __last1, __first2, std::move(__init), __binary_op1, __binary_op2);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Tp, class _BinaryOperation1,
@@ -57,7 +57,7 @@ __brick_transform_reduce(_RandomAccessIterator1 __first1, _RandomAccessIterator1
 {
     typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
     return __unseq_backend::__simd_transform_reduce(
-        __last1 - __first1, __init, __binary_op1,
+        __last1 - __first1, std::move(__init), __binary_op1,
         [=, &__binary_op2](_DifferenceType __i) { return __binary_op2(__first1[__i], __first2[__i]); });
 }
 
@@ -70,7 +70,7 @@ __pattern_transform_reduce(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1,
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __brick_transform_reduce(__first1, __last1, __first2, __init, __binary_op1, __binary_op2,
+    return __brick_transform_reduce(__first1, __last1, __first2, std::move(__init), __binary_op1, __binary_op2,
                                     typename _Tag::__is_vector{});
 }
 
@@ -89,12 +89,12 @@ __pattern_transform_reduce(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             [__first1, __first2, __binary_op2](_RandomAccessIterator1 __i) mutable {
                 return __binary_op2(*__i, *(__first2 + (__i - __first1)));
             },
-            __init,
+            std::move(__init),
             __binary_op1, // Combine
             [__first1, __first2, __binary_op1, __binary_op2](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j,
                                                              _Tp __init) -> _Tp {
-                return __internal::__brick_transform_reduce(__i, __j, __first2 + (__i - __first1), __init, __binary_op1,
-                                                            __binary_op2, _IsVector{});
+                return __internal::__brick_transform_reduce(__i, __j, __first2 + (__i - __first1), std::move(__init),
+                                                            __binary_op1, __binary_op2, _IsVector{});
             });
     });
 }
@@ -110,7 +110,7 @@ __brick_transform_reduce(_ForwardIterator __first, _ForwardIterator __last, _Tp 
 {
     for (; __first != __last; ++__first)
     {
-        __init = __binary_op(__init, __unary_op(*__first));
+        __init = __binary_op(std::move(__init), __unary_op(*__first));
     }
     return __init;
 }
@@ -123,8 +123,8 @@ __brick_transform_reduce(_RandomAccessIterator __first, _RandomAccessIterator __
 {
     typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _DifferenceType;
     return __unseq_backend::__simd_transform_reduce(
-        __last - __first, __init, __binary_op,
-        [=, &__unary_op](_DifferenceType __i) { return __unary_op(__first[__i]); });
+        __last - __first, std::move(__init), __binary_op,
+        [=, &__unary_op](_DifferenceType __i) { return _Tp{__unary_op(__first[__i])}; });
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Tp, class _BinaryOperation,
@@ -135,7 +135,7 @@ __pattern_transform_reduce(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_transform_reduce(__first, __last, __init, __binary_op, __unary_op,
+    return __internal::__brick_transform_reduce(__first, __last, std::move(__init), __binary_op, __unary_op,
                                                 typename _Tag::__is_vector{});
 }
 
@@ -151,9 +151,11 @@ __pattern_transform_reduce(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     return __internal::__except_handler([&]() {
         return __par_backend::__parallel_transform_reduce(
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            [__unary_op](_RandomAccessIterator __i) mutable { return __unary_op(*__i); }, __init, __binary_op,
+            [__unary_op](_RandomAccessIterator __i) mutable { return __unary_op(*__i); }, std::move(__init),
+            __binary_op,
             [__unary_op, __binary_op](_RandomAccessIterator __i, _RandomAccessIterator __j, _Tp __init) {
-                return __internal::__brick_transform_reduce(__i, __j, __init, __binary_op, __unary_op, _IsVector{});
+                return __internal::__brick_transform_reduce(__i, __j, std::move(__init), __binary_op, __unary_op,
+                                                            _IsVector{});
             });
     });
 }
@@ -369,8 +371,8 @@ __brick_adjacent_difference(_RandomAccessIterator1 __first, _RandomAccessIterato
 
     auto __n = __last - __first;
     *__d_first = *__first;
-    return __unseq_backend::__simd_walk_n(__n - 1,
-        [&__op](_ReferenceType1 __x, _ReferenceType1 __y, _ReferenceType2 __z) { __z = __op(__x, __y); },
+    return __unseq_backend::__simd_walk_n(
+        __n - 1, [&__op](_ReferenceType1 __x, _ReferenceType1 __y, _ReferenceType2 __z) { __z = __op(__x, __y); },
         __first + 1, __first, __d_first + 1);
 }
 
