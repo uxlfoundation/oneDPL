@@ -18,6 +18,8 @@
 std::int32_t
 main()
 {
+    bool bProcessed = false;
+
 #if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
@@ -46,7 +48,9 @@ main()
     dpl_ranges::transform(exec2, view2, view1, res, binary_f, proj, proj);
     EXPECT_EQ_N(expected.begin(), res.begin(), n, err_msg);
 
+    bProcessed = true;
+
 #endif //_ENABLE_STD_RANGES_TESTING
 
-    return TestUtils::done(_ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }
