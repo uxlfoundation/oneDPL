@@ -101,9 +101,8 @@ int main()
         auto result_it = oneapi::dpl::begin(dst_buf);
 
         // create named policy from existing one
-        auto new_policy = TestUtils::make_device_policy<class IdentX>(oneapi::dpl::execution::dpcpp_default);
-
-        auto t = std::copy_if( new_policy, data_it, data_end_it, result_it, oneapi::dpl::identity() );
+        auto policy = TestUtils::get_dpcpp_test_policy<0, class IdentX>();
+        auto t = std::copy_if(policy, data_it, data_end_it, result_it, oneapi::dpl::identity());
 
         auto count = std::distance(result_it,t);
 
@@ -130,9 +129,9 @@ int main()
         auto src_end_it = oneapi::dpl::end(src_buf);
         
         // create named policy from existing one
-        auto new_policy = TestUtils::make_device_policy<class MaxX>(oneapi::dpl::execution::dpcpp_default);
+        auto policy = TestUtils::get_dpcpp_test_policy<0, class MaxX>();
         // call algorithm:
-        std::exclusive_scan(new_policy, src_it, src_end_it, dst_it, T(0), oneapi::dpl::maximum<T>());
+        std::exclusive_scan(policy, src_it, src_end_it, dst_it, T(0), oneapi::dpl::maximum<T>());
         
         auto dst = dst_buf.template get_host_access(sycl::read_only);
         EXPECT_EQ(dst[0], 0, "#1");
@@ -166,9 +165,9 @@ int main()
         auto src_end_it = oneapi::dpl::end(src_buf);
 
         // create named policy from existing one
-        auto new_policy = TestUtils::make_device_policy<class MinX>(oneapi::dpl::execution::dpcpp_default);
+        auto policy = TestUtils::get_dpcpp_test_policy<0, class MinX>();
         // call algorithm:
-        std::exclusive_scan(new_policy, src_it, src_end_it, dst_it, T(0), oneapi::dpl::minimum<T>());
+        std::exclusive_scan(policy, src_it, src_end_it, dst_it, T(0), oneapi::dpl::minimum<T>());
     
         auto dst = dst_buf.template get_host_access(sycl::read_only);
         EXPECT_EQ(dst[0], 0, "#1");
