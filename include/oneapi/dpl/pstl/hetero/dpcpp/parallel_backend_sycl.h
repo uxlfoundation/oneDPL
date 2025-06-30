@@ -2230,7 +2230,7 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
             oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__ranges::zip_view(std::forward<_Range2>(__values), __mask_view),
             oneapi::dpl::__ranges::zip_view(std::forward<_Range3>(__out_values), __mask_view), __n,
-            oneapi::dpl::__internal::__no_op{}, oneapi::dpl::unseq_backend::__no_init_value<_ScanInitType>{},
+            oneapi::dpl::identity{}, oneapi::dpl::unseq_backend::__no_init_value<_ScanInitType>{},
             oneapi::dpl::__internal::__segmented_scan_fun<_BinaryOperator, _FlagType, _BinaryOperator>{__binary_op},
             /*_Inclusive*/ std::true_type{})
             .wait();
@@ -2273,7 +2273,7 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
             oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__ranges::zip_view(__temp_view, __mask_view),
             oneapi::dpl::__ranges::zip_view(std::forward<_Range3>(__out_values), __mask_view), __n,
-            oneapi::dpl::__internal::__no_op{},
+            oneapi::dpl::identity{},
             oneapi::dpl::unseq_backend::__init_value<_ScanInitType>{
                 oneapi::dpl::__internal::make_tuple(__init.__value, _FlagType(1))},
             oneapi::dpl::__internal::__segmented_scan_fun<_BinaryOperator, _FlagType, _BinaryOperator>{__binary_op},
