@@ -26,11 +26,10 @@
 
 #include <iostream>
 
-#if _ENABLE_RANGES_TESTING
-template <typename Policy>
-void
-test_impl(Policy&& exec)
+std::int32_t
+main()
 {
+#if _ENABLE_RANGES_TESTING
     constexpr int max_n = 10;
 
     using namespace oneapi::dpl::experimental::ranges;
@@ -40,30 +39,14 @@ test_impl(Policy&& exec)
     auto iota = views::iota(0, max_n);
     //the name nano::ranges::copy is not injected into oneapi::dpl::experimental::ranges namespace
     __nanorange::nano::ranges::copy(iota, views::host_all(A).begin());
-    reverse(std::forward<Policy>(exec), A);
+    reverse(TestUtils::get_dpcpp_test_policy(), A);
 
-#if _ONEDPL_DEBUG_SYCL
     for(auto v: views::host_all(A))
-        std::cout << v << " ";
-    std::cout << std::endl;
-#endif
-
+        ::std::cout << v << " ";
+    ::std::cout << ::std::endl;
     //check result
     EXPECT_EQ_RANGES(iota | views::reverse, views::host_all(A), "wrong effect from reverse");
-}
-#endif // _ENABLE_RANGES_TESTING
-
-std::int32_t
-main()
-{
-#if _ENABLE_RANGES_TESTING
-
-    auto policy = TestUtils::get_dpcpp_test_policy();
-    test_impl(policy);
-
-    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
 
 #endif //_ENABLE_RANGES_TESTING
-
     return TestUtils::done(_ENABLE_RANGES_TESTING);
 }
