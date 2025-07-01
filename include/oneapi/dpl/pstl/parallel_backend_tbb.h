@@ -328,7 +328,7 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
             _Sp __scan)
 {
     if (__m == 1)
-        __scan(__i * __tilesize, __lastsize, __initial);
+        __scan(__i * __tilesize, __lastsize, std::move(__initial));
     else
     {
         const _Index __k = __split(__m);
