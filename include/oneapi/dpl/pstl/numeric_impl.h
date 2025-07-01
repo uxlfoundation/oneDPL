@@ -177,11 +177,11 @@ __brick_transform_scan(_ForwardIterator __first, _ForwardIterator __last, _Outpu
     {
         // Copy the value pointed to by __first to avoid overwriting it when __result == __first
         _Tp __temp = *__first;
-        *__result = __init;
+        *__result = std::move(__init);
         _ONEDPL_PRAGMA_FORCEINLINE
-        __init = __binary_op(__init, __unary_op(__temp));
+        __init = __binary_op(std::move(__init), __unary_op(std::move(__temp)));
     }
-    return ::std::make_pair(__result, __init);
+    return ::std::make_pair(__result, std::move(__init));
 }
 
 // Inclusive form
@@ -191,13 +191,15 @@ __brick_transform_scan(_RandomAccessIterator __first, _RandomAccessIterator __la
                        _UnaryOperation __unary_op, _Tp __init, _BinaryOperation __binary_op,
                        /*Inclusive*/ ::std::true_type, /*is_vector=*/::std::false_type) noexcept
 {
+    _OutputIterator __prev_result = __result;
     for (; __first != __last; ++__first, ++__result)
     {
         _ONEDPL_PRAGMA_FORCEINLINE
-        __init = __binary_op(__init, __unary_op(*__first));
-        *__result = __init;
+        __init = __binary_op(std::move(__init), __unary_op(*__first));
+        *__result = std::move(__init);
+        __prev_result = __result;
     }
-    return ::std::make_pair(__result, __init);
+    return ::std::make_pair(__result, *__prev_result);
 }
 
 // type is arithmetic and binary operation is a user defined operation.
