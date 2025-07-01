@@ -25,6 +25,8 @@
 #include "parallel_backend_utils.h"
 #include "execution_impl.h"
 #include "utils.h"
+#include "functional_impl.h"
+
 
 // Bring in minimal required subset of Intel(R) Threading Building Blocks (Intel(R) TBB)
 #include <tbb/blocked_range.h>
@@ -360,7 +362,7 @@ void
 __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
-    tbb::this_task_arena::isolate([=, &__combine]() {
+    tbb::this_task_arena::isolate([=, &__combine, __initial = std::move(__initial)]() {
         if (__n > 1)
         {
             _Index __p = tbb::this_task_arena::max_concurrency();
@@ -372,26 +374,35 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
             __tbb_backend::__upsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __reduce,
                                      __combine);
 
-            // When __apex is a no-op and __combine has no side effects, a good optimizer
-            // should be able to eliminate all code between here and __apex.
-            // Alternatively, provide a default value for __apex that can be
-            // recognized by metaprogramming that conditionally executes the following.
-            size_t __k = __m + 1;
-            _Tp __t = __r[__k - 1];
-            while ((__k &= __k - 1))
+            // if apex is identity, then we can skip the apex call
+            if constexpr (!std::is_same_v<_Ap, oneapi::dpl::identity>)
+            {
+                static_assert(std::is_copy_constructible_v<_Tp>,
+                              "Type _Tp must be copy constructible to use __parallel_strict_scan with apex");
+                size_t __k = __m + 1;
+                _Tp __t = __r[__k - 1];
+                while ((__k &= __k - 1))
                 __t = __combine(__r[__k - 1], __t);
-            __apex(__combine(__initial, __t));
+                __apex(__combine(__initial, __t));
+            }
             __tbb_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __initial,
                                        __combine, __scan);
             return;
         }
         // Fewer than 2 elements in sequence, or out of memory.  Handle has single block.
-        _Tp __sum = __initial;
+        // if apex is identity, then we can skip the apex call
+        if constexpr (!std::is_same_v<_Ap, oneapi::dpl::identity>)
+        {
+            static_assert(std::is_copy_constructible_v<_Tp>,
+                            "Type _Tp must be copy constructible to use __parallel_strict_scan with apex");
+
+            _Tp __sum = __initial;
+            if (__n)
+                __sum = __combine(__sum, __reduce(_Index(0), __n));
+            __apex(__sum);
+        }
         if (__n)
-            __sum = __combine(__sum, __reduce(_Index(0), __n));
-        __apex(__sum);
-        if (__n)
-            __scan(_Index(0), __n, __initial);
+            __scan(_Index(0), __n, std::move(__initial));
     });
 }
 

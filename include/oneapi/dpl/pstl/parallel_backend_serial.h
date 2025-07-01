@@ -26,6 +26,7 @@
 #include <utility>
 #include <type_traits>
 #include "parallel_backend_utils.h"
+#include "functional_impl.h"
 
 namespace oneapi
 {
@@ -120,12 +121,17 @@ void
 __parallel_strict_scan(oneapi::dpl::__internal::__serial_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
-    _Tp __sum = __initial;
+    if constexpr (!std::is_same_v<_Ap, oneapi::dpl::identity>)
+    {
+        static_assert(std::is_copy_constructible_v<_Tp>,
+                      "Type _Tp must be copy constructible to use __parallel_strict_scan with apex");
+        _Tp __sum = __initial;
+        if (__n)
+            __sum = __combine(__sum, __reduce(_Index(0), __n));
+        __apex(__sum);
+    }
     if (__n)
-        __sum = __combine(__sum, __reduce(_Index(0), __n));
-    __apex(__sum);
-    if (__n)
-        __scan(_Index(0), __n, __initial);
+        __scan(_Index(0), __n, std::move(__initial));
 }
 
 template <class _ExecutionPolicy, class _Index, class _UnaryOp, class _Tp, class _BinaryOp, class _Reduce, class _Scan>
