@@ -216,10 +216,14 @@ __brick_transform_scan(_RandomAccessIterator __first, _RandomAccessIterator __la
                        /*is_vector=*/::std::true_type) noexcept
 {
 #if _ONEDPL_UDS_PRESENT // PSTL_UDS_PRESENT
-    if (_Inclusive() || !oneapi::dpl::__internal::__iterators_possibly_equal(__first, __result))
+    // Check if _Tp is copy assignable and copy constructible, move only types are not supported with SIMD scan.
+    if constexpr (std::is_copy_assignable_v<_Tp> && std::is_copy_constructible_v<_Tp>) 
     {
-        return __unseq_backend::__simd_scan(__first, __last - __first, __result, __unary_op, __init, __binary_op,
-                                            _Inclusive());
+        if (_Inclusive() || !oneapi::dpl::__internal::__iterators_possibly_equal(__first, __result))
+        {
+            return __unseq_backend::__simd_scan(__first, __last - __first, __result, __unary_op, std::move(__init),
+                                                __binary_op, _Inclusive());
+        }
     }
 #endif
     // We need to call serial brick here to call function for inclusive and exclusive scan that depends on _Inclusive() value
