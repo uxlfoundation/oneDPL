@@ -206,7 +206,7 @@ inclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIte
                _ForwardIterator2 __result, _BinaryOperation __binary_op, _Tp __init)
 {
     return transform_inclusive_scan(std::forward<_ExecutionPolicy>(__exec), __first, __last, __result, __binary_op,
-                                    oneapi::dpl::identity{}, __init);
+                                    oneapi::dpl::identity{}, std::move(__init));
 }
 
 // [transform.exclusive.scan]
@@ -221,8 +221,8 @@ transform_exclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
     return oneapi::dpl::__internal::__pattern_transform_scan(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-                                                             __first, __last, __result, __unary_op, std::move(__init), __binary_op,
-                                                             /*inclusive=*/::std::false_type());
+                                                             __first, __last, __result, __unary_op, std::move(__init),
+                                                             __binary_op, /*inclusive=*/::std::false_type());
 }
 
 // [transform.inclusive.scan]
@@ -237,8 +237,8 @@ transform_inclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
     return oneapi::dpl::__internal::__pattern_transform_scan(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-                                                             __first, __last, __result, __unary_op, std::move(__init), __binary_op,
-                                                             /*inclusive=*/::std::true_type());
+                                                             __first, __last, __result, __unary_op, std::move(__init),
+                                                             __binary_op, /*inclusive=*/::std::true_type());
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _UnaryOperation,
