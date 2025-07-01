@@ -31,8 +31,10 @@ class fake_selection_handle_t
 int
 test_cout()
 {
-    oneapi::dpl::experimental::sycl_backend s;
-    oneapi::dpl::experimental::sycl_backend::execution_resource_t e;
+    //oneapi::dpl::experimental::sycl_backend s;
+    //oneapi::dpl::experimental::sycl_backend::execution_resource_t e;
+    oneapi::dpl::experimental::default_backend<sycl::queue> s;
+    oneapi::dpl::experimental::default_backend<sycl::queue>::execution_resource_t e;
     return 0;
 }
 
