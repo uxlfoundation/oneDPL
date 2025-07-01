@@ -118,7 +118,7 @@ int
 test_submit_and_wait_on_sync()
 {
     const int N = 100;
-    oneapi::dpl::experimental::sycl_backend s;
+    oneapi::dpl::experimental::default_backend<sycl::queue> s;
     fake_selection_handle_t h;
 
     std::atomic<int> ecount = 0;
@@ -144,7 +144,7 @@ int
 test_submit_and_wait_on_sync_single_element()
 {
     const int N = 1;
-    oneapi::dpl::experimental::sycl_backend s;
+    oneapi::dpl::experimental::default_backend<sycl::queue> s;
     fake_selection_handle_t h;
 
     std::atomic<int> ecount = 0;
