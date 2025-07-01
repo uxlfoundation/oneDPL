@@ -43,16 +43,18 @@ struct test_inclusive_scan_with_plus
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
     std::enable_if_t<!TestUtils::is_reverse_v<Iterator1> || std::is_same_v<Iterator1, Iterator2>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, [[maybe_unused]] T init, T trash)
+               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, [[maybe_unused]] Init init1,
+               [[maybe_unused]] Init init2, T trash)
     {
         using namespace std;
         Iterator3 orr;
         // If the types are different, apply the init
-        constexpr bool use_init = !std::is_same_v<Iterator1, Iterator2>;
+        constexpr bool use_init = !std::is_same_v<Iterator1, Iterator2> && !std::is_same_v<Init, T>;
         if constexpr (use_init)
         {
-            inclusive_scan_serial(in_first, in_last, expected_first, std::plus<>{}, init);
-            orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, std::plus<>{}, init);
+            inclusive_scan_serial(in_first, in_last, expected_first, std::plus<>{}, std::move(init1));
+            orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, std::plus<>{},
+                                 std::move(init2));
         }
         else
         {
@@ -69,7 +71,7 @@ struct test_inclusive_scan_with_plus
     std::enable_if_t<TestUtils::is_reverse_v<Iterator1> && !std::is_same_v<Iterator1, Iterator2>>
     operator()(Policy&& /*exec*/, Iterator1 /*in_first*/, Iterator1 /*in_last*/, Iterator2 /*out_first*/,
                Iterator2 /*out_last*/, Iterator3 /*expected_first*/, Iterator3 /*expected_last*/, Size /*n*/,
-               T /*init*/, T /*trash*/)
+               Init /*init1*/, Init /*init2*/, T /*trash*/)
     {
     }
 };
@@ -78,14 +80,14 @@ template <typename In, typename Init, typename Out>
 struct test_exclusive_scan_with_plus
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
-    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1> || std::is_same_v<Iterator1, Iterator2>>
+    std::enable_if_t<std::is_convertible_v<typename std::iterator_traits<Iterator1>::value_type, Init> && (!TestUtils::is_reverse_v<Iterator1> || std::is_same_v<Iterator1, Iterator2>)>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, T init, T trash)
+               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, Init init1, Init init2, T trash)
     {
         using namespace std;
 
-        exclusive_scan_serial(in_first, in_last, expected_first, init);
-        auto orr = exclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, init);
+        exclusive_scan_serial(in_first, in_last, expected_first, std::move(init1));
+        auto orr = exclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, std::move(init2));
         EXPECT_TRUE(out_last == orr, "exclusive_scan returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from exclusive_scan");
         ::std::fill_n(out_first, n, trash);
@@ -96,7 +98,7 @@ struct test_exclusive_scan_with_plus
     std::enable_if_t<TestUtils::is_reverse_v<Iterator1> && !std::is_same_v<Iterator1, Iterator2>>
     operator()(Policy&& /*exec*/, Iterator1 /*in_first*/, Iterator1 /*in_last*/, Iterator2 /*out_first*/,
                Iterator2 /*out_last*/, Iterator3 /*expected_first*/, Iterator3 /*expected_last*/, Size /*n*/,
-               T /*init*/, T /*trash*/)
+               Init /*init1*/, Init /*init2*/, T /*trash*/)
     {
     }
 };
@@ -114,17 +116,35 @@ test_with_plus(Init init, Out trash, Convert convert)
 #ifdef _PSTL_TEST_INCLUSIVE_SCAN
 
         invoke_on_all_policies<0>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, init, trash);
         invoke_on_all_policies<1>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.cbegin(), in.cend(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, init, trash);
+        invoke_on_all_policies<2>()(test_inclusive_scan_with_plus<In, NoDefaultCtorWrapper<Init>, Out>(), in.begin(), in.end(), out.begin(),
+                                    out.end(), expected.begin(), expected.end(), in.size(), NoDefaultCtorWrapper<Init>{init}, NoDefaultCtorWrapper<Init>{init}, trash);
+        iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/std::false_type>()(
+            oneapi::dpl::execution::par_unseq, test_inclusive_scan_with_plus<In, MoveOnlyWrapper<Init>, Out>(), in.begin(), in.end(),
+            out.begin(), out.end(), expected.begin(), expected.end(), in.size(), MoveOnlyWrapper<Init>{init},
+            MoveOnlyWrapper<Init>{init}, trash);
 #endif
-
 #ifdef _PSTL_TEST_EXCLUSIVE_SCAN
 
+
         invoke_on_all_policies<2>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, init, trash);
         invoke_on_all_policies<3>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.cbegin(), in.cend(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, init, trash);
+        
+        // For a vector of bool, converting from std::vector<bool>::reference to wrapped bools encounters issues 
+        // unrelated to move only or non default constructible types. Skip these tests in this instance.
+        if constexpr (!std::is_same_v<In, bool>)
+        {
+            invoke_on_all_policies<2>()(test_exclusive_scan_with_plus<In, NoDefaultCtorWrapper<Init>, Out>(), in.begin(), in.end(), out.begin(),
+                                        out.end(), expected.begin(), expected.end(), in.size(), NoDefaultCtorWrapper<Init>{init}, NoDefaultCtorWrapper<Init>{init}, trash);
+            iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/std::false_type>()(
+                oneapi::dpl::execution::par_unseq, test_exclusive_scan_with_plus<In, MoveOnlyWrapper<Init>, Out>(), in.begin(), in.end(),
+                out.begin(), out.end(), expected.begin(), expected.end(), in.size(), MoveOnlyWrapper<Init>{init},
+                MoveOnlyWrapper<Init>{init}, trash);
+        }
 #endif
     }
 
