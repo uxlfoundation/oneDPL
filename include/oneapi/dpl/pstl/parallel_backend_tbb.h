@@ -328,7 +328,7 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
             _Sp __scan)
 {
     if (__m == 1)
-        __scan(__i * __tilesize, __lastsize, std::move(__initial));
+        __scan(__i * __tilesize, __lastsize, __initial);
     else
     {
         const _Index __k = __split(__m);
@@ -357,12 +357,13 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 // apex is called exactly once, after all calls to reduce and before all calls to scan.
 // For example, it's useful for allocating a __buffer used by scan but whose size is the sum of all reduction values.
 // T must have a trivial constructor and destructor.
+// T must be copy constructible.
 template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
 __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
-    tbb::this_task_arena::isolate([=, &__combine, __initial = std::move(__initial)]() {
+    tbb::this_task_arena::isolate([=, &__combine]() {
         if (__n > 1)
         {
             _Index __p = tbb::this_task_arena::max_concurrency();
@@ -402,7 +403,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
             __apex(__sum);
         }
         if (__n)
-            __scan(_Index(0), __n, std::move(__initial));
+            __scan(_Index(0), __n, __initial);
     });
 }
 

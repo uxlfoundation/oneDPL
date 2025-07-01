@@ -289,6 +289,9 @@ __pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
     });
 }
 
+
+// For floating point types, we can be sure that types are default constructible and copyable, so we dont need to
+// support about move only types.
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _OutputIterator,
           class _UnaryOperation, class _Tp, class _BinaryOperation, class _Inclusive>
 ::std::enable_if_t<::std::is_floating_point_v<_Tp>, _OutputIterator>

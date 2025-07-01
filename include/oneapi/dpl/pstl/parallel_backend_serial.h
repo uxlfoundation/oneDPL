@@ -139,7 +139,7 @@ _Tp
 __parallel_transform_scan(oneapi::dpl::__internal::__serial_backend_tag, _ExecutionPolicy&&, _Index __n, _UnaryOp,
                           _Tp __init, _BinaryOp, _Reduce, _Scan __scan)
 {
-    return __scan(_Index(0), __n, __init);
+    return __scan(_Index(0), __n, std::move(__init));
 }
 
 template <class _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare, typename _LeafSort>
