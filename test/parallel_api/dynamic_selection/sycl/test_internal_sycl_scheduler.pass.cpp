@@ -31,8 +31,6 @@ class fake_selection_handle_t
 int
 test_cout()
 {
-    //oneapi::dpl::experimental::sycl_backend s;
-    //oneapi::dpl::experimental::sycl_backend::execution_resource_t e;
     oneapi::dpl::experimental::default_backend<sycl::queue> s;
     oneapi::dpl::experimental::default_backend<sycl::queue>::execution_resource_t e;
     return 0;
@@ -42,7 +40,7 @@ int
 test_submit_and_wait_on_scheduler()
 {
     const int N = 100;
-    oneapi::dpl::experimental::sycl_backend s;
+    oneapi::dpl::experimental::default_backend<sycl::queue> s;
     fake_selection_handle_t h;
 
     std::atomic<int> ecount = 0;
@@ -68,7 +66,7 @@ int
 test_submit_and_wait_on_scheduler_single_element()
 {
     const int N = 1;
-    oneapi::dpl::experimental::sycl_backend s;
+    oneapi::dpl::experimental::default_backend<sycl::queue> s;
     fake_selection_handle_t h;
 
     std::atomic<int> ecount = 0;
@@ -94,7 +92,7 @@ int
 test_submit_and_wait_on_scheduler_empty()
 {
     const int N = 0;
-    oneapi::dpl::experimental::sycl_backend s;
+    oneapi::dpl::experimental::default_backend<sycl::queue> s;
     fake_selection_handle_t h;
 
     std::atomic<int> ecount = 0;
@@ -172,7 +170,7 @@ int
 test_submit_and_wait_on_sync_empty()
 {
     const int N = 0;
-    oneapi::dpl::experimental::sycl_backend s;
+    oneapi::dpl::experimental::default_backend<sycl::queue> s;
     fake_selection_handle_t h;
 
     std::atomic<int> ecount = 0;
@@ -219,7 +217,7 @@ test_properties()
     }
 
     std::cout << "UNIVERSE SIZE " << v.size() << std::endl;
-    oneapi::dpl::experimental::sycl_backend s(v);
+    oneapi::dpl::experimental::default_backend<sycl::queue> s(v);
     auto v2 = s.get_resources();
     auto v2s = v2.size();
     EXPECT_EQ(v2s, v.size(), "ERROR: reported universe and queried universe are not equal in size\n");
