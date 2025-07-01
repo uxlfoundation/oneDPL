@@ -205,7 +205,7 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _Executi
 template <class _Index, class _Up, class _Tp, class _Cp, class _Rp, class _Sp>
 class __trans_scan_body
 {
-    alignas(_Tp) char _M_sum_storage[sizeof(_Tp)]; // Holds generalized non-commutative sum when has_sum==true
+    oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __lazy_sum;
     _Rp _M_brick_reduce;                           // Most likely to have non-empty layout
     _Up _M_u;
     _Cp _M_combine;
@@ -215,7 +215,7 @@ class __trans_scan_body
     __trans_scan_body(_Up __u, _Tp __init, _Cp __combine, _Rp __reduce, _Sp __scan)
         : _M_brick_reduce(__reduce), _M_u(__u), _M_combine(__combine), _M_scan(__scan), _M_has_sum(true)
     {
-        new (_M_sum_storage) _Tp(__init);
+        __lazy_sum.__setup(std::move(__init));
     }
 
     __trans_scan_body(__trans_scan_body& __b, tbb::split)
@@ -228,14 +228,14 @@ class __trans_scan_body
     {
         // 17.6.5.12 tells us to not worry about catching exceptions from destructors.
         if (_M_has_sum)
-            sum().~_Tp();
+            __lazy_sum.__destroy();
     }
 
-    _Tp&
-    sum() const
+    _Tp
+    sum()
     {
         __TBB_ASSERT(_M_has_sum, "sum expected");
-        return *const_cast<_Tp*>(reinterpret_cast<_Tp const*>(_M_sum_storage));
+        return std::move(__lazy_sum.__v);
     }
 
     void
@@ -245,19 +245,19 @@ class __trans_scan_body
         _Index __j = __range.end();
         if (!_M_has_sum)
         {
-            new (&_M_sum_storage) _Tp(_M_u(__i));
+            __lazy_sum.__setup(_M_u(__i));
             _M_has_sum = true;
             ++__i;
             if (__i == __j)
                 return;
         }
-        sum() = _M_brick_reduce(__i, __j, sum());
+        __lazy_sum.__v = _M_brick_reduce(__i, __j, std::move(__lazy_sum.__v));
     }
 
     void
     operator()(const tbb::blocked_range<_Index>& __range, tbb::final_scan_tag)
     {
-        sum() = _M_scan(__range.begin(), __range.end(), sum());
+        __lazy_sum.__v = _M_scan(__range.begin(), __range.end(), std::move(__lazy_sum.__v));
     }
 
     void
@@ -265,11 +265,11 @@ class __trans_scan_body
     {
         if (_M_has_sum)
         {
-            sum() = _M_combine(__a.sum(), sum());
+            __lazy_sum.__v = _M_combine(std::move(__a.__lazy_sum.__v), std::move(__lazy_sum.__v));
         }
         else
         {
-            new (&_M_sum_storage) _Tp(__a.sum());
+            __lazy_sum.__setup(std::move(__a.__lazy_sum.__v));
             _M_has_sum = true;
         }
     }
@@ -277,7 +277,7 @@ class __trans_scan_body
     void
     assign(__trans_scan_body& __b)
     {
-        sum() = __b.sum();
+        __lazy_sum.__v = std::move(__b.__lazy_sum.__v);
     }
 };
 
