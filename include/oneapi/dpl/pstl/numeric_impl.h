@@ -220,7 +220,7 @@ __brick_transform_scan(_RandomAccessIterator __first, _RandomAccessIterator __la
 {
 #if _ONEDPL_UDS_PRESENT // PSTL_UDS_PRESENT
     // Check if _Tp is copy assignable and copy constructible, move only types are not supported with SIMD scan.
-    if constexpr (std::is_copy_assignable_v<_Tp> && std::is_copy_constructible_v<_Tp>) 
+    if constexpr (std::is_copy_assignable_v<_Tp> && std::is_copy_constructible_v<_Tp> && std::is_default_constructible_v<_Tp>)
     {
         if (_Inclusive() || !oneapi::dpl::__internal::__iterators_possibly_equal(__first, __result))
         {
