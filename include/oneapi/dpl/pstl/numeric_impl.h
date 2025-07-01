@@ -227,18 +227,18 @@ __brick_transform_scan(_RandomAccessIterator __first, _RandomAccessIterator __la
     }
 #endif
     // We need to call serial brick here to call function for inclusive and exclusive scan that depends on _Inclusive() value
-    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, __init, __binary_op, _Inclusive(),
+    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, std::move(__init), __binary_op, _Inclusive(),
                                               /*is_vector=*/::std::false_type());
 }
 
 template <class _RandomAccessIterator, class _OutputIterator, class _UnaryOperation, class _Tp, class _BinaryOperation,
           class _Inclusive>
-::std::enable_if_t<is_arithmetic_udop<_Tp, _BinaryOperation>::value, ::std::pair<_OutputIterator, _Tp>>
+::std::enable_if_t<is_arithmetic_udop<_Tp, _BinaryOperation>::value, _OutputIterator>
 __brick_transform_scan(_RandomAccessIterator __first, _RandomAccessIterator __last, _OutputIterator __result,
                        _UnaryOperation __unary_op, _Tp __init, _BinaryOperation __binary_op, _Inclusive,
                        /*is_vector=*/::std::true_type) noexcept
 {
-    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, __init, __binary_op, _Inclusive(),
+    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, std::move(__init), __binary_op, _Inclusive(),
                                               /*is_vector=*/::std::false_type());
 }
 
@@ -251,7 +251,7 @@ __pattern_transform_scan(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Fo
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, __init, __binary_op, _Inclusive(),
+    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, std::move(__init), __binary_op, _Inclusive(),
                                               typename _Tag::__is_vector{})
         .first;
 }
@@ -270,17 +270,17 @@ __pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_transform_scan(
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __last - __first,
-            [__first, __unary_op](_DifferenceType __i) mutable { return __unary_op(__first[__i]); }, __init,
+            [__first, __unary_op](_DifferenceType __i) mutable { return __unary_op(__first[__i]); }, std::move(__init),
             __binary_op,
             [__first, __unary_op, __binary_op](_DifferenceType __i, _DifferenceType __j, _Tp __init) {
                 // Execute serial __brick_transform_reduce, due to the explicit SIMD vectorization (reduction) requires a commutative operation for the guarantee of correct scan.
-                return __internal::__brick_transform_reduce(__first + __i, __first + __j, __init, __binary_op,
+                return __internal::__brick_transform_reduce(__first + __i, __first + __j, std::move(__init), __binary_op,
                                                             __unary_op,
                                                             /*__is_vector*/ ::std::false_type());
             },
             [__first, __unary_op, __binary_op, __result](_DifferenceType __i, _DifferenceType __j, _Tp __init) {
                 return __internal::__brick_transform_scan(__first + __i, __first + __j, __result + __i, __unary_op,
-                                                          __init, __binary_op, _Inclusive(), _IsVector{})
+                                                          std::move(__init), __binary_op, _Inclusive(), _IsVector{})
                     .second;
             });
         return __result + (__last - __first);
