@@ -195,8 +195,19 @@ Renaming would require changing the top-level namespace.
 ### Specializations and their Differentiation
 
 Currently, the specializations of the algorithms belong to different namespaces.
-Using tags instead of namespaces offers several advantages,
-for example easier dispatching between specializations and avoiding deeply nested namespaces.
+
+Using a tag as a function or a template parameter should be considered as well.
+This method has both advantages and disadvantages compared to namespace-based separation.
+Pros:
+- Avoids potential name clashes caused by `using` directives.
+Cons:
+- Does not replicate the hierarchical structure provided by namespaces,
+  unless namespeces are built into the tag name.
+Other aspects:
+- Is an additional parameter, possibly with its own namespaces,
+  preferred over adding namespaces directly to an algorithm?
+- Specializations may not share the same set of arguments,
+  which reduces the value of tag-based dispatching.
 
 ### Reporting Global and Local Memory Requirements
 
