@@ -1248,7 +1248,7 @@ struct MoveOnlyWrapper {
     // Default constructor
     MoveOnlyWrapper() = delete;
 
-    MoveOnlyWrapper(_T v) : value(v) {}
+    MoveOnlyWrapper(const _T& v) : value(v) {}
 
     operator _T() const { return value; }
 
@@ -1288,7 +1288,7 @@ struct NoDefaultCtorWrapper {
     // Default constructor
     NoDefaultCtorWrapper() = delete;
 
-    NoDefaultCtorWrapper(_T v) : value(v) {}
+    NoDefaultCtorWrapper(const _T& v) : value(v) {}
 
     operator _T() const { return value; }
 

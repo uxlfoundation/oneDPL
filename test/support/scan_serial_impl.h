@@ -24,10 +24,11 @@ template <class InputIterator, class OutputIterator, class T>
 OutputIterator
 exclusive_scan_serial(InputIterator first, InputIterator last, OutputIterator result, T init)
 {
+    using _OutT = typename std::iterator_traits<OutputIterator>::value_type;
     for (; first != last; ++first, ++result)
     {
-        auto res = init;
-        init = init + *first;
+        _OutT res = std::move(init);
+        init = T{res + *first};
         *result = res;
     }
     return result;
@@ -37,10 +38,11 @@ template <class InputIterator, class OutputIterator, class T, class BinaryOperat
 OutputIterator
 exclusive_scan_serial(InputIterator first, InputIterator last, OutputIterator result, T init, BinaryOperation binary_op)
 {
+    using _OutT = typename std::iterator_traits<OutputIterator>::value_type;
     for (; first != last; ++first, ++result)
     {
-        auto res = init;
-        init = binary_op(init, *first);
+        _OutT res = std::move(init);
+        init = binary_op(res, *first);
         *result = res;
     }
     return result;
@@ -68,10 +70,13 @@ template <class InputIterator, class OutputIterator, class BinaryOperation, clas
 OutputIterator
 inclusive_scan_serial(InputIterator first, InputIterator last, OutputIterator result, BinaryOperation binary_op, T init)
 {
+    using _OutT = typename std::iterator_traits<OutputIterator>::value_type;
+    _OutT __prev_ele = std::move(init);
     for (; first != last; ++first, ++result)
     {
-        init = binary_op(init, *first);
-        *result = init;
+        init = binary_op(__prev_ele, *first);
+        *result = std::move(init);
+        __prev_ele = *result;
     }
     return result;
 }

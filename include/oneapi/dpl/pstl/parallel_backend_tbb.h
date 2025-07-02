@@ -25,6 +25,7 @@
 #include "parallel_backend_utils.h"
 #include "execution_impl.h"
 #include "utils.h"
+#include "functional_impl.h"
 
 // Bring in minimal required subset of Intel(R) Threading Building Blocks (Intel(R) TBB)
 #include <tbb/blocked_range.h>
@@ -205,7 +206,7 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _Executi
 template <class _Index, class _Up, class _Tp, class _Cp, class _Rp, class _Sp>
 class __trans_scan_body
 {
-    alignas(_Tp) char _M_sum_storage[sizeof(_Tp)]; // Holds generalized non-commutative sum when has_sum==true
+    oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __lazy_sum;
     _Rp _M_brick_reduce;                           // Most likely to have non-empty layout
     _Up _M_u;
     _Cp _M_combine;
@@ -215,7 +216,7 @@ class __trans_scan_body
     __trans_scan_body(_Up __u, _Tp __init, _Cp __combine, _Rp __reduce, _Sp __scan)
         : _M_brick_reduce(__reduce), _M_u(__u), _M_combine(__combine), _M_scan(__scan), _M_has_sum(true)
     {
-        new (_M_sum_storage) _Tp(__init);
+        __lazy_sum.__setup(std::move(__init));
     }
 
     __trans_scan_body(__trans_scan_body& __b, tbb::split)
@@ -228,14 +229,14 @@ class __trans_scan_body
     {
         // 17.6.5.12 tells us to not worry about catching exceptions from destructors.
         if (_M_has_sum)
-            sum().~_Tp();
+            __lazy_sum.__destroy();
     }
 
-    _Tp&
-    sum() const
+    _Tp
+    sum()
     {
         __TBB_ASSERT(_M_has_sum, "sum expected");
-        return *const_cast<_Tp*>(reinterpret_cast<_Tp const*>(_M_sum_storage));
+        return std::move(__lazy_sum.__v);
     }
 
     void
@@ -245,19 +246,19 @@ class __trans_scan_body
         _Index __j = __range.end();
         if (!_M_has_sum)
         {
-            new (&_M_sum_storage) _Tp(_M_u(__i));
+            __lazy_sum.__setup(_M_u(__i));
             _M_has_sum = true;
             ++__i;
             if (__i == __j)
                 return;
         }
-        sum() = _M_brick_reduce(__i, __j, sum());
+        __lazy_sum.__v = _M_brick_reduce(__i, __j, std::move(__lazy_sum.__v));
     }
 
     void
     operator()(const tbb::blocked_range<_Index>& __range, tbb::final_scan_tag)
     {
-        sum() = _M_scan(__range.begin(), __range.end(), sum());
+        __lazy_sum.__v = _M_scan(__range.begin(), __range.end(), std::move(__lazy_sum.__v));
     }
 
     void
@@ -265,11 +266,11 @@ class __trans_scan_body
     {
         if (_M_has_sum)
         {
-            sum() = _M_combine(__a.sum(), sum());
+            __lazy_sum.__v = _M_combine(std::move(__a.__lazy_sum.__v), std::move(__lazy_sum.__v));
         }
         else
         {
-            new (&_M_sum_storage) _Tp(__a.sum());
+            __lazy_sum.__setup(std::move(__a.__lazy_sum.__v));
             _M_has_sum = true;
         }
     }
@@ -277,7 +278,7 @@ class __trans_scan_body
     void
     assign(__trans_scan_body& __b)
     {
-        sum() = __b.sum();
+        __lazy_sum.__v = std::move(__b.__lazy_sum.__v);
     }
 };
 
@@ -355,6 +356,7 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 // apex is called exactly once, after all calls to reduce and before all calls to scan.
 // For example, it's useful for allocating a __buffer used by scan but whose size is the sum of all reduction values.
 // T must have a trivial constructor and destructor.
+// T must be copy constructible.
 template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
 __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
@@ -372,24 +374,33 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
             __tbb_backend::__upsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __reduce,
                                      __combine);
 
-            // When __apex is a no-op and __combine has no side effects, a good optimizer
-            // should be able to eliminate all code between here and __apex.
-            // Alternatively, provide a default value for __apex that can be
-            // recognized by metaprogramming that conditionally executes the following.
-            size_t __k = __m + 1;
-            _Tp __t = __r[__k - 1];
-            while ((__k &= __k - 1))
-                __t = __combine(__r[__k - 1], __t);
-            __apex(__combine(__initial, __t));
+            // if apex is identity, then we can skip the apex call
+            if constexpr (!std::is_same_v<_Ap, oneapi::dpl::identity>)
+            {
+                static_assert(std::is_copy_constructible_v<_Tp>,
+                              "Type _Tp must be copy constructible to use __parallel_strict_scan with apex");
+                size_t __k = __m + 1;
+                _Tp __t = __r[__k - 1];
+                while ((__k &= __k - 1))
+                    __t = __combine(__r[__k - 1], __t);
+                __apex(__combine(__initial, __t));
+            }
             __tbb_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __initial,
                                        __combine, __scan);
             return;
         }
         // Fewer than 2 elements in sequence, or out of memory.  Handle has single block.
-        _Tp __sum = __initial;
-        if (__n)
-            __sum = __combine(__sum, __reduce(_Index(0), __n));
-        __apex(__sum);
+        // if apex is identity, then we can skip the apex call
+        if constexpr (!std::is_same_v<_Ap, oneapi::dpl::identity>)
+        {
+            static_assert(std::is_copy_constructible_v<_Tp>,
+                          "Type _Tp must be copy constructible to use __parallel_strict_scan with apex");
+
+            _Tp __sum = __initial;
+            if (__n)
+                __sum = __combine(__sum, __reduce(_Index(0), __n));
+            __apex(__sum);
+        }
         if (__n)
             __scan(_Index(0), __n, __initial);
     });
@@ -400,7 +411,8 @@ _Tp
 __parallel_transform_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Up __u,
                           _Tp __init, _Cp __combine, _Rp __brick_reduce, _Sp __scan)
 {
-    __trans_scan_body<_Index, _Up, _Tp, _Cp, _Rp, _Sp> __body(__u, __init, __combine, __brick_reduce, __scan);
+    __trans_scan_body<_Index, _Up, _Tp, _Cp, _Rp, _Sp> __body(__u, std::move(__init), __combine, __brick_reduce,
+                                                              __scan);
     auto __range = tbb::blocked_range<_Index>(0, __n);
     tbb::this_task_arena::isolate([__range, &__body]() { tbb::parallel_scan(__range, __body); });
     return __body.sum();

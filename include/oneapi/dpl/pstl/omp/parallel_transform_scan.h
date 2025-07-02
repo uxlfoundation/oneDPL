@@ -31,7 +31,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__omp_backend_tag, _Execution
                           _Tp __init, _Cp /* __combine */, _Rp /* __brick_reduce */, _Sp __scan)
 {
     // TODO: parallelize this function.
-    return __scan(_Index(0), __n, __init);
+    return __scan(_Index(0), __n, ::std::move(__init));
 }
 
 } // namespace __omp_backend
