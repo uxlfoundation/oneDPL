@@ -220,7 +220,8 @@ __brick_transform_scan(_RandomAccessIterator __first, _RandomAccessIterator __la
 {
 #if _ONEDPL_UDS_PRESENT // PSTL_UDS_PRESENT
     // Check if _Tp is copy assignable and copy constructible, move only types are not supported with SIMD scan.
-    if constexpr (std::is_copy_assignable_v<_Tp> && std::is_copy_constructible_v<_Tp> && std::is_default_constructible_v<_Tp>)
+    if constexpr (std::is_copy_assignable_v<_Tp> && std::is_copy_constructible_v<_Tp> &&
+                  std::is_default_constructible_v<_Tp>)
     {
         if (_Inclusive() || !oneapi::dpl::__internal::__iterators_possibly_equal(__first, __result))
         {
@@ -230,7 +231,8 @@ __brick_transform_scan(_RandomAccessIterator __first, _RandomAccessIterator __la
     }
 #endif
     // We need to call serial brick here to call function for inclusive and exclusive scan that depends on _Inclusive() value
-    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, std::move(__init), __binary_op, _Inclusive(),
+    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, std::move(__init), __binary_op,
+                                              _Inclusive(),
                                               /*is_vector=*/::std::false_type());
 }
 
@@ -241,7 +243,8 @@ __brick_transform_scan(_RandomAccessIterator __first, _RandomAccessIterator __la
                        _UnaryOperation __unary_op, _Tp __init, _BinaryOperation __binary_op, _Inclusive,
                        /*is_vector=*/::std::true_type) noexcept
 {
-    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, std::move(__init), __binary_op, _Inclusive(),
+    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, std::move(__init), __binary_op,
+                                              _Inclusive(),
                                               /*is_vector=*/::std::false_type());
 }
 
@@ -254,8 +257,8 @@ __pattern_transform_scan(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Fo
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, std::move(__init), __binary_op, _Inclusive(),
-                                              typename _Tag::__is_vector{})
+    return __internal::__brick_transform_scan(__first, __last, __result, __unary_op, std::move(__init), __binary_op,
+                                              _Inclusive(), typename _Tag::__is_vector{})
         .first;
 }
 
@@ -277,8 +280,8 @@ __pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
             __binary_op,
             [__first, __unary_op, __binary_op](_DifferenceType __i, _DifferenceType __j, _Tp __init) {
                 // Execute serial __brick_transform_reduce, due to the explicit SIMD vectorization (reduction) requires a commutative operation for the guarantee of correct scan.
-                return __internal::__brick_transform_reduce(__first + __i, __first + __j, std::move(__init), __binary_op,
-                                                            __unary_op,
+                return __internal::__brick_transform_reduce(__first + __i, __first + __j, std::move(__init),
+                                                            __binary_op, __unary_op,
                                                             /*__is_vector*/ ::std::false_type());
             },
             [__first, __unary_op, __binary_op, __result](_DifferenceType __i, _DifferenceType __j, _Tp __init) {
@@ -289,7 +292,6 @@ __pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
         return __result + (__last - __first);
     });
 }
-
 
 // For floating point types, we can be sure that types are default constructible and copyable, so we dont need to
 // support about move only types.

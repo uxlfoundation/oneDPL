@@ -27,7 +27,6 @@
 #include "utils.h"
 #include "functional_impl.h"
 
-
 // Bring in minimal required subset of Intel(R) Threading Building Blocks (Intel(R) TBB)
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
@@ -383,7 +382,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
                 size_t __k = __m + 1;
                 _Tp __t = __r[__k - 1];
                 while ((__k &= __k - 1))
-                __t = __combine(__r[__k - 1], __t);
+                    __t = __combine(__r[__k - 1], __t);
                 __apex(__combine(__initial, __t));
             }
             __tbb_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __initial,
@@ -395,7 +394,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
         if constexpr (!std::is_same_v<_Ap, oneapi::dpl::identity>)
         {
             static_assert(std::is_copy_constructible_v<_Tp>,
-                            "Type _Tp must be copy constructible to use __parallel_strict_scan with apex");
+                          "Type _Tp must be copy constructible to use __parallel_strict_scan with apex");
 
             _Tp __sum = __initial;
             if (__n)
@@ -412,7 +411,8 @@ _Tp
 __parallel_transform_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Up __u,
                           _Tp __init, _Cp __combine, _Rp __brick_reduce, _Sp __scan)
 {
-    __trans_scan_body<_Index, _Up, _Tp, _Cp, _Rp, _Sp> __body(__u, std::move(__init), __combine, __brick_reduce, __scan);
+    __trans_scan_body<_Index, _Up, _Tp, _Cp, _Rp, _Sp> __body(__u, std::move(__init), __combine, __brick_reduce,
+                                                              __scan);
     auto __range = tbb::blocked_range<_Index>(0, __n);
     tbb::this_task_arena::isolate([__range, &__body]() { tbb::parallel_scan(__range, __body); });
     return __body.sum();
