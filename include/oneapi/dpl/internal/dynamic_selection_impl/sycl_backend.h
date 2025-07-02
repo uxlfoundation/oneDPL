@@ -188,13 +188,14 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
         sgroup_ptr_ = std::make_unique<submission_group>(global_rank_);
     }
 
+/*
     //trait to check for scratch_space 
     template<typename T, typename = void>
     struct has_scratch_space : std::false_type {};
 
     template<typename T>
     struct has_scratch_space<T, std::void_t<decltype(std::declval<T>().scratch_space)>>::true_type {};
-
+*/
     template <typename SelectionHandle> 
     void
     instrument_before_impl(SelectionHandle s)
@@ -208,7 +209,7 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
                 std::cout << "Cannot time kernels without enabling profiling on queue\n";
             ///TODO: THROW???
             }
-           if constexpr (has_scratch_space<SelectionHandle>::value)
+           if constexpr (internal::has_scratch_space<SelectionHandle>::value)
 		s.scratch_space.my_start_event = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //starting timestamp
 #else
            std::cout << "task_time reporting not supported with this configuration " << std::endl;
@@ -235,7 +236,7 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
            if (report_task_time && !is_profiling_enabled)
            {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
-           if constexpr (has_scratch_space<SelectionHandle>::value)
+           if constexpr (internal::has_scratch_space<SelectionHandle>::value)
            {
                auto q = unwrap(s);
                sycl::event q_end = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending timestamp
