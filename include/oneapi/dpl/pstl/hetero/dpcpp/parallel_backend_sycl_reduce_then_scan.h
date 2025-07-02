@@ -1332,7 +1332,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                         oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
                     if (__iters == 1)
                     {
-                        // fill with unused dummy values to avoid overruning input
+                        // fill with unused dummy values to avoid overrunning input
                         std::uint32_t __load_id = std::min(std::uint32_t{__sub_group_local_id}, __active_subgroups - 1);
                         _InitValueType __v = __sub_group_partials[__load_id];
                         __sub_group_scan_partial<__sub_group_size, /*__is_inclusive=*/true, /*__init_present=*/false>(
@@ -1361,7 +1361,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                         // If we are past the input range, then the previous value of v is passed to the sub-group scan.
                         // It does not affect the result as our sub_group_scan will use a mask to only process in-range elements.
 
-                        // fill with unused dummy values to avoid overruning input
+                        // fill with unused dummy values to avoid overrunning input
                         std::uint32_t __load_id =
                             std::min(__reduction_scan_id, __sub_group_params.__num_sub_groups_local - 1);
 
@@ -1569,7 +1569,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
 
                             std::size_t __remaining_elements =
                                 __elements_to_process - ((__pre_carry_iters - 1) * __sub_group_size);
-                            // fill with unused dummy values to avoid overruning input
+                            // fill with unused dummy values to avoid overrunning input
                             std::size_t __final_reduction_id =
                                 std::min(std::size_t{__reduction_id}, __subgroups_before_my_group - 1);
                             __value = __tmp_ptr[__final_reduction_id];
