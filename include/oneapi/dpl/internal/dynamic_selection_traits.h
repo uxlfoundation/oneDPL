@@ -38,14 +38,14 @@ struct has_unwrap : decltype(has_unwrap_impl<T>(0))
 
 template <typename SelectionHandle>
 auto
-has_scratch_space_impl(...) -> std::false_type;
+has_scratch_space_member(...) -> std::false_type;
 
 template <typename SelectionHandle>
 auto
-has_scratch_space_impl(int) -> decltype(std::declval<SelectionHandle>().scratch_space, std::true_type{});
+has_scratch_space_member(int) -> decltype(std::declval<SelectionHandle>().scratch_space, std::true_type{});
 
 template <typename SelectionHandle>
-struct has_scratch_space : decltype(has_scratch_space_impl<SelectionHandle>(0))
+struct scratch_space_member : decltype(has_scratch_space_member<SelectionHandle>(0)) //TODO: Change name?
 {
 };
 
