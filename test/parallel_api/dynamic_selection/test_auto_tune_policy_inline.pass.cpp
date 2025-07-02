@@ -382,7 +382,7 @@ run_tests(std::vector<int> u, int best_resource)
 int
 main()
 {
-    using policy_t = oneapi::dpl::experimental::auto_tune_policy<TestUtils::int_inline_backend_t>;
+    using policy_t = oneapi::dpl::experimental::auto_tune_policy<int, TestUtils::int_inline_backend_t>;
     std::vector<int> first_resources = {1, 100, 100, 100};
     std::vector<int> second_resources = {100, 1, 100, 100};
     std::vector<int> third_resources = {100, 100, 1, 100};
