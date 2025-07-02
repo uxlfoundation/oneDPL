@@ -193,7 +193,7 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
     struct has_scratch_space : std::false_type {};
 
     template<typename T>
-    struct has_scratch_space<T, std::void_t<decltype(std::decval<T>().scratch_space)>>::true_type {};
+    struct has_scratch_space<T, std::void_t<decltype(std::declval<T>().scratch_space)>>::true_type {};
 
     template <typename SelectionHandle> 
     void
