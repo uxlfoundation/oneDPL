@@ -209,7 +209,7 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
                 std::cout << "Cannot time kernels without enabling profiling on queue\n";
             ///TODO: THROW???
             }
-           if constexpr (internal::has_scratch_space<SelectionHandle>::value)
+           if constexpr (internal::scratch_space_member<SelectionHandle>::value)
 		s.scratch_space.my_start_event = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //starting timestamp
 #else
            std::cout << "task_time reporting not supported with this configuration " << std::endl;
@@ -236,7 +236,7 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
            if (report_task_time && !is_profiling_enabled)
            {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
-           if constexpr (internal::has_scratch_space<SelectionHandle>::value)
+           if constexpr (internal::scratch_space_member<SelectionHandle>::value)
            {
                auto q = unwrap(s);
                sycl::event q_end = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending timestamp
