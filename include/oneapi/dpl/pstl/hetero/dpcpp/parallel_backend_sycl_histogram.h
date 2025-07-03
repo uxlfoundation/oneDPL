@@ -233,8 +233,8 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
             __h.depends_on(__init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
-            __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(sycl::range(__num_bins), __h);
-            __dpl_sycl::__local_accessor<_extra_memory_type> __extra_SLM(sycl::range(__extra_SLM_elements), __h);
+            __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(sycl::range<1>(__num_bins), __h);
+            __dpl_sycl::__local_accessor<_extra_memory_type> __extra_SLM(sycl::range<1>(__extra_SLM_elements), __h);
             __h.template parallel_for<_KernelName...>(
                 sycl::nd_range<1>(__segments * __work_group_size, __work_group_size),
                 [=](sycl::nd_item<1> __self_item) {
@@ -333,8 +333,8 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
             // minimum type size for atomics
-            __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(sycl::range(__num_bins), __h);
-            __dpl_sycl::__local_accessor<_extra_memory_type> __extra_SLM(sycl::range(__extra_SLM_elements), __h);
+            __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(sycl::range<1>(__num_bins), __h);
+            __dpl_sycl::__local_accessor<_extra_memory_type> __extra_SLM(sycl::range<1>(__extra_SLM_elements), __h);
             __h.template parallel_for<_KernelName...>(
                 sycl::nd_range<1>(__segments * __work_group_size, __work_group_size),
                 [=](sycl::nd_item<1> __self_item) {
