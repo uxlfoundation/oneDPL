@@ -594,9 +594,8 @@ __decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id, const
 }
 
 template <typename _Rng, typename _IdxT>
-auto
+std::tuple<_IdxT, _IdxT>
 __decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
-    -> std::tuple<_IdxT, _IdxT>
 {
     return __decode_balanced_path_temp_data_impl<false>(__rng, __id, __diagonal_spacing);
 }
@@ -631,10 +630,10 @@ struct __get_bounds_partitioned
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
         // diagonal index of the tile begin
-        _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
-        _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
+        const _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
+        const _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
         //TODO: ensure partitioning fills in last diagonal
-        _SizeType __wg_end_idx = std::min(
+        const _SizeType __wg_end_idx = std::min(
             ((static_cast<_SizeType>(__id) / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
 
         const auto [begin_rng1, begin_rng2] =
@@ -742,7 +741,7 @@ struct __gen_set_balanced_path
 
     template <typename _InRng, typename _IndexT, typename _BoundsProviderLocal>
     std::tuple<_IndexT, _IndexT, bool>
-    calc_and_store_balanced_path(const _InRng& __in_rng, _IndexT __id, _BoundsProviderLocal __get_bounds_local) const
+    calc_and_store_balanced_path(_InRng& __in_rng, _IndexT __id, _BoundsProviderLocal __get_bounds_local) const
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -885,15 +884,15 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
     sycl::event
     operator()(sycl::queue& __q, _InRng&& __in_rng, std::size_t __num_diagonals) const
     {
-        std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
-        std::size_t __n = oneapi::dpl::__internal::__dpl_ceiling_div(__num_diagonals + __tile_size - 1, __tile_size);
-        return __q.submit([&__in_rng, this, __tile_size, __n, __num_diagonals](sycl::handler& __cgh) {
+        const std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
+        const std::size_t __n = oneapi::dpl::__internal::__dpl_ceiling_div(__num_diagonals + __tile_size - 1, __tile_size);
+        return __q.submit([&__in_rng, this, __n, __num_diagonals](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
 
             __cgh.parallel_for<_KernelName...>(
                 sycl::range</*dim=*/1>(__n), [=, *this](sycl::item</*dim=*/1> __item_id) {
                     auto __global_idx = __item_id.get_linear_id();
-
+                    const std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
                     std::size_t __id = (__global_idx * __tile_size < __num_diagonals) ? __global_idx * __tile_size
                                                                                       : __num_diagonals - 1;
                     __gen_input.__calc_partition_bounds(__in_rng, __id);
