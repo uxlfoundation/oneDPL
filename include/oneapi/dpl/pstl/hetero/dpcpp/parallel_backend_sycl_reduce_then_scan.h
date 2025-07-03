@@ -632,7 +632,6 @@ struct __get_bounds_partitioned
         // diagonal index of the tile begin
         const _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
         const _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
-        //TODO: ensure partitioning fills in last diagonal
         const _SizeType __wg_end_idx = std::min(
             ((static_cast<_SizeType>(__id) / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
 
