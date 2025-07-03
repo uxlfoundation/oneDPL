@@ -601,9 +601,8 @@ __decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id, co
 }
 
 template <typename _Rng, typename _IdxT>
-auto
+std::tuple<_IdxT, _IdxT, decltype(std::declval<_Rng>().size())>
 __decode_balanced_path_temp_data(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
-    -> std::tuple<_IdxT, _IdxT, decltype(__rng.size())>
 {
     return __decode_balanced_path_temp_data_impl<true>(__rng, __id, __diagonal_spacing);
 }
