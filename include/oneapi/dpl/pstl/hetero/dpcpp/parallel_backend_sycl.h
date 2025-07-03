@@ -1074,14 +1074,16 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
         oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size() + __rng2.size(), __diagonal_spacing);
     const std::uint32_t __work_group_size = __get_reduce_then_scan_workgroup_size(__q);
     const std::size_t __partition_threshold = 2 * 1024 * 1024;
-    const std::size_t __total_size = __rng1.size() + __rng2.size();
+    const std::size_t __n1 = __rng1.size();
+    const std::size_t __n2 = __rng2.size();
+    const std::size_t __total_size = __n1 + __n2;
     // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
     // portion of the range so star flag can use sign bit.
     using _TemporaryType = decltype(__rng1.size());
     //TODO: limit to diagonals per block, and only write to a block based index of temporary data
     oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
 
-    constexpr std::uint32_t __average_input_ele_size = (sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2;
+    constexpr std::uint32_t __average_input_ele_size = (__n1 * sizeof(_In1ValueT) + __n2 * sizeof(_In2ValueT)) / __total_size;
     // Partition into blocks of half SLM size
     const std::size_t __partition_size =
         __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
