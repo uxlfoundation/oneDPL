@@ -18,7 +18,7 @@ with many design aspects yet to be addressed.
 See the [Open Questions](#open-questions) list.
 
 Algorithms which are already implemented are described in
-https://uxlfoundation.github.io/oneDPL/kernel_templates_main.html.
+[Kernel Templates API](https://uxlfoundation.github.io/oneDPL/kernel_templates_main.html).
 
 ## Proposal
 
@@ -289,6 +289,20 @@ The `kernel_param` targets a single kernel, and currently, only one instance can
 
 Currently, it is unclear if we should defferentiate algorithms
 which rely on compiler extensions.
+
+### Kernel Templates as a Backend for Algorithms with Standard Interfaces
+
+It should be evaluated whether the proposed algorithms can serve as a backend for oneDPL algorithms
+that use the standard C++ interfaces and device execution policies.
+
+It will affect which data-passing mechanisms,
+as described in [Abstract Algorithm Signature](abstract-algorithm-signature) section, are allowed.
+In particular, it should be investigated if supporting these entities is necessary and
+whether they can be handled by an additional thin layer between
+the algorithms with standard interfaces and Kernel Templates:
+- `oneapi::dpl::begin` and `oneapi::dpl::end`, which mimic iterators to pass `sycl::buffer` to algorithms accepting iterators.
+- Iterators to a host-allocated `std::vector` as described in
+  [Pass Data to Algorithms > Use std::vector](https://github.com/uxlfoundation/oneDPL/blob/release/2022.9.0/documentation/library_guide/parallel_api/pass_data_algorithms.rst#use-stdvector)
 
 ## Exit Criteria
 
