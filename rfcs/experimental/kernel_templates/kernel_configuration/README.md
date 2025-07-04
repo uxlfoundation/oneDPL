@@ -43,3 +43,16 @@ the characteristics of the workload, for example, the type of elements being pro
 
 The performance benefit should be demonstrated in practice,
 given the added complexity to the interface.
+
+### Indexing Type
+
+32-bit indices have been shown to improve the performance of algorithms with standard interfaces
+from the binary search and merge families,
+when the index range is sufficient to process the given input sequences.
+
+It should be investigated whether this parameter should be exposed in Kernel Templates.
+To determine where to introduce it, we need to assess how many algorithms would benefit:
+- If the number is small,
+  a more specialized kernel configuration structure that includes the parameter may be added.
+- If the number is larger,
+  the parameter may be added into `kernel_param`, either as an optional or mandatory member.
