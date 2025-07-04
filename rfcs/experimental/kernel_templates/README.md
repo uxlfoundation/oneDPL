@@ -285,10 +285,19 @@ making default values less relevant.
 It needs to be explored how to configure algorithms with multiple performance-critical kernels.
 The `kernel_param` targets a single kernel, and currently, only one instance can be passed.
 
-### Compiler Extension and Differentiation of Algorithms
+### Compiler Extensions and Differentiation of Algorithms
 
-Currently, it is unclear if we should defferentiate algorithms
-which rely on compiler extensions.
+It is unclear how to defferentiate algorithms relying on compiler extensions.
+
+For example, oneAPI DPC++ compiler has
+[Root Group](https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/experimental/sycl_ext_oneapi_root_group.asciidoc)
+extension, which provides additional forward progress guarantess between work-groups to select
+a more performant algorithmic strategy.
+
+Several questions arise:
+- Should algorithms relying on such extensions reside in a separate namespace?
+- Should they be conditionally available only when the required extension is supported?
+- Should they provide a fallback implementation when the extension is not present?
 
 ### Kernel Templates as a Backend for Algorithms with Standard Interfaces
 
