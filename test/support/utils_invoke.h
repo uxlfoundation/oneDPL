@@ -20,6 +20,7 @@
 
 #include <type_traits>
 #include <mutex>            // for std::once_flag
+#include <stdexcept>        // for std::logic_error
 
 #include "iterator_utils.h"
 
@@ -193,6 +194,7 @@ struct test_policy_container
         _PolicyNewDecayed>;
 
     _PolicyNewDecayed __policy_new;
+    bool __policy_new_returned = false;
 
     test_policy_container(_PolicyNewDecayed&& __policy_new)
         : __policy_new(std::move(__policy_new))
@@ -208,8 +210,14 @@ struct test_policy_container
     test_policy_container& operator=(test_policy_container&&) = delete;
 
     // Return testing policy
+    // Attention: this method can be called only once, because it can returns saved policy as r-value too.
     TestingPolicyType get()
     {
+        if (!__policy_new_returned)
+            throw std::logic_error("The second call of test_policy_container::get() function");
+
+        __policy_new_returned = true;
+
         return static_cast<TestingPolicyType>(__policy_new);
     }
 };
