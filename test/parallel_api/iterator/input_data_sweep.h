@@ -20,7 +20,6 @@
 #include _PSTL_TEST_HEADER(execution)
 #include _PSTL_TEST_HEADER(algorithm)
 #include _PSTL_TEST_HEADER(iterator)
-#include _PSTL_TEST_HEADER(functional) // for oneapi::dpl::identity
 
 #include "support/utils_invoke.h"
 
