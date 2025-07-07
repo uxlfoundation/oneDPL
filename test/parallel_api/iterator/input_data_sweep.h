@@ -45,7 +45,7 @@ struct get_expected_op
     }
 };
 
-static auto noop = [](auto i) { return i; };
+inline constexpr auto noop = [](auto i) { return i; };
 
 template <int __recurse, int __reverses, bool __read = true, bool __reset_read = true, bool __write = true,
           bool __check_write = true, bool __usable_as_perm_map = true, bool __usable_as_perm_src = true,
