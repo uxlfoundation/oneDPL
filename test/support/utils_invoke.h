@@ -213,7 +213,7 @@ struct test_policy_container
     // Attention: this method can be called only once, because it can returns saved policy as r-value too.
     TestingPolicyType get()
     {
-        if (!__policy_new_returned)
+        if (__policy_new_returned)
             throw std::logic_error("The second call of test_policy_container::get() function");
 
         __policy_new_returned = true;
