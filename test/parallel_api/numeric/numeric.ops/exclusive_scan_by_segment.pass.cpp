@@ -153,7 +153,6 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_val_res.get(), n);
         update_data(host_keys, host_vals, host_val_res);
 
-        auto binary_op = [](ValT first, ValT second) { return first + second; };
         auto res3 = oneapi::dpl::exclusive_scan_by_segment(CLONE_TEST_POLICY_IDX(exec, 2), keys_first, keys_last, vals_first,
                                                            val_res_first, init, BinaryPredicate());
         exec.queue().wait_and_throw();
