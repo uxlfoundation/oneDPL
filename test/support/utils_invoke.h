@@ -186,6 +186,12 @@ struct test_policy_container
 {
     using _PolicyNewDecayed = std::decay_t<_PolicyNew>;
 
+    // Define TestingPolicyType as a type which is either r-value or l-value reference
+    using TestingPolicyType = std::conditional_t<
+        std::is_reference_v<_PolicySource>,
+        std::conditional_t<std::is_rvalue_reference_v<_PolicySource>, _PolicyNewDecayed&&, const _PolicyNewDecayed&>,
+        _PolicyNewDecayed>;
+
     _PolicyNewDecayed __policy_new;
 
     test_policy_container(_PolicyNewDecayed&& __policy_new)
@@ -202,13 +208,8 @@ struct test_policy_container
     test_policy_container& operator=(test_policy_container&&) = delete;
 
     // Return testing policy
-    decltype(auto) get()
+    TestingPolicyType get()
     {
-        using TestingPolicyType = std::conditional_t<
-            std::is_reference_v<_PolicySource>,
-            std::conditional_t<std::is_rvalue_reference_v<_PolicySource>, _PolicyNewDecayed&&, const _PolicyNewDecayed&>,
-            _PolicyNewDecayed>;
-
         return static_cast<TestingPolicyType>(__policy_new);
     }
 };
