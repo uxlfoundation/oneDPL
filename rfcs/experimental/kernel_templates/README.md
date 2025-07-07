@@ -309,9 +309,36 @@ as described in [Abstract Algorithm Signature](abstract-algorithm-signature) sec
 In particular, it should be investigated if supporting these entities is necessary and
 whether they can be handled by an additional thin layer between
 the algorithms with standard interfaces and Kernel Templates:
-- `oneapi::dpl::begin` and `oneapi::dpl::end`, which mimic iterators to pass `sycl::buffer` to algorithms accepting iterators.
+- `oneapi::dpl::begin` and `oneapi::dpl::end`,
+   which mimic iterators to pass `sycl::buffer` to iterator-based algorithms.
 - Iterators to a host-allocated `std::vector` as described in
   [Pass Data to Algorithms > Use std::vector](https://github.com/uxlfoundation/oneDPL/blob/release/2022.9.0/documentation/library_guide/parallel_api/pass_data_algorithms.rst#use-stdvector)
+
+An additional question is how to handle hardware requirements that cannot be queried directly
+through standard SYCL mechanisms. For example, selecting a more performant kernel template
+might depend on forward-progress guarantees between work-groups.
+While oneAPI DPC++ supports querying this via
+the [Root Group](https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/experimental/sycl_ext_oneapi_root_group.asciidoc)
+experimental extension, other SYCL implementations may lack a corresponding feature.
+Furthermore, even if a device does not explicitly support cooperative kernel launch,
+it may still provide sufficient guarantees in limited cases
+such as chain-like synchronization between work-groups.
+A possible solution is to allow users to define a macro
+indicating that the required hardware capability is present.
+
+### Encoding Requirements
+
+Some requirements, for example forward-progress guarantees between work-groups,
+are currently only described in documentation.
+Encoding such requirements programmatically would improve visibility and
+help avoid unintended usage.
+If fallback implementations exist,
+this also enables smooth switching when the target device changes.
+
+One option is to define a macro for each such requirement.
+These macros could be used to select appropriate implementations
+for algorithms with standard interfaces, as described in
+[Kernel Templates as a Backend for Algorithms with Standard Interfaces](kernel-templates-as-a-backend-for-algorithms-with-standard-interfaces).
 
 ## Exit Criteria
 
@@ -324,5 +351,4 @@ The proposed set of algorithms should become fully supported if:
 - Evidence of sufficiently good performance is provided.
 - There is positive adoption feedback.
 
-Some individual algorithms may remain experimental
-and have their own exit criteria.
+Some individual algorithms may remain experimental and have their own exit criteria.
