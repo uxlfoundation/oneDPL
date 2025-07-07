@@ -123,7 +123,7 @@ int main()
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_with_buffers(policy);
 
-    //TestUtils::check_compilation(policy, [](auto&& policy) { test_with_buffers(std::forward<decltype(policy)>(policy)); });
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_with_buffers(std::forward<decltype(policy)>(policy)); });
 
 #endif
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
