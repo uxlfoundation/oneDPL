@@ -329,11 +329,6 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         {
         }
     };
-    // Clang 17 and earlier, as well as other compilers based on them, such as DPC++ 2023.2
-    // are prone to https://github.com/llvm/llvm-project/issues/46200,
-    // which prevents automatic template argument deduction of a nested class.
-    template <typename Rng>
-    DropViews(Rng&, const WorkDataArea&) -> DropViews<Rng>;
 
     std::size_t
     get_max_base_diags_count(const sycl::queue& __q, const _IndexT __chunk, std::size_t __n) const
@@ -411,8 +406,10 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
                     const auto __sp =
                         __data_area.is_i_elem_local_inside_merge_matrix()
-                            ? (__data_in_temp ? __find_start_point(__data_area, DropViews(__dst, __data_area), __comp)
-                                              : __find_start_point(__data_area, DropViews(__rng, __data_area), __comp))
+                            ? (__data_in_temp
+                                   ? __find_start_point(__data_area, DropViews<decltype(__dst)>(__dst, __data_area),
+                                                        __comp)
+                                   : __find_start_point(__data_area, DropViews<_Range>(__rng, __data_area), __comp))
                             : _merge_split_point_t{__data_area.n1, __data_area.n2};
                     __base_diagonals_sp_global_ptr[__linear_id] = __sp;
                 });
