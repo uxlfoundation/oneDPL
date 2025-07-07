@@ -45,6 +45,8 @@ struct get_expected_op
     }
 };
 
+static auto noop = [](auto i) { return i; };
+
 template <int __recurse, int __reverses, bool __read = true, bool __reset_read = true, bool __write = true,
           bool __check_write = true, bool __usable_as_perm_map = true, bool __usable_as_perm_src = true,
           bool __is_reversible = true, typename Policy, typename InputIterator1, typename InputIterator2,
@@ -152,7 +154,6 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
 #    endif // _ONEDPL_DEBUG_SYCL
         oneapi::dpl::discard_iterator discard{};
         // iterate through all wrappers and recurse - 1
-        auto noop = oneapi::dpl::identity{};
 
         if constexpr (__is_reversible)
         { // std::reverse_iterator(it)
