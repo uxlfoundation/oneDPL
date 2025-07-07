@@ -420,11 +420,13 @@ struct invoke_on_all_hetero_policies
             iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
                 my_policy, op, std::forward<Args>(rest)...);
 
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
             // Check compilation of the kernel with different policy type qualifiers
             check_compilation(my_policy, [&](auto&& __policy) {
                 iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
                     std::forward<decltype(__policy)>(__policy), op, std::forward<Args>(rest)...);
             });
+#endif // TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
         }
         else
         {

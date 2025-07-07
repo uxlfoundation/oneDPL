@@ -51,9 +51,10 @@ main()
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_impl(policy);
 
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
     TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
-
 #endif
+#endif // _ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);
 }

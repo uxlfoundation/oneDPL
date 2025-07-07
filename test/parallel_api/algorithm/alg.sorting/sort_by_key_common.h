@@ -288,7 +288,9 @@ test_all_policies(StabilityTag stability_tag)
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_device_policy(policy, stability_tag);
 
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
     TestUtils::check_compilation(policy, [stability_tag](auto&& policy) { test_device_policy(std::forward<decltype(policy)>(policy), stability_tag); });
+#endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     test_std_polcies<int, int>(large_size, stability_tag);
