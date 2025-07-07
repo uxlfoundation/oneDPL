@@ -127,13 +127,13 @@ struct __subgroup_radix_sort
     }
 
     static_assert(__wg_size <= 1024);
-    static constexpr uint16_t __bin_count = 1 << __radix;
-    static constexpr uint16_t __counter_buf_sz = __wg_size * __bin_count + 1; //+1(init value) for exclusive scan result
 
     template <typename _T, typename _Size>
     auto
     __check_slm_size(const sycl::queue& __q, _Size __n)
     {
+        constexpr uint16_t __bin_count = 1 << __radix;
+        constexpr uint16_t __counter_buf_sz = __wg_size * __bin_count + 1; //+1(init value) for exclusive scan result
         assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
 
         const auto __req_slm_size_counters = __counter_buf_sz * sizeof(uint32_t);
@@ -163,6 +163,9 @@ struct __subgroup_radix_sort
         sycl::event
         operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
         {
+            constexpr uint16_t __bin_count = 1 << __radix;
+            constexpr uint16_t __counter_buf_sz =
+                __wg_size * __bin_count + 1; //+1(init value) for exclusive scan result
             uint16_t __n = __src.size();
             assert(__n <= __block_size * __wg_size);
 
@@ -181,6 +184,7 @@ struct __subgroup_radix_sort
 
                 __cgh.parallel_for<_Name...>(
                     __range, ([=](sycl::nd_item<1> __it) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(16)]] {
+                        constexpr uint16_t __bin_count = 1 << __radix;
                         union __storage
                         {
                             _ValT __v[__block_size];

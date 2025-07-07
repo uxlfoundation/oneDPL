@@ -268,7 +268,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 #endif
 
         // Practically this is the better value that was found
-        constexpr decltype(__wgroup_size) __iters_per_witem = 16;
+        decltype(__wgroup_size) __iters_per_witem = 16;
         auto __size_per_wg = __iters_per_witem * __wgroup_size;
         auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
         // Storage for the results of scan for each workgroup

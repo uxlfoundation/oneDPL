@@ -206,6 +206,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
             __kernel,
 #endif
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
+                constexpr ::std::uint32_t __radix_states = 1 << __radix_bits;
                 // item info
                 const ::std::size_t __self_lidx = __self_item.get_local_id(0);
                 const ::std::size_t __wgroup_idx = __self_item.get_group(0);
