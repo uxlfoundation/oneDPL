@@ -62,7 +62,7 @@ struct get_expected_op
 //    }
 // where reference is defined as:
 //    typedef decltype(__my_unary_func_(::std::declval<typename ::std::iterator_traits<_Iter>::reference>())) reference;
-// because in combination with oneapi::dpl::identity it will return a dangling reference whem the have
+// because in combination with oneapi::dpl::identity it will return a dangling reference when the have
 // the source iterator _Iter which returns a non-reference type when dereferenced (i.e. counting_iterator or zip_iterator).
 // For a iterator returning a reference type, there is no issue.
 //
