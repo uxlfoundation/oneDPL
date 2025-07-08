@@ -46,27 +46,12 @@ struct get_expected_op
 
 // This noop function is used to create a transform iterator that does not change the value
 //
-// Attention: we can not use oneapi::dpl::identity here because it's return universal reference
-// inside:
-//    template <typename _T>
-//    constexpr _T&&
-//    operator()(_T&& t) const noexcept
-//    {
-//        return std::forward<_T>(t);
-//    }
-// It's incompatible with transform_iterator::operator*() :
-//    reference
-//    operator*() const _ONEDPL_CPP20_REQUIRES(std::indirectly_readable<_Iter>)
-//    {
-//        return __my_unary_func_(*__my_it_);
-//    }
-// where reference is defined as:
-//    typedef decltype(__my_unary_func_(::std::declval<typename ::std::iterator_traits<_Iter>::reference>())) reference;
-// because in combination with oneapi::dpl::identity it will return a dangling reference when the have
-// the source iterator _Iter which returns a non-reference type when dereferenced (i.e. counting_iterator or zip_iterator).
-// For a iterator returning a reference type, there is no issue.
-//
-// So we use a lambda that returns the value by copy instead.
+// Attention:
+// We cannot use oneapi::dpl::identity here because it returns the reference it accepted as argument.
+// Such functors cannot be used within transform_iterator in combination with a source iterator
+// which returns a non-reference type when dereferenced (i.e. counting_iterator or zip_iterator). 
+// This combination returns a dangling reference and results in undefined behavior.  
+// Instead, we use a functor which copies the returned value.
 inline constexpr auto noop = [](auto i) { return i; };
 
 template <int __recurse, int __reverses, bool __read = true, bool __reset_read = true, bool __write = true,
