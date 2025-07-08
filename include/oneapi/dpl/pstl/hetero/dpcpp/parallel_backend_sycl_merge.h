@@ -247,7 +247,9 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
             auto __result_acc = __get_acc(__p_res_storage, __cgh);
 
-            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__steps), [=](sycl::item</*dim=*/1> __item_id) {
+            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__steps), [=, __result_acc = __result_acc,
+                                                                           __steps = __steps](
+                                                                              sycl::item</*dim=*/1> __item_id) {
                 auto __id = __item_id.get_linear_id();
                 const _IdType __i_elem = __id * __chunk;
 
@@ -386,7 +388,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
             __cgh.depends_on(__event);
 
             __cgh.parallel_for<_MergeKernelName...>(
-                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item_id) {
+                sycl::range</*dim=*/1>(__nd_range_params.steps),
+                [=, __result_acc = __result_acc](sycl::item</*dim=*/1> __item_id) {
                     auto __global_idx = __item_id.get_linear_id();
                     const _IdType __i_elem = __global_idx * __nd_range_params.chunk;
 
