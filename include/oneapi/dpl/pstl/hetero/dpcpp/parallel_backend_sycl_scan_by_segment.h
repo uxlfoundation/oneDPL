@@ -164,7 +164,8 @@ struct __sycl_scan_by_segment_impl
 #if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
                 __seg_scan_wg_kernel,
 #endif
-                sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
+                sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size},
+                [=, __vals_per_item = __vals_per_item](sycl::nd_item<1> __item) {
                     __val_type __accumulator = __identity;
 
                     auto __group = __item.get_group();
@@ -267,7 +268,8 @@ struct __sycl_scan_by_segment_impl
 #if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
                    __seg_scan_prefix_kernel,
 #endif
-                   sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
+                   sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size},
+                   [=, __vals_per_item = __vals_per_item](sycl::nd_item<1> __item) {
                        auto __group = __item.get_group();
                        std::size_t __group_id = __item.get_group(0);
                        std::size_t __global_id = __item.get_global_id(0);

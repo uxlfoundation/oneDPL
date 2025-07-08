@@ -84,6 +84,12 @@ using _SegReduceWgPhase = __seg_reduce_wg_kernel<_Name...>;
 template <typename... _Name>
 using _SegReducePrefixPhase = __seg_reduce_prefix_kernel<_Name...>;
 
+constexpr inline std::uint16_t
+__get_reduce_by_segment_vals_per_item()
+{
+    return 16;
+}
+
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
@@ -107,7 +113,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
     const std::size_t __n = __keys.size();
 
     // Each work item serially processes 16 items. Best observed performance on gpu
-    constexpr std::uint16_t __vals_per_item = 16;
+    constexpr std::uint16_t __vals_per_item = __get_reduce_by_segment_vals_per_item();
 
     // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
     // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
@@ -160,6 +166,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                                                                               __seg_reduce_count_kernel,
 #endif
                                                                               sycl::nd_item<1> __item) {
+                constexpr std::uint16_t __vals_per_item = __get_reduce_by_segment_vals_per_item();
                 auto __group = __item.get_group();
                 std::size_t __group_id = __item.get_group(0);
                 std::uint32_t __local_id = __item.get_local_id(0);
@@ -220,6 +227,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
             __seg_reduce_wg_kernel,
 #endif
             sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
+                constexpr std::uint16_t __vals_per_item = __get_reduce_by_segment_vals_per_item();
                 __val_type __loc_partials[__vals_per_item];
 
                 auto __group = __item.get_group();
@@ -343,6 +351,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                 __seg_reduce_prefix_kernel,
 #endif
                 sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
+                    constexpr std::uint16_t __vals_per_item = __get_reduce_by_segment_vals_per_item();
                     auto __group = __item.get_group();
                     std::int64_t __group_id = __item.get_group(0);
                     std::size_t __global_id = __item.get_global_id(0);
