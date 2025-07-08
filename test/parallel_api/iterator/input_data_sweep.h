@@ -44,6 +44,14 @@ struct get_expected_op
     }
 };
 
+// This noop function is used to create a transform iterator that does not change the value
+//
+// Attention:
+// We cannot use oneapi::dpl::identity here because it returns the reference it accepted as argument.
+// Such functors cannot be used within transform_iterator in combination with a source iterator
+// which returns some prvalue when dereferenced (i.e. counting_iterator or zip_iterator). 
+// This combination returns a dangling reference and results in undefined behavior.  
+// Instead, we use a functor which copies the returned value.
 inline constexpr auto noop = [](auto i) { return i; };
 
 template <int __recurse, int __reverses, bool __read = true, bool __reset_read = true, bool __write = true,
