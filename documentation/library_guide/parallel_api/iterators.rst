@@ -84,17 +84,17 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
   .. note::
      When using ``transform_iterator`` with base iterators that return prvalues (temporary objects) upon dereferencing
      (such as ``counting_iterator`` or ``zip_iterator``), care must be taken with the transform functor. Functors that
-     return references to their input arguments (like ``oneapi::dpl::identity``) will create dangling references when
-     applied to prvalues, resulting in undefined behavior. Instead, in situations like these, use functors that return
-     values by copy:
+     return references they accepted as input reference arguments (like ``oneapi::dpl::identity`` or ``std::identity``)
+     will create dangling references when applied to prvalues, resulting in undefined behavior. Instead, in these
+     situations, use functors that return values by copy:
 
      .. code:: cpp
 
        //  DANGEROUS: identity returns reference to prvalue (dangling reference)
-       auto bad_transform = dpl::make_transform_iterator(counting_iter, dpl::identity{});
+       auto bad_transform = dpl::make_transform_iterator(dpl::counting_iter<int>{0}, dpl::identity{});
        
        //  SAFE: custom functor returns by value
-       auto safe_transform = dpl::make_transform_iterator(counting_iter, [](auto x) { return x; });
+       auto safe_transform = dpl::make_transform_iterator(dpl::counting_iter<int>{0}, [](auto x) { return x; });
 
   The ``transform_iterator`` class provides the following constructors:
 
