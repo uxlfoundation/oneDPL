@@ -44,6 +44,23 @@ struct get_expected_op
     }
 };
 
+// This noop function is used to create a transform iterator that does not change the value
+// Attention: we can not use oneapi::dpl::identity here because it's return universal reference
+// inside:
+//    template <typename _T>
+//    constexpr _T&&
+//    operator()(_T&& t) const noexcept
+//    {
+//        return std::forward<_T>(t);
+//    }
+// It's incompatible with transform_iterator::operator*() :
+//    reference
+//    operator*() const _ONEDPL_CPP20_REQUIRES(std::indirectly_readable<_Iter>)
+//    {
+//        return __my_unary_func_(*__my_it_);
+//    }
+// because in combination with oneapi::dpl::identity it will return a dangling reference.
+// So we use a lambda that returns the value by copy instead.
 inline constexpr auto noop = [](auto i) { return i; };
 
 template <int __recurse, int __reverses, bool __read = true, bool __reset_read = true, bool __write = true,
