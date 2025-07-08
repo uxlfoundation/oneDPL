@@ -82,13 +82,21 @@ struct test_brick_partial_sort
             //checking upper bound number of comparisons; O(p*(last-first)log(middle-first)); where p - number of threads;
             if (m1 - tmp_first > 1)
             {
-                auto complex = ::std::ceil(n * ::std::log(float32_t(m1 - tmp_first)));
+                const auto M = m1 - tmp_first;              // Given M as middle - first
+                using N_type = decltype(std::log(M));
+                const N_type N = tmp_last - tmp_first;      // Given N as last - first
+
+                // Complexity:
+                // Approximately N * log(M) comparisons using operator<(until C++20)std::less{}(since C++20).
+                // Approximately N * log(M) applications of the comparator comp.
+                const auto Complexity = std::ceil(N * std::log(M));
+
 #if TEST_TBB_BACKEND_PRESENT
-                auto p = tbb::this_task_arena::max_concurrency();
+                const int p = tbb::this_task_arena::max_concurrency();
 #else
-                auto p = 1;
+                const int p = 1;
 #endif
-                EXPECT_FALSE(count_comp > complex * p, "complexity exceeded");
+                EXPECT_TRUE(count_comp <= Complexity * p, "complexity exceeded");
             }
 #endif // !TEST_DPCPP_BACKEND_PRESENT && PSTL_USE_DEBUG
         }
