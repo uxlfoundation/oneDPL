@@ -6,8 +6,8 @@ Iterators
 The definitions of the iterators are available through the ``<oneapi/dpl/iterator>``
 header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 
-* ``counting_iterator``: a random-access iterator-like type whose dereferenced result is an integer
-  counter prvalue. Instances of a ``counting_iterator`` provide read-only dereference operations. The counter of an
+* ``counting_iterator``: a random-access iterator-like type whose dereferenced result is an prvalue integer
+  counter. Instances of a ``counting_iterator`` provide read-only dereference operations. The counter of an
   ``counting_iterator`` instance changes according to the arithmetic of the random-access iterator type:
 
   .. code:: cpp
@@ -19,8 +19,8 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
     auto sum = dpl::reduce(dpl::execution::dpcpp_default,
                            count_a, count_b, init); // sum is (0 + 0 + 1 + ... + 9) = 45
 
-* ``zip_iterator``: an iterator constructed with one or more iterators as input. The result of
-  ``zip_iterator`` dereferencing is a temporary tuple-like object of an unspecified type that holds the values
+* ``zip_iterator``: an iterator constructed with one or more iterators as input. The result of dereferencing
+  ``zip_iterator`` is a temporary tuple-like object of an unspecified type that holds the values
   returned by dereferencing the member iterators, which the ``zip_iterator`` wraps. Arithmetic operations
   performed on a ``zip_iterator`` instance are also applied to each of the member iterators.
 
