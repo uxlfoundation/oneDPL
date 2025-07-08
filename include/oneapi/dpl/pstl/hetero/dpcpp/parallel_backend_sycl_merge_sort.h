@@ -323,8 +323,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
         __drop_view_simple_t rng1;
         __drop_view_simple_t rng2;
-
-        DropViews(Rng& __rng, const WorkDataArea& __data_area)
+        DropViews(const Rng& __rng, const WorkDataArea& __data_area)
             : rng1(__rng, __data_area.offset), rng2(__rng, __data_area.offset + __data_area.n1)
         {
         }
@@ -492,13 +491,13 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                     {
                         if (__data_in_temp)
                         {
-                            DropViews __views(__dst, __data_area);
+                            DropViews<decltype(__dst)> __views(__dst, __data_area);
                             __serial_merge(__nd_range_params, __data_area, __views, __rng,
                                            __find_start_point(__data_area, __views, __comp), __comp);
                         }
                         else
                         {
-                            DropViews __views(__rng, __data_area);
+                            DropViews<_Range> __views(__rng, __data_area);
                             __serial_merge(__nd_range_params, __data_area, __views, __dst,
                                            __find_start_point(__data_area, __views, __comp), __comp);
                         }
@@ -540,7 +539,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                     {
                         if (__data_in_temp)
                         {
-                            DropViews __views(__dst, __data_area);
+                            DropViews<std::decay_t<decltype(__dst)>> __views(__dst, __data_area);
                             __serial_merge(__nd_range_params, __data_area, __views, __rng,
                                            __lookup_sp(__linear_id, __nd_range_params, __data_area, __views, __comp,
                                                        __base_diagonals_sp_global_ptr),
@@ -548,7 +547,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                         }
                         else
                         {
-                            DropViews __views(__rng, __data_area);
+                            DropViews<_Range> __views(__rng, __data_area);
                             __serial_merge(__nd_range_params, __data_area, __views, __dst,
                                            __lookup_sp(__linear_id, __nd_range_params, __data_area, __views, __comp,
                                                        __base_diagonals_sp_global_ptr),
