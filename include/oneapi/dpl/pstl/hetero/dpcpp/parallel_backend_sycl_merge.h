@@ -247,8 +247,9 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
             auto __result_acc = __get_acc(__p_res_storage, __cgh);
 
-            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__steps), [=, __result_acc = __result_acc,
-                                                                           __steps = __steps](
+            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__steps), [__rng1, __rng2, __rng3, __p_res_storage,
+                                                                           __comp, __proj1, __proj2, __chunk, __steps,
+                                                                           __n, __n1, __n2, __result_acc](
                                                                               sycl::item</*dim=*/1> __item_id) {
                 auto __id = __item_id.get_linear_id();
                 const _IdType __i_elem = __id * __chunk;
@@ -389,7 +390,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
             __cgh.parallel_for<_MergeKernelName...>(
                 sycl::range</*dim=*/1>(__nd_range_params.steps),
-                [=, __result_acc = __result_acc](sycl::item</*dim=*/1> __item_id) {
+                [__rng1, __rng2, __rng3, __n, __comp, __proj1, __proj2, __nd_range_params, __n1, __n2, __result_acc,
+                 __base_diagonals_sp_global_acc](sycl::item</*dim=*/1> __item_id) {
                     auto __global_idx = __item_id.get_linear_id();
                     const _IdType __i_elem = __global_idx * __nd_range_params.chunk;
 

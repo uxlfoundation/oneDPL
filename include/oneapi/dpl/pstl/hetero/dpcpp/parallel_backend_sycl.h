@@ -268,7 +268,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 #endif
 
         // Practically this is the better value that was found
-        decltype(__wgroup_size) __iters_per_witem = 16;
+        constexpr decltype(__wgroup_size) __iters_per_witem = 16;
         auto __size_per_wg = __iters_per_witem * __wgroup_size;
         auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
         // Storage for the results of scan for each workgroup
@@ -291,7 +291,9 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 #if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
                 __kernel_1,
 #endif
-                sycl::nd_range<1>(__n_groups * __wgroup_size, __wgroup_size), [=](sycl::nd_item<1> __item) {
+                sycl::nd_range<1>(__n_groups * __wgroup_size, __wgroup_size),
+                [__temp_acc, __local_scan, __n, __local_acc, __rng1, __rng2, __size_per_wg, __wgroup_size,
+                 __init](sycl::nd_item<1> __item) {
                     auto __temp_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                     __local_scan(__item, __n, __local_acc, __rng1, __rng2, __temp_ptr, __size_per_wg, __wgroup_size,
                                  __iters_per_witem, __init);

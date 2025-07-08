@@ -179,9 +179,6 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
     // typedefs
     using _CountT = typename _CountBuf::value_type;
 
-    // radix states used for an array storing bucket state counters
-    constexpr ::std::uint32_t __radix_states = 1 << __radix_bits;
-
     // iteration space info
     const ::std::size_t __n = __val_rng.size();
     const ::std::size_t __elem_per_segment = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __segments);
@@ -193,6 +190,8 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
     // submit to compute arrays with local count values
     sycl::event __count_levent = __q.submit([&](sycl::handler& __hdl) {
         __hdl.depends_on(__dependency_event);
+        // radix states used for an array storing bucket state counters
+        constexpr std::uint32_t __radix_states = 1 << __radix_bits;
 
         // ensure the input data and the space for counters are accessible
         oneapi::dpl::__ranges::__require_access(__hdl, __val_rng, __count_rng);
@@ -206,7 +205,6 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
             __kernel,
 #endif
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
-                constexpr ::std::uint32_t __radix_states = 1 << __radix_bits;
                 // item info
                 const ::std::size_t __self_lidx = __self_item.get_local_id(0);
                 const ::std::size_t __wgroup_idx = __self_item.get_group(0);

@@ -165,7 +165,8 @@ struct __sycl_scan_by_segment_impl
                 __seg_scan_wg_kernel,
 #endif
                 sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size},
-                [=, __vals_per_item = __vals_per_item](sycl::nd_item<1> __item) {
+                [__identity, __init, __binary_op, __n, __values, __out_values, __binary_pred, __keys, __wgroup_size,
+                 __partials_acc, __seg_ends_acc, __loc_acc](sycl::nd_item<1> __item) {
                     __val_type __accumulator = __identity;
 
                     auto __group = __item.get_group();
@@ -269,7 +270,8 @@ struct __sycl_scan_by_segment_impl
                    __seg_scan_prefix_kernel,
 #endif
                    sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size},
-                   [=, __vals_per_item = __vals_per_item](sycl::nd_item<1> __item) {
+                   [__n, __out_values, __binary_op, __wgroup_size, __partials_acc, __seg_ends_acc, __loc_partials_acc,
+                    __loc_seg_ends_acc, __identity, __keys, __binary_pred](sycl::nd_item<1> __item) {
                        auto __group = __item.get_group();
                        std::size_t __group_id = __item.get_group(0);
                        std::size_t __global_id = __item.get_global_id(0);
