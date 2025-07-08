@@ -7,7 +7,7 @@ The definitions of the iterators are available through the ``<oneapi/dpl/iterato
 header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 
 * ``counting_iterator``: a random-access iterator-like type whose dereferenced value is an integer
-  counter. Instances of a ``counting_iterator`` provide read-only dereference operations. The counter of an
+  counter (prvalue). Instances of a ``counting_iterator`` provide read-only dereference operations. The counter of an
   ``counting_iterator`` instance changes according to the arithmetic of the random-access iterator type:
 
   .. code:: cpp
@@ -80,6 +80,21 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
   The unary functor provided to a ``transform_iterator`` should have a ``const``-qualified call operator which accepts
   the reference type of the base iterator as argument. The functor's call operator should not have any side effects and
   should not modify the state of the functor object.
+
+  .. note::
+     When using ``transform_iterator`` with base iterators that return prvalues (temporary objects) upon dereferencing
+     (such as ``counting_iterator`` or ``zip_iterator``), care must be taken with the transform functor. Functors that
+     return references to their input arguments (like ``oneapi::dpl::identity``) will create dangling references when
+     applied to prvalues, resulting in undefined behavior. Instead, in situations like these, use functors that return
+     values by copy:
+
+     .. code:: cpp
+
+       //  DANGEROUS: identity returns reference to prvalue (dangling reference)
+       auto bad_transform = dpl::make_transform_iterator(counting_iter, dpl::identity{});
+       
+       //  SAFE: custom functor returns by value
+       auto safe_transform = dpl::make_transform_iterator(counting_iter, [](auto x) { return x; });
 
   The ``transform_iterator`` class provides the following constructors:
 
