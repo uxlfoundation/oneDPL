@@ -45,6 +45,7 @@ struct get_expected_op
 };
 
 // This noop function is used to create a transform iterator that does not change the value
+//
 // Attention: we can not use oneapi::dpl::identity here because it's return universal reference
 // inside:
 //    template <typename _T>
@@ -59,7 +60,10 @@ struct get_expected_op
 //    {
 //        return __my_unary_func_(*__my_it_);
 //    }
+// where reference is defined as:
+//    typedef decltype(__my_unary_func_(::std::declval<typename ::std::iterator_traits<_Iter>::reference>())) reference;
 // because in combination with oneapi::dpl::identity it will return a dangling reference.
+//
 // So we use a lambda that returns the value by copy instead.
 inline constexpr auto noop = [](auto i) { return i; };
 
