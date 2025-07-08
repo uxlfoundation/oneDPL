@@ -496,7 +496,6 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
             typename ::oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__in_rng[0])>,
                                                                  std::decay_t<decltype(__out_rng[0])>>::__type;
 
-        constexpr ::std::uint32_t __elems_per_wg = _ElemsPerItem * _WGSize;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Size>;
         __result_and_scratch_storage_t __result{__q, 0};
 
@@ -506,12 +505,14 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
             // Local memory is split into two parts. The first half stores the result of applying the
             // predicate on each element of the input range. The second half stores the index of the output
             // range to copy elements of the input range.
+            constexpr std::uint32_t __elems_per_wg = _ElemsPerItem * _WGSize;
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg * 2}, __hdl);
             auto __res_acc =
                 __result.template __get_result_acc<sycl::access_mode::write>(__hdl, __dpl_sycl::__no_init{});
 
             __hdl.parallel_for<_ScanKernelName...>(
-                sycl::nd_range<1>(_WGSize, _WGSize), [=](sycl::nd_item<1> __self_item) {
+                sycl::nd_range<1>(_WGSize, _WGSize), [__n, __unary_op, __in_rng, __lacc, __bin_op, __init, __out_rng,
+                                                      __res_acc, __assign](sycl::nd_item<1> __self_item) {
                     auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
                     const auto& __group = __self_item.get_group();
                     // This kernel is only launched for sizes less than 2^16
