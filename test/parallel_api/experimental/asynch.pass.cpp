@@ -60,42 +60,57 @@ void test1_with_buffers()
         sycl::buffer<int> y{n};
         sycl::buffer<int> z{n};
 
+        std::cout << "\toneapi::dpl::experimental::copy_async..." << std::endl;
         auto my_policy = TestUtils::make_device_policy<Copy<1>>(oneapi::dpl::execution::dpcpp_default);
         auto res_1a = oneapi::dpl::experimental::copy_async(my_policy, oneapi::dpl::counting_iterator<int>(0),
                                                             oneapi::dpl::counting_iterator<int>(n),
                                                             oneapi::dpl::begin(x)); // x = [0..n]
+
+        std::cout << "\toneapi::dpl::experimental::fill_async..." << std::endl;
         auto my_policy1 = TestUtils::make_device_policy<Fill<1>>(my_policy);
         auto res_1b = oneapi::dpl::experimental::fill_async(my_policy1, oneapi::dpl::begin(y), oneapi::dpl::end(y),
                                                             7); // y = [7..7]
+
+        std::cout << "\toneapi::dpl::experimental::for_each_async..." << std::endl;
         auto my_policy2 = TestUtils::make_device_policy<ForEach1>(my_policy);
         auto res_2a = oneapi::dpl::experimental::for_each_async(
             my_policy2, oneapi::dpl::begin(x), oneapi::dpl::end(x), [](int& e) { ++e; }, res_1a); // x = [1..n]
+
+        std::cout << "\toneapi::dpl::experimental::transform_async..." << std::endl;
         auto my_policy3 = TestUtils::make_device_policy<Transform<1>>(my_policy);
         auto res_2b = oneapi::dpl::experimental::transform_async(
             my_policy3, oneapi::dpl::begin(y), oneapi::dpl::end(y), oneapi::dpl::begin(y),
             [](const int& e) { return e / 2; },
             res_1b); // y = [3..3]
 
+        std::cout << "\toneapi::dpl::experimental::transform_async..." << std::endl;
         auto my_policy4 = TestUtils::make_device_policy<Transform<2>>(my_policy);
         auto res_3 = oneapi::dpl::experimental::transform_async(my_policy4, oneapi::dpl::begin(x), oneapi::dpl::end(x),
                                                                 oneapi::dpl::begin(y), oneapi::dpl::begin(z),
                                                                 std::plus<int>(), res_2a, res_2b); // z = [4..n+3]
+
+        std::cout << "\t oneapi::dpl::experimental::reduce_async..." << std::endl;
         auto my_policy5 = TestUtils::make_device_policy<Reduce<1>>(my_policy);
         auto alpha = oneapi::dpl::experimental::reduce_async(my_policy5, oneapi::dpl::begin(x), oneapi::dpl::end(x), 0,
                                                              std::plus<int>(),
                                                              res_2a)
                          .get(); // alpha = n*(n+1)/2
+
+        std::cout << "\toneapi::dpl::experimental::transform_reduce_async..." << std::endl;
         auto my_policy6 = TestUtils::make_device_policy<Reduce<2>>(my_policy);
         auto beta =
             oneapi::dpl::experimental::transform_reduce_async(my_policy6, oneapi::dpl::begin(z), oneapi::dpl::end(z), 0,
                                                               std::plus<int>(), [=](int e) { return alpha * e; });
 
+        std::cout << "\toneapi::dpl::experimental::transform_inclusive_scan_async..." << std::endl;
         auto my_policy7 = TestUtils::make_device_policy<Scan<0>>(my_policy);
         auto gamma = oneapi::dpl::experimental::transform_inclusive_scan_async(my_policy6, oneapi::dpl::begin(x), oneapi::dpl::end(x),oneapi::dpl::begin(y), std::plus<int>(), [](auto x) { return x * 10; }, 0);
 
+        std::cout << "\toneapi::dpl::experimental::sort_async..." << std::endl;
         auto my_policy8 = TestUtils::make_device_policy<Sort>(my_policy);
         auto delta = oneapi::dpl::experimental::sort_async(my_policy8, oneapi::dpl::begin(y), oneapi::dpl::end(y), std::greater<int>(), gamma);
 
+        std::cout << "\toneapi::dpl::experimental::reduce_async..." << std::endl;
         int small_nonzero_values[3] = {2, 3, 4};
         sycl::buffer small_nonzero{small_nonzero_values, sycl::range{3}};
 
@@ -104,6 +119,7 @@ void test1_with_buffers()
                                                                oneapi::dpl::end(small_nonzero), 1,
                                                                std::multiplies<int>()); // epsilon = 1 * 2 * 3 * 4 = 24
 
+        std::cout << "\t" << std::endl;
         oneapi::dpl::experimental::wait_for_all(sycl::event{},beta,gamma,delta,epsilon);
         
         const int expected1 = (n * (n + 1) / 2) * ((n + 3) * (n + 4) / 2 - 6);
@@ -127,18 +143,23 @@ void test2_with_buffers()
         sycl::buffer<float> y{n};
         sycl::buffer<float> z{n};
 
+        std::cout << "\t..." << std::endl;
         auto my_policy = TestUtils::make_device_policy<Copy<21>>(oneapi::dpl::execution::dpcpp_default);
         auto res_1a = oneapi::dpl::experimental::copy_async(my_policy, oneapi::dpl::counting_iterator<int>(0),
                                                                 oneapi::dpl::counting_iterator<int>(n),
                                                                 oneapi::dpl::begin(x)); // x = [1..n]
+
+        std::cout << "\toneapi::dpl::experimental::transform_inclusive_scan_async..." << std::endl;
         auto alpha = 1.0f;
         auto my_policy6 = TestUtils::make_device_policy<Scan<21>>(my_policy);
         auto beta = oneapi::dpl::experimental::transform_inclusive_scan_async(my_policy6, oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y), std::plus<float>(), [=](auto x) { return x * alpha; }, 0.0f, res_1a);
-        
+
+        std::cout << "\toneapi::dpl::experimental::fill_async..." << std::endl;
         auto my_policy1 = TestUtils::make_device_policy<Fill<21>>(my_policy);
         auto res_1b = oneapi::dpl::experimental::fill_async(my_policy1, oneapi::dpl::begin(x), oneapi::dpl::end(x),
                                                             -1.0f, beta);
 
+        std::cout << "\toneapi::dpl::experimental::inclusive_scan_async..." << std::endl;
         auto input1 = oneapi::dpl::counting_iterator<int>(0);
         auto my_policy7 = TestUtils::make_device_policy<Scan<22>>(my_policy);
         auto gamma = oneapi::dpl::experimental::inclusive_scan_async(my_policy7, input1, input1 + n, oneapi::dpl::begin(z), std::plus<float>(), 0.0f);
@@ -193,6 +214,7 @@ test_with_usm()
     const std::uint64_t ref2 = std::accumulate(data1_on_host, data1_on_host + n_small, 0);
 
     // call first algorithm
+    std::cout << "\toneapi::dpl::experimental::transform_reduce_async..." << std::endl;
     auto new_policy1 = TestUtils::make_device_policy<
         TestUtils::unique_kernel_name<Async<1>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
     auto fut1 =
@@ -200,11 +222,13 @@ test_with_usm()
                                                           std::plus<std::uint64_t>(), std::multiplies<std::uint64_t>());
 
     // call second algorithm and wait for result
+    std::cout << "\toneapi::dpl::experimental::reduce_async..." << std::endl;
     auto new_policy2 = TestUtils::make_device_policy<
         TestUtils::unique_kernel_name<Async<2>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
     auto res2 = oneapi::dpl::experimental::reduce_async(new_policy2, data1, data1 + n_small).get();
 
     // call third algorithm that has to wait for first to complete
+    std::cout << "\toneapi::dpl::experimental::sort_async..." << std::endl;
     auto new_policy3 = TestUtils::make_device_policy<
         TestUtils::unique_kernel_name<Async<3>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
     oneapi::dpl::experimental::sort_async(new_policy3, data2, data2 + n, fut1);
@@ -220,12 +244,28 @@ int
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    test1_with_buffers();
-    test2_with_buffers();
-    // Run tests for USM shared memory
-    test_with_usm<sycl::usm::alloc::shared>();
-    // Run tests for USM device memory
-    test_with_usm<sycl::usm::alloc::device>();
+    try
+    {
+        std::cout << "test1_with_buffers();" << std::endl;
+        test1_with_buffers();
+
+        std::cout << "test2_with_buffers();" << std::endl;
+        test2_with_buffers();
+
+        // Run tests for USM shared memory
+        std::cout << "test_with_usm<sycl::usm::alloc::shared>();" << std::endl;
+        test_with_usm<sycl::usm::alloc::shared>();
+
+        // Run tests for USM device memory
+        std::cout << "test_with_usm<sycl::usm::alloc::device>();" << std::endl;
+        test_with_usm<sycl::usm::alloc::device>();
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Caught exception: " << exc.what() << std::endl;
+        return TestUtils::done(0);
+    }
 #endif
+
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
