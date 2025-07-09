@@ -264,6 +264,7 @@ void test_impl(Policy&& exec)
         // Run tests for USM shared/device memory
         test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
         test_with_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec));
+    }
     catch (const std::exception& exc)
     {
         std::cerr << "Exception: " << exc.what() << std::endl;
