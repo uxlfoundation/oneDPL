@@ -89,7 +89,7 @@ void test1_with_buffers()
                                                                 oneapi::dpl::begin(y), oneapi::dpl::begin(z),
                                                                 std::plus<int>(), res_2a, res_2b); // z = [4..n+3]
 
-        std::cout << "\t oneapi::dpl::experimental::reduce_async..." << std::endl;
+        std::cout << "\toneapi::dpl::experimental::reduce_async..." << std::endl;
         auto my_policy5 = TestUtils::make_device_policy<Reduce<1>>(my_policy);
         auto alpha = oneapi::dpl::experimental::reduce_async(my_policy5, oneapi::dpl::begin(x), oneapi::dpl::end(x), 0,
                                                              std::plus<int>(),
@@ -143,7 +143,7 @@ void test2_with_buffers()
         sycl::buffer<float> y{n};
         sycl::buffer<float> z{n};
 
-        std::cout << "\t..." << std::endl;
+        std::cout << "\toneapi::dpl::experimental::copy_async..." << std::endl;
         auto my_policy = TestUtils::make_device_policy<Copy<21>>(oneapi::dpl::execution::dpcpp_default);
         auto res_1a = oneapi::dpl::experimental::copy_async(my_policy, oneapi::dpl::counting_iterator<int>(0),
                                                                 oneapi::dpl::counting_iterator<int>(n),
@@ -249,21 +249,21 @@ main()
         std::cout << "test1_with_buffers();" << std::endl;
         test1_with_buffers();
 
-        std::cout << "test2_with_buffers();" << std::endl;
+        std::cout << "\ntest2_with_buffers();" << std::endl;
         test2_with_buffers();
 
         // Run tests for USM shared memory
-        std::cout << "test_with_usm<sycl::usm::alloc::shared>();" << std::endl;
+        std::cout << "\ntest_with_usm<sycl::usm::alloc::shared>();" << std::endl;
         test_with_usm<sycl::usm::alloc::shared>();
 
         // Run tests for USM device memory
-        std::cout << "test_with_usm<sycl::usm::alloc::device>();" << std::endl;
+        std::cout << "\ntest_with_usm<sycl::usm::alloc::device>();" << std::endl;
         test_with_usm<sycl::usm::alloc::device>();
     }
     catch (const std::exception& exc)
     {
-        std::cerr << "Caught exception: " << exc.what() << std::endl;
-        return TestUtils::done(0);
+        std::cerr << "Exception: " << exc.what() << std::endl;
+        return EXIT_FAILURE;
     }
 #endif
 
