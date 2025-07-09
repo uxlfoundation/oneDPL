@@ -231,7 +231,8 @@ test_with_usm()
     std::cout << "\toneapi::dpl::experimental::sort_async..." << std::endl;
     auto new_policy3 = TestUtils::make_device_policy<
         TestUtils::unique_kernel_name<Async<3>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
-    oneapi::dpl::experimental::sort_async(new_policy3, data2, data2 + n, fut1);
+    auto sort_async_result = oneapi::dpl::experimental::sort_async(new_policy3, data2, data2 + n, fut1);
+    sort_async_result.wait();
 
     // check values
     auto res1 = fut1.get();
