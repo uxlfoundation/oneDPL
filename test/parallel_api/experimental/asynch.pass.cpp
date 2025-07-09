@@ -96,7 +96,7 @@ void test1_with_buffers()
 
     auto my_policy7 = TestUtils::make_device_policy<Scan<0>>(my_policy);
     auto gamma = oneapi::dpl::experimental::transform_inclusive_scan_async(
-        my_policy6, oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y), std::plus<int>(),
+        my_policy7, oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y), std::plus<int>(),
         [](auto x) { return x * 10; }, 0);
 
     auto my_policy8 = TestUtils::make_device_policy<Sort>(my_policy);
