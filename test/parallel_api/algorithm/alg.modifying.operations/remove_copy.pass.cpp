@@ -96,6 +96,60 @@ test(T trash, const T& value, Convert convert, bool check_weakness = true)
     }
 }
 
+void test_empty_list_initialization()
+{
+    {
+        std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
+        std::vector<int> dest(v.size());
+        std::vector<int> expected{3,6,4,7,8,3,4};
+        auto it = oneapi::dpl::remove_copy(oneapi::dpl::execution::seq, v.begin(), v.end(), dest.begin(), {});
+        EXPECT_TRUE(it == dest.begin() + 7, "not all empty list-initialized values are properly remove_copy by oneapi::dpl::remove_copy with `seq` policy");
+        dest.erase(it, dest.end());
+        EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::remove_copy with empty list-initialized value and with `seq` policy");
+    }
+    {
+        std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
+        std::vector<int> dest(v.size());
+        std::vector<int> expected{3,6,4,7,8,3,4};
+        auto it = oneapi::dpl::remove_copy(oneapi::dpl::execution::unseq, v.begin(), v.end(), dest.begin(), {});
+        EXPECT_TRUE(it == dest.begin() + 7, "not all empty list-initialized values are properly remove_copy by oneapi::dpl::remove_copy with `unseq` policy");
+        dest.erase(it, dest.end());
+        EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::remove_copy with empty list-initialized value and with `unseq` policy");
+    }
+
+    {
+        {
+            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{1},{3},{1},{8},{2},{0},{1}};
+            std::vector<TestUtils::DefaultInitializedToOne> dest_custom{v_custom.size()};
+            std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{3},{5},{3},{8},{2},{0}};
+            auto it = oneapi::dpl::remove_copy(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), dest_custom.begin(), {});
+            EXPECT_TRUE(it == dest_custom.begin() + 6, "not all empty list-initialized values are properly remove_copy by oneapi::dpl::remove_copy with `par` policy");
+            dest_custom.erase(it, dest_custom.end());
+            EXPECT_TRUE(dest_custom == expected_custom, "wrong effect from calling oneapi::dpl::remove_copy with empty list-initialized value and with `par` policy");
+        }
+        {
+            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{1},{3},{1},{8},{2},{0},{1}};
+            std::vector<TestUtils::DefaultInitializedToOne> dest_custom{v_custom.size()};
+            std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{3},{5},{3},{8},{2},{0}};
+            auto it = oneapi::dpl::remove_copy(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), dest_custom.begin(), {});
+            EXPECT_TRUE(it == dest_custom.begin() + 6, "not all empty list-initialized values are properly remove_copy by oneapi::dpl::remove_copy with `par_unseq` policy");
+            dest_custom.erase(it, dest_custom.end());
+            EXPECT_TRUE(dest_custom == expected_custom, "wrong effect from calling oneapi::dpl::remove_copy with empty list-initialized value and with `par_unseq` policy");
+        }
+    }
+#if TEST_DPCPP_BACKEND_PRESENT
+    std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
+    std::vector<int> dest(v.size());
+    std::vector<int> expected{3,6,4,7,8,3,4};
+    sycl::buffer<int> buf(v);
+    sycl::buffer<int> dest_buf(v);
+    auto it = oneapi::dpl::remove_copy(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), oneapi::dpl::begin(dest_buf), {});
+    EXPECT_TRUE(it.get_idx() == 7, "not all empty list-initialized values are properly remove_copy by oneapi::dpl::remove_copy with `device_policy` policy");
+    dest.erase(it, dest.end());
+    EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::remove_copy with empty list-initialized value and with `device_policy` policy");
+#endif
+}
+
 int
 main()
 {
@@ -109,6 +163,8 @@ main()
     test<Number>(Number(42, OddTag()), Number(2001, OddTag()),
                  [](std::int32_t j) { return ((j + 1) % 3 & 2) != 0 ? Number(2001, OddTag()) : Number(j, OddTag()); });
 #endif
+
+    test_empty_list_initialization();
 
     return done();
 }
