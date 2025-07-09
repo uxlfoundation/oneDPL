@@ -20,7 +20,6 @@
 #include _PSTL_TEST_HEADER(execution)
 #include _PSTL_TEST_HEADER(algorithm)
 #include _PSTL_TEST_HEADER(iterator)
-#include _PSTL_TEST_HEADER(functional) // for oneapi::dpl::identity
 
 #include "support/utils_invoke.h"
 
@@ -44,6 +43,16 @@ struct get_expected_op
         }
     }
 };
+
+// This noop function is used to create a transform iterator that does not change the value
+//
+// Attention:
+// We cannot use oneapi::dpl::identity here because it returns the reference it accepted as argument.
+// Such functors cannot be used within transform_iterator in combination with a source iterator
+// which returns some prvalue when dereferenced (i.e. counting_iterator or zip_iterator). 
+// This combination returns a dangling reference and results in undefined behavior.  
+// Instead, we use a functor which copies the returned value.
+inline constexpr auto noop = [](auto i) { return i; };
 
 template <int __recurse, int __reverses, bool __read = true, bool __reset_read = true, bool __write = true,
           bool __check_write = true, bool __usable_as_perm_map = true, bool __usable_as_perm_src = true,
@@ -152,7 +161,6 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
 #    endif // _ONEDPL_DEBUG_SYCL
         oneapi::dpl::discard_iterator discard{};
         // iterate through all wrappers and recurse - 1
-        auto noop = oneapi::dpl::identity{};
 
         if constexpr (__is_reversible)
         { // std::reverse_iterator(it)
