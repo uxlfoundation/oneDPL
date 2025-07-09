@@ -19,6 +19,7 @@
 #include _PSTL_TEST_HEADER(algorithm)
 
 #include "support/utils.h"
+#include "support/utils_invoke.h"   // CLONE_TEST_POLICY
 
 #include <cmath>
 
