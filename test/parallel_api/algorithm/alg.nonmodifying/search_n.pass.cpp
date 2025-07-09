@@ -96,6 +96,52 @@ struct test_non_const
     }
 };
 
+void test_empty_list_initialization()
+{
+    std::vector<int> v{3,6,5,4,0,0,0,0,2,4};
+    {
+        auto it = oneapi::dpl::search_n(oneapi::dpl::execution::seq, v.begin(), v.end(), 4, {});
+        EXPECT_TRUE(it == (v.begin() + 4), "an empty list-initialized value is not found by oneapi::dpl::search_n with `seq` policy");
+    }
+    {
+        auto it = oneapi::dpl::search_n(oneapi::dpl::execution::seq, v.begin(), v.end(), 4, {}, std::equal_to{});
+        EXPECT_TRUE(it == (v.begin() + 4), "an empty list-initialized value is not found by oneapi::dpl::search_n with `seq` policy with predicate");
+    }
+    {
+        auto it = oneapi::dpl::search_n(oneapi::dpl::execution::unseq, v.begin(), v.end(), 4, {});
+        EXPECT_TRUE(it == (v.begin() + 4), "an empty list-initialized value is not found by oneapi::dpl::search_n with `unseq` policy");
+    }
+    {
+        auto it = oneapi::dpl::search_n(oneapi::dpl::execution::unseq, v.begin(), v.end(), 4, {}, std::equal_to{});
+        EXPECT_TRUE(it == (v.begin() + 4), "an empty list-initialized value is not found by oneapi::dpl::search_n with `unseq` policy with predicate");
+    }
+
+    {
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{6},{5},{4},{3},{1},{1},{1},{1},{4}};
+        {
+            auto it = oneapi::dpl::search_n(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), 4, {});
+            EXPECT_TRUE(it == (v_custom.begin() + 5), "an empty list-initialized value is not found by oneapi::dpl::search_n with `par` policy");
+        }
+        {
+            auto it = oneapi::dpl::search_n(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), 4, {}, std::equal_to{});
+            EXPECT_TRUE(it == (v_custom.begin() + 5), "an empty list-initialized value is not found by oneapi::dpl::search_n with `par` policy with predicate");
+        }
+        {
+            auto it = oneapi::dpl::search_n(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), 4, {});
+            EXPECT_TRUE(it == (v_custom.begin() + 5), "an empty list-initialized value is not found by oneapi::dpl::search_n with `par_unseq` policy");
+        }
+        {
+            auto it = oneapi::dpl::search_n(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), 4, {}, std::equal_to{});
+            EXPECT_TRUE(it == (v_custom.begin() + 5), "an empty list-initialized value is not found by oneapi::dpl::search_n with `par_unseq` policy with predicate");
+        }
+    }
+#if TEST_DPCPP_BACKEND_PRESENT
+    sycl::buffer<int> buf(v);
+    auto it = oneapi::dpl::search_n(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
+    EXPECT_TRUE(it.get_idx() == 4, "an empty list-initialized value is not found by oneapi::dpl::search_n with `device_policy` policy");
+#endif
+}
+
 int
 main()
 {
@@ -107,6 +153,8 @@ main()
     test<bool>();
 
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
+
+    test_empty_list_initialization();
 
     return done();
 }
