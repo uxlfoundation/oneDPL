@@ -29,25 +29,25 @@
 
 template <typename T, int __recurse, typename Policy>
 void
-test(Policy&& policy, T trash, size_t n, const std::string& type_text)
+test(Policy&& exec, T trash, size_t n, const std::string& type_text)
 {
-    if (TestUtils::has_types_support<T>(policy.queue().get_device()))
+    if (TestUtils::has_types_support<T>(exec.queue().get_device()))
     {
-        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(policy.queue(), n);
+        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec.queue(), n);
         oneapi::dpl::counting_iterator<int> counting(0);
         // sycl iterator
         sycl::buffer<T> buf(n);
         //test all modes / wrappers
         wrap_recurse<__recurse, 0, /*__read =*/true, /*__reset_read=*/true, /*__write=*/true,
                      /*__check_write=*/true, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/true,
-                     /*__is_reversible=*/false>(std::forward<Policy>(policy), oneapi::dpl::begin(buf), oneapi::dpl::end(buf), counting,
+                     /*__is_reversible=*/false>(std::forward<Policy>(exec), oneapi::dpl::begin(buf), oneapi::dpl::end(buf), counting,
                                                 copy_out.get_data(), oneapi::dpl::begin(buf), copy_out.get_data(),
                                                 counting, trash,
                                                 std::string("sycl_iterator<") + type_text + std::string(">"));
     }
     else
     {
-        TestUtils::unsupported_types_notifier(policy.queue().get_device());
+        TestUtils::unsupported_types_notifier(exec.queue().get_device());
     }
 }
 

@@ -89,22 +89,22 @@ make_fpga_policy(Arg&& arg)
 template <typename _NewKernelName, typename _Policy,
           oneapi::dpl::__internal::__enable_if_device_execution_policy<_Policy, int> = 0>
 auto
-make_new_policy(_Policy&& __policy)
-    -> decltype(TestUtils::make_device_policy<_NewKernelName>(::std::forward<_Policy>(__policy)))
+make_new_policy(_Policy&& __exec)
+    -> decltype(TestUtils::make_device_policy<_NewKernelName>(::std::forward<_Policy>(__exec)))
 {
-    return TestUtils::make_device_policy<_NewKernelName>(std::forward<_Policy>(__policy));
+    return TestUtils::make_device_policy<_NewKernelName>(std::forward<_Policy>(__exec));
 }
 
 #if ONEDPL_FPGA_DEVICE
 template <typename _NewKernelName, typename _Policy,
           oneapi::dpl::__internal::__enable_if_fpga_execution_policy<_Policy, int> = 0>
 auto
-make_new_policy(_Policy&& __policy)
+make_new_policy(_Policy&& __exec)
     -> decltype(TestUtils::make_fpga_policy<::std::decay_t<_Policy>::unroll_factor, _NewKernelName>(
-        ::std::forward<_Policy>(__policy)))
+        ::std::forward<_Policy>(__exec)))
 {
     return TestUtils::make_fpga_policy<std::decay_t<_Policy>::unroll_factor, _NewKernelName>(
-        std::forward<_Policy>(__policy));
+        std::forward<_Policy>(__exec));
 }
 #endif
 
