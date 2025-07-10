@@ -29,26 +29,26 @@
 
 template <typename T, int __recurse, typename Policy>
 void
-test(Policy&& policy, T trash, size_t n, const std::string& type_text)
+test(Policy&& exec, T trash, size_t n, const std::string& type_text)
 {
-    if (TestUtils::has_types_support<T>(policy.queue().get_device()))
+    if (TestUtils::has_types_support<T>(exec.queue().get_device()))
     {
 
         { //usm shared ptr
-            TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(policy.queue(), n);
+            TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec.queue(), n);
             oneapi::dpl::counting_iterator<int> counting(0);
             // usm_shared
-            TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> shared_data(policy.queue(), n);
+            TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> shared_data(exec.queue(), n);
             auto usm_shared = shared_data.get_data();
             //test all modes / wrappers
-            wrap_recurse<__recurse, 0>(std::forward<Policy>(policy), usm_shared, usm_shared + n, counting, copy_out.get_data(), usm_shared,
+            wrap_recurse<__recurse, 0>(std::forward<Policy>(exec), usm_shared, usm_shared + n, counting, copy_out.get_data(), usm_shared,
                                     copy_out.get_data(), counting, trash,
                                     std::string("usm_shared<") + type_text + std::string(">"));
         }
     }
     else
     {
-        TestUtils::unsupported_types_notifier(policy.queue().get_device());
+        TestUtils::unsupported_types_notifier(exec.queue().get_device());
     }
 }
 

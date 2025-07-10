@@ -107,16 +107,16 @@ generate_data(KeyIt keys_begin, ValIt vals_begin, Size keys_n, Size vals_n, std:
 
 template<typename Policy, typename KeyIt, typename ValIt, typename Size, typename... Compare>
 void
-call_sort(Policy&& policy, KeyIt keys_begin, ValIt vals_begin, Size n, StableSortTag, Compare... compare)
+call_sort(Policy&& exec, KeyIt keys_begin, ValIt vals_begin, Size n, StableSortTag, Compare... compare)
 {
-    oneapi::dpl::stable_sort_by_key(std::forward<Policy>(policy), keys_begin, keys_begin + n, vals_begin, compare...);
+    oneapi::dpl::stable_sort_by_key(std::forward<Policy>(exec), keys_begin, keys_begin + n, vals_begin, compare...);
 }
 
 template<typename Policy, typename KeyIt, typename ValIt, typename Size, typename... Compare>
 void
-call_sort(Policy&& policy, KeyIt keys_begin, ValIt vals_begin, Size n, UnstableSortTag, Compare... compare)
+call_sort(Policy&& exec, KeyIt keys_begin, ValIt vals_begin, Size n, UnstableSortTag, Compare... compare)
 {
-    oneapi::dpl::sort_by_key(std::forward<Policy>(policy), keys_begin, keys_begin + n, vals_begin, compare...);
+    oneapi::dpl::sort_by_key(std::forward<Policy>(exec), keys_begin, keys_begin + n, vals_begin, compare...);
 }
 
 template<typename KeyIt, typename ValIt, typename Size, typename Compare = std::less<>>
@@ -176,7 +176,7 @@ check_sort(const KeyIt& keys_begin, const ValIt& vals_begin,
 
 template<typename KeyT, typename ValT, typename Size, typename Policy, typename StabilityTag, typename... Compare>
 void
-test_with_std_policy(Policy&& policy, Size n, StabilityTag stability_tag, Compare... compare)
+test_with_std_policy(Policy&& exec, Size n, StabilityTag stability_tag, Compare... compare)
 {
     Size keys_n = n;
     Size vals_n = n + 5; // to test that the remaining values are not touched
@@ -186,7 +186,7 @@ test_with_std_policy(Policy&& policy, Size n, StabilityTag stability_tag, Compar
     std::vector<KeyT> keys(origin_keys);
     std::vector<ValT> vals(origin_vals);
 
-    call_sort(std::forward<Policy>(policy), keys.begin(), vals.begin(), keys_n, stability_tag, compare...);
+    call_sort(std::forward<Policy>(exec), keys.begin(), vals.begin(), keys_n, stability_tag, compare...);
     check_sort(keys.begin(), vals.begin(), origin_keys.begin(), origin_vals.begin(), keys_n, vals_n, stability_tag, compare...);
 }
 

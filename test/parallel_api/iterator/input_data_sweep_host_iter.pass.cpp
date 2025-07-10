@@ -29,24 +29,24 @@
 
 template <typename T, int __recurse, typename Policy>
 void
-test(Policy&& policy, T trash, size_t n, const std::string& type_text)
+test(Policy&& exec, T trash, size_t n, const std::string& type_text)
 {
-    if (TestUtils::has_types_support<T>(policy.queue().get_device()))
+    if (TestUtils::has_types_support<T>(exec.queue().get_device()))
     {
 
-        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(policy.queue(), n);
+        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec.queue(), n);
         auto copy_from = oneapi::dpl::counting_iterator<int>(0);
         // host iterator
         std::vector<T> host_iter(n);
         wrap_recurse<__recurse, 0, /*__read =*/true, /*__reset_read=*/true, /*__write=*/true,
                      /*__check_write=*/true, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/false,
-                     /*__is_reversible=*/true>(std::forward<Policy>(policy), host_iter.begin(), host_iter.end(), copy_from,
+                     /*__is_reversible=*/true>(std::forward<Policy>(exec), host_iter.begin(), host_iter.end(), copy_from,
                                                copy_out.get_data(), host_iter.begin(), copy_out.get_data(), copy_from,
                                                trash, std::string("host_iterator<") + type_text + std::string(">"));
     }
     else
     {
-        TestUtils::unsupported_types_notifier(policy.queue().get_device());
+        TestUtils::unsupported_types_notifier(exec.queue().get_device());
     }
 }
 
