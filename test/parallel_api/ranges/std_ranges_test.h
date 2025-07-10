@@ -182,10 +182,10 @@ struct test
     std::enable_if_t<mode == data_in>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
-        process_data_in(max_n, CLONE_TEST_POLICY_IDX(exec, 0), algo, checker, tr_in, args...);
+        process_data_in(max_n, exec, algo, checker, tr_in, args...);
 
         //test with empty sequence
-        process_data_in(trivial_size<std::remove_cvref_t<Algo>>, CLONE_TEST_POLICY_IDX(exec, 1), algo, checker, tr_in, args...);
+        process_data_in(trivial_size<std::remove_cvref_t<Algo>>, std::forward<Policy>(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -262,10 +262,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY_IDX(exec, 0), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
 
         //test cases with empty sequence(s)
-	    process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY_IDX(exec, 1), algo, checker, args...);
+	    process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -273,14 +273,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY_IDX(exec, 0), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
-        process_data_in_out(max_n, r_size/2, r_size, CLONE_TEST_POLICY_IDX(exec, 1), algo, checker, args...);
-        process_data_in_out(max_n, r_size, r_size/2, CLONE_TEST_POLICY_IDX(exec, 2), algo, checker, args...);
+        process_data_in_out(max_n, r_size/2, r_size, exec, algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size/2, exec, algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY_IDX(exec, 3), algo, checker, args...);
+        process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
@@ -288,14 +288,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in(max_n, r_size, r_size, CLONE_TEST_POLICY_IDX(exec, 0), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size, exec, algo, checker, tr_in, args...);
 
         //test case the sizes of input ranges are different
-        process_data_in_in(max_n, r_size/2, r_size, CLONE_TEST_POLICY_IDX(exec, 1), algo, checker, tr_in, args...);
-        process_data_in_in(max_n, r_size, r_size/2, CLONE_TEST_POLICY_IDX(exec, 2), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size/2, r_size, exec, algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size/2, exec, algo, checker, tr_in, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY_IDX(exec, 3), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -383,10 +383,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY_IDX(exec, 0), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY_IDX(exec, 1), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -394,14 +394,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size, CLONE_TEST_POLICY_IDX(exec, 0), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY_IDX(exec, 1), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size/2, r_size, r_size, CLONE_TEST_POLICY_IDX(exec, 2), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size/2, r_size, CLONE_TEST_POLICY_IDX(exec, 3), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size/2, CLONE_TEST_POLICY_IDX(exec, 4), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size/2, r_size, r_size, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size/2, r_size, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size/2, exec, algo, checker, args...);
 
 	    //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY_IDX(exec, 5), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
     }
 private:
 
@@ -633,31 +633,12 @@ struct test_range_algo
 #endif //TEST_DPCPP_BACKEND_PRESENT
     }
 
-    struct subrange_view_fo
-    {
-        template <typename TVal>
-        auto operator()(TVal&& v) const
-        {
-            return std::ranges::subrange(std::forward<TVal>(v));
-        }
-    };
-
-#if TEST_CPP20_SPAN_PRESENT
-    struct span_view_fo
-    {
-        template <typename TVal>
-        auto operator()(TVal&& v) const
-        {
-            return std::span(std::forward<TVal>(v));
-        }
-    };
-#endif
-
     void operator()(auto algo, auto& checker, auto... args)
     {
-        subrange_view_fo subrange_view;
+
+        auto subrange_view = [](auto&& v) { return std::ranges::subrange(v); };
 #if TEST_CPP20_SPAN_PRESENT
-        span_view_fo span_view;
+        auto span_view = [](auto&& v) { return std::span(v); };
 #endif
 
         test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
