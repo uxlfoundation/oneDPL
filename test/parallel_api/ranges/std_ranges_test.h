@@ -19,6 +19,7 @@
 #include "support/test_config.h"
 #include "support/test_macros.h"
 #include "support/utils.h"
+#include "support/utils_invoke.h"       // for CLONE_TEST_POLICY
 
 #if _ENABLE_STD_RANGES_TESTING
 
@@ -182,10 +183,10 @@ struct test
     std::enable_if_t<mode == data_in>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
-        process_data_in(max_n, exec, algo, checker, tr_in, args...);
+        process_data_in(max_n, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test with empty sequence
-        process_data_in(trivial_size<std::remove_cvref_t<Algo>>, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+        process_data_in(trivial_size<std::remove_cvref_t<Algo>>, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -200,7 +201,7 @@ private:
 
         typename Container::type& A = cont_in();
         decltype(auto) r_in = tr_in(A);
-        auto res = algo(std::forward<decltype(exec)>(exec), r_in, args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), r_in, args...);
 
         //check result
         static_assert(std::is_same_v<decltype(res), decltype(checker(r_in, args...))>, "Wrong return type");
@@ -240,7 +241,7 @@ private:
         typename Container::type& A = cont_in();
         typename Container::type& B = cont_out();
 
-        auto res = algo(std::forward<Policy>(exec), tr_in(A), tr_out(B), args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
 
         //check result
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_out(B), args...))>, "Wrong return type");
@@ -262,10 +263,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-	    process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+	    process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -273,14 +274,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
-        process_data_in_out(max_n, r_size/2, r_size, exec, algo, checker, args...);
-        process_data_in_out(max_n, r_size, r_size/2, exec, algo, checker, args...);
+        process_data_in_out(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
@@ -288,14 +289,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in(max_n, r_size, r_size, exec, algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test case the sizes of input ranges are different
-        process_data_in_in(max_n, r_size/2, r_size, exec, algo, checker, tr_in, args...);
-        process_data_in_in(max_n, r_size, r_size/2, exec, algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -315,7 +316,7 @@ private:
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
 
-        auto res = algo(std::forward<decltype(exec)>(exec), tr_in(A), tr_in(B), args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), args...);
 
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), args...))>, "Wrong return type");
 
@@ -358,7 +359,7 @@ private:
         typename Container::type& B = cont_in2();
         typename Container::type& C = cont_out();
 
-        auto res = algo(std::forward<Policy>(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
 
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), tr_out(C), args...))>, "Wrong return type");
 
@@ -383,10 +384,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -394,14 +395,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size/2, r_size, r_size, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size/2, r_size, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size/2, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size/2, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
 	    //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 private:
 
