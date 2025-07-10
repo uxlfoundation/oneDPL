@@ -29,7 +29,7 @@
 
 template <typename T, int __recurse, typename Policy>
 void
-test_impl(Policy&& exec, T trash, size_t n, const std::string& type_text)
+call_wrap_recurse(Policy&& exec, T trash, size_t n, const std::string& type_text)
 {
     if constexpr (std::is_integral_v<T>)
     {
@@ -60,12 +60,12 @@ test_impl(Policy&& exec)
     constexpr size_t n = 10;
 
     // baseline with no wrapping
-    test_impl<float, 0>(CLONE_TEST_POLICY_IDX(exec, 0), -666.0f, n, "float");
-    test_impl<double, 0>(CLONE_TEST_POLICY_IDX(exec, 1), -666.0, n, "double");
-    test_impl<std::uint64_t, 0>(CLONE_TEST_POLICY_IDX(exec, 2), 999, n, "uint64_t");
+    call_wrap_recurse<float, 0>(CLONE_TEST_POLICY_IDX(exec, 0), -666.0f, n, "float");
+    call_wrap_recurse<double, 0>(CLONE_TEST_POLICY_IDX(exec, 1), -666.0, n, "double");
+    call_wrap_recurse<std::uint64_t, 0>(CLONE_TEST_POLICY_IDX(exec, 2), 999, n, "uint64_t");
 
     // big recursion step: 1 and 2 layers of wrapping
-    test_impl<std::int32_t, 2>(CLONE_TEST_POLICY_IDX(exec, 3), -666, n, "int32_t");
+    call_wrap_recurse<std::int32_t, 2>(CLONE_TEST_POLICY_IDX(exec, 3), -666, n, "int32_t");
 
     // special case: discard iterator
     oneapi::dpl::counting_iterator<int> counting(0);
