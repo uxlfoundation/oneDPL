@@ -171,7 +171,7 @@ test_zip_with_discard(Policy&& exec, BinaryOp binary_op)
 }
 
 template <typename Policy, typename BinaryOp>
-void test_impl(Policy&& exec, BinaryOp binary_op)
+void test_with_op(Policy&& exec, BinaryOp binary_op)
 {
     // Run tests for USM shared/device memory
     test_with_usm<sycl::usm::alloc::shared, 0>(CLONE_TEST_POLICY(exec), binary_op);
@@ -183,8 +183,8 @@ void test_impl(Policy&& exec, BinaryOp binary_op)
 template <typename Policy>
 void test_impl(Policy&& exec)
 {
-    test_impl(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor1{});
-    test_impl(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor2{});
+    test_with_op(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor1{});
+    test_with_op(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor2{});
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
