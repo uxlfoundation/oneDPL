@@ -29,15 +29,15 @@
 
 template <typename T, int __recurse, typename Policy>
 void
-test_usm_shared_alloc(Policy&& policy, T trash, size_t n, const std::string& type_text)
+test_usm_shared_alloc(Policy&& exec, T trash, size_t n, const std::string& type_text)
 {
-    if (TestUtils::has_types_support<T>(policy.queue().get_device()))
+    if (TestUtils::has_types_support<T>(exec.queue().get_device()))
     {
         //std::vector using usm shared allocator
-        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(policy.queue(), n);
+        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec.queue(), n);
         oneapi::dpl::counting_iterator<int> counting(0);
         // usm_shared allocator std::vector
-        sycl::usm_allocator<T, sycl::usm::alloc::shared> q_alloc{policy.queue()};
+        sycl::usm_allocator<T, sycl::usm::alloc::shared> q_alloc{exec.queue()};
         std::vector<T, decltype(q_alloc)> shared_data_vec(n, q_alloc);
         //test all modes / wrappers
 
@@ -48,27 +48,27 @@ test_usm_shared_alloc(Policy&& policy, T trash, size_t n, const std::string& typ
             /*__check_write=*/true, /*__usable_as_perm_map=*/true,
             /*__usable_as_perm_src=*/
             TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(shared_data_vec.begin())>,
-            /*__is_reversible=*/true>(std::forward<Policy>(policy), shared_data_vec.begin(), shared_data_vec.end(), counting,
+            /*__is_reversible=*/true>(std::forward<Policy>(exec), shared_data_vec.begin(), shared_data_vec.end(), counting,
                                       copy_out.get_data(), shared_data_vec.begin(), copy_out.get_data(), counting,
                                       trash, std::string("usm_shared_alloc_vector<") + type_text + std::string(">"));
     }
     else
     {
-        TestUtils::unsupported_types_notifier(policy.queue().get_device());
+        TestUtils::unsupported_types_notifier(exec.queue().get_device());
     }
 }
 
 template <typename T, int __recurse, typename Policy>
 void
-test_usm_host_alloc(Policy&& policy, T trash, size_t n, const std::string& type_text)
+test_usm_host_alloc(Policy&& exec, T trash, size_t n, const std::string& type_text)
 {
-    if (TestUtils::has_types_support<T>(policy.queue().get_device()))
+    if (TestUtils::has_types_support<T>(exec.queue().get_device()))
     {
         //std::vector using usm host allocator
-        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(policy.queue(), n);
+        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec.queue(), n);
         oneapi::dpl::counting_iterator<int> counting(0);
         // usm_host allocator std::vector
-        sycl::usm_allocator<T, sycl::usm::alloc::host> q_alloc{policy.queue()};
+        sycl::usm_allocator<T, sycl::usm::alloc::host> q_alloc{exec.queue()};
         std::vector<T, decltype(q_alloc)> host_data_vec(n, q_alloc);
         //test all modes / wrappers
 
@@ -78,13 +78,13 @@ test_usm_host_alloc(Policy&& policy, T trash, size_t n, const std::string& type_
             __recurse, 0, /*__read =*/true, /*__reset_read=*/true, /*__write=*/true,
             /*__check_write=*/true, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/
             TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(host_data_vec.begin())>,
-            /*__is_reversible=*/true>(std::forward<Policy>(policy), host_data_vec.begin(), host_data_vec.end(), counting, copy_out.get_data(),
+            /*__is_reversible=*/true>(std::forward<Policy>(exec), host_data_vec.begin(), host_data_vec.end(), counting, copy_out.get_data(),
                                       host_data_vec.begin(), copy_out.get_data(), counting, trash,
                                       std::string("usm_host_alloc_vector<") + type_text + std::string(">"));
     }
     else
     {
-        TestUtils::unsupported_types_notifier(policy.queue().get_device());
+        TestUtils::unsupported_types_notifier(exec.queue().get_device());
     }
 }
 #endif //TEST_DPCPP_BACKEND_PRESENT

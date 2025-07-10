@@ -1002,27 +1002,27 @@ using __is_able_to_create_new_policy =
 #if TEST_DPCPP_BACKEND_PRESENT
 template <typename _NewKernelName, typename Policy, ::std::enable_if_t<__is_able_to_create_new_policy<Policy>::value, int> = 0>
 auto
-create_new_policy(Policy&& policy)
+create_new_policy(Policy&& exec)
 {
-    return TestUtils::make_new_policy<_NewKernelName>(std::forward<Policy>(policy));
+    return TestUtils::make_new_policy<_NewKernelName>(std::forward<Policy>(exec));
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 template <typename _NewKernelName, typename Policy, ::std::enable_if_t<!__is_able_to_create_new_policy<Policy>::value, int> = 0>
 auto
-create_new_policy(Policy&& policy)
+create_new_policy(Policy&& exec)
 {
-    return std::forward<Policy>(policy);
+    return std::forward<Policy>(exec);
 }
 
 template <int idx, typename Policy>
 auto
-create_new_policy_idx(Policy&& policy)
+create_new_policy_idx(Policy&& exec)
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    return create_new_policy<TestUtils::new_kernel_name<Policy, idx>>(std::forward<Policy>(policy));
+    return create_new_policy<TestUtils::new_kernel_name<Policy, idx>>(std::forward<Policy>(exec));
 #else
-    return std::forward<Policy>(policy);
+    return std::forward<Policy>(exec);
 #endif
 }
 
