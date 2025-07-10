@@ -52,7 +52,46 @@ class Sort;
 template <size_t idx>
 class Async;
 
-void test1_with_buffers()
+struct PreIncrementFO
+{
+    void operator()(int& e) const
+    {
+        ++e;
+    }
+};
+
+struct DivByTwoFO
+{
+    auto operator()(const int& e) const
+    {
+        return e / 2;
+    }
+};
+
+template <typename T>
+struct MultiplyByAlphaFO
+{
+    T alpha;
+
+    auto operator()(int e) const
+    {
+        return alpha * e;
+    }
+};
+
+struct MultiplyByTenFO
+{
+    template <typename T>
+    auto
+    operator()(T x) const
+    {
+        return x * 10;
+    }
+};
+
+
+template <typename Policy>
+void test1_with_buffers(Policy&& exec)
 {
     const int n = 100;
 
@@ -60,56 +99,47 @@ void test1_with_buffers()
     sycl::buffer<int> y{n};
     sycl::buffer<int> z{n};
 
-    auto my_policy = TestUtils::make_device_policy<Copy<1>>(oneapi::dpl::execution::dpcpp_default);
-    auto res_1a = oneapi::dpl::experimental::copy_async(my_policy, oneapi::dpl::counting_iterator<int>(0),
+    auto res_1a = oneapi::dpl::experimental::copy_async(CLONE_TEST_POLICY_NAME(exec, Copy<1>),
+                                                        oneapi::dpl::counting_iterator<int>(0),
                                                         oneapi::dpl::counting_iterator<int>(n),
                                                         oneapi::dpl::begin(x)); // x = [0..n]
 
-    auto my_policy1 = TestUtils::make_device_policy<Fill<1>>(my_policy);
-    auto res_1b = oneapi::dpl::experimental::fill_async(my_policy1, oneapi::dpl::begin(y), oneapi::dpl::end(y),
-                                                        7); // y = [7..7]
+    auto res_1b = oneapi::dpl::experimental::fill_async(CLONE_TEST_POLICY_NAME(exec, Fill<1>), oneapi::dpl::begin(y),
+                                                        oneapi::dpl::end(y), 7); // y = [7..7]
 
-    auto my_policy2 = TestUtils::make_device_policy<ForEach1>(my_policy);
-    auto res_2a = oneapi::dpl::experimental::for_each_async(
-        my_policy2, oneapi::dpl::begin(x), oneapi::dpl::end(x), [](int& e) { ++e; }, res_1a); // x = [1..n]
+    auto res_2a =
+        oneapi::dpl::experimental::for_each_async(CLONE_TEST_POLICY_NAME(exec, ForEach1), oneapi::dpl::begin(x),
+                                                  oneapi::dpl::end(x), PreIncrementFO{}, res_1a); // x = [1..n]
 
-    auto my_policy3 = TestUtils::make_device_policy<Transform<1>>(my_policy);
-    auto res_2b = oneapi::dpl::experimental::transform_async(
-        my_policy3, oneapi::dpl::begin(y), oneapi::dpl::end(y), oneapi::dpl::begin(y),
-        [](const int& e) { return e / 2; },
-        res_1b); // y = [3..3]
+    auto res_2b = oneapi::dpl::experimental::transform_async(CLONE_TEST_POLICY_NAME(exec, Transform<1>),
+                                                             oneapi::dpl::begin(y), oneapi::dpl::end(y),
+                                                             oneapi::dpl::begin(y), DivByTwoFO{}, res_1b); // y = [3..3]
 
-    auto my_policy4 = TestUtils::make_device_policy<Transform<2>>(my_policy);
-    auto res_3 = oneapi::dpl::experimental::transform_async(my_policy4, oneapi::dpl::begin(x), oneapi::dpl::end(x),
-                                                            oneapi::dpl::begin(y), oneapi::dpl::begin(z),
-                                                            std::plus<int>(), res_2a, res_2b); // z = [4..n+3]
+    auto res_3 = oneapi::dpl::experimental::transform_async(
+        CLONE_TEST_POLICY_NAME(exec, Transform<2>), oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y),
+        oneapi::dpl::begin(z), std::plus<int>(), res_2a, res_2b); // z = [4..n+3]
 
-    auto my_policy5 = TestUtils::make_device_policy<Reduce<1>>(my_policy);
-    auto alpha = oneapi::dpl::experimental::reduce_async(my_policy5, oneapi::dpl::begin(x), oneapi::dpl::end(x), 0,
-                                                         std::plus<int>(),
-                                                         res_2a)
+    auto alpha = oneapi::dpl::experimental::reduce_async(CLONE_TEST_POLICY_NAME(exec, Reduce<1>), oneapi::dpl::begin(x),
+                                                         oneapi::dpl::end(x), 0, std::plus<int>(), res_2a)
                      .get(); // alpha = n*(n+1)/2
 
-    auto my_policy6 = TestUtils::make_device_policy<Reduce<2>>(my_policy);
     auto beta = oneapi::dpl::experimental::transform_reduce_async(
-        my_policy6, oneapi::dpl::begin(z), oneapi::dpl::end(z), 0, std::plus<int>(), [=](int e) { return alpha * e; });
+        CLONE_TEST_POLICY_NAME(exec, Reduce<2>), oneapi::dpl::begin(z), oneapi::dpl::end(z), 0, std::plus<int>(),
+        MultiplyByAlphaFO<decltype(alpha)>{alpha});
 
-    auto my_policy7 = TestUtils::make_device_policy<Scan<0>>(my_policy);
     auto gamma = oneapi::dpl::experimental::transform_inclusive_scan_async(
-        my_policy7, oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y), std::plus<int>(),
-        [](auto x) { return x * 10; }, 0);
+        CLONE_TEST_POLICY_NAME(exec, Scan<0>), oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y),
+        std::plus<int>(), MultiplyByTenFO{}, 0);
 
-    auto my_policy8 = TestUtils::make_device_policy<Sort>(my_policy);
-    auto delta = oneapi::dpl::experimental::sort_async(my_policy8, oneapi::dpl::begin(y), oneapi::dpl::end(y),
-                                                       std::greater<int>(), gamma);
+    auto delta = oneapi::dpl::experimental::sort_async(CLONE_TEST_POLICY_NAME(exec, Sort), oneapi::dpl::begin(y),
+                                                       oneapi::dpl::end(y), std::greater<int>(), gamma);
 
     int small_nonzero_values[3] = {2, 3, 4};
     sycl::buffer small_nonzero{small_nonzero_values, sycl::range{3}};
 
-    auto my_policy9 = TestUtils::make_device_policy<Reduce<3>>(my_policy);
-    auto epsilon = oneapi::dpl::experimental::reduce_async(my_policy9, oneapi::dpl::begin(small_nonzero),
-                                                           oneapi::dpl::end(small_nonzero), 1,
-                                                           std::multiplies<int>()); // epsilon = 1 * 2 * 3 * 4 = 24
+    auto epsilon = oneapi::dpl::experimental::reduce_async(
+        CLONE_TEST_POLICY_NAME(exec, Reduce<3>), oneapi::dpl::begin(small_nonzero), oneapi::dpl::end(small_nonzero), 1,
+        std::multiplies<int>()); // epsilon = 1 * 2 * 3 * 4 = 24
 
     oneapi::dpl::experimental::wait_for_all(sycl::event{}, beta, gamma, delta, epsilon);
 
@@ -125,7 +155,8 @@ void test1_with_buffers()
     EXPECT_EQ(expected_epsilon, actual_epsilon, "wrong result for reduce_async with multiply binary_op");
 }
 
-void test2_with_buffers() 
+template <typename Policy>
+void test2_with_buffers(Policy&& exec)
 {
     const size_t n = 100;
 
@@ -133,25 +164,21 @@ void test2_with_buffers()
     sycl::buffer<float> y{n};
     sycl::buffer<float> z{n};
 
-    auto my_policy = TestUtils::make_device_policy<Copy<21>>(oneapi::dpl::execution::dpcpp_default);
-    auto res_1a = oneapi::dpl::experimental::copy_async(my_policy, oneapi::dpl::counting_iterator<int>(0),
-                                                        oneapi::dpl::counting_iterator<int>(n),
-                                                        oneapi::dpl::begin(x)); // x = [1..n]
+    auto res_1a = oneapi::dpl::experimental::copy_async(
+        CLONE_TEST_POLICY_NAME(exec, Copy<21>), oneapi::dpl::counting_iterator<int>(0),
+        oneapi::dpl::counting_iterator<int>(n), oneapi::dpl::begin(x)); // x = [1..n]
 
     auto alpha = 1.0f;
-    auto my_policy6 = TestUtils::make_device_policy<Scan<21>>(my_policy);
     auto beta = oneapi::dpl::experimental::transform_inclusive_scan_async(
-        my_policy6, oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y), std::plus<float>(),
-        [=](auto x) { return x * alpha; }, 0.0f, res_1a);
+        CLONE_TEST_POLICY_NAME(exec, Scan<21>), oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y),
+        std::plus<float>(), MultiplyByAlphaFO<decltype(alpha)>{alpha}, 0.0f, res_1a);
 
-    auto my_policy1 = TestUtils::make_device_policy<Fill<21>>(my_policy);
-    auto res_1b =
-        oneapi::dpl::experimental::fill_async(my_policy1, oneapi::dpl::begin(x), oneapi::dpl::end(x), -1.0f, beta);
+    auto res_1b = oneapi::dpl::experimental::fill_async(CLONE_TEST_POLICY_NAME(exec, Fill<21>), oneapi::dpl::begin(x),
+                                                        oneapi::dpl::end(x), -1.0f, beta);
 
     auto input1 = oneapi::dpl::counting_iterator<int>(0);
-    auto my_policy7 = TestUtils::make_device_policy<Scan<22>>(my_policy);
-    auto gamma = oneapi::dpl::experimental::inclusive_scan_async(my_policy7, input1, input1 + n, oneapi::dpl::begin(z),
-                                                                 std::plus<float>(), 0.0f);
+    auto gamma = oneapi::dpl::experimental::inclusive_scan_async(
+        CLONE_TEST_POLICY_NAME(exec, Scan<22>), input1, input1 + n, oneapi::dpl::begin(z), std::plus<float>(), 0.0f);
 
     auto result1 = gamma.get().get_buffer().get_host_access(sycl::read_only)[n - 1];
     auto result2 = beta.get().get_buffer().get_host_access(sycl::read_only)[n - 1];
@@ -162,12 +189,10 @@ void test2_with_buffers()
 }
 
 // TODO: Extend tests by checking true async behavior in more detail
-template <sycl::usm::alloc alloc_type>
+template <sycl::usm::alloc alloc_type, typename Policy>
 void
-test_with_usm()
+test_with_usm(Policy&& exec)
 {
-    sycl::queue q = TestUtils::get_test_queue();
-
     constexpr int n = 1024;
     constexpr int n_small = 13;
 
@@ -193,9 +218,9 @@ test_with_usm()
     prepare_data(n, data1_on_host, data2_on_host);
 
     // allocate USM memory and copying data to USM shared/device memory
-    TestUtils::usm_data_transfer<alloc_type, std::uint64_t> dt_helper1(q, std::begin(data1_on_host),
+    TestUtils::usm_data_transfer<alloc_type, std::uint64_t> dt_helper1(exec, std::begin(data1_on_host),
                                                                        std::end(data1_on_host));
-    TestUtils::usm_data_transfer<alloc_type, std::uint64_t> dt_helper2(q, std::begin(data2_on_host),
+    TestUtils::usm_data_transfer<alloc_type, std::uint64_t> dt_helper2(exec, std::begin(data2_on_host),
                                                                        std::end(data2_on_host));
     auto data1 = dt_helper1.get_data();
     auto data2 = dt_helper2.get_data();
@@ -205,20 +230,21 @@ test_with_usm()
     const std::uint64_t ref2 = std::accumulate(data1_on_host, data1_on_host + n_small, 0);
 
     // call first algorithm
-    auto new_policy1 = TestUtils::make_device_policy<
-        TestUtils::unique_kernel_name<Async<1>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
-    auto fut1 = oneapi::dpl::experimental::transform_reduce_async(
-        new_policy1, data2, data2 + n, data1, 0, std::plus<std::uint64_t>(), std::multiplies<std::uint64_t>());
+    using _NewKernelName1 = TestUtils::unique_kernel_name<Async<1>, TestUtils::uniq_kernel_index<alloc_type>()>;
+    auto fut1 = oneapi::dpl::experimental::transform_reduce_async(CLONE_TEST_POLICY_NAME(exec, _NewKernelName1), data2,
+                                                                  data2 + n, data1, 0, std::plus<std::uint64_t>(),
+                                                                  std::multiplies<std::uint64_t>());
 
     // call second algorithm and wait for result
-    auto new_policy2 = TestUtils::make_device_policy<
-        TestUtils::unique_kernel_name<Async<2>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
-    auto res2 = oneapi::dpl::experimental::reduce_async(new_policy2, data1, data1 + n_small).get();
+    using _NewKernelName2 = TestUtils::unique_kernel_name<Async<2>, TestUtils::uniq_kernel_index<alloc_type>()>;
+    auto res2 =
+        oneapi::dpl::experimental::reduce_async(CLONE_TEST_POLICY_NAME(exec, _NewKernelName2), data1, data1 + n_small)
+            .get();
 
     // call third algorithm that has to wait for first to complete
-    auto new_policy3 = TestUtils::make_device_policy<
-        TestUtils::unique_kernel_name<Async<3>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
-    auto sort_async_result = oneapi::dpl::experimental::sort_async(new_policy3, data2, data2 + n, fut1);
+    using _NewKernelName3 = TestUtils::unique_kernel_name<Async<3>, TestUtils::uniq_kernel_index<alloc_type>()>;
+    auto sort_async_result =
+        oneapi::dpl::experimental::sort_async(CLONE_TEST_POLICY_NAME(exec, _NewKernelName3), data2, data2 + n, fut1);
     sort_async_result.wait();
 
     // check values
@@ -226,28 +252,39 @@ test_with_usm()
     EXPECT_TRUE(res1 == ref1, "wrong effect from async transform reduce with usm");
     EXPECT_TRUE(res2 == ref2, "wrong effect from async reduce with usm");
 }
-#endif
 
-int
-main()
+template <typename Policy>
+void test_impl(Policy&& exec)
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     try
     {
-        test1_with_buffers();
-        test2_with_buffers();
+        test1_with_buffers(CLONE_TEST_POLICY(exec));
+        test2_with_buffers(CLONE_TEST_POLICY(exec));
 
-        // Run tests for USM shared memory
-        test_with_usm<sycl::usm::alloc::shared>();
-        // Run tests for USM device memory
-        test_with_usm<sycl::usm::alloc::device>();
+        // Run tests for USM shared/device memory
+        test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
+        test_with_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec));
     }
     catch (const std::exception& exc)
     {
         std::cerr << "Exception: " << exc.what() << std::endl;
         return EXIT_FAILURE;
     }
+}
+#endif // #if TEST_DPCPP_BACKEND_PRESENT
+
+int
+main()
+{
+#if TEST_DPCPP_BACKEND_PRESENT
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
 #endif
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }

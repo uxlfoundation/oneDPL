@@ -191,10 +191,12 @@ test_with_std_policy(Policy&& exec, Size n, StabilityTag stability_tag, Compare.
 }
 
 #if TEST_DPCPP_BACKEND_PRESENT
+struct TagUSM;
+
 template <typename KeyT, typename ValT, sycl::usm::alloc alloc_type, std::uint32_t KernelNameID,
-          typename Size, typename StabilityTag, typename ...Compare>
+          typename Size, typename StabilityTag, typename Policy, typename ...Compare>
 void
-test_with_usm(sycl::queue& q, Size n, StabilityTag stability_tag, Compare... compare)
+test_with_usm(Policy&& exec, Size n, StabilityTag stability_tag, Compare... compare)
 {
     Size keys_n = n;
     Size vals_n = n + 5; // to test that the remaining values are not touched
@@ -204,12 +206,13 @@ test_with_usm(sycl::queue& q, Size n, StabilityTag stability_tag, Compare... com
     generate_data(origin_keys.data(), origin_vals.data(), keys_n, vals_n, 42);
     std::vector<KeyT> keys(origin_keys);
     std::vector<ValT> vals(origin_vals);
-    TestUtils::usm_data_transfer<alloc_type, KeyT> keys_device(q, keys.begin(), keys.end());
-    TestUtils::usm_data_transfer<alloc_type, ValT> vals_device(q, vals.begin(), vals.end());
+    TestUtils::usm_data_transfer<alloc_type, KeyT> keys_device(exec, keys.begin(), keys.end());
+    TestUtils::usm_data_transfer<alloc_type, ValT> vals_device(exec, vals.begin(), vals.end());
 
     // calling sort
-    auto policy = TestUtils::make_device_policy<TestUtils::unique_kernel_name<TagUSM, KernelNameID>>(q);
-    call_sort(policy, keys_device.get_data(), vals_device.get_data(), keys_n, stability_tag, compare...);
+    using _NewKernelName = TestUtils::unique_kernel_name<TagUSM, KernelNameID>;
+    call_sort(CLONE_TEST_POLICY_NAME(exec, _NewKernelName),
+              keys_device.get_data(), vals_device.get_data(), keys_n, stability_tag, compare...);
 
     // checking results
     keys_device.retrieve_data(keys.begin());
@@ -218,10 +221,12 @@ test_with_usm(sycl::queue& q, Size n, StabilityTag stability_tag, Compare... com
     check_sort(keys.begin(), vals.begin(), origin_keys.begin(), origin_vals.begin(), keys_n, vals_n, StableSortTag{}, compare...);
 }
 
+struct TagBuffer;
+
 template <typename KeyT, typename ValT, std::uint32_t KernelNameID,
-          typename Size, typename StabilityTag, typename... Compare>
+          typename Size, typename StabilityTag, typename Policy, typename... Compare>
 void
-test_with_buffers(sycl::queue& q, Size n, StabilityTag stability_tag, Compare... compare)
+test_with_buffers(Policy&& exec, Size n, StabilityTag stability_tag, Compare... compare)
 {
     std::vector<KeyT> origin_keys(n);
     std::vector<ValT> origin_vals(n);
@@ -231,10 +236,12 @@ test_with_buffers(sycl::queue& q, Size n, StabilityTag stability_tag, Compare...
     {
         sycl::buffer<KeyT> keys_device(keys.data(), n);
         sycl::buffer<ValT> vals_device(vals.data(), n);
-        auto policy = TestUtils::make_device_policy<TestUtils::unique_kernel_name<TagBuffer, KernelNameID>>(q);
-        call_sort(policy, oneapi::dpl::begin(keys_device), oneapi::dpl::begin(vals_device), n, stability_tag, compare...);
+
+        using _NewKernelName = TestUtils::unique_kernel_name<TagBuffer, KernelNameID>;
+        call_sort(CLONE_TEST_POLICY_NAME(exec, _NewKernelName),
+                  oneapi::dpl::begin(keys_device), oneapi::dpl::begin(vals_device), n, stability_tag, compare...);
     }
-   // sort_by_key with device policy guarantees stability, hence StableSortTag{} is passed
+    // sort_by_key with device policy guarantees stability, hence StableSortTag{} is passed
     check_sort(keys.begin(), vals.begin(), origin_keys.begin(), origin_vals.begin(), n, n, StableSortTag{}, compare...);
 }
 
@@ -248,18 +255,18 @@ struct CustomGreat
     }
 };
 
-template <typename StabilityTag>
+template <typename Policy, typename StabilityTag>
 void
-test_device_policy(StabilityTag stability_tag)
+test_device_policy(Policy&& exec, StabilityTag stability_tag)
 {
-    sycl::queue q = TestUtils::get_test_queue();
     CustomGreat custom_greater; // Cover merge-sort from device backend
 
-    test_with_usm<std::int16_t, float, sycl::usm::alloc::shared, 1>(q, large_size, stability_tag, std::greater{});
-    test_with_usm<std::uint32_t, std::uint32_t, sycl::usm::alloc::device, 2>(q, large_size, stability_tag);
-    test_with_buffers<float, float, 3>(q, small_size, stability_tag, custom_greater);
-    test_with_buffers<Particle::energy_type, Particle, 4>(q, large_size, stability_tag, custom_greater);
-    test_with_buffers<Particle::energy_type, Particle, 5>(q, small_size, stability_tag);
+    test_with_usm<std::int16_t, float, sycl::usm::alloc::shared, 1>(CLONE_TEST_POLICY(exec), large_size, stability_tag, std::greater{});
+    test_with_usm<std::uint32_t, std::uint32_t, sycl::usm::alloc::device, 2>(CLONE_TEST_POLICY(exec), large_size, stability_tag);
+
+    test_with_buffers<float, float, 3>(CLONE_TEST_POLICY(exec), small_size, stability_tag, custom_greater);
+    test_with_buffers<Particle::energy_type, Particle, 4>(CLONE_TEST_POLICY(exec), large_size, stability_tag, custom_greater);
+    test_with_buffers<Particle::energy_type, Particle, 5>(CLONE_TEST_POLICY(exec), small_size, stability_tag);
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
@@ -278,8 +285,14 @@ void
 test_all_policies(StabilityTag stability_tag)
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    test_device_policy(stability_tag);
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_device_policy(policy, stability_tag);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [stability_tag](auto&& policy) { test_device_policy(std::forward<decltype(policy)>(policy), stability_tag); });
+#endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
+
     test_std_polcies<int, int>(large_size, stability_tag);
     test_std_polcies<std::size_t, float>(large_size, stability_tag, std::greater{});
     test_std_polcies<Particle::energy_type, Particle>(small_size, stability_tag);

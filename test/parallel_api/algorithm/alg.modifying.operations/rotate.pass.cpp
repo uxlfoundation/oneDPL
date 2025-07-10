@@ -89,7 +89,7 @@ struct test_one_policy
         Iterator actual_m = ::std::next(actual_b, shift);
 
         copy(data_b, data_e, actual_b);
-        Iterator actual_return = rotate(exec, actual_b, actual_m, actual_e);
+        Iterator actual_return = rotate(CLONE_TEST_POLICY(exec), actual_b, actual_m, actual_e);
 
         EXPECT_TRUE(actual_return == ::std::next(actual_b, ::std::distance(actual_m, actual_e)), "wrong result of rotate");
         auto comparator = compare<T>();
@@ -97,7 +97,7 @@ struct test_one_policy
         check = check && ::std::equal(actual_b, actual_return, ::std::next(data_b, shift), comparator);
 
         EXPECT_TRUE(check, "wrong effect of rotate");
-        EXPECT_TRUE(check_move(exec, actual_b, actual_e, shift), "wrong move test of rotate");
+        EXPECT_TRUE(check_move(CLONE_TEST_POLICY(exec), actual_b, actual_e, shift), "wrong move test of rotate");
     }
 
     template <typename ExecutionPolicy, typename Iterator, typename Size>

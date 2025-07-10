@@ -29,25 +29,24 @@ DEFINE_TEST_PERM_IT(test_transform_reduce, PermItIndexTag)
         ::std::iota(itBegin, itEnd, initVal);
     }
 
-    template <typename Policy, typename Size>
+    template <typename Size>
     struct TestImplementation
     {
-        Policy exec;
         Size n;
 
-        template <typename TPermutationIterator>
+        template <typename Policy, typename TPermutationIterator>
         void
-        operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        operator()(Policy&& exec, TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
         {
             const auto testing_n = permItEnd - permItBegin;
 
-            const auto result = dpl::transform_reduce(exec, permItBegin, permItEnd, TestValueType{},
+            const auto result = dpl::transform_reduce(CLONE_TEST_POLICY(exec), permItBegin, permItEnd, TestValueType{},
                                                       std::plus<TestValueType>(), std::negate<TestValueType>());
             wait_and_throw(exec);
 
             // Copy data back
             std::vector<TestValueType> sourceData(testing_n);
-            dpl::copy(exec, permItBegin, permItEnd, sourceData.begin());
+            dpl::copy(CLONE_TEST_POLICY(exec), permItBegin, permItEnd, sourceData.begin());
             wait_and_throw(exec);
 
             const auto expected =
@@ -71,7 +70,7 @@ DEFINE_TEST_PERM_IT(test_transform_reduce, PermItIndexTag)
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImplementation<Policy, Size>{exec, n});
+                std::forward<Policy>(exec), TestImplementation<Size>{n});
         }
     }
 };
