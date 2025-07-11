@@ -183,9 +183,9 @@ struct test
     void
     host_policies(int n_serial, int n_parallel, auto algo, auto& checker, auto... args)
     {
-        operator()(n_serial, oneapi::dpl::execution::seq, algo, checker, args...);
-        operator()(n_serial, oneapi::dpl::execution::unseq, algo, checker, args...);
-        operator()(n_parallel, oneapi::dpl::execution::par, algo, checker,  args...);
+        operator()(n_serial,   oneapi::dpl::execution::seq,       algo, checker, args...);
+        operator()(n_serial,   oneapi::dpl::execution::unseq,     algo, checker, args...);
+        operator()(n_parallel, oneapi::dpl::execution::par,       algo, checker, args...);
         operator()(n_parallel, oneapi::dpl::execution::par_unseq, algo, checker, args...);
     }
 
@@ -677,19 +677,13 @@ struct test_range_algo
         auto span_view = span_view_fo{};
 #endif
 
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::identity{}, std::identity{}, args...);
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, subrange_view, std::identity{}, args...);
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
-        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{},  std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker,  span_view, std::identity{}, args...);
-        test<T, host_span<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
+        test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #endif
     }
 
@@ -709,18 +703,11 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,
-                    subrange_view, args...);
-                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{},
-                    std::identity{}, args...);
-
+                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
+                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view, subrange_view, args...);
-                test<T, usm_span<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
+                test<T, usm_span<T>,     mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
         }
