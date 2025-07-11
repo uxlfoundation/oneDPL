@@ -636,8 +636,7 @@ struct test_range_algo
     test_range_algo(std::array<int, 2> sizes) : n_serial(sizes[0]), n_parallel(sizes[1]) {}
 #endif
 
-    template <typename Policy>
-    void test_view_host(Policy&& exec, auto view, auto algo, auto& checker, auto... args)
+    void test_view_host(auto view, auto algo, auto& checker, auto... args)
     {
         test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
     }
