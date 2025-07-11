@@ -669,8 +669,8 @@ struct test_range_algo
     };
 #endif
 
-    template <typename Policy>
-    void test_range_algo_impl(Policy&& exec, auto algo, auto& checker, auto... args)
+    void
+    test_range_algo_impl_host(auto algo, auto& checker, auto... args)
     {
         auto subrange_view = subrange_view_fo{};
 #if TEST_CPP20_SPAN_PRESENT
@@ -691,8 +691,17 @@ struct test_range_algo
         test<T, host_span<T>, mode, DataGen1, DataGen2>{}.host_policies(
             n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
 #endif
+    }
 
 #if TEST_DPCPP_BACKEND_PRESENT
+    template <typename Policy>
+    void test_range_algo_impl_hetero(Policy&& exec, auto algo, auto& checker, auto... args)
+    {
+        auto subrange_view = subrange_view_fo{};
+#if TEST_CPP20_SPAN_PRESENT
+        auto span_view = span_view_fo{};
+#endif
+
         //Skip the cases with pointer-to-function and hetero policy because pointer-to-function is not supported within kernel code.
         if constexpr(!std::disjunction_v<std::is_member_function_pointer<decltype(args)>...>)
         {
@@ -715,17 +724,22 @@ struct test_range_algo
 #endif
             }
         }
-#endif //TEST_DPCPP_BACKEND_PRESENT
     }
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    void operator()(auto algo, auto& checker, auto... args)
+    void
+    operator()(auto algo, auto& checker, auto... args)
     {
+        test_range_algo_impl_host(algo, checker, args...);
+
+#if TEST_DPCPP_BACKEND_PRESENT
         auto policy = TestUtils::get_dpcpp_test_policy();
-        test_range_algo_impl(policy, algo, checker, args...);
+        test_range_algo_impl_hetero(policy, algo, checker, args...);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
-        TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl(policy, algo, checker, args...); });
+        TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl_hetero(policy, algo, checker, args...); });
 #endif
+#endif // TEST_DPCPP_BACKEND_PRESENT
     }
 };
 
