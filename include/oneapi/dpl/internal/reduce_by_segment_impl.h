@@ -137,7 +137,7 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     // Compute the sum of the segments. scanned_tail_flags values are not used.
     inclusive_scan(policy, make_zip_iterator(first2, _mask.get()), make_zip_iterator(first2, _mask.get()) + n,
                    make_zip_iterator(_scanned_values.get(), _scanned_tail_flags.get()),
-                   internal::segmented_scan_fun<ValueType, FlagType, BinaryOperator>(binary_op));
+                   oneapi::dpl::__internal::__segmented_scan_fun<ValueType, FlagType, BinaryOperator>(binary_op));
 
     // for example: _scanned_values     = { 1, 2, 3, 4, 1, 2, 3, 6, 1, 2, 3, 6, 0 }
 
