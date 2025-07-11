@@ -41,13 +41,13 @@ struct IsEqOp
     }
 };
 
-struct IsGreatThanZeroOp
+struct IsGreatEqThanZeroOp
 {
     template <typename T>
     bool
     operator()(T a) const
     {
-        return a > 0;
+        return a >= 0;
     }
 };
 
@@ -73,8 +73,8 @@ test_impl(Policy&& exec)
         res1 = find(CLONE_TEST_POLICY_IDX(exec, 1), A, val);    //check passing sycl::buffer directly
         res2 = find_if(CLONE_TEST_POLICY_IDX(exec, 2), view, IsEqOp<int>{val});
         res2 = find_if(CLONE_TEST_POLICY_IDX(exec, 3), A, IsEqOp<int>{val});
-        res3 = find_if_not(CLONE_TEST_POLICY_IDX(exec, 4), view, IsGreatThanZeroOp());
-        res3 = find_if_not(CLONE_TEST_POLICY_IDX(exec, 5), A, IsGreatThanZeroOp());
+        res3 = find_if_not(CLONE_TEST_POLICY_IDX(exec, 4), view, IsGreatEqThanZeroOp());
+        res3 = find_if_not(CLONE_TEST_POLICY_IDX(exec, 5), A, IsGreatEqThanZeroOp());
     }
 
     //check result
