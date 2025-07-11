@@ -256,20 +256,12 @@ test_with_usm(Policy&& exec)
 template <typename Policy>
 void test_impl(Policy&& exec)
 {
-    try
-    {
-        test1_with_buffers(CLONE_TEST_POLICY(exec));
-        test2_with_buffers(CLONE_TEST_POLICY(exec));
+    test1_with_buffers(CLONE_TEST_POLICY(exec));
+    test2_with_buffers(CLONE_TEST_POLICY(exec));
 
-        // Run tests for USM shared/device memory
-        test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
-        test_with_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec));
-    }
-    catch (const std::exception& exc)
-    {
-        std::cerr << "Exception: " << exc.what() << std::endl;
-        return EXIT_FAILURE;
-    }
+    // Run tests for USM shared/device memory
+    test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
+    test_with_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec));
 }
 #endif // #if TEST_DPCPP_BACKEND_PRESENT
 
