@@ -35,7 +35,7 @@ test_impl(Policy&& exec)
     int data1[max_n] = {-1, 1, -1, 3, 4, 5, 6, -1, 8, 9};
     int data2[max_n] = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18};
 
-    auto lambda = [](auto i) { return i % 2 == 0; };
+    auto lambda = TestUtils::IsEven<int>();
 
     bool res1 = false, res2 = false, res3 = false;
     using namespace oneapi::dpl::experimental::ranges;
@@ -45,7 +45,7 @@ test_impl(Policy&& exec)
 
         res1 = any_of(CLONE_TEST_POLICY_IDX(exec, 0), views::all(A), lambda);
         res2 = all_of(CLONE_TEST_POLICY_IDX(exec, 1), B, lambda);
-        res3 = none_of(CLONE_TEST_POLICY_IDX(exec, 2), B, [](auto i) { return i == -1; });
+        res3 = none_of(CLONE_TEST_POLICY_IDX(exec, 2), B, TestUtils::IsEqualTo<int>{-1});
     }
 
     EXPECT_TRUE(res1, "wrong result from any_of with sycl ranges");

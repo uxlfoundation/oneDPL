@@ -35,7 +35,7 @@ test_impl(Policy&& exec)
     int data[n] = {1, 1, 2, 2, 4, 5, 6, 6, 6, 9};
     int expected[n_exp] = {1, 2, 4, 5, 6, 9};
 
-    auto is_equal = [](auto i, auto j) { return i == j; };
+    auto is_equal = TestUtils::IsEqual<int>();
 
     using namespace oneapi::dpl::experimental::ranges;
 

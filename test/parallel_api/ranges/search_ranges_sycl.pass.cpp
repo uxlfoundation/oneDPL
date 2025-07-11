@@ -49,7 +49,7 @@ test_impl(Policy&& exec)
         auto view_b = all_view(B);
 
         res1 = search(CLONE_TEST_POLICY_IDX(exec, 0), A, view_b);
-        res2 = search(CLONE_TEST_POLICY_IDX(exec, 1), view_a, B, [](auto a, auto b) { return a == b; });
+        res2 = search(CLONE_TEST_POLICY_IDX(exec, 1), view_a, B, TestUtils::IsEqual<int>());
     }
 
     //check result

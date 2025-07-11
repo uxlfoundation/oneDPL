@@ -45,7 +45,7 @@ test_impl(Policy&& exec)
         auto view  = all_view(A);
 
         res1 = is_sorted_until(CLONE_TEST_POLICY_IDX(exec, 0), view);
-        res2 = is_sorted_until(CLONE_TEST_POLICY_IDX(exec, 1), A, [](auto a, auto b) { return a < b; });
+        res2 = is_sorted_until(CLONE_TEST_POLICY_IDX(exec, 1), A, TestUtils::IsLess<int>());
     }
 
     //check result

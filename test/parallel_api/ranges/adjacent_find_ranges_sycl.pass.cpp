@@ -43,7 +43,7 @@ test_impl(Policy&& exec)
         sycl::buffer<int> A(data, sycl::range<1>(n));
 
         res1 = adjacent_find(CLONE_TEST_POLICY_IDX(exec, 0), views::all_read(A));
-        res2 = adjacent_find(CLONE_TEST_POLICY_IDX(exec, 1), A, [](auto a, auto b) {return a == b;});
+        res2 = adjacent_find(CLONE_TEST_POLICY_IDX(exec, 1), A, TestUtils::IsEqual<int>());
     }
 
     //check result

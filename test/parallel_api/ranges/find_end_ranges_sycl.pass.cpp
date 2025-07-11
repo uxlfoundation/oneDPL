@@ -51,7 +51,7 @@ test_impl(Policy&& exec)
         auto view_b = all_view(B);
 
         res1 = find_end(CLONE_TEST_POLICY_IDX(exec, 0), view_a, view_b);
-        res2 = find_end(CLONE_TEST_POLICY_IDX(exec, 1), A, B, [](auto a, auto b) { return a != b; }); //check passing sycl buffer directly
+        res2 = find_end(CLONE_TEST_POLICY_IDX(exec, 1), A, B, TestUtils::IsNotEqual<int>()); //check passing sycl buffer directly
     }
 
     //check result

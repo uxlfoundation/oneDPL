@@ -33,7 +33,7 @@ test_impl(Policy&& exec)
 {
     constexpr int max_n = 10;
 
-    auto pred = [](auto i) { return i % 2 == 0; };
+    auto pred = TestUtils::IsEven<int>();
 
     using namespace oneapi::dpl::experimental::ranges;
 
