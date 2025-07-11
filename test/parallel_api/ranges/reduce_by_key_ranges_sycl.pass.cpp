@@ -68,10 +68,10 @@ test_impl(Policy&& exec)
     EXPECT_EQ_N(value_exp, views::host_all(D).begin(), n_res, "wrong values from reduce_by_segment");
 
 // Check if a kernel name can be omitted when a compiler supports implicit names
-#if __SYCL_UNNAMED_LAMBDA__
+#if __SYCL_UNNAMED_LAMBDA__ && !TEST_EXPLICIT_KERNEL_NAMES
     sycl::buffer<std::uint64_t> E(n);
     reduce_by_segment(CLONE_TEST_POLICY(exec), views::all_read(A), views::all_read(B), views::all_write(C), views::all_write(E));
-#endif
+#endif // __SYCL_UNNAMED_LAMBDA__ && !TEST_EXPLICIT_KERNEL_NAMES
 }
 #endif // _ENABLE_RANGES_TESTING
 
