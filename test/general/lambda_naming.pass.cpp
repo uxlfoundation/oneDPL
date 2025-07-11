@@ -27,7 +27,8 @@ using namespace TestUtils;
 class ForEach;
 
 // This is the simple test for compilation only, to check if lambda naming works correctly
-int main() {
+int main()
+{
 #if TEST_DPCPP_BACKEND_PRESENT
     const int n = 1000;
     sycl::buffer<int> buf{ sycl::range<1>(n) };
@@ -39,7 +40,7 @@ int main() {
     auto buf_begin_discard_write = oneapi::dpl::begin(buf, sycl::write_only, sycl::property::no_init{});
 
     ::std::fill(policy, buf_begin_discard_write, buf_begin_discard_write + n, 1);
-#if __SYCL_UNNAMED_LAMBDA__
+#if __SYCL_UNNAMED_LAMBDA__ && !TEST_EXPLICIT_KERNEL_NAMES
     ::std::sort(policy, buf_begin, buf_end);
     ::std::for_each(policy, buf_begin, buf_end, [](int& x) { x += 41; });
 
@@ -64,7 +65,7 @@ int main() {
     ::std::for_each(TestUtils::make_device_policy<ForEach>(policy), buf_begin, buf_end, [](int& x) { x++; });
     auto red_val = ::std::reduce(policy, buf_begin, buf_end, 1);
     EXPECT_TRUE(red_val == 2001, "wrong return value from reduce");
-#endif // __SYCL_UNNAMED_LAMBDA__
+#endif // __SYCL_UNNAMED_LAMBDA__ && !TEST_EXPLICIT_KERNEL_NAMES
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return done(TEST_DPCPP_BACKEND_PRESENT);
