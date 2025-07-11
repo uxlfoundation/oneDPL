@@ -27,6 +27,17 @@
 #include <iostream>
 
 #if _ENABLE_RANGES_TESTING
+template <typename T>
+struct get_const_fo
+{
+    T val;
+
+    T operator()() const
+    {
+        return val;
+    }
+};
+
 template <typename Policy>
 void
 test_impl(Policy&& exec)
@@ -43,7 +54,7 @@ test_impl(Policy&& exec)
     auto view1 = ranges::views::fill(-1, max_n) | ranges::views::transform(lambda_pow_2);
     auto res1 = std::all_of(view1.begin(), view1.end(), lambda_eq_1);
 
-    auto view2 = ranges::views::generate([]() { return -1;}, max_n) | ranges::views::transform(lambda_pow_2);
+    auto view2 = ranges::views::generate(get_const_fo<int>{-1}, max_n) | ranges::views::transform(lambda_pow_2);
     auto res2 = std::all_of(view2.begin(), view2.end(), lambda_eq_1);
 
     //check result
