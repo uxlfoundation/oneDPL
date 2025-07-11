@@ -46,7 +46,7 @@ test_impl(Policy&& exec)
         auto view = ranges::all_view<int, sycl::access::mode::read>(A);
         auto view_res1 = ranges::all_view<int, sycl::access::mode::write>(B1);
 
-        ranges::exclusive_scan(CLONE_TEST_POLICY(exec), A, view_res1, 100);
+        ranges::exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 0), A, view_res1, 100);
         ranges::exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 1), view, B2, 100, std::plus<int>());
     }
 
