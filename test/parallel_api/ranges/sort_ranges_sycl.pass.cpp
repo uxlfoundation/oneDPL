@@ -31,6 +31,16 @@
 #include <vector>
 
 #if _ENABLE_RANGES_TESTING
+struct get_from_pair_fo
+{
+    template <typename T>
+    auto
+    operator()(T&& t) const
+    {
+        return std::get<1>(std::forward<T>(t));
+    }
+};
+
 template <typename Policy>
 void
 test_impl(Policy&& exec)
@@ -73,8 +83,7 @@ test_impl(Policy&& exec)
         B.set_final_data(keys.begin());
         B.set_write_back(true);
 
-        sort(CLONE_TEST_POLICY_IDX(exec, 2), zip_view(views::all(A), views::all(B)), std::less{},
-             [](const auto& a) { return std::get<1>(a); });
+        sort(CLONE_TEST_POLICY_IDX(exec, 2), zip_view(views::all(A), views::all(B)), std::less{}, get_from_pair_fo{});
     }
     bool res3 = std::is_sorted(values.begin(), values.end(), std::less{});
     EXPECT_TRUE(res3, "wrong effect from 'sort by key'");

@@ -74,7 +74,17 @@ auto f = [](auto&& val) { return val * val; };
 auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
 auto proj = [](auto&& val){ return val * 2; };
 auto pred = [](auto&& val) { return val == 5; };
-auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
+
+struct binary_pred_fo
+{
+    template <typename T1, typename T2>
+    bool
+    operator()(T1&& val1, T2&& val2) const
+    {
+        return val1 == val2;
+    }
+};
+auto binary_pred = binary_pred_fo{};
 auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
 
 auto pred1 = [](auto&& val) -> bool { return val > 0; };
@@ -639,12 +649,32 @@ struct test_range_algo
     }
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
+    struct subrange_view_fo
+    {
+        template <typename TArg>
+        auto operator()(TArg&& v) const
+        {
+            return std::ranges::subrange(v);
+        }
+    };
+
+#if TEST_CPP20_SPAN_PRESENT
+    struct span_view_fo
+    {
+        template <typename TArg>
+        auto operator()(TArg&& v) const
+        {
+            return std::span(v);
+        }
+    };
+#endif
+
     template <typename Policy>
     void test_range_algo_impl(Policy&& exec, auto algo, auto& checker, auto... args)
     {
-        auto subrange_view = [](auto&& v) { return std::ranges::subrange(v); };
+        auto subrange_view = subrange_view_fo{};
 #if TEST_CPP20_SPAN_PRESENT
-        auto span_view = [](auto&& v) { return std::span(v); };
+        auto span_view = span_view_fo{};
 #endif
 
         test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(

@@ -16,6 +16,17 @@
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
+
+struct MultiplyByTwo
+{
+    template <typename T>
+    auto
+    operator()(T x) const
+    {
+        return x * 2;
+    }
+};
+
 void
 test_impl_host()
 {
@@ -25,7 +36,7 @@ test_impl_host()
     const int n = medium_size;
 
     //transform view
-    test_range_algo<0>{n}.test_view_host(std::views::transform([](const auto a) { return a*2; }),
+    test_range_algo<0>{n}.test_view_host(std::views::transform(MultiplyByTwo{}),
         dpl_ranges::find_if, std::ranges::find_if, pred, proj);
 
     //reverse view
@@ -51,7 +62,7 @@ test_impl_hetero(Policy&& exec)
     const int n = medium_size;
 
     //transform view
-    test_range_algo<0>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), std::views::transform([](const auto a) { return a*2; }),
+    test_range_algo<0>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), std::views::transform(MultiplyByTwo{}),
         dpl_ranges::find_if, std::ranges::find_if, pred, proj);
 
     //reverse view

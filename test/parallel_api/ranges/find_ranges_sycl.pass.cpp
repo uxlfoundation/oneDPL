@@ -28,6 +28,29 @@
 
 #if _ENABLE_RANGES_TESTING
 
+template <typename T>
+struct IsEqOp
+{
+    T val;
+
+    template <typename T1>
+    bool
+    operator()(T1 a) const
+    {
+        return a == val;
+    }
+};
+
+struct IsGreatEqThanZeroOp
+{
+    template <typename T>
+    bool
+    operator()(T a) const
+    {
+        return a >= 0;
+    }
+};
+
 template <typename Policy>
 void
 test_impl(Policy&& exec)
@@ -48,10 +71,10 @@ test_impl(Policy&& exec)
 
         res1 = find(CLONE_TEST_POLICY_IDX(exec, 0), view, val); //check passing all_view
         res1 = find(CLONE_TEST_POLICY_IDX(exec, 1), A, val);    //check passing sycl::buffer directly
-        res2 = find_if(CLONE_TEST_POLICY_IDX(exec, 2), view, [val](auto a) { return a == val;});
-        res2 = find_if(CLONE_TEST_POLICY_IDX(exec, 3), A, [val](auto a) { return a == val;});
-        res3 = find_if_not(CLONE_TEST_POLICY_IDX(exec, 4), view, [](auto a) { return a >= 0;});
-        res3 = find_if_not(CLONE_TEST_POLICY_IDX(exec, 5), A, [](auto a) { return a >= 0;});
+        res2 = find_if(CLONE_TEST_POLICY_IDX(exec, 2), view, IsEqOp<int>{val});
+        res2 = find_if(CLONE_TEST_POLICY_IDX(exec, 3), A, IsEqOp<int>{val});
+        res3 = find_if_not(CLONE_TEST_POLICY_IDX(exec, 4), view, IsGreatEqThanZeroOp());
+        res3 = find_if_not(CLONE_TEST_POLICY_IDX(exec, 5), A, IsGreatEqThanZeroOp());
     }
 
     //check result

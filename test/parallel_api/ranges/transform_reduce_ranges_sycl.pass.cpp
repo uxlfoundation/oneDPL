@@ -34,7 +34,7 @@ test_impl(Policy&& exec)
     constexpr int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
-    auto lambda1 = [](auto val) { return val = val * val; };
+    auto lambda1 = TestUtils::Pow2<int>();
 
     auto res1 = -1, res2 = -1, res3 = -1;
     {

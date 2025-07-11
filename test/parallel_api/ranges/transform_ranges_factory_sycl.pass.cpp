@@ -36,8 +36,8 @@ test_impl(Policy&& exec)
     int data2[max_n];
     int data3[max_n];
 
-    auto lambda1 = [](auto i) { return i * i; };
-    auto lambda2 = [](auto i) { return i + 200; };
+    auto lambda1 = TestUtils::Pow2<int>();
+    auto lambda2 = TestUtils::SumWithOp<int>{200};
 
     using namespace oneapi::dpl::experimental::ranges;
 

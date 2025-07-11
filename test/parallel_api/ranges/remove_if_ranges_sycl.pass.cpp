@@ -35,8 +35,8 @@ test_impl(Policy&& exec)
 {
     using T = int;
 
-    auto lambda1 = [](T val) -> bool { return val % 2 == 0; };
-    auto lambda2 = [](T val) -> bool { return val % 3 == 0; };
+    auto lambda1 = TestUtils::IsEven<T>();
+    auto lambda2 = TestUtils::IsMultipleOf<T>{3};
     std::vector<T> data = {2, 5, 2, 4, 2, 0, 6, -7, 7, 3};
 
     std::vector<T> in(data);
