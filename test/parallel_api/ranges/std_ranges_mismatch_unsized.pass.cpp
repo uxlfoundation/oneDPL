@@ -20,13 +20,13 @@
 #if TEST_DPCPP_BACKEND_PRESENT
 template <typename Policy, typename TView1, typename TView2, typename TRes1, typename TRes2>
 void
-test_impl(Policy&& exec, TView1 view1, TView2 view2, TRes1 ex_res1, TRes2 ex_res2)
+test_impl(Policy&& exec, TView1&& view1, TView2&& view2, TRes1 ex_res1, TRes2 ex_res2)
 {
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
     const char* err_msg = "Wrong effect algo mismatch with unsized ranges.";
 
-    auto [res1, res2] = dpl_ranges::mismatch(std::forward<Policy>(exec), view1, view2, binary_pred, proj, proj);
+    auto [res1, res2] = dpl_ranges::mismatch(std::forward<Policy>(exec), std::forward<TView1>(view1), std::forward<TView2>(view2), binary_pred, proj, proj);
     EXPECT_TRUE(ex_res1 == res1, err_msg);
     EXPECT_TRUE(ex_res2 == res2, err_msg);
 }
