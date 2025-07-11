@@ -1302,6 +1302,7 @@ void
 __parallel_for_each(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _ForwardIterator __begin,
                     _ForwardIterator __end, _Fp __f)
 {
+    static_assert(std::input_iterator<Iterator>, "Input iterator is not a std::input_iterator");
     tbb::this_task_arena::isolate([&]() { tbb::parallel_for_each(__begin, __end, __f); });
 }
 
