@@ -31,7 +31,7 @@
 #include <vector>
 
 #if _ENABLE_RANGES_TESTING
-struct get_fo
+struct get_from_pair_fo
 {
     template <typename T>
     auto
@@ -83,7 +83,7 @@ test_impl(Policy&& exec)
         B.set_final_data(keys.begin());
         B.set_write_back(true);
 
-        sort(CLONE_TEST_POLICY_IDX(exec, 2), zip_view(views::all(A), views::all(B)), std::less{}, get_fo{});
+        sort(CLONE_TEST_POLICY_IDX(exec, 2), zip_view(views::all(A), views::all(B)), std::less{}, get_from_pair_fo{});
     }
     bool res3 = std::is_sorted(values.begin(), values.end(), std::less{});
     EXPECT_TRUE(res3, "wrong effect from 'sort by key'");
