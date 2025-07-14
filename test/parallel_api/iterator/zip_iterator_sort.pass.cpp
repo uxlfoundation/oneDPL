@@ -16,6 +16,7 @@
 #include "zip_iterator_funcs.h"
 #include "support/test_config.h"
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #   include "support/utils_sycl.h"
@@ -57,7 +58,7 @@ DEFINE_TEST(test_stable_sort)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first)>, "zip_iterator (stable_sort) not properly copyable");
         }
 
-        std::stable_sort(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first, tuple_last,
+        std::stable_sort(CLONE_TEST_POLICY_IDX(exec, 0), tuple_first, tuple_last,
                          TuplePredicate<std::greater<T>, 0>{std::greater<T>{}});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();

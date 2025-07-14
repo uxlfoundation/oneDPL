@@ -118,6 +118,11 @@
 #define TEST_LONG_RUN 0
 #endif
 
+// Enable check compilation with different policy value category
+#ifndef TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+#    define TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY (!__SYCL_UNNAMED_LAMBDA__ || TEST_EXPLICIT_KERNEL_NAMES)
+#endif
+
 // Enable test when the TBB backend is available
 #if !defined(ONEDPL_USE_TBB_BACKEND) || ONEDPL_USE_TBB_BACKEND
 #define TEST_TBB_BACKEND_PRESENT 1
