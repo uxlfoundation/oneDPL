@@ -19,7 +19,7 @@
 #include "support/test_config.h"
 #include "support/test_macros.h"
 #include "support/utils.h"
-#include "support/utils_invoke.h"       // for CLONE_TEST_POLICY
+#include "support/utils_invoke.h"       // for CLONE_TEST_POLICY macro
 
 #if _ENABLE_STD_RANGES_TESTING
 
@@ -626,17 +626,22 @@ struct test_range_algo
     test_range_algo(std::array<int, 2> sizes) : n_serial(sizes[0]), n_parallel(sizes[1]) {}
 #endif
 
-    void test_view(auto view, auto algo, auto& checker, auto... args)
+    void test_view_host(auto view, auto algo, auto& checker, auto... args)
     {
         test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
-#if TEST_DPCPP_BACKEND_PRESENT
-        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, TestUtils::get_dpcpp_test_policy<call_id>(), algo, checker, view, std::identity{}, args...);
-#endif //TEST_DPCPP_BACKEND_PRESENT
     }
 
-    void operator()(auto algo, auto& checker, auto... args)
+#if TEST_DPCPP_BACKEND_PRESENT
+    template <typename Policy>
+    void test_view_hetero(Policy&& exec, auto view, auto algo, auto& checker, auto... args)
     {
+        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id), algo, checker, view, std::identity{}, args...);
+    }
+#endif //TEST_DPCPP_BACKEND_PRESENT
 
+    template <typename Policy>
+    void test_range_algo_impl(Policy&& exec, auto algo, auto& checker, auto... args)
+    {
         auto subrange_view = [](auto&& v) { return std::ranges::subrange(v); };
 #if TEST_CPP20_SPAN_PRESENT
         auto span_view = [](auto&& v) { return std::span(v); };
@@ -666,18 +671,31 @@ struct test_range_algo
 #endif
             {
                 test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 10>(), algo, checker, subrange_view, subrange_view, args...);
+                    n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,
+                    subrange_view, args...);
                 test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 30>(), algo, checker, std::identity{}, std::identity{}, args...);
+                    n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{},
+                    std::identity{}, args...);
+
 #if TEST_CPP20_SPAN_PRESENT
                 test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 20>(), algo, checker, span_view, subrange_view, args...);
+                    n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view, subrange_view, args...);
                 test<T, usm_span<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 40>(), algo, checker, std::identity{}, std::identity{}, args...);
+                    n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
         }
 #endif //TEST_DPCPP_BACKEND_PRESENT
+    }
+
+    void operator()(auto algo, auto& checker, auto... args)
+    {
+        auto policy = TestUtils::get_dpcpp_test_policy();
+        test_range_algo_impl(policy, algo, checker, args...);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+        TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl(policy, algo, checker, args...); });
+#endif
     }
 };
 
