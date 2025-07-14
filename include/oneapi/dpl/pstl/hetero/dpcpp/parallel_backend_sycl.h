@@ -1373,8 +1373,8 @@ std::size_t
 __set_op_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
               _SetTag __set_tag)
 {
-    size_t __n1 = __rng1.size();
-    size_t __n2 = __rng2.size();
+    std::size_t __n1 = __rng1.size();
+    std::size_t __n2 = __rng2.size();
 
     //can we use reduce then scan?
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
