@@ -1084,7 +1084,8 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
         __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
 
     _GenReduceInput __gen_reduce_input{_SetOperation{}, __diagonal_spacing,
-                                       _BoundsProvider{__diagonal_spacing, __partition_size, __partition_threshold}, __comp};
+                                       _BoundsProvider{__diagonal_spacing, __partition_size, __partition_threshold},
+                                       __comp};
 
     constexpr std::uint32_t __bytes_per_work_item_iter =
         __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
@@ -1097,8 +1098,8 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
 
     if (__total_size >= __partition_threshold)
     {
-        __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, __in_rng, __num_diagonals,
-                                                                                __gen_reduce_input);
+        __partition_event =
+            __parallel_set_balanced_path_partition<_CustomName>(__q, __in_rng, __num_diagonals, __gen_reduce_input);
     }
     return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
         __q, __num_diagonals, __in_rng, std::forward<_Range3>(__result), __gen_reduce_input, _ReduceOp{},
