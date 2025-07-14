@@ -989,43 +989,6 @@ constexpr bool __vector_impl_distinguishes_usm_allocator_from_default_v =
 
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
-////////////////////////////////////////////////////////////////////////////////
-// Implementation of create_new_policy for all policies (host + hetero)
-template <typename Policy>
-using __is_able_to_create_new_policy =
-#if TEST_DPCPP_BACKEND_PRESENT
-    oneapi::dpl::__internal::__is_hetero_execution_policy<::std::decay_t<Policy>>;
-#else
-    ::std::false_type;
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-#if TEST_DPCPP_BACKEND_PRESENT
-template <typename _NewKernelName, typename Policy, ::std::enable_if_t<__is_able_to_create_new_policy<Policy>::value, int> = 0>
-auto
-create_new_policy(Policy&& exec)
-{
-    return TestUtils::make_new_policy<_NewKernelName>(std::forward<Policy>(exec));
-}
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-template <typename _NewKernelName, typename Policy, ::std::enable_if_t<!__is_able_to_create_new_policy<Policy>::value, int> = 0>
-auto
-create_new_policy(Policy&& exec)
-{
-    return std::forward<Policy>(exec);
-}
-
-template <int idx, typename Policy>
-auto
-create_new_policy_idx(Policy&& exec)
-{
-#if TEST_DPCPP_BACKEND_PRESENT
-    return create_new_policy<TestUtils::new_kernel_name<Policy, idx>>(std::forward<Policy>(exec));
-#else
-    return std::forward<Policy>(exec);
-#endif
-}
-
 #if TEST_DPCPP_BACKEND_PRESENT
 template <typename KernelName, int idx>
 struct kernel_name_with_idx

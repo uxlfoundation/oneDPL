@@ -23,16 +23,15 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
 {
     DEFINE_TEST_PERM_IT_CONSTRUCTOR(test_remove_if, 1.0f, 1.0f)
 
-    template <typename Policy, typename Size>
+    template <typename Size>
     struct TestImplementation
     {
-        Policy exec;
         Size n;
         TestDataTransfer<UDTKind::eKeys, Size>& host_keys;
 
-        template <typename TPermutationIterator>
+        template <typename Policy, typename TPermutationIterator>
         void
-        operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        operator()(Policy&& exec, TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
         {
             const auto host_keys_ptr = host_keys.get();
 
@@ -44,19 +43,19 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
 
             // Copy source data back
             std::vector<TestValueType> sourceData(testing_n);
-            dpl::copy(exec, permItBegin, permItEnd, sourceData.begin());
+            dpl::copy(CLONE_TEST_POLICY(exec), permItBegin, permItEnd, sourceData.begin());
             wait_and_throw(exec);
 
             const TestUtils::IsGreatThan<TestValueType> op{0};
 
-            auto itEndNewRes = dpl::remove_if(exec, permItBegin, permItEnd, op);
+            auto itEndNewRes = dpl::remove_if(CLONE_TEST_POLICY(exec), permItBegin, permItEnd, op);
             wait_and_throw(exec);
 
             const auto newSizeResult = itEndNewRes - permItBegin;
 
             // Copy modified data back
             std::vector<TestValueType> resultRemoveIf(newSizeResult);
-            dpl::copy(exec, permItBegin, itEndNewRes, resultRemoveIf.begin());
+            dpl::copy(CLONE_TEST_POLICY(exec), permItBegin, itEndNewRes, resultRemoveIf.begin());
             wait_and_throw(exec);
 
             // Eval expected result
@@ -87,7 +86,7 @@ DEFINE_TEST_PERM_IT(test_remove_if, PermItIndexTag)
             TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);     // source data for remove_if
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImplementation<Policy, Size>{exec, n, host_keys});
+                std::forward<Policy>(exec), TestImplementation<Size>{n, host_keys});
         }
     }
 };

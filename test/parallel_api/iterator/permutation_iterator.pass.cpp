@@ -23,10 +23,11 @@
 
 using namespace TestUtils;
 
-int
-main()
-{
 #if TEST_DPCPP_BACKEND_PRESENT
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
     const int countingItIndexBegin = 0;
     const int countingItIndexEnd = 20;
     dpl::counting_iterator<int> countingItBegin(countingItIndexBegin);
@@ -70,11 +71,25 @@ main()
               "Wrong result of std::distance<permutationIterator1, permutationIterator2)");
 
     std::vector<int> resultCopy(perm_size_result);
-    auto itCopiedDataEnd = dpl::copy(TestUtils::get_dpcpp_test_policy(), permItBegin, permItEnd, resultCopy.begin());
+    auto itCopiedDataEnd = dpl::copy(std::forward<Policy>(exec), permItBegin, permItEnd, resultCopy.begin());
     EXPECT_EQ(true, resultCopy.end() == itCopiedDataEnd, "Wrong result of dpl::copy");
 
     const std::vector<int> expectedCopy = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18};
     EXPECT_EQ_N(expectedCopy.begin(), resultCopy.begin(), perm_size_result, "Wrong state of dpl::copy data");
+}
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+int
+main()
+{
+#if TEST_DPCPP_BACKEND_PRESENT
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+#endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return done(TEST_DPCPP_BACKEND_PRESENT);

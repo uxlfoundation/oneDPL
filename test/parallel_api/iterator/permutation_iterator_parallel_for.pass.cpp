@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "support/test_config.h"
+#include "support/utils_invoke.h"
 
 #include "permutation_iterator_common.h"
 
@@ -39,38 +40,34 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             *it = n - index;
     }
 
-    template <typename Policy, typename Size, typename Iterator2>
+    template <typename Size, typename Iterator2>
     struct TestImplementation
     {
-        Policy exec;
         Size n;
         TestDataTransfer<UDTKind::eVals, Size>& host_vals;      // reference to result data of transform
         Iterator2 first2;
 
-        template <typename TPermutationIterator>
-        void operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        template <typename Policy, typename TPermutationIterator>
+        void operator()(Policy&& exec, TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
         {
-            auto exec1 = TestUtils::create_new_policy_idx<0>(exec);
-            auto exec2 = TestUtils::create_new_policy_idx<1>(exec);
-
             const auto testing_n = permItEnd - permItBegin;
 
             const auto host_vals_ptr = host_vals.get();
             clear_output_data(host_vals_ptr, host_vals_ptr + n);
             host_vals.update_data();
 
-            auto itResultEnd = dpl::transform(exec, permItBegin, permItEnd, first2, TransformOp{});
+            auto itResultEnd = dpl::transform(CLONE_TEST_POLICY_IDX(exec, 0), permItBegin, permItEnd, first2, TransformOp{});
             wait_and_throw(exec);
 
             const auto resultSize = itResultEnd - first2;
 
             // Copy data back
             std::vector<TestValueType> sourceData(testing_n);
-            dpl::copy(exec1, permItBegin, permItEnd, sourceData.begin());
-            wait_and_throw(exec1);
+            dpl::copy(CLONE_TEST_POLICY_IDX(exec, 1), permItBegin, permItEnd, sourceData.begin());
+            wait_and_throw(exec);
             std::vector<TestValueType> transformedDataResult(testing_n);
-            dpl::copy(exec2, first2, itResultEnd, transformedDataResult.begin());
-            wait_and_throw(exec2);
+            dpl::copy(CLONE_TEST_POLICY_IDX(exec, 2), first2, itResultEnd, transformedDataResult.begin());
+            wait_and_throw(exec);
 
             // Check results
             std::vector<TestValueType> transformedDataExpected(testing_n);
@@ -103,7 +100,7 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImplementation<Policy, Size, Iterator2>{exec, n, host_vals, first2});
+                std::forward<Policy>(exec), TestImplementation<Size, Iterator2>{n, host_vals, first2});
         }
     }
 };

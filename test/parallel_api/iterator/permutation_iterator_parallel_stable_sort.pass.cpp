@@ -23,16 +23,15 @@ DEFINE_TEST_PERM_IT(test_sort, PermItIndexTag)
 {
     DEFINE_TEST_PERM_IT_CONSTRUCTOR(test_sort, 2.0f, 0.65f)
 
-    template <typename Policy, typename Size>
+    template <typename Size>
     struct TestImplementation
     {
-        Policy exec;
         Size n;
         TestDataTransfer<UDTKind::eKeys, Size>& host_keys;
 
-        template <typename TPermutationIterator>
+        template <typename Policy, typename TPermutationIterator>
         void
-        operator()(TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        operator()(Policy&& exec, TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
         {
             const auto host_keys_ptr = host_keys.get();
 
@@ -42,12 +41,12 @@ DEFINE_TEST_PERM_IT(test_sort, PermItIndexTag)
             generate_data(host_keys_ptr, host_keys_ptr + n, n);
             host_keys.update_data();
 
-            dpl::sort(exec, permItBegin, permItEnd);
+            dpl::sort(CLONE_TEST_POLICY(exec), permItBegin, permItEnd);
             wait_and_throw(exec);
 
             // Copy data back
             std::vector<TestValueType> resultTest(testing_n);
-            dpl::copy(exec, permItBegin, permItEnd, resultTest.begin());
+            dpl::copy(CLONE_TEST_POLICY(exec), permItBegin, permItEnd, resultTest.begin());
             wait_and_throw(exec);
 
             // Check results
@@ -80,7 +79,7 @@ DEFINE_TEST_PERM_IT(test_sort, PermItIndexTag)
             TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);     // sorting data
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                TestImplementation<Policy, Size>{exec, n, host_keys});
+                std::forward<Policy>(exec), TestImplementation<Size>{n, host_keys});
         }
     }
 };
