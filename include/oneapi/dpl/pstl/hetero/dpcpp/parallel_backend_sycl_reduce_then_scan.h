@@ -800,13 +800,13 @@ struct __gen_set_balanced_path
             return 0;
         if (!__is_partitioned)
         {
-            auto [__idx_rng1, __idx_rng2, __local_star] = calc_and_store_balanced_path(__in_rng, __id,
-                                                                                       __get_bounds_simple{});
+            auto [__idx_rng1, __idx_rng2, __local_star] = 
+                calc_and_store_balanced_path(__in_rng, __id, __get_bounds_simple{});
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
         }
-        else if(__id % __get_bounds.__tile_size != 0)
+        else if (__id % __get_bounds.__tile_size != 0)
         {
             auto [__idx_rng1, __idx_rng2, __local_star] = calc_and_store_balanced_path(__in_rng, __id, __get_bounds);
             __rng1_balanced_pos = __idx_rng1;
@@ -883,7 +883,8 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
     operator()(sycl::queue& __q, _InRng&& __in_rng, std::size_t __num_diagonals) const
     {
         const std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
-        const std::size_t __n = oneapi::dpl::__internal::__dpl_ceiling_div(__num_diagonals + __tile_size - 1, __tile_size);
+        const std::size_t __n =
+            oneapi::dpl::__internal::__dpl_ceiling_div(__num_diagonals + __tile_size - 1, __tile_size);
         return __q.submit([&__in_rng, this, __n, __num_diagonals](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
 
@@ -1397,7 +1398,7 @@ __get_reduce_then_scan_workgroup_size(const sycl::queue& q)
     const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(q);
     const std::uint8_t __sg_size = __get_reduce_then_scan_workaround_sg_sz();
     // Round down to multiple of sub-group size
-    return __max_wg_size  - (__max_wg_size % __sg_size);
+    return __max_wg_size - (__max_wg_size % __sg_size);
 }
 
 struct __reduce_then_scan_sub_group_params
