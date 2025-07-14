@@ -1273,7 +1273,7 @@ class __brick_set_op
         auto __res = __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __val_a, __comp);
 
         constexpr bool __is_difference = std::is_same_v<_IsOpDifference, oneapi::dpl::unseq_backend::_DifferenceTag>;
-        bool bres = __is_difference; //initialization in true in case of difference operation; false - intersection.
+        bool bres = __is_difference; //initialization is true in case of difference operation; false - intersection.
         if (__res == __nb || __comp(__val_a, __b[__b_beg + __res]))
         {
             // there is no __val_a in __b, so __b in the difference {__a}/{__b};
