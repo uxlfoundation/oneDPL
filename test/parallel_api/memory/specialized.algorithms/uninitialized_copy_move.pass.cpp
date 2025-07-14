@@ -63,7 +63,7 @@ struct test_uninitialized_copy
         T::SetCount(0);
 
         std::uninitialized_copy(std::forward<Policy>(exec), first, last, out_first);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_copy");
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_copy");
     }
 
     template <typename Policy, typename InputIterator, typename OutputIterator>
@@ -92,7 +92,7 @@ struct test_uninitialized_copy_n
         T::SetCount(0);
 
         std::uninitialized_copy_n(std::forward<Policy>(exec), first, n, out_first);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_copy_n");
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_copy_n");
     }
 
     template <typename Policy, typename InputIterator, typename OutputIterator>
@@ -121,7 +121,7 @@ struct test_uninitialized_move
         T::SetCount(0);
 
         std::uninitialized_move(std::forward<Policy>(exec), first, last, out_first);
-        EXPECT_TRUE(T::MoveCount() == n, "wrong uninitialized_move");
+        EXPECT_EQ(n, T::MoveCount(), "wrong uninitialized_move");
     }
 
     template <typename Policy, typename InputIterator, typename OutputIterator>
@@ -150,7 +150,7 @@ struct test_uninitialized_move_n
         T::SetCount(0);
 
         std::uninitialized_move_n(std::forward<Policy>(exec), first, n, out_first);
-        EXPECT_TRUE(T::MoveCount() == n, "wrong uninitialized_move_n");
+        EXPECT_EQ(n, T::MoveCount(), "wrong uninitialized_move_n");
     }
 
     template <typename Policy, typename InputIterator, typename OutputIterator>

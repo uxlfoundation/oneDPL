@@ -70,7 +70,7 @@ DEFINE_TEST(test_lower_bound)
         auto res1 = oneapi::dpl::lower_bound(new_policy, first, last, value_first, value_last, result_first);
         exec.queue().wait_and_throw();
 
-        EXPECT_TRUE(std::distance(result_first, res1) == n, "wrong return value, device policy");
+        EXPECT_EQ(n, std::distance(result_first, res1), "wrong return value, device policy");
         retrieve_data(host_vals, host_res);
         check_and_clean(host_res.get(), host_vals.get(), n);
         update_data(host_vals, host_res);
@@ -80,7 +80,7 @@ DEFINE_TEST(test_lower_bound)
         auto res2 = oneapi::dpl::lower_bound(new_policy2, first, last, value_first, value_last, result_first, TestUtils::IsLess<ValueT>{});
         exec.queue().wait_and_throw();
 
-        EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, device policy");
+        EXPECT_EQ(n, std::distance(result_first, res2), "wrong return value, with predicate, device policy");
         retrieve_data(host_vals, host_res);
         check_and_clean(host_res.get(), host_vals.get(), n);
     }
@@ -101,12 +101,12 @@ DEFINE_TEST(test_lower_bound)
         initialize_data(first, value_first, result_first, n);
 
         auto res1 = oneapi::dpl::lower_bound(exec, first, last, value_first, value_last, result_first);
-        EXPECT_TRUE(std::distance(result_first, res1) == n, "wrong return value, host policy");
+        EXPECT_EQ(n, std::distance(result_first, res1), "wrong return value, host policy");
         check_and_clean(result_first, value_first, n);
 
         // call algorithm with comparator
         auto res2 = oneapi::dpl::lower_bound(exec, first, last, value_first, value_last, result_first, TestUtils::IsLess<ValueT>{});
-        EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, host policy");
+        EXPECT_EQ(n, std::distance(result_first, res2), "wrong return value, with predicate, host policy");
         check_and_clean(result_first, value_first, n);
     }
 

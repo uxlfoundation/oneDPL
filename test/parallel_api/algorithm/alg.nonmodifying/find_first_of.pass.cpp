@@ -32,7 +32,7 @@ struct test_find_first_of
         using namespace std;
         Iterator1 expected = find_first_of(b, e, bsub, esub);
         Iterator1 actual = find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub);
-        EXPECT_TRUE(actual == expected, "wrong return result from find_first_of");
+        EXPECT_EQ(expected, actual, "wrong return result from find_first_of");
     }
 };
 
@@ -46,7 +46,7 @@ struct test_find_first_of_predicate
         using namespace std;
         Iterator1 expected = find_first_of(b, e, bsub, esub, pred);
         Iterator1 actual = find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub, pred);
-        EXPECT_TRUE(actual == expected, "wrong return result from find_first_of with a predicate");
+        EXPECT_EQ(expected, actual, "wrong return result from find_first_of with a predicate");
     }
 };
 
