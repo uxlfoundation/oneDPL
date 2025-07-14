@@ -500,10 +500,11 @@ __get_starting_size_limit_for_large_submitter<int>()
 }
 
 template <typename _CustomName, typename _OutSizeLimit = std::false_type, typename _Range1, typename _Range2,
-          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
+          typename _Range3, typename _Compare, typename _Proj1= oneapi::dpl::identity,
+          typename _Proj2= oneapi::dpl::identity>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
-                      _Proj1 __proj1, _Proj2 __proj2)
+                      _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
     using __value_type = oneapi::dpl::__internal::__value_t<_Range3>;
     const std::size_t __n = std::min<std::size_t>(__rng1.size() + __rng2.size(), __rng3.size());
