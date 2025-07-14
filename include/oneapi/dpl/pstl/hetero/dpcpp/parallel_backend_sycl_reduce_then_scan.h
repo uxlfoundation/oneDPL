@@ -1392,11 +1392,12 @@ __get_reduce_then_scan_actual_sg_sz_device()
 }
 
 inline std::uint32_t
-__get_reduce_then_scan_workgroup_size(sycl::queue& q)
+__get_reduce_then_scan_workgroup_size(const sycl::queue& q)
 {
     const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(q);
-    std::size_t __sg_size = __get_reduce_then_scan_workaround_sg_sz();
-    return (__max_wg_size / __sg_size) * __sg_size;
+    const std::size_t __sg_size = __get_reduce_then_scan_workaround_sg_sz();
+    // Round down to multiple of sub-group size
+    return __max_wg_size  - (__max_wg_size % __sg_size);
 }
 
 struct __reduce_then_scan_sub_group_params
