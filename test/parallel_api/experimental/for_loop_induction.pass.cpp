@@ -82,7 +82,7 @@ test_body_induction_strided(Policy&& exec, Iterator first, Iterator last, Iterat
 
         using Ssize = ::std::make_signed_t<Size>;
 
-        ::std::experimental::for_loop_n_strided(::std::forward<Policy>(exec), Ssize(0), Ssize(n), loop_stride,
+        std::experimental::for_loop_n_strided(CLONE_TEST_POLICY(exec), Ssize(0), Ssize(n), loop_stride,
                                               ::std::experimental::induction(lval_ind),
                                               [ind_init, loop_stride](Ssize val, T ind) {
                                                   // We have either 0, stride, 2 * stride, .. or 0, -|stride|, 2 * -|stride|
@@ -113,8 +113,8 @@ test_body_induction_strided(Policy&& exec, Iterator first, Iterator last, Iterat
         // Re-init the value after for_loop_n_strided
         lval_ind = ind_init;
 
-        ::std::experimental::for_loop_strided(
-            ::std::forward<Policy>(exec), new_first, new_last, loop_stride, ::std::experimental::induction(lval_ind),
+        std::experimental::for_loop_strided(
+            CLONE_TEST_POLICY(exec), new_first, new_last, loop_stride, std::experimental::induction(lval_ind),
             [ind_init, loop_stride, new_first](Iterator iter, T ind) {
                 auto dist = (loop_stride > 0) ? ::std::distance(new_first, iter) : ::std::distance(iter, new_first);
                 auto real_idx = dist / ::std::abs(loop_stride);
@@ -140,8 +140,8 @@ struct test_body
     void
     operator()(Policy&& exec, Iterator first, Iterator last, Iterator expected_first, Iterator expected_last, Size n)
     {
-        test_body_induction(::std::forward<Policy>(exec), first, last, expected_first, expected_last, n);
-        test_body_induction_strided(::std::forward<Policy>(exec), first, last, expected_first, expected_last, n);
+        test_body_induction(CLONE_TEST_POLICY(exec), first, last, expected_first, expected_last, n);
+        test_body_induction_strided(CLONE_TEST_POLICY(exec), first, last, expected_first, expected_last, n);
     }
 };
 

@@ -153,25 +153,23 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res_keys, host_res);
 
-        sycl::queue queue = exec.queue();
-
         std::pair<Iterator3, Iterator4> res;
         if constexpr (std::is_same_v<std::equal_to<KeyT>, std::decay_t<BinaryPredicate>> &&
                       std::is_same_v<std::plus<ValT>, std::decay_t<BinaryOperation>>)
         {
-            res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), keys_first, keys_last, vals_first, key_res_first, val_res_first);
+            res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, key_res_first, val_res_first);
         }
         else if constexpr (std::is_same_v<std::plus<ValT>, std::decay_t<BinaryOperation>>)
         {
-            res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), keys_first, keys_last, vals_first, key_res_first, val_res_first,
+            res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, key_res_first, val_res_first,
                                                  BinaryPredicate());
         }
         else
         {
-            res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), keys_first, keys_last, vals_first, key_res_first, val_res_first,
+            res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, key_res_first, val_res_first,
                                                  BinaryPredicate(), BinaryOperation());
         }
-        queue.wait_and_throw();
+        exec.queue().wait_and_throw();
 
         retrieve_data(host_keys, host_vals, host_res_keys, host_res);
         size_t segments_key_ret = ::std::distance(key_res_first, res.first);
@@ -242,12 +240,10 @@ struct FlagPred
 };
 
 #if TEST_DPCPP_BACKEND_PRESENT
-template <sycl::usm::alloc alloc_type, typename KernelName, typename T>
+template <sycl::usm::alloc alloc_type, typename KernelName, typename T, typename Policy>
 void
-test_flag_pred()
+test_flag_pred(Policy&& exec)
 {
-    sycl::queue q = TestUtils::get_test_queue();
-
     // Initialize data
     //T keys[n1] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0 };
     //T vals[n1] = { 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2 };
@@ -273,20 +269,23 @@ test_flag_pred()
     prepare_data(n, key_head_on_host, val_head_on_host);
     FlagPred flag_pred;
     // allocate USM memory and copying data to USM shared/device memory
-    TestUtils::usm_data_transfer<alloc_type, T> dt_helper1(q, std::begin(key_head_on_host),     std::end(key_head_on_host));
-    TestUtils::usm_data_transfer<alloc_type, T> dt_helper2(q, std::begin(val_head_on_host),     std::end(val_head_on_host));
-    TestUtils::usm_data_transfer<alloc_type, T> dt_helper3(q, std::begin(key_res_head_on_host), std::end(key_res_head_on_host));
-    TestUtils::usm_data_transfer<alloc_type, T> dt_helper4(q, std::begin(val_res_head_on_host), std::end(val_res_head_on_host));
+    TestUtils::usm_data_transfer<alloc_type, T> dt_helper1(exec, std::begin(key_head_on_host),     std::end(key_head_on_host));
+    TestUtils::usm_data_transfer<alloc_type, T> dt_helper2(exec, std::begin(val_head_on_host),     std::end(val_head_on_host));
+    TestUtils::usm_data_transfer<alloc_type, T> dt_helper3(exec, std::begin(key_res_head_on_host), std::end(key_res_head_on_host));
+    TestUtils::usm_data_transfer<alloc_type, T> dt_helper4(exec, std::begin(val_res_head_on_host), std::end(val_res_head_on_host));
     auto key_head     = dt_helper1.get_data();
     auto val_head     = dt_helper2.get_data();
     auto key_res_head = dt_helper3.get_data();
     auto val_res_head = dt_helper4.get_data();
 
     // call algorithm
-    auto new_policy = oneapi::dpl::execution::make_device_policy<TestUtils::unique_kernel_name<
-        TestUtils::unique_kernel_name<KernelName, 1>, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
-    auto res1 =
-        oneapi::dpl::reduce_by_segment(new_policy, key_head, key_head + n, val_head, key_res_head, val_res_head, flag_pred, std::plus<T>());
+    using _NewKernelName = TestUtils::unique_kernel_name<
+        TestUtils::unique_kernel_name<KernelName, 1>,
+        TestUtils::uniq_kernel_index<alloc_type>()>;
+
+    auto res1 = oneapi::dpl::reduce_by_segment(
+            CLONE_TEST_POLICY_NAME(exec, _NewKernelName),
+            key_head, key_head + n, val_head, key_res_head, val_res_head, flag_pred, std::plus<T>());
 
     //retrieve result on the host and check the result
     dt_helper3.retrieve_data(key_res_head_on_host);
@@ -349,8 +348,20 @@ run_test()
     run_test_on_device<use_device_alloc, ValueType, BinaryPredicate, BinaryOperation>();
 }
 
+#if TEST_DPCPP_BACKEND_PRESENT
+
 class KernelName1;
 class KernelName2;
+
+template <typename Policy>
+void test_flag_pred_impl(Policy&& exec)
+{
+    // test with flag pred
+    test_flag_pred<sycl::usm::alloc::device, KernelName1, std::uint64_t>(CLONE_TEST_POLICY(exec));
+    test_flag_pred<sycl::usm::alloc::device, KernelName2, MatrixPoint<float>>(CLONE_TEST_POLICY(exec));
+}
+
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
@@ -363,9 +374,13 @@ main()
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    // test with flag pred
-    test_flag_pred<sycl::usm::alloc::device, KernelName1, std::uint64_t>();
-    test_flag_pred<sycl::usm::alloc::device, KernelName2, MatrixPoint<float>>();
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_flag_pred_impl(policy);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_flag_pred_impl(std::forward<decltype(policy)>(policy)); });
+#endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 #if !_PSTL_RED_BY_SEG_WINDOWS_COMPILE_ORDER_BROKEN
