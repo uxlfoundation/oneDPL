@@ -4384,7 +4384,7 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
             for (auto __k = __n; __k < __size; __k += __n)
             {
                 auto __end = ::std::min(__k + __n, __size);
-                __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __k, __end,
+                __par_backend::__parallel_for(__backend_tag{}, __exec, __k, __end,
                                               [__first, __n](_DiffType __i, _DiffType __j) {
                                                   __brick_move<__parallel_tag<_IsVector>>{}(
                                                       __first + __i, __first + __j, __first + __i - __n, _IsVector{});

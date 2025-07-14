@@ -20,6 +20,7 @@
 #include "oneapi/dpl/iterator"
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 #include "support/scan_serial_impl.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -123,9 +124,8 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy = make_new_policy<new_kernel_name<Policy, 0>>(exec);
         auto res1 =
-            oneapi::dpl::inclusive_scan_by_segment(new_policy, keys_first, keys_last, vals_first, val_res_first);
+            oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY_IDX(exec, 0), keys_first, keys_last, vals_first, val_res_first);
         exec.queue().wait_and_throw();
 
         EXPECT_EQ(n, std::distance(val_res_first, res1), "wrong return value, device policy");
@@ -136,8 +136,7 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
-        auto res2 = oneapi::dpl::inclusive_scan_by_segment(new_policy2, keys_first, keys_last, vals_first,
+        auto res2 = oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY_IDX(exec, 1), keys_first, keys_last, vals_first,
                                                            val_res_first, BinaryPredicate());
         exec.queue().wait_and_throw();
 
@@ -149,8 +148,7 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy3 = make_new_policy<new_kernel_name<Policy, 2>>(exec);
-        auto res3 = oneapi::dpl::inclusive_scan_by_segment(new_policy3, keys_first, keys_last, vals_first,
+        auto res3 = oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY_IDX(exec, 2), keys_first, keys_last, vals_first,
                                                            val_res_first, BinaryPredicate(), BinaryOperation());
         exec.queue().wait_and_throw();
 
@@ -172,20 +170,20 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
     {
         // call algorithm with no optional arguments
         initialize_data(keys_first, vals_first, val_res_first, n);
-        auto res1 = oneapi::dpl::inclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first);
+        auto res1 = oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, val_res_first);
         EXPECT_EQ(n, std::distance(val_res_first, res1), "wrong return value, no predicate, host policy");
         check_values(keys_first, vals_first, val_res_first, n);
 
         // call algorithm with predicate
         initialize_data(keys_first, vals_first, val_res_first, n);
-        auto res2 = oneapi::dpl::inclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first,
+        auto res2 = oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, val_res_first,
                                                            BinaryPredicate());
         EXPECT_EQ(n, std::distance(val_res_first, res2), "wrong return value, with predicate, host policy");
         check_values(keys_first, vals_first, val_res_first, n, BinaryPredicate());
 
         // call algorithm with predicate and operator
         initialize_data(keys_first, vals_first, val_res_first, n);
-        auto res3 = oneapi::dpl::inclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first,
+        auto res3 = oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, val_res_first,
                                                            BinaryPredicate(), BinaryOperation());
         EXPECT_EQ(n, std::distance(val_res_first, res3), "wrong return value, with predicate and operator, host policy");
         check_values(keys_first, vals_first, val_res_first, n, BinaryPredicate(), BinaryOperation());
