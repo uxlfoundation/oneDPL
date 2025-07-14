@@ -499,8 +499,8 @@ __get_starting_size_limit_for_large_submitter<int>()
     return 16 * 1'048'576; // 16 MB
 }
 
-template <typename _OutSizeLimit, typename _CustomName, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _CustomName, typename _OutSizeLimit = std::false_type, typename _Range1, typename _Range2,
+          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
                       _Proj1 __proj1, _Proj2 __proj2)
@@ -557,7 +557,7 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
-    return __parallel_merge_impl<_OutSizeLimit, _CustomName>(__q_local, std::forward<_Range1>(__rng1),
+    return __parallel_merge_impl<_CustomName, _OutSizeLimit>(__q_local, std::forward<_Range1>(__rng1),
                                                              std::forward<_Range2>(__rng2),
                                                              std::forward<_Range3>(__rng3), __comp, __proj1, __proj2);
 }
