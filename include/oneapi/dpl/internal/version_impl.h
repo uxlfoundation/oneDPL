@@ -18,14 +18,11 @@
 // The oneAPI Specification version this implementation is compliant with
 #define ONEDPL_SPEC_VERSION 104
 
-#if _ONEDPL___cplusplus >= 202002L && __has_include(<version>)
+#if __has_include(<version>)
 #    include <version> // The standard C++20 header
 #    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 1
-// Clang 15 and older do not support range adaptors, see https://bugs.llvm.org/show_bug.cgi?id=44833
-#    define _ONEDPL_CPP20_RANGES_PRESENT ((__cpp_lib_ranges >= 201911L) && !(__clang__ && __clang_major__ < 16))
 #else
 #    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 0
-#    define _ONEDPL_CPP20_RANGES_PRESENT 0
 #endif
 
 #ifndef _PSTL_VERSION
