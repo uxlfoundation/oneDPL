@@ -13,6 +13,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef _STD_RANGES_TEST_H
+#define _STD_RANGES_TEST_H
+
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/algorithm>
 
@@ -683,3 +686,5 @@ struct test_range_algo
 }; //namespace test_std_ranges
 
 #endif //_ENABLE_STD_RANGES_TESTING
+
+#endif //_STD_RANGES_TEST_H
