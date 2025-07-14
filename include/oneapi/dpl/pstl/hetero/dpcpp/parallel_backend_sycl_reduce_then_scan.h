@@ -1959,6 +1959,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         __reduce_then_scan_scan_kernel<_CustomName>>;
     using _ValueType = typename _InitType::__value_type;
 
+    //if the work-group size is not specified (0), calculate it
     if (__work_group_size == 0)
     {
         __work_group_size = __get_reduce_then_scan_workgroup_size(__q);
