@@ -24,6 +24,7 @@
 
 #include "support/utils.h"
 
+#include <algorithm> // std::transform
 #include <iostream>
 
 #if _ENABLE_RANGES_TESTING

@@ -24,7 +24,8 @@
 #include "support/utils.h"
 #include "support/utils_invoke.h" // CLONE_TEST_POLICY
 
-#include <iostream>
+#include <algorithm>  // std::is_sorted
+#include <functional> // std::greater
 
 #if _ENABLE_RANGES_TESTING
 template <typename Policy>

@@ -24,6 +24,7 @@
 #include "support/utils.h"
 #include "support/utils_invoke.h" // CLONE_TEST_POLICY
 
+#include <numeric> // std::accumulate, std::inner_product
 #include <iostream>
 
 #if _ENABLE_RANGES_TESTING

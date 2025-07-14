@@ -27,6 +27,7 @@
 #include <vector>
 #include <iostream>
 #include <iterator>
+#include <algorithm> // std::remove
 
 #if _ENABLE_RANGES_TESTING
 template <typename Policy>

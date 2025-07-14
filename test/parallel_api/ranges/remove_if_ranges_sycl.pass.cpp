@@ -16,6 +16,7 @@
 #include "support/test_config.h"
 
 #include <oneapi/dpl/execution>
+#include <oneapi/dpl/algorithm>
 
 #if _ENABLE_RANGES_TESTING
 #include <oneapi/dpl/ranges>
@@ -27,6 +28,7 @@
 #include <vector>
 #include <iostream>
 #include <iterator>
+#include <algorithm> // std::remove_if
 
 #if _ENABLE_RANGES_TESTING
 template <typename Policy>

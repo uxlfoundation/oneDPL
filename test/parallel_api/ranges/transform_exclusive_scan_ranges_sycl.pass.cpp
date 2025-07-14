@@ -25,6 +25,7 @@
 #include "support/utils.h"
 #include "support/utils_invoke.h" // for CLONE_TEST_POLICY macro
 
+#include <algorithm> // std::transform
 #include <iostream>
 
 #if _ENABLE_RANGES_TESTING
