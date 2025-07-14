@@ -800,7 +800,7 @@ struct __gen_set_balanced_path
             return 0;
         if (!__is_partitioned)
         {
-            auto [__idx_rng1, __idx_rng2, __local_star] = 
+            auto [__idx_rng1, __idx_rng2, __local_star] =
                 calc_and_store_balanced_path(__in_rng, __id, __get_bounds_simple{});
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
