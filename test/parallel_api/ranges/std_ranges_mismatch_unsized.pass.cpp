@@ -21,9 +21,9 @@ template <typename Policy, typename TView1, typename TView2, typename TRes1, typ
 void
 test_impl(Policy&& exec, TView1&& view1, TView2&& view2, TRes1 ex_res1, TRes2 ex_res2)
 {
-/*
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
+/*
     const char* err_msg = "Wrong effect algo mismatch with unsized ranges.";
 
     auto [res1, res2] = dpl_ranges::mismatch(std::forward<Policy>(exec), std::forward<TView1>(view1), std::forward<TView2>(view2), binary_pred, proj, proj);
