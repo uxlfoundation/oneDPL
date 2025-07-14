@@ -2953,12 +2953,11 @@ __pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 //------------------------------------------------------------------------
 // merge
 //------------------------------------------------------------------------
-// Serial version of ___merge_path_out_lim merges the 1st sequence and the 2nd sequence in "reverse order":
-// the identical elements from the 2nd sequence are merged first.
-template <typename _Iterator1, typename _Iterator2, typename _Iterator3, typename _Comp>
+template <typename _Iterator1, typename _Iterator2, typename _Iterator3, typename _Comp, typename _Proj1,
+          typename _Proj2>
 std::pair<_Iterator1, _Iterator2>
 __serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterator2 __y_e, _Iterator3 __out_b,
-                       _Iterator3 __out_e, _Comp __comp)
+                       _Iterator3 __out_e, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     for (_Iterator3 __k = __out_b; __k != __out_e; ++__k)
     {
@@ -2974,15 +2973,15 @@ __serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterat
             *__k = *__x;
             ++__x;
         }
-        else if (std::invoke(__comp, *__x, *__y))
-        {
-            *__k = *__x;
-            ++__x;
-        }
-        else
+        else if (std::invoke(__comp, std::invoke(__proj2, *__y), std::invoke(__proj1, *__x)))
         {
             *__k = *__y;
             ++__y;
+        }
+        else
+        {
+            *__k = *__x;
+            ++__x;
         }
     }
     return {__x, __y};
@@ -3021,23 +3020,24 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
 }
 
 template <typename _Tag, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2, typename _Index2,
-          typename _OutIt, typename _Index3, typename _Comp>
+          typename _OutIt, typename _Index3, typename _Comp, typename _Proj1, typename _Proj2>
 std::pair<_It1, _It2>
 ___merge_path_out_lim(_Tag, _ExecutionPolicy&&, _It1 __it_1, _Index1 __n_1, _It2 __it_2, _Index2 __n_2,
-                      _OutIt __it_out, _Index3 __n_out, _Comp __comp)
+                      _OutIt __it_out, _Index3 __n_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    return __serial_merge_out_lim(__it_1, __it_1 + __n_1, __it_2, __it_2 + __n_2, __it_out, __it_out + __n_out, __comp);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __serial_merge_out_lim(__it_1, __it_1 + __n_1, __it_2, __it_2 + __n_2, __it_out, __it_out + __n_out, __comp,
+                                  __proj1, __proj2);
 }
 
 inline constexpr std::size_t __merge_path_cut_off = 2000;
 
-// Parallel version of ___merge_path_out_lim merges the 1st sequence and the 2nd sequence in "reverse order":
-// the identical elements from the 2nd sequence are merged first.
 template <typename _IsVector, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2,
-          typename _Index2, typename _OutIt, typename _Index3, typename _Comp>
+          typename _Index2, typename _OutIt, typename _Index3, typename _Comp, typename _Proj1, typename _Proj2>
 std::pair<_It1, _It2>
 ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 __it_1, _Index1 __n_1, _It2 __it_2,
-                      _Index2 __n_2, _OutIt __it_out, _Index3 __n_out, _Comp __comp)
+                      _Index2 __n_2, _OutIt __it_out, _Index3 __n_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -3069,9 +3069,8 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
                         auto __r = __get_row(__d);
                         auto __c = __get_column(__d);
 
-                        oneapi::dpl::__internal::__compare<_Comp, oneapi::dpl::identity> __cmp{__comp,
-                                                                                               oneapi::dpl::identity{}};
-                        const auto __res = __cmp(__it_1[__r], __it_2[__c]) ? 1 : 0;
+                        const auto __res = std::invoke(__comp, std::invoke(__proj2, __it_2[__c]),
+                                                       std::invoke(__proj1, __it_1[__r])) ? 0 : 1;
 
                         return __res < __val;
                     });
@@ -3083,13 +3082,14 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
                 }
 
                 //serial merge n elements, starting from input x and y, to [i, j) output range
-                const std::pair __res = __serial_merge_out_lim(__it_1 + __r, __it_1 + __n_1, __it_2 + __c,
-                                                               __it_2 + __n_2, __it_out + __i, __it_out + __j, __comp);
+                auto [__res1, __res2] = __serial_merge_out_lim(__it_1 + __r, __it_1 + __n_1, __it_2 + __c,
+                                                               __it_2 + __n_2, __it_out + __i, __it_out + __j, __comp,
+                                                               __proj1, __proj2);
 
                 if (__j == __n_out)
                 {
-                    __it_res_1 = __res.first;
-                    __it_res_2 = __res.second;
+                    __it_res_1 = __res1;
+                    __it_res_2 = __res2;
                 }
             },
             __merge_path_cut_off); //grainsize

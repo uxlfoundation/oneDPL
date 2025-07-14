@@ -24,8 +24,8 @@ env:
   BUILD_CONCURRENCY: 4
   MACOS_BUILD_CONCURRENCY: 3
   TEST_TIMEOUT: 360
-  WINDOWS_TBB_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/bfa5ed88-0925-401c-b40d-5baaeb8d849c/intel-onetbb-2022.1.0.428_offline.exe
-  WINDOWS_ICPX_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/05e81d1b-1010-4b7d-8c2e-a4f0882a9d7c/intel-dpcpp-cpp-compiler-2025.1.0.574_offline.exe
+  WINDOWS_TBB_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/d6497040-a73d-435a-a018-a6040bdf39ec/intel-onetbb-2022.2.0.506_offline.exe
+  WINDOWS_ICPX_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/dc2bc071-6e5c-4b48-8fdd-a39d20c25e5a/intel-dpcpp-cpp-compiler-2025.2.0.528_offline.exe
   WINDOWS_ONEAPI_PATH: C:\Program Files (x86)\Intel\oneAPI
   LINUX_ONEAPI_PATH: /opt/intel/oneapi
 
@@ -161,12 +161,17 @@ jobs:
         run: |
           sudo apt-get install intel-oneapi-tbb-devel -y
       - name: Install Intel® oneAPI DPC++/C++ Compiler
-        if: (matrix.cxx_compiler == 'icpx' || matrix.cxx_compiler == 'icx' || matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'dpcpp' || matrix.cxx_compiler == 'dpcpp-cl')
+        if: (matrix.device_type != 'FPGA_EMU' &&
+              (matrix.cxx_compiler == 'icpx'  ||
+               matrix.cxx_compiler == 'icx'   ||
+               matrix.cxx_compiler == 'icx-cl'||
+               matrix.cxx_compiler == 'dpcpp' ||
+               matrix.cxx_compiler == 'dpcpp-cl'))
         run: |
           sudo apt-get install intel-oneapi-compiler-dpcpp-cpp -y
           # Avoid accidental use of a released version, keeping libpstloffload.so
           sudo rm -rf ${LINUX_ONEAPI_PATH}/dpl/latest/include
-      - name: Install Intel® oneAPI DPC++/C++ Compiler SYCL* FPGA Emulator Runtime
+      - name: Install Intel® oneAPI DPC++/C++ Compiler with SYCL* FPGA Emulator Runtime
         if: (matrix.device_type == 'FPGA_EMU')
         run: |
           sudo apt-get install intel-oneapi-compiler-fpga -y
@@ -257,10 +262,7 @@ jobs:
             build_type: release
             backend: tbb
             device_type: HOST
-            # TODO: replace with windows-latest once icpx 2025.2 is released.
-            # The latest updates of VS 2022 in newer images have compatibility issues with icpx 2025.1.
-            # windows-2019 uses VS 2019.
-          - os: windows-2019
+          - os: windows-latest
             cxx_compiler: icx
             std: 17
             build_type: release
