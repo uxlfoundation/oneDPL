@@ -104,9 +104,17 @@ sycl::event kernel_template (
 ```
 
 `Arg1`, ..., `ArgN` include sequences to process.
-Data must be passed using the same mechanisms described in the
-[documentation on passing data](https://uxlfoundation.github.io/oneDPL/parallel_api/pass_data_algorithms.html#pass-data-to-algorithms)
-for algorithms with device policies.
+These arguments must reference data which is ready for processing;
+any necessary data transfers must be completed in advance or managed automatically.
+Supported data storage types include:
+- [SYCL buffers](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#subsec:buffers).
+- Unified Shared Memory ([USM](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec:usm)).
+- `std::vector` with `sycl::usm_allocator`.
+
+Supported data passing mechanisms are listed in
+the [documentation on passing data](https://uxlfoundation.github.io/oneDPL/parallel_api/pass_data_algorithms.html#pass-data-to-algorithms).
+The `oneapi::dpl::begin` and `oneapi::dpl::end` helper functions are not supported;
+however, `sycl::buffer` objects may be passed directly.
 Specialized algorithms may extend or restrict the supported data passing mechanisms.
 
 If an algorithm allocates global memory and that allocation is unsuccessful,
@@ -305,16 +313,6 @@ Several questions arise:
 
 It should be evaluated whether the proposed algorithms can serve as a backend for oneDPL algorithms
 that use the standard C++ interfaces and device execution policies.
-
-It will affect which data-passing mechanisms,
-as described in [Abstract Algorithm Signature](abstract-algorithm-signature) section, are allowed.
-In particular, it should be investigated if supporting these entities is necessary and
-whether they can be handled by an additional thin layer between
-the algorithms with standard interfaces and Kernel Templates:
-- `oneapi::dpl::begin` and `oneapi::dpl::end`,
-   which mimic iterators to pass `sycl::buffer` to iterator-based algorithms.
-- Iterators to a host-allocated `std::vector` as described in
-  [Pass Data to Algorithms > Use std::vector](https://github.com/uxlfoundation/oneDPL/blob/release/2022.9.0/documentation/library_guide/parallel_api/pass_data_algorithms.rst#use-stdvector)
 
 An additional question is how to handle hardware requirements that cannot be queried directly
 through standard SYCL mechanisms. For example, selecting a more performant kernel template
