@@ -56,3 +56,14 @@ To determine where to introduce it, we need to assess how many algorithms would 
   a more specialized kernel configuration structure that includes the parameter may be added.
 - If the number is larger,
   the parameter may be added into `kernel_param`, either as an optional or mandatory member.
+
+Another possible solution is to let the user specify the number of elements as a parameter,
+and then deduce the index type from the type of this parameter. For example:
+
+```c++
+template <typename InputIt, typename SizeType, typename OutputIt, typename KernelParam>
+sycl::event copy_n(InputIt input, SizeType n, OutputIt output, KernelParam param);
+```
+
+However, this method is not compatible with range-based inputs,
+where the number of elements is determined implicitly from the range itself.
