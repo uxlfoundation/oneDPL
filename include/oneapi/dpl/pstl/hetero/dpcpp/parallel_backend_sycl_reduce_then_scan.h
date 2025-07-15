@@ -1947,7 +1947,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 
 template <typename _CustomName, typename _InRng, typename _GenReduceInput>
 sycl::event
-__parallel_set_balanced_path_partition(sycl::queue& __q, _InRng&& __in_rng, std::size_t __num_diagonals,
+__parallel_set_balanced_path_partition(sycl::queue& __q, const _InRng& __in_rng, std::size_t __num_diagonals,
                                        _GenReduceInput __gen_reduce_input)
 {
     using _PartitionKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -1956,7 +1956,7 @@ __parallel_set_balanced_path_partition(sycl::queue& __q, _InRng&& __in_rng, std:
 
     _PartitionSubmitter __partition_submitter{__gen_reduce_input};
 
-    return __partition_submitter(__q, std::forward<_InRng>(__in_rng), __num_diagonals);
+    return __partition_submitter(__q, __in_rng, __num_diagonals);
 }
 
 } // namespace __par_backend_hetero
