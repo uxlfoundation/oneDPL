@@ -200,9 +200,11 @@ Using a tag as a function or a template parameter should be considered as well.
 This method has both advantages and disadvantages compared to namespace-based separation.
 Pros:
 - Avoids potential name clashes caused by `using` directives.
+
 Cons:
 - Does not replicate the hierarchical structure provided by namespaces,
   unless namespeces are built into the tag name.
+
 Other aspects:
 - Is an additional parameter, possibly with its own namespaces,
   preferred over adding namespaces directly to an algorithm?
