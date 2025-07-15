@@ -23,6 +23,8 @@
 #include "../../pstl/utils.h"
 #include "../../pstl/functional_impl.h" // for oneapi::dpl::identity
 
+#include "internal/work_group/work_group_scan.h"
+
 #include <cstdint>
 #include <cassert>
 #include <cstddef>
@@ -166,7 +168,7 @@ struct __lookback_submitter;
 
 template <std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size, typename _Type, typename _FlagType,
           typename _InRng, typename _OutRng, typename _BinaryOp, typename _StatusFlags, typename _StatusValues,
-          typename _TileVals>
+          typename _LocalAcc>
 struct __lookback_kernel_func
 {
     using _FlagStorageType = typename _FlagType::_FlagStorageType;
@@ -181,7 +183,7 @@ struct __lookback_kernel_func
     _StatusValues __status_vals_full;
     _StatusValues __status_vals_partial;
     std::size_t __current_num_items;
-    _TileVals __tile_vals;
+    _LocalAcc __slm;
 
     [[sycl::reqd_sub_group_size(SUBGROUP_SIZE)]] void
     operator()(const sycl::nd_item<1>& __item) const
@@ -203,27 +205,35 @@ struct __lookback_kernel_func
 
         __tile_id = sycl::group_broadcast(__group, __tile_id, 0);
 
-        std::size_t __current_offset = static_cast<std::size_t>(__tile_id) * __elems_in_tile;
+        _Type __grf_partials[__data_per_workitem];
+
+        auto __sub_group = __item.get_sub_group();
+        auto __sub_group_local_id = __sub_group.get_local_linear_id();
+        auto __sub_group_group_id = __sub_group.get_group_linear_id();
+
+        std::size_t __work_group_offset = static_cast<std::size_t>(__tile_id) * __elems_in_tile;
+        std::size_t __current_offset = __work_group_offset + __sub_group_group_id * __data_per_workitem * SUBGROUP_SIZE;
+        std::size_t __next_offset = __current_offset + SUBGROUP_SIZE * __data_per_workitem;
         auto __out_begin = __out_rng.begin() + __current_offset;
 
-        if (__current_offset >= __n)
+        if (__work_group_offset >= __n)
             return;
 
         // Global load into local
-        auto __wg_current_offset = (__tile_id * __elems_in_tile);
-        auto __wg_next_offset = ((__tile_id + 1) * __elems_in_tile);
-        auto __wg_local_memory_size = __elems_in_tile;
+        //auto __wg_current_offset = (__tile_id * __elems_in_tile);
+        //auto __wg_next_offset = ((__tile_id + 1) * __elems_in_tile);
+        //auto __wg_local_memory_size = __elems_in_tile;
 
-        if (__wg_next_offset > __n)
-            __wg_local_memory_size = __n - __wg_current_offset;
+        //if (__wg_next_offset > __n)
+        //    __wg_local_memory_size = __n - __wg_current_offset;
 
-        if (__wg_next_offset <= __n)
+        if (__next_offset <= __n)
         {
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
             {
-                __tile_vals[__local_id + __workgroup_size * __i] =
-                    __in_rng[__wg_current_offset + __local_id + __workgroup_size * __i];
+                __grf_partials[__i] =
+                    __in_rng[__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i];
             }
         }
         else
@@ -231,17 +241,16 @@ struct __lookback_kernel_func
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
             {
-                if (__wg_current_offset + __local_id + __workgroup_size * __i < __n)
+                if (__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i < __n)
                 {
-                    __tile_vals[__local_id + __workgroup_size * __i] =
-                        __in_rng[__wg_current_offset + __local_id + __workgroup_size * __i];
+                    __grf_partials[__i] =
+                        __in_rng[__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i];
                 }
             }
         }
-
-        auto __tile_vals_ptr = __dpl_sycl::__get_accessor_ptr(__tile_vals);
+        auto __this_tile_elements = std::min<std::size_t>(__elems_in_tile, __n - __work_group_offset);
         _Type __local_reduction =
-            sycl::joint_reduce(__group, __tile_vals_ptr, __tile_vals_ptr + __wg_local_memory_size, __binary_op);
+            work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(item_array_order::sub_group_stride{}, __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
         _Type __prev_tile_reduction{};
 
         // The first sub-group will query the previous tiles to find a prefix
@@ -253,8 +262,8 @@ struct __lookback_kernel_func
             {
                 __flag.set_partial(__local_reduction);
             }
-
-            __prev_tile_reduction = __flag.cooperative_lookback(__subgroup, __binary_op);
+            if (__tile_id > 0)
+                __prev_tile_reduction = __flag.cooperative_lookback(__subgroup, __binary_op);
 
             if (__subgroup.get_local_id() == 0)
             {
@@ -264,8 +273,27 @@ struct __lookback_kernel_func
 
         __prev_tile_reduction = sycl::group_broadcast(__group, __prev_tile_reduction, 0);
 
-        sycl::joint_inclusive_scan(__group, __tile_vals_ptr, __tile_vals_ptr + __wg_local_memory_size, __out_begin,
-                                   __binary_op, __prev_tile_reduction);
+        if (__next_offset <= __n)
+        {
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
+            {
+                __out_rng[__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
+                    __binary_op(__prev_tile_reduction, __grf_partials[__i]);
+            }
+        }
+        else
+        {
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
+            {
+                if (__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i < __n)
+                {
+                    __out_rng[__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
+                        __binary_op(__prev_tile_reduction, __grf_partials[__i]);
+                }
+            }
+        }
     }
 };
 
@@ -288,17 +316,17 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
                                    std::decay_t<_OutRng>, std::decay_t<_BinaryOp>, std::decay_t<_StatusFlags>,
                                    std::decay_t<_StatusValues>, std::decay_t<_LocalAccessorType>>;
 
-        static constexpr std::uint32_t __elems_in_tile = __workgroup_size * __data_per_workitem;
+        //static constexpr std::uint32_t __elems_in_tile = __workgroup_size * __data_per_workitem;
 
         return __q.submit([&](sycl::handler& __hdl) {
-            auto __tile_vals = _LocalAccessorType(sycl::range<1>{__elems_in_tile}, __hdl);
+            auto __slm = _LocalAccessorType(oneapi::dpl::__internal::__dpl_ceiling_div(__workgroup_size, SUBGROUP_SIZE), __hdl);
             __hdl.depends_on(__prev_event);
 
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
             __hdl.parallel_for<_Name...>(sycl::nd_range<1>(__current_num_items, __workgroup_size),
                                          _KernelFunc{__in_rng, __out_rng, __binary_op, __n, __status_flags,
                                                      __status_flags_size, __status_vals_full, __status_vals_partial,
-                                                     __current_num_items, __tile_vals});
+                                                     __current_num_items, __slm});
         });
     }
 };
