@@ -206,6 +206,7 @@ Currently, the specializations of the algorithms belong to different namespaces.
 
 Using a tag as a function or a template parameter should be considered as well.
 This method has both advantages and disadvantages compared to namespace-based separation.
+
 Pros:
 - Avoids potential name clashes caused by `using` directives.
 
