@@ -314,20 +314,6 @@ Several questions arise:
 It should be evaluated whether the proposed algorithms can serve as a backend for oneDPL algorithms
 that use the standard C++ interfaces and device execution policies.
 
-### Encoding Requirements
-
-Some requirements, for example forward-progress guarantees between work-groups,
-are currently only described in documentation.
-Encoding such requirements programmatically would improve visibility and
-help avoid unintended usage.
-If fallback implementations exist,
-this also enables smooth switching when the target device changes.
-
-One option is to define a macro for each such requirement.
-These macros could be used to select appropriate implementations
-for algorithms with standard interfaces, as described in
-[Kernel Templates as a Backend for Algorithms with Standard Interfaces](kernel-templates-as-a-backend-for-algorithms-with-standard-interfaces).
-
 ## Exit Criteria
 
 The proposed set of algorithms should become fully supported if:
