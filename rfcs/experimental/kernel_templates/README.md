@@ -123,6 +123,28 @@ That behaviour may change depending on how
 [External Allocation of Global Memory](#external-allocation-of-global-memory)
 is addressed.
 
+### Algorithms to Implement
+
+The following list outlines the most desirable algorithms to add,
+but it is neither exhaustive nor restrictive.
+
+Algorithms in the portable namespace may include:
+- Loops: `fill`, `for_each`, `transform`
+- Copying: `copy`, `copy_if`
+- Reduction: `reduce`, `transform_reduce`
+- Prefix sum: `inclusive_scan`, `exclusive_scan`,
+  `transform_inclusive_scan`, `transform_exclusive_scan`
+- Sorting: `merge_sort`, `radix_sort`, `merge_sort_by_key`, `radix_sort_by_key`
+
+This selection is based on a set of experimental asynchronous algorithms,
+as kernel templates are considered a potential replacement
+(see [General architecture for asynchronous API](https://github.com/uxlfoundation/oneDPL/blob/oneDPL-2022.9.0-release/rfcs/archived/asynchronous_api_general/readme.md)).
+The additional inclusion of `copy_if` reflects its widespread use,
+and sorting algorithms are divided into radix, merge, and by-key categories for performance reasons.
+
+Specialized namespaces may contain a different set algorithms,
+based on user demand and performance considerations.
+
 ### Example
 
 The example demonstrates the use of a kernel template
@@ -261,10 +283,6 @@ Different approaches may be more effective when processing different number of e
 For example, a small number of elements can be processed by a single work-group.
 
 Separating such cases would reduce compilation time.
-
-### Algorithms to Implement
-
-A list of algorithms to implement should be defined.
 
 ### Benchmarking
 
