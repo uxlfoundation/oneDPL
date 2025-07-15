@@ -314,18 +314,6 @@ Several questions arise:
 It should be evaluated whether the proposed algorithms can serve as a backend for oneDPL algorithms
 that use the standard C++ interfaces and device execution policies.
 
-An additional question is how to handle hardware requirements that cannot be queried directly
-through standard SYCL mechanisms. For example, selecting a more performant kernel template
-might depend on forward-progress guarantees between work-groups.
-While oneAPI DPC++ supports querying this via
-the [Root Group](https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/experimental/sycl_ext_oneapi_root_group.asciidoc)
-experimental extension, other SYCL implementations may lack a corresponding feature.
-Furthermore, even if a device does not explicitly support cooperative kernel launch,
-it may still provide sufficient guarantees in limited cases
-such as chain-like synchronization between work-groups.
-A possible solution is to allow users to define a macro
-indicating that the required hardware capability is present.
-
 ### Encoding Requirements
 
 Some requirements, for example forward-progress guarantees between work-groups,
