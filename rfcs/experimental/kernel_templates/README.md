@@ -179,7 +179,7 @@ The testing harness should cover:
    due to differing ordered bit transformations.
  - All supported input sequence types.
    For example, if the algorithm supports
-   `sycl::buffer`, `oneapi::dpl::begin`/`oneapi::dpl::end`, or USM pointers, each should be tested.
+   `sycl::buffer` or USM pointers, each should be tested.
  - Various combinations of other parameters, depending on the signature of the algorithm.
  - Edge cases.
    For example, zero-sized sequences.
