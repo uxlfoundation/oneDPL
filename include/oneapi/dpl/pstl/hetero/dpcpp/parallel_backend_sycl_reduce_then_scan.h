@@ -841,7 +841,7 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
 {
     template <typename _InRng>
     sycl::event
-    operator()(sycl::queue& __q, _InRng&& __in_rng, std::size_t __num_diagonals) const
+    operator()(sycl::queue& __q, coonst _InRng& __in_rng, std::size_t __num_diagonals) const
     {
         const std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
         const std::size_t __n =
