@@ -217,6 +217,7 @@ struct __write_scan_by_seg
     using _TempData = __noop_temp_data;
     _InitType __init_value;
     _BinaryOp __binary_op;
+
     template <typename _OutRng, typename _ValueType>
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
@@ -240,13 +241,10 @@ struct __write_scan_by_seg
             static_assert(
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__init_value<typename _InitType::__value_type>>,
                 "exclusive_scan_by_segment must have an initial element");
-            if (get<1>(__v))
-                __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(__init_value.__value));
-            else
-            {
-                __out_rng[__id] =
-                    static_cast<_ConvertedTupleType>(__binary_op(get<1>(__init_value.__value), get<1>(get<0>(__v))));
-            }
+            __out_rng[__id] =
+                get<1>(__v)
+                    ? static_cast<_ConvertedTupleType>(get<1>(__init_value.__value))
+                    : static_cast<_ConvertedTupleType>(__binary_op(get<1>(__init_value.__value), get<1>(get<0>(__v))));
         }
     }
 };

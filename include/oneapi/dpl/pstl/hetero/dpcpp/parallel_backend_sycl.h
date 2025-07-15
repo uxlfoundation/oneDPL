@@ -2259,7 +2259,7 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
                 oneapi::dpl::__ranges::all_view<_OutputType, __par_backend_hetero::access_mode::read_write>(
                     __temp.get_buffer(), 1, __n - 1);
             oneapi::dpl::__internal::__replace_if_fun<typename _InitType::__value_type, std::negate<_FlagType>>
-                __replace_fun(std::negate<_FlagType>(), __init.__value);
+                __replace_fun{std::negate<_FlagType>{}, __init.__value};
             using _ReplaceTransform = oneapi::dpl::__internal::__transform_functor<decltype(__replace_fun)>;
             _ReplaceTransform __tf{__replace_fun};
             __parallel_for(

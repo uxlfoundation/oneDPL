@@ -83,12 +83,12 @@ __pattern_exclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1
     temp[0] = init;
 
     transform(policy, first2, last2 - 1, _flags.get() + 1, _temp.get() + 1,
-              oneapi::dpl::__internal::__replace_if_fun<T, std::negate<FlagType>>(std::negate<FlagType>(), init));
+              oneapi::dpl::__internal::__replace_if_fun<T, std::negate<FlagType>>{std::negate<FlagType>{}, init});
 
     // scan key-flag tuples
     inclusive_scan(std::forward<Policy>(policy), make_zip_iterator(_temp.get(), _flags.get()),
                    make_zip_iterator(_temp.get(), _flags.get()) + n, make_zip_iterator(result, _flags.get()),
-                   oneapi::dpl::__internal::__segmented_scan_fun<ValueType, FlagType, Operator>(binary_op));
+                   oneapi::dpl::__internal::__segmented_scan_fun<ValueType, FlagType, Operator>{binary_op});
     return result + n;
 }
 

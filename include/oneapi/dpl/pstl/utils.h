@@ -1031,8 +1031,6 @@ struct __count_fn_pred
 template <typename _ValueType, typename _FlagType, typename _BinaryOp>
 struct __segmented_scan_fun
 {
-    __segmented_scan_fun(_BinaryOp __input) : __binary_op(__input) {}
-
     template <typename _T1, typename _T2>
     _T1
     operator()(const _T1& __x, const _T2& __y) const
@@ -1044,7 +1042,6 @@ struct __segmented_scan_fun
         return _T1(__new_x, __new_y);
     }
 
-  private:
     _BinaryOp __binary_op;
 };
 
@@ -1053,16 +1050,13 @@ struct __replace_if_fun
 {
     using __result_of = _T;
 
-    __replace_if_fun(_Predicate __pred, _T __new_value) : __pred(__pred), __new_value(__new_value) {}
-
     template <typename _T1, typename _T2>
     _T
-    operator()(_T1&& __a, _T2&& __s) const
+    operator()(_T1&& __a, const _T2& __s) const
     {
-        return __pred(__s) ? __new_value : __a;
+        return __pred(__s) ? __new_value : std::forward<_T1>(__a);
     }
 
-  private:
     _Predicate __pred;
     const _T __new_value;
 };
