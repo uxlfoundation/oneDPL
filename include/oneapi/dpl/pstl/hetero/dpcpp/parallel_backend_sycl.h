@@ -211,6 +211,9 @@ template <typename... _Name>
 class __find_or_kernel;
 
 template <typename... _Name>
+class __find_or_kernel_init;
+
+template <typename... _Name>
 class __scan_propagate_kernel;
 
 template <typename... _Name>
@@ -1480,12 +1483,13 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
     }
 };
 
-template <bool __or_tag_check, typename KernelName>
+template <bool __or_tag_check, typename KernelName, typename KernelNameInit>
 struct __parallel_find_or_impl_multiple_wgs;
 
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
-template <bool __or_tag_check, typename... KernelName>
-struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__optional_kernel_name<KernelName...>>
+template <bool __or_tag_check, typename... KernelName, typename... KernelNameInit>
+struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__optional_kernel_name<KernelName...>,
+                                            __internal::__optional_kernel_name<KernelNameInit...>>
 {
     template <typename _BrickTag, typename _AtomicType, typename _Predicate, typename... _Ranges>
     _AtomicType
@@ -1496,7 +1500,17 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         __result_and_scratch_storage_t __result_storage{__q, 0};
 
         // Initialize the result storage with the initial value
-        //__result_storage.set_value(__init_value);
+        auto __event_init = __q.submit([&](sycl::handler& __cgh) {
+
+            auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+
+            __cgh.parallel_for<KernelNameInit...>(sycl::range<1>(1), [=](sycl::id<1> /*__item_id*/) {
+
+                auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
+
+                *__res_ptr = __init_value;
+            });
+        });
 
         // Calculate the number of elements to be processed by each work-item.
         const auto __iters_per_work_item =
@@ -1505,8 +1519,9 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         // main parallel_for
         auto __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
+            __cgh.depends_on(__event_init);
 
-            auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+            auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::read_write>(__cgh, __dpl_sycl::__no_init{});
 
             __cgh.parallel_for<KernelName...>(
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
@@ -1599,8 +1614,11 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using __find_or_kernel_name =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
 
+        using __find_or_one_wg_kernel_name_init =
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_init<_CustomName>>;
+
         // Multiple WG implementation
-        __result = __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name>()(
+        __result = __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name, __find_or_one_wg_kernel_name_init>()(
             __q_local, __brick_tag, __rng_n, __n_groups, __wgroup_size, __init_value, __pred,
             std::forward<_Ranges>(__rngs)...);
     }
