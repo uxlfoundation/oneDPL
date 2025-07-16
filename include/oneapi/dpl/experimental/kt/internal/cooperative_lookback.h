@@ -40,7 +40,8 @@ static constexpr int SUBGROUP_SIZE = 32;
 // Some hardware may support atomic operations over vector types enabling support for types larger than
 // 4-bytes but this is not supported in SYCL.
 template <typename _T>
-struct __can_combine_status_prefix_flags : std::bool_constant<sizeof(_T) <= 4 && std::is_trivially_copyable_v<_T>>
+struct __can_combine_status_prefix_flags
+    : std::bool_constant<(sizeof(_T) == 1 || sizeof(_T) == 2 || sizeof(_T) == 4) && std::is_trivially_copyable_v<_T>>
 {
 };
 
