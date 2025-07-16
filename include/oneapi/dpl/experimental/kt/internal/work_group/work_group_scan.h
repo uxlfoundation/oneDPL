@@ -26,6 +26,7 @@
 #include "../../../../pstl/utils.h"
 #include "../utils.h"
 #include "../sub_group/sub_group_scan.h"
+#include "../../../../pstl/hetero/dpcpp/unseq_backend_sycl.h"
 
 namespace oneapi::dpl::experimental::kt
 {
@@ -60,7 +61,7 @@ work_group_scan(ArrayOrder, const NdItem& item, SlmAcc local_acc, InputType inpu
         if (sub_group_group_id == 0)
         {
             const auto num_iters = oneapi::dpl::__internal::__dpl_ceiling_div(active_sub_groups, sub_group_size);
-            InputType wg_carry = 0;
+            InputType wg_carry = oneapi::dpl::unseq_backend::__known_identity<BinaryOperation, InputType>;
             auto idx = sub_group.get_local_linear_id();
             for (int i = 0; i < num_iters - 1; ++i)
             {
