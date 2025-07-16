@@ -30,6 +30,8 @@
 #include <cstddef>
 #include <type_traits>
 
+#define PRINTF(format, ...) sycl::ext::oneapi::experimental::printf(format, __VA_ARGS__)
+
 namespace oneapi::dpl::experimental::kt
 {
 
@@ -48,7 +50,7 @@ class __lookback_kernel;
 static constexpr int SUBGROUP_SIZE = 32;
 
 template <typename _T>
-struct __can_combine_status_prefix_flags : std::false_type//std::bool_constant<sizeof(_T) <= 4 && std::is_trivially_copyable_v<_T>>
+struct __can_combine_status_prefix_flags : std::bool_constant<sizeof(_T) <= 4 && std::is_trivially_copyable_v<_T>>
 {
 };
 
@@ -195,8 +197,8 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
             __tile_flag = get_status(__tile_status_prefix);
             sycl::atomic_fence(sycl::memory_order::acq_rel, sycl::memory_scope::device);
         } while (!sycl::all_of_group(__sub_group, __tile_flag != __initialized_status));
-        _T __value = get_value(__tile_status_prefix);
-        return {__tile_flag, __tile_flag};
+        _T __tile_value = get_value(__tile_status_prefix);
+        return {__tile_flag, __tile_value};
     }
 
     _AtomicPackedStatusPrefixT __atomic_packed_flag;
@@ -559,7 +561,9 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     if (!__device_mem)
         throw std::bad_alloc();
 
-    std::uint32_t* __atomic_id_ptr = reinterpret_cast<std::uint32_t*>(__device_mem + __mem_bytes - 4);
+    // TODO: temp workaround until I figure out what's wrong
+    std::uint32_t* __atomic_id_ptr = sycl::malloc_device<std::uint32_t>(1, __queue);
+    __queue.fill(__atomic_id_ptr, 0, 1).wait();
     __cooperative_lookback_storage<_Type> __lookback_storage(__device_mem, __mem_bytes, __status_flags_size);
     auto __fill_event = __lookback_init_submitter<_FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
         __queue, __lookback_storage, __status_flags_size, __status_flag_padding);
