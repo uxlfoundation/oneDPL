@@ -48,7 +48,162 @@ class __lookback_kernel;
 static constexpr int SUBGROUP_SIZE = 32;
 
 template <typename _T>
-struct __scan_status_flag
+struct __can_combine_status_prefix_flags : std::bool_constant<sizeof(_T) <= 4 && std::is_trivially_copyable_v<_T>>
+{
+};
+
+template <typename _T, typename = void>
+struct __cooperative_lookback_storage;
+
+template <typename _T>
+struct __cooperative_lookback_storage<_T, std::enable_if_t<__can_combine_status_prefix_flags<_T>::value>>
+{
+    using _PackedStatusPrefixT = std::uint64_t;
+    __cooperative_lookback_storage(std::byte* __device_mem, std::size_t /*__mem_bytes*/,
+                                   std::size_t /*__status_flags_size*/)
+        : __packed_flags_begin(reinterpret_cast<_PackedStatusPrefixT*>(__device_mem))
+    {
+    }
+
+    static std::size_t
+    get_reqd_storage(std::size_t __status_flags_size)
+    {
+        return __status_flags_size * sizeof(_PackedStatusPrefixT);
+    }
+
+    _PackedStatusPrefixT* __packed_flags_begin;
+};
+
+template <typename _T>
+struct __cooperative_lookback_storage<_T, std::enable_if_t<!__can_combine_status_prefix_flags<_T>::value>>
+{
+    using _FlagStorageType = std::uint32_t;
+    __cooperative_lookback_storage(std::byte* __device_mem, std::size_t __mem_bytes, std::size_t __status_flags_size)
+    {
+        std::size_t __status_flags_bytes = __status_flags_size * sizeof(_FlagStorageType);
+        std::size_t __status_vals_full_offset_bytes = __status_flags_size * sizeof(_T);
+        __flags_begin = reinterpret_cast<_FlagStorageType*>(__device_mem);
+        std::size_t __remainder = __mem_bytes - __status_flags_bytes;
+        void* __vals_base_ptr = reinterpret_cast<void*>(__device_mem + __status_flags_bytes);
+        void* __vals_aligned_ptr =
+            std::align(std::alignment_of_v<_T>, __status_vals_full_offset_bytes, __vals_base_ptr, __remainder);
+        __full_vals_begin = reinterpret_cast<_T*>(__vals_aligned_ptr);
+        __partial_vals_begin = reinterpret_cast<_T*>(__full_vals_begin + __status_vals_full_offset_bytes / sizeof(_T));
+    }
+
+    static std::size_t
+    get_reqd_storage(std::size_t __status_flags_size)
+    {
+        std::size_t __mem_align_pad = sizeof(_T);
+        std::size_t __status_flags_bytes = __status_flags_size * sizeof(_FlagStorageType);
+        std::size_t __status_vals_full_offset_bytes = __status_flags_size * sizeof(_T);
+        std::size_t __status_vals_partial_offset_bytes = __status_flags_size * sizeof(_T);
+        std::size_t __mem_bytes = __status_flags_bytes + __status_vals_full_offset_bytes +
+                                  __status_vals_partial_offset_bytes + __mem_align_pad;
+        return __mem_bytes;
+    }
+
+    _FlagStorageType* __flags_begin;
+    _T* __full_vals_begin;
+    _T* __partial_vals_begin;
+};
+
+template <typename _T, typename = void>
+struct __scan_status_flag;
+
+template <typename _T>
+struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags<_T>::value>>
+{
+    using _PackedStatusPrefixT = std::uint64_t;
+    using _FlagStorageType = std::uint32_t;
+    using _AtomicPackedStatusPrefixT =
+        sycl::atomic_ref<_PackedStatusPrefixT, sycl::memory_order::acq_rel, sycl::memory_scope::device,
+                         sycl::access::address_space::global_space>;
+    static constexpr _PackedStatusPrefixT __initialized_status = 0;
+    static constexpr _PackedStatusPrefixT __partial_status = 1;
+    static constexpr _PackedStatusPrefixT __full_status = 2;
+    static constexpr _PackedStatusPrefixT __oob_status = 3;
+    static constexpr int __padding = SUBGROUP_SIZE;
+
+    template <typename _TileIdT>
+    __scan_status_flag(const __cooperative_lookback_storage<_T> __temp_storage, const _TileIdT __tile_id)
+        : __atomic_packed_flag(*(__temp_storage.__packed_flags_begin + __tile_id + __padding))
+    {
+    }
+
+    void
+    set_partial(const _T __val)
+    {
+        constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
+        _PackedStatusPrefixT __packed_flag = __partial_status;
+        __packed_flag |= _PackedStatusPrefixT(__val) << __shift_factor;
+        __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
+    }
+
+    void
+    set_full(const _T __val)
+    {
+        constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
+        _PackedStatusPrefixT __packed_flag = __full_status;
+        __packed_flag |= _PackedStatusPrefixT(__val) << __shift_factor;
+        __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
+    }
+
+    void
+    set_oob(const _T __known_identity)
+    {
+        constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
+        _PackedStatusPrefixT __packed_flag = __oob_status;
+        __packed_flag |= _PackedStatusPrefixT{__known_identity} << __shift_factor;
+        __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
+    }
+
+    void
+    set_init(const _T __known_identity)
+    {
+        constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
+        _PackedStatusPrefixT __packed_flag = __initialized_status;
+        __packed_flag |= _PackedStatusPrefixT{__known_identity} << __shift_factor;
+        __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
+    }
+
+    auto
+    get_status(_PackedStatusPrefixT __packed) const
+    {
+        constexpr int __shift_factor = sizeof(_PackedStatusPrefixT) * 4;
+        _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) >> __shift_factor;
+        return _FlagStorageType(__packed & __prefix_mask);
+    }
+
+    auto
+    get_value(_PackedStatusPrefixT __packed) const
+    {
+        constexpr int __shift_factor = sizeof(_PackedStatusPrefixT) * 4;
+        _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) << __shift_factor;
+        return _T((__packed & __prefix_mask) >> __shift_factor);
+    }
+
+    std::pair<_FlagStorageType, _T>
+    spin_and_get(const sycl::sub_group& __sub_group) const
+    {
+        _PackedStatusPrefixT __tile_status_prefix;
+        _FlagStorageType __tile_flag = __initialized_status;
+        // Load flag from a previous tile based on my local id.
+        // Spin until every work-item in this subgroup reads a valid status
+        do
+        {
+            __tile_status_prefix = __atomic_packed_flag.load(sycl::memory_order::acquire);
+            __tile_flag = get_status(__tile_status_prefix);
+        } while (!sycl::all_of_group(__sub_group, __tile_flag != __initialized_status));
+        _T __value = get_value(__tile_status_prefix);
+        return {__tile_flag, __tile_flag};
+    }
+
+    _AtomicPackedStatusPrefixT __atomic_packed_flag;
+};
+
+template <typename _T>
+struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flags<_T>::value>>
 {
     using _FlagStorageType = uint32_t;
     using _AtomicFlagT = sycl::atomic_ref<_FlagStorageType, sycl::memory_order::acq_rel, sycl::memory_scope::device,
@@ -63,11 +218,11 @@ struct __scan_status_flag
 
     static constexpr int __padding = SUBGROUP_SIZE;
 
-    __scan_status_flag(_FlagStorageType* __flags, _T* __full_vals, _T* __partial_vals, const std::uint32_t __tile_id)
-        : __tile_id(__tile_id), __flags_begin(__flags), __full_vals_begin(__full_vals),
-          __partial_vals_begin(__partial_vals), __atomic_flag(*(__flags + __tile_id + __padding)),
-          __atomic_partial_value(*(__partial_vals + __tile_id + __padding)),
-          __atomic_full_value(*(__full_vals + __tile_id + __padding))
+    template <typename _TileIdT>
+    __scan_status_flag(const __cooperative_lookback_storage<_T>& __temp_storage, const _TileIdT __tile_id)
+        : __atomic_flag(*(__temp_storage.__flags_begin + __tile_id + __padding)),
+          __atomic_partial_value(*(__temp_storage.__partial_vals_begin + __tile_id + __padding)),
+          __atomic_full_value(*(__temp_storage.__full_vals_begin + __tile_id + __padding))
     {
     }
 
@@ -85,59 +240,87 @@ struct __scan_status_flag
         __atomic_flag.store(__full_status, sycl::memory_order::release);
     }
 
-    template <typename _Subgroup, typename _BinaryOp>
-    _T
-    cooperative_lookback(const _Subgroup& __subgroup, _BinaryOp __binary_op)
+    void
+    set_init(const _T __known_identity)
     {
-        _T __running = oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _T>;
-        auto __local_id = __subgroup.get_local_id();
-
-        for (int __tile = static_cast<int>(__tile_id) - 1; __tile >= 0; __tile -= SUBGROUP_SIZE)
-        {
-            _AtomicFlagT __tile_flag_atomic(*(__flags_begin + __tile + __padding - __local_id));
-            _T __tile_flag = __initialized_status;
-
-            // Load flag from a previous tile based on my local id.
-            // Spin until every work-item in this subgroup reads a valid status
-            do
-            {
-                __tile_flag = __tile_flag_atomic.load(sycl::memory_order::acquire);
-            } while (!sycl::all_of_group(__subgroup, __tile_flag != __initialized_status));
-
-            bool __is_full = __tile_flag == __full_status;
-            auto __is_full_ballot = sycl::ext::oneapi::group_ballot(__subgroup, __is_full);
-            std::uint32_t __is_full_ballot_bits{};
-            __is_full_ballot.extract_bits(__is_full_ballot_bits);
-
-            _AtomicValueT __tile_value_atomic(
-                *((__is_full ? __full_vals_begin : __partial_vals_begin) + __tile + __padding - __local_id));
-            _T __tile_val = __tile_value_atomic.load(sycl::memory_order::acquire);
-
-            auto __lowest_item_with_full = sycl::ctz(__is_full_ballot_bits);
-            _T __contribution = __local_id <= __lowest_item_with_full
-                                    ? __tile_val
-                                    : oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _T>;
-
-            // Running reduction of all of the partial results from the tiles found, as well as the full contribution from the closest tile (if any)
-            __running = __binary_op(__running, sycl::reduce_over_group(__subgroup, __contribution, __binary_op));
-
-            // If we found a full value, we can stop looking at previous tiles. Otherwise,
-            // keep going through tiles until we either find a full tile or we've completely
-            // recomputed the prefix using partial values
-            if (__is_full_ballot_bits)
-                break;
-        }
-        return __running;
+        __atomic_partial_value.store(__known_identity, sycl::memory_order::release);
+        __atomic_flag.store(__initialized_status, sycl::memory_order::release);
     }
 
-    const uint32_t __tile_id;
-    _FlagStorageType* __flags_begin;
-    _T* __full_vals_begin;
-    _T* __partial_vals_begin;
+    void
+    set_oob(const _T __known_identity)
+    {
+        __atomic_partial_value.store(__known_identity, sycl::memory_order::release);
+        __atomic_flag.store(__oob_status, sycl::memory_order::release);
+    }
+
+    _FlagStorageType
+    get_status() const
+    {
+        return __atomic_flag.load(sycl::memory_order::acquire);
+    }
+
+    _T
+    get_value(_FlagStorageType __status) const
+    {
+        return __status == __full_status ? __atomic_full_value.load(sycl::memory_order::acquire)
+                                         : __atomic_partial_value.load(sycl::memory_order::acquire);
+    }
+
+    std::pair<_FlagStorageType, _T>
+    spin_and_get(const sycl::sub_group& __sub_group) const
+    {
+        _FlagStorageType __tile_flag;
+        // Load flag from a previous tile based on my local id.
+        // Spin until every work-item in this subgroup reads a valid status
+        do
+        {
+            __tile_flag = __atomic_flag.load(sycl::memory_order::acquire);
+        } while (!sycl::all_of_group(__sub_group, __tile_flag != __initialized_status));
+        _T __tile_value = get_value(__tile_flag);
+        return {__tile_flag, __tile_value};
+    }
+
     _AtomicFlagT __atomic_flag;
     _AtomicValueT __atomic_partial_value;
     _AtomicValueT __atomic_full_value;
 };
+
+template <typename _Subgroup, typename _T, typename _BinaryOp>
+_T
+cooperative_lookback(__cooperative_lookback_storage<_T> __lookback_storage, const _Subgroup& __subgroup,
+                     std::uint32_t __tile_id, _BinaryOp __binary_op)
+{
+    _T __running = oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _T>;
+    auto __local_id = __subgroup.get_local_id();
+
+    for (int __tile = static_cast<int>(__tile_id) - 1; __tile >= 0; __tile -= SUBGROUP_SIZE)
+    {
+        int t = __tile - int(__local_id);
+        __scan_status_flag<_T> __current_tile(__lookback_storage, t);
+        const auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
+
+        bool __is_full = __tile_flag == __scan_status_flag<_T>::__full_status;
+        auto __is_full_ballot = sycl::ext::oneapi::group_ballot(__subgroup, __is_full);
+        std::uint32_t __is_full_ballot_bits{};
+        __is_full_ballot.extract_bits(__is_full_ballot_bits);
+
+        auto __lowest_item_with_full = sycl::ctz(__is_full_ballot_bits);
+        _T __contribution = __local_id <= __lowest_item_with_full
+                                ? __tile_value
+                                : oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _T>;
+
+        // Running reduction of all of the partial results from the tiles found, as well as the full contribution from the closest tile (if any)
+        __running = __binary_op(__running, sycl::reduce_over_group(__subgroup, __contribution, __binary_op));
+
+        // If we found a full value, we can stop looking at previous tiles. Otherwise,
+        // keep going through tiles until we either find a full tile or we've completely
+        // recomputed the prefix using partial values
+        if (__is_full_ballot_bits)
+            break;
+    }
+    return __running;
+}
 
 template <typename _FlagType, typename _Type, typename _BinaryOp, typename _KernelName>
 struct __lookback_init_submitter;
@@ -146,17 +329,20 @@ template <typename _FlagType, typename _Type, typename _BinaryOp, typename... _N
 struct __lookback_init_submitter<_FlagType, _Type, _BinaryOp,
                                  oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _StatusFlags, typename _PartialValues>
+    template <typename _T>
     sycl::event
-    operator()(sycl::queue __q, _StatusFlags&& __status_flags, _PartialValues&& __partial_values,
-               std::size_t __status_flags_size, std::uint16_t __status_flag_padding) const
+    operator()(sycl::queue __q, __cooperative_lookback_storage<_T> __lookback_storage, std::size_t __status_flags_size,
+               std::uint16_t __status_flag_padding) const
     {
         return __q.submit([&](sycl::handler& __hdl) {
             __hdl.parallel_for<_Name...>(sycl::range<1>{__status_flags_size}, [=](const sycl::item<1>& __item) {
                 auto __id = __item.get_linear_id();
-                __status_flags[__id] =
-                    __id < __status_flag_padding ? _FlagType::__oob_status : _FlagType::__initialized_status;
-                __partial_values[__id] = oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _Type>;
+                auto __identity = oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _Type>;
+                __scan_status_flag<_T> __current_tile(__lookback_storage, __id);
+                if (__id < __status_flag_padding)
+                    __current_tile.set_oob(__identity);
+                else
+                    __current_tile.set_init(__identity);
             });
         });
     }
@@ -167,8 +353,7 @@ template <std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size, typ
 struct __lookback_submitter;
 
 template <std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size, typename _Type, typename _FlagType,
-          typename _InRng, typename _OutRng, typename _BinaryOp, typename _StatusFlags, typename _StatusValues,
-          typename _LocalAcc>
+          typename _InRng, typename _OutRng, typename _BinaryOp, typename _LocalAcc>
 struct __lookback_kernel_func
 {
     using _FlagStorageType = typename _FlagType::_FlagStorageType;
@@ -178,10 +363,9 @@ struct __lookback_kernel_func
     _OutRng __out_rng;
     _BinaryOp __binary_op;
     std::size_t __n;
-    _StatusFlags __status_flags;
+    std::uint32_t* __atomic_id_ptr;
+    __cooperative_lookback_storage<_Type> __lookback_storage;
     std::size_t __status_flags_size;
-    _StatusValues __status_vals_full;
-    _StatusValues __status_vals_partial;
     std::size_t __current_num_items;
     _LocalAcc __slm;
 
@@ -199,7 +383,7 @@ struct __lookback_kernel_func
         {
             sycl::atomic_ref<_FlagStorageType, sycl::memory_order::relaxed, sycl::memory_scope::device,
                              sycl::access::address_space::global_space>
-                __idx_atomic(__status_flags[__status_flags_size - 1]);
+                __idx_atomic(*__atomic_id_ptr);
             __tile_id = __idx_atomic.fetch_add(1);
         }
 
@@ -219,14 +403,7 @@ struct __lookback_kernel_func
         if (__work_group_offset >= __n)
             return;
 
-        // Global load into local
-        //auto __wg_current_offset = (__tile_id * __elems_in_tile);
-        //auto __wg_next_offset = ((__tile_id + 1) * __elems_in_tile);
-        //auto __wg_local_memory_size = __elems_in_tile;
-
-        //if (__wg_next_offset > __n)
-        //    __wg_local_memory_size = __n - __wg_current_offset;
-
+        // Global load into general register file
         if (__next_offset <= __n)
         {
             _ONEDPL_PRAGMA_UNROLL
@@ -254,16 +431,23 @@ struct __lookback_kernel_func
         _Type __prev_tile_reduction{};
 
         // The first sub-group will query the previous tiles to find a prefix
-        if (__subgroup.get_group_id() == 0)
+        if (__tile_id == 0)
         {
-            _FlagType __flag(__status_flags, __status_vals_full, __status_vals_partial, __tile_id);
+            if (__item.get_local_id(0) == 0)
+            {
+                _FlagType __flag(__lookback_storage, __tile_id);
+                __flag.set_full(__local_reduction);
+            }
+        }
+        else if (__subgroup.get_group_id() == 0)
+        {
+            _FlagType __flag(__lookback_storage, __tile_id);
 
             if (__subgroup.get_local_id() == 0)
             {
                 __flag.set_partial(__local_reduction);
             }
-            if (__tile_id > 0)
-                __prev_tile_reduction = __flag.cooperative_lookback(__subgroup, __binary_op);
+            __prev_tile_reduction = cooperative_lookback(__lookback_storage, __subgroup, __tile_id, __binary_op);
 
             if (__subgroup.get_local_id() == 0)
             {
@@ -303,20 +487,16 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
                             oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
 
-    template <typename _InRng, typename _OutRng, typename _BinaryOp, typename _StatusFlags, typename _StatusValues>
+    template <typename _InRng, typename _OutRng, typename _BinaryOp, typename _T>
     sycl::event
     operator()(sycl::queue __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
-               std::size_t __n, _StatusFlags&& __status_flags, std::size_t __status_flags_size,
-               _StatusValues&& __status_vals_full, _StatusValues&& __status_vals_partial,
-               std::size_t __current_num_items) const
+               std::size_t __n, std::uint32_t* __atomic_id_ptr, __cooperative_lookback_storage<_T> __lookback_storage,
+               std::size_t __status_flags_size, std::size_t __current_num_items) const
     {
         using _LocalAccessorType = __dpl_sycl::__local_accessor<_Type, 1>;
         using _KernelFunc =
             __lookback_kernel_func<__data_per_workitem, __workgroup_size, _Type, _FlagType, std::decay_t<_InRng>,
-                                   std::decay_t<_OutRng>, std::decay_t<_BinaryOp>, std::decay_t<_StatusFlags>,
-                                   std::decay_t<_StatusValues>, std::decay_t<_LocalAccessorType>>;
-
-        //static constexpr std::uint32_t __elems_in_tile = __workgroup_size * __data_per_workitem;
+                                   std::decay_t<_OutRng>, std::decay_t<_BinaryOp>, std::decay_t<_LocalAccessorType>>;
 
         return __q.submit([&](sycl::handler& __hdl) {
             auto __slm = _LocalAccessorType(oneapi::dpl::__internal::__dpl_ceiling_div(__workgroup_size, SUBGROUP_SIZE), __hdl);
@@ -324,9 +504,9 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
 
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
             __hdl.parallel_for<_Name...>(sycl::nd_range<1>(__current_num_items, __workgroup_size),
-                                         _KernelFunc{__in_rng, __out_rng, __binary_op, __n, __status_flags,
-                                                     __status_flags_size, __status_vals_full, __status_vals_partial,
-                                                     __current_num_items, __slm});
+                                         _KernelFunc{__in_rng, __out_rng, __binary_op, __n, __atomic_id_ptr,
+                                                     __lookback_storage, __status_flags_size, __current_num_items,
+                                                     __slm});
         });
     }
 };
@@ -377,37 +557,23 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
 
     constexpr int __status_flag_padding = SUBGROUP_SIZE;
     std::size_t __status_flags_size = __num_wgs + 1 + __status_flag_padding;
-
-    std::size_t __mem_align_pad = sizeof(_Type);
-    std::size_t __status_flags_bytes = __status_flags_size * sizeof(_FlagStorageType);
-    std::size_t __status_vals_full_offset_bytes = __status_flags_size * sizeof(_Type);
-    std::size_t __status_vals_partial_offset_bytes = __status_flags_size * sizeof(_Type);
-    std::size_t __mem_bytes =
-        __status_flags_bytes + __status_vals_full_offset_bytes + __status_vals_partial_offset_bytes + __mem_align_pad;
-
+    const ::std::size_t __mem_bytes = __cooperative_lookback_storage<_Type>::get_reqd_storage(__status_flags_size);
     std::byte* __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __queue));
     if (!__device_mem)
         throw std::bad_alloc();
 
-    _FlagStorageType* __status_flags = reinterpret_cast<_FlagStorageType*>(__device_mem);
-    std::size_t __remainder = __mem_bytes - __status_flags_bytes;
-    void* __vals_base_ptr = reinterpret_cast<void*>(__device_mem + __status_flags_bytes);
-    void* __vals_aligned_ptr =
-        std::align(std::alignment_of_v<_Type>, __status_vals_full_offset_bytes, __vals_base_ptr, __remainder);
-    _Type* __status_vals_full = reinterpret_cast<_Type*>(__vals_aligned_ptr);
-    _Type* __status_vals_partial =
-        reinterpret_cast<_Type*>(__status_vals_full + __status_vals_full_offset_bytes / sizeof(_Type));
-
+    std::uint32_t* __atomic_id_ptr = reinterpret_cast<std::uint32_t*>(__device_mem + __mem_bytes - 4);
+    __cooperative_lookback_storage<_Type> __lookback_storage(__device_mem, __mem_bytes, __status_flags_size);
     auto __fill_event = __lookback_init_submitter<_FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
-        __queue, __status_flags, __status_vals_partial, __status_flags_size, __status_flag_padding);
+        __queue, __lookback_storage, __status_flags_size, __status_flag_padding);
 
     std::size_t __current_num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
     std::size_t __current_num_items = __current_num_wgs * __workgroup_size;
 
     auto __prev_event =
         __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagType, _LookbackKernel>{}(
-            __queue, __fill_event, __in_rng, __out_rng, __binary_op, __n, __status_flags, __status_flags_size,
-            __status_vals_full, __status_vals_partial, __current_num_items);
+            __queue, __fill_event, __in_rng, __out_rng, __binary_op, __n, __atomic_id_ptr, __lookback_storage,
+            __status_flags_size, __current_num_items);
 
     // TODO: Currently, the following portion of code makes this entire function synchronous.
     // Ideally, we should be able to use the asynchronous free below, but we have found that doing
