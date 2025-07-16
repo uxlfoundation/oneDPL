@@ -23,8 +23,10 @@
 #include <numeric>
 #include <algorithm>
 
+
 #include "../utils.h"
 #include "../../../../pstl/utils.h"
+#include "../../../../pstl/hetero/dpcpp/unseq_backend_sycl.h"
 
 namespace oneapi::dpl::experimental::kt
 {
@@ -35,6 +37,7 @@ namespace gpu
 namespace __impl
 {
 
+// TODO: do we want our own implementations here or just use onedpl sycl backend?
 template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId,
           typename _BinaryOp, typename _ValueType, typename _LazyValueType>
 void
@@ -120,7 +123,7 @@ sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters_per_
     const bool is_full = items_in_scan == sub_group_size * iters_per_item;
     if constexpr (std::is_same_v<ArrayOrder, item_array_order::sub_group_stride>)
     {
-        InputType carry = 0;
+        InputType carry = oneapi::dpl::unseq_backend::__known_identity<BinaryOperation, InputType>;
         if (is_full)
         {
 #pragma unroll
