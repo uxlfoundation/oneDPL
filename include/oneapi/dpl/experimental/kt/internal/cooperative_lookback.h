@@ -268,8 +268,7 @@ struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flag
     _T
     get_value(_FlagStorageType __status) const
     {
-        return __status == __full_status ? __atomic_full_value.load()
-                                         : __atomic_partial_value.load();
+        return __status == __full_status ? __atomic_full_value.load() : __atomic_partial_value.load();
     }
 
     std::pair<_FlagStorageType, _T>
@@ -302,7 +301,7 @@ __cooperative_lookback(__cooperative_lookback_storage<_T> __lookback_storage, co
     for (int __tile = static_cast<int>(__tile_id) - 1; __tile >= 0; __tile -= SUBGROUP_SIZE)
     {
         __scan_status_flag<_T> __current_tile(__lookback_storage, __tile - __local_id);
-         auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
+        auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
 
         bool __is_full = __tile_flag == __scan_status_flag<_T>::__full_status;
         auto __is_full_ballot = sycl::ext::oneapi::group_ballot(__subgroup, __is_full);
@@ -316,7 +315,8 @@ __cooperative_lookback(__cooperative_lookback_storage<_T> __lookback_storage, co
         // recomputed the prefix using partial values
         if (__is_full_ballot_bits)
         {
-            __sub_group_scan_partial<SUBGROUP_SIZE, true, true>(__subgroup, __tile_value, __binary_op, __running, __lowest_item_with_full + 1);
+            __sub_group_scan_partial<SUBGROUP_SIZE, true, true>(__subgroup, __tile_value, __binary_op, __running,
+                                                                __lowest_item_with_full + 1);
             break;
         }
         else
@@ -328,8 +328,8 @@ __cooperative_lookback(__cooperative_lookback_storage<_T> __lookback_storage, co
     return __running;
 }
 
-}
-}
-}
+} // namespace __impl
+} // namespace gpu
+} // namespace oneapi::dpl::experimental::kt
 
 #endif

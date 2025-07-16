@@ -43,7 +43,7 @@ __inclusive_sub_group_masked_scan(const sycl::sub_group& __sub_group, _MaskOp __
                                   _LazyValueType& __init_and_carry)
 {
     std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
-    #pragma unroll
+#pragma unroll
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
         _ValueType __partial_carry_in = sycl::shift_group_right(__sub_group, __value, __shift);
@@ -54,8 +54,8 @@ __inclusive_sub_group_masked_scan(const sycl::sub_group& __sub_group, _MaskOp __
     }
     //if constexpr (__init_present)
     //{
-        __value = __binary_op(__init_and_carry, __value);
-        __init_and_carry = sycl::group_broadcast(__sub_group, __value, __init_broadcast_id);
+    __value = __binary_op(__init_and_carry, __value);
+    __init_and_carry = sycl::group_broadcast(__sub_group, __value, __init_broadcast_id);
     //}
     //else
     //{
@@ -67,9 +67,8 @@ __inclusive_sub_group_masked_scan(const sycl::sub_group& __sub_group, _MaskOp __
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _MaskOp,
           typename _InitBroadcastId, typename _BinaryOp, typename _ValueType, typename _LazyValueType>
 void
-__sub_group_masked_scan(const sycl::sub_group& __sub_group, _MaskOp __mask_fn,
-                        _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
-                        _LazyValueType& __init_and_carry)
+__sub_group_masked_scan(const sycl::sub_group& __sub_group, _MaskOp __mask_fn, _InitBroadcastId __init_broadcast_id,
+                        _ValueType& __value, _BinaryOp __binary_op, _LazyValueType& __init_and_carry)
 {
     if constexpr (__is_inclusive)
     {
@@ -112,13 +111,11 @@ __sub_group_scan_partial(const sycl::sub_group& __sub_group, _ValueType& __value
 //template <int sg_size, int iters_per_item, typename ArrayOrder, typename BinaryOperation>
 //auto
 //work_group_scan(ArrayOrder, input[iters_per_item], output[iters_per_item], BinaryOperation binary_op, int num_remaining);
-template <int sub_group_size, int iters_per_item,
-          typename InputType, /*typename OutputType,*/
-          typename SubGroup, typename ArrayOrder,
-          typename BinaryOperation>
-auto sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters_per_item],
-                    /*OutputType output[iters_per_item],*/ BinaryOperation binary_op,
-                    uint32_t items_in_scan)
+template <int sub_group_size, int iters_per_item, typename InputType, /*typename OutputType,*/
+          typename SubGroup, typename ArrayOrder, typename BinaryOperation>
+auto
+sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters_per_item],
+               /*OutputType output[iters_per_item],*/ BinaryOperation binary_op, uint32_t items_in_scan)
 {
     const bool is_full = items_in_scan == sub_group_size * iters_per_item;
     if constexpr (std::is_same_v<ArrayOrder, item_array_order::sub_group_stride>)
@@ -126,7 +123,7 @@ auto sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters
         InputType carry = 0;
         if (is_full)
         {
-            #pragma unroll
+#pragma unroll
             for (int i = 0; i < iters_per_item; ++i)
             {
                 __sub_group_scan<sub_group_size, true, true>(sub_group, input[i], binary_op, carry);
@@ -134,15 +131,16 @@ auto sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters
         }
         else
         {
-            const auto limited_iters_per_item = oneapi::dpl::__internal::__dpl_ceiling_div(items_in_scan, sub_group_size);
+            const auto limited_iters_per_item =
+                oneapi::dpl::__internal::__dpl_ceiling_div(items_in_scan, sub_group_size);
             int i = 0;
-            #pragma unroll
+#pragma unroll
             for (; i < limited_iters_per_item - 1; ++i)
             {
                 __sub_group_scan<sub_group_size, true, true>(sub_group, input[i], binary_op, carry);
             }
-            __sub_group_scan_partial<sub_group_size, true, true>(sub_group, input[i], binary_op, carry, items_in_scan - i * iters_per_item * sub_group_size);
-
+            __sub_group_scan_partial<sub_group_size, true, true>(sub_group, input[i], binary_op, carry,
+                                                                 items_in_scan - i * iters_per_item * sub_group_size);
         }
         return carry;
     }
@@ -152,18 +150,18 @@ auto sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters
     }
 }
 
-template <int sub_group_size, int iters_per_item,
-          typename InputType, /*typename OutputType,*/
-          typename SubGroup, typename ArrayOrder,
-          typename BinaryOperation>
-auto sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters_per_item],
-                    /*OutputType output[iters_per_item],*/ BinaryOperation binary_op)
+template <int sub_group_size, int iters_per_item, typename InputType, /*typename OutputType,*/
+          typename SubGroup, typename ArrayOrder, typename BinaryOperation>
+auto
+sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters_per_item],
+               /*OutputType output[iters_per_item],*/ BinaryOperation binary_op)
 {
-    return sub_group_scan<sub_group_size, iters_per_item>(ArrayOrder{}, sub_group, input, binary_op, sub_group_size * iters_per_item);
+    return sub_group_scan<sub_group_size, iters_per_item>(ArrayOrder{}, sub_group, input, binary_op,
+                                                          sub_group_size * iters_per_item);
 }
 
-}
-}
-}
+} // namespace __impl
+} // namespace gpu
+} // namespace oneapi::dpl::experimental::kt
 
 #endif
