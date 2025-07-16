@@ -48,7 +48,7 @@ class __lookback_kernel;
 static constexpr int SUBGROUP_SIZE = 32;
 
 template <typename _T>
-struct __can_combine_status_prefix_flags : std::bool_constant<sizeof(_T) <= 4 && std::is_trivially_copyable_v<_T>>
+struct __can_combine_status_prefix_flags : std::false_type//std::bool_constant<sizeof(_T) <= 4 && std::is_trivially_copyable_v<_T>>
 {
 };
 
@@ -125,8 +125,7 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
     static constexpr _PackedStatusPrefixT __oob_status = 3;
     static constexpr int __padding = SUBGROUP_SIZE;
 
-    template <typename _TileIdT>
-    __scan_status_flag(const __cooperative_lookback_storage<_T> __temp_storage, const _TileIdT __tile_id)
+    __scan_status_flag(const __cooperative_lookback_storage<_T> __temp_storage, const int __tile_id)
         : __atomic_packed_flag(*(__temp_storage.__packed_flags_begin + __tile_id + __padding))
     {
     }
@@ -194,6 +193,7 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
         {
             __tile_status_prefix = __atomic_packed_flag.load(sycl::memory_order::acquire);
             __tile_flag = get_status(__tile_status_prefix);
+            sycl::atomic_fence(sycl::memory_order::acq_rel, sycl::memory_scope::device);
         } while (!sycl::all_of_group(__sub_group, __tile_flag != __initialized_status));
         _T __value = get_value(__tile_status_prefix);
         return {__tile_flag, __tile_flag};
@@ -218,8 +218,7 @@ struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flag
 
     static constexpr int __padding = SUBGROUP_SIZE;
 
-    template <typename _TileIdT>
-    __scan_status_flag(const __cooperative_lookback_storage<_T>& __temp_storage, const _TileIdT __tile_id)
+    __scan_status_flag(const __cooperative_lookback_storage<_T>& __temp_storage, std::int32_t __tile_id)
         : __atomic_flag(*(__temp_storage.__flags_begin + __tile_id + __padding)),
           __atomic_partial_value(*(__temp_storage.__partial_vals_begin + __tile_id + __padding)),
           __atomic_full_value(*(__temp_storage.__full_vals_begin + __tile_id + __padding))
@@ -270,7 +269,7 @@ struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flag
     std::pair<_FlagStorageType, _T>
     spin_and_get(const sycl::sub_group& __sub_group) const
     {
-        _FlagStorageType __tile_flag;
+        _FlagStorageType __tile_flag = __initialized_status;
         // Load flag from a previous tile based on my local id.
         // Spin until every work-item in this subgroup reads a valid status
         do
@@ -296,8 +295,8 @@ cooperative_lookback(__cooperative_lookback_storage<_T> __lookback_storage, cons
 
     for (int __tile = static_cast<int>(__tile_id) - 1; __tile >= 0; __tile -= SUBGROUP_SIZE)
     {
-        int t = __tile - int(__local_id);
-        __scan_status_flag<_T> __current_tile(__lookback_storage, t);
+        int __t = __tile - int(__local_id);
+        __scan_status_flag<_T> __current_tile(__lookback_storage, __t);
         const auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
 
         bool __is_full = __tile_flag == __scan_status_flag<_T>::__full_status;
@@ -338,7 +337,8 @@ struct __lookback_init_submitter<_FlagType, _Type, _BinaryOp,
             __hdl.parallel_for<_Name...>(sycl::range<1>{__status_flags_size}, [=](const sycl::item<1>& __item) {
                 auto __id = __item.get_linear_id();
                 auto __identity = oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _Type>;
-                __scan_status_flag<_T> __current_tile(__lookback_storage, __id);
+                __scan_status_flag<_T> __current_tile(__lookback_storage, int(__id) - int(__status_flag_padding));
+                // TODO: we do not need atomics here
                 if (__id < __status_flag_padding)
                     __current_tile.set_oob(__identity);
                 else
@@ -497,11 +497,9 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
         using _KernelFunc =
             __lookback_kernel_func<__data_per_workitem, __workgroup_size, _Type, _FlagType, std::decay_t<_InRng>,
                                    std::decay_t<_OutRng>, std::decay_t<_BinaryOp>, std::decay_t<_LocalAccessorType>>;
-
         return __q.submit([&](sycl::handler& __hdl) {
             auto __slm = _LocalAccessorType(oneapi::dpl::__internal::__dpl_ceiling_div(__workgroup_size, SUBGROUP_SIZE), __hdl);
             __hdl.depends_on(__prev_event);
-
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
             __hdl.parallel_for<_Name...>(sycl::nd_range<1>(__current_num_items, __workgroup_size),
                                          _KernelFunc{__in_rng, __out_rng, __binary_op, __n, __atomic_id_ptr,
@@ -554,7 +552,6 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     // Avoid non_uniform n by padding up to a multiple of workgroup_size
     std::size_t __elems_in_tile = __workgroup_size * __data_per_workitem;
     std::size_t __num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
-
     constexpr int __status_flag_padding = SUBGROUP_SIZE;
     std::size_t __status_flags_size = __num_wgs + 1 + __status_flag_padding;
     const ::std::size_t __mem_bytes = __cooperative_lookback_storage<_Type>::get_reqd_storage(__status_flags_size);
