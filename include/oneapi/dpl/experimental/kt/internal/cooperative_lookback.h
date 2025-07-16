@@ -37,6 +37,8 @@ namespace __impl
 // TODO: we should probably remove a hardcoded constant here
 static constexpr int SUBGROUP_SIZE = 32;
 
+// Some hardware may support atomic operations over vector types enabling support for types larger than
+// 4-bytes but this is not supported in SYCL.
 template <typename _T>
 struct __can_combine_status_prefix_flags : std::bool_constant<sizeof(_T) <= 4 && std::is_trivially_copyable_v<_T>>
 {
@@ -106,6 +108,8 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
 {
     using _PackedStatusPrefixT = std::uint64_t;
     using _FlagStorageType = std::uint32_t;
+    using _TIntegralBitsType = std::conditional_t<sizeof(_T) == 4, std::uint32_t,
+                                                  std::conditional_t<sizeof(_T) == 2, std::uint16_t, std::uint8_t>>;
     using _AtomicPackedStatusPrefixT =
         sycl::atomic_ref<_PackedStatusPrefixT, sycl::memory_order::acq_rel, sycl::memory_scope::device,
                          sycl::access::address_space::global_space>;
@@ -125,7 +129,9 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
     {
         constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __partial_status;
-        __packed_flag |= _PackedStatusPrefixT(__val) << __shift_factor;
+        _PackedStatusPrefixT __integral_bits =
+            static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__val));
+        __packed_flag |= __integral_bits << __shift_factor;
         __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
     }
 
@@ -134,7 +140,9 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
     {
         constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __full_status;
-        __packed_flag |= _PackedStatusPrefixT(__val) << __shift_factor;
+        _PackedStatusPrefixT __integral_bits =
+            static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__val));
+        __packed_flag |= __integral_bits << __shift_factor;
         __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
     }
 
@@ -143,7 +151,9 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
     {
         constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __oob_status;
-        __packed_flag |= _PackedStatusPrefixT{__known_identity} << __shift_factor;
+        _PackedStatusPrefixT __integral_bits =
+            static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__known_identity));
+        __packed_flag |= __integral_bits << __shift_factor;
         __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
     }
 
@@ -152,7 +162,9 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
     {
         constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __initialized_status;
-        __packed_flag |= _PackedStatusPrefixT{__known_identity} << __shift_factor;
+        _PackedStatusPrefixT __integral_bits =
+            static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__known_identity));
+        __packed_flag |= __integral_bits << __shift_factor;
         __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
     }
 
@@ -161,7 +173,7 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
     {
         constexpr int __shift_factor = sizeof(_PackedStatusPrefixT) * 4;
         _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) >> __shift_factor;
-        return _FlagStorageType(__packed & __prefix_mask);
+        return static_cast<_FlagStorageType>(__packed & __prefix_mask);
     }
 
     auto
@@ -169,7 +181,9 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
     {
         constexpr int __shift_factor = sizeof(_PackedStatusPrefixT) * 4;
         _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) << __shift_factor;
-        return _T((__packed & __prefix_mask) >> __shift_factor);
+        _TIntegralBitsType __integral_bits =
+            static_cast<_TIntegralBitsType>((__packed & __prefix_mask) >> __shift_factor);
+        return sycl::bit_cast<_T, _TIntegralBitsType>(__integral_bits);
     }
 
     std::pair<_FlagStorageType, _T>
