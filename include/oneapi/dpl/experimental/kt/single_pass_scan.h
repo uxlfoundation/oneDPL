@@ -96,6 +96,93 @@ struct __lookback_kernel_func
     std::size_t __current_num_items;
     _LocalAcc __slm;
 
+    template <bool __is_full>
+    [[sycl::reqd_sub_group_size(SUBGROUP_SIZE)]] void
+    impl(const sycl::nd_item<1>& __item, const sycl::sub_group& __sub_group, std::uint32_t __tile_id,
+         const std::size_t __work_group_offset, const std::size_t __sub_group_current_offset,
+         const std::size_t __sub_group_next_offset) const
+    {
+        auto __sub_group_local_id = __sub_group.get_local_linear_id();
+        auto __sub_group_group_id = __sub_group.get_group_linear_id();
+        _Type __grf_partials[__data_per_workitem];
+
+        // Global load into general register file
+        if constexpr (__is_full)
+        {
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
+            {
+                __grf_partials[__i] =
+                    __in_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i];
+            }
+        }
+        else
+        {
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
+            {
+                if (__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i < __n)
+                {
+                    __grf_partials[__i] =
+                        __in_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i];
+                }
+            }
+        }
+        auto __this_tile_elements = std::min<std::size_t>(__elems_in_tile, __n - __work_group_offset);
+        _Type __local_reduction =
+            work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(item_array_order::sub_group_stride{}, __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
+        _Type __prev_tile_reduction{};
+
+        // The first sub-group will query the previous tiles to find a prefix. For tile 0, we set it directly as full
+        if (__tile_id == 0)
+        {
+            if (__item.get_local_id(0) == 0)
+            {
+                _FlagType __flag(__lookback_storage, __tile_id);
+                __flag.set_full(__local_reduction);
+            }
+        }
+        else if (__sub_group.get_group_id() == 0)
+        {
+            _FlagType __flag(__lookback_storage, __tile_id);
+
+            if (__sub_group.get_local_id() == 0)
+            {
+                __flag.set_partial(__local_reduction);
+            }
+            __prev_tile_reduction = __cooperative_lookback(__lookback_storage, __sub_group, __tile_id, __binary_op);
+
+            if (__sub_group.get_local_id() == 0)
+            {
+                __flag.set_full(__binary_op(__prev_tile_reduction, __local_reduction));
+            }
+        }
+
+        __prev_tile_reduction = sycl::group_broadcast(__item.get_group(), __prev_tile_reduction, 0);
+
+        if constexpr (__is_full)
+        {
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
+            {
+                __out_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
+                    __binary_op(__prev_tile_reduction, __grf_partials[__i]);
+            }
+        }
+        else
+        {
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
+            {
+                if (__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i < __n)
+                {
+                    __out_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
+                        __binary_op(__prev_tile_reduction, __grf_partials[__i]);
+                }
+            }
+        }
+    }
+
     [[sycl::reqd_sub_group_size(SUBGROUP_SIZE)]] void
     operator()(const sycl::nd_item<1>& __item) const
     {
@@ -115,96 +202,25 @@ struct __lookback_kernel_func
         }
 
         __tile_id = sycl::group_broadcast(__group, __tile_id, 0);
-
-        _Type __grf_partials[__data_per_workitem];
-
         auto __sub_group = __item.get_sub_group();
         auto __sub_group_local_id = __sub_group.get_local_linear_id();
         auto __sub_group_group_id = __sub_group.get_group_linear_id();
 
         std::size_t __work_group_offset = static_cast<std::size_t>(__tile_id) * __elems_in_tile;
-        std::size_t __current_offset = __work_group_offset + __sub_group_group_id * __data_per_workitem * SUBGROUP_SIZE;
-        std::size_t __next_offset = __current_offset + SUBGROUP_SIZE * __data_per_workitem;
-        auto __out_begin = __out_rng.begin() + __current_offset;
 
         if (__work_group_offset >= __n)
             return;
 
-        // Global load into general register file
-        if (__next_offset <= __n)
-        {
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
-            {
-                __grf_partials[__i] =
-                    __in_rng[__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i];
-            }
-        }
+        std::size_t __sub_group_current_offset = __work_group_offset + __sub_group_group_id * __data_per_workitem * SUBGROUP_SIZE;
+        std::size_t __sub_group_next_offset = __sub_group_current_offset + SUBGROUP_SIZE * __data_per_workitem;
+        auto __out_begin = __out_rng.begin() + __sub_group_current_offset;
+
+        // Making full / not full case a bool template parameter and compiling two separate functions significantly improves performance
+        // over run-time checks immediately before load / store. 
+        if (__sub_group_next_offset <= __n)
+            impl<true>(__item, __sub_group, __tile_id, __work_group_offset, __sub_group_current_offset, __sub_group_next_offset);
         else
-        {
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
-            {
-                if (__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i < __n)
-                {
-                    __grf_partials[__i] =
-                        __in_rng[__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i];
-                }
-            }
-        }
-        auto __this_tile_elements = std::min<std::size_t>(__elems_in_tile, __n - __work_group_offset);
-        _Type __local_reduction =
-            work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(item_array_order::sub_group_stride{}, __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
-        _Type __prev_tile_reduction{};
-
-        // The first sub-group will query the previous tiles to find a prefix
-        if (__tile_id == 0)
-        {
-            if (__item.get_local_id(0) == 0)
-            {
-                _FlagType __flag(__lookback_storage, __tile_id);
-                __flag.set_full(__local_reduction);
-            }
-        }
-        else if (__subgroup.get_group_id() == 0)
-        {
-            _FlagType __flag(__lookback_storage, __tile_id);
-
-            if (__subgroup.get_local_id() == 0)
-            {
-                __flag.set_partial(__local_reduction);
-            }
-            __prev_tile_reduction = cooperative_lookback(__lookback_storage, __subgroup, __tile_id, __binary_op);
-
-            if (__subgroup.get_local_id() == 0)
-            {
-                __flag.set_full(__binary_op(__prev_tile_reduction, __local_reduction));
-            }
-        }
-
-        __prev_tile_reduction = sycl::group_broadcast(__group, __prev_tile_reduction, 0);
-
-        if (__next_offset <= __n)
-        {
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
-            {
-                __out_rng[__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
-                    __binary_op(__prev_tile_reduction, __grf_partials[__i]);
-            }
-        }
-        else
-        {
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
-            {
-                if (__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i < __n)
-                {
-                    __out_rng[__current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
-                        __binary_op(__prev_tile_reduction, __grf_partials[__i]);
-                }
-            }
-        }
+            impl<false>(__item, __sub_group, __tile_id, __work_group_offset, __sub_group_current_offset, __sub_group_next_offset);
     }
 };
 

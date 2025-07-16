@@ -23,6 +23,8 @@
 #include <type_traits>
 #include <sycl/sycl.hpp>
 
+#include "sub_group/sub_group_scan.h"
+
 namespace oneapi::dpl::experimental::kt
 {
 
@@ -278,16 +280,15 @@ struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flag
 
 template <typename _Subgroup, typename _T, typename _BinaryOp>
 _T
-cooperative_lookback(__cooperative_lookback_storage<_T> __lookback_storage, const _Subgroup& __subgroup,
-                     std::uint32_t __tile_id, _BinaryOp __binary_op)
+__cooperative_lookback(__cooperative_lookback_storage<_T> __lookback_storage, const _Subgroup& __subgroup,
+                       std::uint32_t __tile_id, _BinaryOp __binary_op)
 {
     _T __running = oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _T>;
     auto __local_id = __subgroup.get_local_id();
     for (int __tile = static_cast<int>(__tile_id) - 1; __tile >= 0; __tile -= SUBGROUP_SIZE)
     {
-        int __t = __tile - int(__local_id);
-        __scan_status_flag<_T> __current_tile(__lookback_storage, __t);
-        const auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
+        __scan_status_flag<_T> __current_tile(__lookback_storage, __tile - __local_id);
+         auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
 
         bool __is_full = __tile_flag == __scan_status_flag<_T>::__full_status;
         auto __is_full_ballot = sycl::ext::oneapi::group_ballot(__subgroup, __is_full);
@@ -295,19 +296,21 @@ cooperative_lookback(__cooperative_lookback_storage<_T> __lookback_storage, cons
         __is_full_ballot.extract_bits(__is_full_ballot_bits);
 
         auto __lowest_item_with_full = sycl::ctz(__is_full_ballot_bits);
-        _T __contribution = __local_id <= __lowest_item_with_full
-                                ? __tile_value
-                                : oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _T>;
-
-        // Running reduction of all of the partial results from the tiles found, as well as the full contribution from the closest tile (if any)
-        __running = __binary_op(__running, sycl::reduce_over_group(__subgroup, __contribution, __binary_op));
 
         // If we found a full value, we can stop looking at previous tiles. Otherwise,
         // keep going through tiles until we either find a full tile or we've completely
         // recomputed the prefix using partial values
         if (__is_full_ballot_bits)
+        {
+            __sub_group_scan_partial<SUBGROUP_SIZE, true, true>(__subgroup, __tile_value, __binary_op, __running, __lowest_item_with_full + 1);
             break;
+        }
+        else
+        {
+            __sub_group_scan<SUBGROUP_SIZE, true, true>(__subgroup, __tile_value, __binary_op, __running);
+        }
     }
+
     return __running;
 }
 
