@@ -112,8 +112,7 @@ struct __lookback_kernel_func
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
             {
-                __grf_partials[__i] =
-                    __in_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i];
+                __grf_partials[__i] = __in_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i];
             }
         }
         else
@@ -129,8 +128,8 @@ struct __lookback_kernel_func
             }
         }
         auto __this_tile_elements = std::min<std::size_t>(__elems_in_tile, __n - __work_group_offset);
-        _Type __local_reduction =
-            work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(item_array_order::sub_group_stride{}, __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
+        _Type __local_reduction = work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
+            item_array_order::sub_group_stride{}, __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
         _Type __prev_tile_reduction{};
 
         // The first sub-group will query the previous tiles to find a prefix. For tile 0, we set it directly as full
@@ -211,16 +210,19 @@ struct __lookback_kernel_func
         if (__work_group_offset >= __n)
             return;
 
-        std::size_t __sub_group_current_offset = __work_group_offset + __sub_group_group_id * __data_per_workitem * SUBGROUP_SIZE;
+        std::size_t __sub_group_current_offset =
+            __work_group_offset + __sub_group_group_id * __data_per_workitem * SUBGROUP_SIZE;
         std::size_t __sub_group_next_offset = __sub_group_current_offset + SUBGROUP_SIZE * __data_per_workitem;
         auto __out_begin = __out_rng.begin() + __sub_group_current_offset;
 
         // Making full / not full case a bool template parameter and compiling two separate functions significantly improves performance
-        // over run-time checks immediately before load / store. 
+        // over run-time checks immediately before load / store.
         if (__sub_group_next_offset <= __n)
-            impl<true>(__item, __sub_group, __tile_id, __work_group_offset, __sub_group_current_offset, __sub_group_next_offset);
+            impl<true>(__item, __sub_group, __tile_id, __work_group_offset, __sub_group_current_offset,
+                       __sub_group_next_offset);
         else
-            impl<false>(__item, __sub_group, __tile_id, __work_group_offset, __sub_group_current_offset, __sub_group_next_offset);
+            impl<false>(__item, __sub_group, __tile_id, __work_group_offset, __sub_group_current_offset,
+                        __sub_group_next_offset);
     }
 };
 
@@ -241,7 +243,8 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
             __lookback_kernel_func<__data_per_workitem, __workgroup_size, _Type, _FlagType, std::decay_t<_InRng>,
                                    std::decay_t<_OutRng>, std::decay_t<_BinaryOp>, std::decay_t<_LocalAccessorType>>;
         return __q.submit([&](sycl::handler& __hdl) {
-            auto __slm = _LocalAccessorType(oneapi::dpl::__internal::__dpl_ceiling_div(__workgroup_size, SUBGROUP_SIZE), __hdl);
+            auto __slm =
+                _LocalAccessorType(oneapi::dpl::__internal::__dpl_ceiling_div(__workgroup_size, SUBGROUP_SIZE), __hdl);
             __hdl.depends_on(__prev_event);
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
             __hdl.parallel_for<_Name...>(sycl::nd_range<1>(__current_num_items, __workgroup_size),
