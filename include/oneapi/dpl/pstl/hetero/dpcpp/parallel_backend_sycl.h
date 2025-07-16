@@ -50,10 +50,6 @@
 #include "utils_ranges_sycl.h"
 #include "../../functional_impl.h" // for oneapi::dpl::identity
 
-#define USE_ATOMICS 1
-#define USE_ATOMICS_OP 1
-#define USE_DEBUG_OUTPUT 0
-
 #define _ONEDPL_USE_RADIX_SORT (_ONEDPL_USE_SUB_GROUPS && _ONEDPL_USE_GROUP_ALGOS)
 
 #if _ONEDPL_USE_RADIX_SORT
@@ -1203,9 +1199,7 @@ struct __parallel_find_forward_tag
     static void
     __save_state_to_atomic(__dpl_sycl::__atomic_ref<_AtomicType, _Space>& __atomic, _AtomicType __new_state)
     {
-#if USE_ATOMICS_OP
         __atomic.fetch_min(__new_state);
-#endif        
     }
 
     template <typename _TFoundState>
@@ -1243,9 +1237,7 @@ struct __parallel_find_backward_tag
     static void
     __save_state_to_atomic(__dpl_sycl::__atomic_ref<_AtomicType, _Space>& __atomic, _AtomicType __new_state)
     {
-#if USE_ATOMICS_OP        
         __atomic.fetch_max(__new_state);
-#endif        
     }
 
     template <typename _TFoundState>
@@ -1277,9 +1269,7 @@ struct __parallel_or_tag
     static void
     __save_state_to_atomic(__dpl_sycl::__atomic_ref<_AtomicType, _Space>& __atomic, _AtomicType /*__new_state*/)
     {
-#if USE_ATOMICS_OP        
         __atomic.store(__found_state);
-#endif        
     }
 
     template <typename _TFoundState>
@@ -1367,20 +1357,10 @@ struct __parallel_find_or_nd_range_tuner
     std::tuple<std::size_t, std::size_t>
     operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
-#if USE_DEBUG_OUTPUT        
-        std::cout << "__parallel_find_or_nd_range_tuner::operator()\n";
-        std::cout << "  __rng_n = " << __rng_n << "\n";
-#endif        
-
         // TODO: find a way to generalize getting of reliable work-group size
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
         const std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
-#if USE_DEBUG_OUTPUT                
-        std::cout << "  __wgroup_size = " << __wgroup_size << "\n";
-
-#endif        
-
         std::size_t __n_groups = 1;
         // If no more than 32 data elements per work item, a single work group will be used
         if (__rng_n > __wgroup_size * 32)
@@ -1389,10 +1369,6 @@ struct __parallel_find_or_nd_range_tuner
             __n_groups = std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size),
                                                oneapi::dpl::__internal::__max_compute_units(__q));
         }
-#if USE_DEBUG_OUTPUT                
-        std::cout << "  __n_groups = " << __n_groups << "\n";
-        std::cout << std::endl;
-#endif        
 
         return {__n_groups, __wgroup_size};
     }
@@ -1407,17 +1383,8 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
     std::tuple<std::size_t, std::size_t>
     operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
-#if USE_DEBUG_OUTPUT                
-        std::cout << "__parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>::operator()\n";
-        std::cout << "  __rng_n = " << __rng_n << "\n";
-#endif        
-
         // Call common tuning function to get the work-group size
         auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int>{}(__q, __rng_n);
-
-#if USE_DEBUG_OUTPUT                
-        std::cout << "__parallel_find_or_nd_range_tuner<int>{} : " << "__n_groups = " << __n_groups << ", __wgroup_size = " << __wgroup_size << "\n";
-#endif        
 
         if (__n_groups > 1)
         {
@@ -1432,10 +1399,6 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
                 const float __rng_x = (float)__rng_n / 4096.f;
                 const float __desired_iters_per_work_item = std::max(std::sqrt(__rng_x), 1.f);
 
-#if USE_DEBUG_OUTPUT                        
-                std::cout << "__desired_iters_per_work_item = " << __desired_iters_per_work_item << "\n";
-#endif                
-
                 if (__iters_per_work_item < __desired_iters_per_work_item)
                 {
                     // Multiply work per item by a power of 2 to reach the desired number of iterations.
@@ -1448,10 +1411,6 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
                 }
             }
         }
-
-#if USE_DEBUG_OUTPUT                
-        std::cout << "final state : " << "__n_groups = " << __n_groups << ", __wgroup_size = " << __wgroup_size << "" << "\n";
-#endif        
 
         return {__n_groups, __wgroup_size};
     }
@@ -1533,38 +1492,56 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __n_groups,
                const std::size_t __wgroup_size, const _AtomicType __init_value, _Predicate __pred, _Ranges&&... __rngs)
     {
-        // __result: const unsigned long
         auto __result = __init_value;
-        //decltype(__init_value)::dummy;
-
-        std::cout << "  __n_groups = " << __n_groups << "\n";
-        std::cout << "  __wgroup_size = " << __wgroup_size << "\n";
 
         // Calculate the number of elements to be processed by each work-item.
         const auto __iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
-
-        std::cout << "  __iters_per_work_item = " << __iters_per_work_item << "\n";
 
         // scope is to copy data back to __result after destruction of temporary sycl:buffer
         {
             sycl::buffer<_AtomicType, 1> __result_sycl_buf(&__result, 1); // temporary storage for global atomic
 
             // main parallel_for
-            auto __event_find = __q.submit([&](sycl::handler& __cgh) {
-                //oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
-
-                //auto __result_sycl_buf_acc = __result_sycl_buf.template get_access<access_mode::read_write>(__cgh);
-                auto __result_sycl_buf_acc = __result_sycl_buf.template get_access<access_mode::write>(__cgh);
+            __q.submit([&](sycl::handler& __cgh) {
+                oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
+                auto __result_sycl_buf_acc = __result_sycl_buf.template get_access<access_mode::read_write>(__cgh);
 
                 __cgh.parallel_for<KernelName...>(
                     sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
                                               sycl::range</*dim=*/1>(__wgroup_size)),
                     [=](sycl::nd_item</*dim=*/1> __item_id) {
+                        auto __local_idx = __item_id.get_local_id(0);
 
-                        // Nothing doing inside
-                        //static_assert(false);
+                        // 1. Set initial value to local found state
+                        _AtomicType __found_local = __init_value;
 
+                        // 2. Find any element that satisfies pred
+                        //  - after this call __found_local may still have initial value:
+                        //    1) if no element satisfies pred;
+                        //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
+                        __pred(__item_id, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
+                               __brick_tag, __rngs...);
+
+                        // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
+                        // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
+                        // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
+                        // inside all our group items
+                        if constexpr (__or_tag_check)
+                            __found_local = __dpl_sycl::__any_of_group(__item_id.get_group(), __found_local);
+                        else
+                            __found_local = __dpl_sycl::__reduce_over_group(
+                                __item_id.get_group(), __found_local, typename _BrickTag::_LocalResultsReduceOp{});
+
+                        // Set local found state value value to global atomic
+                        if (__local_idx == 0 && __found_local != __init_value)
+                        {
+                            __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
+                                *__dpl_sycl::__get_accessor_ptr(__result_sycl_buf_acc));
+
+                            // Update global (for all groups) atomic state with the found index
+                            _BrickTag::__save_state_to_atomic(__found, __found_local);
+                        }
                     });
             });
             //The end of the scope  -  a point of synchronization (on temporary sycl buffer destruction)
