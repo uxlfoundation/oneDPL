@@ -1500,6 +1500,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         __result_and_scratch_storage_t __result_storage{__q, 0};
 
         // Initialize the result storage with the initial value
+#if 0
         auto __event_init = __q.submit([&](sycl::handler& __cgh) {
 
             auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
@@ -1511,6 +1512,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 *__res_ptr = __init_value;
             });
         });
+#endif
 
         // Calculate the number of elements to be processed by each work-item.
         const auto __iters_per_work_item =
@@ -1519,7 +1521,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         // main parallel_for
         auto __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
-            __cgh.depends_on(__event_init);
+            //__cgh.depends_on(__event_init);
 
             auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::read_write>(__cgh, __dpl_sycl::__no_init{});
 
@@ -1527,6 +1529,17 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
                                             sycl::range</*dim=*/1>(__wgroup_size)),
                 [=](sycl::nd_item</*dim=*/1> __item_id) {
+
+                    // Initialize the result storage with the initial value
+                    const std::size_t __global_id = __item_id.get_global_id(0);
+                    if (__global_id == 0)
+                    {
+                        auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
+                        *__res_ptr = __init_value;
+                    }
+
+                    __dpl_sycl::__group_barrier(__item_id, __dpl_sycl::__fence_space_global);
+
                     auto __local_idx = __item_id.get_local_id(0);
 
                     // 1. Set initial value to local found state
