@@ -602,6 +602,26 @@ using  usm_span = usm_subrange_impl<T, std::span<T>>;
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
+struct subrange_view_fo
+{
+    template <typename T>
+    auto operator()(T&& v) const
+    {
+        return std::ranges::subrange(v);
+    }
+};
+
+#if TEST_CPP20_SPAN_PRESENT
+struct span_view_fo
+{
+    template <typename T>
+    auto operator()(T&& v) const
+    {
+        return std::span(v);
+    }
+};
+#endif
+
 template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test_range_algo
@@ -642,26 +662,6 @@ struct test_range_algo
         test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id), algo, checker, view, std::identity{}, args...);
     }
 #endif //TEST_DPCPP_BACKEND_PRESENT
-
-    struct subrange_view_fo
-    {
-        template <typename T>
-        auto operator()(T&& v) const
-        {
-            return std::ranges::subrange(v);
-        }
-    };
-
-#if TEST_CPP20_SPAN_PRESENT
-    struct span_view_fo
-    {
-        template <typename T>
-        auto operator()(T&& v) const
-        {
-            return std::span(v);
-        }
-    };
-#endif
 
     void
     test_range_algo_impl_host(auto algo, auto& checker, auto... args)
