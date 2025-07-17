@@ -22,7 +22,7 @@
 #endif
 
 #include "support/utils.h"
-#include "support/utils_invoke.h" // CLONE_TEST_POLICY
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #include <algorithm>  // std::is_sorted
 #include <functional> // std::greater
