@@ -645,8 +645,8 @@ struct test_range_algo
 
     struct subrange_view_fo
     {
-        template <typename TArg>
-        auto operator()(TArg&& v) const
+        template <typename T>
+        auto operator()(T&& v) const
         {
             return std::ranges::subrange(v);
         }
@@ -655,8 +655,8 @@ struct test_range_algo
 #if TEST_CPP20_SPAN_PRESENT
     struct span_view_fo
     {
-        template <typename TArg>
-        auto operator()(TArg&& v) const
+        template <typename T>
+        auto operator()(T&& v) const
         {
             return std::span(v);
         }
