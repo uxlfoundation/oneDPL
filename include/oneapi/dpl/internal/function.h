@@ -30,8 +30,6 @@ namespace dpl
 {
 namespace internal
 {
-using std::get;
-
 // struct for checking if iterator is a discard_iterator or not
 template <typename Iter, typename Void = void> // for non-discard iterators
 struct is_discard_iterator : ::std::false_type
