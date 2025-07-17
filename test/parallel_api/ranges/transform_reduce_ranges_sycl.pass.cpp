@@ -35,7 +35,7 @@ test_impl(Policy&& exec)
     constexpr int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
-    auto lambda1 = TestUtils::Pow2<int>();
+    auto pred1 = TestUtils::Pow2<int>();
 
     auto res1 = -1, res2 = -1, res3 = -1;
     {
@@ -45,7 +45,7 @@ test_impl(Policy&& exec)
 
         res1 = oneapi::dpl::experimental::ranges::transform_reduce(CLONE_TEST_POLICY_IDX(exec, 0), A, view, 0);
         res2 = oneapi::dpl::experimental::ranges::transform_reduce(CLONE_TEST_POLICY_IDX(exec, 1), view, A, 0, std::plus<int>(), std::multiplies<int>());
-        res3 = oneapi::dpl::experimental::ranges::transform_reduce(CLONE_TEST_POLICY_IDX(exec, 2), view, 0, std::plus<int>(), lambda1);
+        res3 = oneapi::dpl::experimental::ranges::transform_reduce(CLONE_TEST_POLICY_IDX(exec, 2), view, 0, std::plus<int>(), pred1);
     }
 
     //check result
@@ -53,7 +53,7 @@ test_impl(Policy&& exec)
     auto expected2 = std::inner_product(data, data + max_n, data, 0, std::plus<int>(), std::multiplies<int>());
 
     //the name nano::ranges::views::all is not injected into oneapi::dpl::experimental::ranges namespace
-    auto data_view = __nanorange::nano::views::all(data) | oneapi::dpl::experimental::ranges::views::transform(lambda1);
+    auto data_view = __nanorange::nano::views::all(data) | oneapi::dpl::experimental::ranges::views::transform(pred1);
     auto expected3 = std::accumulate(data_view.begin(), data_view.end(), 0);
 
     EXPECT_EQ(expected1, res1, "wrong effect from transform_reduce1 with sycl ranges");

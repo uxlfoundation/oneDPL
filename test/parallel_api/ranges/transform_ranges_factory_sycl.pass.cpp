@@ -37,8 +37,8 @@ test_impl(Policy&& exec)
     int data2[max_n];
     int data3[max_n];
 
-    auto lambda1 = TestUtils::Pow2<int>();
-    auto lambda2 = TestUtils::SumWithOp<int>{200};
+    auto pred1 = TestUtils::Pow2<int>();
+    auto pred2 = TestUtils::SumWithOp<int>{200};
 
     using namespace oneapi::dpl::experimental::ranges;
 
@@ -46,17 +46,17 @@ test_impl(Policy&& exec)
         sycl::buffer<int> B(data2, sycl::range<1>(max_n));
         sycl::buffer<int> C(data3, sycl::range<1>(max_n));
 
-        auto view = iota_view(0, max_n) | views::transform(lambda1);
+        auto view = iota_view(0, max_n) | views::transform(pred1);
         auto range_res = all_view<int, sycl::access::mode::write>(B);
 
-        transform(CLONE_TEST_POLICY_IDX(exec, 0), view, range_res, lambda2);
-        transform(CLONE_TEST_POLICY_IDX(exec, 1), view, C, lambda2); //check passing sycl buffer
+        transform(CLONE_TEST_POLICY_IDX(exec, 0), view, range_res, pred2);
+        transform(CLONE_TEST_POLICY_IDX(exec, 1), view, C, pred2); //check passing sycl buffer
     }
 
     //check result
     int expected[max_n];
-    std::transform(data, data + max_n, expected, lambda1);
-    std::transform(expected, expected + max_n, expected, lambda2);
+    std::transform(data, data + max_n, expected, pred1);
+    std::transform(expected, expected + max_n, expected, pred2);
 
     EXPECT_EQ_N(expected, data2, max_n, "wrong effect from transform with sycl ranges");
     EXPECT_EQ_N(expected, data3, max_n, "wrong effect from transform with sycl buffer");

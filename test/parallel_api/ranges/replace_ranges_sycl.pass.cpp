@@ -36,7 +36,7 @@ test_impl(Policy&& exec)
     int expected[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     int val1 = -1, val2 = -2;
 
-    auto lambda = TestUtils::IsEven<int>();
+    auto pred = TestUtils::IsEven<int>();
 
     using namespace oneapi::dpl::experimental::ranges;
 
@@ -45,12 +45,12 @@ test_impl(Policy&& exec)
 
         auto view = views::all(A);
 
-        replace_if(CLONE_TEST_POLICY_IDX(exec, 0), view, lambda, val1);
+        replace_if(CLONE_TEST_POLICY_IDX(exec, 0), view, pred, val1);
         replace(CLONE_TEST_POLICY_IDX(exec, 1), A, val1, val2);
     }
 
     //check result
-    std::replace_if(expected, expected + max_n, lambda, val2);
+    std::replace_if(expected, expected + max_n, pred, val2);
 
     EXPECT_EQ_N(expected, data, max_n, "wrong effect from replace(_if) with sycl ranges");
 }

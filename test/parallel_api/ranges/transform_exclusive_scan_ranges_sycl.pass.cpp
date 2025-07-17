@@ -38,7 +38,7 @@ test_impl(Policy&& exec)
     int data1[max_n];
     int data2[max_n];
 
-    auto lambda = TestUtils::Pow2<int>();
+    auto pred = TestUtils::Pow2<int>();
     {
         sycl::buffer<int> A(data, sycl::range<1>(max_n));
         sycl::buffer<int> B(data1, sycl::range<1>(max_n));
@@ -49,13 +49,13 @@ test_impl(Policy&& exec)
         auto view = ranges::all_view<int, sycl::access::mode::read>(A);
         auto view_res = ranges::all_view<int, sycl::access::mode::write>(B);
 
-        ranges::transform_exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 0), view, view_res, 100, std::plus<int>(), lambda);
-        ranges::transform_exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 1), A, C, 100, std::plus<int>(), lambda);
+        ranges::transform_exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 0), view, view_res, 100, std::plus<int>(), pred);
+        ranges::transform_exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 1), A, C, 100, std::plus<int>(), pred);
     }
 
     //check result
     int expected[max_n];
-    std::transform_exclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected, 100, std::plus<int>(), lambda);
+    std::transform_exclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected, 100, std::plus<int>(), pred);
 
     EXPECT_EQ_N(expected, data1, max_n, "wrong effect from transform_exclusive_scan with init, sycl ranges");
     EXPECT_EQ_N(expected, data2, max_n, "wrong effect from transform_exclusive_scan with init, sycl buffers");

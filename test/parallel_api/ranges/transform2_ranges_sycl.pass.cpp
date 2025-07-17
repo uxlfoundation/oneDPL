@@ -36,25 +36,25 @@ test_impl(Policy&& exec)
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     int data2[max_n];
 
-    auto lambda1 = TestUtils::Pow2<int>();
-    auto lambda2 = TestUtils::SumOp<int, int>();
+    auto pred1 = TestUtils::Pow2<int>();
+    auto pred2 = TestUtils::SumOp<int, int>();
 
     {
         sycl::buffer<int> A(data, sycl::range<1>(max_n));
         sycl::buffer<int> B(data2, sycl::range<1>(max_n));
 
         auto sv = oneapi::dpl::experimental::ranges::all_view(A);
-        auto view = oneapi::dpl::experimental::ranges::views::reverse(sv) | oneapi::dpl::experimental::ranges::views::transform(lambda1);
+        auto view = oneapi::dpl::experimental::ranges::views::reverse(sv) | oneapi::dpl::experimental::ranges::views::transform(pred1);
 
         auto range_res = oneapi::dpl::experimental::ranges::all_view<int, sycl::access::mode::write>(B);
-        oneapi::dpl::experimental::ranges::transform(std::forward<Policy>(exec), view, view, range_res, lambda2);
+        oneapi::dpl::experimental::ranges::transform(std::forward<Policy>(exec), view, view, range_res, pred2);
     }
 
     //check result
     int expected[max_n];
     std::reverse(data, data + max_n);
-    std::transform(data, data + max_n, expected, lambda1);
-    std::transform(expected, expected + max_n, expected, expected, lambda2);
+    std::transform(data, data + max_n, expected, pred1);
+    std::transform(expected, expected + max_n, expected, expected, pred2);
 
     EXPECT_EQ_N(expected, data2, max_n, "wrong effect from transform2 with sycl ranges");
 }

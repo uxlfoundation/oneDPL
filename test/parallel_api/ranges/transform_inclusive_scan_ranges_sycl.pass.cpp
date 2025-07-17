@@ -37,7 +37,7 @@ test_impl(Policy&& exec)
     int data1[max_n], data2[max_n];
 
     int init = 100;
-    auto lambda = TestUtils::Pow2<int>();
+    auto pred = TestUtils::Pow2<int>();
     {
         sycl::buffer<int> A(data, sycl::range<1>(max_n));
         sycl::buffer<int> B1(data1, sycl::range<1>(max_n));
@@ -48,14 +48,14 @@ test_impl(Policy&& exec)
         auto view = ranges::all_view<int, sycl::access::mode::read>(A);
         auto view_res1 = ranges::all_view<int, sycl::access::mode::write>(B1);
 
-        ranges::transform_inclusive_scan(CLONE_TEST_POLICY_IDX(exec, 0), A, view_res1, std::plus<int>(), lambda);
-        ranges::transform_inclusive_scan(CLONE_TEST_POLICY_IDX(exec, 1), view, B2, std::plus<int>(), lambda, init);
+        ranges::transform_inclusive_scan(CLONE_TEST_POLICY_IDX(exec, 0), A, view_res1, std::plus<int>(), pred);
+        ranges::transform_inclusive_scan(CLONE_TEST_POLICY_IDX(exec, 1), view, B2, std::plus<int>(), pred, init);
     }
 
     //check result
     int expected1[max_n], expected2[max_n];
-    std::transform_inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected1, std::plus<int>(), lambda);
-    std::transform_inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected2, std::plus<int>(), lambda, init);
+    std::transform_inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected1, std::plus<int>(), pred);
+    std::transform_inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected2, std::plus<int>(), pred, init);
 
     EXPECT_EQ_N(expected1, data1, max_n, "wrong effect from transform_inclusive_scan, sycl ranges");
     EXPECT_EQ_N(expected2, data2, max_n, "wrong effect from transform_inclusive_scan with init, sycl ranges");

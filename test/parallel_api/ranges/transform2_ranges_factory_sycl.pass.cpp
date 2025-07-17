@@ -38,24 +38,24 @@ test_impl(Policy&& exec)
     int data2[max_n];
     int data3[max_n];
 
-    auto lambda1 = TestUtils::Pow2<int>();
-    auto lambda2 = TestUtils::SumOp<int, int>();
+    auto pred1 = TestUtils::Pow2<int>();
+    auto pred2 = TestUtils::SumOp<int, int>();
 
     {
         sycl::buffer<int> B(data2, sycl::range<1>(max_n));
         sycl::buffer<int> C(data3, sycl::range<1>(max_n));
 
-        auto view = oneapi::dpl::experimental::ranges::iota_view(0, max_n) | oneapi::dpl::experimental::ranges::views::transform(lambda1);
+        auto view = oneapi::dpl::experimental::ranges::iota_view(0, max_n) | oneapi::dpl::experimental::ranges::views::transform(pred1);
         auto range_res = oneapi::dpl::experimental::ranges::all_view<int, sycl::access::mode::write>(B);
 
-        oneapi::dpl::experimental::ranges::transform(CLONE_TEST_POLICY_IDX(exec, 0), view, view, range_res, lambda2);
-        oneapi::dpl::experimental::ranges::transform(CLONE_TEST_POLICY_IDX(exec, 1), view, view, C, lambda2); //check passing sycl buffer
+        oneapi::dpl::experimental::ranges::transform(CLONE_TEST_POLICY_IDX(exec, 0), view, view, range_res, pred2);
+        oneapi::dpl::experimental::ranges::transform(CLONE_TEST_POLICY_IDX(exec, 1), view, view, C, pred2); //check passing sycl buffer
     }
 
     //check result
     int expected[max_n];
-    std::transform(data, data + max_n, expected, lambda1);
-    std::transform(expected, expected + max_n, expected, expected, lambda2);
+    std::transform(data, data + max_n, expected, pred1);
+    std::transform(expected, expected + max_n, expected, expected, pred2);
 
     EXPECT_EQ_N(expected, data2, max_n, "wrong effect from transform2 with sycl ranges");
     EXPECT_EQ_N(expected, data3, max_n, "wrong effect from transform2 with sycl buffer");

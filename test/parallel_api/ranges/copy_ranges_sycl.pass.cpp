@@ -36,7 +36,7 @@ test_impl(Policy&& exec)
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     int data2[max_n];
 
-    auto lambda1 = TestUtils::Pow2<int>();
+    auto pred = TestUtils::Pow2<int>();
 
     using namespace oneapi::dpl::experimental::ranges;
 
@@ -46,7 +46,7 @@ test_impl(Policy&& exec)
         sycl::buffer<int> C(max_n);
 
         auto sv = all_view(A);
-        auto view = views::reverse(sv) | views::transform(lambda1);
+        auto view = views::reverse(sv) | views::transform(pred);
         auto range_res = all_view<int, sycl::access::mode::write>(B);
 
         copy(CLONE_TEST_POLICY_IDX(exec, 0), view, C); //check passing a buffer for writing
@@ -56,7 +56,7 @@ test_impl(Policy&& exec)
     //check result
     int expected[max_n];
     std::reverse(data, data + max_n);
-    std::transform(data, data + max_n, expected, lambda1);
+    std::transform(data, data + max_n, expected, pred);
 
     EXPECT_EQ_N(expected, data2, max_n, "wrong effect from copy with sycl ranges");
 }

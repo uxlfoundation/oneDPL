@@ -37,8 +37,8 @@ test_impl(Policy&& exec)
 {
     using T = int;
 
-    auto lambda1 = TestUtils::IsEven<T>();
-    auto lambda2 = TestUtils::IsMultipleOf<T>{3};
+    auto pred1 = TestUtils::IsEven<T>();
+    auto pred2 = TestUtils::IsMultipleOf<T>{3};
     std::vector<T> data = {2, 5, 2, 4, 2, 0, 6, -7, 7, 3};
 
     std::vector<T> in(data);
@@ -47,14 +47,14 @@ test_impl(Policy&& exec)
     {
         sycl::buffer<T> A(in.data(), sycl::range<1>(in.size()));
 
-        in_end_n = remove_if(CLONE_TEST_POLICY_IDX(exec, 0), A, lambda1); //check passing a buffer
-        in_end_n = remove_if(CLONE_TEST_POLICY_IDX(exec, 1), views::all(A) | views::take(in_end_n), lambda2); //check passing a view
+        in_end_n = remove_if(CLONE_TEST_POLICY_IDX(exec, 0), A, pred1); //check passing a buffer
+        in_end_n = remove_if(CLONE_TEST_POLICY_IDX(exec, 1), views::all(A) | views::take(in_end_n), pred2); //check passing a view
     }
 
     //check result
     std::vector<T> exp(data);
-    auto exp_end = std::remove_if(exp.begin(), exp.end(), lambda1);
-    exp_end = std::remove_if(exp.begin(), exp_end, lambda2);
+    auto exp_end = std::remove_if(exp.begin(), exp.end(), pred1);
+    exp_end = std::remove_if(exp.begin(), exp_end, pred2);
 
     EXPECT_EQ(std::distance(exp.begin(), exp_end), in_end_n, "wrong effect from remove with sycl ranges");
     EXPECT_EQ_N(exp.begin(), in.begin(), in_end_n, "wrong effect from remove with sycl ranges");

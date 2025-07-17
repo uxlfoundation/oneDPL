@@ -46,16 +46,16 @@ test_impl(Policy&& exec)
     int expected1[max_n] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     int expected2[max_n] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-    auto lambda_pow_2 = TestUtils::Pow2<int>();
-    auto lambda_eq_1 = TestUtils::IsEqualTo<int>{1};
+    auto pred_pow_2 = TestUtils::Pow2<int>();
+    auto pred_eq_1 = TestUtils::IsEqualTo<int>{1};
 
     using namespace oneapi::dpl::experimental;
 
-    auto view1 = ranges::views::fill(-1, max_n) | ranges::views::transform(lambda_pow_2);
-    auto res1 = std::all_of(view1.begin(), view1.end(), lambda_eq_1);
+    auto view1 = ranges::views::fill(-1, max_n) | ranges::views::transform(pred_pow_2);
+    auto res1 = std::all_of(view1.begin(), view1.end(), pred_eq_1);
 
-    auto view2 = ranges::views::generate(get_const_fo<int>{-1}, max_n) | ranges::views::transform(lambda_pow_2);
-    auto res2 = std::all_of(view2.begin(), view2.end(), lambda_eq_1);
+    auto view2 = ranges::views::generate(get_const_fo<int>{-1}, max_n) | ranges::views::transform(pred_pow_2);
+    auto res2 = std::all_of(view2.begin(), view2.end(), pred_eq_1);
 
     //check result
     EXPECT_TRUE(res1, "wrong result from fill factory");
@@ -70,8 +70,8 @@ test_impl(Policy&& exec)
         ranges::copy(CLONE_TEST_POLICY_IDX(exec, 1), view2, B);
     }
 
-    auto res3 = std::all_of(expected1, expected1 + max_n, lambda_eq_1);
-    auto res4 = std::all_of(expected2, expected2 + max_n, lambda_eq_1);
+    auto res3 = std::all_of(expected1, expected1 + max_n, pred_eq_1);
+    auto res4 = std::all_of(expected2, expected2 + max_n, pred_eq_1);
 
     //check result
     EXPECT_TRUE(res3, "wrong result from fill factory on a device");
