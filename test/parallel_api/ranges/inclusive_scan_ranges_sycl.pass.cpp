@@ -23,13 +23,15 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
     constexpr int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     int data1[max_n], data2[max_n], data3[max_n];
@@ -46,25 +48,34 @@ main()
         auto view_res1 = ranges::all_view<int, sycl::access::mode::write>(B1);
         auto view_res3 = ranges::all_view<int, sycl::access::mode::write>(B3);
 
-        auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
-        auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 3>>(exec);
-
-        ranges::inclusive_scan(exec, A, view_res1);
-        ranges::inclusive_scan(exec2, view, B2, ::std::plus<int>());
-        ranges::inclusive_scan(exec3, view, view_res3, ::std::plus<int>(), 100);
+        ranges::inclusive_scan(CLONE_TEST_POLICY_IDX(exec, 0), A, view_res1);
+        ranges::inclusive_scan(CLONE_TEST_POLICY_IDX(exec, 1), view, B2, std::plus<int>());
+        ranges::inclusive_scan(CLONE_TEST_POLICY_IDX(exec, 2), view, view_res3, std::plus<int>(), 100);
     }
 
     //check result
     int expected1[max_n], expected2[max_n], expected3[max_n];
-    ::std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected1);
-    ::std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected2, ::std::plus<int>());
-    ::std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected3, ::std::plus<int>(), 100);
+    std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected1);
+    std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected2, std::plus<int>());
+    std::inclusive_scan(oneapi::dpl::execution::seq, data, data + max_n, expected3, std::plus<int>(), 100);
 
     EXPECT_EQ_N(expected1, data1, max_n, "wrong effect from inclusive_scan with sycl ranges");
     EXPECT_EQ_N(expected2, data2, max_n, "wrong effect from inclusive_scan with binary operation, sycl ranges");
     EXPECT_EQ_N(expected3, data3, max_n, "wrong effect from inclusive_scan with binary operation and init, sycl ranges");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+#endif
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

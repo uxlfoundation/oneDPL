@@ -22,13 +22,15 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
     const int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
@@ -42,17 +44,27 @@ main()
 
         auto view  = all_view(A);
 
-        auto exec = TestUtils::get_dpcpp_test_policy();
-        using Policy = decltype(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 2>>(exec);
-
-        res1 = is_sorted_until(exec, view);
-        res2 = is_sorted_until(exec2, A, [](auto a, auto b) { return a < b; });
+        res1 = is_sorted_until(CLONE_TEST_POLICY_IDX(exec, 0), view);
+        res2 = is_sorted_until(CLONE_TEST_POLICY_IDX(exec, 1), A, TestUtils::IsLess<int>());
     }
 
     //check result
     EXPECT_TRUE(res1 == idx, "wrong effect from 'is_sorted_until' with sycl ranges");
     EXPECT_TRUE(res2 == idx, "wrong effect from 'is_sorted_until' with comparator, sycl ranges");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+#endif
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);
