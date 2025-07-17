@@ -22,16 +22,18 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // for CLONE_TEST_POLICY macro
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
     constexpr int max_n = 10;
 
-    auto pred = [](auto i) { return i % 2 == 0; };
+    auto pred = TestUtils::IsEven<int>();
 
     using namespace oneapi::dpl::experimental::ranges;
 
@@ -41,14 +43,9 @@ main()
 
     auto src = views::iota(0, max_n);
 
-    auto exec1 = TestUtils::get_dpcpp_test_policy();
-    using Policy = decltype(exec1);
-    auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec1);
-    auto exec3 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec1);
-
-    auto res1 = copy_if(exec1, src, A, pred);
-    auto res2 = remove_copy_if(exec2, src, views::all_write(B), pred);
-    auto res3 = remove_copy(exec3, src, views::all_write(C), 0);
+    auto res1 = copy_if(CLONE_TEST_POLICY_IDX(exec, 0), src, A, pred);
+    auto res2 = remove_copy_if(CLONE_TEST_POLICY_IDX(exec, 1), src, views::all_write(B), pred);
+    auto res3 = remove_copy(CLONE_TEST_POLICY_IDX(exec, 2), src, views::all_write(C), 0);
 
     EXPECT_TRUE(res1 == 5, "wrong return result from copy_if with sycl buffer");
     EXPECT_TRUE(res2 == 5, "wrong return result from remove_copy_if with sycl ranges");
@@ -57,14 +54,28 @@ main()
     //check result
     int expected[max_n];
 
-    ::std::copy_if(src.begin(), src.end(), expected, pred);
+    std::copy_if(src.begin(), src.end(), expected, pred);
     EXPECT_EQ_N(expected, views::host_all(A).begin(), res1, "wrong effect from copy_if with sycl ranges");
 
-    ::std::remove_copy_if(src.begin(), src.end(), expected, pred);
+    std::remove_copy_if(src.begin(), src.end(), expected, pred);
     EXPECT_EQ_N(expected, views::host_all(B).begin(), res2, "wrong effect from remove_copy_if with sycl ranges");
 
-    ::std::remove_copy(src.begin(), src.end(), expected, 0);
+    std::remove_copy(src.begin(), src.end(), expected, 0);
     EXPECT_EQ_N(expected, views::host_all(C).begin(), res3, "wrong effect from remove_copy with sycl ranges");
+}
+#endif //_ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+#endif
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);
