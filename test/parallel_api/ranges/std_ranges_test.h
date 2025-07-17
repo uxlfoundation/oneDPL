@@ -13,12 +13,16 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef _STD_RANGES_TEST_H
+#define _STD_RANGES_TEST_H
+
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/algorithm>
 
 #include "support/test_config.h"
 #include "support/test_macros.h"
 #include "support/utils.h"
+#include "support/utils_invoke.h"       // for CLONE_TEST_POLICY macro
 
 #if _ENABLE_STD_RANGES_TESTING
 
@@ -73,6 +77,7 @@ auto f = [](auto&& val) { return val * val; };
 auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
 auto proj = [](auto&& val){ return val * 2; };
 auto pred = [](auto&& val) { return val == 5; };
+
 auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
 auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
 
@@ -172,9 +177,9 @@ struct test
     void
     host_policies(int n_serial, int n_parallel, auto algo, auto& checker, auto... args)
     {
-        operator()(n_serial, oneapi::dpl::execution::seq, algo, checker, args...);
-        operator()(n_serial, oneapi::dpl::execution::unseq, algo, checker, args...);
-        operator()(n_parallel, oneapi::dpl::execution::par, algo, checker,  args...);
+        operator()(n_serial,   oneapi::dpl::execution::seq,       algo, checker, args...);
+        operator()(n_serial,   oneapi::dpl::execution::unseq,     algo, checker, args...);
+        operator()(n_parallel, oneapi::dpl::execution::par,       algo, checker, args...);
         operator()(n_parallel, oneapi::dpl::execution::par_unseq, algo, checker, args...);
     }
 
@@ -182,10 +187,10 @@ struct test
     std::enable_if_t<mode == data_in>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
-        process_data_in(max_n, exec, algo, checker, tr_in, args...);
+        process_data_in(max_n, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test with empty sequence
-        process_data_in(trivial_size<std::remove_cvref_t<Algo>>, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+        process_data_in(trivial_size<std::remove_cvref_t<Algo>>, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -200,7 +205,7 @@ private:
 
         typename Container::type& A = cont_in();
         decltype(auto) r_in = tr_in(A);
-        auto res = algo(std::forward<decltype(exec)>(exec), r_in, args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), r_in, args...);
 
         //check result
         static_assert(std::is_same_v<decltype(res), decltype(checker(r_in, args...))>, "Wrong return type");
@@ -240,7 +245,7 @@ private:
         typename Container::type& A = cont_in();
         typename Container::type& B = cont_out();
 
-        auto res = algo(std::forward<Policy>(exec), tr_in(A), tr_out(B), args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
 
         //check result
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_out(B), args...))>, "Wrong return type");
@@ -262,10 +267,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-	    process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+	    process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -273,14 +278,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
-        process_data_in_out(max_n, r_size/2, r_size, exec, algo, checker, args...);
-        process_data_in_out(max_n, r_size, r_size/2, exec, algo, checker, args...);
+        process_data_in_out(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
@@ -288,14 +293,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in(max_n, r_size, r_size, exec, algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test case the sizes of input ranges are different
-        process_data_in_in(max_n, r_size/2, r_size, exec, algo, checker, tr_in, args...);
-        process_data_in_in(max_n, r_size, r_size/2, exec, algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -315,7 +320,7 @@ private:
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
 
-        auto res = algo(std::forward<decltype(exec)>(exec), tr_in(A), tr_in(B), args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), args...);
 
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), args...))>, "Wrong return type");
 
@@ -358,7 +363,7 @@ private:
         typename Container::type& B = cont_in2();
         typename Container::type& C = cont_out();
 
-        auto res = algo(std::forward<Policy>(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
 
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), tr_out(C), args...))>, "Wrong return type");
 
@@ -383,10 +388,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -394,14 +399,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size/2, r_size, r_size, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size/2, r_size, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size/2, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size/2, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
 	    //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 private:
 
@@ -597,6 +602,26 @@ using  usm_span = usm_subrange_impl<T, std::span<T>>;
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
+struct subrange_view_fo
+{
+    template <typename T>
+    auto operator()(T&& v) const
+    {
+        return std::ranges::subrange(v);
+    }
+};
+
+#if TEST_CPP20_SPAN_PRESENT
+struct span_view_fo
+{
+    template <typename T>
+    auto operator()(T&& v) const
+    {
+        return std::span(v);
+    }
+};
+#endif
+
 template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test_range_algo
@@ -625,38 +650,46 @@ struct test_range_algo
     test_range_algo(std::array<int, 2> sizes) : n_serial(sizes[0]), n_parallel(sizes[1]) {}
 #endif
 
-    void test_view(auto view, auto algo, auto& checker, auto... args)
+    void test_view_host(auto view, auto algo, auto& checker, auto... args)
     {
         test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
-#if TEST_DPCPP_BACKEND_PRESENT
-        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, TestUtils::get_dpcpp_test_policy<call_id>(), algo, checker, view, std::identity{}, args...);
-#endif //TEST_DPCPP_BACKEND_PRESENT
     }
 
-    void operator()(auto algo, auto& checker, auto... args)
+#if TEST_DPCPP_BACKEND_PRESENT
+    template <typename Policy>
+    void test_view_hetero(Policy&& exec, auto view, auto algo, auto& checker, auto... args)
     {
+        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id), algo, checker, view, std::identity{}, args...);
+    }
+#endif //TEST_DPCPP_BACKEND_PRESENT
 
-        auto subrange_view = [](auto&& v) { return std::ranges::subrange(v); };
+    void
+    test_range_algo_impl_host(auto algo, auto& checker, auto... args)
+    {
+        auto subrange_view = subrange_view_fo{};
 #if TEST_CPP20_SPAN_PRESENT
-        auto span_view = [](auto&& v) { return std::span(v); };
+        auto span_view = span_view_fo{};
 #endif
 
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::identity{}, std::identity{}, args...);
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, subrange_view, std::identity{}, args...);
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
-        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{},  std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker,  span_view, std::identity{}, args...);
-        test<T, host_span<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
+        test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #endif
+    }
 
 #if TEST_DPCPP_BACKEND_PRESENT
+    template <typename Policy>
+    void test_range_algo_impl_hetero(Policy&& exec, auto algo, auto& checker, auto... args)
+    {
+        auto subrange_view = subrange_view_fo{};
+#if TEST_CPP20_SPAN_PRESENT
+        auto span_view = span_view_fo{};
+#endif
+
         //Skip the cases with pointer-to-function and hetero policy because pointer-to-function is not supported within kernel code.
         if constexpr(!std::disjunction_v<std::is_member_function_pointer<decltype(args)>...>)
         {
@@ -664,22 +697,35 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 10>(), algo, checker, subrange_view, subrange_view, args...);
-                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 30>(), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
+                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 20>(), algo, checker, span_view, subrange_view, args...);
-                test<T, usm_span<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 40>(), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
+                test<T, usm_span<T>,     mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
         }
-#endif //TEST_DPCPP_BACKEND_PRESENT
+    }
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+    void
+    operator()(auto algo, auto& checker, auto... args)
+    {
+        test_range_algo_impl_host(algo, checker, args...);
+
+#if TEST_DPCPP_BACKEND_PRESENT
+        auto policy = TestUtils::get_dpcpp_test_policy();
+        test_range_algo_impl_hetero(policy, algo, checker, args...);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+        TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl_hetero(policy, algo, checker, args...); });
+#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT
     }
 };
 
 }; //namespace test_std_ranges
 
 #endif //_ENABLE_STD_RANGES_TESTING
+
+#endif //_STD_RANGES_TEST_H

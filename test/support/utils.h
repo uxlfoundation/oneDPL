@@ -1182,6 +1182,15 @@ struct IsEqual
 };
 
 template <typename T>
+struct IsNotEqual
+{
+    bool operator()(T x, T y) const
+    {
+        return x != y;
+    }
+};
+
+template <typename T>
 struct IsEqualTo
 {
     T val;
@@ -1201,6 +1210,36 @@ struct NotPred
     operator()(T x) const
     {
         return !pred(x);
+    }
+};
+
+template <typename T1, typename T2>
+struct SumOp
+{
+    auto operator()(T1 i, T2 j) const
+    {
+        return i + j;
+    }
+};
+
+template <typename T>
+struct SumWithOp
+{
+    T const_val;
+
+    auto operator()(T val) const
+    {
+        return val + const_val;
+    }
+};
+
+template <typename T>
+struct Pow2
+{
+    T
+    operator()(T x) const
+    {
+        return x * x;
     }
 };
 
