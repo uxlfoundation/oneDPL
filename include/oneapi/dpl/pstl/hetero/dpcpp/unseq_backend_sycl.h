@@ -997,8 +997,6 @@ struct __brick_includes
     bool
     operator()(_ItemId __idx, const _Acc1& __b_acc, const _Acc2& __a_acc) const
     {
-        using std::get;
-
         auto __a = __a_acc;
         auto __b = __b_acc;
 
