@@ -27,6 +27,9 @@
 #include <iostream>
 
 #if _ENABLE_RANGES_TESTING
+
+auto lambda1 = [](auto& val) { return val = val * val; };
+
 template <typename Policy>
 void
 test_impl(Policy&& exec)
@@ -34,8 +37,6 @@ test_impl(Policy&& exec)
     constexpr int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     int expected[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-
-    auto lambda1 = TestUtils::Pow2<int>();
 
     using namespace oneapi::dpl::experimental::ranges;
 
