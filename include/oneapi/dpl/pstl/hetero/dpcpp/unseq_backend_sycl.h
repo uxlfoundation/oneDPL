@@ -711,9 +711,9 @@ struct __copy_by_mask
         {
             auto __out_idx = __dpl_internal::__get<N>(__in_acc[__item_idx]) - 1;
 
-            using __tuple_type =
-                typename __internal::__get_tuple_type<::std::decay_t<decltype(__dpl_internal::__get<0>(__in_acc[__item_idx]))>,
-                                                      ::std::decay_t<decltype(__out_acc[__out_idx])>>::__type;
+            using __tuple_type = typename __internal::__get_tuple_type<
+                ::std::decay_t<decltype(__dpl_internal::__get<0>(__in_acc[__item_idx]))>,
+                ::std::decay_t<decltype(__out_acc[__out_idx])>>::__type;
 
             // calculation of position for copy
             if (__item_idx >= __size_per_wg)
@@ -721,7 +721,8 @@ struct __copy_by_mask
                 auto __wg_sums_idx = __item_idx / __size_per_wg - 1;
                 __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx]);
             }
-            if (__item_idx % __size_per_wg == 0 || (__dpl_internal::__get<N>(__in_acc[__item_idx]) != __dpl_internal::__get<N>(__in_acc[__item_idx - 1])))
+            if (__item_idx % __size_per_wg == 0 ||
+                (__dpl_internal::__get<N>(__in_acc[__item_idx]) != __dpl_internal::__get<N>(__in_acc[__item_idx - 1])))
                 // If we work with tuples we might have a situation when internal tuple is assigned to ::std::tuple
                 // (e.g. returned by user-provided lambda).
                 // For internal::tuple<T...> we have a conversion operator to ::std::tuple<T..>. The problem here
@@ -736,7 +737,8 @@ struct __copy_by_mask
                 // NOTE: we only need this explicit conversion when we have internal::tuple and
                 // ::std::tuple as operands, in all the other cases this is not necessary and no conversion
                 // is performed(i.e. __typle_type is the same type as its operand).
-                __assigner(static_cast<__tuple_type>(__dpl_internal::__get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
+                __assigner(static_cast<__tuple_type>(__dpl_internal::__get<0>(__in_acc[__item_idx])),
+                           __out_acc[__out_idx]);
         }
         if (__item_idx == 0)
         {
@@ -764,7 +766,8 @@ struct __partition_by_mask
             auto __wg_sums_idx = __item_idx / __size_per_wg;
             bool __not_first_wg = __item_idx >= __size_per_wg;
             if (__dpl_internal::__get<1>(__in_acc[__item_idx]) &&
-                (__item_idx % __size_per_wg == 0 || __dpl_internal::__get<1>(__in_acc[__item_idx]) != __dpl_internal::__get<1>(__in_acc[__item_idx - 1])))
+                (__item_idx % __size_per_wg == 0 ||
+                 __dpl_internal::__get<1>(__in_acc[__item_idx]) != __dpl_internal::__get<1>(__in_acc[__item_idx - 1])))
             {
                 auto __out_idx = __dpl_internal::__get<1>(__in_acc[__item_idx]) - 1;
                 using __tuple_type = typename __internal::__get_tuple_type<
@@ -772,7 +775,8 @@ struct __partition_by_mask
 
                 if (__not_first_wg)
                     __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx - 1]);
-                __dpl_internal::__get<0>(__out_acc[__out_idx]) = static_cast<__tuple_type>(__dpl_internal::__get<0>(__in_acc[__item_idx]));
+                __dpl_internal::__get<0>(__out_acc[__out_idx]) =
+                    static_cast<__tuple_type>(__dpl_internal::__get<0>(__in_acc[__item_idx]));
             }
             else
             {
@@ -782,7 +786,8 @@ struct __partition_by_mask
 
                 if (__not_first_wg)
                     __out_idx -= __wg_sums_ptr[__wg_sums_idx - 1];
-                __dpl_internal::__get<1>(__out_acc[__out_idx]) = static_cast<__tuple_type>(__dpl_internal::__get<0>(__in_acc[__item_idx]));
+                __dpl_internal::__get<1>(__out_acc[__out_idx]) =
+                    static_cast<__tuple_type>(__dpl_internal::__get<0>(__in_acc[__item_idx]));
             }
         }
         if (__item_idx == 0)

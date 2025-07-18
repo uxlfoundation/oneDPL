@@ -24,7 +24,7 @@
 #include "sycl_iterator.h"
 #include "sycl_defs.h"
 #include "execution_sycl_defs.h"
-#include "../../get_impl.h"        // for oneapi::dpl::__internal::__get
+#include "../../get_impl.h" // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {

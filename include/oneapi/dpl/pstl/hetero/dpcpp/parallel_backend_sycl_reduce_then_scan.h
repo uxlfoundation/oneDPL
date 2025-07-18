@@ -35,7 +35,7 @@
 #include "../../utils_ranges.h"
 #include "../../utils.h"
 
-#include "../../get_impl.h"        // for oneapi::dpl::__internal::__get
+#include "../../get_impl.h" // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {
@@ -669,7 +669,8 @@ struct __gen_set_op_from_known_balanced_path
         auto __rng1 = __dpl_internal::__get<0>(__in_rng.tuple()); // first sequence
         auto __rng2 = __dpl_internal::__get<1>(__in_rng.tuple()); // second sequence
 
-        auto __rng1_temp_diag = __dpl_internal::__get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
+        auto __rng1_temp_diag =
+            __dpl_internal::__get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
         using _SizeType = decltype(__rng1.size());
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())

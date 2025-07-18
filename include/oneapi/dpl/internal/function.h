@@ -22,7 +22,7 @@
 #endif
 #include "../functional"
 #include <tuple>
-#include "../pstl/get_impl.h"   // for oneapi::dpl::__internal::__get
+#include "../pstl/get_impl.h" // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {

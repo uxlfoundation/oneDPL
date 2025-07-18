@@ -28,7 +28,7 @@
 #include "../../utils.h"
 
 #include "../../parallel_backend.h"
-#include "../../get_impl.h"   // for oneapi::dpl::__internal::__get
+#include "../../get_impl.h" // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {
@@ -551,8 +551,8 @@ __for_loop_repack(_ExecutionPolicy&& __exec, _Ip __start, _Ip __finish, _Sp __st
 {
     // Extract a callable object from the parameter pack and put it before the other elements
     oneapi::dpl::__internal::__for_loop_impl(std::forward<_ExecutionPolicy>(__exec), __start, __finish,
-                                             __dpl_internal::__get<sizeof...(_Rest) - 1>(__t), __stride,
-                                             std::move(__t), std::make_index_sequence<sizeof...(_Rest) - 1>());
+                                             __dpl_internal::__get<sizeof...(_Rest) - 1>(__t), __stride, std::move(__t),
+                                             std::make_index_sequence<sizeof...(_Rest) - 1>());
 }
 
 template <typename _ExecutionPolicy, typename _Ip, typename _Size, typename _Sp, typename... _Rest>

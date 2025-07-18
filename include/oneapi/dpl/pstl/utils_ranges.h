@@ -29,7 +29,7 @@
 
 #include "iterator_defs.h"
 #include "iterator_impl.h"
-#include "get_impl.h"   // for oneapi::dpl::__internal::__get
+#include "get_impl.h" // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {

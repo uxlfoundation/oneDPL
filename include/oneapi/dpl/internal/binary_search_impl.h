@@ -21,7 +21,7 @@
 #include "binary_search_extension_defs.h"
 #include "../pstl/iterator_impl.h"
 #include "../pstl/utils.h"
-#include "../pstl/get_impl.h"   // for oneapi::dpl::__internal::__get
+#include "../pstl/get_impl.h" // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {

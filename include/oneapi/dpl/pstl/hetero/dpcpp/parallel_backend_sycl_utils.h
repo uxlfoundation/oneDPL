@@ -30,7 +30,7 @@
 #include "sycl_iterator.h"
 #include "../../utils.h"
 
-#include "../../get_impl.h"        // for oneapi::dpl::__internal::__get
+#include "../../get_impl.h" // for oneapi::dpl::__internal::__get
 
 #if _ONEDPL_DEBUG_SYCL
 #    include <iostream>

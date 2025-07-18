@@ -38,7 +38,7 @@
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_impl_hetero.h" // for __pattern_fill_n, __pattern_generate_n
 #endif
-#include "get_impl.h"   // for oneapi::dpl::__internal::__get
+#include "get_impl.h" // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {

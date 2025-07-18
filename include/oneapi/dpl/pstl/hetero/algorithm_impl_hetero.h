@@ -31,7 +31,7 @@
 
 #include <cstddef> // std::nullptr_t
 #include <utility> // std::forward
-#include "../get_impl.h"   // for oneapi::dpl::__internal::__get
+#include "../get_impl.h" // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {

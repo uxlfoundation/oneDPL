@@ -24,7 +24,7 @@
 #include "onedpl_config.h"
 #include "utils.h"
 #include "tuple_impl.h"
-#include "get_impl.h"   // for oneapi::dpl::__internal::__get
+#include "get_impl.h" // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {

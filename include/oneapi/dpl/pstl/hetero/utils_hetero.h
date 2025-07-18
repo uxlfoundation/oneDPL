@@ -23,7 +23,7 @@
 
 #include "../utils.h"
 #include <tuple>
-#include "../get_impl.h"   // for oneapi::dpl::__internal::__get
+#include "../get_impl.h" // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {
