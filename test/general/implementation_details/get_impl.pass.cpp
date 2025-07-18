@@ -36,6 +36,7 @@ template <typename TData, typename T1, typename T2>
 void
 test_get_data(TData&& data, T1 val1, T2 val2)
 {
+    // Check value type and value category
     static_assert(std::is_same_v<decltype(__dpl_internal::__get<0>(std::forward<TData>(data))),
                                  decltype(std::get<0>(std::forward<TData>(data)))>);
     static_assert(std::is_same_v<decltype(__dpl_internal::__get<1>(std::forward<TData>(data))),
