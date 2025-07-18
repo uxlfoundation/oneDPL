@@ -36,6 +36,11 @@ template <typename TData, typename T1, typename T2>
 void
 test_get_data(TData&& data, T1 val1, T2 val2)
 {
+    static_assert(std::is_same_v<decltype(__dpl_internal::__get<0>(std::forward<TData>(data))),
+                                 decltype(std::get<0>(std::forward<TData>(data)))>);
+    static_assert(std::is_same_v<decltype(__dpl_internal::__get<1>(std::forward<TData>(data))),
+                                 decltype(std::get<1>(std::forward<TData>(data)))>);
+
     EXPECT_EQ(val1, __dpl_internal::__get<0>(std::forward<TData>(data)), "Incorrect get data #1");
     EXPECT_EQ(val2, __dpl_internal::__get<1>(std::forward<TData>(data)), "Incorrect get data #2");
 }
@@ -57,29 +62,44 @@ main()
     // const std::tuple - read data
     const auto std_tuple_t1 = std::make_tuple(1, 2);
     test_get_data(std_tuple_t1, 1, 2);
+    const auto& std_tuple_t1_ref = std_tuple_t1;
+    test_get_data(std_tuple_t1_ref, 1, 2);
 
     // std::tuple - read + modify data
     auto std_tuple_t2 = std::make_tuple(1, 2);
     test_get_data(std_tuple_t2, 1, 2);
     test_set_data(std_tuple_t2, 3, 4);
+    test_get_data(std::move(std_tuple_t2), 3, 4);
+    auto& std_tuple_t2_ref = std_tuple_t2;
+    test_get_data(std_tuple_t2_ref, 3, 4);
 
     // const oneapi::dpl::__internal::tuple - read data
     const auto onedpl_t1 = to_onedpl_tuple(std::make_tuple(1, 2));
     test_get_data(onedpl_t1, 1, 2);
+    const auto& onedpl_t1_ref = onedpl_t1;
+    test_get_data(onedpl_t1_ref, 1, 2);
 
     // oneapi::dpl::__internal::tuple - read + modify data
     auto onedpl_t2 = to_onedpl_tuple(std::make_tuple(1, 2));
     test_get_data(onedpl_t2, 1, 2);
     test_set_data(onedpl_t2, 3, 4);
+    test_get_data(std::move(onedpl_t2), 3, 4);
+    auto& onedpl_t2_ref = onedpl_t2;
+    test_set_data(onedpl_t2_ref, 3, 4);
 
     // const User data type - read data
     const UserDataType udt1{1, 2};
     test_get_data(udt1, 1, 2);
+    const UserDataType& udt1_ref = udt1;
+    test_get_data(udt1_ref, 1, 2);
 
     // User data type - read + modify data
     UserDataType udt2{1, 2};
     test_get_data(udt2, 1, 2);
     test_set_data(udt2, 3, 4);
+    test_get_data(std::move(udt2), 3, 4);
+    UserDataType& udt2_ref = udt2;
+    test_get_data(udt2_ref, 3, 4);
 
     return TestUtils::done();
 }
