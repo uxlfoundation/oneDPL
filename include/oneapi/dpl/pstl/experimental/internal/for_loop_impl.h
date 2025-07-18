@@ -132,7 +132,7 @@ class __reduction_pack
     void
     __finalize_impl(const _RangeSize __n, ::std::index_sequence<_Is...>)
     {
-        (void)::std::initializer_list<int>{0, ((void)__dpl_internal::__get<_Is>(__objects_).__finalize(__n), 0)...};
+        (void)std::initializer_list<int>{0, ((void)__dpl_internal::__get<_Is>(__objects_).__finalize(__n), 0)...};
     }
 
   public:
@@ -529,7 +529,7 @@ __for_loop_impl(_ExecutionPolicy&& __exec, _Ip __start, _Ip __finish, _Fp&& __f,
         ::std::forward<_ExecutionPolicy>(__exec), __start, __finish, __f, __stride,
         oneapi::dpl::__internal::__use_vectorization<_ExecutionPolicy, _Ip>(__exec),
         oneapi::dpl::__internal::__use_parallelization<_ExecutionPolicy, _Ip>(__exec),
-        __dpl_internal::__get<_Is>(::std::move(__t))...);
+        __dpl_internal::__get<_Is>(std::move(__t))...);
 }
 
 template <typename _ExecutionPolicy, typename _Ip, typename _Size, typename _Fp, typename _Sp, typename... _Rest,
@@ -542,7 +542,7 @@ __for_loop_n_impl(_ExecutionPolicy&& __exec, _Ip __start, _Size __n, _Fp&& __f, 
         ::std::forward<_ExecutionPolicy>(__exec), __start, __n, __f, __stride,
         oneapi::dpl::__internal::__use_vectorization<_ExecutionPolicy, _Ip>(__exec),
         oneapi::dpl::__internal::__use_parallelization<_ExecutionPolicy, _Ip>(__exec),
-        __dpl_internal::__get<_Is>(::std::move(__t))...);
+        __dpl_internal::__get<_Is>(std::move(__t))...);
 }
 
 template <typename _ExecutionPolicy, typename _Ip, typename _Sp, typename... _Rest>

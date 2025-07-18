@@ -246,7 +246,7 @@ class zip_view
     explicit zip_view(_Ranges... __args) : __m_ranges(__args...) {}
 
     auto
-    size() const -> decltype(__dpl_internal::__get<0>(::std::declval<_tuple_ranges_t>()).size())
+    size() const -> decltype(__dpl_internal::__get<0>(std::declval<_tuple_ranges_t>()).size())
     {
         return __dpl_internal::__get<0>(__m_ranges).size();
     }

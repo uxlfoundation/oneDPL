@@ -712,8 +712,8 @@ struct __copy_by_mask
             auto __out_idx = __dpl_internal::__get<N>(__in_acc[__item_idx]) - 1;
 
             using __tuple_type = typename __internal::__get_tuple_type<
-                ::std::decay_t<decltype(__dpl_internal::__get<0>(__in_acc[__item_idx]))>,
-                ::std::decay_t<decltype(__out_acc[__out_idx])>>::__type;
+                std::decay_t<decltype(__dpl_internal::__get<0>(__in_acc[__item_idx]))>,
+                std::decay_t<decltype(__out_acc[__out_idx])>>::__type;
 
             // calculation of position for copy
             if (__item_idx >= __size_per_wg)
@@ -762,7 +762,7 @@ struct __partition_by_mask
         auto __item_idx = __item.get_linear_id();
         if (__item_idx < __n)
         {
-            using __in_type = ::std::decay_t<decltype(__dpl_internal::__get<0>(__in_acc[__item_idx]))>;
+            using __in_type = std::decay_t<decltype(__dpl_internal::__get<0>(__in_acc[__item_idx]))>;
             auto __wg_sums_idx = __item_idx / __size_per_wg;
             bool __not_first_wg = __item_idx >= __size_per_wg;
             if (__dpl_internal::__get<1>(__in_acc[__item_idx]) &&
@@ -771,7 +771,7 @@ struct __partition_by_mask
             {
                 auto __out_idx = __dpl_internal::__get<1>(__in_acc[__item_idx]) - 1;
                 using __tuple_type = typename __internal::__get_tuple_type<
-                    __in_type, ::std::decay_t<decltype(__dpl_internal::__get<0>(__out_acc[__out_idx]))>>::__type;
+                    __in_type, std::decay_t<decltype(__dpl_internal::__get<0>(__out_acc[__out_idx]))>>::__type;
 
                 if (__not_first_wg)
                     __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx - 1]);
@@ -782,7 +782,7 @@ struct __partition_by_mask
             {
                 auto __out_idx = __item_idx - __dpl_internal::__get<1>(__in_acc[__item_idx]);
                 using __tuple_type = typename __internal::__get_tuple_type<
-                    __in_type, ::std::decay_t<decltype(__dpl_internal::__get<1>(__out_acc[__out_idx]))>>::__type;
+                    __in_type, std::decay_t<decltype(__dpl_internal::__get<1>(__out_acc[__out_idx]))>>::__type;
 
                 if (__not_first_wg)
                     __out_idx -= __wg_sums_ptr[__wg_sums_idx - 1];
@@ -1384,8 +1384,8 @@ struct __brick_assign_key_position
     void
     operator()(const _T1& __a, _T2&& __b) const
     {
-        __dpl_internal::__get<0>(::std::forward<_T2>(__b)) = __dpl_internal::__get<2>(__a); // store new key value
-        __dpl_internal::__get<1>(::std::forward<_T2>(__b)) = __dpl_internal::__get<0>(__a); // store index of new key
+        __dpl_internal::__get<0>(std::forward<_T2>(__b)) = __dpl_internal::__get<2>(__a); // store new key value
+        __dpl_internal::__get<1>(std::forward<_T2>(__b)) = __dpl_internal::__get<0>(__a); // store index of new key
     }
 };
 

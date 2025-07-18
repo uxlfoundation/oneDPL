@@ -431,7 +431,7 @@ __pattern_walk2_brick(__parallel_forward_tag, _ExecutionPolicy&& __exec, _Forwar
                                            [__brick](::std::tuple<_ReferenceType1, _ReferenceType2> __val) {
                                                __brick(
                                                    __dpl_internal::__get<0>(__val),
-                                                   ::std::forward<_ReferenceType2>(__dpl_internal::__get<1>(__val)));
+                                                   std::forward<_ReferenceType2>(__dpl_internal::__get<1>(__val)));
                                            });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform

@@ -538,7 +538,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
                      __buf.all_view())
                      .get();
 
-    return ::std::make_pair<_Iterator, _Iterator>(__first + __dpl_internal::__get<0>(__ret),
+    return std::make_pair<_Iterator, _Iterator>(__first + __dpl_internal::__get<0>(__ret),
                                                   __first + __dpl_internal::__get<1>(__ret));
 }
 
