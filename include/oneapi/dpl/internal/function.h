@@ -75,9 +75,9 @@ struct scan_by_key_fun
     operator()(_T1&& x, _T2&& y) const
     {
         return std::make_tuple(__dpl_internal::__get<1>(y)
-                                     ? __dpl_internal::__get<0>(y)
-                                     : binary_op(__dpl_internal::__get<0>(x), __dpl_internal::__get<0>(y)),
-                                 __dpl_internal::__get<1>(x) | __dpl_internal::__get<1>(y));
+                                   ? __dpl_internal::__get<0>(y)
+                                   : binary_op(__dpl_internal::__get<0>(x), __dpl_internal::__get<0>(y)),
+                               __dpl_internal::__get<1>(x) | __dpl_internal::__get<1>(y));
     }
 
   private:
