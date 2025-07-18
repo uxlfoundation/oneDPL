@@ -16,6 +16,8 @@
 #ifndef __USERDATA_TYPE_H
 #define __USERDATA_TYPE_H
 
+#include <cstddef> // for std::size_t
+
 struct UserDataType
 {
     int a;
@@ -24,7 +26,7 @@ struct UserDataType
 
 namespace std
 {
-    template <size_t Idx>
+    template <std::size_t Idx>
     int
     get(const UserDataType& data)
     {
@@ -36,7 +38,7 @@ namespace std
             static_assert(Idx < 2, "Index out of bounds for UserDataType");
     }
 
-    template <size_t Idx>
+    template <std::size_t Idx>
     int&
     get(UserDataType& data)
     {
