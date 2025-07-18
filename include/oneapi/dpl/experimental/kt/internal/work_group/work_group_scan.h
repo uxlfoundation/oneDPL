@@ -37,72 +37,74 @@ namespace __impl
 {
 
 // TODO: consider adding init callback
-template <int sub_group_size, int iters_per_item, typename InputType, typename NdItem, typename SlmAcc,
-          typename BinaryOperation>
+template <int __sub_group_size, int __iters_per_item, typename _InputType, typename _NdItem, typename _SlmAcc,
+          typename _BinaryOperation>
 auto
-work_group_scan(const NdItem& item, SlmAcc local_acc, InputType input[iters_per_item], BinaryOperation binary_op,
-                uint32_t items_in_scan)
+__work_group_scan(const _NdItem& __item, _SlmAcc __local_acc, _InputType __input[__iters_per_item],
+                  _BinaryOperation __binary_op, uint32_t __items_in_scan)
 {
-    auto sub_group = item.get_sub_group();
-    auto sub_group_carry = sub_group_scan<sub_group_size, iters_per_item>(sub_group, input, /*output,*/ binary_op);
-    const std::uint8_t sub_group_group_id = sub_group.get_group_linear_id();
-    const std::uint8_t active_sub_groups =
-        oneapi::dpl::__internal::__dpl_ceiling_div(items_in_scan, sub_group_size * iters_per_item);
-    if (sub_group.get_local_linear_id() == sub_group_size - 1)
+    auto __sub_group = __item.get_sub_group();
+    auto __sub_group_carry = __sub_group_scan<__sub_group_size, __iters_per_item>(__sub_group, __input, __binary_op);
+    const std::uint8_t __sub_group_group_id = __sub_group.get_group_linear_id();
+    const std::uint8_t __active_sub_groups =
+        oneapi::dpl::__internal::__dpl_ceiling_div(__items_in_scan, __sub_group_size * __iters_per_item);
+    if (__sub_group.get_local_linear_id() == __sub_group_size - 1)
     {
-        local_acc[sub_group.get_group_linear_id()] = sub_group_carry;
+        __local_acc[__sub_group.get_group_linear_id()] = __sub_group_carry;
     }
-    sycl::group_barrier(item.get_group());
-    if (sub_group_group_id == 0)
+    sycl::group_barrier(__item.get_group());
+    if (__sub_group_group_id == 0)
     {
-        const auto num_iters = oneapi::dpl::__internal::__dpl_ceiling_div(active_sub_groups, sub_group_size);
-        InputType wg_carry{};
-        auto idx = sub_group.get_local_linear_id();
-        auto val = local_acc[idx];
-        if (num_iters == 1)
+        const auto __num_iters = oneapi::dpl::__internal::__dpl_ceiling_div(__active_sub_groups, __sub_group_size);
+        _InputType __wg_carry{};
+        auto __idx = __sub_group.get_local_linear_id();
+        auto __val = __local_acc[__idx];
+        if (__num_iters == 1)
         {
-            __sub_group_scan_partial<sub_group_size, true, false>(sub_group, val, binary_op, wg_carry,
-                                                                  active_sub_groups);
-            local_acc[idx] = val;
+            __sub_group_scan_partial<__sub_group_size, true, false>(__sub_group, __val, __binary_op, __wg_carry,
+                                                                    __active_sub_groups);
+            __local_acc[__idx] = __val;
         }
         else
         {
-            __sub_group_scan<sub_group_size, true, false>(sub_group, val, binary_op, wg_carry);
-            local_acc[idx] = val;
-            idx += sub_group_size;
-            for (int i = 1; i < num_iters - 1; ++i)
+            __sub_group_scan<__sub_group_size, true, false>(__sub_group, __val, __binary_op, __wg_carry);
+            __local_acc[__idx] = __val;
+            __idx += __sub_group_size;
+            for (int __i = 1; __i < __num_iters - 1; ++__i)
             {
-                val = local_acc[idx];
-                __sub_group_scan<sub_group_size, true, true>(sub_group, val, binary_op, wg_carry);
-                local_acc[idx] = val;
-                idx += sub_group_size;
+                __val = __local_acc[__idx];
+                __sub_group_scan<__sub_group_size, true, true>(__sub_group, __val, __binary_op, __wg_carry);
+                __local_acc[__idx] = __val;
+                __idx += __sub_group_size;
             }
-            val = local_acc[idx];
-            __sub_group_scan_partial<sub_group_size, true, true>(sub_group, val, binary_op, wg_carry,
-                                                                 active_sub_groups - (num_iters - 1) * sub_group_size);
-            local_acc[idx] = val;
+            __val = __local_acc[__idx];
+            __sub_group_scan_partial<__sub_group_size, true, true>(__sub_group, __val, __binary_op, __wg_carry,
+                                                                   __active_sub_groups -
+                                                                       (__num_iters - 1) * __sub_group_size);
+            __local_acc[__idx] = __val;
         }
     }
-    sycl::group_barrier(item.get_group());
-    if (sub_group_group_id > 0)
+    sycl::group_barrier(__item.get_group());
+    if (__sub_group_group_id > 0)
     {
-        if (sub_group_group_id < active_sub_groups)
+        if (__sub_group_group_id < __active_sub_groups)
         {
-            const auto carry_in = sycl::group_broadcast(sub_group, local_acc[sub_group_group_id - 1]);
-            for (int i = 0; i < iters_per_item; ++i)
-                input[i] = binary_op(carry_in, input[i]);
+            const auto __carry_in = sycl::group_broadcast(__sub_group, __local_acc[__sub_group_group_id - 1]);
+            for (int __i = 0; __i < __iters_per_item; ++__i)
+                __input[__i] = __binary_op(__carry_in, __input[__i]);
         }
     }
-    return local_acc[active_sub_groups - 1];
+    return __local_acc[__active_sub_groups - 1];
 }
 
-template <int sub_group_size, int iters_per_item, typename InputType, typename NdItem, typename SlmAcc,
-          typename BinaryOperation>
+template <int __sub_group_size, int __iters_per_item, typename _InputType, typename _NdItem, typename _SlmAcc,
+          typename _BinaryOperation>
 auto
-work_group_scan(const NdItem& item, SlmAcc local_acc, InputType input[iters_per_item], BinaryOperation binary_op)
+__work_group_scan(const _NdItem& __item, _SlmAcc __local_acc, _InputType __input[__iters_per_item],
+                  _BinaryOperation __binary_op)
 {
-    return work_group_scan<sub_group_size, iters_per_item>(item, local_acc, input, binary_op,
-                                                           item.get_local_range()[0] * iters_per_item);
+    return __work_group_scan<__sub_group_size, __iters_per_item>(__item, __local_acc, __input, __binary_op,
+                                                                 __item.get_local_range()[0] * __iters_per_item);
 }
 
 } // namespace __impl
