@@ -26,8 +26,8 @@ namespace dpl
 namespace __internal
 {
 template <std::size_t _Idx, typename _T>
-auto
-__get(_T&& __t) -> decltype(std::get<_Idx>(std::forward<_T>(__t)))
+decltype(auto)
+__get(_T&& __t)
 {
     using std::get;
 
