@@ -1384,8 +1384,8 @@ struct __brick_assign_key_position
     void
     operator()(const _T1& __a, _T2&& __b) const
     {
-        __dpl_internal::__get<0>(std::forward<_T2>(__b)) = __dpl_internal::__get<2>(__a); // store new key value
-        __dpl_internal::__get<1>(std::forward<_T2>(__b)) = __dpl_internal::__get<0>(__a); // store index of new key
+        ::std::get<0>(::std::forward<_T2>(__b)) = ::std::get<2>(__a); // store new key value
+        ::std::get<1>(::std::forward<_T2>(__b)) = ::std::get<0>(__a); // store index of new key
     }
 };
 
