@@ -17,7 +17,7 @@
 #define _ONEDPL_GET_IMPL_H
 
 #include <cstddef> // for std::size_t
-#include <utility> // for std::get, std::forward
+#include <utility> // for std::forward
 
 namespace oneapi
 {
