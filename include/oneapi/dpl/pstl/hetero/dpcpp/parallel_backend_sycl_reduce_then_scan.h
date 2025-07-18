@@ -1752,7 +1752,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                           __num_work_groups * __work_group_size);
         }
     }
-    return __future{std::move(__event), std::move(__result_and_scratch)};
+    return __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>{
+        std::move(__event), std::move(__result_and_scratch)};
 }
 
 } // namespace __par_backend_hetero
