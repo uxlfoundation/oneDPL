@@ -25,8 +25,6 @@
 
 #include "support/utils.h"
 
-namespace __dpl_internal = oneapi::dpl::__internal;
-
 template <typename... _T>
 static oneapi::dpl::__internal::tuple<_T...>
 to_onedpl_tuple(const std::tuple<_T...>& __t)

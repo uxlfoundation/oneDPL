@@ -816,7 +816,7 @@ class __future : private std::tuple<_Args...>
     {
         if constexpr (sizeof...(_Args) > 0)
         {
-            auto& __val = oneapi::dpl::__internal::__get<0>(*this);
+            auto& __val = __dpl_internal::__get<0>(*this);
             return __wait_and_get_value(__val);
         }
         else

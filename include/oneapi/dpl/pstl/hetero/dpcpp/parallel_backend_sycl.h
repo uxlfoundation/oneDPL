@@ -1882,11 +1882,11 @@ struct __parallel_reduce_by_segment_fallback_fn1
     {
         // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
         // for (i-1), but we still need to get its key value as it is the start of a segment
-        const auto index = oneapi::dpl::__internal::__get<0>(__a);
+        const auto index = __dpl_internal::__get<0>(__a);
         if (index == 0)
             return true;
-        return index % __wgroup_size == 0                             // segment size
-               || !__binary_pred(oneapi::dpl::__internal::__get<1>(__a), oneapi::dpl::__internal::__get<2>(__a)); // key comparison
+        return index % __wgroup_size == 0                                                       // segment size
+               || !__binary_pred(__dpl_internal::__get<1>(__a), __dpl_internal::__get<2>(__a)); // key comparison
     }
 };
 
@@ -1901,9 +1901,9 @@ struct __parallel_reduce_by_segment_fallback_fn2
     {
         // The size of key range for the (i-1) view is one less, so for the 0th index we do not check the keys
         // for (i-1), but we still need to get its key value as it is the start of a segment
-        if (oneapi::dpl::__internal::__get<0>(__a) == 0)
+        if (__dpl_internal::__get<0>(__a) == 0)
             return true;
-        return !__binary_pred(oneapi::dpl::__internal::__get<1>(__a), oneapi::dpl::__internal::__get<2>(__a)); // keys comparison
+        return !__binary_pred(__dpl_internal::__get<1>(__a), __dpl_internal::__get<2>(__a)); // keys comparison
     }
 };
 } // namespace __internal
@@ -2045,7 +2045,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
                 std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
             // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
             // past-the-end iterator pair of segmented reduction.
-            return oneapi::dpl::__internal::__get<0>(__res.get()) + 1;
+            return __dpl_internal::__get<0>(__res.get()) + 1;
         }
     }
 #endif

@@ -63,19 +63,20 @@ struct __custom_brick
 
         if constexpr (func == search_algorithm::lower_bound)
         {
-            oneapi::dpl::__internal::__get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_lower_bound(oneapi::dpl::__internal::__get<0>(acc.tuple()), start_orig, end_orig,
-                                                                            oneapi::dpl::__internal::__get<1>(acc[idx]), comp);
+            __dpl_internal::__get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_lower_bound(
+                __dpl_internal::__get<0>(acc.tuple()), start_orig, end_orig, __dpl_internal::__get<1>(acc[idx]), comp);
         }
         else if constexpr (func == search_algorithm::upper_bound)
         {
-            oneapi::dpl::__internal::__get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_upper_bound(oneapi::dpl::__internal::__get<0>(acc.tuple()), start_orig, end_orig,
-                                                                            oneapi::dpl::__internal::__get<1>(acc[idx]), comp);
+            __dpl_internal::__get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_upper_bound(
+                __dpl_internal::__get<0>(acc.tuple()), start_orig, end_orig, __dpl_internal::__get<1>(acc[idx]), comp);
         }
         else
         {
-            auto value = oneapi::dpl::__internal::__shars_lower_bound(oneapi::dpl::__internal::__get<0>(acc.tuple()), start_orig, end_orig,
-                                                                      oneapi::dpl::__internal::__get<1>(acc[idx]), comp);
-            oneapi::dpl::__internal::__get<2>(acc[idx]) = (value != end_orig) && (oneapi::dpl::__internal::__get<1>(acc[idx]) == oneapi::dpl::__internal::__get<0>(acc[value]));
+            auto value = oneapi::dpl::__internal::__shars_lower_bound(
+                __dpl_internal::__get<0>(acc.tuple()), start_orig, end_orig, __dpl_internal::__get<1>(acc[idx]), comp);
+            __dpl_internal::__get<2>(acc[idx]) =
+                (value != end_orig) && (__dpl_internal::__get<1>(acc[idx]) == __dpl_internal::__get<0>(acc[value]));
         }
     }
     template <typename _IsFull, typename _Params, typename _Acc>

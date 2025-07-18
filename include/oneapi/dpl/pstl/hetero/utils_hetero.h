@@ -43,10 +43,10 @@ struct __create_mask_unique_copy
     {
         auto __predicate_result = 1;
         if (__idx != 0)
-            __predicate_result = __predicate(oneapi::dpl::__internal::__get<0>(__acc[__idx]),
-                                             oneapi::dpl::__internal::__get<0>(__acc[__idx + (-1)]));
+            __predicate_result =
+                __predicate(__dpl_internal::__get<0>(__acc[__idx]), __dpl_internal::__get<0>(__acc[__idx + (-1)]));
 
-        oneapi::dpl::__internal::__get<1>(__acc[__idx]) = __predicate_result;
+        __dpl_internal::__get<1>(__acc[__idx]) = __predicate_result;
         return _ValueType{__predicate_result};
     }
 };
@@ -62,13 +62,12 @@ struct __pattern_minmax_element_reduce_fn
         auto __chosen_for_min = __a;
         auto __chosen_for_max = __b;
 
-        if (__comp(oneapi::dpl::__internal::__get<2>(__b), oneapi::dpl::__internal::__get<2>(__a)))
+        if (__comp(__dpl_internal::__get<2>(__b), __dpl_internal::__get<2>(__a)))
             __chosen_for_min = std::move(__b);
-        if (__comp(oneapi::dpl::__internal::__get<3>(__b), oneapi::dpl::__internal::__get<3>(__a)))
+        if (__comp(__dpl_internal::__get<3>(__b), __dpl_internal::__get<3>(__a)))
             __chosen_for_max = std::move(__a);
-        return _ReduceValueType{
-            oneapi::dpl::__internal::__get<0>(__chosen_for_min), oneapi::dpl::__internal::__get<1>(__chosen_for_max),
-            oneapi::dpl::__internal::__get<2>(__chosen_for_min), oneapi::dpl::__internal::__get<3>(__chosen_for_max)};
+        return _ReduceValueType{__dpl_internal::__get<0>(__chosen_for_min), __dpl_internal::__get<1>(__chosen_for_max),
+                                __dpl_internal::__get<2>(__chosen_for_min), __dpl_internal::__get<3>(__chosen_for_max)};
     }
 };
 
@@ -86,7 +85,7 @@ struct __pattern_min_element_reduce_fn
         {
             // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
             // not commutative.
-            if (__comp(oneapi::dpl::__internal::__get<1>(__b), oneapi::dpl::__internal::__get<1>(__a)))
+            if (__comp(__dpl_internal::__get<1>(__b), __dpl_internal::__get<1>(__a)))
             {
                 return __b;
             }
@@ -96,11 +95,10 @@ struct __pattern_min_element_reduce_fn
         {
             // This operator keeps track of the lowest found index in case of equal min. or max. values. Thus, this operator is
             // commutative.
-            bool _is_a_lt_b = __comp(oneapi::dpl::__internal::__get<1>(__a), oneapi::dpl::__internal::__get<1>(__b));
-            bool _is_b_lt_a = __comp(oneapi::dpl::__internal::__get<1>(__b), oneapi::dpl::__internal::__get<1>(__a));
+            bool _is_a_lt_b = __comp(__dpl_internal::__get<1>(__a), __dpl_internal::__get<1>(__b));
+            bool _is_b_lt_a = __comp(__dpl_internal::__get<1>(__b), __dpl_internal::__get<1>(__a));
 
-            if (_is_b_lt_a ||
-                (!_is_a_lt_b && oneapi::dpl::__internal::__get<0>(__b) < oneapi::dpl::__internal::__get<0>(__a)))
+            if (_is_b_lt_a || (!_is_a_lt_b && __dpl_internal::__get<0>(__b) < __dpl_internal::__get<0>(__a)))
             {
                 return __b;
             }

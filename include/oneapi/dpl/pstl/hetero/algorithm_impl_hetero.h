@@ -486,7 +486,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
                          __buf.all_view())
                          .get();
 
-    return __first + oneapi::dpl::__internal::__get<0>(__ret_idx);
+    return __first + __dpl_internal::__get<0>(__ret_idx);
 }
 
 // TODO:
@@ -538,7 +538,8 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
                      __buf.all_view())
                      .get();
 
-    return ::std::make_pair<_Iterator, _Iterator>(__first + oneapi::dpl::__internal::__get<0>(__ret), __first + oneapi::dpl::__internal::__get<1>(__ret));
+    return ::std::make_pair<_Iterator, _Iterator>(__first + __dpl_internal::__get<0>(__ret),
+                                                  __first + __dpl_internal::__get<1>(__ret));
 }
 
 //------------------------------------------------------------------------
@@ -1316,7 +1317,7 @@ struct __pattern_sort_by_key_fn
     auto
     operator()(const _Arg& __a) const
     {
-        return oneapi::dpl::__internal::__get<0>(__a);
+        return __dpl_internal::__get<0>(__a);
     }
 };
 

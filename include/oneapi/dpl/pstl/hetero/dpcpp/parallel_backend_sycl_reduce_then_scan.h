@@ -88,7 +88,7 @@ struct __extract_range_from_zip
     auto
     operator()(const _InRng& __in_rng) const
     {
-        return oneapi::dpl::__internal::__get<_EleId>(__in_rng.tuple());
+        return __dpl_internal::__get<_EleId>(__in_rng.tuple());
     }
 };
 
@@ -99,7 +99,7 @@ struct __get_zeroth_element
     auto&
     operator()(_Tp&& __a) const
     {
-        return oneapi::dpl::__internal::__get<0>(std::forward<_Tp>(__a));
+        return __dpl_internal::__get<0>(std::forward<_Tp>(__a));
     }
 };
 
@@ -139,10 +139,11 @@ struct __write_to_id_if
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(oneapi::dpl::__internal::__get<2>(__v))>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__dpl_internal::__get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
-        if (oneapi::dpl::__internal::__get<1>(__v))
-            __assign(static_cast<_ConvertedTupleType>(oneapi::dpl::__internal::__get<2>(__v)), __out_rng[oneapi::dpl::__internal::__get<0>(__v) - 1 + __offset]);
+        if (__dpl_internal::__get<1>(__v))
+            __assign(static_cast<_ConvertedTupleType>(__dpl_internal::__get<2>(__v)),
+                     __out_rng[__dpl_internal::__get<0>(__v) - 1 + __offset]);
     }
     _Assign __assign;
 };
@@ -162,13 +163,14 @@ struct __write_to_id_if_else
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(oneapi::dpl::__internal::__get<2>(__v))>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__dpl_internal::__get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
-        if (oneapi::dpl::__internal::__get<1>(__v))
-            __assign(static_cast<_ConvertedTupleType>(oneapi::dpl::__internal::__get<2>(__v)), oneapi::dpl::__internal::__get<0>(__out_rng[oneapi::dpl::__internal::__get<0>(__v) - 1]));
+        if (__dpl_internal::__get<1>(__v))
+            __assign(static_cast<_ConvertedTupleType>(__dpl_internal::__get<2>(__v)),
+                     __dpl_internal::__get<0>(__out_rng[__dpl_internal::__get<0>(__v) - 1]));
         else
-            __assign(static_cast<_ConvertedTupleType>(oneapi::dpl::__internal::__get<2>(__v)),
-                     oneapi::dpl::__internal::__get<1>(__out_rng[__id - oneapi::dpl::__internal::__get<0>(__v)]));
+            __assign(static_cast<_ConvertedTupleType>(__dpl_internal::__get<2>(__v)),
+                     __dpl_internal::__get<1>(__out_rng[__id - __dpl_internal::__get<0>(__v)]));
     }
     _Assign __assign;
 };
@@ -183,14 +185,14 @@ struct __write_red_by_seg
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
     {
-        auto __out_keys = oneapi::dpl::__internal::__get<0>(__out_rng.tuple());
-        auto __out_values = oneapi::dpl::__internal::__get<1>(__out_rng.tuple());
+        auto __out_keys = __dpl_internal::__get<0>(__out_rng.tuple());
+        auto __out_values = __dpl_internal::__get<1>(__out_rng.tuple());
 
-        const auto& __next_key = oneapi::dpl::__internal::__get<2>(__tup);
-        const auto& __current_key = oneapi::dpl::__internal::__get<3>(__tup);
-        const auto& __current_value = oneapi::dpl::__internal::__get<1>(oneapi::dpl::__internal::__get<0>(__tup));
-        const bool __is_seg_end = oneapi::dpl::__internal::__get<1>(__tup);
-        const std::size_t __out_idx = oneapi::dpl::__internal::__get<0>(oneapi::dpl::__internal::__get<0>(__tup));
+        const auto& __next_key = __dpl_internal::__get<2>(__tup);
+        const auto& __current_key = __dpl_internal::__get<3>(__tup);
+        const auto& __current_value = __dpl_internal::__get<1>(__dpl_internal::__get<0>(__tup));
+        const bool __is_seg_end = __dpl_internal::__get<1>(__tup);
+        const std::size_t __out_idx = __dpl_internal::__get<0>(__dpl_internal::__get<0>(__tup));
 
         // With the exception of the first key which is output by index 0, the first key in each segment is written
         // by the work item that outputs the previous segment's reduction value. This is because the reduce_by_segment
@@ -227,10 +229,10 @@ struct __write_multiple_to_id
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
-        for (std::size_t __i = 0; __i < oneapi::dpl::__internal::__get<1>(__v); ++__i)
+        for (std::size_t __i = 0; __i < __dpl_internal::__get<1>(__v); ++__i)
         {
             __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
-                     __out_rng[oneapi::dpl::__internal::__get<0>(__v) - oneapi::dpl::__internal::__get<1>(__v) + __i]);
+                     __out_rng[__dpl_internal::__get<0>(__v) - __dpl_internal::__get<1>(__v) + __i]);
         }
     }
     _Assign __assign;
@@ -344,9 +346,9 @@ struct __gen_set_mask
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __set_a = oneapi::dpl::__internal::__get<0>(__in_rng.tuple());    // first sequence
-        auto __set_b = oneapi::dpl::__internal::__get<1>(__in_rng.tuple());    // second sequence
-        auto __set_mask = oneapi::dpl::__internal::__get<2>(__in_rng.tuple()); // mask sequence
+        auto __set_a = __dpl_internal::__get<0>(__in_rng.tuple());    // first sequence
+        auto __set_b = __dpl_internal::__get<1>(__in_rng.tuple());    // second sequence
+        auto __set_mask = __dpl_internal::__get<2>(__in_rng.tuple()); // mask sequence
 
         std::size_t __nb = __set_b.size();
 
@@ -617,10 +619,10 @@ struct __gen_set_balanced_path
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __rng1 = oneapi::dpl::__internal::__get<0>(__in_rng.tuple()); // first sequence
-        auto __rng2 = oneapi::dpl::__internal::__get<1>(__in_rng.tuple()); // second sequence
+        auto __rng1 = __dpl_internal::__get<0>(__in_rng.tuple()); // first sequence
+        auto __rng2 = __dpl_internal::__get<1>(__in_rng.tuple()); // second sequence
 
-        auto __rng1_temp_diag = oneapi::dpl::__internal::__get<2>(__in_rng.tuple()); // set a temp storage sequence
+        auto __rng1_temp_diag = __dpl_internal::__get<2>(__in_rng.tuple()); // set a temp storage sequence
 
         using _SizeType = decltype(__rng1.size());
         _SizeType __i_elem = __id * __diagonal_spacing;
@@ -664,10 +666,10 @@ struct __gen_set_op_from_known_balanced_path
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __rng1 = oneapi::dpl::__internal::__get<0>(__in_rng.tuple()); // first sequence
-        auto __rng2 = oneapi::dpl::__internal::__get<1>(__in_rng.tuple()); // second sequence
+        auto __rng1 = __dpl_internal::__get<0>(__in_rng.tuple()); // first sequence
+        auto __rng2 = __dpl_internal::__get<1>(__in_rng.tuple()); // second sequence
 
-        auto __rng1_temp_diag = oneapi::dpl::__internal::__get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
+        auto __rng1_temp_diag = __dpl_internal::__get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
         using _SizeType = decltype(__rng1.size());
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
@@ -703,8 +705,8 @@ struct __gen_red_by_seg_reduce_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
-        const auto __in_keys = oneapi::dpl::__internal::__get<0>(__in_rng.tuple());
-        const auto __in_vals = oneapi::dpl::__internal::__get<1>(__in_rng.tuple());
+        const auto __in_keys = __dpl_internal::__get<0>(__in_rng.tuple());
+        const auto __in_vals = __dpl_internal::__get<1>(__in_rng.tuple());
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         // The first segment start (index 0) is not marked with a 1. This is because we need the first
         // segment's key and value output index to be 0. We begin marking new segments only after the
@@ -731,8 +733,8 @@ struct __gen_red_by_seg_scan_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
-        const auto __in_keys = oneapi::dpl::__internal::__get<0>(__in_rng.tuple());
-        const auto __in_vals = oneapi::dpl::__internal::__get<1>(__in_rng.tuple());
+        const auto __in_keys = __dpl_internal::__get<0>(__in_rng.tuple());
+        const auto __in_vals = __dpl_internal::__get<1>(__in_rng.tuple());
         using _KeyType = oneapi::dpl::__internal::__value_t<decltype(__in_keys)>;
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         const _KeyType& __current_key = __in_keys[__id];
@@ -821,19 +823,19 @@ struct __red_by_seg_op
     auto
     operator()(const _Tup1& __lhs_tup, const _Tup2& __rhs_tup) const
     {
-        using _OpReturnType = decltype(
-            __binary_op(oneapi::dpl::__internal::__get<1>(__lhs_tup), oneapi::dpl::__internal::__get<1>(__rhs_tup)));
+        using _OpReturnType =
+            decltype(__binary_op(__dpl_internal::__get<1>(__lhs_tup), __dpl_internal::__get<1>(__rhs_tup)));
         // The left-hand side has processed elements from the same segment, so update the reduction value.
-        if (oneapi::dpl::__internal::__get<0>(__rhs_tup) == 0)
+        if (__dpl_internal::__get<0>(__rhs_tup) == 0)
         {
-            return oneapi::dpl::__internal::make_tuple(oneapi::dpl::__internal::__get<0>(__lhs_tup),
-                                                       __binary_op(oneapi::dpl::__internal::__get<1>(__lhs_tup),
-                                                                   oneapi::dpl::__internal::__get<1>(__rhs_tup)));
+            return oneapi::dpl::__internal::make_tuple(
+                __dpl_internal::__get<0>(__lhs_tup),
+                __binary_op(__dpl_internal::__get<1>(__lhs_tup), __dpl_internal::__get<1>(__rhs_tup)));
         }
         // We are looking at elements from a previous segment so just update the output index.
-        return oneapi::dpl::__internal::make_tuple(oneapi::dpl::__internal::__get<0>(__lhs_tup) +
-                                                       oneapi::dpl::__internal::__get<0>(__rhs_tup),
-                                                   _OpReturnType{oneapi::dpl::__internal::__get<1>(__rhs_tup)});
+        return oneapi::dpl::__internal::make_tuple(__dpl_internal::__get<0>(__lhs_tup) +
+                                                       __dpl_internal::__get<0>(__rhs_tup),
+                                                   _OpReturnType{__dpl_internal::__get<1>(__rhs_tup)});
     }
     _BinaryOp __binary_op;
 };

@@ -74,10 +74,10 @@ struct scan_by_key_fun
     result_of
     operator()(_T1&& x, _T2&& y) const
     {
-        return ::std::make_tuple(oneapi::dpl::__internal::__get<1>(y) ? oneapi::dpl::__internal::__get<0>(y)
-                                                                      : binary_op(oneapi::dpl::__internal::__get<0>(x),
-                                                                                  oneapi::dpl::__internal::__get<0>(y)),
-                                 oneapi::dpl::__internal::__get<1>(x) | oneapi::dpl::__internal::__get<1>(y));
+        return ::std::make_tuple(__dpl_internal::__get<1>(y)
+                                     ? __dpl_internal::__get<0>(y)
+                                     : binary_op(__dpl_internal::__get<0>(x), __dpl_internal::__get<0>(y)),
+                                 __dpl_internal::__get<1>(x) | __dpl_internal::__get<1>(y));
     }
 
   private:
@@ -95,10 +95,10 @@ struct segmented_scan_fun
     operator()(const _T1& x, const _T2& y) const
     {
         using x_t = ::std::tuple_element_t<0, _T1>;
-        auto new_x = oneapi::dpl::__internal::__get<1>(y)
-                         ? x_t(oneapi::dpl::__internal::__get<0>(y))
-                         : x_t(binary_op(oneapi::dpl::__internal::__get<0>(x), oneapi::dpl::__internal::__get<0>(y)));
-        auto new_y = oneapi::dpl::__internal::__get<1>(x) | oneapi::dpl::__internal::__get<1>(y);
+        auto new_x = __dpl_internal::__get<1>(y)
+                         ? x_t(__dpl_internal::__get<0>(y))
+                         : x_t(binary_op(__dpl_internal::__get<0>(x), __dpl_internal::__get<0>(y)));
+        auto new_y = __dpl_internal::__get<1>(x) | __dpl_internal::__get<1>(y);
         return _T1(new_x, new_y);
     }
 
@@ -117,13 +117,13 @@ class scatter_and_accumulate_fun
     void
     operator()(_T&& x) const
     {
-        if (oneapi::dpl::__internal::__get<2>(x))
+        if (__dpl_internal::__get<2>(x))
         {
-            result1[oneapi::dpl::__internal::__get<1>(x)] = oneapi::dpl::__internal::__get<0>(x);
+            result1[__dpl_internal::__get<1>(x)] = __dpl_internal::__get<0>(x);
         }
-        if (oneapi::dpl::__internal::__get<4>(x))
+        if (__dpl_internal::__get<4>(x))
         {
-            result2[oneapi::dpl::__internal::__get<1>(x)] = oneapi::dpl::__internal::__get<3>(x);
+            result2[__dpl_internal::__get<1>(x)] = __dpl_internal::__get<3>(x);
         }
     }
 
@@ -145,8 +145,8 @@ class transform_if_stencil_fun
     void
     operator()(_T&& t) const
     {
-        if (pred(oneapi::dpl::__internal::__get<1>(t)))
-            oneapi::dpl::__internal::__get<2>(t) = op(oneapi::dpl::__internal::__get<0>(t));
+        if (pred(__dpl_internal::__get<1>(t)))
+            __dpl_internal::__get<2>(t) = op(__dpl_internal::__get<0>(t));
     }
 
   private:
