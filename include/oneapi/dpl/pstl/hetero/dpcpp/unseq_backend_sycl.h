@@ -25,6 +25,7 @@
 #include "utils_ranges_sycl.h"
 #include "parallel_backend_sycl_utils.h"
 #include "../../functional_impl.h" // for oneapi::dpl::identity
+#include "../../get_impl.h"        // for oneapi::dpl::__internal::__get
 
 #define _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT                                                                            \
     (_ONEDPL_SYCL2020_KNOWN_IDENTITY_PRESENT || _ONEDPL_LIBSYCL_KNOWN_IDENTITY_PRESENT)
@@ -636,7 +637,7 @@ struct __mask_assigner
     void
     operator()(_Acc& __acc, _OutAcc&, const _OutIdx __out_idx, const _InAcc& __in_acc, const _InIdx __in_idx) const
     {
-        using ::std::get;
+        using std::get;
         get<N>(__acc[__out_idx]) = __in_acc[__in_idx];
     }
 };
@@ -685,7 +686,7 @@ struct __create_mask
     _Tp
     operator()(const _Idx __idx, const _Input& __input) const
     {
-        using ::std::get;
+        using std::get;
         // 1. apply __pred
         auto __temp = __pred(get<0>(__input[__idx]));
         // 2. initialize mask
@@ -707,7 +708,7 @@ struct __copy_by_mask
     operator()(_Item __item, _OutAcc& __out_acc, const _InAcc& __in_acc, _WgSumsPtr* __wg_sums_ptr, _RetPtr* __ret_ptr,
                _Size __n, _SizePerWg __size_per_wg) const
     {
-        using ::std::get;
+        using std::get;
         auto __item_idx = __item.get_linear_id();
         if (__item_idx < __n && get<N>(__in_acc[__item_idx]))
         {
@@ -762,7 +763,7 @@ struct __partition_by_mask
         auto __item_idx = __item.get_linear_id();
         if (__item_idx < __n)
         {
-            using ::std::get;
+            using std::get;
             using __in_type = ::std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>;
             auto __wg_sums_idx = __item_idx / __size_per_wg;
             bool __not_first_wg = __item_idx >= __size_per_wg;
@@ -1000,7 +1001,7 @@ struct __brick_includes
     bool
     operator()(_ItemId __idx, const _Acc1& __b_acc, const _Acc2& __a_acc) const
     {
-        using ::std::get;
+        using std::get;
 
         auto __a = __a_acc;
         auto __b = __b_acc;
@@ -1263,7 +1264,7 @@ class __brick_set_op
     bool
     operator()(_ItemId __idx, const _Acc& __inout_acc) const
     {
-        using ::std::get;
+        using std::get;
         auto __a = get<0>(__inout_acc.tuple()); // first sequence
         auto __b = get<1>(__inout_acc.tuple()); // second sequence
         auto __c = get<2>(__inout_acc.tuple()); // mask buffer
@@ -1385,8 +1386,8 @@ struct __brick_assign_key_position
     void
     operator()(const _T1& __a, _T2&& __b) const
     {
-        ::std::get<0>(::std::forward<_T2>(__b)) = ::std::get<2>(__a); // store new key value
-        ::std::get<1>(::std::forward<_T2>(__b)) = ::std::get<0>(__a); // store index of new key
+        std::get<0>(::std::forward<_T2>(__b)) = std::get<2>(__a); // store new key value
+        std::get<1>(::std::forward<_T2>(__b)) = std::get<0>(__a); // store index of new key
     }
 };
 

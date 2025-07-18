@@ -31,6 +31,7 @@
 
 #include <cstddef> // std::nullptr_t
 #include <utility> // std::forward
+#include "../get_impl.h"   // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {
@@ -485,7 +486,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
                          __buf.all_view())
                          .get();
 
-    return __first + ::std::get<0>(__ret_idx);
+    return __first + std::get<0>(__ret_idx);
 }
 
 // TODO:
@@ -537,7 +538,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
                      __buf.all_view())
                      .get();
 
-    return ::std::make_pair<_Iterator, _Iterator>(__first + ::std::get<0>(__ret), __first + ::std::get<1>(__ret));
+    return ::std::make_pair<_Iterator, _Iterator>(__first + std::get<0>(__ret), __first + std::get<1>(__ret));
 }
 
 //------------------------------------------------------------------------

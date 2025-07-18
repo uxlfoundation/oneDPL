@@ -23,6 +23,7 @@
 
 #include "../utils.h"
 #include <tuple>
+#include "../get_impl.h"   // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {
@@ -40,7 +41,7 @@ struct __create_mask_unique_copy
     _ValueType
     operator()(_Idx __idx, _Acc& __acc) const
     {
-        using ::std::get;
+        using std::get;
 
         auto __predicate_result = 1;
         if (__idx != 0)

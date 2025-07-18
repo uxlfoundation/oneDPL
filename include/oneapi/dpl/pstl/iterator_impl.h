@@ -24,6 +24,7 @@
 #include "onedpl_config.h"
 #include "utils.h"
 #include "tuple_impl.h"
+#include "get_impl.h"   // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {
@@ -38,14 +39,14 @@ struct __tuple_util
     static void
     __increment(_TupleType& __it, _DifferenceType __forward)
     {
-        ::std::get<_Np - 1>(__it) = ::std::get<_Np - 1>(__it) + __forward;
+        std::get<_Np - 1>(__it) = std::get<_Np - 1>(__it) + __forward;
         __tuple_util<_Np - 1>::__increment(__it, __forward);
     }
     template <typename _TupleType>
     static void
     __pre_increment(_TupleType& __it)
     {
-        ++::std::get<_Np - 1>(__it);
+        ++std::get<_Np - 1>(__it);
         __tuple_util<_Np - 1>::__pre_increment(__it);
     }
 };
@@ -72,7 +73,7 @@ struct __make_references
     _TupleReturnType
     operator()(const _TupleType& __t, ::std::index_sequence<_Ip...>)
     {
-        return _TupleReturnType(*::std::get<_Ip>(__t)...);
+        return _TupleReturnType(*std::get<_Ip>(__t)...);
     }
 };
 
@@ -164,7 +165,7 @@ class zip_forward_iterator
     bool
     operator==(const zip_forward_iterator& __it) const
     {
-        return ::std::get<0>(__my_it_) == ::std::get<0>(__it.__my_it_);
+        return std::get<0>(__my_it_) == std::get<0>(__it.__my_it_);
     }
     bool
     operator!=(const zip_forward_iterator& __it) const
@@ -357,7 +358,7 @@ class zip_iterator
     difference_type
     operator-(const zip_iterator& __it) const
     {
-        return ::std::get<0>(__my_it_) - ::std::get<0>(__it.__my_it_);
+        return std::get<0>(__my_it_) - std::get<0>(__it.__my_it_);
     }
 
     zip_iterator&

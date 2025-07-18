@@ -38,6 +38,7 @@
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_impl_hetero.h" // for __pattern_fill_n, __pattern_generate_n
 #endif
+#include "get_impl.h"   // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {
@@ -350,14 +351,14 @@ __pattern_walk2(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
 
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                                            [&__f](::std::tuple<_ReferenceType1, _ReferenceType2> __val) {
-                                               __f(::std::get<0>(__val), ::std::get<1>(__val));
+                                               __f(std::get<0>(__val), std::get<1>(__val));
                                            });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
         // implementation. Therefore, iterator value is calculated separately.
         for (; __begin != __end; ++__begin)
             ;
-        return ::std::get<1>(__begin.base());
+        return std::get<1>(__begin.base());
     });
 }
 
@@ -428,15 +429,15 @@ __pattern_walk2_brick(__parallel_forward_tag, _ExecutionPolicy&& __exec, _Forwar
     return __except_handler([&]() {
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                                            [__brick](::std::tuple<_ReferenceType1, _ReferenceType2> __val) {
-                                               __brick(::std::get<0>(__val),
-                                                       ::std::forward<_ReferenceType2>(::std::get<1>(__val)));
+                                               __brick(std::get<0>(__val),
+                                                       ::std::forward<_ReferenceType2>(std::get<1>(__val)));
                                            });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
         // implementation. Therefore, iterator value is calculated separately.
         for (; __begin != __end; ++__begin)
             ;
-        return ::std::get<1>(__begin.base());
+        return std::get<1>(__begin.base());
     });
 }
 
@@ -543,14 +544,14 @@ __pattern_walk3(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
 
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                                            [&](::std::tuple<_ReferenceType1, _ReferenceType2, _ReferenceType3> __val) {
-                                               __f(::std::get<0>(__val), ::std::get<1>(__val), ::std::get<2>(__val));
+                                               __f(std::get<0>(__val), std::get<1>(__val), std::get<2>(__val));
                                            });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
         // implementation. Therefore, iterator value is calculated separately.
         for (; __begin != __end; ++__begin)
             ;
-        return ::std::get<2>(__begin.base());
+        return std::get<2>(__begin.base());
     });
 }
 
