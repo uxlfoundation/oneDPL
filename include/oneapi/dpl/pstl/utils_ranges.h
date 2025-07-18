@@ -29,7 +29,6 @@
 
 #include "iterator_defs.h"
 #include "iterator_impl.h"
-#include "get_impl.h" // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {
@@ -219,7 +218,7 @@ template <typename _TupleType, typename _F, ::std::size_t... _Ip>
 void
 invoke(const _TupleType& __t, _F __f, ::std::index_sequence<_Ip...>)
 {
-    __f(__dpl_internal::__get<_Ip>(__t)...);
+    __f(::std::get<_Ip>(__t)...);
 }
 
 template <typename... _Ranges>
@@ -233,10 +232,10 @@ class zip_view
     auto
     make_reference(_tuple_ranges_t __t, Idx __i, ::std::index_sequence<_Ip...>) const
         -> decltype(oneapi::dpl::__internal::tuple<decltype(::std::declval<_Ranges&>().operator[](__i))...>(
-            __dpl_internal::__get<_Ip>(__t).operator[](__i)...))
+            ::std::get<_Ip>(__t).operator[](__i)...))
     {
         return oneapi::dpl::__internal::tuple<decltype(::std::declval<_Ranges&>().operator[](__i))...>(
-            __dpl_internal::__get<_Ip>(__t).operator[](__i)...);
+            ::std::get<_Ip>(__t).operator[](__i)...);
     }
 
   public:
@@ -246,9 +245,9 @@ class zip_view
     explicit zip_view(_Ranges... __args) : __m_ranges(__args...) {}
 
     auto
-    size() const -> decltype(__dpl_internal::__get<0>(std::declval<_tuple_ranges_t>()).size())
+    size() const -> decltype(::std::get<0>(::std::declval<_tuple_ranges_t>()).size())
     {
-        return __dpl_internal::__get<0>(__m_ranges).size();
+        return ::std::get<0>(__m_ranges).size();
     }
 
     //TODO: C++ Standard states that the operator[] index should be the diff_type of the underlying range.
