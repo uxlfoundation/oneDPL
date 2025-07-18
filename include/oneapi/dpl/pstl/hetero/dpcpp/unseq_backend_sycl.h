@@ -1386,8 +1386,8 @@ struct __brick_assign_key_position
     void
     operator()(const _T1& __a, _T2&& __b) const
     {
-        std::get<0>(::std::forward<_T2>(__b)) = std::get<2>(__a); // store new key value
-        std::get<1>(::std::forward<_T2>(__b)) = std::get<0>(__a); // store index of new key
+        oneapi::dpl::__internal::__get<0>(::std::forward<_T2>(__b)) = oneapi::dpl::__internal::__get<2>(__a); // store new key value
+        oneapi::dpl::__internal::__get<1>(::std::forward<_T2>(__b)) = oneapi::dpl::__internal::__get<0>(__a); // store index of new key
     }
 };
 

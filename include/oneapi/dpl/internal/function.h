@@ -116,14 +116,13 @@ class scatter_and_accumulate_fun
     void
     operator()(_T&& x) const
     {
-        using std::get;
-        if (std::get<2>(x))
+        if (oneapi::dpl::__internal::__get<2>(x))
         {
-            result1[std::get<1>(x)] = std::get<0>(x);
+            result1[oneapi::dpl::__internal::__get<1>(x)] = oneapi::dpl::__internal::__get<0>(x);
         }
-        if (std::get<4>(x))
+        if (oneapi::dpl::__internal::__get<4>(x))
         {
-            result2[std::get<1>(x)] = std::get<3>(x);
+            result2[oneapi::dpl::__internal::__get<1>(x)] = oneapi::dpl::__internal::__get<3>(x);
         }
     }
 

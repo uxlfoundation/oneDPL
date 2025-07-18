@@ -30,6 +30,8 @@
 #include "sycl_iterator.h"
 #include "../../utils.h"
 
+#include "../../get_impl.h"        // for oneapi::dpl::__internal::__get
+
 #if _ONEDPL_DEBUG_SYCL
 #    include <iostream>
 #endif
@@ -814,7 +816,7 @@ class __future : private std::tuple<_Args...>
     {
         if constexpr (sizeof...(_Args) > 0)
         {
-            auto& __val = std::get<0>(*this);
+            auto& __val = oneapi::dpl::__internal::__get<0>(*this);
             return __wait_and_get_value(__val);
         }
         else
