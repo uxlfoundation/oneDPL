@@ -23,8 +23,6 @@
 #include <numeric>
 #include <algorithm>
 
-
-#include "../utils.h"
 #include "../../../../pstl/utils.h"
 #include "../../../../pstl/hetero/dpcpp/unseq_backend_sycl.h"
 
@@ -46,7 +44,7 @@ __inclusive_sub_group_masked_scan(const sycl::sub_group& __sub_group, _MaskOp __
                                   _LazyValueType& __init_and_carry)
 {
     std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
-#pragma unroll
+    _ONEDPL_PRAGMA_UNROLL
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
         _ValueType __partial_carry_in = sycl::shift_group_right(__sub_group, __value, __shift);
@@ -73,16 +71,9 @@ void
 __sub_group_masked_scan(const sycl::sub_group& __sub_group, _MaskOp __mask_fn, _InitBroadcastId __init_broadcast_id,
                         _ValueType& __value, _BinaryOp __binary_op, _LazyValueType& __init_and_carry)
 {
-    if constexpr (__is_inclusive)
-    {
-        __inclusive_sub_group_masked_scan<__sub_group_size, __init_present>(__sub_group, __mask_fn, __init_broadcast_id,
-                                                                            __value, __binary_op, __init_and_carry);
-    }
-    //else
-    //{
-    //    __exclusive_sub_group_masked_scan<__sub_group_size, __init_present>(__sub_group, __mask_fn, __init_broadcast_id,
-    //                                                                        __value, __binary_op, __init_and_carry);
-    //}
+    static_assert(__is_inclusive, "__sub_group_masked_scan is only currently supported for inclusive scans.");
+    __inclusive_sub_group_masked_scan<__sub_group_size, __init_present>(__sub_group, __mask_fn, __init_broadcast_id,
+                                                                        __value, __binary_op, __init_and_carry);
 }
 
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
@@ -111,65 +102,50 @@ __sub_group_scan_partial(const sycl::sub_group& __sub_group, _ValueType& __value
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
 
-//template <int sg_size, int iters_per_item, typename ArrayOrder, typename BinaryOperation>
-//auto
-//work_group_scan(ArrayOrder, input[iters_per_item], output[iters_per_item], BinaryOperation binary_op, int num_remaining);
-template <int sub_group_size, int iters_per_item, typename InputType, /*typename OutputType,*/
-          typename SubGroup, typename ArrayOrder, typename BinaryOperation>
+template <int sub_group_size, int iters_per_item, typename InputType, typename SubGroup, typename BinaryOperation>
 auto
-sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters_per_item],
-               /*OutputType output[iters_per_item],*/ BinaryOperation binary_op, uint32_t items_in_scan)
+sub_group_scan(const SubGroup& sub_group, InputType input[iters_per_item], BinaryOperation binary_op,
+               uint32_t items_in_scan)
 {
     const bool is_full = items_in_scan == sub_group_size * iters_per_item;
-    if constexpr (std::is_same_v<ArrayOrder, item_array_order::sub_group_stride>)
+    InputType carry{};
+    if (is_full)
     {
-        InputType carry{};
-        if (is_full)
+        __sub_group_scan<sub_group_size, true, false>(sub_group, input[0], binary_op, carry);
+        _ONEDPL_PRAGMA_UNROLL
+        for (int i = 1; i < iters_per_item; ++i)
         {
-            __sub_group_scan<sub_group_size, true, false>(sub_group, input[0], binary_op, carry);
-            _ONEDPL_PRAGMA_UNROLL
-            for (int i = 1; i < iters_per_item; ++i)
-            {
-                __sub_group_scan<sub_group_size, true, true>(sub_group, input[i], binary_op, carry);
-            }
+            __sub_group_scan<sub_group_size, true, true>(sub_group, input[i], binary_op, carry);
         }
-        else
-        {
-            const auto limited_iters_per_item =
-                oneapi::dpl::__internal::__dpl_ceiling_div(items_in_scan, sub_group_size);
-            int i = 0;
-            if (limited_iters_per_item == 1)
-            {
-                __sub_group_scan_partial<sub_group_size, true, false>(
-                    sub_group, input[i], binary_op, carry, items_in_scan - i * iters_per_item * sub_group_size);
-            }
-            else
-            {
-                __sub_group_scan<sub_group_size, true, false>(sub_group, input[i++], binary_op, carry);
-                for (; i < limited_iters_per_item - 1; ++i)
-                {
-                    __sub_group_scan<sub_group_size, true, true>(sub_group, input[i], binary_op, carry);
-                }
-                __sub_group_scan_partial<sub_group_size, true, true>(
-                    sub_group, input[i], binary_op, carry, items_in_scan - i * iters_per_item * sub_group_size);
-            }
-        }
-        return carry;
     }
     else
     {
-        static_assert(false, "Current strategy unsupported");
+        const auto limited_iters_per_item = oneapi::dpl::__internal::__dpl_ceiling_div(items_in_scan, sub_group_size);
+        int i = 0;
+        if (limited_iters_per_item == 1)
+        {
+            __sub_group_scan_partial<sub_group_size, true, false>(sub_group, input[i], binary_op, carry,
+                                                                  items_in_scan - i * iters_per_item * sub_group_size);
+        }
+        else
+        {
+            __sub_group_scan<sub_group_size, true, false>(sub_group, input[i++], binary_op, carry);
+            for (; i < limited_iters_per_item - 1; ++i)
+            {
+                __sub_group_scan<sub_group_size, true, true>(sub_group, input[i], binary_op, carry);
+            }
+            __sub_group_scan_partial<sub_group_size, true, true>(sub_group, input[i], binary_op, carry,
+                                                                 items_in_scan - i * iters_per_item * sub_group_size);
+        }
     }
+    return carry;
 }
 
-template <int sub_group_size, int iters_per_item, typename InputType, /*typename OutputType,*/
-          typename SubGroup, typename ArrayOrder, typename BinaryOperation>
+template <int sub_group_size, int iters_per_item, typename InputType, typename SubGroup, typename BinaryOperation>
 auto
-sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters_per_item],
-               /*OutputType output[iters_per_item],*/ BinaryOperation binary_op)
+sub_group_scan(const SubGroup& sub_group, InputType input[iters_per_item], BinaryOperation binary_op)
 {
-    return sub_group_scan<sub_group_size, iters_per_item>(ArrayOrder{}, sub_group, input, binary_op,
-                                                          sub_group_size * iters_per_item);
+    return sub_group_scan<sub_group_size, iters_per_item>(sub_group, input, binary_op, sub_group_size * iters_per_item);
 }
 
 } // namespace __impl
