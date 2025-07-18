@@ -170,7 +170,7 @@ struct __lookback_kernel_func
         load_global_to_grf<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
 
         auto __this_tile_elements = std::min<std::size_t>(__elems_in_tile, __n - __work_group_offset);
-        _Type __local_reduction = work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
+        _Type __local_reduction = __work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
             __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
         _Type __prev_tile_reduction{};
 
