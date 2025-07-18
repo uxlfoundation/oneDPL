@@ -24,7 +24,6 @@
 #include <algorithm>
 
 #include "../../../../pstl/utils.h"
-#include "../utils.h"
 #include "../sub_group/sub_group_scan.h"
 #include "../../../../pstl/hetero/dpcpp/unseq_backend_sycl.h"
 
@@ -38,81 +37,71 @@ namespace __impl
 {
 
 // TODO: consider adding init callback
-template <int sub_group_size, int iters_per_item, typename InputType, /*typename OutputType,*/
-          typename NdItem, typename SlmAcc, typename ArrayOrder, typename BinaryOperation>
+template <int sub_group_size, int iters_per_item, typename InputType, typename NdItem, typename SlmAcc,
+          typename BinaryOperation>
 auto
-work_group_scan(ArrayOrder, const NdItem& item, SlmAcc local_acc, InputType input[iters_per_item],
-                /*OutputType output[iters_per_item],*/ BinaryOperation binary_op, uint32_t items_in_scan)
+work_group_scan(const NdItem& item, SlmAcc local_acc, InputType input[iters_per_item], BinaryOperation binary_op,
+                uint32_t items_in_scan)
 {
-    // This is the only currently supported strategy. However, we may wish to have future ones.
-    if constexpr (std::is_same_v<ArrayOrder, item_array_order::sub_group_stride>)
+    auto sub_group = item.get_sub_group();
+    auto sub_group_carry = sub_group_scan<sub_group_size, iters_per_item>(sub_group, input, /*output,*/ binary_op);
+    const std::uint8_t sub_group_group_id = sub_group.get_group_linear_id();
+    const std::uint8_t active_sub_groups =
+        oneapi::dpl::__internal::__dpl_ceiling_div(items_in_scan, sub_group_size * iters_per_item);
+    if (sub_group.get_local_linear_id() == sub_group_size - 1)
     {
-        auto sub_group = item.get_sub_group();
-        auto sub_group_carry =
-            sub_group_scan<sub_group_size, iters_per_item>(ArrayOrder{}, sub_group, input, /*output,*/ binary_op);
-        const std::uint8_t sub_group_group_id = sub_group.get_group_linear_id();
-        const std::uint8_t active_sub_groups =
-            oneapi::dpl::__internal::__dpl_ceiling_div(items_in_scan, sub_group_size * iters_per_item);
-        if (sub_group.get_local_linear_id() == sub_group_size - 1)
+        local_acc[sub_group.get_group_linear_id()] = sub_group_carry;
+    }
+    sycl::group_barrier(item.get_group());
+    if (sub_group_group_id == 0)
+    {
+        const auto num_iters = oneapi::dpl::__internal::__dpl_ceiling_div(active_sub_groups, sub_group_size);
+        InputType wg_carry{};
+        auto idx = sub_group.get_local_linear_id();
+        auto val = local_acc[idx];
+        if (num_iters == 1)
         {
-            local_acc[sub_group.get_group_linear_id()] = sub_group_carry;
+            __sub_group_scan_partial<sub_group_size, true, false>(sub_group, val, binary_op, wg_carry,
+                                                                  active_sub_groups);
+            local_acc[idx] = val;
         }
-        sycl::group_barrier(item.get_group());
-        if (sub_group_group_id == 0)
+        else
         {
-            const auto num_iters = oneapi::dpl::__internal::__dpl_ceiling_div(active_sub_groups, sub_group_size);
-            InputType wg_carry{};
-            auto idx = sub_group.get_local_linear_id();
-            auto val = local_acc[idx];
-            if (num_iters == 1)
+            __sub_group_scan<sub_group_size, true, false>(sub_group, val, binary_op, wg_carry);
+            local_acc[idx] = val;
+            idx += sub_group_size;
+            for (int i = 1; i < num_iters - 1; ++i)
             {
-                __sub_group_scan_partial<sub_group_size, true, false>(sub_group, val, binary_op, wg_carry,
-                                                                      active_sub_groups);
-                local_acc[idx] = val;
-            }
-            else
-            {
-                __sub_group_scan<sub_group_size, true, false>(sub_group, val, binary_op, wg_carry);
+                val = local_acc[idx];
+                __sub_group_scan<sub_group_size, true, true>(sub_group, val, binary_op, wg_carry);
                 local_acc[idx] = val;
                 idx += sub_group_size;
-                for (int i = 1; i < num_iters - 1; ++i)
-                {
-                    val = local_acc[idx];
-                    __sub_group_scan<sub_group_size, true, true>(sub_group, val, binary_op, wg_carry);
-                    local_acc[idx] = val;
-                    idx += sub_group_size;
-                }
-                val = local_acc[idx];
-                __sub_group_scan_partial<sub_group_size, true, true>(
-                    sub_group, val, binary_op, wg_carry, active_sub_groups - (num_iters - 1) * sub_group_size);
-                local_acc[idx] = val;
             }
+            val = local_acc[idx];
+            __sub_group_scan_partial<sub_group_size, true, true>(sub_group, val, binary_op, wg_carry,
+                                                                 active_sub_groups - (num_iters - 1) * sub_group_size);
+            local_acc[idx] = val;
         }
-        sycl::group_barrier(item.get_group());
-        if (sub_group_group_id > 0)
-        {
-            if (sub_group_group_id < active_sub_groups)
-            {
-                const auto carry_in = sycl::group_broadcast(sub_group, local_acc[sub_group_group_id - 1]);
-                for (int i = 0; i < iters_per_item; ++i)
-                    input[i] = binary_op(carry_in, input[i]);
-            }
-        }
-        return local_acc[active_sub_groups - 1];
     }
-    else
+    sycl::group_barrier(item.get_group());
+    if (sub_group_group_id > 0)
     {
-        static_assert(false, "Current strategy unsupported");
+        if (sub_group_group_id < active_sub_groups)
+        {
+            const auto carry_in = sycl::group_broadcast(sub_group, local_acc[sub_group_group_id - 1]);
+            for (int i = 0; i < iters_per_item; ++i)
+                input[i] = binary_op(carry_in, input[i]);
+        }
     }
+    return local_acc[active_sub_groups - 1];
 }
 
-template <int sub_group_size, int iters_per_item, typename InputType, /*typename OutputType,*/
-          typename NdItem, typename SlmAcc, typename ArrayOrder, typename BinaryOperation>
+template <int sub_group_size, int iters_per_item, typename InputType, typename NdItem, typename SlmAcc,
+          typename BinaryOperation>
 auto
-work_group_scan(ArrayOrder, const NdItem& item, SlmAcc local_acc, InputType input[iters_per_item],
-                /*OutputType output[iters_per_item],*/ BinaryOperation binary_op)
+work_group_scan(const NdItem& item, SlmAcc local_acc, InputType input[iters_per_item], BinaryOperation binary_op)
 {
-    return work_group_scan<sub_group_size, iters_per_item>(ArrayOrder{}, item, local_acc, input, binary_op,
+    return work_group_scan<sub_group_size, iters_per_item>(item, local_acc, input, binary_op,
                                                            item.get_local_range()[0] * iters_per_item);
 }
 
