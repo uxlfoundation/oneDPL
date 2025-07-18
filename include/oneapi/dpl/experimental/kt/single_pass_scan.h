@@ -31,8 +31,6 @@
 #include <cstddef>
 #include <type_traits>
 
-#define PRINTF(format, ...) sycl::ext::oneapi::experimental::printf(format, __VA_ARGS__)
-
 namespace oneapi::dpl::experimental::kt
 {
 
@@ -173,7 +171,7 @@ struct __lookback_kernel_func
 
         auto __this_tile_elements = std::min<std::size_t>(__elems_in_tile, __n - __work_group_offset);
         _Type __local_reduction = work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
-            item_array_order::sub_group_stride{}, __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
+            __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
         _Type __prev_tile_reduction{};
 
         // The first sub-group will query the previous tiles to find a prefix. For tile 0, we set it directly as full
