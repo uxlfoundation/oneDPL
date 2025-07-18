@@ -637,8 +637,7 @@ struct __mask_assigner
     void
     operator()(_Acc& __acc, _OutAcc&, const _OutIdx __out_idx, const _InAcc& __in_acc, const _InIdx __in_idx) const
     {
-        using std::get;
-        get<N>(__acc[__out_idx]) = __in_acc[__in_idx];
+        oneapi::dpl::__internal::__get<N>(__acc[__out_idx]) = __in_acc[__in_idx];
     }
 };
 
@@ -686,11 +685,10 @@ struct __create_mask
     _Tp
     operator()(const _Idx __idx, const _Input& __input) const
     {
-        using std::get;
         // 1. apply __pred
-        auto __temp = __pred(get<0>(__input[__idx]));
+        auto __temp = __pred(oneapi::dpl::__internal::__get<0>(__input[__idx]));
         // 2. initialize mask
-        get<1>(__input[__idx]) = __temp;
+        oneapi::dpl::__internal::__get<1>(__input[__idx]) = __temp;
         return _Tp(__temp);
     }
 };
@@ -708,14 +706,13 @@ struct __copy_by_mask
     operator()(_Item __item, _OutAcc& __out_acc, const _InAcc& __in_acc, _WgSumsPtr* __wg_sums_ptr, _RetPtr* __ret_ptr,
                _Size __n, _SizePerWg __size_per_wg) const
     {
-        using std::get;
         auto __item_idx = __item.get_linear_id();
-        if (__item_idx < __n && get<N>(__in_acc[__item_idx]))
+        if (__item_idx < __n && oneapi::dpl::__internal::__get<N>(__in_acc[__item_idx]))
         {
-            auto __out_idx = get<N>(__in_acc[__item_idx]) - 1;
+            auto __out_idx = oneapi::dpl::__internal::__get<N>(__in_acc[__item_idx]) - 1;
 
             using __tuple_type =
-                typename __internal::__get_tuple_type<::std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>,
+                typename __internal::__get_tuple_type<::std::decay_t<decltype(oneapi::dpl::__internal::__get<0>(__in_acc[__item_idx]))>,
                                                       ::std::decay_t<decltype(__out_acc[__out_idx])>>::__type;
 
             // calculation of position for copy
@@ -724,7 +721,7 @@ struct __copy_by_mask
                 auto __wg_sums_idx = __item_idx / __size_per_wg - 1;
                 __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx]);
             }
-            if (__item_idx % __size_per_wg == 0 || (get<N>(__in_acc[__item_idx]) != get<N>(__in_acc[__item_idx - 1])))
+            if (__item_idx % __size_per_wg == 0 || (oneapi::dpl::__internal::__get<N>(__in_acc[__item_idx]) != oneapi::dpl::__internal::__get<N>(__in_acc[__item_idx - 1])))
                 // If we work with tuples we might have a situation when internal tuple is assigned to ::std::tuple
                 // (e.g. returned by user-provided lambda).
                 // For internal::tuple<T...> we have a conversion operator to ::std::tuple<T..>. The problem here
@@ -739,7 +736,7 @@ struct __copy_by_mask
                 // NOTE: we only need this explicit conversion when we have internal::tuple and
                 // ::std::tuple as operands, in all the other cases this is not necessary and no conversion
                 // is performed(i.e. __typle_type is the same type as its operand).
-                __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
+                __assigner(static_cast<__tuple_type>(oneapi::dpl::__internal::__get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
         }
         if (__item_idx == 0)
         {
@@ -763,30 +760,29 @@ struct __partition_by_mask
         auto __item_idx = __item.get_linear_id();
         if (__item_idx < __n)
         {
-            using std::get;
-            using __in_type = ::std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>;
+            using __in_type = ::std::decay_t<decltype(oneapi::dpl::__internal::__get<0>(__in_acc[__item_idx]))>;
             auto __wg_sums_idx = __item_idx / __size_per_wg;
             bool __not_first_wg = __item_idx >= __size_per_wg;
-            if (get<1>(__in_acc[__item_idx]) &&
-                (__item_idx % __size_per_wg == 0 || get<1>(__in_acc[__item_idx]) != get<1>(__in_acc[__item_idx - 1])))
+            if (oneapi::dpl::__internal::__get<1>(__in_acc[__item_idx]) &&
+                (__item_idx % __size_per_wg == 0 || oneapi::dpl::__internal::__get<1>(__in_acc[__item_idx]) != oneapi::dpl::__internal::__get<1>(__in_acc[__item_idx - 1])))
             {
-                auto __out_idx = get<1>(__in_acc[__item_idx]) - 1;
+                auto __out_idx = oneapi::dpl::__internal::__get<1>(__in_acc[__item_idx]) - 1;
                 using __tuple_type = typename __internal::__get_tuple_type<
-                    __in_type, ::std::decay_t<decltype(get<0>(__out_acc[__out_idx]))>>::__type;
+                    __in_type, ::std::decay_t<decltype(oneapi::dpl::__internal::__get<0>(__out_acc[__out_idx]))>>::__type;
 
                 if (__not_first_wg)
                     __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx - 1]);
-                get<0>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx]));
+                oneapi::dpl::__internal::__get<0>(__out_acc[__out_idx]) = static_cast<__tuple_type>(oneapi::dpl::__internal::__get<0>(__in_acc[__item_idx]));
             }
             else
             {
-                auto __out_idx = __item_idx - get<1>(__in_acc[__item_idx]);
+                auto __out_idx = __item_idx - oneapi::dpl::__internal::__get<1>(__in_acc[__item_idx]);
                 using __tuple_type = typename __internal::__get_tuple_type<
-                    __in_type, ::std::decay_t<decltype(get<1>(__out_acc[__out_idx]))>>::__type;
+                    __in_type, ::std::decay_t<decltype(oneapi::dpl::__internal::__get<1>(__out_acc[__out_idx]))>>::__type;
 
                 if (__not_first_wg)
                     __out_idx -= __wg_sums_ptr[__wg_sums_idx - 1];
-                get<1>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx]));
+                oneapi::dpl::__internal::__get<1>(__out_acc[__out_idx]) = static_cast<__tuple_type>(oneapi::dpl::__internal::__get<0>(__in_acc[__item_idx]));
             }
         }
         if (__item_idx == 0)
@@ -1264,10 +1260,9 @@ class __brick_set_op
     bool
     operator()(_ItemId __idx, const _Acc& __inout_acc) const
     {
-        using std::get;
-        auto __a = get<0>(__inout_acc.tuple()); // first sequence
-        auto __b = get<1>(__inout_acc.tuple()); // second sequence
-        auto __c = get<2>(__inout_acc.tuple()); // mask buffer
+        auto __a = oneapi::dpl::__internal::__get<0>(__inout_acc.tuple()); // first sequence
+        auto __b = oneapi::dpl::__internal::__get<1>(__inout_acc.tuple()); // second sequence
+        auto __c = oneapi::dpl::__internal::__get<2>(__inout_acc.tuple()); // mask buffer
 
         auto __a_beg = _Size1(0);
         auto __b_beg = _Size2(0);

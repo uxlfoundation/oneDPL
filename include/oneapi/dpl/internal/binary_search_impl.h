@@ -21,6 +21,7 @@
 #include "binary_search_extension_defs.h"
 #include "../pstl/iterator_impl.h"
 #include "../pstl/utils.h"
+#include "../pstl/get_impl.h"   // for oneapi::dpl::__internal::__get
 
 namespace oneapi
 {
@@ -59,22 +60,22 @@ struct __custom_brick
     {
         _Size start_orig = 0;
         _Size end_orig = size;
-        using std::get;
+
         if constexpr (func == search_algorithm::lower_bound)
         {
-            get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_lower_bound(get<0>(acc.tuple()), start_orig, end_orig,
-                                                                            get<1>(acc[idx]), comp);
+            oneapi::dpl::__internal::__get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_lower_bound(oneapi::dpl::__internal::__get<0>(acc.tuple()), start_orig, end_orig,
+                                                                            oneapi::dpl::__internal::__get<1>(acc[idx]), comp);
         }
         else if constexpr (func == search_algorithm::upper_bound)
         {
-            get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_upper_bound(get<0>(acc.tuple()), start_orig, end_orig,
-                                                                            get<1>(acc[idx]), comp);
+            oneapi::dpl::__internal::__get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_upper_bound(oneapi::dpl::__internal::__get<0>(acc.tuple()), start_orig, end_orig,
+                                                                            oneapi::dpl::__internal::__get<1>(acc[idx]), comp);
         }
         else
         {
-            auto value = oneapi::dpl::__internal::__shars_lower_bound(get<0>(acc.tuple()), start_orig, end_orig,
-                                                                      get<1>(acc[idx]), comp);
-            get<2>(acc[idx]) = (value != end_orig) && (get<1>(acc[idx]) == get<0>(acc[value]));
+            auto value = oneapi::dpl::__internal::__shars_lower_bound(oneapi::dpl::__internal::__get<0>(acc.tuple()), start_orig, end_orig,
+                                                                      oneapi::dpl::__internal::__get<1>(acc[idx]), comp);
+            oneapi::dpl::__internal::__get<2>(acc[idx]) = (value != end_orig) && (oneapi::dpl::__internal::__get<1>(acc[idx]) == oneapi::dpl::__internal::__get<0>(acc[value]));
         }
     }
     template <typename _IsFull, typename _Params, typename _Acc>

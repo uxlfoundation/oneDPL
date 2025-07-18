@@ -76,8 +76,10 @@ struct scan_by_key_fun
     result_of
     operator()(_T1&& x, _T2&& y) const
     {
-        using std::get;
-        return ::std::make_tuple(get<1>(y) ? get<0>(y) : binary_op(get<0>(x), get<0>(y)), get<1>(x) | get<1>(y));
+        return ::std::make_tuple(oneapi::dpl::__internal::__get<1>(y) ? oneapi::dpl::__internal::__get<0>(y)
+                                                                      : binary_op(oneapi::dpl::__internal::__get<0>(x),
+                                                                                  oneapi::dpl::__internal::__get<0>(y)),
+                                 oneapi::dpl::__internal::__get<1>(x) | oneapi::dpl::__internal::__get<1>(y));
     }
 
   private:
@@ -94,10 +96,11 @@ struct segmented_scan_fun
     _T1
     operator()(const _T1& x, const _T2& y) const
     {
-        using std::get;
         using x_t = ::std::tuple_element_t<0, _T1>;
-        auto new_x = get<1>(y) ? x_t(get<0>(y)) : x_t(binary_op(get<0>(x), get<0>(y)));
-        auto new_y = get<1>(x) | get<1>(y);
+        auto new_x = oneapi::dpl::__internal::__get<1>(y)
+                         ? x_t(oneapi::dpl::__internal::__get<0>(y))
+                         : x_t(binary_op(oneapi::dpl::__internal::__get<0>(x), oneapi::dpl::__internal::__get<0>(y)));
+        auto new_y = oneapi::dpl::__internal::__get<1>(x) | oneapi::dpl::__internal::__get<1>(y);
         return _T1(new_x, new_y);
     }
 
@@ -144,9 +147,8 @@ class transform_if_stencil_fun
     void
     operator()(_T&& t) const
     {
-        using std::get;
-        if (pred(get<1>(t)))
-            get<2>(t) = op(get<0>(t));
+        if (pred(oneapi::dpl::__internal::__get<1>(t)))
+            oneapi::dpl::__internal::__get<2>(t) = op(oneapi::dpl::__internal::__get<0>(t));
     }
 
   private:

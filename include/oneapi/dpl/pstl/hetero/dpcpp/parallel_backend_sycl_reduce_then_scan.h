@@ -183,15 +183,14 @@ struct __write_red_by_seg
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
     {
-        using std::get;
-        auto __out_keys = get<0>(__out_rng.tuple());
-        auto __out_values = get<1>(__out_rng.tuple());
+        auto __out_keys = oneapi::dpl::__internal::__get<0>(__out_rng.tuple());
+        auto __out_values = oneapi::dpl::__internal::__get<1>(__out_rng.tuple());
 
-        const auto& __next_key = get<2>(__tup);
-        const auto& __current_key = get<3>(__tup);
-        const auto& __current_value = get<1>(get<0>(__tup));
-        const bool __is_seg_end = get<1>(__tup);
-        const std::size_t __out_idx = get<0>(get<0>(__tup));
+        const auto& __next_key = oneapi::dpl::__internal::__get<2>(__tup);
+        const auto& __current_key = oneapi::dpl::__internal::__get<3>(__tup);
+        const auto& __current_value = oneapi::dpl::__internal::__get<1>(oneapi::dpl::__internal::__get<0>(__tup));
+        const bool __is_seg_end = oneapi::dpl::__internal::__get<1>(__tup);
+        const std::size_t __out_idx = oneapi::dpl::__internal::__get<0>(oneapi::dpl::__internal::__get<0>(__tup));
 
         // With the exception of the first key which is output by index 0, the first key in each segment is written
         // by the work item that outputs the previous segment's reduction value. This is because the reduce_by_segment
@@ -822,17 +821,19 @@ struct __red_by_seg_op
     auto
     operator()(const _Tup1& __lhs_tup, const _Tup2& __rhs_tup) const
     {
-        using std::get;
-        using _OpReturnType = decltype(__binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
+        using _OpReturnType = decltype(
+            __binary_op(oneapi::dpl::__internal::__get<1>(__lhs_tup), oneapi::dpl::__internal::__get<1>(__rhs_tup)));
         // The left-hand side has processed elements from the same segment, so update the reduction value.
-        if (get<0>(__rhs_tup) == 0)
+        if (oneapi::dpl::__internal::__get<0>(__rhs_tup) == 0)
         {
-            return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup),
-                                                       __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
+            return oneapi::dpl::__internal::make_tuple(oneapi::dpl::__internal::__get<0>(__lhs_tup),
+                                                       __binary_op(oneapi::dpl::__internal::__get<1>(__lhs_tup),
+                                                                   oneapi::dpl::__internal::__get<1>(__rhs_tup)));
         }
         // We are looking at elements from a previous segment so just update the output index.
-        return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup),
-                                                   _OpReturnType{get<1>(__rhs_tup)});
+        return oneapi::dpl::__internal::make_tuple(oneapi::dpl::__internal::__get<0>(__lhs_tup) +
+                                                       oneapi::dpl::__internal::__get<0>(__rhs_tup),
+                                                   _OpReturnType{oneapi::dpl::__internal::__get<1>(__rhs_tup)});
     }
     _BinaryOp __binary_op;
 };
