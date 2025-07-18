@@ -133,7 +133,7 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
         _PackedStatusPrefixT __integral_bits =
             static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__val));
         __packed_flag |= __integral_bits << __shift_factor;
-        __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
+        __atomic_packed_flag.store(__packed_flag);
     }
 
     void
@@ -144,29 +144,23 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
         _PackedStatusPrefixT __integral_bits =
             static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__val));
         __packed_flag |= __integral_bits << __shift_factor;
-        __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
+        __atomic_packed_flag.store(__packed_flag);
     }
 
     void
-    set_oob(const _T __known_identity)
+    set_oob()
     {
         constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __oob_status;
-        _PackedStatusPrefixT __integral_bits =
-            static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__known_identity));
-        __packed_flag |= __integral_bits << __shift_factor;
-        __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
+        __atomic_packed_flag.store(__packed_flag);
     }
 
     void
-    set_init(const _T __known_identity)
+    set_init()
     {
         constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __initialized_status;
-        _PackedStatusPrefixT __integral_bits =
-            static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__known_identity));
-        __packed_flag |= __integral_bits << __shift_factor;
-        __atomic_packed_flag.store(__packed_flag, sycl::memory_order::release);
+        __atomic_packed_flag.store(__packed_flag);
     }
 
     auto
@@ -247,16 +241,16 @@ struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flag
     }
 
     void
-    set_init(const _T __known_identity)
+    set_init()
     {
-        __atomic_partial_value.store(__known_identity);
+        __atomic_partial_value.store(_T{});
         __atomic_flag.store(__initialized_status);
     }
 
     void
-    set_oob(const _T __known_identity)
+    set_oob()
     {
-        __atomic_partial_value.store(__known_identity);
+        __atomic_partial_value.store(_T{});
         __atomic_flag.store(__oob_status);
     }
 
@@ -297,10 +291,9 @@ _T
 __cooperative_lookback(__cooperative_lookback_storage<_T> __lookback_storage, const _Subgroup& __subgroup,
                        std::uint32_t __tile_id, _BinaryOp __binary_op)
 {
-    _T __running = oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _T>;
+    _T __running{};
     auto __local_id = __subgroup.get_local_id();
-    for (int __tile = static_cast<int>(__tile_id) - 1; __tile >= 0; __tile -= SUBGROUP_SIZE)
-    {
+    auto __lookback_iter = [&](auto __is_initialized, int __tile) {
         __scan_status_flag<_T> __current_tile(__lookback_storage, __tile - __local_id);
         auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
 
@@ -316,16 +309,27 @@ __cooperative_lookback(__cooperative_lookback_storage<_T> __lookback_storage, co
         // recomputed the prefix using partial values
         if (__is_full_ballot_bits)
         {
-            __sub_group_scan_partial<SUBGROUP_SIZE, true, true>(__subgroup, __tile_value, __binary_op, __running,
-                                                                __lowest_item_with_full + 1);
-            break;
+            __sub_group_scan_partial<SUBGROUP_SIZE, true, decltype(__is_initialized)::value>(
+                __subgroup, __tile_value, __binary_op, __running, __lowest_item_with_full + 1);
+            return true;
         }
         else
         {
-            __sub_group_scan<SUBGROUP_SIZE, true, true>(__subgroup, __tile_value, __binary_op, __running);
+            __sub_group_scan<SUBGROUP_SIZE, true, decltype(__is_initialized)::value>(__subgroup, __tile_value,
+                                                                                     __binary_op, __running);
+            return false;
         }
+    };
+    int __tile = static_cast<int>(__tile_id) - 1;
+    bool __full_tile_found = false;
+    // If the zeroth tile never calls __cooperative_lookback, then this is unnecessary.
+    if (__tile >= 0)
+        __full_tile_found = __lookback_iter(/*__is_initialized*/ std::false_type{}, __tile);
+    __tile -= SUBGROUP_SIZE;
+    for (; __tile >= 0 && !__full_tile_found; __tile -= SUBGROUP_SIZE)
+    {
+        __full_tile_found = __lookback_iter(/*__is_initialized*/ std::true_type{}, __tile);
     }
-
     return __running;
 }
 

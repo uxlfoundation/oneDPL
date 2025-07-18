@@ -61,28 +61,30 @@ work_group_scan(ArrayOrder, const NdItem& item, SlmAcc local_acc, InputType inpu
         if (sub_group_group_id == 0)
         {
             const auto num_iters = oneapi::dpl::__internal::__dpl_ceiling_div(active_sub_groups, sub_group_size);
-            InputType wg_carry = oneapi::dpl::unseq_backend::__known_identity<BinaryOperation, InputType>;
+            InputType wg_carry{};
             auto idx = sub_group.get_local_linear_id();
-            for (int i = 0; i < num_iters - 1; ++i)
+            auto val = local_acc[idx];
+            if (num_iters == 1)
             {
-                auto val = local_acc[idx];
-                __sub_group_scan<sub_group_size, true, true>(sub_group, val, binary_op, wg_carry);
-                local_acc[idx] = val;
-                idx += sub_group_size;
-            }
-            // masked last iteration for partial case
-            const auto num_sub_groups = sub_group.get_group_linear_range();
-            if (active_sub_groups == num_sub_groups)
-            {
-                auto val = local_acc[idx];
-                __sub_group_scan<sub_group_size, true, true>(sub_group, val, binary_op, wg_carry);
+                __sub_group_scan_partial<sub_group_size, true, false>(sub_group, val, binary_op, wg_carry,
+                                                                      active_sub_groups);
                 local_acc[idx] = val;
             }
             else
             {
-                auto val = local_acc[idx];
-                __sub_group_scan_partial<sub_group_size, true, true>(sub_group, val, binary_op, wg_carry,
-                                                                     active_sub_groups % sub_group_size);
+                __sub_group_scan<sub_group_size, true, false>(sub_group, val, binary_op, wg_carry);
+                local_acc[idx] = val;
+                idx += sub_group_size;
+                for (int i = 1; i < num_iters - 1; ++i)
+                {
+                    val = local_acc[idx];
+                    __sub_group_scan<sub_group_size, true, true>(sub_group, val, binary_op, wg_carry);
+                    local_acc[idx] = val;
+                    idx += sub_group_size;
+                }
+                val = local_acc[idx];
+                __sub_group_scan_partial<sub_group_size, true, true>(
+                    sub_group, val, binary_op, wg_carry, active_sub_groups - (num_iters - 1) * sub_group_size);
                 local_acc[idx] = val;
             }
         }
@@ -96,7 +98,6 @@ work_group_scan(ArrayOrder, const NdItem& item, SlmAcc local_acc, InputType inpu
                     input[i] = binary_op(carry_in, input[i]);
             }
         }
-        // Should we use a group broadcast here?
         return local_acc[active_sub_groups - 1];
     }
     else

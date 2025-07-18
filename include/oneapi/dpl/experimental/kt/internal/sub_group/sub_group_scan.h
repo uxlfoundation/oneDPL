@@ -55,15 +55,15 @@ __inclusive_sub_group_masked_scan(const sycl::sub_group& __sub_group, _MaskOp __
             __value = __binary_op(__partial_carry_in, __value);
         }
     }
-    //if constexpr (__init_present)
-    //{
-    __value = __binary_op(__init_and_carry, __value);
-    __init_and_carry = sycl::group_broadcast(__sub_group, __value, __init_broadcast_id);
-    //}
-    //else
-    //{
-    //    __init_and_carry.__setup(sycl::group_broadcast(__sub_group, __value, __init_broadcast_id));
-    //}
+    if constexpr (__init_present)
+    {
+        __value = __binary_op(__init_and_carry, __value);
+        __init_and_carry = sycl::group_broadcast(__sub_group, __value, __init_broadcast_id);
+    }
+    else
+    {
+        __init_and_carry = sycl::group_broadcast(__sub_group, __value, __init_broadcast_id);
+    }
     //return by reference __value and __init_and_carry
 }
 
@@ -123,11 +123,12 @@ sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters_per_
     const bool is_full = items_in_scan == sub_group_size * iters_per_item;
     if constexpr (std::is_same_v<ArrayOrder, item_array_order::sub_group_stride>)
     {
-        InputType carry = oneapi::dpl::unseq_backend::__known_identity<BinaryOperation, InputType>;
+        InputType carry{};
         if (is_full)
         {
-#pragma unroll
-            for (int i = 0; i < iters_per_item; ++i)
+            __sub_group_scan<sub_group_size, true, false>(sub_group, input[0], binary_op, carry);
+            _ONEDPL_PRAGMA_UNROLL
+            for (int i = 1; i < iters_per_item; ++i)
             {
                 __sub_group_scan<sub_group_size, true, true>(sub_group, input[i], binary_op, carry);
             }
@@ -137,13 +138,21 @@ sub_group_scan(ArrayOrder, const SubGroup& sub_group, InputType input[iters_per_
             const auto limited_iters_per_item =
                 oneapi::dpl::__internal::__dpl_ceiling_div(items_in_scan, sub_group_size);
             int i = 0;
-#pragma unroll
-            for (; i < limited_iters_per_item - 1; ++i)
+            if (limited_iters_per_item == 1)
             {
-                __sub_group_scan<sub_group_size, true, true>(sub_group, input[i], binary_op, carry);
+                __sub_group_scan_partial<sub_group_size, true, false>(
+                    sub_group, input[i], binary_op, carry, items_in_scan - i * iters_per_item * sub_group_size);
             }
-            __sub_group_scan_partial<sub_group_size, true, true>(sub_group, input[i], binary_op, carry,
-                                                                 items_in_scan - i * iters_per_item * sub_group_size);
+            else
+            {
+                __sub_group_scan<sub_group_size, true, false>(sub_group, input[i++], binary_op, carry);
+                for (; i < limited_iters_per_item - 1; ++i)
+                {
+                    __sub_group_scan<sub_group_size, true, true>(sub_group, input[i], binary_op, carry);
+                }
+                __sub_group_scan_partial<sub_group_size, true, true>(
+                    sub_group, input[i], binary_op, carry, items_in_scan - i * iters_per_item * sub_group_size);
+            }
         }
         return carry;
     }

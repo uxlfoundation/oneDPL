@@ -63,13 +63,12 @@ struct __lookback_init_submitter<_FlagType, _Type, _BinaryOp,
         return __q.submit([&](sycl::handler& __hdl) {
             __hdl.parallel_for<_Name...>(sycl::range<1>{__status_flags_size}, [=](const sycl::item<1>& __item) {
                 auto __id = __item.get_linear_id();
-                auto __identity = oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _Type>;
                 __scan_status_flag<_T> __current_tile(__lookback_storage, int(__id) - int(__status_flag_padding));
                 // TODO: we do not need atomics here
                 if (__id < __status_flag_padding)
-                    __current_tile.set_oob(__identity);
+                    __current_tile.set_oob();
                 else
-                    __current_tile.set_init(__identity);
+                    __current_tile.set_init();
             });
         });
     }
@@ -130,7 +129,7 @@ struct __lookback_kernel_func
         auto __this_tile_elements = std::min<std::size_t>(__elems_in_tile, __n - __work_group_offset);
         _Type __local_reduction = work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
             item_array_order::sub_group_stride{}, __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
-        _Type __prev_tile_reduction = oneapi::dpl::unseq_backend::__known_identity<_BinaryOp, _Type>;
+        _Type __prev_tile_reduction{};
 
         // The first sub-group will query the previous tiles to find a prefix. For tile 0, we set it directly as full
         if (__tile_id == 0)
@@ -140,6 +139,29 @@ struct __lookback_kernel_func
                 _FlagType __flag(__lookback_storage, __tile_id);
                 __flag.set_full(__local_reduction);
             }
+            // TODO: reduce code duplication with last few lines.
+            if constexpr (__is_full)
+            {
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
+                {
+                    __out_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
+                        __grf_partials[__i];
+                }
+            }
+            else
+            {
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
+                {
+                    if (__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i < __n)
+                    {
+                        __out_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
+                            __grf_partials[__i];
+                    }
+                }
+            }
+            return;
         }
         else if (__sub_group.get_group_id() == 0)
         {
@@ -275,9 +297,6 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
         return sycl::event{};
 
     static_assert(_Inclusive, "Single-pass scan only available for inclusive scan");
-    static_assert(oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOp, _Type>::value,
-                  "Only binary operators with known identity values are supported");
-
     assert("This device does not support 64-bit atomics" &&
            (sizeof(_Type) < 8 || __queue.get_device().has(sycl::aspect::atomic64)));
 
