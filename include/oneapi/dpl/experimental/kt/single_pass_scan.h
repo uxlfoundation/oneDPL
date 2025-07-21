@@ -53,15 +53,14 @@ template <typename _FlagType, typename _Type, typename _BinaryOp, typename... _N
 struct __lookback_init_submitter<_FlagType, _Type, _BinaryOp,
                                  oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _T>
     sycl::event
-    operator()(sycl::queue __q, __cooperative_lookback_storage<_T> __lookback_storage, std::size_t __status_flags_size,
-               std::uint16_t __status_flag_padding) const
+    operator()(sycl::queue __q, typename __scan_status_flag<_Type>::storage __lookback_storage,
+               std::size_t __status_flags_size, std::uint16_t __status_flag_padding) const
     {
         return __q.submit([&](sycl::handler& __hdl) {
             __hdl.parallel_for<_Name...>(sycl::range<1>{__status_flags_size}, [=](const sycl::item<1>& __item) {
                 auto __id = __item.get_linear_id();
-                __scan_status_flag<_T> __current_tile(__lookback_storage, int(__id) - int(__status_flag_padding));
+                __scan_status_flag<_Type> __current_tile(__lookback_storage, int(__id) - int(__status_flag_padding));
                 // TODO: we do not need atomics here
                 if (__id < __status_flag_padding)
                     __current_tile.set_oob();
@@ -80,15 +79,15 @@ template <std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size, typ
           typename _InRng, typename _OutRng, typename _BinaryOp, typename _LocalAcc>
 struct __lookback_kernel_func
 {
-    using _FlagStorageType = typename _FlagType::_FlagStorageType;
+    using _TileIdxT = typename _FlagType::_TileIdxT;
     static constexpr std::uint32_t __elems_in_tile = __workgroup_size * __data_per_workitem;
 
     _InRng __in_rng;
     _OutRng __out_rng;
     _BinaryOp __binary_op;
     std::size_t __n;
-    std::uint32_t* __atomic_id_ptr;
-    __cooperative_lookback_storage<_Type> __lookback_storage;
+    _TileIdxT* __atomic_id_ptr;
+    typename __scan_status_flag<_Type>::storage __lookback_storage;
     std::size_t __status_flags_size;
     std::size_t __current_num_items;
     _LocalAcc __slm;
@@ -194,7 +193,8 @@ struct __lookback_kernel_func
                 {
                     __flag.set_partial(__local_reduction);
                 }
-                __prev_tile_reduction = __cooperative_lookback(__lookback_storage, __sub_group, __tile_id, __binary_op);
+                __prev_tile_reduction =
+                    __cooperative_lookback<_Type>(__lookback_storage, __sub_group, __tile_id, __binary_op);
 
                 if (__sub_group.get_local_id() == 0)
                 {
@@ -222,7 +222,7 @@ struct __lookback_kernel_func
         // Obtain unique ID for this work-group that will be used in decoupled lookback
         if (__group.leader())
         {
-            sycl::atomic_ref<_FlagStorageType, sycl::memory_order::relaxed, sycl::memory_scope::device,
+            sycl::atomic_ref<_TileIdxT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                              sycl::access::address_space::global_space>
                 __idx_atomic(*__atomic_id_ptr);
             __tile_id = __idx_atomic.fetch_add(1);
@@ -260,11 +260,12 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
                             oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
 
-    template <typename _InRng, typename _OutRng, typename _BinaryOp, typename _T>
+    template <typename _InRng, typename _OutRng, typename _BinaryOp>
     sycl::event
     operator()(sycl::queue __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
-               std::size_t __n, std::uint32_t* __atomic_id_ptr, __cooperative_lookback_storage<_T> __lookback_storage,
-               std::size_t __status_flags_size, std::size_t __current_num_items) const
+               std::size_t __n, std::uint32_t* __atomic_id_ptr,
+               typename __scan_status_flag<_Type>::storage __lookback_storage, std::size_t __status_flags_size,
+               std::size_t __current_num_items) const
     {
         using _LocalAccessorType = __dpl_sycl::__local_accessor<_Type, 1>;
         using _KernelFunc =
@@ -289,8 +290,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
 {
     using _Type = oneapi::dpl::__internal::__value_t<_InRange>;
     using _FlagType = __scan_status_flag<_Type>;
-    using _FlagStorageType = typename _FlagType::_FlagStorageType;
-
+    using _FlagStorageType = typename _FlagType::storage;
     using _KernelName = typename _KernelParam::kernel_name;
     using _LookbackInitKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __lookback_init_kernel<_KernelName, _Type, _BinaryOp>>;
@@ -325,7 +325,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     std::size_t __num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
     constexpr int __status_flag_padding = SUBGROUP_SIZE;
     std::size_t __status_flags_size = __num_wgs + 1 + __status_flag_padding;
-    const ::std::size_t __mem_bytes = __cooperative_lookback_storage<_Type>::get_reqd_storage(__status_flags_size);
+    const ::std::size_t __mem_bytes = _FlagStorageType::get_reqd_storage(__status_flags_size);
     std::byte* __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __queue));
     if (!__device_mem)
         throw std::bad_alloc();
@@ -333,7 +333,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     // TODO: temp workaround until I figure out what's wrong
     std::uint32_t* __atomic_id_ptr = sycl::malloc_device<std::uint32_t>(1, __queue);
     __queue.fill(__atomic_id_ptr, 0, 1).wait();
-    __cooperative_lookback_storage<_Type> __lookback_storage(__device_mem, __mem_bytes, __status_flags_size);
+    _FlagStorageType __lookback_storage(__device_mem, __mem_bytes, __status_flags_size);
     auto __fill_event = __lookback_init_submitter<_FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
         __queue, __lookback_storage, __status_flags_size, __status_flag_padding);
 

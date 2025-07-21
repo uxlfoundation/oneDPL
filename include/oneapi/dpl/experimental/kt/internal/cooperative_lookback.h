@@ -45,81 +45,43 @@ struct __can_combine_status_prefix_flags
 };
 
 template <typename _T, typename = void>
-struct __cooperative_lookback_storage;
-
-template <typename _T>
-struct __cooperative_lookback_storage<_T, std::enable_if_t<__can_combine_status_prefix_flags<_T>::value>>
-{
-    using _PackedStatusPrefixT = std::uint64_t;
-    __cooperative_lookback_storage(std::byte* __device_mem, std::size_t /*__mem_bytes*/,
-                                   std::size_t /*__status_flags_size*/)
-        : __packed_flags_begin(reinterpret_cast<_PackedStatusPrefixT*>(__device_mem))
-    {
-    }
-
-    static std::size_t
-    get_reqd_storage(std::size_t __status_flags_size)
-    {
-        return __status_flags_size * sizeof(_PackedStatusPrefixT);
-    }
-
-    _PackedStatusPrefixT* __packed_flags_begin;
-};
-
-template <typename _T>
-struct __cooperative_lookback_storage<_T, std::enable_if_t<!__can_combine_status_prefix_flags<_T>::value>>
-{
-    using _FlagStorageType = std::uint32_t;
-    __cooperative_lookback_storage(std::byte* __device_mem, std::size_t __mem_bytes, std::size_t __status_flags_size)
-    {
-        std::size_t __status_flags_bytes = __status_flags_size * sizeof(_FlagStorageType);
-        std::size_t __status_vals_full_offset_bytes = __status_flags_size * sizeof(_T);
-        __flags_begin = reinterpret_cast<_FlagStorageType*>(__device_mem);
-        std::size_t __remainder = __mem_bytes - __status_flags_bytes;
-        void* __vals_base_ptr = reinterpret_cast<void*>(__device_mem + __status_flags_bytes);
-        void* __vals_aligned_ptr =
-            std::align(std::alignment_of_v<_T>, __status_vals_full_offset_bytes, __vals_base_ptr, __remainder);
-        __full_vals_begin = reinterpret_cast<_T*>(__vals_aligned_ptr);
-        __partial_vals_begin = reinterpret_cast<_T*>(__full_vals_begin + __status_vals_full_offset_bytes / sizeof(_T));
-    }
-
-    static std::size_t
-    get_reqd_storage(std::size_t __status_flags_size)
-    {
-        std::size_t __mem_align_pad = sizeof(_T);
-        std::size_t __status_flags_bytes = __status_flags_size * sizeof(_FlagStorageType);
-        std::size_t __status_vals_full_offset_bytes = __status_flags_size * sizeof(_T);
-        std::size_t __status_vals_partial_offset_bytes = __status_flags_size * sizeof(_T);
-        std::size_t __mem_bytes = __status_flags_bytes + __status_vals_full_offset_bytes +
-                                  __status_vals_partial_offset_bytes + __mem_align_pad;
-        return __mem_bytes;
-    }
-
-    _FlagStorageType* __flags_begin;
-    _T* __full_vals_begin;
-    _T* __partial_vals_begin;
-};
-
-template <typename _T, typename = void>
 struct __scan_status_flag;
 
 template <typename _T>
 struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags<_T>::value>>
 {
-    using _PackedStatusPrefixT = std::uint64_t;
-    using _FlagStorageType = std::uint32_t;
+    using _PackedStatusPrefixT = std::conditional_t<sizeof(_T) == 4, std::uint64_t, std::uint32_t>;
+    using _TileIdxT = uint32_t;
+    using _FlagStorageType = std::conditional_t<sizeof(_T) == 4, std::uint32_t, std::uint16_t>;
     using _TIntegralBitsType = std::conditional_t<sizeof(_T) == 4, std::uint32_t,
                                                   std::conditional_t<sizeof(_T) == 2, std::uint16_t, std::uint8_t>>;
     using _AtomicPackedStatusPrefixT =
         sycl::atomic_ref<_PackedStatusPrefixT, sycl::memory_order::acq_rel, sycl::memory_scope::device,
                          sycl::access::address_space::global_space>;
-    static constexpr _PackedStatusPrefixT __initialized_status = 0;
-    static constexpr _PackedStatusPrefixT __partial_status = 1;
-    static constexpr _PackedStatusPrefixT __full_status = 2;
-    static constexpr _PackedStatusPrefixT __oob_status = 3;
+
+    static constexpr _FlagStorageType __initialized_status = 0;
+    static constexpr _FlagStorageType __partial_status = 1;
+    static constexpr _FlagStorageType __full_status = 2;
+    static constexpr _FlagStorageType __oob_status = 3;
     static constexpr int __padding = SUBGROUP_SIZE;
 
-    __scan_status_flag(const __cooperative_lookback_storage<_T>& __temp_storage, const int __tile_id)
+    struct storage
+    {
+        storage(std::byte* __device_mem, std::size_t /*__mem_bytes*/, std::size_t /*__status_flags_size*/)
+            : __packed_flags_begin(reinterpret_cast<_PackedStatusPrefixT*>(__device_mem))
+        {
+        }
+
+        static std::size_t
+        get_reqd_storage(std::size_t __status_flags_size)
+        {
+            return __status_flags_size * sizeof(_PackedStatusPrefixT);
+        }
+
+        _PackedStatusPrefixT* __packed_flags_begin;
+    };
+
+    __scan_status_flag(const storage& __temp_storage, const int __tile_id)
         : __atomic_packed_flag(*(__temp_storage.__packed_flags_begin + __tile_id + __padding))
     {
     }
@@ -206,6 +168,7 @@ template <typename _T>
 struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flags<_T>::value>>
 {
     using _FlagStorageType = uint32_t;
+    using _TileIdxT = uint32_t;
     using _AtomicFlagT = sycl::atomic_ref<_FlagStorageType, sycl::memory_order::acq_rel, sycl::memory_scope::device,
                                           sycl::access::address_space::global_space>;
     using _AtomicValueT = sycl::atomic_ref<_T, sycl::memory_order::acq_rel, sycl::memory_scope::device,
@@ -218,7 +181,40 @@ struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flag
 
     static constexpr int __padding = SUBGROUP_SIZE;
 
-    __scan_status_flag(const __cooperative_lookback_storage<_T>& __temp_storage, std::int32_t __tile_id)
+    struct storage
+    {
+        storage(std::byte* __device_mem, std::size_t __mem_bytes, std::size_t __status_flags_size)
+        {
+            std::size_t __status_flags_bytes = __status_flags_size * sizeof(_FlagStorageType);
+            std::size_t __status_vals_full_offset_bytes = __status_flags_size * sizeof(_T);
+            __flags_begin = reinterpret_cast<_FlagStorageType*>(__device_mem);
+            std::size_t __remainder = __mem_bytes - __status_flags_bytes;
+            void* __vals_base_ptr = reinterpret_cast<void*>(__device_mem + __status_flags_bytes);
+            void* __vals_aligned_ptr =
+                std::align(std::alignment_of_v<_T>, __status_vals_full_offset_bytes, __vals_base_ptr, __remainder);
+            __full_vals_begin = reinterpret_cast<_T*>(__vals_aligned_ptr);
+            __partial_vals_begin =
+                reinterpret_cast<_T*>(__full_vals_begin + __status_vals_full_offset_bytes / sizeof(_T));
+        }
+
+        static std::size_t
+        get_reqd_storage(std::size_t __status_flags_size)
+        {
+            std::size_t __mem_align_pad = sizeof(_T);
+            std::size_t __status_flags_bytes = __status_flags_size * sizeof(_FlagStorageType);
+            std::size_t __status_vals_full_offset_bytes = __status_flags_size * sizeof(_T);
+            std::size_t __status_vals_partial_offset_bytes = __status_flags_size * sizeof(_T);
+            std::size_t __mem_bytes = __status_flags_bytes + __status_vals_full_offset_bytes +
+                                      __status_vals_partial_offset_bytes + __mem_align_pad;
+            return __mem_bytes;
+        }
+
+        _FlagStorageType* __flags_begin;
+        _T* __full_vals_begin;
+        _T* __partial_vals_begin;
+    };
+
+    __scan_status_flag(const storage& __temp_storage, std::int32_t __tile_id)
         : __atomic_flag(*(__temp_storage.__flags_begin + __tile_id + __padding)),
           __atomic_partial_value(*(__temp_storage.__partial_vals_begin + __tile_id + __padding)),
           __atomic_full_value(*(__temp_storage.__full_vals_begin + __tile_id + __padding))
@@ -285,9 +281,9 @@ struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flag
     _AtomicValueT __atomic_full_value;
 };
 
-template <typename _Subgroup, typename _T, typename _BinaryOp>
+template <typename _T, typename _Subgroup, typename _BinaryOp>
 _T
-__cooperative_lookback(__cooperative_lookback_storage<_T> __lookback_storage, const _Subgroup& __subgroup,
+__cooperative_lookback(typename __scan_status_flag<_T>::storage __lookback_storage, const _Subgroup& __subgroup,
                        std::uint32_t __tile_id, _BinaryOp __binary_op)
 {
     _T __running{};
