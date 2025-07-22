@@ -1492,62 +1492,72 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __n_groups,
                const std::size_t __wgroup_size, const _AtomicType __init_value, _Predicate __pred, _Ranges&&... __rngs)
     {
-        auto __result = __init_value;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_AtomicType, 1>;
+        __result_and_scratch_storage_t __result_storage{__q, 0};
 
         // Calculate the number of elements to be processed by each work-item.
         const auto __iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
 
-        // scope is to copy data back to __result after destruction of temporary sycl:buffer
-        {
-            sycl::buffer<_AtomicType, 1> __result_sycl_buf(&__result, 1); // temporary storage for global atomic
+        // main parallel_for
+        auto __event = __q.submit([&](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
-            // main parallel_for
-            __q.submit([&](sycl::handler& __cgh) {
-                oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
-                auto __result_sycl_buf_acc = __result_sycl_buf.template get_access<access_mode::read_write>(__cgh);
+            auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::read_write>(__cgh, __dpl_sycl::__no_init{});
 
-                __cgh.parallel_for<KernelName...>(
-                    sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
-                                              sycl::range</*dim=*/1>(__wgroup_size)),
-                    [=](sycl::nd_item</*dim=*/1> __item_id) {
-                        auto __local_idx = __item_id.get_local_id(0);
+            __cgh.depends_on( __init_event);
 
-                        // 1. Set initial value to local found state
-                        _AtomicType __found_local = __init_value;
+            __cgh.parallel_for<KernelName...>(
+                sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
+                                            sycl::range</*dim=*/1>(__wgroup_size)),
+                [=](sycl::nd_item</*dim=*/1> __item_id) {
 
-                        // 2. Find any element that satisfies pred
-                        //  - after this call __found_local may still have initial value:
-                        //    1) if no element satisfies pred;
-                        //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
-                        __pred(__item_id, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
-                               __brick_tag, __rngs...);
+                    // Setup initial value into result from the first work-item
+                    const auto __global_idx = __item_id.get_global_linear_id();
+                    if (__global_idx == 0)
+                    {
+                        auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
+                        *__res_ptr = __init_value;
+                    }
+                    __dpl_sycl::__group_barrier(__item_id);
 
-                        // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
-                        // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
-                        // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
-                        // inside all our group items
-                        if constexpr (__or_tag_check)
-                            __found_local = __dpl_sycl::__any_of_group(__item_id.get_group(), __found_local);
-                        else
-                            __found_local = __dpl_sycl::__reduce_over_group(
-                                __item_id.get_group(), __found_local, typename _BrickTag::_LocalResultsReduceOp{});
+                    auto __local_idx = __item_id.get_local_id(0);
 
-                        // Set local found state value value to global atomic
-                        if (__local_idx == 0 && __found_local != __init_value)
-                        {
-                            __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
-                                *__dpl_sycl::__get_accessor_ptr(__result_sycl_buf_acc));
+                    // 1. Set initial value to local found state
+                    _AtomicType __found_local = __init_value;
 
-                            // Update global (for all groups) atomic state with the found index
-                            _BrickTag::__save_state_to_atomic(__found, __found_local);
-                        }
-                    });
-            });
-            //The end of the scope  -  a point of synchronization (on temporary sycl buffer destruction)
-        }
+                    // 2. Find any element that satisfies pred
+                    //  - after this call __found_local may still have initial value:
+                    //    1) if no element satisfies pred;
+                    //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
+                    __pred(__item_id, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
+                            __brick_tag, __rngs...);
 
-        return __result;
+                    // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
+                    // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
+                    // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
+                    // inside all our group items
+                    if constexpr (__or_tag_check)
+                        __found_local = __dpl_sycl::__any_of_group(__item_id.get_group(), __found_local);
+                    else
+                        __found_local = __dpl_sycl::__reduce_over_group(
+                            __item_id.get_group(), __found_local, typename _BrickTag::_LocalResultsReduceOp{});
+
+                    // Set local found state value value to global atomic
+                    if (__local_idx == 0 && __found_local != __init_value)
+                    {
+                        auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
+
+                        __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(*__res_ptr);
+
+                        // Update global (for all groups) atomic state with the found index
+                        _BrickTag::__save_state_to_atomic(__found, __found_local);
+                    }
+                });
+        });
+
+        // Wait and return result
+        return __result_storage.__wait_and_get_value(__event);
     }
 };
 
