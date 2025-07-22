@@ -1511,7 +1511,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 [=](sycl::nd_item</*dim=*/1> __item_id) {
 
                     // Setup initial value into result from the first work-item
-                    const auto __global_idx = __item_id.get_global_linear_id();
+                    const std::size_t __global_idx = __item_id.get_global_linear_id();
                     if (__global_idx == 0)
                     {
                         auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
@@ -1521,7 +1521,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     // TODO should we use __dpl_sycl::__fence_space_global or not?
                     __dpl_sycl::__group_barrier(__item_id/*, __dpl_sycl::__fence_space_global*/);
 
-                    auto __local_idx = __item_id.get_local_id(0);
+                    // Get local index inside the work-group
+                    const std::size_t __local_idx = __item_id.get_local_id(0);
 
                     // 1. Set initial value to local found state
                     _AtomicType __found_local = __init_value;
