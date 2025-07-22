@@ -1505,8 +1505,6 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
             auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::read_write>(__cgh, __dpl_sycl::__no_init{});
 
-            __cgh.depends_on( __init_event);
-
             __cgh.parallel_for<KernelName...>(
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
                                             sycl::range</*dim=*/1>(__wgroup_size)),
