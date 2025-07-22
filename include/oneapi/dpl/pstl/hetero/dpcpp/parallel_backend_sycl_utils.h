@@ -515,8 +515,10 @@ struct __result_and_scratch_storage_base
     __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
-template <typename _T, std::size_t _NResults = 1>
-struct __result_and_scratch_storage : __result_and_scratch_storage_base
+template <typename _T, std::size_t _NResults = 1,
+          sycl::usm::alloc _scratch_buf_alloc_type = sycl::usm::alloc::device,
+          sycl::usm::alloc _result_buf_alloc_type = sycl::usm::alloc::host>
+struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 {
   private:
     using __sycl_buffer_t = sycl::buffer<_T, 1>;
@@ -529,6 +531,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     std::shared_ptr<_T> __scratch_buf;
     std::shared_ptr<_T> __result_buf;
     std::shared_ptr<__sycl_buffer_t> __sycl_buf;
+    sycl::event __init_event;
 
     std::size_t __scratch_n;
     bool __use_USM_host;
@@ -562,8 +565,52 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 #endif
     }
 
+    template <sycl::usm::alloc __alloc_type>
+    static sycl::event __upload_data_to(sycl::queue& __q, _T* __dest, _T __value)
+    {
+        if constexpr (__alloc_type == sycl::usm::alloc::device)
+        {
+            void* dest = __dest;
+            const void* src = &__value;
+            const size_t numBytes = 1 * sizeof(_T);
+
+            // Copy data from host to device memory
+            return __q.memcpy(dest, src, numBytes);
+            //__q.memcpy(dest, src, numBytes).wait();
+        }
+        else if constexpr (__alloc_type == sycl::usm::alloc::host || __alloc_type == sycl::usm::alloc::shared)
+        {
+            *__dest = __value;
+            return {};
+        }
+        else
+        {
+            static_assert(false, "Only sycl::usm::alloc::device and sycl::usm::alloc::host supported");
+        }
+    }
+
+    template <sycl::usm::alloc __alloc_type>
+    static _T
+    __download_data_from(sycl::queue& __q, _T* __src)
+    {
+        if constexpr (__alloc_type == sycl::usm::alloc::device)
+        {
+            _T __tmp;
+            __q.memcpy(&__tmp, __src, 1 * sizeof(_T)).wait();
+            return __tmp;
+        }
+        else if constexpr (__alloc_type == sycl::usm::alloc::host || __alloc_type == sycl::usm::alloc::shared)
+        {
+            return *__src;
+        }
+        else
+        {
+            static_assert(false, "Only sycl::usm::alloc::device and sycl::usm::alloc::host supported");
+        }
+    }
+
   public:
-    __result_and_scratch_storage(sycl::queue __q_, std::size_t __scratch_n)
+    __result_and_scratch_storage_impl(sycl::queue __q_, std::size_t __scratch_n)
         : __q{__q_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
           __supports_USM_device{__use_USM_allocations()}
     {
@@ -577,13 +624,13 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                 if (__scratch_n > 0)
                 {
                     __scratch_buf = std::shared_ptr<_T>(
-                        __internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__scratch_n),
+                        __internal::__sycl_usm_alloc<_T, _scratch_buf_alloc_type>{__q}(__scratch_n),
                         __internal::__sycl_usm_free<_T>{__q});
                 }
                 if constexpr (_NResults > 0)
                 {
                     __result_buf =
-                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::host>{__q}(_NResults),
+                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, _result_buf_alloc_type>{__q}(_NResults),
                                             __internal::__sycl_usm_free<_T>{__q});
                 }
             }
@@ -591,7 +638,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             {
                 // If we don't use host memory, malloc only a single unified device allocation
                 __scratch_buf =
-                    std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__total_n),
+                    std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, _scratch_buf_alloc_type>{__q}(__total_n),
                                         __internal::__sycl_usm_free<_T>{__q});
             }
             else
@@ -600,6 +647,34 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                 __sycl_buf = std::make_shared<__sycl_buffer_t>(__sycl_buffer_t(__total_n));
             }
         }
+    }
+
+    template <std::enable_if_t<(_NResults == 1), int> = 0>
+    __result_and_scratch_storage_impl(sycl::queue __q_, std::size_t __scratch_n, _T __value)
+        : __result_and_scratch_storage_impl(__q_, __scratch_n)
+    {
+        const std::size_t __total_n = _NResults + __scratch_n;
+        const std::size_t _Idx = 0;
+
+        if (__use_USM_host && __supports_USM_device)
+        {
+            //std::cout << "__init_event <- __upload_data_to<_result_buf_alloc_type>(__q, __result_buf.get() + _Idx, __value);" << std::endl;
+            __init_event = __upload_data_to<_result_buf_alloc_type>(__q, __result_buf.get() + _Idx, __value);
+        }
+        else if (__supports_USM_device)
+        {
+            //std::cout << "__init_event <- __upload_data_to<_scratch_buf_alloc_type>(__q, __scratch_buf.get() + __scratch_n + _Idx, __value);" << std::endl;
+            __init_event = __upload_data_to<_scratch_buf_alloc_type>(__q, __scratch_buf.get() + __scratch_n + _Idx, __value);
+        }
+        else
+        {
+            __sycl_buf->get_host_access(sycl::write_only)[__scratch_n + _Idx] = __value;
+        }
+    }
+
+    sycl::event get_init_event() const
+    {
+        return __init_event;
     }
 
     template <typename _Acc>
@@ -663,13 +738,11 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
         if (__use_USM_host && __supports_USM_device)
         {
-            return *(__result_buf.get() + _Idx);
+            return __download_data_from<_result_buf_alloc_type>(__q, __result_buf.get() + _Idx);
         }
         else if (__supports_USM_device)
         {
-            _T __tmp;
-            __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
-            return __tmp;
+            return __download_data_from<_scratch_buf_alloc_type>(__q, __scratch_buf.get() + __scratch_n + _Idx);
         }
         else
         {
@@ -716,6 +789,9 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 };
 
+template <typename _T, std::size_t _NResults = 1>
+using __result_and_scratch_storage = __result_and_scratch_storage_impl<_T, _NResults, sycl::usm::alloc::device, sycl::usm::alloc::host>;
+
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
 {
@@ -747,7 +823,7 @@ class __future : private std::tuple<_Args...>
 
     template <typename _T, std::size_t _NResults>
     _T
-    __wait_and_get_value(const __result_and_scratch_storage<_T, _NResults>& __storage)
+    __wait_and_get_value(const __result_and_scratch_storage_impl<_T, _NResults>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
     }
