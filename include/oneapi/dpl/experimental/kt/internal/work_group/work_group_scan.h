@@ -109,6 +109,7 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc, _InputType __
             __wg_init = __process_init_callback(__sub_group, __wg_carry);
     }
     // TODO: cleaner logic
+    sycl::group_barrier(__item.get_group());
     if constexpr (__b_init_callback)
     {
         __wg_init = sycl::group_broadcast(__item.get_group(), __wg_init);
@@ -122,7 +123,6 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc, _InputType __
     }
     else
     {
-        sycl::group_barrier(__item.get_group());
         if (__sub_group_group_id > 0 && __sub_group_group_id < __active_sub_groups)
         {
             _InputType __sub_group_carry_in = sycl::group_broadcast(__sub_group, __local_acc[__sub_group_group_id - 1]);
