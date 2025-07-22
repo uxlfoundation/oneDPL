@@ -1517,7 +1517,9 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
                         *__res_ptr = __init_value;
                     }
-                    __dpl_sycl::__group_barrier(__item_id);
+
+                    // TODO should we use __dpl_sycl::__fence_space_global or not?
+                    __dpl_sycl::__group_barrier(__item_id/*, __dpl_sycl::__fence_space_global*/);
 
                     auto __local_idx = __item_id.get_local_id(0);
 
