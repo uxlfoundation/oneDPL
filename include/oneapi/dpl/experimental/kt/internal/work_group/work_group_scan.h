@@ -35,18 +35,41 @@ namespace gpu
 namespace __impl
 {
 
+struct __no_init_callback
+{
+    template <typename... _Args>
+    void operator()(_Args&&...)
+    {
+    }
+};
+
+template <typename _InitCallbackFn>
+struct __init_callback_fn
+{
+    template <typename _Subgroup, typename _T> 
+    auto operator()(const _Subgroup& __sub_group, _T __wg_carry)
+    {
+        return __init_callback(__sub_group, __wg_carry);
+    }
+    _InitCallbackFn __init_callback;
+};
+
 // TODO: consider adding init callback
 template <int __sub_group_size, int __iters_per_item, typename _InputType, typename _NdItem, typename _SlmAcc,
-          typename _BinaryOperation>
+          typename _ProcessInitCallback, typename _BinaryOperation>
 auto
-__work_group_scan(const _NdItem& __item, _SlmAcc __local_acc, _InputType __input[__iters_per_item],
-                  _BinaryOperation __binary_op, uint32_t __items_in_scan)
+__work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc, _InputType __input[__iters_per_item],
+                       _BinaryOperation __binary_op, _ProcessInitCallback __process_init_callback, uint32_t __items_in_scan)
 {
+    constexpr bool __b_init_callback = !std::is_same_v<__no_init_callback, _ProcessInitCallback>;
+
     auto __sub_group = __item.get_sub_group();
     auto __sub_group_carry = __sub_group_scan<__sub_group_size, __iters_per_item>(__sub_group, __input, __binary_op);
     const std::uint8_t __sub_group_group_id = __sub_group.get_group_linear_id();
     const std::uint8_t __active_sub_groups =
         oneapi::dpl::__internal::__dpl_ceiling_div(__items_in_scan, __sub_group_size * __iters_per_item);
+    // When there is no init callback, the compiler can just optimize out this variable.
+    [[maybe_unused]] _InputType __wg_init;
     if (__sub_group.get_local_linear_id() == __sub_group_size - 1)
     {
         __local_acc[__sub_group.get_group_linear_id()] = __sub_group_carry;
@@ -82,28 +105,54 @@ __work_group_scan(const _NdItem& __item, _SlmAcc __local_acc, _InputType __input
                                                                        (__num_iters - 1) * __sub_group_size);
             __local_acc[__idx] = __val;
         }
+        if constexpr (__b_init_callback)
+            __wg_init = __process_init_callback(__sub_group, __wg_carry);
     }
-    sycl::group_barrier(__item.get_group());
-    if (__sub_group_group_id > 0)
+    // TODO: cleaner logic
+    if constexpr (__b_init_callback)
     {
+        __wg_init = sycl::group_broadcast(__item.get_group(), __wg_init);
         if (__sub_group_group_id < __active_sub_groups)
         {
-            const auto __carry_in = sycl::group_broadcast(__sub_group, __local_acc[__sub_group_group_id - 1]);
+            _InputType __sub_group_carry_in = (__sub_group_group_id == 0) ? __wg_init
+                : __binary_op(__wg_init, sycl::group_broadcast(__sub_group, __local_acc[__sub_group_group_id - 1]));
             for (int __i = 0; __i < __iters_per_item; ++__i)
-                __input[__i] = __binary_op(__carry_in, __input[__i]);
+                __input[__i] = __binary_op(__sub_group_carry_in, __input[__i]);
+        }
+    }
+    else
+    {
+        sycl::group_barrier(__item.get_group());
+        if (__sub_group_group_id > 0 && __sub_group_group_id < __active_sub_groups)
+        {
+            _InputType __sub_group_carry_in = sycl::group_broadcast(__sub_group, __local_acc[__sub_group_group_id - 1]);
+            for (int __i = 0; __i < __iters_per_item; ++__i)
+                __input[__i] = __binary_op(__sub_group_carry_in, __input[__i]);
         }
     }
     return __local_acc[__active_sub_groups - 1];
 }
 
 template <int __sub_group_size, int __iters_per_item, typename _InputType, typename _NdItem, typename _SlmAcc,
+          typename _InitCallback, typename _BinaryOperation>
+auto
+__work_group_scan(const _NdItem& __item, _SlmAcc __local_acc, _InputType __input[__iters_per_item],
+                  _BinaryOperation __binary_op, _InitCallback __init_callback, uint32_t __items_in_scan)
+{
+    return __work_group_scan_impl<__sub_group_size, __iters_per_item>(__item, __local_acc, __input, __binary_op,
+                                                                      __init_callback_fn<_InitCallback>{__init_callback}, __items_in_scan);
+
+}
+
+template <int __sub_group_size, int __iters_per_item, typename _InputType, typename _NdItem, typename _SlmAcc,
           typename _BinaryOperation>
 auto
 __work_group_scan(const _NdItem& __item, _SlmAcc __local_acc, _InputType __input[__iters_per_item],
-                  _BinaryOperation __binary_op)
+                  _BinaryOperation __binary_op, uint32_t __items_in_scan)
 {
-    return __work_group_scan<__sub_group_size, __iters_per_item>(__item, __local_acc, __input, __binary_op,
-                                                                 __item.get_local_range()[0] * __iters_per_item);
+    return __work_group_scan_impl<__sub_group_size, __iters_per_item>(__item, __local_acc, __input, __binary_op,
+                                                                     __no_init_callback{}, __items_in_scan);
+
 }
 
 } // namespace __impl

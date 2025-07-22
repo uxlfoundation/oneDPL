@@ -281,52 +281,68 @@ struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flag
     _AtomicValueT __atomic_full_value;
 };
 
-template <typename _T, typename _Subgroup, typename _BinaryOp>
-_T
-__cooperative_lookback(typename __scan_status_flag<_T>::storage __lookback_storage, const _Subgroup& __subgroup,
-                       std::uint32_t __tile_id, _BinaryOp __binary_op)
+template <typename _T, typename _IdxType, typename _BinaryOp>
+struct __cooperative_lookback
 {
-    _T __running{};
-    auto __local_id = __subgroup.get_local_id();
-    auto __lookback_iter = [&](auto __is_initialized, int __tile) {
-        __scan_status_flag<_T> __current_tile(__lookback_storage, __tile - __local_id);
-        auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
-
-        bool __is_full = __tile_flag == __scan_status_flag<_T>::__full_status;
-        auto __is_full_ballot = sycl::ext::oneapi::group_ballot(__subgroup, __is_full);
-        std::uint32_t __is_full_ballot_bits{};
-        __is_full_ballot.extract_bits(__is_full_ballot_bits);
-
-        auto __lowest_item_with_full = sycl::ctz(__is_full_ballot_bits);
-
-        // If we found a full value, we can stop looking at previous tiles. Otherwise,
-        // keep going through tiles until we either find a full tile or we've completely
-        // recomputed the prefix using partial values
-        if (__is_full_ballot_bits)
-        {
-            __sub_group_scan_partial<SUBGROUP_SIZE, true, decltype(__is_initialized)::value>(
-                __subgroup, __tile_value, __binary_op, __running, __lowest_item_with_full + 1);
-            return true;
-        }
-        else
-        {
-            __sub_group_scan<SUBGROUP_SIZE, true, decltype(__is_initialized)::value>(__subgroup, __tile_value,
-                                                                                     __binary_op, __running);
-            return false;
-        }
-    };
-    int __tile = static_cast<int>(__tile_id) - 1;
-    bool __full_tile_found = false;
-    // If the zeroth tile never calls __cooperative_lookback, then this is unnecessary.
-    if (__tile >= 0)
-        __full_tile_found = __lookback_iter(/*__is_initialized*/ std::false_type{}, __tile);
-    __tile -= SUBGROUP_SIZE;
-    for (; __tile >= 0 && !__full_tile_found; __tile -= SUBGROUP_SIZE)
+    template <typename _Subgroup>
+    _T
+    operator()(const _Subgroup& __subgroup, _T __local_reduction) const
     {
-        __full_tile_found = __lookback_iter(/*__is_initialized*/ std::true_type{}, __tile);
+        __scan_status_flag<_T> __local_flag(__lookback_storage, __tile_id);
+        if (__subgroup.get_local_id() == 0)
+        {
+            __local_flag.set_partial(__local_reduction);
+        }
+        _T __running{};
+        auto __local_id = __subgroup.get_local_id();
+        auto __lookback_iter = [&](auto __is_initialized, int __tile) {
+            __scan_status_flag<_T> __current_tile(__lookback_storage, __tile - __local_id);
+            auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
+
+            bool __is_full = __tile_flag == __scan_status_flag<_T>::__full_status;
+            auto __is_full_ballot = sycl::ext::oneapi::group_ballot(__subgroup, __is_full);
+            std::uint32_t __is_full_ballot_bits{};
+            __is_full_ballot.extract_bits(__is_full_ballot_bits);
+
+            auto __lowest_item_with_full = sycl::ctz(__is_full_ballot_bits);
+
+            // If we found a full value, we can stop looking at previous tiles. Otherwise,
+            // keep going through tiles until we either find a full tile or we've completely
+            // recomputed the prefix using partial values
+            if (__is_full_ballot_bits)
+            {
+                __sub_group_scan_partial<SUBGROUP_SIZE, true, decltype(__is_initialized)::value>(
+                    __subgroup, __tile_value, __binary_op, __running, __lowest_item_with_full + 1);
+                return true;
+            }
+            else
+            {
+                __sub_group_scan<SUBGROUP_SIZE, true, decltype(__is_initialized)::value>(__subgroup, __tile_value,
+                                                                                         __binary_op, __running);
+                return false;
+            }
+        };
+        int __tile = static_cast<int>(__tile_id) - 1;
+        bool __full_tile_found = false;
+        // If the zeroth tile never calls __cooperative_lookback, then this is unnecessary.
+        if (__tile >= 0)
+            __full_tile_found = __lookback_iter(/*__is_initialized*/ std::false_type{}, __tile);
+        __tile -= SUBGROUP_SIZE;
+        for (; __tile >= 0 && !__full_tile_found; __tile -= SUBGROUP_SIZE)
+        {
+            __full_tile_found = __lookback_iter(/*__is_initialized*/ std::true_type{}, __tile);
+        }
+        if (__subgroup.get_local_id() == 0)
+        {
+            __local_flag.set_full(__binary_op(__running, __local_reduction));
+        }
+        return __running;
     }
-    return __running;
-}
+
+    typename __scan_status_flag<_T>::storage __lookback_storage;
+    _IdxType __tile_id;
+    _BinaryOp __binary_op;
+};
 
 } // namespace __impl
 } // namespace gpu

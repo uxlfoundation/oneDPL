@@ -119,10 +119,10 @@ struct __lookback_kernel_func
         }
     }
 
-    template <bool __is_full, typename _ApplyPrefixOp>
+    template <bool __is_full>
     void
     store_grf_to_global(_Type __grf_partials[__data_per_workitem], const std::size_t __sub_group_current_offset,
-                        const std::uint32_t __sub_group_local_id, _ApplyPrefixOp __apply_prefix) const
+                        const std::uint32_t __sub_group_local_id) const
     {
         if constexpr (__is_full)
         {
@@ -130,7 +130,7 @@ struct __lookback_kernel_func
             for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
             {
                 __out_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
-                    __apply_prefix(__grf_partials[__i]);
+                    __grf_partials[__i];
             }
         }
         else
@@ -141,19 +141,10 @@ struct __lookback_kernel_func
                 if (__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i < __n)
                 {
                     __out_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
-                        __apply_prefix(__grf_partials[__i]);
+                        __grf_partials[__i];
                 }
             }
         }
-    }
-
-    template <bool __is_full>
-    void
-    store_grf_to_global(_Type __grf_partials[__data_per_workitem], const std::size_t __sub_group_current_offset,
-                        const std::uint32_t __sub_group_local_id) const
-    {
-        store_grf_to_global<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id,
-                                       oneapi::dpl::identity{});
     }
 
     template <bool __is_full>
@@ -164,50 +155,29 @@ struct __lookback_kernel_func
     {
         auto __sub_group_local_id = __sub_group.get_local_linear_id();
         auto __sub_group_group_id = __sub_group.get_group_linear_id();
+        
         _Type __grf_partials[__data_per_workitem];
-
         load_global_to_grf<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
 
         auto __this_tile_elements = std::min<std::size_t>(__elems_in_tile, __n - __work_group_offset);
-        _Type __local_reduction = __work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
-            __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
-        _Type __prev_tile_reduction{};
-
         // The first sub-group will query the previous tiles to find a prefix. For tile 0, we set it directly as full
         if (__tile_id == 0)
         {
+            _Type __local_reduction = __work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
+                __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
             if (__item.get_local_id(0) == 0)
             {
                 _FlagType __flag(__lookback_storage, __tile_id);
                 __flag.set_full(__local_reduction);
             }
-            store_grf_to_global<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
         }
         else
         {
-            if (__sub_group.get_group_id() == 0)
-            {
-                _FlagType __flag(__lookback_storage, __tile_id);
-
-                if (__sub_group.get_local_id() == 0)
-                {
-                    __flag.set_partial(__local_reduction);
-                }
-                __prev_tile_reduction =
-                    __cooperative_lookback<_Type>(__lookback_storage, __sub_group, __tile_id, __binary_op);
-
-                if (__sub_group.get_local_id() == 0)
-                {
-                    __flag.set_full(__binary_op(__prev_tile_reduction, __local_reduction));
-                }
-            }
-
-            __prev_tile_reduction = sycl::group_broadcast(__item.get_group(), __prev_tile_reduction, 0);
-
-            store_grf_to_global<__is_full>(
-                __grf_partials, __sub_group_current_offset, __sub_group_local_id,
-                [this, &__prev_tile_reduction](auto e) { return __binary_op(__prev_tile_reduction, std::move(e)); });
+            __cooperative_lookback<_Type, _TileIdxT, _BinaryOp> __lookback_callback{__lookback_storage, __tile_id, __binary_op};
+            __work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
+                __item, __slm, __grf_partials, __binary_op, __lookback_callback, __this_tile_elements);
         }
+        store_grf_to_global<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
     }
 
     [[sycl::reqd_sub_group_size(SUBGROUP_SIZE)]] void
@@ -223,8 +193,7 @@ struct __lookback_kernel_func
         if (__group.leader())
         {
             sycl::atomic_ref<_TileIdxT, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                             sycl::access::address_space::global_space>
-                __idx_atomic(*__atomic_id_ptr);
+                             sycl::access::address_space::global_space> __idx_atomic(*__atomic_id_ptr);
             __tile_id = __idx_atomic.fetch_add(1);
         }
 
