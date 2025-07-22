@@ -155,14 +155,15 @@ struct __lookback_kernel_func
     {
         auto __sub_group_local_id = __sub_group.get_local_linear_id();
         auto __sub_group_group_id = __sub_group.get_group_linear_id();
-        
+
         _Type __grf_partials[__data_per_workitem];
-        load_global_to_grf<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
 
         auto __this_tile_elements = std::min<std::size_t>(__elems_in_tile, __n - __work_group_offset);
         // The first sub-group will query the previous tiles to find a prefix. For tile 0, we set it directly as full
+        // The duplicated code in branches is critical for performance with IGC at the time of writing.
         if (__tile_id == 0)
         {
+            load_global_to_grf<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
             _Type __local_reduction = __work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
                 __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
             if (__item.get_local_id(0) == 0)
@@ -170,14 +171,16 @@ struct __lookback_kernel_func
                 _FlagType __flag(__lookback_storage, __tile_id);
                 __flag.set_full(__local_reduction);
             }
+            store_grf_to_global<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
         }
         else
         {
+            load_global_to_grf<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
             __cooperative_lookback<_Type, _TileIdxT, _BinaryOp> __lookback_callback{__lookback_storage, __tile_id, __binary_op};
             __work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
                 __item, __slm, __grf_partials, __binary_op, __lookback_callback, __this_tile_elements);
+            store_grf_to_global<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
         }
-        store_grf_to_global<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
     }
 
     [[sycl::reqd_sub_group_size(SUBGROUP_SIZE)]] void
