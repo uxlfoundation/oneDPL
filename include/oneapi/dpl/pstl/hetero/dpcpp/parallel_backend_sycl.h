@@ -1503,13 +1503,13 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         auto __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
-            auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::read_write>(__cgh, __dpl_sycl::__no_init{});
+            auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::read_write>(
+                __cgh, __dpl_sycl::__no_init{});
 
             __cgh.parallel_for<KernelName...>(
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
-                                            sycl::range</*dim=*/1>(__wgroup_size)),
+                                          sycl::range</*dim=*/1>(__wgroup_size)),
                 [=](sycl::nd_item</*dim=*/1> __item_id) {
-
                     // Setup initial value into result from the first work-item
                     const std::size_t __global_idx = __item_id.get_global_linear_id();
                     if (__global_idx == 0)
@@ -1519,7 +1519,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     }
 
                     // TODO should we use __dpl_sycl::__fence_space_global or not?
-                    __dpl_sycl::__group_barrier(__item_id/*, __dpl_sycl::__fence_space_global*/);
+                    __dpl_sycl::__group_barrier(__item_id /*, __dpl_sycl::__fence_space_global*/);
 
                     // Get local index inside the work-group
                     const std::size_t __local_idx = __item_id.get_local_id(0);
@@ -1532,7 +1532,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     //    1) if no element satisfies pred;
                     //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
                     __pred(__item_id, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
-                            __brick_tag, __rngs...);
+                           __brick_tag, __rngs...);
 
                     // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
                     // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
@@ -1541,15 +1541,16 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     if constexpr (__or_tag_check)
                         __found_local = __dpl_sycl::__any_of_group(__item_id.get_group(), __found_local);
                     else
-                        __found_local = __dpl_sycl::__reduce_over_group(
-                            __item_id.get_group(), __found_local, typename _BrickTag::_LocalResultsReduceOp{});
+                        __found_local = __dpl_sycl::__reduce_over_group(__item_id.get_group(), __found_local,
+                                                                        typename _BrickTag::_LocalResultsReduceOp{});
 
                     // Set local found state value value to global atomic
                     if (__local_idx == 0 && __found_local != __init_value)
                     {
                         auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
 
-                        __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(*__res_ptr);
+                        __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
+                            *__res_ptr);
 
                         // Update global (for all groups) atomic state with the found index
                         _BrickTag::__save_state_to_atomic(__found, __found_local);
