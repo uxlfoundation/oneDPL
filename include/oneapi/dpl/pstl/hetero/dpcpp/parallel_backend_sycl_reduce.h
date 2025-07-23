@@ -147,9 +147,8 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
                 sycl::nd_range<1>(sycl::range<1>(__work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item<1> __item) {
                     auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
-                    __work_group_reduce_kernel<_Tp>(__item, __n, __iters_per_work_item, __is_full,
-                                                    __transform_pattern, __reduce_pattern, __init, __temp_local,
-                                                    __res_ptr, __rngs...);
+                    __work_group_reduce_kernel<_Tp>(__item, __n, __iters_per_work_item, __is_full, __transform_pattern,
+                                                    __reduce_pattern, __init, __temp_local, __res_ptr, __rngs...);
                 });
         });
 
@@ -256,9 +255,8 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
                 [=](sycl::nd_item<1> __item) {
                     auto __temp_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                     auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, __n);
-                    __work_group_reduce_kernel<_Tp>(__item, __n, __iters_per_work_item, __is_full,
-                                                    __transform_pattern, __reduce_pattern, __init, __temp_local,
-                                                    __res_ptr, __temp_ptr);
+                    __work_group_reduce_kernel<_Tp>(__item, __n, __iters_per_work_item, __is_full, __transform_pattern,
+                                                    __reduce_pattern, __init, __temp_local, __res_ptr, __temp_ptr);
                 });
         });
 
@@ -382,8 +380,8 @@ struct __parallel_transform_reduce_impl
                         }
                         else
                         {
-                            __transform_pattern2(__item, __n, __iters_per_work_item, __offset_2, __is_full,
-                                                 __n_groups, __result, __temp_ptr);
+                            __transform_pattern2(__item, __n, __iters_per_work_item, __offset_2, __is_full, __n_groups,
+                                                 __result, __temp_ptr);
                             __n_items = __transform_pattern2.output_size(__n, __work_group_size, __iters_per_work_item);
                         }
                         // 2. Reduce within work group using local memory

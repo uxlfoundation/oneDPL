@@ -1306,9 +1306,9 @@ struct __early_exit_find_or
     template <typename _NDItemId, typename _SrcDataSize, typename _IterationDataSize, typename _LocalFoundState,
               typename _BrickTag, typename... _Ranges>
     void
-    operator()(const _NDItemId __item, const _SrcDataSize __source_data_size,
-               const std::size_t __iters_per_work_item, const _IterationDataSize __iteration_data_size,
-               _LocalFoundState& __found_local, _BrickTag __brick_tag, _Ranges&&... __rngs) const
+    operator()(const _NDItemId __item, const _SrcDataSize __source_data_size, const std::size_t __iters_per_work_item,
+               const _IterationDataSize __iteration_data_size, _LocalFoundState& __found_local, _BrickTag __brick_tag,
+               _Ranges&&... __rngs) const
     {
         // Return the index of this item in the kernel's execution range
         const auto __global_id = __item.get_global_linear_id();
