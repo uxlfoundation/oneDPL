@@ -515,8 +515,8 @@ struct __result_and_scratch_storage_base
     __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
-template <typename _T, std::size_t _NResults = 1>
-struct __result_and_scratch_storage : __result_and_scratch_storage_base
+template <typename _T, std::size_t _NResults = 1, sycl::usm::alloc _result_alloc_type = sycl::usm::alloc::host>
+struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 {
   private:
     using __sycl_buffer_t = sycl::buffer<_T, 1>;
@@ -563,7 +563,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 
   public:
-    __result_and_scratch_storage(sycl::queue __q_, std::size_t __scratch_n)
+    __result_and_scratch_storage_impl(sycl::queue __q_, std::size_t __scratch_n)
         : __q{__q_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
           __supports_USM_device{__use_USM_allocations()}
     {
@@ -583,7 +583,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                 if constexpr (_NResults > 0)
                 {
                     __result_buf =
-                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::host>{__q}(_NResults),
+                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, _result_alloc_type>{__q}(_NResults),
                                             __internal::__sycl_usm_free<_T>{__q});
                 }
             }
@@ -663,7 +663,18 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
         if (__use_USM_host && __supports_USM_device)
         {
-            return *(__result_buf.get() + _Idx);
+            if constexpr (_result_alloc_type == sycl::usm::alloc::host)
+            {
+                // If we use USM host allocation, we can return the result directly
+                return *(__result_buf.get() + _Idx);
+            }
+            else
+            {
+                // If we use USM device allocation, we need to copy the result to a temporary
+                _T __tmp;
+                __q.memcpy(&__tmp, __result_buf.get() + _Idx, 1 * sizeof(_T)).wait();
+                return __tmp;
+            }
         }
         else if (__supports_USM_device)
         {
@@ -715,6 +726,9 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             return 0;
     }
 };
+
+template <typename _T, std::size_t _NResults = 1>
+using __result_and_scratch_storage = __result_and_scratch_storage_impl<_T, _NResults, sycl::usm::alloc::host>;
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
