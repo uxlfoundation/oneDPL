@@ -486,8 +486,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             sycl::accessor __dst(__temp_buf, __cgh, sycl::read_write, sycl::no_init);
 
             __cgh.parallel_for<_GlobalSortName1...>(
-                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item_id) {
-                    const std::size_t __linear_id = __item_id.get_linear_id();
+                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item) {
+                    const std::size_t __linear_id = __item.get_linear_id();
 
                     const WorkDataArea __data_area(__n, __n_sorted, __linear_id, __nd_range_params.chunk);
 
