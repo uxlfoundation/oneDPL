@@ -663,7 +663,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 
         if (__use_USM_host && __supports_USM_device)
         {
-            if constexpr (_result_alloc_type == sycl::usm::alloc::host)
+            if constexpr (_result_alloc_type == sycl::usm::alloc::host || _result_alloc_type == sycl::usm::alloc::shared)
             {
                 // If we use USM host allocation, we can return the result directly
                 return *(__result_buf.get() + _Idx);
