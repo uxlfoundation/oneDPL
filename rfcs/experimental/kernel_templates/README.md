@@ -115,6 +115,7 @@ Supported data passing mechanisms are listed in
 the [documentation on passing data](https://uxlfoundation.github.io/oneDPL/parallel_api/pass_data_algorithms.html#pass-data-to-algorithms).
 The `oneapi::dpl::begin` and `oneapi::dpl::end` helper functions are not supported;
 however, `sycl::buffer` objects may be passed directly.
+Using host-allocated data in a `std::vector` is not supported as input.
 Specialized algorithms may extend or restrict the supported data passing mechanisms.
 
 If an algorithm allocates global memory and that allocation is unsuccessful,
