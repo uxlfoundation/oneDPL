@@ -1572,7 +1572,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     }
                 });
         });
-        auto __writeback_event = __q.submit([&__result_storage, &__event](sycl::handler& __cgh) {
+        auto __writeback_event = __q.submit([&](sycl::handler& __cgh) {
             auto __scratch_acc = __result_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
             auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh);
             __cgh.depends_on(__event);
