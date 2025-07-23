@@ -1496,7 +1496,9 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __n_groups,
                const std::size_t __wgroup_size, const _AtomicType __init_value, _Predicate __pred, _Ranges&&... __rngs)
     {
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_AtomicType, 1>;
+        // Allocate memory for result in USM device memory, if it's available:
+        // - we can't use USM host or USM shared memory for atomic operations through __dpl_sycl::__atomic_ref.
+        using __result_and_scratch_storage_t = __result_and_scratch_storage_impl<_AtomicType, 1, sycl::usm::alloc::device>;
         __result_and_scratch_storage_t __result_storage{__q, 0};
 
         // Calculate the number of elements to be processed by each work-item.
