@@ -146,7 +146,7 @@ struct iter_mode
             return it;
         return Iter<preferredMode, Types...>(it);
     }
-    // for ounting_iterator
+    // for counting_iterator
     template <typename T>
     oneapi::dpl::counting_iterator<T>
     operator()(const oneapi::dpl::counting_iterator<T>& it)
