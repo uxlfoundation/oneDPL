@@ -531,8 +531,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                 __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
 
             __cgh.parallel_for<_GlobalSortName2...>(
-                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item_id) {
-                    const std::size_t __linear_id = __item_id.get_linear_id();
+                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item) {
+                    const std::size_t __linear_id = __item.get_linear_id();
 
                     auto __base_diagonals_sp_global_ptr =
                         _Storage::__get_usm_or_buffer_accessor_ptr(__base_diagonals_sp_global_acc);
