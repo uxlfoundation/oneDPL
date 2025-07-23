@@ -1508,7 +1508,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
             auto __res_acc =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
-            __cgh.parallel_for<KernelNameInit...>(sycl::range<1>{1}, [__res_acc, __init_value](sycl::item<1> /*__item*/) {
+            __cgh.single_task<KernelNameInit...>([__res_acc, __init_value]() {
                 auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
                 *__res_ptr = __init_value;
             });
