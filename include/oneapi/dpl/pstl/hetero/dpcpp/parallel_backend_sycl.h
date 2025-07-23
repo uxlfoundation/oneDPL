@@ -1719,8 +1719,8 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
                 auto __temp_acc = __temp.template get_access<access_mode::read_write>(__cgh);
                 __cgh.parallel_for<_GlobalSortName...>(
-                    sycl::range</*dim=*/1>(__n), [=](sycl::item</*dim=*/1> __item_id) {
-                        auto __global_idx = __item_id.get_linear_id();
+                    sycl::range</*dim=*/1>(__n), [=](sycl::item</*dim=*/1> __item) {
+                        auto __global_idx = __item.get_linear_id();
 
                         _Size __start = 2 * __k * (__global_idx / (2 * __k));
                         _Size __end_1 = sycl::min(__start + __k, __n);
@@ -1750,8 +1750,8 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
                 auto __temp_acc = __temp.template get_access<access_mode::read>(__cgh);
                 // we cannot use __cgh.copy here because of zip_iterator usage
-                __cgh.parallel_for<_CopyBackName...>(sycl::range</*dim=*/1>(__n), [=](sycl::item</*dim=*/1> __item_id) {
-                    __rng[__item_id.get_linear_id()] = __temp_acc[__item_id];
+                __cgh.parallel_for<_CopyBackName...>(sycl::range</*dim=*/1>(__n), [=](sycl::item</*dim=*/1> __item) {
+                    __rng[__item.get_linear_id()] = __temp_acc[__item];
                 });
             });
         }
