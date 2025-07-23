@@ -247,8 +247,8 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
             auto __result_acc = __get_acc(__p_res_storage, __cgh);
 
-            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__steps), [=](sycl::item</*dim=*/1> __item_id) {
-                auto __id = __item_id.get_linear_id();
+            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__steps), [=](sycl::item</*dim=*/1> __item) {
+                auto __id = __item.get_linear_id();
                 const _IdType __i_elem = __id * __chunk;
 
                 const auto __n_merge = std::min<_IdType>(__chunk, __n - __i_elem);
