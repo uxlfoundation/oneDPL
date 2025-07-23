@@ -1306,12 +1306,12 @@ struct __early_exit_find_or
     template <typename _NDItemId, typename _SrcDataSize, typename _IterationDataSize, typename _LocalFoundState,
               typename _BrickTag, typename... _Ranges>
     void
-    operator()(const _NDItemId __item_id, const _SrcDataSize __source_data_size,
+    operator()(const _NDItemId __item, const _SrcDataSize __source_data_size,
                const std::size_t __iters_per_work_item, const _IterationDataSize __iteration_data_size,
                _LocalFoundState& __found_local, _BrickTag __brick_tag, _Ranges&&... __rngs) const
     {
         // Return the index of this item in the kernel's execution range
-        const auto __global_id = __item_id.get_global_linear_id();
+        const auto __global_id = __item.get_global_linear_id();
 
         bool __something_was_found = false;
         for (_SrcDataSize __i = 0; !__something_was_found && __i < __iters_per_work_item; ++__i)
@@ -1341,7 +1341,7 @@ struct __early_exit_find_or
 
             // Share found into state between items in our sub-group to early exit if something was found
             //  - the update of __found_local state isn't required here because it updates later on the caller side
-            __something_was_found = __dpl_sycl::__any_of_group(__item_id.get_sub_group(), __something_was_found);
+            __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
         }
     }
 };
