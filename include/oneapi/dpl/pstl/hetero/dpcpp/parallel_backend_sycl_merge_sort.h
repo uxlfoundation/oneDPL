@@ -401,8 +401,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             const std::size_t __chunk = __nd_range_params.chunk * __nd_range_params.steps_between_two_base_diags;
 
             __cgh.parallel_for<_DiagonalsKernelName...>(
-                sycl::range</*dim=*/1>(__nd_range_params.base_diag_count), [=](sycl::item</*dim=*/1> __item_id) {
-                    const std::size_t __linear_id = __item_id.get_linear_id();
+                sycl::range</*dim=*/1>(__nd_range_params.base_diag_count), [=](sycl::item</*dim=*/1> __item) {
+                    const std::size_t __linear_id = __item.get_linear_id();
 
                     auto __base_diagonals_sp_global_ptr =
                         _Storage::__get_usm_or_buffer_accessor_ptr(__base_diagonals_sp_global_acc);
