@@ -146,9 +146,9 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
             __dpl_sycl::__local_accessor<_Tp> __temp_local(sycl::range<1>(__local_mem_size), __cgh);
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range<1>(sycl::range<1>(__work_group_size), sycl::range<1>(__work_group_size)),
-                [=](sycl::nd_item<1> __item_id) {
+                [=](sycl::nd_item<1> __item) {
                     auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
-                    __work_group_reduce_kernel<_Tp>(__item_id, __n, __iters_per_work_item, __is_full,
+                    __work_group_reduce_kernel<_Tp>(__item, __n, __iters_per_work_item, __is_full,
                                                     __transform_pattern, __reduce_pattern, __init, __temp_local,
                                                     __res_ptr, __rngs...);
                 });
