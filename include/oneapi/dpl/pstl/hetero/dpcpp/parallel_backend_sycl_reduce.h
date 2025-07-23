@@ -208,9 +208,9 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
                 __cgh, __dpl_sycl::__no_init{});
             __cgh.parallel_for<_KernelName...>(
                 sycl::nd_range<1>(sycl::range<1>(__n_groups * __work_group_size), sycl::range<1>(__work_group_size)),
-                [=](sycl::nd_item<1> __item_id) {
+                [=](sycl::nd_item<1> __item) {
                     auto __temp_ptr = __scratch_container_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
-                    __device_reduce_kernel<_Tp>(__item_id, __n, __iters_per_work_item, __is_full, __n_groups,
+                    __device_reduce_kernel<_Tp>(__item, __n, __iters_per_work_item, __is_full, __n_groups,
                                                 __transform_pattern, __reduce_pattern, __temp_local, __temp_ptr,
                                                 __rngs...);
                 });
