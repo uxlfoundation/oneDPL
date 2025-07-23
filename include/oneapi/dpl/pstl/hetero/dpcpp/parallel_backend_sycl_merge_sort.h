@@ -668,8 +668,8 @@ struct __merge_sort_copy_back_submitter<__internal::__optional_kernel_name<_Copy
             auto __temp_acc = __temp_buf.template get_access<access_mode::read>(__cgh);
             // We cannot use __cgh.copy here because of zip_iterator usage
             __cgh.parallel_for<_CopyBackName...>(sycl::range</*dim=*/1>(__rng.size()),
-                                                 [=](sycl::item</*dim=*/1> __item_id) {
-                                                     const std::size_t __idx = __item_id.get_linear_id();
+                                                 [=](sycl::item</*dim=*/1> __item) {
+                                                     const std::size_t __idx = __item.get_linear_id();
                                                      __rng[__idx] = __temp_acc[__idx];
                                                  });
         });
