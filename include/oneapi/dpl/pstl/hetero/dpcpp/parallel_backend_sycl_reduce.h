@@ -364,30 +364,30 @@ struct __parallel_transform_reduce_impl
 #endif
                     sycl::nd_range<1>(sycl::range<1>(__n_groups * __work_group_size),
                                       sycl::range<1>(__work_group_size)),
-                    [=](sycl::nd_item<1> __item_id) {
+                    [=](sycl::nd_item<1> __item) {
                         auto __temp_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                         auto __res_ptr =
                             __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, 2 * __n_groups);
-                        auto __local_idx = __item_id.get_local_id(0);
-                        auto __group_idx = __item_id.get_group(0);
+                        auto __local_idx = __item.get_local_id(0);
+                        auto __group_idx = __item.get_group(0);
                         // 1. Initialization (transform part). Fill local memory
                         _Size __n_items;
                         const bool __is_full = __n == __size_per_work_group * __n_groups;
                         oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __result;
                         if (__is_first)
                         {
-                            __transform_pattern1(__item_id, __n, __iters_per_work_item, /*global_offset*/ (_Size)0,
+                            __transform_pattern1(__item, __n, __iters_per_work_item, /*global_offset*/ (_Size)0,
                                                  __is_full, __n_groups, __result, __rngs...);
                             __n_items = __transform_pattern1.output_size(__n, __work_group_size, __iters_per_work_item);
                         }
                         else
                         {
-                            __transform_pattern2(__item_id, __n, __iters_per_work_item, __offset_2, __is_full,
+                            __transform_pattern2(__item, __n, __iters_per_work_item, __offset_2, __is_full,
                                                  __n_groups, __result, __temp_ptr);
                             __n_items = __transform_pattern2.output_size(__n, __work_group_size, __iters_per_work_item);
                         }
                         // 2. Reduce within work group using local memory
-                        __result.__v = __reduce_pattern(__item_id, __n_items, __result.__v, __temp_local);
+                        __result.__v = __reduce_pattern(__item, __n_items, __result.__v, __temp_local);
                         if (__local_idx == 0)
                         {
                             // final reduction
