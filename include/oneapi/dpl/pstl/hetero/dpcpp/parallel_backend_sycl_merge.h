@@ -386,8 +386,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
             __cgh.depends_on(__event);
 
             __cgh.parallel_for<_MergeKernelName...>(
-                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item_id) {
-                    auto __global_idx = __item_id.get_linear_id();
+                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item) {
+                    auto __global_idx = __item.get_linear_id();
                     const _IdType __i_elem = __global_idx * __nd_range_params.chunk;
 
                     auto __base_diagonals_sp_global_ptr =
