@@ -473,27 +473,27 @@ struct reduce_over_group
     // Reduce on local memory with subgroups
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item_id, const _Size __n, const _Tp& __val, const _AccLocal& /*__local_mem*/,
+    reduce_impl(const _NDItemId __item, const _Size __n, const _Tp& __val, const _AccLocal& /*__local_mem*/,
                 std::true_type /*has_known_identity*/) const
     {
-        const _Size __global_idx = __item_id.get_global_id(0);
+        const _Size __global_idx = __item.get_global_id(0);
         return __dpl_sycl::__reduce_over_group(
-            __item_id.get_group(), __global_idx >= __n ? __known_identity<_BinaryOperation1, _Tp> : __val, __bin_op1);
+            __item.get_group(), __global_idx >= __n ? __known_identity<_BinaryOperation1, _Tp> : __val, __bin_op1);
     }
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item_id, const _Size __n, const _Tp& __val, const _AccLocal& __local_mem,
+    reduce_impl(const _NDItemId __item, const _Size __n, const _Tp& __val, const _AccLocal& __local_mem,
                 std::false_type /*has_known_identity*/) const
     {
-        auto __local_idx = __item_id.get_local_id(0);
-        const _Size __global_idx = __item_id.get_global_id(0);
-        auto __group_size = __item_id.get_local_range().size();
+        auto __local_idx = __item.get_local_id(0);
+        const _Size __global_idx = __item.get_global_id(0);
+        auto __group_size = __item.get_local_range().size();
 
         __local_mem[__local_idx] = __val;
         for (std::uint32_t __power_2 = 1; __power_2 < __group_size; __power_2 *= 2)
         {
-            __dpl_sycl::__group_barrier(__item_id);
+            __dpl_sycl::__group_barrier(__item);
             if ((__local_idx & (2 * __power_2 - 1)) == 0 && __local_idx + __power_2 < __group_size &&
                 __global_idx + __power_2 < __n)
             {
