@@ -89,22 +89,21 @@ __work_group_reduce_kernel(const _NDItemId __item, const _Size __n, const _Size 
 template <typename _Tp, typename _NDItemId, typename _Size, typename _TransformPattern, typename _ReducePattern,
           typename _AccLocal, typename _Tmp, typename... _Acc>
 void
-__device_reduce_kernel(const _NDItemId __item_id, const _Size __n, const _Size __iters_per_work_item,
-                       const bool __is_full, const _Size __n_groups, _TransformPattern __transform_pattern,
-                       _ReducePattern __reduce_pattern, const _AccLocal& __local_mem, _Tmp* __reduce_result_ptr,
-                       const _Acc&... __acc)
+__device_reduce_kernel(const _NDItemId __item, const _Size __n, const _Size __iters_per_work_item, const bool __is_full,
+                       const _Size __n_groups, _TransformPattern __transform_pattern, _ReducePattern __reduce_pattern,
+                       const _AccLocal& __local_mem, _Tmp* __reduce_result_ptr, const _Acc&... __acc)
 {
-    auto __local_idx = __item_id.get_local_id(0);
-    auto __group_idx = __item_id.get_group(0);
-    const _Size __group_size = __item_id.get_local_range().size();
+    auto __local_idx = __item.get_local_id(0);
+    auto __group_idx = __item.get_group(0);
+    const _Size __group_size = __item.get_local_range().size();
     oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __result;
     // 1. Initialization (transform part). Fill local memory
-    __transform_pattern(__item_id, __n, __iters_per_work_item, /*global_offset*/ (_Size)0, __is_full, __n_groups,
-                        __result, __acc...);
+    __transform_pattern(__item, __n, __iters_per_work_item, /*global_offset*/ (_Size)0, __is_full, __n_groups, __result,
+                        __acc...);
 
     const _Size __n_items = __transform_pattern.output_size(__n, __group_size, __iters_per_work_item);
     // 2. Reduce within work group using local memory
-    __result.__v = __reduce_pattern(__item_id, __n_items, __result.__v, __local_mem);
+    __result.__v = __reduce_pattern(__item, __n_items, __result.__v, __local_mem);
     if (__local_idx == 0)
         __reduce_result_ptr[__group_idx] = __result.__v;
     __result.__destroy();
