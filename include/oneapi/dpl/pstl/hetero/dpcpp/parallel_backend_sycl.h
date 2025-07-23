@@ -1510,8 +1510,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 __cgh.parallel_for<KernelName...>(
                     sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
                                               sycl::range</*dim=*/1>(__wgroup_size)),
-                    [=](sycl::nd_item</*dim=*/1> __item_id) {
-                        auto __local_idx = __item_id.get_local_id(0);
+                    [=](sycl::nd_item</*dim=*/1> __item) {
+                        auto __local_idx = __item.get_local_id(0);
 
                         // 1. Set initial value to local found state
                         _AtomicType __found_local = __init_value;
@@ -1520,7 +1520,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         //  - after this call __found_local may still have initial value:
                         //    1) if no element satisfies pred;
                         //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
-                        __pred(__item_id, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
+                        __pred(__item, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
                                __brick_tag, __rngs...);
 
                         // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
@@ -1528,10 +1528,10 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
                         // inside all our group items
                         if constexpr (__or_tag_check)
-                            __found_local = __dpl_sycl::__any_of_group(__item_id.get_group(), __found_local);
+                            __found_local = __dpl_sycl::__any_of_group(__item.get_group(), __found_local);
                         else
                             __found_local = __dpl_sycl::__reduce_over_group(
-                                __item_id.get_group(), __found_local, typename _BrickTag::_LocalResultsReduceOp{});
+                                __item.get_group(), __found_local, typename _BrickTag::_LocalResultsReduceOp{});
 
                         // Set local found state value value to global atomic
                         if (__local_idx == 0 && __found_local != __init_value)
