@@ -1498,7 +1498,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     {
         // Allocate memory for result in USM device memory, if it's available:
         // - we can't use USM host or USM shared memory for atomic operations through __dpl_sycl::__atomic_ref.
-        using __result_and_scratch_storage_t = __result_and_scratch_storage_impl<_AtomicType, 1, sycl::usm::alloc::device>;
+        using __result_and_scratch_storage_t =
+            __result_and_scratch_storage_impl<_AtomicType, 1, sycl::usm::alloc::device>;
         __result_and_scratch_storage_t __result_storage{__q, 0};
 
         // Calculate the number of elements to be processed by each work-item.
@@ -1529,7 +1530,6 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
                                           sycl::range</*dim=*/1>(__wgroup_size)),
                 [=](sycl::nd_item</*dim=*/1> __item) {
-
                     // Get local index inside the work-group
                     const std::size_t __local_idx = __item.get_local_id(0);
 
