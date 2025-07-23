@@ -358,11 +358,11 @@ struct transform_reduce
 
     template <typename _NDItemId, typename _Size, typename _Res, typename... _Acc>
     void
-    operator()(const _NDItemId& __item_id, const _Size& __n, const _Size& __iters_per_work_item,
+    operator()(const _NDItemId& __item, const _Size& __n, const _Size& __iters_per_work_item,
                const _Size& __global_offset, const bool __is_full, const _Size __n_groups, _Res& __res,
                const _Acc&... __acc) const
     {
-        const _Size __global_idx = __item_id.get_global_id(0);
+        const _Size __global_idx = __item.get_global_id(0);
         // Check if there is any work to do
         if (__global_idx >= __n)
             return;
@@ -371,7 +371,7 @@ struct transform_reduce
             __res.__setup(__unary_op(__global_idx, __acc...));
             return;
         }
-        const _Size __local_range = __item_id.get_local_range(0);
+        const _Size __local_range = __item.get_local_range(0);
         const _Size __no_vec_ops = __iters_per_work_item / _VecSize;
         const _Size __adjusted_n = __global_offset + __n;
         constexpr _Size __vec_size_minus_one = _VecSize - 1;
@@ -381,8 +381,8 @@ struct transform_reduce
         if constexpr (_Commutative{})
         {
             __stride *= __local_range; // coalesced loads with _VecSize-wide vectors
-            _Size __local_idx = __item_id.get_local_id(0);
-            _Size __group_idx = __item_id.get_group_linear_id();
+            _Size __local_idx = __item.get_local_id(0);
+            _Size __group_idx = __item.get_group_linear_id();
             __adjusted_global_id += __group_idx * __local_range * __iters_per_work_item + __local_idx * _VecSize;
         }
         else
@@ -390,7 +390,7 @@ struct transform_reduce
 
         // Groups are full if n is evenly divisible by the number of elements processed per work-group.
         // Multi group reductions will be full for all groups before the last group.
-        _Size __group_idx = __item_id.get_group(0);
+        _Size __group_idx = __item.get_group(0);
         _Size __n_groups_minus_one = __n_groups - 1;
 
         // _VecSize-wide vectorized path (__iters_per_work_item are multiples of _VecSize)
@@ -473,27 +473,27 @@ struct reduce_over_group
     // Reduce on local memory with subgroups
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item_id, const _Size __n, const _Tp& __val, const _AccLocal& /*__local_mem*/,
+    reduce_impl(const _NDItemId __item, const _Size __n, const _Tp& __val, const _AccLocal& /*__local_mem*/,
                 std::true_type /*has_known_identity*/) const
     {
-        const _Size __global_idx = __item_id.get_global_id(0);
+        const _Size __global_idx = __item.get_global_id(0);
         return __dpl_sycl::__reduce_over_group(
-            __item_id.get_group(), __global_idx >= __n ? __known_identity<_BinaryOperation1, _Tp> : __val, __bin_op1);
+            __item.get_group(), __global_idx >= __n ? __known_identity<_BinaryOperation1, _Tp> : __val, __bin_op1);
     }
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item_id, const _Size __n, const _Tp& __val, const _AccLocal& __local_mem,
+    reduce_impl(const _NDItemId __item, const _Size __n, const _Tp& __val, const _AccLocal& __local_mem,
                 std::false_type /*has_known_identity*/) const
     {
-        auto __local_idx = __item_id.get_local_id(0);
-        const _Size __global_idx = __item_id.get_global_id(0);
-        auto __group_size = __item_id.get_local_range().size();
+        auto __local_idx = __item.get_local_id(0);
+        const _Size __global_idx = __item.get_global_id(0);
+        auto __group_size = __item.get_local_range().size();
 
         __local_mem[__local_idx] = __val;
         for (std::uint32_t __power_2 = 1; __power_2 < __group_size; __power_2 *= 2)
         {
-            __dpl_sycl::__group_barrier(__item_id);
+            __dpl_sycl::__group_barrier(__item);
             if ((__local_idx & (2 * __power_2 - 1)) == 0 && __local_idx + __power_2 < __group_size &&
                 __global_idx + __power_2 < __n)
             {
@@ -505,9 +505,9 @@ struct reduce_over_group
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    operator()(const _NDItemId __item_id, const _Size __n, const _Tp& __val, const _AccLocal& __local_mem) const
+    operator()(const _NDItemId __item, const _Size __n, const _Tp& __val, const _AccLocal& __local_mem) const
     {
-        return reduce_impl(__item_id, __n, __val, __local_mem, __has_known_identity<_BinaryOperation1, _Tp>{});
+        return reduce_impl(__item, __n, __val, __local_mem, __has_known_identity<_BinaryOperation1, _Tp>{});
     }
 
     template <typename _InitType, typename _Result>
