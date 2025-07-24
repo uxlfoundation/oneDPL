@@ -54,7 +54,6 @@ struct __init_callback_fn
     _InitCallbackFn __init_callback;
 };
 
-// TODO: consider adding init callback
 template <int __sub_group_size, int __iters_per_item, typename _InputType, typename _NdItem, typename _SlmAcc,
           typename _ProcessInitCallback, typename _BinaryOperation>
 auto
