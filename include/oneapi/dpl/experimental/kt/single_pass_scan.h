@@ -61,7 +61,7 @@ struct __lookback_kernel_func
     _TileIdxT* __atomic_id_ptr;
     typename __scan_status_flag<__sub_group_size, _Type>::storage __lookback_storage;
     std::size_t __status_flags_size;
-    std::size_t __current_num_items;
+    std::size_t __num_tiles;
     _LocalAcc __slm;
 
     template <bool __is_full>
@@ -139,7 +139,7 @@ struct __lookback_kernel_func
             load_global_to_grf<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
             _Type __local_reduction = __work_group_scan<__sub_group_size, __data_per_workitem>(
                 __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
-            if (__item.get_local_id(0) == 0)
+            if (__item.get_local_id(0) == 0 && __num_tiles > 1)
             {
                 _FlagType __flag(__lookback_storage, __tile_id);
                 __flag.set_full(__local_reduction);
@@ -169,9 +169,14 @@ struct __lookback_kernel_func
         // Obtain unique ID for this work-group that will be used in decoupled lookback
         if (__group.leader())
         {
-            sycl::atomic_ref<_TileIdxT, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                             sycl::access::address_space::global_space> __idx_atomic(*__atomic_id_ptr);
-            __tile_id = __idx_atomic.fetch_add(1);
+            if (__num_tiles > 1)
+            {
+                sycl::atomic_ref<_TileIdxT, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                 sycl::access::address_space::global_space> __idx_atomic(*__atomic_id_ptr);
+                __tile_id = __idx_atomic.fetch_add(1);
+            }
+            else
+                __tile_id = 0;
         }
 
         __tile_id = sycl::group_broadcast(__group, __tile_id, 0);
@@ -217,6 +222,7 @@ struct __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_s
         using _KernelFunc = __lookback_kernel_func<__sub_group_size, __data_per_workitem, __workgroup_size, _Type,
                                                    _FlagType, std::decay_t<_InRng>, std::decay_t<_OutRng>,
                                                    std::decay_t<_BinaryOp>, std::decay_t<_LocalAccessorType>>;
+        const std::uint32_t __num_tiles = __current_num_items / __workgroup_size;
         return __q.submit([&](sycl::handler& __hdl) {
             auto __slm = _LocalAccessorType(
                 oneapi::dpl::__internal::__dpl_ceiling_div(__workgroup_size, __sub_group_size), __hdl);
@@ -224,7 +230,7 @@ struct __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_s
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
             __hdl.parallel_for<_Name...>(sycl::nd_range<1>(__current_num_items, __workgroup_size),
                                          _KernelFunc{__in_rng, __out_rng, __binary_op, __n, __atomic_id_ptr,
-                                                     __lookback_storage, __status_flags_size, __current_num_items,
+                                                     __lookback_storage, __status_flags_size, __num_tiles,
                                                      __slm});
         });
     }
@@ -272,11 +278,15 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     std::size_t __elems_in_tile = __workgroup_size * __data_per_workitem;
     std::size_t __num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
     constexpr int __status_flag_padding = __sub_group_size;
-    std::size_t __status_flags_size = __num_wgs + 1 + __status_flag_padding;
+    std::size_t __status_flags_size = (__num_wgs == 1) ? 0 : __num_wgs + 1 + __status_flag_padding;
     const ::std::size_t __mem_bytes = _FlagStorageType::get_reqd_storage(__status_flags_size);
-    std::byte* __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __queue));
-    if (!__device_mem)
-        throw std::bad_alloc();
+    std::byte* __device_mem = nullptr;
+    if (__mem_bytes > 0)
+    {
+        __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __queue));
+        if (!__device_mem)
+            throw std::bad_alloc();
+    }
 
     // TODO: temp workaround until I figure out what's wrong
     std::uint32_t* __atomic_id_ptr = sycl::malloc_device<std::uint32_t>(1, __queue);
