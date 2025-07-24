@@ -344,6 +344,34 @@ struct __cooperative_lookback
     _BinaryOp __binary_op;
 };
 
+template <typename... _Name>
+class __lookback_init_kernel;
+
+template <typename _FlagType, typename _Type, typename _BinaryOp, typename _KernelName>
+struct __lookback_init_submitter;
+
+template <typename _FlagType, typename _Type, typename _BinaryOp, typename... _Name>
+struct __lookback_init_submitter<_FlagType, _Type, _BinaryOp,
+                                 oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
+{
+    sycl::event
+    operator()(sycl::queue __q, typename __scan_status_flag<_Type>::storage __lookback_storage,
+               std::size_t __status_flags_size, std::uint16_t __status_flag_padding) const
+    {
+        return __q.submit([&](sycl::handler& __hdl) {
+            __hdl.parallel_for<_Name...>(sycl::range<1>{__status_flags_size}, [=](const sycl::item<1>& __item) {
+                auto __id = __item.get_linear_id();
+                __scan_status_flag<_Type> __current_tile(__lookback_storage, int(__id) - int(__status_flag_padding));
+                // TODO: we do not need atomics here
+                if (__id < __status_flag_padding)
+                    __current_tile.set_oob();
+                else
+                    __current_tile.set_init();
+            });
+        });
+    }
+};
+
 } // namespace __impl
 } // namespace gpu
 } // namespace oneapi::dpl::experimental::kt
