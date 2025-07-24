@@ -1534,7 +1534,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
                 // Initialize the scratch storage for group counter with zero value
                 auto __group_counter_ptr =
-                    __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__group_counter_acc_w);
+                    __result_and_scratch_storage_group_counter_t::__get_usm_or_buffer_accessor_ptr(
+                        __group_counter_acc_w);
                 *__group_counter_ptr = 0;
             });
         });
