@@ -1498,6 +1498,9 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     using _GroupCounterType = std::size_t;
 #endif
 
+    template <typename _T>
+    using __atomic_ref_t = __dpl_sycl::__atomic_ref<_T, sycl::access::address_space::global_space>;
+
     template <typename _BrickTag, typename _AtomicType, typename _Predicate, typename... _Ranges>
     _AtomicType
     operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __n_groups,
@@ -1511,7 +1514,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         __result_and_scratch_storage_t __result_storage{__q, __scratch_storage_size};
 
         using __result_and_scratch_storage_group_counter_t = __result_and_scratch_storage<_GroupCounterType, 0>;
-        __result_and_scratch_storage_group_counter_t __result_storage_group_counter{__q, __scratch_storage_size};
+        __result_and_scratch_storage_group_counter_t __group_counter_storage{__q, __scratch_storage_size};
 
         // Calculate the number of elements to be processed by each work-item.
         const auto __iters_per_work_item =
@@ -1519,21 +1522,20 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
         // Initialization of the result storage
         auto __event_init = __q.submit([&](sycl::handler& __cgh) {
-            auto __scratch_acc =
+            auto __scratch_acc_w =
                 __result_storage.template __get_scratch_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
-            auto __scratch_acc_group_counter =
-                __result_storage_group_counter.template __get_scratch_acc<sycl::access_mode::write>(
-                    __cgh, __dpl_sycl::__no_init{});
+            auto __group_counter_acc_w = __group_counter_storage.template __get_scratch_acc<sycl::access_mode::write>(
+                __cgh, __dpl_sycl::__no_init{});
 
-            __cgh.single_task<KernelNameInit...>([__scratch_acc, __init_value, __scratch_acc_group_counter]() {
+            __cgh.single_task<KernelNameInit...>([__scratch_acc_w, __init_value, __group_counter_acc_w]() {
                 // Initialize the scratch storage with the initial value
-                auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
+                auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_w);
                 *__scratch_ptr = __init_value;
 
                 // Initialize the scratch storage for group counter with zero value
-                auto __scratch_group_counter_ptr =
-                    __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_group_counter);
-                *__scratch_group_counter_ptr = 0;
+                auto __group_counter_ptr =
+                    __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__group_counter_acc_w);
+                *__group_counter_ptr = 0;
             });
         });
 
@@ -1541,14 +1543,14 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         auto __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
-            auto __scratch_acc = __result_storage.template __get_scratch_acc<sycl::access_mode::read_write>(
+            auto __scratch_acc_rw = __result_storage.template __get_scratch_acc<sycl::access_mode::read_write>(
                 __cgh, __dpl_sycl::__no_init{});
 
             auto __res_acc =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
-            auto __scratch_acc_group_counter =
-                __result_storage_group_counter.template __get_scratch_acc<sycl::access_mode::read_write>(
+            auto __group_counter_acc_rw =
+                __group_counter_storage.template __get_scratch_acc<sycl::access_mode::read_write>(
                     __cgh, __dpl_sycl::__no_init{});
 
             __cgh.depends_on(__event_init);
@@ -1586,27 +1588,23 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         if (__found_local != __init_value)
                         {
                             auto __scratch_ptr =
-                                __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
+                                __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_rw);
 
-                            __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
-                                *__scratch_ptr);
+                            __atomic_ref_t<_AtomicType> __found(*__scratch_ptr);
 
                             // Update global (for all groups) atomic state with the found index
                             _BrickTag::__save_state_to_atomic(__found, __found_local);
                         }
 
-                        auto __scratch_group_counter_ptr =
-                            __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(
-                                __scratch_acc_group_counter);
-
-                        __dpl_sycl::__atomic_ref<_GroupCounterType, sycl::access::address_space::global_space>
-                            __group_counter(*__scratch_group_counter_ptr);
+                        auto __group_counter_ptr =
+                            __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__group_counter_acc_rw);
+                        __atomic_ref_t<_GroupCounterType> __group_counter(*__group_counter_ptr);
 
                         // Copy data back from scratch part to result part when we are in the last work-group
                         if (++__group_counter == __n_groups)
                         {
                             auto __scratch_ptr =
-                                __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
+                                __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_rw);
                             auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(
                                 __res_acc, __scratch_storage_size);
 
