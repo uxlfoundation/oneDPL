@@ -79,7 +79,8 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
     };
 
     __scan_status_flag(const storage& __temp_storage, const int __tile_id)
-        : __atomic_packed_flag(*(__temp_storage.__packed_flags_begin + __tile_id + __padding))
+        : __packed_flag_ref(*(__temp_storage.__packed_flags_begin + __tile_id + __padding)),
+          __atomic_packed_flag(__packed_flag_ref)
     {
     }
 
@@ -105,20 +106,24 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
         __atomic_packed_flag.store(__packed_flag);
     }
 
+    // For initialization routines, we do not need atomicity, so we can write through the
+    // reference directly.
     void
     set_oob()
     {
         constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __oob_status;
-        __atomic_packed_flag.store(__packed_flag);
+        new (&__packed_flag_ref) _PackedStatusPrefixT(__packed_flag);
     }
 
+    // For initialization routines, we do not need atomicity, so we can write through the ptr
+    // member variable.
     void
     set_init()
     {
         constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __initialized_status;
-        __atomic_packed_flag.store(__packed_flag);
+        new (&__packed_flag_ref) _PackedStatusPrefixT(__packed_flag);
     }
 
     auto
@@ -158,6 +163,7 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
         return {__tile_flag, __tile_value};
     }
 
+    _PackedStatusPrefixT& __packed_flag_ref;
     _AtomicPackedStatusPrefixT __atomic_packed_flag;
 };
 
@@ -212,9 +218,10 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
     };
 
     __scan_status_flag(const storage& __temp_storage, std::int32_t __tile_id)
-        : __atomic_flag(*(__temp_storage.__flags_begin + __tile_id + __padding)),
-          __atomic_partial_value(*(__temp_storage.__partial_vals_begin + __tile_id + __padding)),
-          __atomic_full_value(*(__temp_storage.__full_vals_begin + __tile_id + __padding))
+        : __flag_ref(*(__temp_storage.__flags_begin + __tile_id + __padding)),
+          __partial_value_ref(*(__temp_storage.__partial_vals_begin + __tile_id + __padding)),
+          __full_value_ref(*(__temp_storage.__full_vals_begin + __tile_id + __padding)), __atomic_flag(__flag_ref),
+          __atomic_partial_value(__partial_value_ref), __atomic_full_value(__full_value_ref)
     {
     }
 
@@ -232,18 +239,22 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
         __atomic_flag.store(__full_status);
     }
 
+    // For initialization routines, we do not need atomicity, so we can write through the ptr
+    // member variable.
     void
     set_init()
     {
-        __atomic_partial_value.store(_T{});
-        __atomic_flag.store(__initialized_status);
+        new (&__partial_value_ref) _T{};
+        new (&__flag_ref) _FlagStorageType{__initialized_status};
     }
 
+    // For initialization routines, we do not need atomicity, so we can write through the ptr
+    // member variable.
     void
     set_oob()
     {
-        __atomic_partial_value.store(_T{});
-        __atomic_flag.store(__oob_status);
+        new (&__partial_value_ref) _T{};
+        new (&__flag_ref) _FlagStorageType{__oob_status};
     }
 
     _FlagStorageType
@@ -272,6 +283,10 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
         _T __tile_value = get_value(__tile_flag);
         return {__tile_flag, __tile_value};
     }
+
+    _FlagStorageType& __flag_ref;
+    _T& __partial_value_ref;
+    _T& __full_value_ref;
 
     _AtomicFlagT __atomic_flag;
     _AtomicValueT __atomic_partial_value;
