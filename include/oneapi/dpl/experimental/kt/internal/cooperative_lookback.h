@@ -33,9 +33,6 @@ namespace gpu
 namespace __impl
 {
 
-// TODO: we should probably remove a hardcoded constant here
-static constexpr int SUBGROUP_SIZE = 32;
-
 // Some hardware may support atomic operations over vector types enabling support for types larger than
 // 4-bytes but this is not supported in SYCL.
 template <typename _T>
@@ -44,11 +41,11 @@ struct __can_combine_status_prefix_flags
 {
 };
 
-template <typename _T, typename = void>
+template <std::uint8_t __sub_group_size, typename _T, typename = void>
 struct __scan_status_flag;
 
-template <typename _T>
-struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags<_T>::value>>
+template <std::uint8_t __sub_group_size, typename _T>
+struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_status_prefix_flags<_T>::value>>
 {
     using _PackedStatusPrefixT = std::conditional_t<sizeof(_T) == 4, std::uint64_t, std::uint32_t>;
     using _TileIdxT = uint32_t;
@@ -63,7 +60,7 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
     static constexpr _FlagStorageType __partial_status = 1;
     static constexpr _FlagStorageType __full_status = 2;
     static constexpr _FlagStorageType __oob_status = 3;
-    static constexpr int __padding = SUBGROUP_SIZE;
+    static constexpr int __padding = __sub_group_size;
 
     struct storage
     {
@@ -164,8 +161,8 @@ struct __scan_status_flag<_T, std::enable_if_t<__can_combine_status_prefix_flags
     _AtomicPackedStatusPrefixT __atomic_packed_flag;
 };
 
-template <typename _T>
-struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flags<_T>::value>>
+template <std::uint8_t __sub_group_size, typename _T>
+struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_status_prefix_flags<_T>::value>>
 {
     using _FlagStorageType = uint32_t;
     using _TileIdxT = uint32_t;
@@ -179,7 +176,7 @@ struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flag
     static constexpr _FlagStorageType __full_status = 2;
     static constexpr _FlagStorageType __oob_status = 3;
 
-    static constexpr int __padding = SUBGROUP_SIZE;
+    static constexpr int __padding = __sub_group_size;
 
     struct storage
     {
@@ -281,14 +278,14 @@ struct __scan_status_flag<_T, std::enable_if_t<!__can_combine_status_prefix_flag
     _AtomicValueT __atomic_full_value;
 };
 
-template <typename _T, typename _IdxType, typename _BinaryOp>
+template <std::uint8_t __sub_group_size, typename _T, typename _IdxType, typename _BinaryOp>
 struct __cooperative_lookback
 {
     template <typename _Subgroup>
     _T
     operator()(const _Subgroup& __subgroup, _T __local_reduction) const
     {
-        __scan_status_flag<_T> __local_flag(__lookback_storage, __tile_id);
+        __scan_status_flag<__sub_group_size, _T> __local_flag(__lookback_storage, __tile_id);
         if (__subgroup.get_local_id() == 0)
         {
             __local_flag.set_partial(__local_reduction);
@@ -296,10 +293,10 @@ struct __cooperative_lookback
         _T __running{};
         auto __local_id = __subgroup.get_local_id();
         auto __lookback_iter = [&](auto __is_initialized, int __tile) {
-            __scan_status_flag<_T> __current_tile(__lookback_storage, __tile - __local_id);
+            __scan_status_flag<__sub_group_size, _T> __current_tile(__lookback_storage, __tile - __local_id);
             auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
 
-            bool __is_full = __tile_flag == __scan_status_flag<_T>::__full_status;
+            bool __is_full = __tile_flag == __scan_status_flag<__sub_group_size, _T>::__full_status;
             auto __is_full_ballot = sycl::ext::oneapi::group_ballot(__subgroup, __is_full);
             std::uint32_t __is_full_ballot_bits{};
             __is_full_ballot.extract_bits(__is_full_ballot_bits);
@@ -311,14 +308,14 @@ struct __cooperative_lookback
             // recomputed the prefix using partial values
             if (__is_full_ballot_bits)
             {
-                __sub_group_scan_partial<SUBGROUP_SIZE, true, decltype(__is_initialized)::value>(
+                __sub_group_scan_partial<__sub_group_size, true, decltype(__is_initialized)::value>(
                     __subgroup, __tile_value, __binary_op, __running, __lowest_item_with_full + 1);
                 return true;
             }
             else
             {
-                __sub_group_scan<SUBGROUP_SIZE, true, decltype(__is_initialized)::value>(__subgroup, __tile_value,
-                                                                                         __binary_op, __running);
+                __sub_group_scan<__sub_group_size, true, decltype(__is_initialized)::value>(__subgroup, __tile_value,
+                                                                                            __binary_op, __running);
                 return false;
             }
         };
@@ -327,8 +324,8 @@ struct __cooperative_lookback
         // If the zeroth tile never calls __cooperative_lookback, then this is unnecessary.
         if (__tile >= 0)
             __full_tile_found = __lookback_iter(/*__is_initialized*/ std::false_type{}, __tile);
-        __tile -= SUBGROUP_SIZE;
-        for (; __tile >= 0 && !__full_tile_found; __tile -= SUBGROUP_SIZE)
+        __tile -= __sub_group_size;
+        for (; __tile >= 0 && !__full_tile_found; __tile -= __sub_group_size)
         {
             __full_tile_found = __lookback_iter(/*__is_initialized*/ std::true_type{}, __tile);
         }
@@ -339,7 +336,7 @@ struct __cooperative_lookback
         return __running;
     }
 
-    typename __scan_status_flag<_T>::storage __lookback_storage;
+    typename __scan_status_flag<__sub_group_size, _T>::storage __lookback_storage;
     _IdxType __tile_id;
     _BinaryOp __binary_op;
 };
@@ -347,21 +344,22 @@ struct __cooperative_lookback
 template <typename... _Name>
 class __lookback_init_kernel;
 
-template <typename _FlagType, typename _Type, typename _BinaryOp, typename _KernelName>
+template <std::uint8_t __sub_group_size, typename _FlagType, typename _Type, typename _BinaryOp, typename _KernelName>
 struct __lookback_init_submitter;
 
-template <typename _FlagType, typename _Type, typename _BinaryOp, typename... _Name>
-struct __lookback_init_submitter<_FlagType, _Type, _BinaryOp,
+template <std::uint8_t __sub_group_size, typename _FlagType, typename _Type, typename _BinaryOp, typename... _Name>
+struct __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp,
                                  oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
     sycl::event
-    operator()(sycl::queue __q, typename __scan_status_flag<_Type>::storage __lookback_storage,
+    operator()(sycl::queue __q, typename __scan_status_flag<__sub_group_size, _Type>::storage __lookback_storage,
                std::size_t __status_flags_size, std::uint16_t __status_flag_padding) const
     {
         return __q.submit([&](sycl::handler& __hdl) {
             __hdl.parallel_for<_Name...>(sycl::range<1>{__status_flags_size}, [=](const sycl::item<1>& __item) {
                 auto __id = __item.get_linear_id();
-                __scan_status_flag<_Type> __current_tile(__lookback_storage, int(__id) - int(__status_flag_padding));
+                __scan_status_flag<__sub_group_size, _Type> __current_tile(__lookback_storage,
+                                                                           int(__id) - int(__status_flag_padding));
                 // TODO: we do not need atomics here
                 if (__id < __status_flag_padding)
                     __current_tile.set_oob();
