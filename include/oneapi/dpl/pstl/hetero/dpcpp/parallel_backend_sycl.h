@@ -1576,7 +1576,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         // Copy data back from scratch part to result part
         auto __writeback_event = __q.submit([&](sycl::handler& __cgh) {
             auto __scratch_acc = __result_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
-            auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+            auto __res_acc =
+                __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
             __cgh.depends_on(__event);
             __cgh.single_task<KernelNameWriteBack...>([__scratch_acc, __res_acc]() {
                 auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
