@@ -1558,7 +1558,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         __found_local = __dpl_sycl::__reduce_over_group(__item.get_group(), __found_local,
                                                                         typename _BrickTag::_LocalResultsReduceOp{});
 
-                    // Set local found state value to global atomic
+                    // Set local found state to global atomic
                     if (__local_idx == 0 && __found_local != __init_value)
                     {
                         auto __scratch_ptr =
