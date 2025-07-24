@@ -208,13 +208,7 @@ template <typename... _Name>
 class __find_or_kernel_one_wg;
 
 template <typename... _Name>
-class __find_or_kernel_init;
-
-template <typename... _Name>
 class __find_or_kernel;
-
-template <typename... _Name>
-class __find_or_kernel_writeback;
 
 template <typename... _Name>
 class __scan_propagate_kernel;
@@ -1486,14 +1480,12 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
     }
 };
 
-template <bool __or_tag_check, typename KernelNameInit, typename KernelName, typename KernelNameWriteBack>
+template <bool __or_tag_check, typename KernelName>
 struct __parallel_find_or_impl_multiple_wgs;
 
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
-template <bool __or_tag_check, typename... KernelNameInit, typename... KernelName, typename... KernelNameWriteBack>
-struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__optional_kernel_name<KernelNameInit...>,
-                                            __internal::__optional_kernel_name<KernelName...>,
-                                            __internal::__optional_kernel_name<KernelNameWriteBack...>>
+template <bool __or_tag_check, typename... KernelName>
+struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__optional_kernel_name<KernelName...>>
 {
     template <typename _BrickTag, typename _AtomicType, typename _Predicate, typename... _Ranges>
     _AtomicType
@@ -1503,32 +1495,19 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         // We allocate a single element of result storage and a single element of scratch storage. The device scratch
         // storage is used for the atomic operations in the main __parallel_find_or kernel and then copied to the
         // result host memory (if supported) in the writeback kernel for best performance.
-        constexpr std::size_t __scratch_storage_size = 1;
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_AtomicType, 1>;
-        __result_and_scratch_storage_t __result_storage{__q, __scratch_storage_size};
+        using __result_and_scratch_storage_t = __result_and_scratch_storage_impl<_AtomicType, 1, sycl::usm::alloc::shared>;
+        __result_and_scratch_storage_t __result_storage{__q, /* no scratch items */ 0,
+                                                        /* initial result state */ __init_value};
 
         // Calculate the number of elements to be processed by each work-item.
         const auto __iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
 
-        // Initialization of the result storage
-        auto __event_init = __q.submit([&](sycl::handler& __cgh) {
-            auto __scratch_acc =
-                __result_storage.template __get_scratch_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
-
-            __cgh.single_task<KernelNameInit...>([__scratch_acc, __init_value]() {
-                auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
-                *__scratch_ptr = __init_value;
-            });
-        });
-
         // main parallel_for
         auto __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
-            auto __scratch_acc = __result_storage.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
-
-            __cgh.depends_on(__event_init);
+            auto __result_acc = __result_storage.template __get_result_acc<sycl::access_mode::read_write>(__cgh);
 
             __cgh.parallel_for<KernelName...>(
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
@@ -1560,11 +1539,11 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     // Set local found state value value to global atomic
                     if (__local_idx == 0 && __found_local != __init_value)
                     {
-                        auto __scratch_ptr =
-                            __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
+                        auto __result_ptr =
+                            __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__result_acc);
 
                         __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
-                            *__scratch_ptr);
+                            *__result_ptr);
 
                         // Update global (for all groups) atomic state with the found index
                         _BrickTag::__save_state_to_atomic(__found, __found_local);
@@ -1572,21 +1551,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 });
         });
 
-        // Copy data back from scratch part to result part
-        auto __writeback_event = __q.submit([&](sycl::handler& __cgh) {
-            auto __scratch_acc = __result_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
-            auto __res_acc = __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh);
-            __cgh.depends_on(__event);
-            __cgh.single_task<KernelNameWriteBack...>([__scratch_acc, __res_acc]() {
-                auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
-                auto __res_ptr =
-                    __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, __scratch_storage_size);
-                *__res_ptr = *__scratch_ptr;
-            });
-        });
-
         // Wait and return result
-        return __result_storage.__wait_and_get_value(__writeback_event);
+        return __result_storage.__wait_and_get_value(__event);
     }
 };
 
@@ -1634,18 +1600,11 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         assert("This device does not support 64-bit atomics" &&
                (sizeof(_AtomicType) < 8 || __q_local.get_device().has(sycl::aspect::atomic64)));
 
-        using __find_or_kernel_name_init =
-            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_init<_CustomName>>;
-
         using __find_or_kernel_name =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
 
-        using __find_or_kernel_name_writeback = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __find_or_kernel_writeback<_CustomName>>;
-
         // Multiple WG implementation
-        __result = __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name_init,
-                                                        __find_or_kernel_name, __find_or_kernel_name_writeback>()(
+        __result = __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name>()(
             __q_local, __brick_tag, __rng_n, __n_groups, __wgroup_size, __init_value, __pred,
             std::forward<_Ranges>(__rngs)...);
     }

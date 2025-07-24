@@ -533,6 +533,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     std::size_t __scratch_n;
     bool __use_USM_host;
     bool __supports_USM_device;
+    bool __supports_USM_shared;
 
     // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a device allocation instead.
     bool
@@ -553,7 +554,7 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     }
 
     bool
-    __use_USM_allocations() const
+    __use_USM_device_allocations() const
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         return __q.get_device().has(sycl::aspect::usm_device_allocations);
@@ -562,16 +563,29 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
 #endif
     }
 
+    bool
+    __use_USM_shared_allocations() const
+    {
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
+        return __q.get_device().has(sycl::aspect::usm_shared_allocations);
+#else
+        return false;
+#endif
+    }
+
   public:
     __result_and_scratch_storage_impl(sycl::queue __q_, std::size_t __scratch_n)
         : __q{__q_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
-          __supports_USM_device{__use_USM_allocations()}
+          __supports_USM_device{__use_USM_device_allocations()},
+          __supports_USM_shared{__use_USM_shared_allocations()}
     {
         const std::size_t __total_n = _NResults + __scratch_n;
         // Skip in case this is a dummy container
         if (__total_n > 0)
         {
-            if (__use_USM_host && __supports_USM_device)
+            if (__use_USM_host && __supports_USM_device
+                && (_result_alloc_type == sycl::usm::alloc::device
+                    || (_result_alloc_type == sycl::usm::alloc::shared && __supports_USM_shared)))
             {
                 // Separate scratch (device) and result (host) allocations on performant backends (i.e. L0)
                 if (__scratch_n > 0)
@@ -599,6 +613,34 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
                 // If we don't have USM support allocate memory here
                 __sycl_buf = std::make_shared<__sycl_buffer_t>(__sycl_buffer_t(__total_n));
             }
+        }
+    }
+
+    __result_and_scratch_storage_impl(sycl::queue __q_, std::size_t __scratch_n, _T __value)
+        : __result_and_scratch_storage_impl(__q_, __scratch_n)
+    {
+        constexpr std::size_t _Idx = 0;
+        static_assert(_NResults == 1, "This constructor is only for single result storage");
+
+        if (__result_buf)
+        {
+            if constexpr (_result_alloc_type == sycl::usm::alloc::host || _result_alloc_type == sycl::usm::alloc::shared)
+            {
+                *(__result_buf.get() + _Idx) = __value;
+            }
+            else
+            {
+                __q.memcpy(__result_buf.get() + _Idx, &__value, 1 * sizeof(_T)).wait();
+            }
+        }
+        else if (__scratch_buf)
+        {
+            __q.memcpy(__scratch_buf.get() + __scratch_n + _Idx, &__value, 1 * sizeof(_T)).wait();
+        }
+        else
+        {
+            auto __host_acc = __sycl_buf->get_host_access(sycl::write_only);
+            __host_acc[__scratch_n + _Idx] = __value;
         }
     }
 
@@ -661,22 +703,20 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
     {
         static_assert(0 <= _Idx && _Idx < _NResults);
 
-        if (__use_USM_host && __supports_USM_device)
+        if (__result_buf)
         {
             if constexpr (_result_alloc_type == sycl::usm::alloc::host || _result_alloc_type == sycl::usm::alloc::shared)
             {
-                // If we use USM host allocation, we can return the result directly
                 return *(__result_buf.get() + _Idx);
             }
             else
             {
-                // If we use USM device allocation, we need to copy the result to a temporary
                 _T __tmp;
                 __q.memcpy(&__tmp, __result_buf.get() + _Idx, 1 * sizeof(_T)).wait();
                 return __tmp;
             }
         }
-        else if (__supports_USM_device)
+        else if (__scratch_buf)
         {
             _T __tmp;
             __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
@@ -684,7 +724,8 @@ struct __result_and_scratch_storage_impl : __result_and_scratch_storage_base
         }
         else
         {
-            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + _Idx];
+            auto __host_acc = __sycl_buf->get_host_access(sycl::read_only);
+            return __host_acc[__scratch_n + _Idx];
         }
     }
 
