@@ -43,12 +43,12 @@ namespace __impl
 template <typename... _Name>
 class __lookback_kernel;
 
-template <std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size, typename _Type, typename _FlagType,
-          typename _KernelName>
+template <std::uint8_t __sub_group_size, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size,
+          typename _Type, typename _FlagType, typename _KernelName>
 struct __lookback_submitter;
 
-template <std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size, typename _Type, typename _FlagType,
-          typename _InRng, typename _OutRng, typename _BinaryOp, typename _LocalAcc>
+template <std::uint8_t __sub_group_size, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size,
+          typename _Type, typename _FlagType, typename _InRng, typename _OutRng, typename _BinaryOp, typename _LocalAcc>
 struct __lookback_kernel_func
 {
     using _TileIdxT = typename _FlagType::_TileIdxT;
@@ -59,7 +59,7 @@ struct __lookback_kernel_func
     _BinaryOp __binary_op;
     std::size_t __n;
     _TileIdxT* __atomic_id_ptr;
-    typename __scan_status_flag<_Type>::storage __lookback_storage;
+    typename __scan_status_flag<__sub_group_size, _Type>::storage __lookback_storage;
     std::size_t __status_flags_size;
     std::size_t __current_num_items;
     _LocalAcc __slm;
@@ -74,7 +74,8 @@ struct __lookback_kernel_func
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
             {
-                __grf_partials[__i] = __in_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i];
+                __grf_partials[__i] =
+                    __in_rng[__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i];
             }
         }
         else
@@ -82,10 +83,10 @@ struct __lookback_kernel_func
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
             {
-                if (__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i < __n)
+                if (__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i < __n)
                 {
                     __grf_partials[__i] =
-                        __in_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i];
+                        __in_rng[__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i];
                 }
             }
         }
@@ -101,7 +102,7 @@ struct __lookback_kernel_func
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
             {
-                __out_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
+                __out_rng[__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i] =
                     __grf_partials[__i];
             }
         }
@@ -110,9 +111,9 @@ struct __lookback_kernel_func
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
             {
-                if (__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i < __n)
+                if (__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i < __n)
                 {
-                    __out_rng[__sub_group_current_offset + __sub_group_local_id + SUBGROUP_SIZE * __i] =
+                    __out_rng[__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i] =
                         __grf_partials[__i];
                 }
             }
@@ -136,7 +137,7 @@ struct __lookback_kernel_func
         if (__tile_id == 0)
         {
             load_global_to_grf<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
-            _Type __local_reduction = __work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
+            _Type __local_reduction = __work_group_scan<__sub_group_size, __data_per_workitem>(
                 __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
             if (__item.get_local_id(0) == 0)
             {
@@ -148,14 +149,15 @@ struct __lookback_kernel_func
         else
         {
             load_global_to_grf<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
-            __cooperative_lookback<_Type, _TileIdxT, _BinaryOp> __lookback_callback{__lookback_storage, __tile_id, __binary_op};
-            __work_group_scan<SUBGROUP_SIZE, __data_per_workitem>(
-                __item, __slm, __grf_partials, __binary_op, __lookback_callback, __this_tile_elements);
+            __cooperative_lookback<__sub_group_size, _Type, _TileIdxT, _BinaryOp> __lookback_callback{
+                __lookback_storage, __tile_id, __binary_op};
+            __work_group_scan<__sub_group_size, __data_per_workitem>(__item, __slm, __grf_partials, __binary_op,
+                                                                     __lookback_callback, __this_tile_elements);
             store_grf_to_global<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
         }
     }
 
-    [[sycl::reqd_sub_group_size(SUBGROUP_SIZE)]] void
+    [[sycl::reqd_sub_group_size(__sub_group_size)]] void
     operator()(const sycl::nd_item<1>& __item) const
     {
         auto __group = __item.get_group();
@@ -183,8 +185,8 @@ struct __lookback_kernel_func
             return;
 
         std::size_t __sub_group_current_offset =
-            __work_group_offset + __sub_group_group_id * __data_per_workitem * SUBGROUP_SIZE;
-        std::size_t __sub_group_next_offset = __sub_group_current_offset + SUBGROUP_SIZE * __data_per_workitem;
+            __work_group_offset + __sub_group_group_id * __data_per_workitem * __sub_group_size;
+        std::size_t __sub_group_next_offset = __sub_group_current_offset + __sub_group_size * __data_per_workitem;
         auto __out_begin = __out_rng.begin() + __sub_group_current_offset;
 
         // Making full / not full case a bool template parameter and compiling two separate functions significantly improves performance
@@ -198,9 +200,9 @@ struct __lookback_kernel_func
     }
 };
 
-template <std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size, typename _Type, typename _FlagType,
-          typename... _Name>
-struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagType,
+template <std::uint8_t __sub_group_size, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size,
+          typename _Type, typename _FlagType, typename... _Name>
+struct __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_size, _Type, _FlagType,
                             oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
 
@@ -208,16 +210,16 @@ struct __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagT
     sycl::event
     operator()(sycl::queue __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
                std::size_t __n, std::uint32_t* __atomic_id_ptr,
-               typename __scan_status_flag<_Type>::storage __lookback_storage, std::size_t __status_flags_size,
-               std::size_t __current_num_items) const
+               typename __scan_status_flag<__sub_group_size, _Type>::storage __lookback_storage,
+               std::size_t __status_flags_size, std::size_t __current_num_items) const
     {
         using _LocalAccessorType = __dpl_sycl::__local_accessor<_Type, 1>;
-        using _KernelFunc =
-            __lookback_kernel_func<__data_per_workitem, __workgroup_size, _Type, _FlagType, std::decay_t<_InRng>,
-                                   std::decay_t<_OutRng>, std::decay_t<_BinaryOp>, std::decay_t<_LocalAccessorType>>;
+        using _KernelFunc = __lookback_kernel_func<__sub_group_size, __data_per_workitem, __workgroup_size, _Type,
+                                                   _FlagType, std::decay_t<_InRng>, std::decay_t<_OutRng>,
+                                                   std::decay_t<_BinaryOp>, std::decay_t<_LocalAccessorType>>;
         return __q.submit([&](sycl::handler& __hdl) {
-            auto __slm =
-                _LocalAccessorType(oneapi::dpl::__internal::__dpl_ceiling_div(__workgroup_size, SUBGROUP_SIZE), __hdl);
+            auto __slm = _LocalAccessorType(
+                oneapi::dpl::__internal::__dpl_ceiling_div(__workgroup_size, __sub_group_size), __hdl);
             __hdl.depends_on(__prev_event);
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
             __hdl.parallel_for<_Name...>(sycl::nd_range<1>(__current_num_items, __workgroup_size),
@@ -232,8 +234,10 @@ template <bool _Inclusive, typename _InRange, typename _OutRange, typename _Bina
 sycl::event
 __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_rng, _BinaryOp __binary_op, _KernelParam)
 {
+    constexpr std::uint8_t __sub_group_size = 32;
+
     using _Type = oneapi::dpl::__internal::__value_t<_InRange>;
-    using _FlagType = __scan_status_flag<_Type>;
+    using _FlagType = __scan_status_flag<__sub_group_size, _Type>;
     using _FlagStorageType = typename _FlagType::storage;
     using _KernelName = typename _KernelParam::kernel_name;
     using _LookbackInitKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -267,7 +271,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     // Avoid non_uniform n by padding up to a multiple of workgroup_size
     std::size_t __elems_in_tile = __workgroup_size * __data_per_workitem;
     std::size_t __num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
-    constexpr int __status_flag_padding = SUBGROUP_SIZE;
+    constexpr int __status_flag_padding = __sub_group_size;
     std::size_t __status_flags_size = __num_wgs + 1 + __status_flag_padding;
     const ::std::size_t __mem_bytes = _FlagStorageType::get_reqd_storage(__status_flags_size);
     std::byte* __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __queue));
@@ -278,16 +282,16 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     std::uint32_t* __atomic_id_ptr = sycl::malloc_device<std::uint32_t>(1, __queue);
     __queue.fill(__atomic_id_ptr, 0, 1).wait();
     _FlagStorageType __lookback_storage(__device_mem, __mem_bytes, __status_flags_size);
-    auto __fill_event = __lookback_init_submitter<_FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
+    auto __fill_event = __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
         __queue, __lookback_storage, __status_flags_size, __status_flag_padding);
 
     std::size_t __current_num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
     std::size_t __current_num_items = __current_num_wgs * __workgroup_size;
 
-    auto __prev_event =
-        __lookback_submitter<__data_per_workitem, __workgroup_size, _Type, _FlagType, _LookbackKernel>{}(
-            __queue, __fill_event, __in_rng, __out_rng, __binary_op, __n, __atomic_id_ptr, __lookback_storage,
-            __status_flags_size, __current_num_items);
+    auto __prev_event = __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_size, _Type, _FlagType,
+                                             _LookbackKernel>{}(__queue, __fill_event, __in_rng, __out_rng, __binary_op,
+                                                                __n, __atomic_id_ptr, __lookback_storage,
+                                                                __status_flags_size, __current_num_items);
 
     // TODO: Currently, the following portion of code makes this entire function synchronous.
     // Ideally, we should be able to use the asynchronous free below, but we have found that doing
