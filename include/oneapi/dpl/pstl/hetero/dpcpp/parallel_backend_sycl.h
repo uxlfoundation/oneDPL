@@ -1599,7 +1599,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                             __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(
                                 __scratch_acc_group_counter);
 
-                        __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space>
+                        __dpl_sycl::__atomic_ref<_GroupCounterType, sycl::access::address_space::global_space>
                             __group_counter(*__scratch_group_counter_ptr);
 
                         // Copy data back from scratch part to result part when we are in the last work-group
