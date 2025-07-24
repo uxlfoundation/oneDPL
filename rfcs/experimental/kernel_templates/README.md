@@ -334,6 +334,27 @@ Several questions arise:
 It should be evaluated whether the proposed algorithms can serve as a backend for oneDPL algorithms
 that use the standard C++ interfaces and device execution policies.
 
+### Input Parameters Design Considerations
+
+There are several questions regarding the input parameters that need to be explored to
+ensure that algorithm interfaces are consistent
+and to address concerns related to usability and expressiveness.
+
+- Handling `sycl::buffer`:
+  Should a `sycl::buffer` be passed as a range, or should there be a dedicated overload?
+  If passed separately,
+  it cannot participate in range-based compositions (for example, `std::ranges::zip_view`).
+  However, is range integration feasible in practice?
+  Is it even better to allow passing `oneapi::dpl::begin` and `oneapi::dpl::end`
+  helper functions to support `sycl::buffer` with iterators such as `oneapi::dpl::zip_iterator`?
+- Iterator parameter:
+  Should algorithms accept (`first`, `last`) or (`last`, `size`)?
+  The latter avoids passing an explicit index type, see
+  [Kernel Configuration](kernel_configuration/README.md#indexing-type), but
+  it is not consistent with the standard C++ algorithms interfaces.
+- Range support:
+  Should ranges be supported in the interface, or are iterators sufficient?
+
 ## Exit Criteria
 
 The proposed set of algorithms should become fully supported if:
