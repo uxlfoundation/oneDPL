@@ -915,7 +915,6 @@ struct __scoped_destroyer
     }
 };
 
-
 // To implement __min_nested_type_size, a general utility with an internal tuple
 // specialization, we need to forward declare our internal tuple first as tuple_impl.h
 // already includes this header.
