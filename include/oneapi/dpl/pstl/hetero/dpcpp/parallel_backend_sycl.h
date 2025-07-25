@@ -1503,7 +1503,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         // We allocate a single element of result storage and a single element of scratch storage. The device scratch
         // storage is used for the atomic operations in the main __parallel_find_or kernel and then copied to the
         // result host memory (if supported) in the writeback kernel for best performance.
-        constexpr std::size_t __scratch_storage_size = 5;
+        constexpr std::size_t __scratch_storage_size = 100;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_AtomicType, 1>;
         __result_and_scratch_storage_t __result_storage{__q, __scratch_storage_size};
 
@@ -1516,13 +1516,19 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
             auto __scratch_acc =
                 __result_storage.template __get_scratch_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
-            __cgh.single_task<KernelNameInit...>([__scratch_acc, __init_value]() {
-                auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
+            //__cgh.single_task<KernelNameInit...>([__scratch_acc, __init_value]() {
+            __cgh.parallel_for<KernelNameInit...>(
+                sycl::range</*dim=*/1>(__scratch_storage_size),
+                [&__scratch_acc, __init_value](sycl::item</*dim=*/1> __item) {
 
-                // Setup initial value for all scratch storage elements
-                for (std::size_t __idx = 0; __idx < __scratch_storage_size; ++__idx)
-                    __scratch_ptr[__idx] = __init_value;
-            });
+                    const std::size_t __global_idx = __item.get_linear_id();
+
+                    auto __scratch_ptr =
+                        __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
+
+                    // Setup initial value for all scratch storage elements
+                    __scratch_ptr[__global_idx] = __init_value;
+                });
         });
 
         // main parallel_for
@@ -1588,6 +1594,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
             auto __res_acc =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
             __cgh.depends_on(__event);
+
+#if 0
             __cgh.single_task<KernelNameWriteBack...>([__scratch_acc, __res_acc, __init_value]() {
                 auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
                 auto __res_ptr =
@@ -1600,6 +1608,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
                 *__res_ptr = __result;
             });
+#endif
         });
 
         // Wait and return result
