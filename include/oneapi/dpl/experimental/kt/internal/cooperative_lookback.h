@@ -56,6 +56,8 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
         sycl::atomic_ref<_PackedStatusPrefixT, sycl::memory_order::acq_rel, sycl::memory_scope::device,
                          sycl::access::address_space::global_space>;
 
+    static constexpr std::uint32_t __half_status_prefix_bits = 4 * sizeof(_PackedStatusPrefixT);
+
     static constexpr _FlagStorageType __initialized_status = 0;
     static constexpr _FlagStorageType __partial_status = 1;
     static constexpr _FlagStorageType __full_status = 2;
@@ -87,22 +89,20 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
     void
     set_partial(const _T __val)
     {
-        constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __partial_status;
         _PackedStatusPrefixT __integral_bits =
             static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__val));
-        __packed_flag |= __integral_bits << __shift_factor;
+        __packed_flag |= __integral_bits << __half_status_prefix_bits;
         __atomic_packed_flag.store(__packed_flag);
     }
 
     void
     set_full(const _T __val)
     {
-        constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __full_status;
         _PackedStatusPrefixT __integral_bits =
             static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__val));
-        __packed_flag |= __integral_bits << __shift_factor;
+        __packed_flag |= __integral_bits << __half_status_prefix_bits;
         __atomic_packed_flag.store(__packed_flag);
     }
 
@@ -111,9 +111,8 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
     void
     set_oob()
     {
-        constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __oob_status;
-        new (&__packed_flag_ref) _PackedStatusPrefixT(__packed_flag);
+        __packed_flag_ref = _PackedStatusPrefixT{__packed_flag};
     }
 
     // For initialization routines, we do not need atomicity, so we can write through the ptr
@@ -121,26 +120,23 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
     void
     set_init()
     {
-        constexpr int __shift_factor = 4 * sizeof(_PackedStatusPrefixT);
         _PackedStatusPrefixT __packed_flag = __initialized_status;
-        new (&__packed_flag_ref) _PackedStatusPrefixT(__packed_flag);
+        __packed_flag_ref = _PackedStatusPrefixT{__packed_flag};
     }
 
-    auto
+    _FlagStorageType
     get_status(_PackedStatusPrefixT __packed) const
     {
-        constexpr int __shift_factor = sizeof(_PackedStatusPrefixT) * 4;
-        _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) >> __shift_factor;
+        _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) >> __half_status_prefix_bits;
         return static_cast<_FlagStorageType>(__packed & __prefix_mask);
     }
 
-    auto
+    _T
     get_value(_PackedStatusPrefixT __packed) const
     {
-        constexpr int __shift_factor = sizeof(_PackedStatusPrefixT) * 4;
-        _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) << __shift_factor;
+        _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) << __half_status_prefix_bits;
         _TIntegralBitsType __integral_bits =
-            static_cast<_TIntegralBitsType>((__packed & __prefix_mask) >> __shift_factor);
+            static_cast<_TIntegralBitsType>((__packed & __prefix_mask) >> __half_status_prefix_bits);
         return sycl::bit_cast<_T, _TIntegralBitsType>(__integral_bits);
     }
 
@@ -244,8 +240,8 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
     void
     set_init()
     {
-        new (&__partial_value_ref) _T{};
-        new (&__flag_ref) _FlagStorageType{__initialized_status};
+        __partial_value_ref = _T{};
+        __flag_ref = _FlagStorageType{__initialized_status};
     }
 
     // For initialization routines, we do not need atomicity, so we can write through the ptr
@@ -253,8 +249,8 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
     void
     set_oob()
     {
-        new (&__partial_value_ref) _T{};
-        new (&__flag_ref) _FlagStorageType{__oob_status};
+        __partial_value_ref = _T{};
+        __flag_ref = _FlagStorageType{__oob_status};
     }
 
     _FlagStorageType
@@ -306,7 +302,7 @@ struct __cooperative_lookback
             __local_flag.set_partial(__local_reduction);
         }
         _T __running{};
-        auto __local_id = __subgroup.get_local_id();
+        std::uint8_t __local_id = __subgroup.get_local_id();
         auto __lookback_iter = [&](auto __is_initialized, int __tile) {
             __scan_status_flag<__sub_group_size, _T> __current_tile(__lookback_storage, __tile - __local_id);
             auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
@@ -373,9 +369,10 @@ struct __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp,
     {
         return __q.submit([&](sycl::handler& __hdl) {
             __hdl.parallel_for<_Name...>(sycl::range<1>{__status_flags_size}, [=](const sycl::item<1>& __item) {
-                auto __id = __item.get_linear_id();
-                __scan_status_flag<__sub_group_size, _Type> __current_tile(__lookback_storage,
-                                                                           int(__id) - int(__status_flag_padding));
+                const std::uint32_t __id = __item.get_linear_id();
+                // Negative values are valid here up until -sub_group_size for initialization of OOB elements.
+                const int __id_offset = int(__id) - int(__status_flag_padding);
+                __scan_status_flag<__sub_group_size, _Type> __current_tile(__lookback_storage, __id_offset);
                 if (__id < __status_flag_padding)
                 {
                     __current_tile.set_oob();

@@ -34,7 +34,8 @@ namespace gpu
 namespace __impl
 {
 
-// TODO: do we want our own implementations here or just use onedpl sycl backend?
+// This implementation models what is defined in pstl/hetero/dpcpp/parallel_backend_sycl_reduce_then_scan.h with the
+// default constructibility requirement removed for simplification for the types supported in the KT.
 template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId,
           typename _BinaryOp, typename _ValueType, typename _LazyValueType>
 void
@@ -101,9 +102,9 @@ __sub_group_scan_partial(const sycl::sub_group& __sub_group, _ValueType& __value
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
 
-template <int __sub_group_size, int __iters_per_item, typename _InputType, typename _SubGroup,
+template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _SubGroup,
           typename _BinaryOperation>
-auto
+_InputType
 __sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_item], _BinaryOperation __binary_op,
                  uint32_t __items_in_scan)
 {
@@ -113,16 +114,16 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_it
     {
         __sub_group_scan<__sub_group_size, true, false>(__sub_group, __input[0], __binary_op, __carry);
         _ONEDPL_PRAGMA_UNROLL
-        for (int __i = 1; __i < __iters_per_item; ++__i)
+        for (std::uint16_t __i = 1; __i < __iters_per_item; ++__i)
         {
             __sub_group_scan<__sub_group_size, true, true>(__sub_group, __input[__i], __binary_op, __carry);
         }
     }
     else
     {
-        const auto __limited_iters_per_item =
+        const std::uint16_t __limited_iters_per_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__items_in_scan, __sub_group_size);
-        int __i = 0;
+        std::uint16_t __i = 0;
         if (__limited_iters_per_item == 1)
         {
             __sub_group_scan_partial<__sub_group_size, true, false>(__sub_group, __input[__i], __binary_op, __carry,
@@ -144,9 +145,9 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_it
     return __carry;
 }
 
-template <int __sub_group_size, int __iters_per_item, typename _InputType, typename _SubGroup,
+template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _SubGroup,
           typename _BinaryOperation>
-auto
+_InputType
 __sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_item], _BinaryOperation __binary_op)
 {
     return __sub_group_scan<__sub_group_size, __iters_per_item>(__sub_group, __input, __binary_op,
