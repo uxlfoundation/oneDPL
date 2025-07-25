@@ -16,15 +16,12 @@
 #ifndef _ONEDPL_KT_WG_SCAN_H
 #define _ONEDPL_KT_WG_SCAN_H
 
-#include <sycl/sycl.hpp>
 #include <cstdint>
-#include <vector>
-#include <numeric>
-#include <algorithm>
+#include <type_traits>
 
 #include "../../../../pstl/utils.h"
+#include "../../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../sub_group/sub_group_scan.h"
-#include "../../../../pstl/hetero/dpcpp/unseq_backend_sycl.h"
 
 namespace oneapi::dpl::experimental::kt
 {
@@ -37,11 +34,6 @@ namespace __impl
 
 struct __no_init_callback
 {
-    template <typename... _Args>
-    void
-    operator()(_Args&&...) const
-    {
-    }
 };
 
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _NdItem,
@@ -65,7 +57,7 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc, _InputType __
     {
         __local_acc[__sub_group.get_group_linear_id()] = __sub_group_carry;
     }
-    sycl::group_barrier(__item.get_group());
+    __dpl_sycl::__group_barrier(__item);
     if (__sub_group_group_id == 0)
     {
         const std::uint8_t __num_iters =
@@ -100,15 +92,17 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc, _InputType __
         if constexpr (__b_init_callback)
             __wg_init = __process_init_callback(__sub_group, __wg_carry);
     }
-    // TODO: cleaner logic
-    sycl::group_barrier(__item.get_group());
+    __dpl_sycl::__group_barrier(__item);
     if constexpr (__b_init_callback)
     {
-        __wg_init = sycl::group_broadcast(__item.get_group(), __wg_init);
+        __wg_init = __dpl_sycl::__group_broadcast(__item.get_group(), __wg_init);
         if (__sub_group_group_id < __active_sub_groups)
         {
-            _InputType __sub_group_carry_in = (__sub_group_group_id == 0) ? __wg_init
-                : __binary_op(__wg_init, sycl::group_broadcast(__sub_group, __local_acc[__sub_group_group_id - 1]));
+            _InputType __sub_group_carry_in =
+                (__sub_group_group_id == 0)
+                    ? __wg_init
+                    : __binary_op(__wg_init,
+                                  __dpl_sycl::__group_broadcast(__sub_group, __local_acc[__sub_group_group_id - 1]));
             for (std::uint16_t __i = 0; __i < __iters_per_item; ++__i)
                 __input[__i] = __binary_op(__sub_group_carry_in, __input[__i]);
         }
@@ -117,7 +111,8 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc, _InputType __
     {
         if (__sub_group_group_id > 0 && __sub_group_group_id < __active_sub_groups)
         {
-            _InputType __sub_group_carry_in = sycl::group_broadcast(__sub_group, __local_acc[__sub_group_group_id - 1]);
+            _InputType __sub_group_carry_in =
+                __dpl_sycl::__group_broadcast(__sub_group, __local_acc[__sub_group_group_id - 1]);
             for (std::uint16_t __i = 0; __i < __iters_per_item; ++__i)
                 __input[__i] = __binary_op(__sub_group_carry_in, __input[__i]);
         }
@@ -148,4 +143,5 @@ __work_group_scan(const _NdItem& __item, _SlmAcc __local_acc, _InputType __input
 } // namespace __impl
 } // namespace gpu
 } // namespace oneapi::dpl::experimental::kt
+
 #endif
