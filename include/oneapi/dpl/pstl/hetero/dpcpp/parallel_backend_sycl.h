@@ -1503,7 +1503,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         // We allocate a single element of result storage and a single element of scratch storage. The device scratch
         // storage is used for the atomic operations in the main __parallel_find_or kernel and then copied to the
         // result host memory (if supported) in the writeback kernel for best performance.
-        constexpr std::size_t __scratch_storage_size = 100;
+        constexpr std::size_t __scratch_storage_size = 10;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_AtomicType, 1>;
         __result_and_scratch_storage_t __result_storage{__q, __scratch_storage_size};
 
@@ -1537,6 +1537,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
             auto __scratch_acc = __result_storage.template __get_scratch_acc<sycl::access_mode::read_write>(
                 __cgh, __dpl_sycl::__no_init{});
+            auto __scratch_ptr =
+                __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
 
             __cgh.depends_on(__event_init);
 
@@ -1573,9 +1575,6 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         // Get work-group index
                         const std::size_t __work_group_id = __item.get_group_linear_id();
 
-                        auto __scratch_ptr =
-                            __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
-
                         // Calculate the index of atomic for this work-group
                         const std::size_t __atomic_idx = __work_group_id % __scratch_storage_size;
 
@@ -1608,14 +1607,14 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     const std::size_t __global_idx = __item.get_linear_id();
 
                     const auto __found_local = __scratch_ptr[__global_idx];
-                    if (__found_local != __init_value)
-                    {
+                    //if (__found_local != __init_value)
+                    //{
                         __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
                             *__res_ptr);
 
                         // Update global (for all groups) atomic state with the found index
                         _BrickTag::__save_state_to_atomic(__found, __found_local);
-                    }
+                    //}
                 });
         });
 
