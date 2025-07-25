@@ -672,7 +672,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             // Avoid default constructor for _T, we know that _T is device copyable and therefore a copy construction
             // is equivalent to a bitwise copy.  We may treat *__tmp as if it has been constructed.
             oneapi::dpl::__internal::__lazy_ctor_storage<_T> __lazy_ctor_storage;
-            __q.memcpy(&(__lazy_ctor_storage.__v), __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
+            __q.memcpy(&__lazy_ctor_storage.__v, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
 
             // Setting up _T to be destroyed as this function exits. _T being device copyable provides that it has a
             // public non deleted destructor.
