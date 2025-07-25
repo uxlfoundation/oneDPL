@@ -53,6 +53,11 @@ test_long_form(T init, BinaryOp binary_op, F f)
 
         invoke_on_all_policies<0>()(test_long_reduce<T>(), in.begin(), in.end(), init, binary_op, expected);
         invoke_on_all_policies<1>()(test_long_reduce<T>(), in.cbegin(), in.cend(), init, binary_op, expected);
+        if constexpr (std::is_same_v<BinaryOp, std::plus<T>>)
+        {
+            invoke_on_all_policies<2>()(test_long_reduce<T>(), in.begin(), in.end(), NoDefaultCtorWrapper<T>{init},
+                                        std::plus<NoDefaultCtorWrapper<T>>{}, NoDefaultCtorWrapper<T>{expected});
+        }
     }
 }
 
