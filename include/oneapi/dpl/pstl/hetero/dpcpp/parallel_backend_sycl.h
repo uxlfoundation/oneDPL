@@ -1503,7 +1503,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         // We allocate a single element of result storage and a single element of scratch storage. The device scratch
         // storage is used for the atomic operations in the main __parallel_find_or kernel and then copied to the
         // result host memory (if supported) in the writeback kernel for best performance.
-        constexpr std::size_t __scratch_storage_size = 1;
+        constexpr std::size_t __scratch_storage_size = 5;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_AtomicType, 1>;
         __result_and_scratch_storage_t __result_storage{__q, __scratch_storage_size};
 
@@ -1518,7 +1518,10 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
             __cgh.single_task<KernelNameInit...>([__scratch_acc, __init_value]() {
                 auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
-                *__scratch_ptr = __init_value;
+
+                // Setup initial value for all scratch storage elements
+                for (std::size_t __idx = 0; __idx < __scratch_storage_size; ++__idx)
+                    __scratch_ptr[__idx] = __init_value;
             });
         });
 
@@ -1561,11 +1564,17 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     // Set local found state to global atomic
                     if (__local_idx == 0 && __found_local != __init_value)
                     {
+                        // Get work-group index
+                        const std::size_t __work_group_id = __item.get_group_linear_id();
+
                         auto __scratch_ptr =
                             __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
 
+                        // Calculate the index of atomic for this work-group
+                        const std::size_t __atomic_idx = __work_group_id % __scratch_storage_size;
+
                         __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
-                            *__scratch_ptr);
+                            __scratch_ptr[__atomic_idx]);
 
                         // Update global (for all groups) atomic state with the found index
                         _BrickTag::__save_state_to_atomic(__found, __found_local);
@@ -1579,11 +1588,17 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
             auto __res_acc =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
             __cgh.depends_on(__event);
-            __cgh.single_task<KernelNameWriteBack...>([__scratch_acc, __res_acc]() {
+            __cgh.single_task<KernelNameWriteBack...>([__scratch_acc, __res_acc, __init_value]() {
                 auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
                 auto __res_ptr =
                     __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, __scratch_storage_size);
-                *__res_ptr = *__scratch_ptr;
+
+                // Calculate the result value based on the scratch storage data
+                _AtomicType __result = __init_value;
+                for (std::size_t __idx = 0; __idx < __scratch_storage_size; ++__idx)
+                    _BrickTag::__save_state_to(__result, __scratch_ptr[__idx]);
+
+                *__res_ptr = __result;
             });
         });
 
