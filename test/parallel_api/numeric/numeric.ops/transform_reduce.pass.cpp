@@ -147,6 +147,22 @@ test_by_type(T init, BinaryOperation1 opB1, BinaryOperation2 opB2, UnaryOp opU, 
                                     in2.cbegin(), in2.cbegin() + n, init, opB1, opB2);
         invoke_on_all_policies<4>()(test_2_iters<T>(), in1.cbegin(), in1.cbegin() + n, init, opB1, opU);
 #endif
+        if constexpr (std::is_same_v<BinaryOperation1, std::plus<T>>)
+        {
+            if constexpr (std::is_same_v<BinaryOperation2, std::multiplies<T>>)
+            {
+                invoke_on_all_policies<5>()(
+                    test_3_iters_custom_ops<NoDefaultCtorWrapper<T>>(), in1.begin(), in1.begin() + n, in2.begin(),
+                    in2.begin() + n, NoDefaultCtorWrapper<T>{init}, std::plus<NoDefaultCtorWrapper<T>>{},
+                    std::multiplies<NoDefaultCtorWrapper<T>>{});
+            }
+            if constexpr (std::is_same_v<UnaryOp, std::negate<T>>)
+            {
+                invoke_on_all_policies<5>()(test_2_iters<NoDefaultCtorWrapper<T>>(), in1.begin(), in1.begin() + n,
+                                            NoDefaultCtorWrapper<T>{init}, std::plus<NoDefaultCtorWrapper<T>>{},
+                                            std::negate<NoDefaultCtorWrapper<T>>{});
+            }
+        }
     }
 }
 
