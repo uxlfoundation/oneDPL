@@ -1516,15 +1516,15 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
             auto __scratch_acc =
                 __result_storage.template __get_scratch_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
+            auto __scratch_ptr =
+                __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
+
             //__cgh.single_task<KernelNameInit...>([__scratch_acc, __init_value]() {
             __cgh.parallel_for<KernelNameInit...>(
                 sycl::range</*dim=*/1>(__scratch_storage_size),
-                [&](sycl::item</*dim=*/1> __item) {
+                [__scratch_ptr,__init_value](sycl::item</*dim=*/1> __item) {
 
                     const std::size_t __global_idx = __item.get_linear_id();
-
-                    auto __scratch_ptr =
-                        __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
 
                     // Setup initial value for all scratch storage elements
                     __scratch_ptr[__global_idx] = __init_value;
