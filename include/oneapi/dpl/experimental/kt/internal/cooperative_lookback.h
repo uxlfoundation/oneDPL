@@ -375,7 +375,6 @@ struct __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp,
                 auto __id = __item.get_linear_id();
                 __scan_status_flag<__sub_group_size, _Type> __current_tile(__lookback_storage,
                                                                            int(__id) - int(__status_flag_padding));
-                // TODO: we do not need atomics here
                 if (__id < __status_flag_padding)
                     __current_tile.set_oob();
                 else

@@ -166,33 +166,27 @@ struct __lookback_kernel_func
 
         std::uint32_t __tile_id = 0;
 
-        // Obtain unique ID for this work-group that will be used in decoupled lookback
-        if (__group.leader())
+        if (__num_tiles > 1)
         {
-            if (__num_tiles > 1)
+            // Obtain unique ID for this work-group that will be used in decoupled lookback
+            if (__group.leader())
             {
                 sycl::atomic_ref<_TileIdxT, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                                 sycl::access::address_space::global_space> __idx_atomic(*__atomic_id_ptr);
+                                 sycl::access::address_space::global_space>
+                    __idx_atomic(*__atomic_id_ptr);
                 __tile_id = __idx_atomic.fetch_add(1);
             }
-            else
-                __tile_id = 0;
+            __tile_id = sycl::group_broadcast(__group, __tile_id, 0);
         }
-
-        __tile_id = sycl::group_broadcast(__group, __tile_id, 0);
         auto __sub_group = __item.get_sub_group();
         auto __sub_group_local_id = __sub_group.get_local_linear_id();
         auto __sub_group_group_id = __sub_group.get_group_linear_id();
 
         std::size_t __work_group_offset = static_cast<std::size_t>(__tile_id) * __elems_in_tile;
 
-        if (__work_group_offset >= __n)
-            return;
-
         std::size_t __sub_group_current_offset =
             __work_group_offset + __sub_group_group_id * __data_per_workitem * __sub_group_size;
         std::size_t __sub_group_next_offset = __sub_group_current_offset + __sub_group_size * __data_per_workitem;
-        auto __out_begin = __out_rng.begin() + __sub_group_current_offset;
 
         // Making full / not full case a bool template parameter and compiling two separate functions significantly improves performance
         // over run-time checks immediately before load / store.
@@ -216,22 +210,21 @@ struct __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_s
     operator()(sycl::queue __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
                std::size_t __n, std::uint32_t* __atomic_id_ptr,
                typename __scan_status_flag<__sub_group_size, _Type>::storage __lookback_storage,
-               std::size_t __status_flags_size, std::size_t __current_num_items) const
+               std::size_t __status_flags_size, std::size_t __num_wgs) const
     {
         using _LocalAccessorType = __dpl_sycl::__local_accessor<_Type, 1>;
         using _KernelFunc = __lookback_kernel_func<__sub_group_size, __data_per_workitem, __workgroup_size, _Type,
                                                    _FlagType, std::decay_t<_InRng>, std::decay_t<_OutRng>,
                                                    std::decay_t<_BinaryOp>, std::decay_t<_LocalAccessorType>>;
-        const std::uint32_t __num_tiles = __current_num_items / __workgroup_size;
+
         return __q.submit([&](sycl::handler& __hdl) {
             auto __slm = _LocalAccessorType(
                 oneapi::dpl::__internal::__dpl_ceiling_div(__workgroup_size, __sub_group_size), __hdl);
             __hdl.depends_on(__prev_event);
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
-            __hdl.parallel_for<_Name...>(sycl::nd_range<1>(__current_num_items, __workgroup_size),
-                                         _KernelFunc{__in_rng, __out_rng, __binary_op, __n, __atomic_id_ptr,
-                                                     __lookback_storage, __status_flags_size, __num_tiles,
-                                                     __slm});
+            __hdl.parallel_for(sycl::nd_range<1>(__num_wgs * __workgroup_size, __workgroup_size),
+                               _KernelFunc{__in_rng, __out_rng, __binary_op, __n, __atomic_id_ptr, __lookback_storage,
+                                           __status_flags_size, __num_wgs, __slm});
         });
     }
 };
@@ -263,62 +256,63 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     // Next power of 2 greater than or equal to __n
     auto __n_uniform = ::oneapi::dpl::__internal::__dpl_bit_ceil(__n);
 
-    // Perform a single-work group scan if the input is small
-    if (oneapi::dpl::__par_backend_hetero::__group_scan_fits_in_slm<_Type>(__queue, __n, __n_uniform, /*limit=*/16384))
-    {
-        return oneapi::dpl::__par_backend_hetero::__parallel_transform_scan_single_group<_KernelName>(
-            __queue, std::forward<_InRange>(__in_rng), std::forward<_OutRange>(__out_rng), __n, oneapi::dpl::identity{},
-            unseq_backend::__no_init_value<_Type>{}, __binary_op, std::true_type{});
-    }
-
     constexpr std::size_t __workgroup_size = _KernelParam::workgroup_size;
     constexpr std::size_t __data_per_workitem = _KernelParam::data_per_workitem;
 
     // Avoid non_uniform n by padding up to a multiple of workgroup_size
     std::size_t __elems_in_tile = __workgroup_size * __data_per_workitem;
     std::size_t __num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
-    constexpr int __status_flag_padding = __sub_group_size;
-    std::size_t __status_flags_size = (__num_wgs == 1) ? 0 : __num_wgs + 1 + __status_flag_padding;
-    const ::std::size_t __mem_bytes = _FlagStorageType::get_reqd_storage(__status_flags_size);
+
+    std::size_t __status_flags_size = 0;
+    std::size_t __mem_bytes = 0;
     std::byte* __device_mem = nullptr;
-    if (__mem_bytes > 0)
+    std::uint32_t* __atomic_id_ptr = nullptr;
+    const bool __is_single_tile = (__num_wgs == 1);
+    if (__is_single_tile)
     {
-        __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __queue));
-        if (!__device_mem)
-            throw std::bad_alloc();
-    }
-
-    // TODO: temp workaround until I figure out what's wrong
-    std::uint32_t* __atomic_id_ptr = sycl::malloc_device<std::uint32_t>(1, __queue);
-    __queue.fill(__atomic_id_ptr, 0, 1).wait();
-    _FlagStorageType __lookback_storage(__device_mem, __mem_bytes, __status_flags_size);
-    auto __fill_event = __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
-        __queue, __lookback_storage, __status_flags_size, __status_flag_padding);
-
-    std::size_t __current_num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
-    std::size_t __current_num_items = __current_num_wgs * __workgroup_size;
-
-    auto __prev_event = __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_size, _Type, _FlagType,
-                                             _LookbackKernel>{}(__queue, __fill_event, __in_rng, __out_rng, __binary_op,
-                                                                __n, __atomic_id_ptr, __lookback_storage,
-                                                                __status_flags_size, __current_num_items);
-
-    // TODO: Currently, the following portion of code makes this entire function synchronous.
-    // Ideally, we should be able to use the asynchronous free below, but we have found that doing
-    // so introduces a large unexplainable slowdown. Once this slowdown has been identified and corrected,
-    // we should replace this code with the asynchronous version below.
-    if (0)
-    {
-        return __queue.submit([=](sycl::handler& __hdl) {
-            __hdl.depends_on(__prev_event);
-            __hdl.host_task([=]() { sycl::free(__device_mem, __queue); });
-        });
+        _FlagStorageType __lookback_storage(__device_mem, __mem_bytes, __status_flags_size);
+        return __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_size, _Type, _FlagType,
+                                    _LookbackKernel>{}(__queue, /*__fill_event*/ sycl::event{}, __in_rng, __out_rng,
+                                                       __binary_op, __n, __atomic_id_ptr, __lookback_storage,
+                                                       __status_flags_size, __num_wgs);
     }
     else
     {
-        __prev_event.wait();
-        sycl::free(__device_mem, __queue);
-        return __prev_event;
+        constexpr int __status_flag_padding = __sub_group_size;
+        __status_flags_size = __num_wgs + 1 + __status_flag_padding;
+        __mem_bytes = _FlagStorageType::get_reqd_storage(__status_flags_size);
+        // TODO: temp workaround until I figure out what's wrong
+        __atomic_id_ptr = sycl::malloc_device<std::uint32_t>(1, __queue);
+        __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __queue));
+        if (!__device_mem)
+            throw std::bad_alloc();
+        __queue.fill(__atomic_id_ptr, 0, 1).wait();
+        _FlagStorageType __lookback_storage(__device_mem, __mem_bytes, __status_flags_size);
+        sycl::event __fill_event =
+            __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
+                __queue, __lookback_storage, __status_flags_size, __status_flag_padding);
+
+        sycl::event __prev_event = __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_size, _Type,
+                                                        _FlagType, _LookbackKernel>{}(
+            __queue, __fill_event, __in_rng, __out_rng, __binary_op, __n, __atomic_id_ptr, __lookback_storage,
+            __status_flags_size, __num_wgs);
+        // TODO: Currently, the following portion of code makes this entire function synchronous.
+        // Ideally, we should be able to use the asynchronous free below, but we have found that doing
+        // so introduces a large unexplainable slowdown. Once this slowdown has been identified and corrected,
+        // we should replace this code with the asynchronous version below.
+        if (0)
+        {
+            return __queue.submit([=](sycl::handler& __hdl) {
+                __hdl.depends_on(__prev_event);
+                __hdl.host_task([=]() { sycl::free(__device_mem, __queue); });
+            });
+        }
+        else
+        {
+            __prev_event.wait();
+            sycl::free(__device_mem, __queue);
+            return __prev_event;
+        }
     }
 }
 
