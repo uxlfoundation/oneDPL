@@ -46,18 +46,19 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc, _InputType __
     constexpr bool __b_init_callback = !std::is_same_v<__no_init_callback, _ProcessInitCallback>;
 
     sycl::sub_group __sub_group = __item.get_sub_group();
+    // Perform scan at sub-group level
     _InputType __sub_group_carry =
         __sub_group_scan<__sub_group_size, __iters_per_item>(__sub_group, __input, __binary_op);
     const std::uint8_t __sub_group_group_id = __sub_group.get_group_linear_id();
     const std::uint8_t __active_sub_groups =
         oneapi::dpl::__internal::__dpl_ceiling_div(__items_in_scan, __sub_group_size * __iters_per_item);
-    // When there is no init callback, the compiler can just optimize out this variable.
     [[maybe_unused]] _InputType __wg_init;
     if (__sub_group.get_local_linear_id() == __sub_group_size - 1)
     {
         __local_acc[__sub_group.get_group_linear_id()] = __sub_group_carry;
     }
     __dpl_sycl::__group_barrier(__item);
+    // Scan over sub-group level reductions to compute incoming prefixes for a sub-group
     if (__sub_group_group_id == 0)
     {
         const std::uint8_t __num_iters =
@@ -67,32 +68,37 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc, _InputType __
         _InputType __val = __local_acc[__idx];
         if (__num_iters == 1)
         {
-            __sub_group_scan_partial<__sub_group_size, true, false>(__sub_group, __val, __binary_op, __wg_carry,
-                                                                    __active_sub_groups);
+            __sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
+                __sub_group, __val, __binary_op, __wg_carry, __active_sub_groups);
             __local_acc[__idx] = __val;
         }
         else
         {
-            __sub_group_scan<__sub_group_size, true, false>(__sub_group, __val, __binary_op, __wg_carry);
+            __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
+                __sub_group, __val, __binary_op, __wg_carry);
             __local_acc[__idx] = __val;
             __idx += __sub_group_size;
             for (std::uint8_t __i = 1; __i < __num_iters - 1; ++__i)
             {
                 __val = __local_acc[__idx];
-                __sub_group_scan<__sub_group_size, true, true>(__sub_group, __val, __binary_op, __wg_carry);
+                __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
+                    __sub_group, __val, __binary_op, __wg_carry);
                 __local_acc[__idx] = __val;
                 __idx += __sub_group_size;
             }
             __val = __local_acc[__idx];
-            __sub_group_scan_partial<__sub_group_size, true, true>(__sub_group, __val, __binary_op, __wg_carry,
-                                                                   __active_sub_groups -
-                                                                       (__num_iters - 1) * __sub_group_size);
+            __sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
+                __sub_group, __val, __binary_op, __wg_carry,
+                __active_sub_groups - (__num_iters - 1) * __sub_group_size);
             __local_acc[__idx] = __val;
         }
+        // Init callback, most common case is expected to be a decoupled lookback to achieve a global scan between
+        // work-groups.
         if constexpr (__b_init_callback)
             __wg_init = __process_init_callback(__sub_group, __wg_carry);
     }
     __dpl_sycl::__group_barrier(__item);
+    // Determine incoming prefix from previous sub-groups and / or work-groups, and update results in __input
     if constexpr (__b_init_callback)
     {
         __wg_init = __dpl_sycl::__group_broadcast(__item.get_group(), __wg_init);
@@ -120,6 +126,10 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc, _InputType __
     return __local_acc[__active_sub_groups - 1];
 }
 
+// An overload of __work_group_scan (explained below) which accepts an __init_callback function object that is invoked
+// by the first sub-group in the work-group as a prefix to the scan. __init_callback(__sub_group, __local_reduction)
+// must be callable where __sub_group is a sycl::sub_group and __local_reduction is the current work-group's computed
+// reduction of type _InputType.
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _NdItem,
           typename _SlmAcc, typename _InitCallback, typename _BinaryOperation>
 _InputType
@@ -130,6 +140,32 @@ __work_group_scan(const _NdItem& __item, _SlmAcc __local_acc, _InputType __input
                                                                       __init_callback, __items_in_scan);
 }
 
+//
+// An optimized work-group scan that is made up of smaller register based sub-group scans.
+// The SLM requirement for this implementation is sizeof(_InputType) * ceil(work_group_size / sub_group_size) as
+// a single element per sub-group of _InputType is required. The results of the scan are updated in __input.
+//
+// Input is accepted in the form of an array in sub-group strided order with sub-groups processing contiguous blocks
+// in an input. Formally, for some index i in __input, __input[i] must correspond to position
+//      (i * sg_sz + sg_lid) + (sg_sz * sg_gid * iters_per_item)
+// in the desired work-group scan where sg_sz is the size of the sub-group, sg_lid is the local offset of an item in
+// the sub-group, and sg_gid is the group number of the sub-group in the containing work-group. This layout is to align
+// with optimal loads from global memory without extra data movement.
+//
+// Suppose, a work scan over 0, 1, 2, 3, ... 31 is to be performed with a __sub_group_size of 4, 4 __iters_per_item,
+// and 2 total sub-groups for a total of 8 work-items in the work-group. To perform this operation, the elements must
+// be held in the following order:
+//
+// sub_group 0: work_group_id 0:  0,  4,  8,  12
+//              work_group_id 1:  1,  5,  9,  13
+//              work_group_id 2:  2,  6,  10, 14
+//              work_group_id 3:  3,  7,  11, 15
+//
+// sub_group 1: work_group_id 4:  16, 20, 24, 28
+//              work_group_id 5:  17, 21, 25, 29
+//              work_group_id 6:  18, 22, 26, 30
+//              work_group_id 7:  19, 26, 27, 31
+//
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _NdItem,
           typename _SlmAcc, typename _BinaryOperation>
 _InputType
