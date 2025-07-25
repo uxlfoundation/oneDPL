@@ -16,13 +16,10 @@
 #ifndef _ONEDPL_KT_SUB_GROUP_SCAN_H
 #define _ONEDPL_KT_SUB_GROUP_SCAN_H
 
-#include <sycl/sycl.hpp>
 #include <cstdint>
-#include <vector>
-#include <numeric>
-#include <algorithm>
 
 #include "../../../../pstl/utils.h"
+#include "../../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../../../../pstl/hetero/dpcpp/unseq_backend_sycl.h"
 
 namespace oneapi::dpl::experimental::kt
@@ -39,7 +36,7 @@ namespace __impl
 template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId,
           typename _BinaryOp, typename _ValueType, typename _LazyValueType>
 void
-__inclusive_sub_group_masked_scan(const sycl::sub_group& __sub_group, _MaskOp __mask_fn,
+__inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn,
                                   _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
                                   _LazyValueType& __init_and_carry)
 {

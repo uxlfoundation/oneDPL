@@ -20,8 +20,8 @@
 #include <cassert>
 #include <cstddef>
 #include <type_traits>
-#include <sycl/sycl.hpp>
 
+#include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "sub_group/sub_group_scan.h"
 
 namespace oneapi::dpl::experimental::kt
@@ -141,7 +141,7 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
     }
 
     std::pair<_FlagStorageType, _T>
-    spin_and_get(const sycl::sub_group& __sub_group) const
+    spin_and_get(const __dpl_sycl::__sub_group& __sub_group) const
     {
         _PackedStatusPrefixT __tile_status_prefix;
         _FlagStorageType __tile_flag = __initialized_status;
@@ -154,7 +154,7 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
                 __tile_status_prefix = __atomic_packed_flag.load();
                 __tile_flag = get_status(__tile_status_prefix);
             }
-        } while (sycl::any_of_group(__sub_group, __tile_flag == __initialized_status));
+        } while (__dpl_sycl::__any_of_group(__sub_group, __tile_flag == __initialized_status));
         _T __tile_value = get_value(__tile_status_prefix);
         return {__tile_flag, __tile_value};
     }
@@ -266,7 +266,7 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
     }
 
     std::pair<_FlagStorageType, _T>
-    spin_and_get(const sycl::sub_group& __sub_group) const
+    spin_and_get(const __dpl_sycl::__sub_group& __sub_group) const
     {
         _FlagStorageType __tile_flag = __initialized_status;
         // Load flag from a previous tile based on my local id.
@@ -275,7 +275,7 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
         {
             if (__tile_flag == __initialized_status)
                 __tile_flag = __atomic_flag.load();
-        } while (sycl::any_of_group(__sub_group, __tile_flag == __initialized_status));
+        } while (__dpl_sycl::__any_of_group(__sub_group, __tile_flag == __initialized_status));
         _T __tile_value = get_value(__tile_flag);
         return {__tile_flag, __tile_value};
     }
@@ -292,9 +292,8 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
 template <std::uint8_t __sub_group_size, typename _T, typename _IdxType, typename _BinaryOp>
 struct __cooperative_lookback
 {
-    template <typename _Subgroup>
     _T
-    operator()(const _Subgroup& __subgroup, _T __local_reduction) const
+    operator()(const __dpl_sycl::__sub_group& __subgroup, _T __local_reduction) const
     {
         __scan_status_flag<__sub_group_size, _T> __local_flag(__lookback_storage, __tile_id);
         if (__subgroup.get_local_id() == 0)
