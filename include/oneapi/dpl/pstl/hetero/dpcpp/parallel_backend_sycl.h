@@ -1591,24 +1591,32 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         // Copy data back from scratch part to result part
         auto __writeback_event = __q.submit([&](sycl::handler& __cgh) {
             auto __scratch_acc = __result_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
+            auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
+
             auto __res_acc =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+            auto __res_ptr =
+                __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, __scratch_storage_size);
+
+            *__res_ptr = __init_value;
+
             __cgh.depends_on(__event);
 
-#if 0
-            __cgh.single_task<KernelNameWriteBack...>([__scratch_acc, __res_acc, __init_value]() {
-                auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
-                auto __res_ptr =
-                    __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, __scratch_storage_size);
+            __cgh.parallel_for<KernelNameWriteBack...>(
+                sycl::range</*dim=*/1>(__scratch_storage_size),
+                [__scratch_ptr, __init_value, __res_ptr](sycl::item</*dim=*/1> __item) {
+                    const std::size_t __global_idx = __item.get_linear_id();
 
-                // Calculate the result value based on the scratch storage data
-                _AtomicType __result = __init_value;
-                for (std::size_t __idx = 0; __idx < __scratch_storage_size; ++__idx)
-                    _BrickTag::__save_state_to(__result, __scratch_ptr[__idx]);
+                    const auto __found_local = __scratch_ptr[__global_idx];
+                    if (__found_local != __init_value)
+                    {
+                        __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
+                            *__res_ptr);
 
-                *__res_ptr = __result;
-            });
-#endif
+                        // Update global (for all groups) atomic state with the found index
+                        _BrickTag::__save_state_to_atomic(__found, __found_local);
+                    }
+                });
         });
 
         // Wait and return result
