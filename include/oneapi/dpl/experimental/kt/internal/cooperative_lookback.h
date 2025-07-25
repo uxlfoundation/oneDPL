@@ -367,7 +367,8 @@ struct __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp,
                                  oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
     sycl::event
-    operator()(sycl::queue __q, typename __scan_status_flag<__sub_group_size, _Type>::storage __lookback_storage,
+    operator()(sycl::queue __q, std::uint32_t* __atomic_id_ptr,
+               typename __scan_status_flag<__sub_group_size, _Type>::storage __lookback_storage,
                std::size_t __status_flags_size, std::uint16_t __status_flag_padding) const
     {
         return __q.submit([&](sycl::handler& __hdl) {
@@ -376,7 +377,11 @@ struct __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp,
                 __scan_status_flag<__sub_group_size, _Type> __current_tile(__lookback_storage,
                                                                            int(__id) - int(__status_flag_padding));
                 if (__id < __status_flag_padding)
+                {
                     __current_tile.set_oob();
+                    if (__id == 0)
+                        *__atomic_id_ptr = 0;
+                }
                 else
                     __current_tile.set_init();
             });

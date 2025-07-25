@@ -279,18 +279,16 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     else
     {
         constexpr int __status_flag_padding = __sub_group_size;
-        __status_flags_size = __num_wgs + 1 + __status_flag_padding;
-        __mem_bytes = _FlagStorageType::get_reqd_storage(__status_flags_size);
-        // TODO: temp workaround until I figure out what's wrong
-        __atomic_id_ptr = sycl::malloc_device<std::uint32_t>(1, __queue);
+        __status_flags_size = __num_wgs + __status_flag_padding;
+        __mem_bytes = _FlagStorageType::get_reqd_storage(__status_flags_size) + sizeof(std::uint32_t);
         __device_mem = reinterpret_cast<std::byte*>(sycl::malloc_device(__mem_bytes, __queue));
+        __atomic_id_ptr = reinterpret_cast<std::uint32_t*>(__device_mem + __mem_bytes - sizeof(std::uint32_t));
         if (!__device_mem)
             throw std::bad_alloc();
-        __queue.fill(__atomic_id_ptr, 0, 1).wait();
         _FlagStorageType __lookback_storage(__device_mem, __mem_bytes, __status_flags_size);
         sycl::event __fill_event =
             __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
-                __queue, __lookback_storage, __status_flags_size, __status_flag_padding);
+                __queue, __atomic_id_ptr, __lookback_storage, __status_flags_size, __status_flag_padding);
 
         sycl::event __prev_event = __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_size, _Type,
                                                         _FlagType, _LookbackKernel>{}(
