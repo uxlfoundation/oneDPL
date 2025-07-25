@@ -1519,7 +1519,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
             //__cgh.single_task<KernelNameInit...>([__scratch_acc, __init_value]() {
             __cgh.parallel_for<KernelNameInit...>(
                 sycl::range</*dim=*/1>(__scratch_storage_size),
-                [&__scratch_acc, __init_value](sycl::item</*dim=*/1> __item) {
+                [&](sycl::item</*dim=*/1> __item) {
 
                     const std::size_t __global_idx = __item.get_linear_id();
 
