@@ -60,9 +60,8 @@ struct __temp_data_array
     _ValueT
     get_and_destroy(std::uint16_t __idx)
     {
-        _ValueT __ele = std::move(__data[__idx].__v);
-        __data[__idx].__destroy();
-        return __ele;
+        __call_destroy_in_lazy_ctor_storage<_ValueT> __call_destroy{__data[__idx]};
+        return __data[__idx].__v;
     }
 
     oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];

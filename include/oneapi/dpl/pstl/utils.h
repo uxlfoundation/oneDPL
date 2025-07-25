@@ -900,6 +900,17 @@ union __lazy_ctor_storage
     }
 };
 
+template <typename _Tp>
+struct __call_destroy_in_lazy_ctor_storage
+{
+    __lazy_ctor_storage<_Tp>& __ref;
+
+    ~__call_destroy_in_lazy_ctor_storage()
+    {
+        __ref.__destroy();
+    }
+};
+
 // To implement __min_nested_type_size, a general utility with an internal tuple
 // specialization, we need to forward declare our internal tuple first as tuple_impl.h
 // already includes this header.
