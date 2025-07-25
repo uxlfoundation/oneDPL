@@ -1607,14 +1607,12 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     const std::size_t __global_idx = __item.get_linear_id();
 
                     const auto __found_local = __scratch_ptr[__global_idx];
-                    //if (__found_local != __init_value)
-                    //{
-                        __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
-                            *__res_ptr);
 
-                        // Update global (for all groups) atomic state with the found index
-                        _BrickTag::__save_state_to_atomic(__found, __found_local);
-                    //}
+                    __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
+                        *__res_ptr);
+
+                    // Update global (for all groups) atomic state with the found index
+                    _BrickTag::__save_state_to_atomic(__found, __found_local);
                 });
         });
 
