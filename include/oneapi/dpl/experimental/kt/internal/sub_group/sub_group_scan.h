@@ -99,6 +99,15 @@ __sub_group_scan_partial(const sycl::sub_group& __sub_group, _ValueType& __value
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
 
+//
+// An optimized scan in a sycl::sub_group performed in local registers.
+// Input is accepted in the form of an array in sub-group strided order. Formally, for some index i in __input,
+// __input[i] must correspond to position
+//      (i * sg_sz + sg_lid)
+// in the desired sub-group scan where sg_sz is the size of the sub-group and sg_lid is the local offset of an item in
+// the sub-group. This layout is to align with optimal loads from global memory without extra data movement.
+// The scan results are updated in __input.
+//
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _SubGroup,
           typename _BinaryOperation>
 _InputType
@@ -109,11 +118,13 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_it
     _InputType __carry{};
     if (__is_full)
     {
-        __sub_group_scan<__sub_group_size, true, false>(__sub_group, __input[0], __binary_op, __carry);
+        __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(__sub_group, __input[0],
+                                                                                              __binary_op, __carry);
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 1; __i < __iters_per_item; ++__i)
         {
-            __sub_group_scan<__sub_group_size, true, true>(__sub_group, __input[__i], __binary_op, __carry);
+            __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
+                __sub_group, __input[__i], __binary_op, __carry);
         }
     }
     else
@@ -123,20 +134,22 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_it
         std::uint16_t __i = 0;
         if (__limited_iters_per_item == 1)
         {
-            __sub_group_scan_partial<__sub_group_size, true, false>(__sub_group, __input[__i], __binary_op, __carry,
-                                                                    __items_in_scan -
-                                                                        __i * __iters_per_item * __sub_group_size);
+            __sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
+                __sub_group, __input[__i], __binary_op, __carry,
+                __items_in_scan - __i * __iters_per_item * __sub_group_size);
         }
         else
         {
-            __sub_group_scan<__sub_group_size, true, false>(__sub_group, __input[__i++], __binary_op, __carry);
+            __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
+                __sub_group, __input[__i++], __binary_op, __carry);
             for (; __i < __limited_iters_per_item - 1; ++__i)
             {
-                __sub_group_scan<__sub_group_size, true, true>(__sub_group, __input[__i], __binary_op, __carry);
+                __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
+                    __sub_group, __input[__i], __binary_op, __carry);
             }
-            __sub_group_scan_partial<__sub_group_size, true, true>(__sub_group, __input[__i], __binary_op, __carry,
-                                                                   __items_in_scan -
-                                                                       __i * __iters_per_item * __sub_group_size);
+            __sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
+                __sub_group, __input[__i], __binary_op, __carry,
+                __items_in_scan - __i * __iters_per_item * __sub_group_size);
         }
     }
     return __carry;

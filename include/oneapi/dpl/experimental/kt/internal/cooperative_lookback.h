@@ -13,6 +13,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
+
 #ifndef _ONEDPL_KT_COOPERATIVE_LOOKBACK_H
 #define _ONEDPL_KT_COOPERATIVE_LOOKBACK_H
 
@@ -44,11 +45,18 @@ struct __can_combine_status_prefix_flags
 template <std::uint8_t __sub_group_size, typename _T, typename = void>
 struct __scan_status_flag;
 
+// __scan_status_flag specialization that combines a scan tile's status and actual prefix value into a single element
+// and extract with bit logic. This minimizes temporary storage requirements and number of atomic operations that need
+// to be performed during updates / spinning. In particular, each tile owns 1 element of type _PackedStatusPrefixT
+// across the underlying buffer where the upper bits are used to store the scan prefix and the lower bits are used to
+// store the scan flag.
 template <std::uint8_t __sub_group_size, typename _T>
 struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_status_prefix_flags<_T>::value>>
 {
+    // For 4-byte types, we need 8-bytes per tile to implement this approach. For 2-byte and 1-byte types, only 4-bytes
+    // per tile is required.
     using _PackedStatusPrefixT = std::conditional_t<sizeof(_T) == 4, std::uint64_t, std::uint32_t>;
-    using _TileIdxT = uint32_t;
+    using _TileIdxT = std::uint32_t;
     using _FlagStorageType = std::conditional_t<sizeof(_T) == 4, std::uint32_t, std::uint16_t>;
     using _TIntegralBitsType = std::conditional_t<sizeof(_T) == 4, std::uint32_t,
                                                   std::conditional_t<sizeof(_T) == 2, std::uint16_t, std::uint8_t>>;
@@ -115,8 +123,8 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
         __packed_flag_ref = _PackedStatusPrefixT{__packed_flag};
     }
 
-    // For initialization routines, we do not need atomicity, so we can write through the ptr
-    // member variable.
+    // For initialization routines, we do not need atomicity, so we can write through the
+    // reference directly.
     void
     set_init()
     {
@@ -163,6 +171,9 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
     _AtomicPackedStatusPrefixT __atomic_packed_flag;
 };
 
+// __scan_status_flag specialization for types where we cannot combine prefix and status flag. Each tile owns 3
+// elements across the underlying buffer: a status flag, a partial scan value consisting of the tile's own local
+// reduction, and a full scan value consisting of the reduction of the current tile along with all preceding tiles.
 template <std::uint8_t __sub_group_size, typename _T>
 struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_status_prefix_flags<_T>::value>>
 {
@@ -289,6 +300,7 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
     _AtomicValueT __atomic_full_value;
 };
 
+// Function object intended to be provided to __work_group_scan as an __init_callback
 template <std::uint8_t __sub_group_size, typename _T, typename _IdxType, typename _BinaryOp>
 struct __cooperative_lookback
 {
@@ -318,22 +330,22 @@ struct __cooperative_lookback
             // recomputed the prefix using partial values
             if (__is_full_ballot_bits)
             {
-                __sub_group_scan_partial<__sub_group_size, true, decltype(__is_initialized)::value>(
+                __sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true,
+                                         /*__init_present*/ decltype(__is_initialized)::value>(
                     __subgroup, __tile_value, __binary_op, __running, __lowest_item_with_full + 1);
                 return true;
             }
             else
             {
-                __sub_group_scan<__sub_group_size, true, decltype(__is_initialized)::value>(__subgroup, __tile_value,
-                                                                                            __binary_op, __running);
+                __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
+                                 /*__init_present*/ decltype(__is_initialized)::value>(__subgroup, __tile_value,
+                                                                                       __binary_op, __running);
                 return false;
             }
         };
         int __tile = static_cast<int>(__tile_id) - 1;
         bool __full_tile_found = false;
-        // If the zeroth tile never calls __cooperative_lookback, then this is unnecessary.
-        if (__tile >= 0)
-            __full_tile_found = __lookback_iter(/*__is_initialized*/ std::false_type{}, __tile);
+        __full_tile_found = __lookback_iter(/*__is_initialized*/ std::false_type{}, __tile);
         __tile -= __sub_group_size;
         for (; __tile >= 0 && !__full_tile_found; __tile -= __sub_group_size)
         {

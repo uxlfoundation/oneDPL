@@ -21,7 +21,6 @@
 #include "../../pstl/hetero/dpcpp/parallel_backend_sycl.h"
 #include "../../pstl/hetero/dpcpp/execution_sycl_defs.h"
 #include "../../pstl/utils.h"
-#include "../../pstl/functional_impl.h" // for oneapi::dpl::identity
 
 #include "internal/work_group/work_group_scan.h"
 #include "internal/cooperative_lookback.h"
@@ -235,7 +234,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
 {
     constexpr std::uint8_t __sub_group_size = 32;
 
-    using _Type = oneapi::dpl::__internal::__value_t<_InRange>;
+    using _Type = oneapi::dpl::__internal::__value_t<_OutRange>;
     using _FlagType = __scan_status_flag<__sub_group_size, _Type>;
     using _FlagStorageType = typename _FlagType::storage;
     using _KernelName = typename _KernelParam::kernel_name;
