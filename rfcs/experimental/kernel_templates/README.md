@@ -354,6 +354,35 @@ and to address concerns related to usability and expressiveness.
 - Range support:
   Should ranges be supported in the interface, or are iterators sufficient?
 
+### Vectorizing/Widenning of Load and Store Operations
+
+Many GPU architectures often support wide load and store operations
+(128B, 256B, or larger depending on a specific architecture) per sub-group
+that can significantly improve global memory and instruction throughput.
+These operations may require each individual work-item to handle multiple contiguous elements,
+effectively performing vectorized memory accesses.
+
+This optimization is already used in several oneDPL algorithms with standard interfaces.
+See [PR #1976](https://github.com/uxlfoundation/oneDPL/pull/1976) as an example.
+
+We need to explore if there is a need for a new control and
+if the optimization can be efficiently and portably done for the most relevant architectures.
+
+If a universal solution is not feasible, we should consider adding a new control,
+which raises questions:
+- How should it interact with `data_per_workitem`?
+- Should it be applied to all or only to a subset of algorithms?
+- What should the interface look like?
+
+If a new control is needed, we may add `vector_width` parameter.
+When combined with `data_per_workitem`, the memory access pattern could be configured as follows:
+1. **Vector mode:** `data_per_workitem` equals `vector_width`.
+  Each work-item loads/stores a contiguous block of `vector_width` elements.
+2. **Strided mode:** `vector_width = 1`.
+  Each work-item loads/stores `data_per_workitem` elements in a strided fashion.
+3. **Combined mode:** `data_per_workitem` is a multiple of `vector_width`.
+  Each work-item loads/stores contiguous `vector_width` elements per stride.
+
 ## Exit Criteria
 
 The proposed set of algorithms should become fully supported if:
