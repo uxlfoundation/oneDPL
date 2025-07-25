@@ -671,15 +671,13 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                           "The type _T must be device copyable to use __result_and_scratch_storage.");
             // Avoid default constructor for _T, we know that _T is device copyable and therefore a copy construction
             // is equivalent to a bitwise copy.  We may treat *__tmp as if it has been constructed.
-            _T* __tmp = static_cast<_T*>(malloc(sizeof(_T)));
-            __q.memcpy(__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
-            _T __return_tmp = std::move(*__tmp);
+            oneapi::dpl::__internal::__lazy_ctor_storage<_T> __lazy_ctor_storage;
+            __q.memcpy(&(__lazy_ctor_storage.__v), __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
             
-            // Calling explicit destructor to properly clean up after move and before free.
-            // _T being device copyable provides that it has a public non deleted destructor
-            __tmp->~_T();
-            free(__tmp);
-            return __return_tmp;
+            // Setting up _T to be destroyed as this function exits. _T being device copyable provides that it has a
+            // public non deleted destructor.
+            oneapi::dpl::__internal::__scoped_destroyer<_T> __destroy_when_leaving_scope{__lazy_ctor_storage};
+            return __lazy_ctor_storage.__v;
         }
         else
         {
