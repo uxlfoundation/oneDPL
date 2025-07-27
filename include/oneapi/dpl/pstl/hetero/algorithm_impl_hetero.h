@@ -2181,11 +2181,12 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 }
 
 template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
-          typename _OutputIterator, typename _T, typename _BinaryPredicate, typename _Operator, typename _Inclusive>
+          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive,
+          typename _InitType>
 _OutputIterator
-__pattern_scan_by_segment(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputIterator1 __first1,
-                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result, _T __init,
-                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive)
+__pattern_scan_by_segment_impl(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputIterator1 __first1,
+                               _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
+                               _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive, _InitType __init)
 {
     const auto __n = std::distance(__first1, __last1);
 
@@ -2205,8 +2206,20 @@ __pattern_scan_by_segment(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputI
 
     __bknd::__parallel_scan_by_segment<_Inclusive::value>(
         _BackendTag{}, std::forward<_Policy>(__policy), __key_buf.all_view(), __value_buf.all_view(),
-        __value_output_buf.all_view(), __binary_pred, __binary_op, unseq_backend::__init_value<_T>{__init});
+        __value_output_buf.all_view(), __binary_pred, __binary_op, __init);
     return __result + __n;
+}
+
+template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
+          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive, typename _T>
+_OutputIterator
+__pattern_scan_by_segment(__hetero_tag<_BackendTag> __tag, _Policy&& __policy, _InputIterator1 __first1,
+                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
+                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive __is_inclusive, _T __init)
+{
+    return __pattern_scan_by_segment_impl(__tag, std::forward<_Policy>(__policy), __first1, __last1, __first2, __result,
+                                          __binary_pred, __binary_op, __is_inclusive,
+                                          unseq_backend::__init_value<_T>{__init});
 }
 
 template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
@@ -2216,8 +2229,8 @@ __pattern_scan_by_segment(__hetero_tag<_BackendTag> __tag, _Policy&& __policy, _
                           _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
                           _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive __is_inclusive)
 {
-    return __pattern_scan_by_segment(__tag, std::forward<_Policy>(__policy), __first1, __last1, __first2, __result,
-                                     unseq_backend::__no_init_value{}, __binary_pred, __binary_op, __is_inclusive);
+    return __pattern_scan_by_segment_impl(__tag, std::forward<_Policy>(__policy), __first1, __last1, __first2, __result,
+                                          __binary_pred, __binary_op, __is_inclusive, unseq_backend::__no_init_value{});
 }
 
 } // namespace __internal
