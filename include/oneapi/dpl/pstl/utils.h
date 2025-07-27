@@ -1052,9 +1052,9 @@ struct __replace_if_fun
 
     template <typename _T1, typename _T2>
     _T
-    operator()(_T1&& __a, const _T2& __s) const
+    operator()(_T1&& __a, _T2&& __s) const
     {
-        return __pred(__s) ? __new_value : std::forward<_T1>(__a);
+        return __pred(std::forward<_T2>(__s)) ? __new_value : __a;
     }
 
     _Predicate __pred;
