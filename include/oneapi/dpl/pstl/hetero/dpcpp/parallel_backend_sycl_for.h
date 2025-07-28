@@ -93,11 +93,11 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
-            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item_id) {
+            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item) {
                 // Disable vectorization and multiple iterations per item within the brick to evenly spread work across
                 // compute units.
                 __pfor_params<false /*__enable_tuning*/, _Fp, _Ranges...> __params;
-                const std::size_t __idx = __item_id.get_linear_id();
+                const std::size_t __idx = __item.get_linear_id();
                 __brick(std::true_type{}, __idx, __params, __rngs...);
             });
         });

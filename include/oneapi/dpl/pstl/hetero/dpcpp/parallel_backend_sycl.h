@@ -146,7 +146,7 @@ struct iter_mode
             return it;
         return Iter<preferredMode, Types...>(it);
     }
-    // for ounting_iterator
+    // for counting_iterator
     template <typename T>
     oneapi::dpl::counting_iterator<T>
     operator()(const oneapi::dpl::counting_iterator<T>& it)
@@ -1306,12 +1306,12 @@ struct __early_exit_find_or
     template <typename _NDItemId, typename _SrcDataSize, typename _IterationDataSize, typename _LocalFoundState,
               typename _BrickTag, typename... _Ranges>
     void
-    operator()(const _NDItemId __item_id, const _SrcDataSize __source_data_size,
-               const std::size_t __iters_per_work_item, const _IterationDataSize __iteration_data_size,
-               _LocalFoundState& __found_local, _BrickTag __brick_tag, _Ranges&&... __rngs) const
+    operator()(const _NDItemId __item, const _SrcDataSize __source_data_size, const std::size_t __iters_per_work_item,
+               const _IterationDataSize __iteration_data_size, _LocalFoundState& __found_local, _BrickTag __brick_tag,
+               _Ranges&&... __rngs) const
     {
         // Return the index of this item in the kernel's execution range
-        const auto __global_id = __item_id.get_global_linear_id();
+        const auto __global_id = __item.get_global_linear_id();
 
         bool __something_was_found = false;
         for (_SrcDataSize __i = 0; !__something_was_found && __i < __iters_per_work_item; ++__i)
@@ -1341,7 +1341,7 @@ struct __early_exit_find_or
 
             // Share found into state between items in our sub-group to early exit if something was found
             //  - the update of __found_local state isn't required here because it updates later on the caller side
-            __something_was_found = __dpl_sycl::__any_of_group(__item_id.get_sub_group(), __something_was_found);
+            __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
         }
     }
 };
@@ -1443,8 +1443,8 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
 
             __cgh.parallel_for<KernelName...>(
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__wgroup_size), sycl::range</*dim=*/1>(__wgroup_size)),
-                [=](sycl::nd_item</*dim=*/1> __item_id) {
-                    auto __local_idx = __item_id.get_local_id(0);
+                [=](sycl::nd_item</*dim=*/1> __item) {
+                    auto __local_idx = __item.get_local_id(0);
 
                     // 1. Set initial value to local found state
                     __FoundStateType __found_local = __init_value;
@@ -1453,7 +1453,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
                     //  - after this call __found_local may still have initial value:
                     //    1) if no element satisfies pred;
                     //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
-                    __pred(__item_id, __rng_n, __iters_per_work_item, __wgroup_size, __found_local, __brick_tag,
+                    __pred(__item, __rng_n, __iters_per_work_item, __wgroup_size, __found_local, __brick_tag,
                            __rngs...);
 
                     // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
@@ -1461,9 +1461,9 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
                     // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
                     // inside all our group items
                     if constexpr (__or_tag_check)
-                        __found_local = __dpl_sycl::__any_of_group(__item_id.get_group(), __found_local);
+                        __found_local = __dpl_sycl::__any_of_group(__item.get_group(), __found_local);
                     else
-                        __found_local = __dpl_sycl::__reduce_over_group(__item_id.get_group(), __found_local,
+                        __found_local = __dpl_sycl::__reduce_over_group(__item.get_group(), __found_local,
                                                                         typename _BrickTag::_LocalResultsReduceOp{});
 
                     // Set local found state value value to global state to have correct result
@@ -1510,8 +1510,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 __cgh.parallel_for<KernelName...>(
                     sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
                                               sycl::range</*dim=*/1>(__wgroup_size)),
-                    [=](sycl::nd_item</*dim=*/1> __item_id) {
-                        auto __local_idx = __item_id.get_local_id(0);
+                    [=](sycl::nd_item</*dim=*/1> __item) {
+                        auto __local_idx = __item.get_local_id(0);
 
                         // 1. Set initial value to local found state
                         _AtomicType __found_local = __init_value;
@@ -1520,7 +1520,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         //  - after this call __found_local may still have initial value:
                         //    1) if no element satisfies pred;
                         //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
-                        __pred(__item_id, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
+                        __pred(__item, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
                                __brick_tag, __rngs...);
 
                         // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
@@ -1528,10 +1528,10 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
                         // inside all our group items
                         if constexpr (__or_tag_check)
-                            __found_local = __dpl_sycl::__any_of_group(__item_id.get_group(), __found_local);
+                            __found_local = __dpl_sycl::__any_of_group(__item.get_group(), __found_local);
                         else
                             __found_local = __dpl_sycl::__reduce_over_group(
-                                __item_id.get_group(), __found_local, typename _BrickTag::_LocalResultsReduceOp{});
+                                __item.get_group(), __found_local, typename _BrickTag::_LocalResultsReduceOp{});
 
                         // Set local found state value value to global atomic
                         if (__local_idx == 0 && __found_local != __init_value)
@@ -1719,8 +1719,8 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
                 auto __temp_acc = __temp.template get_access<access_mode::read_write>(__cgh);
                 __cgh.parallel_for<_GlobalSortName...>(
-                    sycl::range</*dim=*/1>(__n), [=](sycl::item</*dim=*/1> __item_id) {
-                        auto __global_idx = __item_id.get_linear_id();
+                    sycl::range</*dim=*/1>(__n), [=](sycl::item</*dim=*/1> __item) {
+                        auto __global_idx = __item.get_linear_id();
 
                         _Size __start = 2 * __k * (__global_idx / (2 * __k));
                         _Size __end_1 = sycl::min(__start + __k, __n);
@@ -1750,8 +1750,8 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
                 auto __temp_acc = __temp.template get_access<access_mode::read>(__cgh);
                 // we cannot use __cgh.copy here because of zip_iterator usage
-                __cgh.parallel_for<_CopyBackName...>(sycl::range</*dim=*/1>(__n), [=](sycl::item</*dim=*/1> __item_id) {
-                    __rng[__item_id.get_linear_id()] = __temp_acc[__item_id];
+                __cgh.parallel_for<_CopyBackName...>(sycl::range</*dim=*/1>(__n), [=](sycl::item</*dim=*/1> __item) {
+                    __rng[__item.get_linear_id()] = __temp_acc[__item];
                 });
             });
         }

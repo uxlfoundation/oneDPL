@@ -23,6 +23,7 @@
 #include <type_traits>
 #include <utility>
 #include <cmath>
+#include <cassert>
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
@@ -1316,7 +1317,14 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
-        std::uint32_t __inputs_in_block = std::min(__n - __block_num * __max_block_size, std::size_t{__max_block_size});
+        std::size_t __num_remaining = __n - __block_num * __max_block_size;
+        // for unique patterns, the first element is always copied to the output, so we need to skip it
+        if constexpr (__is_unique_pattern_v)
+        {
+            assert(__num_remaining > 0);
+            __num_remaining -= 1;
+        }
+        std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
         return __q.submit([&, this](sycl::handler& __cgh) {
             // We need __num_sub_groups_local + 1 temporary SLM locations to store intermediate results:
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
