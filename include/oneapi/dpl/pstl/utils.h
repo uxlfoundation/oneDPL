@@ -887,6 +887,11 @@ union __lazy_ctor_storage
     _Tp __v;
     __lazy_ctor_storage() {}
 
+    // empty destructor since we should be explicitly destroying any constructed data
+    ~__lazy_ctor_storage()
+    {
+    }
+
     template <typename _U>
     void
     __setup(_U&& init)
@@ -897,10 +902,6 @@ union __lazy_ctor_storage
     __destroy()
     {
         __v.~_Tp();
-    }
-    // empty destructor since we should be explicitly destroying any constructed data
-    ~__lazy_ctor_storage()
-    {
     }
 };
 
