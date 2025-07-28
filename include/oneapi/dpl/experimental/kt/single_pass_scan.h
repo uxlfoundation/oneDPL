@@ -40,15 +40,15 @@ namespace __impl
 {
 
 template <typename... _Name>
-class __lookback_kernel;
+class __single_pass_scan_kernel;
 
 template <std::uint8_t __sub_group_size, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size,
           typename _Type, typename _FlagType, typename _KernelName>
-struct __lookback_submitter;
+struct __single_pass_scan_submitter;
 
 template <std::uint8_t __sub_group_size, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size,
           typename _Type, typename _FlagType, typename _InRng, typename _OutRng, typename _BinaryOp, typename _LocalAcc>
-struct __lookback_kernel_func
+struct __single_pass_scan_kernel_func
 {
     using _TileIdxT = typename _FlagType::_TileIdxT;
     static constexpr std::uint32_t __elems_in_tile = __workgroup_size * __data_per_workitem;
@@ -200,8 +200,8 @@ struct __lookback_kernel_func
 
 template <std::uint8_t __sub_group_size, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size,
           typename _Type, typename _FlagType, typename... _Name>
-struct __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_size, _Type, _FlagType,
-                            oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
+struct __single_pass_scan_submitter<__sub_group_size, __data_per_workitem, __workgroup_size, _Type, _FlagType,
+                                    oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
 
     template <typename _InRng, typename _OutRng, typename _BinaryOp>
@@ -212,9 +212,10 @@ struct __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_s
                std::size_t __status_flags_size, std::size_t __num_wgs) const
     {
         using _LocalAccessorType = __dpl_sycl::__local_accessor<_Type, 1>;
-        using _KernelFunc = __lookback_kernel_func<__sub_group_size, __data_per_workitem, __workgroup_size, _Type,
-                                                   _FlagType, std::decay_t<_InRng>, std::decay_t<_OutRng>,
-                                                   std::decay_t<_BinaryOp>, std::decay_t<_LocalAccessorType>>;
+        using _KernelFunc =
+            __single_pass_scan_kernel_func<__sub_group_size, __data_per_workitem, __workgroup_size, _Type, _FlagType,
+                                           std::decay_t<_InRng>, std::decay_t<_OutRng>, std::decay_t<_BinaryOp>,
+                                           std::decay_t<_LocalAccessorType>>;
 
         return __q.submit([&](sycl::handler& __hdl) {
             auto __slm = _LocalAccessorType(
@@ -240,8 +241,8 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     using _KernelName = typename _KernelParam::kernel_name;
     using _LookbackInitKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __lookback_init_kernel<_KernelName, _Type, _BinaryOp>>;
-    using _LookbackKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __lookback_kernel<_KernelName, _Type, _BinaryOp>>;
+    using _SinglePassScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __single_pass_scan_kernel<_KernelName, _Type, _BinaryOp>>;
 
     const std::size_t __n = __in_rng.size();
 
@@ -270,10 +271,10 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     if (__is_single_tile)
     {
         _FlagStorageType __lookback_storage(__device_mem, __mem_bytes, __status_flags_size);
-        return __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_size, _Type, _FlagType,
-                                    _LookbackKernel>{}(__queue, /*__fill_event*/ sycl::event{}, __in_rng, __out_rng,
-                                                       __binary_op, __n, __atomic_id_ptr, __lookback_storage,
-                                                       __status_flags_size, __num_wgs);
+        return __single_pass_scan_submitter<__sub_group_size, __data_per_workitem, __workgroup_size, _Type, _FlagType,
+                                            _SinglePassScanKernel>{}(
+            __queue, /*__fill_event*/ sycl::event{}, __in_rng, __out_rng, __binary_op, __n, __atomic_id_ptr,
+            __lookback_storage, __status_flags_size, __num_wgs);
     }
     else
     {
@@ -289,8 +290,8 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
             __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
                 __queue, __atomic_id_ptr, __lookback_storage, __status_flags_size, __status_flag_padding);
 
-        sycl::event __prev_event = __lookback_submitter<__sub_group_size, __data_per_workitem, __workgroup_size, _Type,
-                                                        _FlagType, _LookbackKernel>{}(
+        sycl::event __prev_event = __single_pass_scan_submitter<__sub_group_size, __data_per_workitem, __workgroup_size,
+                                                                _Type, _FlagType, _SinglePassScanKernel>{}(
             __queue, __fill_event, __in_rng, __out_rng, __binary_op, __n, __atomic_id_ptr, __lookback_storage,
             __status_flags_size, __num_wgs);
         // TODO: Currently, the following portion of code makes this entire function synchronous.
