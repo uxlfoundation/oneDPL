@@ -247,8 +247,8 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
             auto __result_acc = __get_acc(__p_res_storage, __cgh);
 
-            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__steps), [=](sycl::item</*dim=*/1> __item_id) {
-                auto __id = __item_id.get_linear_id();
+            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__steps), [=](sycl::item</*dim=*/1> __item) {
+                auto __id = __item.get_linear_id();
                 const _IdType __i_elem = __id * __chunk;
 
                 const auto __n_merge = std::min<_IdType>(__chunk, __n - __i_elem);
@@ -345,8 +345,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                     __cgh, __dpl_sycl::__no_init{});
 
             __cgh.parallel_for<_DiagonalsKernelName...>(
-                sycl::range</*dim=*/1>(__nd_range_params.base_diag_count + 1), [=](sycl::item</*dim=*/1> __item_id) {
-                    auto __global_idx = __item_id.get_linear_id();
+                sycl::range</*dim=*/1>(__nd_range_params.base_diag_count + 1), [=](sycl::item</*dim=*/1> __item) {
+                    auto __global_idx = __item.get_linear_id();
                     auto __base_diagonals_sp_global_ptr =
                         _Storage::__get_usm_or_buffer_accessor_ptr(__base_diagonals_sp_global_acc);
 
@@ -386,8 +386,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
             __cgh.depends_on(__event);
 
             __cgh.parallel_for<_MergeKernelName...>(
-                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item_id) {
-                    auto __global_idx = __item_id.get_linear_id();
+                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item) {
+                    auto __global_idx = __item.get_linear_id();
                     const _IdType __i_elem = __global_idx * __nd_range_params.chunk;
 
                     auto __base_diagonals_sp_global_ptr =
