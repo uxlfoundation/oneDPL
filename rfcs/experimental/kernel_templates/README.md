@@ -354,7 +354,7 @@ and to address concerns related to usability and expressiveness.
 - Range support:
   Should ranges be supported in the interface, or are iterators sufficient?
 
-### Vectorizing/Widenning of Load and Store Operations
+### Vectorizing/Widening of Load and Store Operations
 
 Many GPU architectures often support wide load and store operations
 (128B, 256B, or larger depending on a specific architecture) per sub-group
