@@ -19,6 +19,7 @@
 #include _PSTL_TEST_HEADER(numeric)
 
 #include "support/utils.h"
+#include "support/utils_device_copyable.h"
 
 using namespace TestUtils;
 

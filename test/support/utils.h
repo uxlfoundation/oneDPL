@@ -1282,6 +1282,12 @@ struct NoDefaultCtorWrapper {
     {
         return NoDefaultCtorWrapper{a.value * b.value};
     } 
+
+    // non-trivial destructor for testing
+    ~NoDefaultCtorWrapper()
+    {
+        value.~_T();
+    }
 };
 
 } /* namespace TestUtils */

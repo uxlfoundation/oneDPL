@@ -898,6 +898,10 @@ union __lazy_ctor_storage
     {
         __v.~_Tp();
     }
+    // empty destructor since we should be explicitly destroying any constructed data
+    ~__lazy_ctor_storage()
+    {
+    }
 };
 
 // Scoped destroyer for __lazy_ctor_storage. It can be used to destroy the storage when it goes out of scope.
