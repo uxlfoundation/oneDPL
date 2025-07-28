@@ -46,19 +46,29 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc, _InputType __
     constexpr bool __b_init_callback = !std::is_same_v<__no_init_callback, _ProcessInitCallback>;
 
     sycl::sub_group __sub_group = __item.get_sub_group();
-    // Perform scan at sub-group level
-    _InputType __sub_group_carry =
-        __sub_group_scan<__sub_group_size, __iters_per_item>(__sub_group, __input, __binary_op);
     const std::uint8_t __sub_group_group_id = __sub_group.get_group_linear_id();
     const std::uint8_t __active_sub_groups =
         oneapi::dpl::__internal::__dpl_ceiling_div(__items_in_scan, __sub_group_size * __iters_per_item);
+
+    std::uint32_t __items_in_sub_group_scan = 0;
+    // Full sub-group
+    if (__sub_group_group_id + 2 <= __active_sub_groups)
+        __items_in_sub_group_scan = __sub_group_size * __iters_per_item;
+    // Last active sub-group
+    else if (__sub_group_group_id + 1 == __active_sub_groups)
+        __items_in_sub_group_scan = __items_in_scan - __sub_group_size * __iters_per_item * __sub_group_group_id;
+
+    // Perform scan at sub-group level. For non active sub-groups, default constructed type returned.
+    _InputType __sub_group_carry = __sub_group_scan<__sub_group_size, __iters_per_item>(
+        __sub_group, __input, __binary_op, __items_in_sub_group_scan);
     [[maybe_unused]] _InputType __wg_init;
     if (__sub_group.get_local_linear_id() == __sub_group_size - 1)
     {
         __local_acc[__sub_group.get_group_linear_id()] = __sub_group_carry;
     }
     __dpl_sycl::__group_barrier(__item);
-    // Scan over sub-group level reductions to compute incoming prefixes for a sub-group
+    // Scan over sub-group level reductions to compute incoming prefixes for a sub-group. Guard against
+    // applying prefixes of non active sub-groups as there is no guarantee it is an identity.
     if (__sub_group_group_id == 0)
     {
         const std::uint8_t __num_iters =
@@ -164,7 +174,7 @@ __work_group_scan(const _NdItem& __item, _SlmAcc __local_acc, _InputType __input
 // sub_group 1: work_group_id 4:  16, 20, 24, 28
 //              work_group_id 5:  17, 21, 25, 29
 //              work_group_id 6:  18, 22, 26, 30
-//              work_group_id 7:  19, 26, 27, 31
+//              work_group_id 7:  19, 23, 27, 31
 //
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _NdItem,
           typename _SlmAcc, typename _BinaryOperation>

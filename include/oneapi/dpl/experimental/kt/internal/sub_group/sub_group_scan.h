@@ -112,7 +112,7 @@ template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typenam
           typename _BinaryOperation>
 _InputType
 __sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_item], _BinaryOperation __binary_op,
-                 uint32_t __items_in_scan)
+                 std::uint32_t __items_in_scan)
 {
     const bool __is_full = __items_in_scan == __sub_group_size * __iters_per_item;
     _InputType __carry{};
@@ -135,10 +135,9 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_it
         if (__limited_iters_per_item == 1)
         {
             __sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
-                __sub_group, __input[__i], __binary_op, __carry,
-                __items_in_scan - __i * __iters_per_item * __sub_group_size);
+                __sub_group, __input[__i], __binary_op, __carry, __items_in_scan - __i * __sub_group_size);
         }
-        else
+        else if (__limited_iters_per_item > 1)
         {
             __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
                 __sub_group, __input[__i++], __binary_op, __carry);
@@ -148,8 +147,7 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_it
                     __sub_group, __input[__i], __binary_op, __carry);
             }
             __sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
-                __sub_group, __input[__i], __binary_op, __carry,
-                __items_in_scan - __i * __iters_per_item * __sub_group_size);
+                __sub_group, __input[__i], __binary_op, __carry, __items_in_scan - __i * __sub_group_size);
         }
     }
     return __carry;
