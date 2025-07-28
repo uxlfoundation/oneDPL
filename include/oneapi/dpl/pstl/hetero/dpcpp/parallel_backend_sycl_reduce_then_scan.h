@@ -60,6 +60,8 @@ struct __temp_data_array
     _ValueT
     get_and_destroy(std::uint16_t __idx)
     {
+        // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
+        // it leaves scope.
         oneapi::dpl::__internal::__scoped_destroyer<_ValueT> __destroy_when_leaving_scope{__data[__idx]};
         return __data[__idx].__v;
     }

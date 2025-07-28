@@ -675,8 +675,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             oneapi::dpl::__internal::__lazy_ctor_storage<_T> __lazy_ctor_storage;
             __q.memcpy(&__lazy_ctor_storage.__v, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
 
-            // Setting up _T to be destroyed as this function exits. _T being device copyable provides that it has a
-            // public non deleted destructor.
+            // Setting up _T to be destroyed as this function exits. The __scoped_destroyer calls destroy when it
+            // leaves scope. _T being device copyable provides that it has a public non deleted destructor.
             oneapi::dpl::__internal::__scoped_destroyer<_T> __destroy_when_leaving_scope{__lazy_ctor_storage};
             return __lazy_ctor_storage.__v;
         }

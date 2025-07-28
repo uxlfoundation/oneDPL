@@ -903,7 +903,8 @@ union __lazy_ctor_storage
     }
 };
 
-// Scoped destroyer for __lazy_ctor_storage. It can be used to destroy the storage when it goes out of scope.
+// Scoped destroyer for __lazy_ctor_storage. It can be used to destroy the a __lazy_ctor_storage when it goes out of
+// scope.
 // Note: Should only be used *after* the storage has been initialized with __setup or some other method to ensure that
 //       data is not destroyed before it is initialized. This is relevant for exception handling which may change the
 //       control flow unexpectedly.
