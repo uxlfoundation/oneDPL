@@ -888,9 +888,7 @@ union __lazy_ctor_storage
     __lazy_ctor_storage() {}
 
     // empty destructor since we should be explicitly destroying any constructed data
-    ~__lazy_ctor_storage()
-    {
-    }
+    ~__lazy_ctor_storage() {}
 
     template <typename _U>
     void
