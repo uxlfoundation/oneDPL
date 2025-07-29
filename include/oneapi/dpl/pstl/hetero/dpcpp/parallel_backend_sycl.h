@@ -1597,7 +1597,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         __atomic_ref_t<_GroupCounterType> __group_counter(*__group_counter_ptr);
 
                         // Copy data back from scratch part to result part when we are in the last work-group
-                        if (1 + __group_counter.fetch_add(1) == __n_groups)
+                        const _GroupCounterType __current_group_count = __group_counter.fetch_add(1) + 1;
+                        if (__current_group_count == __n_groups)
                         {
                             _AtomicType* __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(
                                 __res_acc_w, __scratch_storage_size);
