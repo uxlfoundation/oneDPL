@@ -1546,7 +1546,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
             auto __scratch_acc_rw = __result_storage.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
 
-            auto __res_acc =
+            auto __res_acc_w =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
             auto __group_counter_acc_rw =
@@ -1606,7 +1606,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                             auto __scratch_ptr =
                                 __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_rw);
                             auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(
-                                __res_acc, __scratch_storage_size);
+                                __res_acc_w, __scratch_storage_size);
 
                             *__res_ptr = *__scratch_ptr;
                         }
