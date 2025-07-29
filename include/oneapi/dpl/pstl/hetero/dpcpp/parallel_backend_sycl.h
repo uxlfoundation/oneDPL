@@ -1447,7 +1447,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
             __cgh.parallel_for<KernelName...>(
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__wgroup_size), sycl::range</*dim=*/1>(__wgroup_size)),
                 [=](sycl::nd_item</*dim=*/1> __item) {
-                    auto __local_idx = __item.get_local_id(0);
+                    const std::size_t __local_idx = __item.get_local_id(0);
 
                     // 1. Set initial value to local found state
                     __FoundStateType __found_local = __init_value;
