@@ -46,7 +46,7 @@
 #endif
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-#    include <concepts>     // for std::equality_comparable_with
+#    include <concepts> // for std::equality_comparable_with
 #endif
 
 namespace oneapi
@@ -829,18 +829,21 @@ struct __is_equality_comparable : std::false_type
 };
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-    // All with implemented operator ==
-    template <typename _Iterator1, typename _Iterator2>
+// All with implemented operator ==
+template <typename _Iterator1, typename _Iterator2>
     requires std::equality_comparable_with<std::decay_t<_Iterator1>, std::decay_t<_Iterator2>>
-    struct __is_equality_comparable<_Iterator1, _Iterator2, std::void_t<int>> : std::true_type
-    {
-    };
+struct __is_equality_comparable<_Iterator1, _Iterator2, std::void_t<int>> : std::true_type
+{
+};
 #else
-    // All with implemented operator ==
-    template <typename _Iterator1, typename _Iterator2>
-    struct __is_equality_comparable<_Iterator1, _Iterator2, std::void_t<decltype(std::declval<std::decay_t<_Iterator1>>() == std::declval<std::decay_t<_Iterator2>>())>> : std::true_type
-    {
-    };
+// All with implemented operator ==
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable<
+    _Iterator1, _Iterator2,
+    std::void_t<decltype(std::declval<std::decay_t<_Iterator1>>() == std::declval<std::decay_t<_Iterator2>>())>>
+    : std::true_type
+{
+};
 #endif
 
 #if !_ONEDPL_CPP20_CONCEPTS_PRESENT
