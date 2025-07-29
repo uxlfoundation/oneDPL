@@ -263,6 +263,12 @@ template <>
 struct sycl::is_device_copyable<TestUtils::range_device_copyable> : std::true_type
 {
 };
+
+template <typename T>
+struct sycl::is_device_copyable<TestUtils::NoDefaultCtorWrapper<T>> : sycl::is_device_copyable<T>
+{
+};
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 #endif // _UTILS_DEVICE_COPYABLE_H

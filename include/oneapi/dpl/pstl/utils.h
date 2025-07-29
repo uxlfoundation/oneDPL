@@ -887,6 +887,9 @@ union __lazy_ctor_storage
     _Tp __v;
     __lazy_ctor_storage() {}
 
+    // empty destructor since we should be explicitly destroying any constructed data
+    ~__lazy_ctor_storage() {}
+
     template <typename _U>
     void
     __setup(_U&& init)
@@ -897,6 +900,22 @@ union __lazy_ctor_storage
     __destroy()
     {
         __v.~_Tp();
+    }
+};
+
+// Scoped destroyer for __lazy_ctor_storage. It can be used to destroy the a __lazy_ctor_storage when it goes out of
+// scope.
+// Note: Should only be used *after* the storage has been initialized with __setup or some other method to ensure that
+//       data is not destroyed before it is initialized. This is relevant for exception handling which may change the
+//       control flow unexpectedly.
+template <typename _DataType>
+struct __scoped_destroyer
+{
+    oneapi::dpl::__internal::__lazy_ctor_storage<_DataType>& ___lazy_ctor_storage_ref;
+    ~__scoped_destroyer()
+    {
+        // Explicitly call destructor of __lazy_ctor_storage
+        ___lazy_ctor_storage_ref.__destroy();
     }
 };
 
