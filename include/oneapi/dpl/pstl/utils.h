@@ -834,9 +834,11 @@ struct __is_equality_comparable<
 };
 
 template <typename _Iterator1, typename _Iterator2>
-constexpr std::enable_if_t<std::is_same_v<typename std::iterator_traits<_Iterator1>::value_type,
-                                          typename std::iterator_traits<_Iterator2>::value_type>,
-                           bool>
+using is_same_iterator_value_type = std::is_same<typename std::iterator_traits<_Iterator1>::value_type,
+                                                 typename std::iterator_traits<_Iterator2>::value_type>;
+
+template <typename _Iterator1, typename _Iterator2>
+constexpr std::enable_if_t<is_same_iterator_value_type<_Iterator1, _Iterator2>::value, bool>
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
     if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
@@ -854,9 +856,7 @@ __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 }
 
 template <typename _Iterator1, typename _Iterator2>
-constexpr std::enable_if_t<!std::is_same_v<typename std::iterator_traits<_Iterator1>::value_type,
-                                           typename std::iterator_traits<_Iterator2>::value_type>,
-                           bool>
+constexpr std::enable_if_t<!is_same_iterator_value_type<_Iterator1, _Iterator2>::value, bool>
 __iterators_possibly_equal(_Iterator1 /*__it1*/, _Iterator2 /*__it2*/)
 {
     // We should have this overload to avoid compile errors when the iterators have different value types
