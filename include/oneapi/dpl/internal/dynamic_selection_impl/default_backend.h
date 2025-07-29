@@ -91,6 +91,8 @@ class backend_base
                 e.cleanup();
             }
         }
+        extra_resources_.~extra_resource_container_t();
+        resources_.~resource_container_t();
     }
 
     auto
