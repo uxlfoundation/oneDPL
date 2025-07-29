@@ -1583,7 +1583,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
             __cgh.single_task<KernelNameWriteBack...>([__scratch_acc, __res_acc]() {
                 _AtomicType* __scratch_ptr =
                     __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc);
-                auto __res_ptr =
+                _AtomicType* __res_ptr =
                     __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, __scratch_storage_size);
                 *__res_ptr = *__scratch_ptr;
             });
