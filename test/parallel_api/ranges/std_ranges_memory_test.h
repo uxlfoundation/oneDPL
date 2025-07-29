@@ -32,9 +32,9 @@ struct test_memory_algo
     void run_host(auto algo, auto checker, auto&&... args)
     {
         std::allocator<Elem> alloc;
-        run_one_policy(alloc, oneapi::dpl::execution::seq, algo, checker, std::forward<decltype(args)>(args)...);
-        run_one_policy(alloc, oneapi::dpl::execution::unseq, algo, checker, std::forward<decltype(args)>(args)...);
-        run_one_policy(alloc, oneapi::dpl::execution::par, algo, checker,  std::forward<decltype(args)>(args)...);
+        run_one_policy(alloc, oneapi::dpl::execution::seq, algo, checker, args...);
+        run_one_policy(alloc, oneapi::dpl::execution::unseq, algo, checker, args...);
+        run_one_policy(alloc, oneapi::dpl::execution::par, algo, checker, args...);
         run_one_policy(alloc, oneapi::dpl::execution::par_unseq, algo, checker, std::forward<decltype(args)>(args)...);
     }
 #if TEST_DPCPP_BACKEND_PRESENT

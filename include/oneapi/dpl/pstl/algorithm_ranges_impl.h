@@ -520,7 +520,7 @@ __pattern_minmax(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, 
     auto [__it_min, __it_max] =
         __pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
 
-    return {*__it_min, *__it_max};
+    return std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>{*__it_min, *__it_max};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -592,7 +592,7 @@ __pattern_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __valu
     const auto __last = __first + std::ranges::size(__r);
     oneapi::dpl::__internal::__pattern_fill(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __value);
 
-    return {__last};
+    return std::ranges::borrowed_iterator_t<_R>{__last};
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _T>
