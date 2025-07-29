@@ -836,6 +836,34 @@ struct __is_equality_comparable<
 {
 };
 
+#if !_ONEDPL_CPP20_CONCEPTS_PRESENT
+template <typename _Iterator, typename = void>
+struct __has_value_type : std::false_type
+{
+};
+
+template <typename _Iterator>
+struct __has_value_type<_Iterator, std::void_t<typename std::iterator_traits<_Iterator>::value_type>> : std::true_type
+{
+};
+#endif
+
+template <typename _Iterator1, typename _Iterator2>
+constexpr bool
+__iterators_possibly_equal_impl(_Iterator1 __it1, _Iterator2 __it2)
+{
+    if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+    {
+        return __it1 == __it2;
+    }
+    else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
+    {
+        return __it2 == __it1;
+    }
+
+    return false;
+}
+
 template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
@@ -843,22 +871,22 @@ __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
     // In C++20 we can use concepts to check if the iterators are equality comparable
     // so additional checks are not needed.
-    if constexpr (true)
+    return __iterators_possibly_equal_impl(__it1, __it2);
 #else
     // Before C++20 we can compare only the iterators of the same types.
-    if constexpr (std::is_same_v<typename std::iterator_traits<_Iterator1>::value_type,
-                                 typename std::iterator_traits<_Iterator2>::value_type>)
-#endif
+    if constexpr (__has_value_type<_Iterator1>::value && __has_value_type<_Iterator2>::value)
     {
-        if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+        if constexpr (std::is_same_v<typename std::iterator_traits<_Iterator1>::value_type,
+                                     typename std::iterator_traits<_Iterator2>::value_type>)
         {
-            return __it1 == __it2;
-        }
-        else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
-        {
-            return __it2 == __it1;
+            return __iterators_possibly_equal_impl(__it1, __it2);
         }
     }
+    else if constexpr (!__has_value_type<_Iterator1>::value && !__has_value_type<_Iterator2>::value)
+    {
+        return __iterators_possibly_equal_impl(__it1, __it2);
+    }
+#endif
 
     return false;
 }
