@@ -1491,12 +1491,7 @@ template <bool __or_tag_check, typename... KernelNameInit, typename... KernelNam
 struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__optional_kernel_name<KernelNameInit...>,
                                             __internal::__optional_kernel_name<KernelName...>>
 {
-#if _ONEDPL_FPGA_DEVICE
-    // FPGA devices don't support 64-bit atomics
-    using _GroupCounterType = uint32_t;
-#else
-    using _GroupCounterType = std::size_t;
-#endif
+    using _GroupCounterType = std::uint32_t;
 
     template <typename _T>
     using __atomic_ref_t = __dpl_sycl::__atomic_ref<_T, sycl::access::address_space::global_space>;
