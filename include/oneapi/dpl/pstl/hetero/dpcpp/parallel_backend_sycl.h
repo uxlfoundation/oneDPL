@@ -1579,12 +1579,12 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
                     if (__local_idx == 0)
                     {
+                        _AtomicType* __scratch_ptr =
+                            __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_rw);
+
                         // Set local found state value to global atomic if we found something in the current work-group
                         if (__found_local != __init_value)
                         {
-                            _AtomicType* __scratch_ptr =
-                                __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_rw);
-
                             __atomic_ref_t<_AtomicType> __found(*__scratch_ptr);
 
                             // Update global (for all groups) atomic state with the found index
@@ -1599,8 +1599,6 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         // Copy data back from scratch part to result part when we are in the last work-group
                         if (++__group_counter == __n_groups)
                         {
-                            _AtomicType* __scratch_ptr =
-                                __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_rw);
                             _AtomicType* __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(
                                 __res_acc_w, __scratch_storage_size);
 
