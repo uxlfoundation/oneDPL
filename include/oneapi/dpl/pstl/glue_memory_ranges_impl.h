@@ -24,6 +24,8 @@
 #include <type_traits>
 #include <iterator>
 
+#include <concepts> // for std::same_as, std::constructible_from, std::destructible, std::default_initializable
+
 #include "execution_defs.h"
 #include "oneapi/dpl/pstl/ranges_defs.h"
 
