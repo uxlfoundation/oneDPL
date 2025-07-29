@@ -45,6 +45,10 @@
 #    include <cstring> // memcpy
 #endif
 
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+#    include <concepts>     // for std::equality_comparable_with
+#endif
+
 namespace oneapi
 {
 namespace dpl
@@ -824,17 +828,20 @@ struct __is_equality_comparable : std::false_type
 {
 };
 
-// All with implemented operator ==
-template <typename _Iterator1, typename _Iterator2>
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-requires std::equality_comparable_with<std::decay_t<_Iterator1>, std::decay_t<_Iterator2>>
+    // All with implemented operator ==
+    template <typename _Iterator1, typename _Iterator2>
+    requires std::equality_comparable_with<std::decay_t<_Iterator1>, std::decay_t<_Iterator2>>
+    struct __is_equality_comparable<_Iterator1, _Iterator2, std::void_t<int>> : std::true_type
+    {
+    };
+#else
+    // All with implemented operator ==
+    template <typename _Iterator1, typename _Iterator2>
+    struct __is_equality_comparable<_Iterator1, _Iterator2, std::void_t<decltype(std::declval<std::decay_t<_Iterator1>>() == std::declval<std::decay_t<_Iterator2>>())>> : std::true_type
+    {
+    };
 #endif
-    struct __is_equality_comparable<
-        _Iterator1, _Iterator2,
-        std::void_t<decltype(std::declval<std::decay_t<_Iterator1>>() == std::declval<std::decay_t<_Iterator2>>())>>
-    : std::true_type
-{
-};
 
 #if !_ONEDPL_CPP20_CONCEPTS_PRESENT
 template <typename _Iterator, typename = void>
@@ -864,15 +871,20 @@ __iterators_possibly_equal_impl(_Iterator1 __it1, _Iterator2 __it2)
     return false;
 }
 
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
 template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-#if _ONEDPL_CPP20_CONCEPTS_PRESENT
-    // In C++20 we can use concepts to check if the iterators are equality comparable
-    // so additional checks are not needed.
+    // In C++20 and later the check for equality is done via concepts inside of __is_equality_comparable
+    // so no additional checks here are needed.
     return __iterators_possibly_equal_impl(__it1, __it2);
+}
 #else
+template <typename _Iterator1, typename _Iterator2>
+constexpr bool
+__iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
+{
     // Before C++20 we can compare only the iterators of the same types.
     if constexpr (__has_value_type<_Iterator1>::value && __has_value_type<_Iterator2>::value)
     {
@@ -886,10 +898,10 @@ __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
     {
         return __iterators_possibly_equal_impl(__it1, __it2);
     }
-#endif
 
     return false;
 }
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
 
 // Conditionally sets type to _SpirvT if oneDPL is being compiled to a SPIR-V target with the SYCL backend and _NonSpirvT otherwise.
 template <typename _SpirvT, typename _NonSpirvT>
