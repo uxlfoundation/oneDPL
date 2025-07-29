@@ -1524,7 +1524,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
             __cgh.single_task<KernelNameInit...>([__scratch_acc_w, __init_value, __group_counter_acc_w]() {
                 // Initialize the scratch storage with the initial value
-                auto __scratch_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_w);
+                _AtomicType* __scratch_ptr =
+                    __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_w);
                 *__scratch_ptr = __init_value;
 
                 // Initialize the scratch storage for group counter with zero value
@@ -1581,7 +1582,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         // Set local found state value to global atomic if we found something in the current work-group
                         if (__found_local != __init_value)
                         {
-                            auto __scratch_ptr =
+                            _AtomicType* __scratch_ptr =
                                 __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_rw);
 
                             __atomic_ref_t<_AtomicType> __found(*__scratch_ptr);
@@ -1598,7 +1599,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         // Copy data back from scratch part to result part when we are in the last work-group
                         if (++__group_counter == __n_groups)
                         {
-                            auto __scratch_ptr =
+                            _AtomicType* __scratch_ptr =
                                 __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_rw);
                             auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(
                                 __res_acc_w, __scratch_storage_size);
