@@ -1601,7 +1601,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         {
                             _AtomicType* __scratch_ptr =
                                 __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_rw);
-                            auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(
+                            _AtomicType* __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(
                                 __res_acc_w, __scratch_storage_size);
 
                             *__res_ptr = *__scratch_ptr;
