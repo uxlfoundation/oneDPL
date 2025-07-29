@@ -837,18 +837,22 @@ template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-    if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+    using _ValueType1 = typename std::iterator_traits<_Iterator1>::value_type;
+    using _ValueType2 = typename std::iterator_traits<_Iterator2>::value_type;
+
+    if constexpr (std::is_same_v<_ValueType1, _ValueType2>)
     {
-        return __it1 == __it2;
+        if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+        {
+            return __it1 == __it2;
+        }
+        else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
+        {
+            return __it2 == __it1;
+        }
     }
-    else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
-    {
-        return __it2 == __it1;
-    }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 // Conditionally sets type to _SpirvT if oneDPL is being compiled to a SPIR-V target with the SYCL backend and _NonSpirvT otherwise.
