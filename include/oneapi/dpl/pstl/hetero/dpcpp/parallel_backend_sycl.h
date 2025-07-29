@@ -208,6 +208,9 @@ template <typename... _Name>
 class __find_or_kernel_one_wg;
 
 template <typename... _Name>
+class __find_or_kernel_init;
+
+template <typename... _Name>
 class __find_or_kernel;
 
 template <typename... _Name>
@@ -1435,7 +1438,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
         const auto __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size);
 
         // main parallel_for
-        auto __event = __q.submit([&](sycl::handler& __cgh) {
+        sycl::event __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             auto __result_acc =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
@@ -1443,7 +1446,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
             __cgh.parallel_for<KernelName...>(
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__wgroup_size), sycl::range</*dim=*/1>(__wgroup_size)),
                 [=](sycl::nd_item</*dim=*/1> __item) {
-                    auto __local_idx = __item.get_local_id(0);
+                    const std::size_t __local_idx = __item.get_local_id(0);
 
                     // 1. Set initial value to local found state
                     __FoundStateType __found_local = __init_value;
@@ -1465,7 +1468,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
                         __found_local = __dpl_sycl::__reduce_over_group(__item.get_group(), __found_local,
                                                                         typename _BrickTag::_LocalResultsReduceOp{});
 
-                    // Set local found state value value to global state to have correct result
+                    // Set local found state value to global state
                     if (__local_idx == 0)
                     {
                         __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__result_acc)[0] =
@@ -1479,74 +1482,134 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
     }
 };
 
-template <bool __or_tag_check, typename KernelName>
+template <bool __or_tag_check, typename KernelNameInit, typename KernelName>
 struct __parallel_find_or_impl_multiple_wgs;
 
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
-template <bool __or_tag_check, typename... KernelName>
-struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__optional_kernel_name<KernelName...>>
+template <bool __or_tag_check, typename... KernelNameInit, typename... KernelName>
+struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__optional_kernel_name<KernelNameInit...>,
+                                            __internal::__optional_kernel_name<KernelName...>>
 {
+    using _GroupCounterType = std::uint32_t;
+
+    template <typename _T>
+    using __atomic_ref_t = __dpl_sycl::__atomic_ref<_T, sycl::access::address_space::global_space>;
+
     template <typename _BrickTag, typename _AtomicType, typename _Predicate, typename... _Ranges>
     _AtomicType
     operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __n_groups,
                const std::size_t __wgroup_size, const _AtomicType __init_value, _Predicate __pred, _Ranges&&... __rngs)
     {
-        auto __result = __init_value;
+        // We allocate a single element of result storage and a single element of scratch storage. The device scratch
+        // storage is used for the atomic operations in the main __parallel_find_or kernel and then copied to the
+        // result host memory (if supported) in the writeback kernel for best performance.
+        constexpr std::size_t __scratch_storage_size = 1;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<_AtomicType, 1>;
+        __result_and_scratch_storage_t __result_storage{__q, __scratch_storage_size};
+
+        using __result_and_scratch_storage_group_counter_t = __result_and_scratch_storage<_GroupCounterType, 0>;
+        __result_and_scratch_storage_group_counter_t __group_counter_storage{__q, __scratch_storage_size};
 
         // Calculate the number of elements to be processed by each work-item.
         const auto __iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
 
-        // scope is to copy data back to __result after destruction of temporary sycl:buffer
-        {
-            sycl::buffer<_AtomicType, 1> __result_sycl_buf(&__result, 1); // temporary storage for global atomic
+        // Initialization of the result storage
+        sycl::event __event_init = __q.submit([&](sycl::handler& __cgh) {
+            auto __scratch_acc_w =
+                __result_storage.template __get_scratch_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+            auto __group_counter_acc_w = __group_counter_storage.template __get_scratch_acc<sycl::access_mode::write>(
+                __cgh, __dpl_sycl::__no_init{});
 
-            // main parallel_for
-            __q.submit([&](sycl::handler& __cgh) {
-                oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
-                auto __result_sycl_buf_acc = __result_sycl_buf.template get_access<access_mode::read_write>(__cgh);
+            __cgh.single_task<KernelNameInit...>([__scratch_acc_w, __init_value, __group_counter_acc_w]() {
+                // Initialize the scratch storage with the initial value
+                _AtomicType* __scratch_ptr =
+                    __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_w);
+                *__scratch_ptr = __init_value;
 
-                __cgh.parallel_for<KernelName...>(
-                    sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
-                                              sycl::range</*dim=*/1>(__wgroup_size)),
-                    [=](sycl::nd_item</*dim=*/1> __item) {
-                        auto __local_idx = __item.get_local_id(0);
+                // Initialize the scratch storage for group counter with zero value
+                _GroupCounterType* __group_counter_ptr =
+                    __result_and_scratch_storage_group_counter_t::__get_usm_or_buffer_accessor_ptr(
+                        __group_counter_acc_w);
+                *__group_counter_ptr = 0;
+            });
+        });
 
-                        // 1. Set initial value to local found state
-                        _AtomicType __found_local = __init_value;
+        // main parallel_for
+        sycl::event __event = __q.submit([&](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
-                        // 2. Find any element that satisfies pred
-                        //  - after this call __found_local may still have initial value:
-                        //    1) if no element satisfies pred;
-                        //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
-                        __pred(__item, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
-                               __brick_tag, __rngs...);
+            auto __scratch_acc_rw = __result_storage.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
 
-                        // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
-                        // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
-                        // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
-                        // inside all our group items
-                        if constexpr (__or_tag_check)
-                            __found_local = __dpl_sycl::__any_of_group(__item.get_group(), __found_local);
-                        else
-                            __found_local = __dpl_sycl::__reduce_over_group(
-                                __item.get_group(), __found_local, typename _BrickTag::_LocalResultsReduceOp{});
+            auto __res_acc_w =
+                __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
-                        // Set local found state value value to global atomic
-                        if (__local_idx == 0 && __found_local != __init_value)
+            auto __group_counter_acc_rw =
+                __group_counter_storage.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
+
+            __cgh.depends_on(__event_init);
+
+            __cgh.parallel_for<KernelName...>(
+                sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
+                                          sycl::range</*dim=*/1>(__wgroup_size)),
+                [=](sycl::nd_item</*dim=*/1> __item) {
+                    // Get local index inside the work-group
+                    const std::size_t __local_idx = __item.get_local_id(0);
+
+                    // 1. Set initial value to local found state
+                    _AtomicType __found_local = __init_value;
+
+                    // 2. Find any element that satisfies pred
+                    //  - after this call __found_local may still have initial value:
+                    //    1) if no element satisfies pred;
+                    //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
+                    __pred(__item, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
+                           __brick_tag, __rngs...);
+
+                    // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
+                    // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
+                    // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
+                    // inside all our group items
+                    if constexpr (__or_tag_check)
+                        __found_local = __dpl_sycl::__any_of_group(__item.get_group(), __found_local);
+                    else
+                        __found_local = __dpl_sycl::__reduce_over_group(__item.get_group(), __found_local,
+                                                                        typename _BrickTag::_LocalResultsReduceOp{});
+
+                    if (__local_idx == 0)
+                    {
+                        _AtomicType* __scratch_ptr =
+                            __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__scratch_acc_rw);
+
+                        // Set local found state value to global atomic if we found something in the current work-group
+                        if (__found_local != __init_value)
                         {
-                            __dpl_sycl::__atomic_ref<_AtomicType, sycl::access::address_space::global_space> __found(
-                                *__dpl_sycl::__get_accessor_ptr(__result_sycl_buf_acc));
+                            __atomic_ref_t<_AtomicType> __found(*__scratch_ptr);
 
                             // Update global (for all groups) atomic state with the found index
                             _BrickTag::__save_state_to_atomic(__found, __found_local);
                         }
-                    });
-            });
-            //The end of the scope  -  a point of synchronization (on temporary sycl buffer destruction)
-        }
 
-        return __result;
+                        _GroupCounterType* __group_counter_ptr =
+                            __result_and_scratch_storage_group_counter_t::__get_usm_or_buffer_accessor_ptr(
+                                __group_counter_acc_rw);
+                        __atomic_ref_t<_GroupCounterType> __group_counter(*__group_counter_ptr);
+
+                        // Copy data back from scratch part to result part when we are in the last work-group
+                        const _GroupCounterType __current_group_count = __group_counter.fetch_add(1) + 1;
+                        if (__current_group_count == __n_groups)
+                        {
+                            _AtomicType* __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(
+                                __res_acc_w, __scratch_storage_size);
+
+                            *__res_ptr = *__scratch_ptr;
+                        }
+                    }
+                });
+        });
+
+        // Wait and return result
+        return __result_storage.__wait_and_get_value(__event);
     }
 };
 
@@ -1594,13 +1657,17 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         assert("This device does not support 64-bit atomics" &&
                (sizeof(_AtomicType) < 8 || __q_local.get_device().has(sycl::aspect::atomic64)));
 
+        using __find_or_kernel_name_init =
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_init<_CustomName>>;
+
         using __find_or_kernel_name =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
 
         // Multiple WG implementation
-        __result = __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name>()(
-            __q_local, __brick_tag, __rng_n, __n_groups, __wgroup_size, __init_value, __pred,
-            std::forward<_Ranges>(__rngs)...);
+        __result =
+            __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name_init, __find_or_kernel_name>()(
+                __q_local, __brick_tag, __rng_n, __n_groups, __wgroup_size, __init_value, __pred,
+                std::forward<_Ranges>(__rngs)...);
     }
 
     if constexpr (__or_tag_check)
