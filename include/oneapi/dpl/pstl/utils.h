@@ -829,9 +829,9 @@ template <typename _Iterator1, typename _Iterator2>
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
 requires std::equality_comparable_with<std::decay_t<_Iterator1>, std::decay_t<_Iterator2>>
 #endif
-struct __is_equality_comparable<
-    _Iterator1, _Iterator2,
-    std::void_t<decltype(std::declval<std::decay_t<_Iterator1>>() == std::declval<std::decay_t<_Iterator2>>())>>
+    struct __is_equality_comparable<
+        _Iterator1, _Iterator2,
+        std::void_t<decltype(std::declval<std::decay_t<_Iterator1>>() == std::declval<std::decay_t<_Iterator2>>())>>
     : std::true_type
 {
 };
