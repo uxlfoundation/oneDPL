@@ -701,7 +701,7 @@ __pattern_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&
                                                    oneapi::dpl::__internal::__brick_move<decltype(__tag)>{});
 }
 
-template <typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+template <typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
 __pattern_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __r, _OutRange&& __out_r)
 {
@@ -719,7 +719,7 @@ __pattern_swap_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& _
                                             __end, std::ranges::begin(__r2));
 }
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2>
+template <typename _ExecutionPolicy, typename _R1, typename _R2>
 void
 __pattern_swap_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2)
 {
@@ -742,7 +742,7 @@ __pattern_unique(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, 
     return {__it, __end};
 }
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+template <typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
 std::ranges::borrowed_subrange_t<_R>
 __pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
 {
@@ -765,7 +765,7 @@ __pattern_reverse(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
     return {__beg + __n};
 }
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R>
+template <typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_subrange_t<_R>
 __pattern_reverse(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
 {
@@ -787,7 +787,7 @@ __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange
     return {__end, __it};
 }
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
+template <typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
 std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r,
                       _Comp __comp, _Proj __proj)
