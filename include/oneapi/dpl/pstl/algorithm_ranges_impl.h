@@ -705,7 +705,7 @@ template <typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
 __pattern_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __r, _OutRange&& __out_r)
 {
-    std::ranges::move(std::forward<_InRange>(__r), std::forward<_OutRange>(__out_r));
+    std::ranges::move(std::forward<_InRange>(__r), std::ranges::begin(__out_r));
 }
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2>
