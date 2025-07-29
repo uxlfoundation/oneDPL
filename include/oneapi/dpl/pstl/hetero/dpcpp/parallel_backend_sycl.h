@@ -1529,7 +1529,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 *__scratch_ptr = __init_value;
 
                 // Initialize the scratch storage for group counter with zero value
-                auto __group_counter_ptr =
+                _GroupCounterType* __group_counter_ptr =
                     __result_and_scratch_storage_group_counter_t::__get_usm_or_buffer_accessor_ptr(
                         __group_counter_acc_w);
                 *__group_counter_ptr = 0;
@@ -1591,7 +1591,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                             _BrickTag::__save_state_to_atomic(__found, __found_local);
                         }
 
-                        auto __group_counter_ptr =
+                        _GroupCounterType* __group_counter_ptr =
                             __result_and_scratch_storage_group_counter_t::__get_usm_or_buffer_accessor_ptr(
                                 __group_counter_acc_rw);
                         __atomic_ref_t<_GroupCounterType> __group_counter(*__group_counter_ptr);
