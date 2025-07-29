@@ -1512,7 +1512,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
             oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
 
         // Initialization of the result storage
-        auto __event_init = __q.submit([&](sycl::handler& __cgh) {
+        sycl::event __event_init = __q.submit([&](sycl::handler& __cgh) {
             auto __scratch_acc =
                 __result_storage.template __get_scratch_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
@@ -1523,7 +1523,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         });
 
         // main parallel_for
-        auto __event = __q.submit([&](sycl::handler& __cgh) {
+        sycl::event __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
             auto __scratch_acc = __result_storage.template __get_scratch_acc<sycl::access_mode::read_write>(
@@ -1574,7 +1574,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         });
 
         // Copy data back from scratch part to result part
-        auto __writeback_event = __q.submit([&](sycl::handler& __cgh) {
+        sycl::event __writeback_event = __q.submit([&](sycl::handler& __cgh) {
             auto __scratch_acc = __result_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
             auto __res_acc =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
