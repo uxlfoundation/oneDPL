@@ -156,9 +156,17 @@ class backend_base
     auto
     submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
-      static_cast<Backend*>(this)->instrument_before_impl(s);
-      auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
-	    return static_cast<Backend*>(this)->instrument_after_impl(s, w);
+        static_cast<Backend*>(this)->instrument_before_impl(s);
+        if constexpr (has_extra_resources_v)
+        {
+            auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), s.get_extra_resource(), std::forward<Args>(args)...);
+            return static_cast<Backend*>(this)->instrument_after_impl(s, w);
+        }
+        else
+        {
+            auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
+            return static_cast<Backend*>(this)->instrument_after_impl(s, w);
+        }
     }
 
     template<typename WaitType>
