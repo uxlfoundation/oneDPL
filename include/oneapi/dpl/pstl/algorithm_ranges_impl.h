@@ -792,7 +792,7 @@ std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::range
 __pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r,
                       _Comp __comp, _Proj __proj)
 {
-    return std::ranges::unique_copy(std::forward<_R>(__r), std::forward<_OutRange>(__out_r), __comp, __proj);
+    return std::ranges::unique_copy(std::forward<_R>(__r), std::ranges::begin(__out_r), __comp, __proj);
 }
 
 } // namespace __ranges
