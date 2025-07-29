@@ -1544,15 +1544,13 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         auto __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
-            auto __scratch_acc_rw = __result_storage.template __get_scratch_acc<sycl::access_mode::read_write>(
-                __cgh, __dpl_sycl::__no_init{});
+            auto __scratch_acc_rw = __result_storage.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
 
             auto __res_acc =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
             auto __group_counter_acc_rw =
-                __group_counter_storage.template __get_scratch_acc<sycl::access_mode::read_write>(
-                    __cgh, __dpl_sycl::__no_init{});
+                __group_counter_storage.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
 
             __cgh.depends_on(__event_init);
 
