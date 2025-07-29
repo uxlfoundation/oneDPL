@@ -826,41 +826,40 @@ struct __is_equality_comparable : std::false_type
 
 // All with implemented operator ==
 template <typename _Iterator1, typename _Iterator2>
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+requires std::equality_comparable_with<std::decay_t<_Iterator1>, std::decay_t<_Iterator2>>
+#endif
 struct __is_equality_comparable<
     _Iterator1, _Iterator2,
-    std::void_t<decltype(::std::declval<::std::decay_t<_Iterator1>>() == ::std::declval<::std::decay_t<_Iterator2>>())>>
+    std::void_t<decltype(std::declval<std::decay_t<_Iterator1>>() == std::declval<std::decay_t<_Iterator2>>())>>
     : std::true_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
-using is_same_iterator_value_type = std::is_same<typename std::iterator_traits<_Iterator1>::value_type,
-                                                 typename std::iterator_traits<_Iterator2>::value_type>;
-
-template <typename _Iterator1, typename _Iterator2>
-constexpr std::enable_if_t<is_same_iterator_value_type<_Iterator1, _Iterator2>::value, bool>
+constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-    if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+    // In C++20 we can use concepts to check if the iterators are equality comparable
+    // so additional checks are not needed.
+    if constexpr (true)
+#else
+    // Before C++20 we can compare only the iterators of the same types.
+    if constexpr (std::is_same_v<typename std::iterator_traits<_Iterator1>::value_type,
+                                 typename std::iterator_traits<_Iterator2>::value_type>)
+#endif
     {
-        return __it1 == __it2;
+        if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+        {
+            return __it1 == __it2;
+        }
+        else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
+        {
+            return __it2 == __it1;
+        }
     }
-    else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
-    {
-        return __it2 == __it1;
-    }
-    else
-    {
-        return false;
-    }
-}
 
-template <typename _Iterator1, typename _Iterator2>
-constexpr std::enable_if_t<!is_same_iterator_value_type<_Iterator1, _Iterator2>::value, bool>
-__iterators_possibly_equal(_Iterator1 /*__it1*/, _Iterator2 /*__it2*/)
-{
-    // We should have this overload to avoid compile errors when the iterators have different value types
-    // but they implement operator== so __is_equality_comparable is true.
     return false;
 }
 
