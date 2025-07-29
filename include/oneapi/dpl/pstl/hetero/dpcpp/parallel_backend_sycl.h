@@ -1439,7 +1439,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
         const auto __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size);
 
         // main parallel_for
-        auto __event = __q.submit([&](sycl::handler& __cgh) {
+        sycl::event __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             auto __result_acc =
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
