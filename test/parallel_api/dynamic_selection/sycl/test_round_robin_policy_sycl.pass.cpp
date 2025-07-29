@@ -21,7 +21,7 @@ main()
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
     //using policy_t = oneapi::dpl::experimental::round_robin_policy<oneapi::dpl::experimental::sycl_backend>;
-    using policy_t = oneapi::dpl::experimental::round_robin_policy<sycl::queue, oneapi::dpl::experimental::default_backend<sycl::queue>>;
+    using policy_t = oneapi::dpl::experimental::round_robin_policy<sycl::queue, oneapi::dpl::experimental::empty_extra_resource, oneapi::dpl::experimental::default_backend<sycl::queue, oneapi::dpl::experimental::empty_extra_resource>>;
     std::vector<sycl::queue> u;
     build_universe(u);
     if (!u.empty())

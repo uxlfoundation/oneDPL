@@ -100,6 +100,53 @@ using selection_scratch_t = typename scratch_trait_t_impl<Backend, backend_trait
 
 } //namespace backend_traits
 
+
+namespace internal
+{
+template <typename ResourceType>
+struct has_initialize
+{
+    template <typename T>
+    static auto test(int) -> decltype(std::declval<T>().initialize(), std::true_type{});
+
+    template <typename>
+    static auto test(...) -> std::false_type;
+
+    static constexpr bool value = decltype(test<ResourceType>(0))::value;
+};
+
+template <typename ResourceType>
+struct has_reset
+{
+    template <typename T>
+    static auto test(int) -> decltype(std::declval<T>().reset(), std::true_type{});
+    template <typename>
+    static auto test(...) -> std::false_type;
+    static constexpr bool value = decltype(test<ResourceType>(0))::value;
+};
+
+template <typename ResourceType>
+struct has_cleanup
+{
+    template <typename T>
+    static auto test(int) -> decltype(std::declval<T>().cleanup(), std::true_type{});
+    template <typename>
+    static auto test(...) -> std::false_type;
+    static constexpr bool value = decltype(test<ResourceType>(0))::value;
+};
+
+} //namespace internal
+
+template <typename ResourceType>
+struct extra_resource_traits
+{
+    static constexpr bool has_initialize_v = internal::has_initialize<ResourceType>::value; 
+
+    static constexpr bool has_reset_v = internal::has_reset<ResourceType>::value;
+
+    static constexpr bool has_cleanup_v = internal::has_cleanup<ResourceType>::value;
+};
+
 } // namespace experimental
 } // namespace dpl
 } // namespace oneapi

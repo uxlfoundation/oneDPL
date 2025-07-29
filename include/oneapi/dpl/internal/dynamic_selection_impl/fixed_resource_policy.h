@@ -26,20 +26,33 @@ namespace experimental
 {
 
 #if _DS_BACKEND_SYCL != 0
-template <typename ResourceType = sycl::queue, typename Backend = default_backend<ResourceType>>
+template <typename ResourceType = sycl::queue, typename ExtraResourceType = oneapi::dpl::experimental::empty_extra_resource, typename Backend = default_backend<ResourceType, ExtraResourceType>>
 #else
-template <typename ResourceType, typename Backend = default_backend<ResourceType>>
+template <typename ResourceType, typename ExtraResourceType = oneapi::dpl::experimental::empty_extra_resource, typename Backend = default_backend<ResourceType, ExtraResourceType>>
 #endif
-class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceType, Backend>, ResourceType, Backend> 
+class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceType, ExtraResourceType, Backend>, ResourceType, ExtraResourceType, Backend> 
 {
   protected:
-    using base_t = policy_base<fixed_resource_policy<ResourceType, Backend>, ResourceType, Backend>;
+    using base_t = policy_base<fixed_resource_policy<ResourceType, ExtraResourceType, Backend>, ResourceType, ExtraResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
 
     struct selector_t 
     {
         typename base_t::resource_container_t resources_;
-	::std::size_t index_ = 0;
+        std::size_t index_ = 0;
+
+        auto
+        get_extra_resource() const
+        {
+            if constexpr (base_t::has_extra_resources_v)
+            {
+                return base_t::extra_resources_[index_];
+            }
+            else
+            {
+                return oneapi::dpl::experimental::empty_extra_resource{};
+            }
+        }
     };
 
     std::shared_ptr<selector_t> selector_;
@@ -79,7 +92,7 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
     {
 	if (selector_) 
 	{
-            return selection_type{*this, selector_->resources_[selector_->index_]};
+            return selection_type{*this, selector_->resources_[selector_->index_], selector_->get_extra_resource()};
 	}
 	else
 	{

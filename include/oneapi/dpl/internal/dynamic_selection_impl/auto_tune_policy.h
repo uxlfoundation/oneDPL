@@ -36,7 +36,7 @@ namespace experimental
 {
 
 #if _DS_BACKEND_SYCL != 0
-template <typename ResourceType = sycl::queue, typename Backend = default_backend<sycl::queue>, typename... KeyArgs>
+template <typename ResourceType = sycl::queue, typename ExtraResourceType = oneapi::dpl::experimental::empty_extra_resource, typename Backend = default_backend<sycl::queue, ExtraResourceType>, typename... KeyArgs>
 #else
 template <typename Backend, typename... KeyArgs>
 #endif
@@ -45,9 +45,12 @@ class auto_tune_policy
 
     using backend_t = Backend;
     using execution_resource_t = typename backend_t::execution_resource_t;
+    using extra_resource_t = typename backend_t::extra_resource_t;
+    using extra_resource_container_t = typename backend_t::extra_resource_container_t;
     using wrapped_resource_t = execution_resource_t;
     using size_type = typename std::vector<typename Backend::resource_type>::size_type;
     using timing_t = uint64_t;
+    static constexpr bool has_extra_resources_v = backend_t::has_extra_resources_v;
 
     using report_clock_type = std::chrono::steady_clock;
     using report_duration = std::chrono::milliseconds;
@@ -154,17 +157,18 @@ class auto_tune_policy
 
     class auto_tune_selection_type
     {
-        using policy_t = auto_tune_policy<ResourceType, Backend, KeyArgs...>;
+        using policy_t = auto_tune_policy<ResourceType, ExtraResourceType, Backend, KeyArgs...>;
         policy_t policy_;
         resource_with_index_t resource_;
+        extra_resource_t extra_resource_;
         std::shared_ptr<tuner_t> tuner_;
 
       public:
 	using scratch_space_t = typename backend_traits::selection_scratch_t<Backend,execution_info::task_time_t>;
 	scratch_space_t scratch_space;
 
-        auto_tune_selection_type(const policy_t& p, resource_with_index_t r, std::shared_ptr<tuner_t> t)
-            : policy_(p), resource_(r), tuner_(::std::move(t))
+        auto_tune_selection_type(const policy_t& p, resource_with_index_t r, std::shared_ptr<tuner_t> t, extra_resource_t er)
+            : policy_(p), resource_(r), tuner_(::std::move(t)), extra_resource_(::std::move(er))
         {
         }
 
@@ -180,12 +184,31 @@ class auto_tune_policy
             return policy_;
         };
 
+        extra_resource_t
+        get_extra_resource()
+        {
+            return extra_resource_;
+        }
+        
         void
         report(const execution_info::task_time_t&, report_duration v) const
         {
             tuner_->add_new_timing(resource_, v.count());
         }
     };
+
+    extra_resource_t 
+    get_extra_resource(size_type index) const
+    {
+        if constexpr (has_extra_resources_v)
+        {
+            return get_extra_resources()[index];
+        }
+        else
+        {
+            return extra_resource_t{};
+        }
+    }
 
   public:
     // Needed by Policy Traits
@@ -241,12 +264,12 @@ class auto_tune_policy
             auto index = t->get_resource_to_profile();
             if (index == use_best_resource)
             {
-                return selection_type{*this, t->best_resource_, t};
+                return selection_type{*this, t->best_resource_, t, get_extra_resource(t->best_resource_.index_)};
             }
             else
             {
                 auto r = state_->resources_with_index_[index];
-                return selection_type{*this, r, t};
+                return selection_type{*this, r, t, get_extra_resource(r.index_)};
             }
         }
         else
@@ -280,6 +303,19 @@ class auto_tune_policy
         else
         {
             throw std::logic_error("get_resources called before initialization");
+        }
+    }
+
+    std::enable_if<has_extra_resources_v, extra_resource_container_t>
+    get_extra_resources() const
+    {
+        if (backend_)
+        {
+            return backend_->get_extra_resources();
+        }
+        else
+        {
+            throw std::logic_error("get_extra_resources called before initialization");
         }
     }
 

@@ -48,7 +48,7 @@ main()
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 #if !ONEDPL_FPGA_DEVICE || !ONEDPL_FPGA_EMULATOR
-    using policy_t = oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, oneapi::dpl::experimental::default_backend<sycl::queue>>;
+    using policy_t = oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, oneapi::dpl::experimental::empty_extra_resource, oneapi::dpl::experimental::default_backend<sycl::queue, oneapi::dpl::experimental::empty_extra_resource>>;
     std::vector<sycl::queue> u;
     build_dl_universe(u);
 
