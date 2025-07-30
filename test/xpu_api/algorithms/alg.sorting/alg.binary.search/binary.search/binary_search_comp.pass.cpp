@@ -43,10 +43,13 @@ class KernelBSearchTest3;
 class KernelBSearchTest4;
 
 template <typename Iter, typename KC>
-void
+bool
 kernel_test()
 {
     sycl::queue deviceQueue = TestUtils::get_test_queue();
+    if (!TestUtils::is_usm_alloc_supported<sycl::usm::alloc::device>(deviceQueue))
+        return false;
+
     bool ret = false;
     sycl::range<1> numOfItems{1};
     sycl::buffer<bool, 1> buffer1(&ret, numOfItems);
@@ -80,15 +83,19 @@ kernel_test()
 
     auto ret_access_host = buffer1.get_host_access(sycl::read_only);
     EXPECT_TRUE(ret_access_host[0], "Wrong result of binary_search with comparator");
+
+    return true;
 }
 
 int
 main()
 {
-    kernel_test<forward_iterator<const int*>, KernelBSearchTest1>();
-    kernel_test<bidirectional_iterator<const int*>, KernelBSearchTest2>();
-    kernel_test<random_access_iterator<const int*>, KernelBSearchTest3>();
-    kernel_test<const int*, KernelBSearchTest4>();
+    bool bProcessed = false;
 
-    return TestUtils::done();
+    bProcessed = kernel_test<forward_iterator<const int*>, KernelBSearchTest1>() || bProcessed;
+    bProcessed = kernel_test<bidirectional_iterator<const int*>, KernelBSearchTest2>() || bProcessed;
+    bProcessed = kernel_test<random_access_iterator<const int*>, KernelBSearchTest3>() || bProcessed;
+    bProcessed = kernel_test<const int*, KernelBSearchTest4>();
+
+    return TestUtils::done(bProcessed);
 }
