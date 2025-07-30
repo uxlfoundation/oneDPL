@@ -20,6 +20,7 @@
 
 #include <list>
 #include <memory>
+#include <stdexcept> // for std::runtime_error
 
 #include "utils_sycl_defs.h"
 
@@ -69,10 +70,15 @@ public:
 
     using __difference_type = typename ::std::iterator_traits<_ValueType*>::difference_type;
 
+    // Attention: this constructor may throw an std::runtime_error exception
+    // if the USM allocation type is not supported by the device.
     template<typename _Size>
     usm_data_transfer(sycl::queue __q, _Size __sz)
         : __queue(__q), __count(__sz)
     {
+        if (!TestUtils::is_usm_alloc_supported<_alloc_type>())
+            throw std::runtime_error("USM allocation type is not supported by the device");
+
         if (__count > 0)
         {
             __ptr = allocate(__count, __alloc_type<_alloc_type>{});
@@ -80,6 +86,8 @@ public:
         }
     }
 
+    // Attention: this constructor may throw an std::runtime_error exception
+    // if the USM allocation type is not supported by the device.
     template<typename _Iterator, typename _Size>
     usm_data_transfer(sycl::queue __q, _Iterator __it, _Size __sz)
         : usm_data_transfer(__q, __sz)
@@ -90,6 +98,8 @@ public:
         }
     }
 
+    // Attention: this constructor may throw an std::runtime_error exception
+    // if the USM allocation type is not supported by the device.
     template<typename _Iterator>
     usm_data_transfer(sycl::queue __q, _Iterator __itBegin, _Iterator __itEnd)
         : usm_data_transfer(__q, __itBegin, __itEnd - __itBegin)
