@@ -18,14 +18,14 @@
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
-#include <ranges>
-#include <utility>
-#include <cassert>
-#include <functional>
-#include <type_traits>
+#    include <ranges>
+#    include <utility>
+#    include <cassert>
+#    include <functional>
+#    include <type_traits>
 
-#include "execution_impl.h"
-#include "glue_memory_impl.h"
+#    include "execution_impl.h"
+#    include "glue_memory_impl.h"
 
 namespace oneapi
 {
@@ -105,10 +105,11 @@ __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     return {__last1, __last2};
 }
 
-template<typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+template <typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 std::ranges::uninitialized_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
                                        std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_uninitialized_copy(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r, _OutRange&& __out_r)
+__pattern_uninitialized_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r,
+                             _OutRange&& __out_r)
 {
     return std::ranges::uninitialized_copy(std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r));
 }
@@ -136,10 +137,11 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     return {__last1, __last2};
 }
 
-template<typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+template <typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 std::ranges::uninitialized_move_result<std::ranges::borrowed_iterator_t<_InRange>,
                                        std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_uninitialized_move(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r, _OutRange&& __out_r)
+__pattern_uninitialized_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r,
+                             _OutRange&& __out_r)
 {
     return std::ranges::uninitialized_move(std::forward<_InRange>(__in_r), std::forward<_InRange>(__out_r));
 }
@@ -162,7 +164,8 @@ __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, co
 
 template <typename _ExecutionPolicy, typename _R, typename _T>
 std::ranges::borrowed_iterator_t<_R>
-__pattern_uninitialized_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, const _T& __value)
+__pattern_uninitialized_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r,
+                             const _T& __value)
 {
     return std::ranges::uninitialized_fill(std::forward<_R>(__r), __value);
 }
