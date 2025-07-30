@@ -21,23 +21,29 @@
 int
 main()
 {
+    bool bProcessed = false;
+
 #if TEST_DPCPP_BACKEND_PRESENT
 
     auto policy = TestUtils::get_dpcpp_test_policy();
     sycl::queue q = policy.queue();
 
-    constexpr std::size_t n = 100;
+    if (TestUsils::is_usm_alloc_supported<sycl::usm::alloc::shared>(q))
+    {
+        constexpr std::size_t n = 100;
 
-    using T = float;
-    using allocator = sycl::usm_allocator<T, sycl::usm::alloc::shared>;
+        using T = float;
+        using allocator = sycl::usm_allocator<T, sycl::usm::alloc::shared>;
 
-    allocator alloc(q);
-    std::vector<T, allocator> data(n, 1, alloc);
+        allocator alloc(q);
+        std::vector<T, allocator> data(n, 1, alloc);
 
-    auto f = oneapi::dpl::experimental::reduce_async(policy, data.begin(), data.end());
-    f.wait();
+        auto f = oneapi::dpl::experimental::reduce_async(policy, data.begin(), data.end());
+        f.wait();
 
+        bProcessed = true;
+    }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }
