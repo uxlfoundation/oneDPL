@@ -343,36 +343,40 @@ DEFINE_TEST(test_merge)
 
 #if TEST_DPCPP_BACKEND_PRESENT
 template <sycl::usm::alloc alloc_type>
-void
+bool
 test_usm_and_buffer()
 {
+    bool bProcessed = false;
     using ValueType = ::std::int32_t;
 
     // test1buffer
     PRINT_DEBUG("test_sort");
-    test1buffer<alloc_type, test_sort<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_sort<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_inplace_merge");
-    test1buffer<alloc_type, test_inplace_merge<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_inplace_merge<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_stable_sort");
-    test1buffer<alloc_type, test_stable_sort<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_stable_sort<ValueType>>() || bProcessed;
 
     //test2buffers
     PRINT_DEBUG("test_nth_element");
-    test2buffers<alloc_type, test_nth_element<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_nth_element<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_partial_sort");
-    test2buffers<alloc_type, test_partial_sort<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_partial_sort<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_partial_sort_copy");
-    test2buffers<alloc_type, test_partial_sort_copy<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_partial_sort_copy<ValueType>>() || bProcessed;
 
     //test3buffers
     PRINT_DEBUG("test_merge");
-    test3buffers<alloc_type, test_merge<ValueType>>(2);
+    bProcessed = test3buffers<alloc_type, test_merge<ValueType>>(2) || bProcessed;
+
+    return bProcessed;
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 std::int32_t
 main()
 {
+    bool bProcessed = false;
     try
     {
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -380,9 +384,9 @@ main()
         //So, in case of a couple of 'test_usm_and_buffer' call we get double-testing case with sycl::buffer.
 
         // Run tests for USM shared memory
-        test_usm_and_buffer<sycl::usm::alloc::shared>();
+        bProcessed = test_usm_and_buffer<sycl::usm::alloc::shared>() || bProcessed;
         // Run tests for USM device memory
-        test_usm_and_buffer<sycl::usm::alloc::device>();
+        bProcessed = test_usm_and_buffer<sycl::usm::alloc::device>() || bProcessed;
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
     catch (const ::std::exception& exc)
@@ -391,5 +395,5 @@ main()
         return EXIT_FAILURE;
     }
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }

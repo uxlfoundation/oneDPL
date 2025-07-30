@@ -1042,87 +1042,92 @@ template<>
 struct sycl::is_device_copyable<SyclTypeWrapper<ValueType>> : std::true_type {};
 
 template <sycl::usm::alloc alloc_type>
-void
+bool
 test_usm_and_buffer()
 {
+    bool bProcessed = false;
+
     // test1buffer
     PRINT_DEBUG("test_for_each");
-    test1buffer<alloc_type, test_for_each<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_for_each<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_for_each_n");
-    test1buffer<alloc_type, test_for_each_n<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_for_each_n<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_replace");
-    test1buffer<alloc_type, test_replace<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_replace<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_replace_if");
-    test1buffer<alloc_type, test_replace_if<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_replace_if<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_fill");
-    test1buffer<alloc_type, test_fill<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_fill<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_fill_n");
-    test1buffer<alloc_type, test_fill_n<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_fill_n<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_generate");
-    test1buffer<alloc_type, test_generate<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_generate<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_generate_n");
-    test1buffer<alloc_type, test_generate_n<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_generate_n<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_reverse");
-    test1buffer<alloc_type, test_reverse<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_reverse<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_rotate");
-    test1buffer<alloc_type, test_rotate<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_rotate<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_uninitialized_fill");
-    test1buffer<alloc_type, test_uninitialized_fill<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_uninitialized_fill<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_uninitialized_fill_n");
-    test1buffer<alloc_type, test_uninitialized_fill_n<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_uninitialized_fill_n<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_uninitialized_default_construct");
-    test1buffer<alloc_type, test_uninitialized_default_construct<SyclTypeWrapper<ValueType>>>();
+    bProcessed = test1buffer<alloc_type, test_uninitialized_default_construct<SyclTypeWrapper<ValueType>>>() || bProcessed;
     PRINT_DEBUG("test_uninitialized_default_construct_n");
-    test1buffer<alloc_type, test_uninitialized_default_construct_n<SyclTypeWrapper<ValueType>>>();
+    bProcessed = test1buffer<alloc_type, test_uninitialized_default_construct_n<SyclTypeWrapper<ValueType>>>() || bProcessed;
     PRINT_DEBUG("test_uninitialized_value_construct");
-    test1buffer<alloc_type, test_uninitialized_value_construct<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_uninitialized_value_construct<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_uninitialized_value_construct_n");
-    test1buffer<alloc_type, test_uninitialized_value_construct_n<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_uninitialized_value_construct_n<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_destroy");
-    test1buffer<alloc_type, test_destroy<SyclTypeWrapper<ValueType>>>();
+    bProcessed = test1buffer<alloc_type, test_destroy<SyclTypeWrapper<ValueType>>>() || bProcessed;
     PRINT_DEBUG("test_destroy_n");
-    test1buffer<alloc_type, test_destroy_n<SyclTypeWrapper<ValueType>>>();
-    test1buffer<alloc_type, test_destroy_n<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_destroy_n<SyclTypeWrapper<ValueType>>>() || bProcessed;
+    bProcessed = test1buffer<alloc_type, test_destroy_n<ValueType>>() || bProcessed;
 
     //test2buffers
     PRINT_DEBUG("test_replace_copy");
-    test2buffers<alloc_type, test_replace_copy<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_replace_copy<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_replace_copy_if");
-    test2buffers<alloc_type, test_replace_copy_if<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_replace_copy_if<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_transform_unary");
-    test2buffers<alloc_type, test_transform_unary<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_transform_unary<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_transform_binary");
-    test2buffers<alloc_type, test_transform_binary<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_transform_binary<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_copy");
-    test2buffers<alloc_type, test_copy<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_copy<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_copy_n");
-    test2buffers<alloc_type, test_copy_n<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_copy_n<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_move");
-    test2buffers<alloc_type, test_move<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_move<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_adjacent_difference");
-    test2buffers<alloc_type, test_adjacent_difference<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_adjacent_difference<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_swap_ranges");
-    test2buffers<alloc_type, test_swap_ranges<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_swap_ranges<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_reverse_copy");
-    test2buffers<alloc_type, test_reverse_copy<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_reverse_copy<ValueType>>() || bProcessed;
     PRINT_DEBUG("test rotate_copy");
-    test2buffers<alloc_type, test_rotate_copy<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_rotate_copy<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_uninitialized_copy");
-    test2buffers<alloc_type, test_uninitialized_copy<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_uninitialized_copy<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_uninitialized_copy_n");
-    test2buffers<alloc_type, test_uninitialized_copy_n<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_uninitialized_copy_n<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_uninitialized_move");
-    test2buffers<alloc_type, test_uninitialized_move<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_uninitialized_move<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_uninitialized_move_n");
-    test2buffers<alloc_type, test_uninitialized_move_n<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_uninitialized_move_n<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_includes");
-    test2buffers<alloc_type, test_includes<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_includes<ValueType>>() || bProcessed;
+
+    return bProcessed;
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 std::int32_t
 main()
 {
+    bool bProcessed = false;
     try
     {
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -1130,9 +1135,9 @@ main()
         //So, in case of a couple of 'test_usm_and_buffer' call we get double-testing case with sycl::buffer.
 
         // Run tests for USM shared memory
-        test_usm_and_buffer<sycl::usm::alloc::shared>();
+        bProcessed = test_usm_and_buffer<sycl::usm::alloc::shared>() || bProcessed;
         // Run tests for USM device memory
-        test_usm_and_buffer<sycl::usm::alloc::device>();
+        bProcessed = test_usm_and_buffer<sycl::usm::alloc::device>() || bProcessed;
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
     catch (const ::std::exception& exc)
@@ -1141,5 +1146,5 @@ main()
         return EXIT_FAILURE;
     }
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }

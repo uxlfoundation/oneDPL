@@ -590,48 +590,52 @@ DEFINE_TEST(test_set_symmetric_difference)
 
 #if TEST_DPCPP_BACKEND_PRESENT
 template <sycl::usm::alloc alloc_type>
-void
+bool
 test_usm_and_buffer()
 {
+    bool bProcessed = false;
     using ValueType = ::std::int32_t;
 
     // test1buffer
     PRINT_DEBUG("test_partition");
-    test1buffer<alloc_type, test_partition<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_partition<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_remove");
-    test1buffer<alloc_type, test_remove<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_remove<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_remove_if");
-    test1buffer<alloc_type, test_remove_if<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_remove_if<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_unique");
-    test1buffer<alloc_type, test_unique<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_unique<ValueType>>() || bProcessed;
 
     //test2buffers
     PRINT_DEBUG("test_transform_inclusive_scan");
-    test2buffers<alloc_type, test_transform_inclusive_scan<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_transform_inclusive_scan<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_transform_exclusive_scan");
-    test2buffers<alloc_type, test_transform_exclusive_scan<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_transform_exclusive_scan<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_copy_if");
-    test2buffers<alloc_type, test_copy_if<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_copy_if<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_unique_copy");
-    test2buffers<alloc_type, test_unique_copy<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_unique_copy<ValueType>>() || bProcessed;
 
     //test3buffers
     PRINT_DEBUG("test_partition_copy");
-    test3buffers<alloc_type, test_partition_copy<ValueType>>();
+    bProcessed = test3buffers<alloc_type, test_partition_copy<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_set_symmetric_difference");
-    test3buffers<alloc_type, test_set_symmetric_difference<ValueType>>();
+    bProcessed = test3buffers<alloc_type, test_set_symmetric_difference<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_set_union");
-    test3buffers<alloc_type, test_set_union<ValueType>>();
+    bProcessed = test3buffers<alloc_type, test_set_union<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_set_difference");
-    test3buffers<alloc_type, test_set_difference<ValueType>>();
+    bProcessed = test3buffers<alloc_type, test_set_difference<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_set_intersection");
-    test3buffers<alloc_type, test_set_intersection<ValueType>>();
+    bProcessed = test3buffers<alloc_type, test_set_intersection<ValueType>>() || bProcessed;
+
+    return bProcessed;
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 std::int32_t
 main()
 {
+    bool bProcessed = false;
     try
     {
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -639,9 +643,9 @@ main()
         //So, in case of a couple of 'test_usm_and_buffer' call we get double-testing case with sycl::buffer.
 
         // Run tests for USM shared memory
-        test_usm_and_buffer<sycl::usm::alloc::shared>();
+        bProcessed = test_usm_and_buffer<sycl::usm::alloc::shared>() || bProcessed;
         // Run tests for USM device memory
-        test_usm_and_buffer<sycl::usm::alloc::device>();
+        bProcessed = test_usm_and_buffer<sycl::usm::alloc::device>() || bProcessed;
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
     catch (const ::std::exception& exc)
@@ -650,5 +654,5 @@ main()
         return EXIT_FAILURE;
     }
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }
