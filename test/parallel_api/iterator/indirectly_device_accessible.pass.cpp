@@ -435,14 +435,17 @@ main()
     test_with_base_iterator<true, int*>();
     test_base_with_reverse_iter<true, int*>();
 
-    // create a usm allocated vector
-    sycl::usm_allocator<int, sycl::usm::alloc::shared> alloc(q);
-    std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>> vec(alloc);
-    test_with_base_iterator<TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(vec.begin())>,
-                            decltype(vec.begin())>();
-    test_base_with_reverse_iter<
-        TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(vec.begin())>,
-        decltype(vec.begin())>();
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>(q))
+    {
+        // create a usm allocated vector
+        sycl::usm_allocator<int, sycl::usm::alloc::shared> alloc(q);
+        std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>> vec(alloc);
+        test_with_base_iterator<TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(vec.begin())>,
+                                decltype(vec.begin())>();
+        test_base_with_reverse_iter<
+            TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(vec.begin())>,
+            decltype(vec.begin())>();
+    }
 
     // custom iter type with legacy is_passed_directly trait defined
     test_with_base_iterator<true, IDA_iter>();

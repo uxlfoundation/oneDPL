@@ -147,30 +147,35 @@ DEFINE_TEST(test_equal_structured_binding)
 };
 
 template <sycl::usm::alloc alloc_type>
-void
+bool
 test_usm_and_buffer()
 {
+    bool bProcessed = false;
     using ValueType = std::int32_t;
+
     PRINT_DEBUG("test_equal");
-    test2buffers<alloc_type, test_equal<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_equal<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_equal_structured_binding");
-    test2buffers<alloc_type, test_equal_structured_binding<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_equal_structured_binding<ValueType>>() || bProcessed;
+
+    return bProcessed;
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 std::int32_t
 main()
 {
+    bool bProcessed = false;
 #if TEST_DPCPP_BACKEND_PRESENT
     //TODO: There is the over-testing here - each algorithm is run with sycl::buffer as well.
     //So, in case of a couple of 'test_usm_and_buffer' call we get double-testing case with sycl::buffer.
 
     // Run tests for USM shared memory
-    test_usm_and_buffer<sycl::usm::alloc::shared>();
+    bProcessed = test_usm_and_buffer<sycl::usm::alloc::shared>() || bProcessed;
     // Run tests for USM device memory
-    test_usm_and_buffer<sycl::usm::alloc::device>();
+    bProcessed = test_usm_and_buffer<sycl::usm::alloc::device>() || bProcessed;
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }
 

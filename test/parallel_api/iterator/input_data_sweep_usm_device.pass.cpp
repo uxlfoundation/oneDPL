@@ -50,18 +50,27 @@ call_wrap_recurse(Policy&& exec, T trash, size_t n, const std::string& type_text
 }
 
 template <typename Policy>
-void
+bool
 test_impl(Policy&& exec)
 {
+    bool bProcessed = false;
     constexpr size_t n = 10;
 
-    // baseline with no wrapping
-    call_wrap_recurse<float, 0>(CLONE_TEST_POLICY_IDX(exec, 0), -666.0f, n, "float");
-    call_wrap_recurse<double, 0>(CLONE_TEST_POLICY_IDX(exec, 1), -666.0, n, "double");
-    call_wrap_recurse<std::uint64_t, 0>(CLONE_TEST_POLICY_IDX(exec, 2), 999, n, "uint64_t");
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>(exec.queue())
+        && TestUtils::is_usm_alloc_supported<sycl::usm::alloc::device>(exec.queue()))
+    {
+        // baseline with no wrapping
+        call_wrap_recurse<float, 0>(CLONE_TEST_POLICY_IDX(exec, 0), -666.0f, n, "float");
+        call_wrap_recurse<double, 0>(CLONE_TEST_POLICY_IDX(exec, 1), -666.0, n, "double");
+        call_wrap_recurse<std::uint64_t, 0>(CLONE_TEST_POLICY_IDX(exec, 2), 999, n, "uint64_t");
 
-    // big recursion step: 1 and 2 layers of wrapping
-    call_wrap_recurse<std::int32_t, 2>(CLONE_TEST_POLICY_IDX(exec, 3), -666, n, "int32_t");
+        // big recursion step: 1 and 2 layers of wrapping
+        call_wrap_recurse<std::int32_t, 2>(CLONE_TEST_POLICY_IDX(exec, 3), -666, n, "int32_t");
+
+        bProcessed = true;
+    }
+
+    return bProcessed;
 }
 
 #endif //TEST_DPCPP_BACKEND_PRESENT
@@ -69,15 +78,16 @@ test_impl(Policy&& exec)
 int
 main()
 {
+    bool bProcessed = false;
 #if TEST_DPCPP_BACKEND_PRESENT
 
     auto policy = TestUtils::get_dpcpp_test_policy();
-    test_impl(policy);
+    bProcessed = test_impl(policy);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
     TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
 #endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }

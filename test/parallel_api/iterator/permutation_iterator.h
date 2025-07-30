@@ -160,6 +160,9 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
     void
     operator()(Policy&& exec, Operand op)
     {
+        if (!TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>(exec.queue()))
+            return;
+
         using TestBaseData = TestUtils::test_base_data_usm<sycl::usm::alloc::shared, TSourceDataSize>;
 
         TestBaseData test_base_data(TestUtils::get_test_queue(), {{TestUtils::max_n, TestUtils::inout1_offset}});
@@ -168,7 +171,7 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
         std::vector<TSourceDataSize> indexes;
 
         for (TSourceDataSize perm_idx_step = 1; perm_idx_step < data.src_data_size;
-             perm_idx_step = kDefaultIndexStepOp(perm_idx_step))
+                perm_idx_step = kDefaultIndexStepOp(perm_idx_step))
         {
             const TSourceDataSize idx_size = data.src_data_size / perm_idx_step;
             indexes.resize(idx_size);

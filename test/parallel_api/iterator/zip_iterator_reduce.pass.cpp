@@ -248,36 +248,42 @@ DEFINE_TEST(test_lexicographical_compare)
 };
 
 template <sycl::usm::alloc alloc_type>
-void
+bool
 test_usm_and_buffer()
 {
+    bool bProcessed = false;
     using ValueType = std::int32_t;
+
     PRINT_DEBUG("test_transform_reduce_unary");
-    test1buffer<alloc_type, test_transform_reduce_unary<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_transform_reduce_unary<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_transform_reduce_binary");
-    test2buffers<alloc_type, test_transform_reduce_binary<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_transform_reduce_binary<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_min_element");
-    test1buffer<alloc_type, test_min_element<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_min_element<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_count_if");
-    test1buffer<alloc_type, test_count_if<ValueType>>();
+    bProcessed = test1buffer<alloc_type, test_count_if<ValueType>>() || bProcessed;
     PRINT_DEBUG("test_lexicographical_compare");
-    test2buffers<alloc_type, test_lexicographical_compare<ValueType>>();
+    bProcessed = test2buffers<alloc_type, test_lexicographical_compare<ValueType>>() || bProcessed;
+
+    return bProcessed;
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 std::int32_t
 main()
 {
+    bool bProcessed = false;
+
 #if TEST_DPCPP_BACKEND_PRESENT
     //TODO: There is the over-testing here - each algorithm is run with sycl::buffer as well.
     //So, in case of a couple of 'test_usm_and_buffer' call we get double-testing case with sycl::buffer.
 
     // Run tests for USM shared memory
-    test_usm_and_buffer<sycl::usm::alloc::shared>();
+    bProcessed = test_usm_and_buffer<sycl::usm::alloc::shared>() || bProcessed;
     // Run tests for USM device memory
-    test_usm_and_buffer<sycl::usm::alloc::device>();
+    bProcessed = test_usm_and_buffer<sycl::usm::alloc::device>() || bProcessed;
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }
 
