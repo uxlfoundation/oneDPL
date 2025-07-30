@@ -36,6 +36,7 @@
 #if TEST_DPCPP_BACKEND_PRESENT
 #    include "support/sycl_alloc_utils.h"
 #endif
+#include "utils_invoke.h" // for CLONE_TEST_POLICY
 
 // The struct allows filtering configurations to avoid exponential growth of test cases
 // and to pass an error message prefix for better diagnostics
@@ -386,14 +387,13 @@ run_test(SortTestConfig config,
     // Run tests for USM shared memory (external testing for USM shared memory, once already covered in sycl_iterator.pass.cpp)
     if (config.test_usm_shared)
     {
-        // TODO: Create a temporary policy instance and pass it to test_usm with the needed value category
-        test_usm<sycl::usm::alloc::shared>(config, exec, tmp_first, tmp_last,
+        test_usm<sycl::usm::alloc::shared>(config, CLONE_TEST_POLICY(exec), tmp_first, tmp_last,
                                            expected_first, expected_last,first, last, n, compare...);
     }
     if (config.test_usm_device)
     {
         // Run tests for USM device memory
-        test_usm<sycl::usm::alloc::device>(config, std::forward<Policy>(exec), tmp_first, tmp_last,
+        test_usm<sycl::usm::alloc::device>(config, CLONE_TEST_POLICY(exec), tmp_first, tmp_last,
                                            expected_first, expected_last, first, last, n, compare...);
     }
 }
