@@ -260,8 +260,10 @@ void test_impl(Policy&& exec)
     test2_with_buffers(CLONE_TEST_POLICY(exec));
 
     // Run tests for USM shared/device memory
-    test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
-    test_with_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec));
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>(exec.queue()))
+        test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::device>(exec.queue()))
+        test_with_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec));
 }
 #endif // #if TEST_DPCPP_BACKEND_PRESENT
 
