@@ -131,7 +131,8 @@ sycl::queue get_test_queue()
 }
 
 template <sycl::usm::alloc alloc_type>
-bool is_usm_alloc_supported(const sycl::queue& __q)
+bool
+is_usm_alloc_supported(const sycl::queue& __q)
 {
     const sycl::device __device = __q.get_device();
 
