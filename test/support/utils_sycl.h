@@ -162,14 +162,17 @@ required_test_sycl_buffer()
 
 template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName,
           bool TestSyclBuffer = required_test_sycl_buffer<alloc_type>()>
-void
+bool
 test1buffer(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
+    bool bProcessed = false;
+
     sycl::queue queue = get_test_queue(); // usm and allocator requires queue
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
     const size_t local_step = 3.1415 * ScaleStep;
 #if _PSTL_SYCL_TEST_USM
+    if (is_usm_alloc_supported<alloc_type>(queue))
     { // USM
         // 1. allocate usm memory
         using TestBaseData = test_base_data_usm<alloc_type, TestValueType>;
@@ -188,6 +191,8 @@ test1buffer(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
                                                inout1_offset_first, inout1_offset_first + n,
                                                n);
         }
+
+        bProcessed = true;
     }
 #endif
 
@@ -211,20 +216,27 @@ test1buffer(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
                                                inout1_offset_first, inout1_offset_first + n,
                                                n);
         }
+
+        bProcessed = true;
     }
+
+    return bProcessed;
 }
 
 template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName,
           bool TestSyclBuffer = required_test_sycl_buffer<alloc_type>()>
-void
+bool
 test2buffers(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
+    bool bProcessed = false;
+
     sycl::queue queue = get_test_queue(); // usm and allocator requires queue
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
     const size_t local_step = 3.1415 * ScaleStep;
 
 #if _PSTL_SYCL_TEST_USM
+    if (is_usm_alloc_supported<alloc_type>(queue))
     { // USM
         // 1. allocate usm memory
         using TestBaseData = test_base_data_usm<alloc_type, TestValueType>;
@@ -246,6 +258,8 @@ test2buffers(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
                                                inout2_offset_first, inout2_offset_first + n,
                                                n);
         }
+
+        bProcessed = true;
     }
 #endif
 
@@ -272,20 +286,27 @@ test2buffers(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
                                                inout2_offset_first, inout2_offset_first + n,
                                                n);
         }
+
+        bProcessed = true;
     }
+
+    return bProcessed;
 }
 
 template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName,
           bool TestSyclBuffer = required_test_sycl_buffer<alloc_type>()>
-void
+bool
 test3buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
+    bool bProcessed = false;
+
     sycl::queue queue = get_test_queue(); // usm requires queue
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
     const size_t local_step = 3.1415 * ScaleStep;
 
 #if _PSTL_SYCL_TEST_USM
+    if (is_usm_alloc_supported<alloc_type>(queue))
     { // USM
 
         // 1. allocate usm memory
@@ -311,6 +332,8 @@ test3buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
                                                inout3_offset_first, inout3_offset_first + n * mult,
                                                n);
         }
+
+        bProcessed = true;
     }
 #endif
 
@@ -340,20 +363,27 @@ test3buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
                                                inout3_offset_first, inout3_offset_first + n * mult,
                                                n);
         }
+
+        bProcessed = true;
     }
+
+    return bProcessed;
 }
 
 template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName,
           bool TestSyclBuffer = required_test_sycl_buffer<alloc_type>()>
-void
+bool
 test4buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
+    bool bProcessed = false;
+
     sycl::queue queue = get_test_queue(); // usm requires queue
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
     const size_t local_step = 3.1415 * ScaleStep;
 
 #if _PSTL_SYCL_TEST_USM
+    if (is_usm_alloc_supported<alloc_type>(queue))
     { // USM
 
         // 1. allocate usm memory
@@ -382,6 +412,8 @@ test4buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
                                                inout4_offset_first, inout4_offset_first + n * mult,
                                                n);
         }
+
+        bProcessed = true;
     }
 #endif
 
@@ -414,39 +446,43 @@ test4buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
                                                inout4_offset_first, inout4_offset_first + n * mult,
                                                n);
         }
+
+        bProcessed = true;
     }
+
+    return bProcessed;
 }
 
 template <sycl::usm::alloc alloc_type, typename TestName,
           bool TestSyclBuffer = required_test_sycl_buffer<alloc_type>()>
-::std::enable_if_t<::std::is_base_of_v<test_base<typename TestName::UsedValueType>, TestName>>
+std::enable_if_t<std::is_base_of_v<test_base<typename TestName::UsedValueType>, TestName>, bool>
 test1buffer()
 {
-    test1buffer<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(TestName::ScaleStep, TestName::ScaleMax);
+    return test1buffer<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(TestName::ScaleStep, TestName::ScaleMax);
 }
 
 template <sycl::usm::alloc alloc_type, typename TestName,
           bool TestSyclBuffer = required_test_sycl_buffer<alloc_type>()>
-::std::enable_if_t<::std::is_base_of_v<test_base<typename TestName::UsedValueType>, TestName>>
+std::enable_if_t<std::is_base_of_v<test_base<typename TestName::UsedValueType>, TestName>, bool>
 test2buffers()
 {
-    test2buffers<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(TestName::ScaleStep, TestName::ScaleMax);
+    return test2buffers<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(TestName::ScaleStep, TestName::ScaleMax);
 }
 
 template <sycl::usm::alloc alloc_type, typename TestName,
           bool TestSyclBuffer = required_test_sycl_buffer<alloc_type>()>
-::std::enable_if_t<::std::is_base_of_v<test_base<typename TestName::UsedValueType>, TestName>>
+std::enable_if_t<std::is_base_of_v<test_base<typename TestName::UsedValueType>, TestName>, bool>
 test3buffers(int mult = kDefaultMultValue)
 {
-    test3buffers<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(mult, TestName::ScaleStep, TestName::ScaleMax);
+    return test3buffers<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(mult, TestName::ScaleStep, TestName::ScaleMax);
 }
 
 template <sycl::usm::alloc alloc_type, typename TestName,
           bool TestSyclBuffer = required_test_sycl_buffer<alloc_type>()>
-::std::enable_if_t<::std::is_base_of_v<test_base<typename TestName::UsedValueType>, TestName>>
+std::enable_if_t<std::is_base_of_v<test_base<typename TestName::UsedValueType>, TestName>, bool>
 test4buffers(int mult = kDefaultMultValue)
 {
-    test4buffers<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(mult, TestName::ScaleStep, TestName::ScaleMax);
+    return test4buffers<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(mult, TestName::ScaleStep, TestName::ScaleMax);
 }
 
 } /* namespace TestUtils */
