@@ -175,8 +175,10 @@ template <typename T, typename BinOp, typename KernelParam>
 void
 test_general_cases(sycl::queue q, std::size_t size, BinOp bin_op, KernelParam param)
 {
-    test_usm<T, sycl::usm::alloc::shared>(q, size, bin_op, TestUtils::create_new_kernel_param_idx<0>(param));
-    test_usm<T, sycl::usm::alloc::device>(q, size, bin_op, TestUtils::create_new_kernel_param_idx<1>(param));
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>(q))
+        test_usm<T, sycl::usm::alloc::shared>(q, size, bin_op, TestUtils::create_new_kernel_param_idx<0>(param));
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::device>(q))
+        test_usm<T, sycl::usm::alloc::device>(q, size, bin_op, TestUtils::create_new_kernel_param_idx<1>(param));
     test_sycl_iterators<T>(q, size, bin_op, TestUtils::create_new_kernel_param_idx<2>(param));
 #if _ENABLE_RANGES_TESTING
     test_all_view<T>(q, size, bin_op, TestUtils::create_new_kernel_param_idx<3>(param));

@@ -102,10 +102,13 @@ int main()
         {
             for (auto size : sort_sizes)
             {
-                test_usm<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits, sycl::usm::alloc::shared>(
-                    q, size, TestUtils::create_new_kernel_param_idx<0>(params));
-                test_usm<TEST_KEY_TYPE, TEST_VALUE_TYPE, Descending, TestRadixBits, sycl::usm::alloc::shared>(
-                    q, size, TestUtils::create_new_kernel_param_idx<1>(params));
+                if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>(q))
+                {
+                    test_usm<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits, sycl::usm::alloc::shared>(
+                        q, size, TestUtils::create_new_kernel_param_idx<0>(params));
+                    test_usm<TEST_KEY_TYPE, TEST_VALUE_TYPE, Descending, TestRadixBits, sycl::usm::alloc::shared>(
+                        q, size, TestUtils::create_new_kernel_param_idx<1>(params));
+                }
                 test_sycl_buffer<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits>(
                     q, size, TestUtils::create_new_kernel_param_idx<2>(params));
                 test_sycl_buffer<TEST_KEY_TYPE, TEST_VALUE_TYPE, Descending, TestRadixBits>(
