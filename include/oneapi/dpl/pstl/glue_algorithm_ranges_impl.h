@@ -1135,6 +1135,10 @@ struct __reverse_fn
 
 inline constexpr __internal::__reverse_fn reverse;
 
+// C++20 analogue of std::ranges::reverse_copy_truncated_result
+template<typename I, typename O>
+using reverse_copy_truncated_result = std::ranges::in_in_out_result<I, I, O>;
+
 namespace __internal
 {
 struct __reverse_copy_fn
@@ -1145,9 +1149,8 @@ struct __reverse_copy_fn
         && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
         && std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
 
-    std::ranges::in_in_out_result<std::ranges::borrowed_subrange_t<_InRange>,
-                                  std::ranges::borrowed_subrange_t<_InRange>,
-                                  std::ranges::borrowed_subrange_t<_OutRange>>
+    oneapi::dpl::ranges::reverse_copy_truncated_result<std::ranges::borrowed_subrange_t<_InRange>,
+                                                       std::ranges::borrowed_subrange_t<_OutRange>>
     operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r) const
     {
         using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
