@@ -126,5 +126,5 @@ main()
     //test case for zip iterator
     test<40, std::int32_t, std::int32_t, ComplementZip, _ZipIteratorAdapter>();
 
-    return done();
+    return TestUtils::done();
 }

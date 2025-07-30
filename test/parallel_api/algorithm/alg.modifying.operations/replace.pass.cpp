@@ -170,5 +170,5 @@ main()
     test_algo_basic_single<std::int16_t>(run_for_rnd_fw<test_non_const<std::int16_t>>());
 #endif
 
-    return done();
+    return TestUtils::done();
 }

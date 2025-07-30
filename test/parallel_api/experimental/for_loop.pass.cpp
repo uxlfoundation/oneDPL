@@ -331,5 +331,5 @@ main()
     test<std::int32_t>();
     test<float64_t>();
 
-    return done();
+    return TestUtils::done();
 }

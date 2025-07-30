@@ -331,5 +331,5 @@ main()
 
     test_with_multiplies<std::uint64_t>();
 
-    return done();
+    return TestUtils::done();
 }

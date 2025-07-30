@@ -289,5 +289,5 @@ main()
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const_minmax_element<std::int32_t>>());
 #endif
 
-    return done();
+    return TestUtils::done();
 }

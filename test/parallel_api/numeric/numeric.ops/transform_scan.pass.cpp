@@ -263,5 +263,5 @@ main()
 #endif
     test<std::int32_t, std::uint32_t>([](std::int32_t x) { return x++; }, -123, [](std::int32_t x, std::int32_t y) { return x + y; }, 666);
 
-    return done();
+    return TestUtils::done();
 }

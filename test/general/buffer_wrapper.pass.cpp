@@ -61,5 +61,5 @@ main()
          oneapi::dpl::end(buf, sycl::property::no_init{}), data_ptr, size);
 
 #endif
-    return done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }

@@ -174,5 +174,5 @@ main()
         [](const wrapper<std::int64_t>& a, const wrapper<std::int64_t>& b) { return a - b; });
 #endif
 
-    return done();
+    return TestUtils::done();
 }

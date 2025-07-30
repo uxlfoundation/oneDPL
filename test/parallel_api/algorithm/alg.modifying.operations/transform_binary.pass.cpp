@@ -157,5 +157,5 @@ main()
 
     test<60, std::uint16_t, std::uint16_t, std::int32_t>(TheOperation<std::uint16_t, std::uint16_t, std::int32_t>(1));
 
-    return done();
+    return TestUtils::done();
 }

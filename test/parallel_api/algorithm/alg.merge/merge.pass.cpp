@@ -221,5 +221,5 @@ main()
             EXPECT_TRUE(sum2 == 1*b.size(), "wrong merge return with tuple");
         });
 
-    return done();
+    return TestUtils::done();
 }

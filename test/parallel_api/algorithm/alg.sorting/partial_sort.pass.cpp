@@ -183,5 +183,5 @@ main()
 
     test_algo_basic_single<std::int32_t>(run_for_rnd<test_non_const<std::int32_t>>());
 
-    return done();
+    return TestUtils::done();
 }

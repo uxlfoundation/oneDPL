@@ -220,5 +220,5 @@ main()
     test_inplace<std::int32_t>();
     test_inplace<std::int64_t>();
 
-    return done();
+    return TestUtils::done();
 }

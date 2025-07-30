@@ -132,5 +132,5 @@ main()
     test_includes<Num<std::int64_t>, Num<std::int32_t>>([](const Num<std::int64_t>& x, const Num<std::int32_t>& y) { return x < y; });
 #endif
 
-    return done();
+    return TestUtils::done();
 }

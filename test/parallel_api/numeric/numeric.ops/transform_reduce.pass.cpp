@@ -182,5 +182,5 @@ main()
     test_by_type<MyClass>(MyClass(), ::std::plus<MyClass>(), ::std::multiplies<MyClass>(),
         [](const MyClass& x) { return MyClass(-x.my_field); },
         [](::std::size_t) -> MyClass { return MyClass(rand() % 1000); });
-    return done();
+    return TestUtils::done();
 }

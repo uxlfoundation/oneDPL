@@ -623,5 +623,5 @@ main()
     test_device_copyable();
     test_non_device_copyable();
 #endif // TEST_DPCPP_BACKEND_PRESENT
-    return done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }

@@ -68,5 +68,5 @@ int main()
 #endif // __SYCL_UNNAMED_LAMBDA__ && !TEST_EXPLICIT_KERNEL_NAMES
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }

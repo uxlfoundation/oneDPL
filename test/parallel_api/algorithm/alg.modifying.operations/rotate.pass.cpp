@@ -164,5 +164,5 @@ main()
     EXPECT_TRUE(MemoryChecker::alive_objects() == 0, "wrong effect from rotate: number of ctor and dtor calls is not equal");
 #endif
 
-    return done();
+    return TestUtils::done();
 }

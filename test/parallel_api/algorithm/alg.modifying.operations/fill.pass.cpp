@@ -108,5 +108,5 @@ main()
         test_fill_by_type<float64_t>(n);
     }
 
-    return done();
+    return TestUtils::done();
 }

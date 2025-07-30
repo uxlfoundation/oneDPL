@@ -204,5 +204,5 @@ main()
 
     test_predef();
 
-    return done();
+    return TestUtils::done();
 }

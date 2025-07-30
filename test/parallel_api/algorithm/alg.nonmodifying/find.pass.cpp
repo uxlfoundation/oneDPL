@@ -85,5 +85,5 @@ main()
                     [](std::int32_t j) { return j == 0 ? ~j : j; });         // miss
 
 
-    return done();
+    return TestUtils::done();
 }

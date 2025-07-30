@@ -215,5 +215,5 @@ main()
     test_uninitialized_copy_move_by_type<Wrapper<std::int8_t>>();
 #endif
 
-    return done();
+    return TestUtils::done();
 }

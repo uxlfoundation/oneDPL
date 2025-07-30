@@ -175,5 +175,5 @@ main()
     test<Number>(Number(42, OddTag()), [](std::int32_t j) { return Number(j, OddTag()); });
 #endif
 
-    return done();
+    return TestUtils::done();
 }

@@ -208,5 +208,5 @@ main()
     test_uninit_construct_by_type<std::int8_t>();
     test_uninit_construct_by_type<float64_t>();
 
-    return done();
+    return TestUtils::done();
 }

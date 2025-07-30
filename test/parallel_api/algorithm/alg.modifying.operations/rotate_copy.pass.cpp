@@ -134,5 +134,5 @@ main()
     test<wrapper<float64_t>, wrapper<float64_t>>();
 #endif
 
-    return done();
+    return TestUtils::done();
 }

@@ -220,5 +220,5 @@ main()
     test_uninitialized_fill_destroy_by_type<Wrapper<std::int8_t*>>();
 #endif
 
-    return done();
+    return TestUtils::done();
 }

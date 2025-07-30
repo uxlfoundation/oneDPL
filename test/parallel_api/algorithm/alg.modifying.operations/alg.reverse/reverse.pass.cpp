@@ -105,5 +105,5 @@ main()
     test<float64_t>();
     test<wrapper<float32_t>>();
 
-    return done();
+    return TestUtils::done();
 }

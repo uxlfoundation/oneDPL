@@ -164,6 +164,6 @@ main()
     test_usm_and_buffer<sycl::usm::alloc::device>();
 #endif
 
-    return done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
 

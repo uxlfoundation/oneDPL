@@ -388,5 +388,5 @@ int main() {
     test_iterator_by_type<double, std::int16_t>(n1);
     test_iterator_by_type<double, std::int64_t>(n2);
 
-    return done();
+    return TestUtils::done();
 }

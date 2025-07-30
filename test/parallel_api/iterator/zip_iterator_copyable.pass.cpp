@@ -46,6 +46,6 @@ main()
     test_copyable();
 #endif
 
-    return done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
 

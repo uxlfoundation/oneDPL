@@ -97,5 +97,5 @@ main()
     test<bool>(1);
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const>());
 
-    return done();
+    return TestUtils::done();
 }
