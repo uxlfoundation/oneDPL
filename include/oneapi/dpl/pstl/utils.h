@@ -822,9 +822,8 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
                                    oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
-// TODO In C++20 we may try to use std::equality_comparable
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_equality_comparable : std::false_type
+struct __is_equality_comparable_with : std::false_type
 {
 };
 
@@ -832,13 +831,13 @@ struct __is_equality_comparable : std::false_type
 // All with implemented operator ==
 template <typename _Iterator1, typename _Iterator2>
     requires std::equality_comparable_with<std::decay_t<_Iterator1>, std::decay_t<_Iterator2>>
-struct __is_equality_comparable<_Iterator1, _Iterator2, std::void_t<int>> : std::true_type
+struct __is_equality_comparable_with<_Iterator1, _Iterator2, std::void_t<int>> : std::true_type
 {
 };
 #else
 // All with implemented operator ==
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable<
+struct __is_equality_comparable_with<
     _Iterator1, _Iterator2,
     std::void_t<decltype(std::declval<std::decay_t<_Iterator1>>() == std::declval<std::decay_t<_Iterator2>>())>>
     : std::true_type
@@ -862,11 +861,11 @@ template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal_impl(_Iterator1 __it1, _Iterator2 __it2)
 {
-    if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+    if constexpr (__is_equality_comparable_with<_Iterator1, _Iterator2>::value)
     {
         return __it1 == __it2;
     }
-    else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
+    else if constexpr (__is_equality_comparable_with<_Iterator2, _Iterator1>::value)
     {
         return __it2 == __it1;
     }
@@ -879,7 +878,8 @@ template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-    // In C++20 and later the check for equality is done via concepts inside of __is_equality_comparable
+    // In C++20 and later the check for equality is done
+    // via concepts std:: equality_comparable_with inside of __is_equality_comparable_with
     // so no additional checks here are needed.
     return __iterators_possibly_equal_impl(__it1, __it2);
 }
