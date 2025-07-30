@@ -321,17 +321,27 @@ run_test()
 int
 main()
 {
+    bool bProcessed = false;
+
 #if TEST_DPCPP_BACKEND_PRESENT
 
     using ValueType = int;
     using BinaryOperation = ::std::plus<ValueType>;
 
     // Run tests for USM shared memory
-    run_test<sycl::usm::alloc::shared, ValueType, BinaryOperation>();
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>(exec.queue()))
+    {
+        run_test<sycl::usm::alloc::shared, ValueType, BinaryOperation>();
+        bProcessed = true;
+    }
     // Run tests for USM device memory
-    run_test<sycl::usm::alloc::device, ValueType, BinaryOperation>();
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::device>(exec.queue()))
+    {
+        run_test<sycl::usm::alloc::device, ValueType, BinaryOperation>();
+        bProcessed = true;
+    }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }

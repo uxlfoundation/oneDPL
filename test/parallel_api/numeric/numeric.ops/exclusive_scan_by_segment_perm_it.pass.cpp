@@ -230,11 +230,15 @@ test_exclusive_scan(Policy&& exec)
 }
 
 template <typename Policy>
-void test_impl(Policy&& exec)
+void
+test_impl(Policy&& exec)
 {
     // Run tests for USM shared/device memory
-    test_exclusive_scan<decltype(CLONE_TEST_POLICY(exec)), usm_alloc_type<sycl::usm::alloc::shared>>(CLONE_TEST_POLICY(exec));
-    test_exclusive_scan<decltype(CLONE_TEST_POLICY(exec)), usm_alloc_type<sycl::usm::alloc::device>>(CLONE_TEST_POLICY(exec));
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>(exec.queue()))
+        test_exclusive_scan<decltype(CLONE_TEST_POLICY(exec)), usm_alloc_type<sycl::usm::alloc::shared>>(CLONE_TEST_POLICY(exec));
+
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::device>(exec.queue()))
+        test_exclusive_scan<decltype(CLONE_TEST_POLICY(exec)), usm_alloc_type<sycl::usm::alloc::device>>(CLONE_TEST_POLICY(exec));
 
     // Run tests for std::vector
     test_exclusive_scan(CLONE_TEST_POLICY(exec));

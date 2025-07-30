@@ -354,11 +354,15 @@ class KernelName1;
 class KernelName2;
 
 template <typename Policy>
-void test_flag_pred_impl(Policy&& exec)
+void
+test_flag_pred_impl(Policy&& exec)
 {
     // test with flag pred
-    test_flag_pred<sycl::usm::alloc::device, KernelName1, std::uint64_t>(CLONE_TEST_POLICY(exec));
-    test_flag_pred<sycl::usm::alloc::device, KernelName2, MatrixPoint<float>>(CLONE_TEST_POLICY(exec));
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::device>(exec.queue()))
+    {
+        test_flag_pred<sycl::usm::alloc::device, KernelName1, std::uint64_t>(CLONE_TEST_POLICY(exec));
+        test_flag_pred<sycl::usm::alloc::device, KernelName2, MatrixPoint<float>>(CLONE_TEST_POLICY(exec));
+    }
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT

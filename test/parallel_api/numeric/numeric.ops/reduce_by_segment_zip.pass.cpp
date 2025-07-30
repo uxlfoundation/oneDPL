@@ -113,10 +113,13 @@ test_with_usm(Policy&& exec, BinaryOp binary_op)
 }
 
 template <std::size_t KernelIdx, typename Policy, typename BinaryOp>
-void
+bool
 test_zip_with_discard(Policy&& exec, BinaryOp binary_op)
 {
     constexpr sycl::usm::alloc alloc_type = sycl::usm::alloc::device;
+
+    if (!TestUtils::is_usm_alloc_supported<alloc_type>(exec.queue()))
+        return false;
 
     constexpr int n = 5;
 
@@ -168,23 +171,43 @@ test_zip_with_discard(Policy&& exec, BinaryOp binary_op)
     EXPECT_EQ_N(exp_values, output_values, n, "wrong values from reduce_by_segment");
     EXPECT_EQ(std::distance(begin_keys_out, new_last.first), 3, "wrong number of keys from reduce_by_segment");
     EXPECT_EQ(std::distance(begin_vals_out, new_last.second), 3, "wrong number of values from reduce_by_segment");
+
+    return true;
 }
 
 template <typename Policy, typename BinaryOp>
-void test_with_op(Policy&& exec, BinaryOp binary_op)
+bool
+test_with_op(Policy&& exec, BinaryOp binary_op)
 {
-    // Run tests for USM shared/device memory
-    test_with_usm<sycl::usm::alloc::shared, 0>(CLONE_TEST_POLICY(exec), binary_op);
-    test_with_usm<sycl::usm::alloc::device, 1>(CLONE_TEST_POLICY(exec), binary_op);
+    bool bProcessed = false;
 
-    test_zip_with_discard<2>(CLONE_TEST_POLICY(exec), binary_op);
+    // Run tests for USM shared/device memory
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>())
+    {
+        test_with_usm<sycl::usm::alloc::shared, 0>(CLONE_TEST_POLICY(exec), binary_op);
+        bProcessed = true;
+    }
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::device>())
+    {
+        test_with_usm<sycl::usm::alloc::device, 1>(CLONE_TEST_POLICY(exec), binary_op);
+        bProcessed = true;
+    }
+
+    bProcessed = test_zip_with_discard<2>(CLONE_TEST_POLICY(exec), binary_op) || bProcessed;
+
+    return bProcessed;
 }
 
 template <typename Policy>
-void test_impl(Policy&& exec)
+bool
+test_impl(Policy&& exec)
 {
-    test_with_op(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor1{});
-    test_with_op(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor2{});
+    bool bProcessed = false;
+
+    bProcessed = test_with_op(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor1{}) || bProcessed;
+    bProcessed = test_with_op(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor2{}) || bProcessed;
+
+    return bProcessed;
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -192,15 +215,17 @@ void test_impl(Policy&& exec)
 //The code below for test a call of reduce_by_segment with zip iterators was kept "as is", as an example reported by a user; just "memory deallocation" added.
 int main()
 {
+    bool bProcessed = false;
+
 #if TEST_DPCPP_BACKEND_PRESENT
 
     auto policy = TestUtils::get_dpcpp_test_policy();
-    test_impl(policy);
+    bProcessed = test_impl(policy);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
     TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
 #endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }

@@ -74,26 +74,41 @@ test_with_usm(Policy&& exec)
 }
 
 template <typename Policy>
-void test_impl(Policy&& exec)
+bool
+test_impl(Policy&& exec)
 {
+    bool bProcessed = false;
+
     // Run tests for USM shared/device memory
-    test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
-    test_with_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec));
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>(exec.queue()))
+    {
+        test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
+        bProcessed = true;
+    }
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::device>(exec.queue()))
+    {
+        test_with_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec));
+        bProcessed = true;    
+    }
+
+    return bProcessed;
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
+    bool bProcessed = false;
+
 #if TEST_DPCPP_BACKEND_PRESENT
 
     auto policy = TestUtils::get_dpcpp_test_policy();
-    test_impl(policy);
+    bProcessed = test_impl(policy);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
     TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
 #endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }
