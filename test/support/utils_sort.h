@@ -385,16 +385,19 @@ run_test(SortTestConfig config,
          OutputIterator2 expected_last, InputIterator first, InputIterator last, Size n, Compare ...compare)
 {
     // Run tests for USM shared memory (external testing for USM shared memory, once already covered in sycl_iterator.pass.cpp)
-    if (config.test_usm_shared)
+    if (config.test_usm_shared
+        && TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>(exec.queue()))
     {
-        test_usm<sycl::usm::alloc::shared>(config, CLONE_TEST_POLICY(exec), tmp_first, tmp_last,
-                                           expected_first, expected_last,first, last, n, compare...);
+        test_usm<sycl::usm::alloc::shared>(config, CLONE_TEST_POLICY(exec), tmp_first, tmp_last, expected_first,
+                                           expected_last, first, last, n, compare...);
     }
-    if (config.test_usm_device)
+
+    // Run tests for USM device memory
+    if (config.test_usm_device
+        && TestUtils::is_usm_alloc_supported<sycl::usm::alloc::device>(exec.queue()))
     {
-        // Run tests for USM device memory
-        test_usm<sycl::usm::alloc::device>(config, CLONE_TEST_POLICY(exec), tmp_first, tmp_last,
-                                           expected_first, expected_last, first, last, n, compare...);
+        test_usm<sycl::usm::alloc::device>(config, CLONE_TEST_POLICY(exec), tmp_first, tmp_last, expected_first,
+                                           expected_last, first, last, n, compare...);
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT && _PSTL_SYCL_TEST_USM
