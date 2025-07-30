@@ -242,9 +242,8 @@ struct __write_scan_by_seg
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__init_value<typename _InitType::__value_type>>,
                 "exclusive_scan_by_segment must have an initial element");
             __out_rng[__id] =
-                get<1>(__v)
-                    ? static_cast<_ConvertedTupleType>(get<1>(__init_value.__value))
-                    : static_cast<_ConvertedTupleType>(__binary_op(get<1>(__init_value.__value), get<1>(get<0>(__v))));
+                get<1>(__v) ? static_cast<_ConvertedTupleType>(__init_value.__value)
+                            : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
         }
     }
 };
@@ -909,9 +908,11 @@ struct __red_by_seg_op
     {
         using std::get;
         using _OpReturnType = decltype(__binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
-        // The left-hand side has processed elements from the same segment, so update the reduction value.
         if (get<0>(__rhs_tup) == 0)
         {
+            // The left-hand side and right-hand side are processing the same segment, so update the reduction value.
+            // We additionally propagate the left-hand side's flag get<0>(__lhs_tup) forward to communicate in the next
+            // iteration if the segment end has been found.
             return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup),
                                                        __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         }
@@ -931,14 +932,15 @@ struct __scan_by_seg_op
     {
         using std::get;
         using _OpReturnType = decltype(__binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
-        // The left-hand side has processed elements from the same segment, so update the reduction value.
         if (get<0>(__rhs_tup) == 0)
         {
+            // The left-hand side and right-hand side are processing on the same segment, so update the scan value. We
+            // additionally propagate the left-hand side's flag get<0>(__lhs_tup) forward to communicate in the next
+            // iteration if the segment end has been found.
             return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup),
                                                        __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         }
         // We are looking at elements from a previous segment, so no operation is performed
-        // This scan over index is not needed.
         return oneapi::dpl::__internal::make_tuple(std::uint32_t{1}, _OpReturnType{get<1>(__rhs_tup)});
     }
     _BinaryOp __binary_op;
