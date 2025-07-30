@@ -131,6 +131,29 @@ sycl::queue get_test_queue()
 }
 
 template <sycl::usm::alloc alloc_type>
+bool is_usm_alloc_supported(const sycl::queue& __q)
+{
+    const sycl::device __device = __q.get_device();
+
+    if constexpr (alloc_type == sycl::usm::alloc::host)
+    {
+        return __device.has(sycl::aspect::usm_host_allocations);
+    }
+    else if constexpr (alloc_type == sycl::usm::alloc::device)
+    {
+        return __device.has(sycl::aspect::usm_device_allocations);
+    }
+    else if constexpr (alloc_type == sycl::usm::alloc::shared)
+    {
+        return __device.has(sycl::aspect::usm_shared_allocations);
+    }
+    else
+    {
+        static_assert(false, "Unsupported USM allocation type");
+    }
+}
+
+template <sycl::usm::alloc alloc_type>
 constexpr bool
 required_test_sycl_buffer()
 {
