@@ -261,8 +261,10 @@ test_device_policy(Policy&& exec, StabilityTag stability_tag)
 {
     CustomGreat custom_greater; // Cover merge-sort from device backend
 
-    test_with_usm<std::int16_t, float, sycl::usm::alloc::shared, 1>(CLONE_TEST_POLICY(exec), large_size, stability_tag, std::greater{});
-    test_with_usm<std::uint32_t, std::uint32_t, sycl::usm::alloc::device, 2>(CLONE_TEST_POLICY(exec), large_size, stability_tag);
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::shared>(exec.queue()))
+        test_with_usm<std::int16_t, float, sycl::usm::alloc::shared, 1>(CLONE_TEST_POLICY(exec), large_size, stability_tag, std::greater{});
+    if (TestUtils::is_usm_alloc_supported<sycl::usm::alloc::device>(exec.queue()))
+        test_with_usm<std::uint32_t, std::uint32_t, sycl::usm::alloc::device, 2>(CLONE_TEST_POLICY(exec), large_size, stability_tag);
 
     test_with_buffers<float, float, 3>(CLONE_TEST_POLICY(exec), small_size, stability_tag, custom_greater);
     test_with_buffers<Particle::energy_type, Particle, 4>(CLONE_TEST_POLICY(exec), large_size, stability_tag, custom_greater);
