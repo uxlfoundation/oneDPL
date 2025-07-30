@@ -822,126 +822,110 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
                                    oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
-class __is_equality_comparable_with_impl
+template <typename _Iterator1, typename _Iterator2, typename = void>
+struct __is_equality_comparable_with : std::false_type
 {
-    template <typename _Iterator1, typename _Iterator2, typename = void>
-    struct __is_equality_comparable_with : std::false_type
-    {
-    };
+};
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-    // All with implemented operator ==
-    template <typename _Iterator1, typename _Iterator2>
-    requires std::equality_comparable_with<
-        std::decay_t<_Iterator1>, std::decay_t<_Iterator2>> struct __is_equality_comparable_with<_Iterator1, _Iterator2,
-                                                                                                 std::void_t<int>>
-        : std::true_type
-    {
-    };
+// All with implemented operator ==
+template <typename _Iterator1, typename _Iterator2>
+    requires std::equality_comparable_with<std::decay_t<_Iterator1>, std::decay_t<_Iterator2>>
+struct __is_equality_comparable_with<_Iterator1, _Iterator2, std::void_t<int>> : std::true_type
+{
+};
 #else
-    // All with implemented operator ==
-    template <typename _Iterator1, typename _Iterator2>
-    struct __is_equality_comparable_with<
-        _Iterator1, _Iterator2,
-        std::void_t<decltype(std::declval<std::decay_t<_Iterator1>>() == std::declval<std::decay_t<_Iterator2>>())>>
-        : std::true_type
-    {
-    };
+// All with implemented operator ==
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with<
+    _Iterator1, _Iterator2,
+    std::void_t<decltype(std::declval<std::decay_t<_Iterator1>>() == std::declval<std::decay_t<_Iterator2>>())>>
+    : std::true_type
+{
+};
 #endif
 
-    template <typename _Iterator1, typename _Iterator2>
-    constexpr bool
-    __is_iterators_possibly_equal_impl(_Iterator1 __it1, _Iterator2 __it2)
+template <typename _Iterator1, typename _Iterator2>
+constexpr bool
+__iterators_possibly_equal_impl(_Iterator1 __it1, _Iterator2 __it2)
+{
+    if constexpr (__is_equality_comparable_with<_Iterator1, _Iterator2>::value)
     {
-        if constexpr (__is_equality_comparable_with<_Iterator1, _Iterator2>::value)
-        {
-            return __it1 == __it2;
-        }
-        else if constexpr (__is_equality_comparable_with<_Iterator2, _Iterator1>::value)
-        {
-            return __it2 == __it1;
-        }
-
-        return false;
+        return __it1 == __it2;
     }
+    else if constexpr (__is_equality_comparable_with<_Iterator2, _Iterator1>::value)
+    {
+        return __it2 == __it1;
+    }
+
+    return false;
+}
 
 #if !_ONEDPL_CPP20_CONCEPTS_PRESENT
-    template <typename _Iterator, typename = void>
-    struct __has_value_type : std::false_type
-    {
-    };
-
-    template <typename _Iterator>
-    struct __has_value_type<_Iterator, std::void_t<typename std::iterator_traits<_Iterator>::value_type>>
-        : std::true_type
-    {
-    };
-#endif
-
-public:
-
-    // Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
-    template <typename _Iterator1, typename _Iterator2>
-    constexpr bool
-    __is_iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
-    {
-#if _ONEDPL_CPP20_CONCEPTS_PRESENT
-        // In C++20 and later the check for equality is done
-        // via concepts std:: equality_comparable_with inside of __is_equality_comparable_with
-        // so no additional checks here are needed.
-        return __is_iterators_possibly_equal_impl(__it1, __it2);
-#else
-        // Before C++20 we can compare only the iterators of the same types.
-        //
-        // We have two reasons for check if value type is defined inside operator:
-        //     1. As far as we have in tests the comparison like
-        //         EXPECT_FALSE(__iterators_possibly_equal(oneapi::dpl::begin(buf1), nullptr),
-        //                      "wrong __iterators_possibly_equal result");
-        //         EXPECT_FALSE(__iterators_possibly_equal(nullptr, oneapi::dpl::begin(buf2)),
-        //                      "wrong __iterators_possibly_equal result");
-        //     2. As fas as we have in tests the comparison like
-        //         CustomIterator it1(CustomIterator::Tag{});
-        //         CustomIterator it2(CustomIterator::Tag{});
-        //         EXPECT_TRUE(__iterators_possibly_equal(it1, it2),
-        //                     "wrong __iterators_possibly_equal result for custom iterator which is not default constructible");
-        //     where CustomIterator is defined as follows:
-        //         class CustomIterator
-        //         {
-        //         public:
-        //             struct Tag { };
-        //             CustomIterator(Tag) {}
-        //             bool
-        //             operator==(const CustomIterator&) const
-        //             {
-        //                 return true;
-        //             }
-        //         };
-        //     so it has not value_type member inside.
-
-        if constexpr (__has_value_type<_Iterator1>::value && __has_value_type<_Iterator2>::value)
-        {
-            if constexpr (std::is_same_v<typename std::iterator_traits<_Iterator1>::value_type,
-                                         typename std::iterator_traits<_Iterator2>::value_type>)
-            {
-                return __is_iterators_possibly_equal_impl(__it1, __it2);
-            }
-        }
-        else if constexpr (!__has_value_type<_Iterator1>::value && !__has_value_type<_Iterator2>::value)
-        {
-            return __is_iterators_possibly_equal_impl(__it1, __it2);
-        }
-
-        return false;
-#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
-    }
+template <typename _Iterator, typename = void>
+struct __has_value_type : std::false_type
+{
 };
+
+template <typename _Iterator>
+struct __has_value_type<_Iterator, std::void_t<typename std::iterator_traits<_Iterator>::value_type>> : std::true_type
+{
+};
+#endif
 
 // Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
 template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-    return __is_equality_comparable_with_impl{}.__is_iterators_possibly_equal(__it1, __it2);
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+    // In C++20 and later the check for equality is done
+    // via concepts std:: equality_comparable_with inside of __is_equality_comparable_with
+    // so no additional checks here are needed.
+    return __iterators_possibly_equal_impl(__it1, __it2);
+#else
+    // Before C++20 we can compare only the iterators of the same types.
+    // 
+    // We have two reasons for check if value type is defined inside operator:
+    //     1. As far as we have in tests the comparison like
+    //         EXPECT_FALSE(__iterators_possibly_equal(oneapi::dpl::begin(buf1), nullptr),
+    //                      "wrong __iterators_possibly_equal result");
+    //         EXPECT_FALSE(__iterators_possibly_equal(nullptr, oneapi::dpl::begin(buf2)),
+    //                      "wrong __iterators_possibly_equal result");
+    //     2. As fas as we have in tests the comparison like
+    //         CustomIterator it1(CustomIterator::Tag{});
+    //         CustomIterator it2(CustomIterator::Tag{});
+    //         EXPECT_TRUE(__iterators_possibly_equal(it1, it2),
+    //                     "wrong __iterators_possibly_equal result for custom iterator which is not default constructible");
+    //     where CustomIterator is defined as follows:
+    //         class CustomIterator
+    //         {
+    //         public:
+    //             struct Tag { };
+    //             CustomIterator(Tag) {}
+    //             bool
+    //             operator==(const CustomIterator&) const
+    //             {
+    //                 return true;
+    //             }
+    //         };
+    //     so it has not value_type member inside.
+
+    if constexpr (__has_value_type<_Iterator1>::value && __has_value_type<_Iterator2>::value)
+    {
+        if constexpr (std::is_same_v<typename std::iterator_traits<_Iterator1>::value_type,
+                                     typename std::iterator_traits<_Iterator2>::value_type>)
+        {
+            return __iterators_possibly_equal_impl(__it1, __it2);
+        }
+    }
+    else if constexpr (!__has_value_type<_Iterator1>::value && !__has_value_type<_Iterator2>::value)
+    {
+        return __iterators_possibly_equal_impl(__it1, __it2);
+    }
+
+    return false;
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
 }
 
 // Conditionally sets type to _SpirvT if oneDPL is being compiled to a SPIR-V target with the SYCL backend and _NonSpirvT otherwise.
