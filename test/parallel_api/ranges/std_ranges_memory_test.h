@@ -57,8 +57,9 @@ private:
         std::memset(reinterpret_cast<void*>(pData), no_init_val, n*sizeof(Elem));
         std::ranges::subrange r(pData, pData + n);
 
+        // Two ranges: uninitialized_copy, uninitialized_move
         if constexpr (test_mode_id<std::remove_cvref_t<decltype(algo)>> == 1)
-        {//two ranges, constructor calls
+        {
             const std::size_t n1 = n/2;
             Elem* pData1 = alloc.allocate(n1);
             std::memset(reinterpret_cast<void*>(pData1), no_init_val, n1*sizeof(Elem));
@@ -69,14 +70,11 @@ private:
 
             alloc.deallocate(pData1, n1);
         }
-        else if constexpr (test_mode_id<std::remove_cvref_t<decltype(algo)>> == 2)
-        { //one range, destructor calls
-            std::uninitialized_fill(pData, pData + n, 5);
+        // One range: destroy, uninitialized_fill, uninitialized_default_construct, uninitialized_value_construct
+        else
+        {
             run(std::forward<decltype(policy)>(policy), algo, checker, std::move(r), std::forward<decltype(args)>(args)...);
         }
-        else //one range, constructor calls
-            run(std::forward<decltype(policy)>(policy), algo, checker, std::move(r), std::forward<decltype(args)>(args)...);
-
         alloc.deallocate(pData, n);
     }
 
