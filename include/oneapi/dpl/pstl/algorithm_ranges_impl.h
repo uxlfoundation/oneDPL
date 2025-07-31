@@ -749,29 +749,6 @@ __pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&,
     return std::ranges::unique(std::forward<_R>(__r), __comp, __proj);
 }
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R>
-std::ranges::borrowed_subrange_t<_R>
-__pattern_reverse(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
-{
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
-    auto __beg = std::ranges::begin(__r);
-    const auto __n = std::ranges::size(__r);
-    const auto __n_2 = __n / 2;
-    auto __r1 = std::ranges::take_view(__r, __n_2);
-    auto __r2 = std::ranges::take_view(std::ranges::reverse_view(__r), __n_2);
-
-    __pattern_swap_ranges(std::forward<_ExecutionPolicy>(__exec), std::move(__r1), std::move(__r2));
-    return {__beg + __n};
-}
-
-template <typename _ExecutionPolicy, typename _R>
-std::ranges::borrowed_subrange_t<_R>
-__pattern_reverse(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
-{
-    return std::ranges::reverse(std::forward<_R>(__r));
-}
-
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
 std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
