@@ -157,7 +157,7 @@ oneapi::dpl::__internal::__difference_t<_Range1>
 __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
     //a trivial pre-check
-    if(__rng1.empty() || __rng2.empty())
+    if (__rng1.empty() || __rng2.empty())
         return 0;
 
     using _Function = oneapi::dpl::__internal::__swap_fn;
@@ -188,7 +188,8 @@ void
 __pattern_swap_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2)
 {
     oneapi::dpl::__internal::__ranges::__pattern_swap(__tag, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all(std::forward<_R1>(__r1)), oneapi::dpl::__ranges::views::all(std::forward<_R2>(__r2)));
+                                                      oneapi::dpl::__ranges::views::all(std::forward<_R1>(__r1)),
+                                                      oneapi::dpl::__ranges::views::all(std::forward<_R2>(__r2)));
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
@@ -763,7 +764,8 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp,
+          typename _Proj>
 std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_unique_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r,
                       _Comp __comp, _Proj __proj)
@@ -781,20 +783,6 @@ __pattern_unique_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
     return {__end, __beg_out + __idx};
 }
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _R>
-std::ranges::borrowed_iterator_t<_R>
-__pattern_reverse(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r)
-{
-    auto __beg = std::ranges::begin(__r);
-    auto __n = std::ranges::size(__r);
-
-    using _DiffType = oneapi::dpl::__internal::__difference_t<_R>;
-    auto __i = oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::__reverse_functor<_DiffType>{__n}, __n / 2,
-        oneapi::dpl::__ranges::views::all(std::forward<_R>(__r))).__checked_deferrable_wait();
-
-    return {__beg + __i};
-}
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
