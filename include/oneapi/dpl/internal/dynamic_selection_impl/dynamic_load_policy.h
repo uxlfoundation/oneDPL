@@ -61,7 +61,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
         ExtraResourceType extra_;
 
       public:
-        dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r, ExtraResourceType extra) : policy_(p), resource_(std::move(r)), extra_(std::move(extra)) {}
+        dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r, ExtraResourceType extra) : policy_(p), resource_(std::move(r)), extra_(extra) {}
 	///using scratch_space_t = typename backend_traits::selection_scratch_t<Backend,execution_info::task_time_t>; //REMOVE???
 	///scratch_space_t scratch_space; //REMOVE???
 

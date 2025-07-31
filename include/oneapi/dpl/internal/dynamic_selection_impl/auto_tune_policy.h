@@ -168,7 +168,7 @@ class auto_tune_policy
 	scratch_space_t scratch_space;
 
         auto_tune_selection_type(const policy_t& p, resource_with_index_t r, std::shared_ptr<tuner_t> t, extra_resource_t er)
-            : policy_(p), resource_(r), tuner_(::std::move(t)), extra_resource_(::std::move(er))
+            : policy_(p), resource_(r), tuner_(::std::move(t)), extra_resource_(er)
         {
         }
 
