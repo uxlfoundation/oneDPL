@@ -215,6 +215,7 @@ class auto_tune_policy
     using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
     using wait_type = typename Backend::wait_type;
     using selection_type = auto_tune_selection_type;
+    using extra_resource_type = ExtraResourceType;
 
     auto_tune_policy(deferred_initialization_t) {}
 

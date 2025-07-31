@@ -402,17 +402,14 @@ template <bool call_select_before_submit, typename Policy, typename UniverseCont
 int
 test_extra_resource_submit_and_wait(UniverseContainer u, ExtraUniverseContainer v, ResourceFunction&& f, ExtraResourceFunction&& ef)
 {
-    //std::cout<<"testing extra resource..., vsize:"<<v.size()<<"\n";
     using my_policy_t = Policy;
     my_policy_t p{u, v};
-    //std::cout<<"initialized\n";
     const int N = 6;
     std::atomic<int> ecount = 0;
     bool pass = true;
 
     if constexpr (call_select_before_submit)
     {
-//        std::cout<<"call before submit\n";
         for (int i = 1; i <= N; ++i)
         {
             auto test_resource = f(i);
@@ -438,7 +435,6 @@ test_extra_resource_submit_and_wait(UniverseContainer u, ExtraUniverseContainer 
     }
     else
     {
-//        std::cout<<" submit and wait\n";
         for (int i = 1; i <= N; ++i)
         {
             auto test_resource = f(i);
@@ -449,7 +445,6 @@ test_extra_resource_submit_and_wait(UniverseContainer u, ExtraUniverseContainer 
                     if (e != test_resource || ex != test_extra_resource)
                     {
                         std::cout<<"ERROR: did not select expected resources\n";
-                        //std::cout<<" ex: "<<ex<<" test_extra_resource: "<<test_extra_resource<<"\n";
                         pass = false;
                     }
                     ecount += i;
@@ -472,7 +467,7 @@ test_extra_resource_submit_and_wait(UniverseContainer u, ExtraUniverseContainer 
         std::cout << "ERROR: did not select expected resources\n";
         return 1;
     }
-    std::cout << "submit_and_wait: OK\n";
+    std::cout << "test_extra_resource_submit_and_wait: OK\n";
     return 0;
 }
 #endif // TEST_DYNAMIC_SELECTION_AVAILABLE

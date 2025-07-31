@@ -20,11 +20,23 @@ main()
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
     using policy_t = oneapi::dpl::experimental::fixed_resource_policy<sycl::queue, oneapi::dpl::experimental::empty_extra_resource, oneapi::dpl::experimental::default_backend<sycl::queue, oneapi::dpl::experimental::empty_extra_resource>>;
+    using policy_with_extra_resources_t = oneapi::dpl::experimental::fixed_resource_policy<sycl::queue, int, oneapi::dpl::experimental::default_backend<sycl::queue, int>>;
+
     std::vector<sycl::queue> u;
     build_universe(u);
+
+    std::vector<int> v;
+    for (int i = 0; i < u.size(); ++i)
+    {
+        v.push_back(i);
+    }
+
     if (!u.empty())
     {
+        
         auto f = [u](int, int offset = 0) { return u[offset]; };
+
+        auto ef = [v](int, int offset = 0) { return v[offset]; };
 
         constexpr bool just_call_submit = false;
         constexpr bool call_select_before_submit = true;
@@ -35,6 +47,8 @@ main()
         EXPECT_EQ(0, (test_submit_and_wait_on_event<call_select_before_submit, policy_t>(u, f)), "");
         EXPECT_EQ(0, (test_submit_and_wait<just_call_submit, policy_t>(u, f)), "");
         EXPECT_EQ(0, (test_submit_and_wait<call_select_before_submit, policy_t>(u, f)), "");
+        EXPECT_EQ(0, (test_extra_resource_submit_and_wait<just_call_submit, policy_with_extra_resources_t>(u, v, f, ef)), "");
+        EXPECT_EQ(0, (test_extra_resource_submit_and_wait<call_select_before_submit, policy_with_extra_resources_t>(u, v, f, ef)), "");
         EXPECT_EQ(0, (test_submit_and_wait_on_group<just_call_submit, policy_t>(u, f)), "");
         EXPECT_EQ(0, (test_submit_and_wait_on_group<call_select_before_submit, policy_t>(u, f)), "");
 

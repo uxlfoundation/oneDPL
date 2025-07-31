@@ -62,22 +62,37 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, E
     using resource_type = typename base_t::resource_type;
     using typename base_t::selection_type;
     using wait_type = typename Backend::wait_type; //TODO: Get from policy_base instead?
+    using extra_resource_type = ExtraResourceType;
 
     round_robin_policy() { base_t::initialize(); }
     round_robin_policy(deferred_initialization_t) {}
     round_robin_policy(const std::vector<resource_type>& u) { base_t::initialize(u); }
+    round_robin_policy(const std::vector<resource_type>& u, const std::vector<ExtraResourceType>& v)
+    {
+        base_t::initialize(u, v);
+    }
 
     void 
     initialize_impl() 
     {
         if (!selector_) 
-	{
-	    selector_ = std::make_shared<selector_t>();
-	}
-	auto u = base_t::get_resources();
+        {
+            selector_ = std::make_shared<selector_t>();
+        }
+        auto u = base_t::get_resources();
         selector_->resources_ = u;
         selector_->num_contexts_ = u.size();
         selector_->next_context_ = 0;
+        if constexpr (base_t::has_extra_resources_v)
+        {
+            auto er = base_t::get_extra_resources();
+            selector_->extra_resources_.clear();
+            selector_->extra_resources_.reserve(er.size());
+            for (const auto& e : er)
+            {
+                selector_->extra_resources_.push_back(ExtraResourceType{e});
+            }
+        }
     }
 
     template <typename... Args>

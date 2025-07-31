@@ -39,6 +39,7 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
     struct selector_t 
     {
         typename base_t::resource_container_t resources_;
+        typename base_t::extra_resource_container_t extra_resources_;
         std::size_t index_ = 0;
 
         auto
@@ -46,7 +47,7 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
         {
             if constexpr (base_t::has_extra_resources_v)
             {
-                return base_t::extra_resources_[index_];
+                return extra_resources_[index_];
             }
             else
             {
@@ -61,6 +62,7 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
     using resource_type = typename base_t::resource_type;
     using typename base_t::selection_type;
     using wait_type = typename Backend::wait_type; //TODO: Get from policy_base instead?
+    using extra_resource_type = ExtraResourceType;
 
     fixed_resource_policy(::std::size_t index = 0) 
     { 
@@ -71,7 +73,13 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
     fixed_resource_policy(const std::vector<resource_type>& u, ::std::size_t index = 0) 
     { 
         base_t::initialize(u); 
-	selector_->index_ = index;
+        selector_->index_ = index;
+    }
+
+    fixed_resource_policy(const std::vector<resource_type>& u, const std::vector<ExtraResourceType>& v, std::size_t index = 0) 
+    { 
+        base_t::initialize(u, v); 
+        selector_->index_ = index;
     }
 
     void 
@@ -84,6 +92,16 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
 	auto u = base_t::get_resources();
         selector_->resources_ = u;
         selector_->index_ = 0;
+        if constexpr (base_t::has_extra_resources_v)
+        {
+            auto er = base_t::get_extra_resources();
+            selector_->extra_resources_.clear();
+            selector_->extra_resources_.reserve(er.size());
+            for (const auto& e : er)
+            {
+                selector_->extra_resources_.push_back(ExtraResourceType{e});
+            }
+        }
     }
 
     template <typename... Args>
