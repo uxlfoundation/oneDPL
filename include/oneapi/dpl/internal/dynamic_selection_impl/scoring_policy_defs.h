@@ -17,19 +17,44 @@ namespace dpl
 {
 namespace experimental
 {
-template <typename Policy, typename Resource>
+
+class empty_extra_resource
+{
+    // This class is used to indicate that no extra resource is needed.
+    // It can be used as a template parameter for default_backend.
+};
+
+struct no_extra_resources
+{
+    using type = void;
+    std::size_t
+    size() const noexcept
+    {
+        return 0;
+    }
+};
+
+template <typename Policy, typename Resource, typename ExtraResourceType = oneapi::dpl::experimental::empty_extra_resource>
 class basic_selection_handle_t
 {
     Policy p_;
     Resource e_;
+    ExtraResourceType r_;
 
   public:
-    explicit basic_selection_handle_t(const Policy& p, Resource e = Resource{}) : p_(p), e_(std::move(e)) {}
+    explicit basic_selection_handle_t(const Policy& p, Resource e = Resource{}, ExtraResourceType r = ExtraResourceType{}) : p_(p), e_(std::move(e)), r_(std::move(r)) {}
     auto
     unwrap()
     {
         return oneapi::dpl::experimental::unwrap(e_);
     }
+
+    ExtraResourceType
+    get_extra_resource()
+    {
+        return r_;
+    }
+
     Policy
     get_policy()
     {

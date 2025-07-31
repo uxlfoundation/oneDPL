@@ -25,7 +25,7 @@ namespace dpl
 namespace experimental 
 {
 
-template <typename Policy, typename ResourceType, typename Backend>
+template <typename Policy, typename ResourceType, typename ExtraResourceType, typename Backend>
 class policy_base 
 {
   protected:
@@ -34,10 +34,13 @@ class policy_base
     using resource_container_size_t = typename resource_container_t::size_type;
     using execution_resource_t = typename backend_t::execution_resource_t;
     using wrapped_resource_t = execution_resource_t;
+    static constexpr bool has_extra_resources_v = backend_t::has_extra_resources_v;
 
   public:
+    using extra_resource_container_t = typename backend_t::extra_resource_container_t;
     using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
-    using selection_type = basic_selection_handle_t<Policy, execution_resource_t>;
+    using extra_resource_t = ExtraResourceType;
+    using selection_type = basic_selection_handle_t<Policy, execution_resource_t, ExtraResourceType>;
 
   protected:
     std::shared_ptr<backend_t> backend_;
@@ -48,6 +51,16 @@ class policy_base
     {
         if (backend_) return backend_->get_resources();
         throw std::logic_error("get_resources called before initialization");
+    }
+
+    extra_resource_container_t
+    get_extra_resources() const
+    {
+        if (backend_) 
+        {
+            return backend_->get_extra_resources();
+        }
+        throw std::logic_error("get_extra_resources called before initialization");
     }
 
     void 
@@ -63,6 +76,14 @@ class policy_base
         if (!backend_) backend_ = std::make_shared<backend_t>(u);
         static_cast<Policy*>(this)->initialize_impl();
     }
+
+    void 
+    initialize(const std::vector<resource_type>& u, const std::vector<ExtraResourceType>& v) 
+    {
+        if (!backend_) backend_ = std::make_shared<backend_t>(u, v);
+        static_cast<Policy*>(this)->initialize_impl();
+    }
+
 
     template <typename... Args>
     auto

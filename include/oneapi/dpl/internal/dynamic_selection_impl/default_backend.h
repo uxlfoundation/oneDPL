@@ -29,15 +29,19 @@ namespace dpl
 namespace experimental
 {
 
-template<typename ResourceType, typename Backend>
+template<typename ResourceType, typename ExtraResourceType, typename Backend>
 class backend_base
 {
   public:
+    static constexpr bool has_extra_resources_v = !std::is_same<ExtraResourceType, oneapi::dpl::experimental::empty_extra_resource>::value;
     using resource_type = ResourceType;
     using execution_resource_t = resource_type;
     using resource_container_t = std::vector<ResourceType>;
+    using extra_resource_t = ExtraResourceType;
+    // if we have extra resources, define a vector of resources, otherwise, void
+    using extra_resource_container_t = typename std::conditional_t<has_extra_resources_v, std::vector<extra_resource_t>, oneapi::dpl::experimental::no_extra_resources>;
     using report_duration = std::chrono::milliseconds;
-
+    
     template <bool needs_scratch = false, typename...Req>
     struct scratch_t_check : public no_scratch_t<Req...>
     {
@@ -59,10 +63,23 @@ class backend_base
     {
     }
 
-    backend_base(const std::vector<ResourceType>& u)
+    backend_base(const resource_container_t& u, const extra_resource_container_t& v)
     {
         for (const auto& e : u)
+        {
             resources_.push_back(e);
+        }
+        if constexpr (has_extra_resources_v)
+        {
+            for (const auto& e : v)
+            {
+                if constexpr (oneapi::dpl::experimental::extra_resource_traits<extra_resource_t>::has_initialize_v)
+                {
+                    e.initialize();
+                }
+                extra_resources_.push_back(e);
+            }
+        }
     }
 
     auto
@@ -75,6 +92,12 @@ class backend_base
         return static_cast<Backend*>(this)->get_resources_impl();
     }
 
+    extra_resource_container_t
+    get_extra_resources() const
+    {
+        return extra_resources_;
+    }
+
     template <typename SelectionHandle, typename Function, typename... Args>
     auto
     submit(SelectionHandle s, Function&& f, Args&&... args)
@@ -85,6 +108,7 @@ class backend_base
   protected:
   
     resource_container_t resources_;
+    extra_resource_container_t extra_resources_;
 
     resource_container_t
     get_resources_impl() const noexcept
@@ -100,8 +124,12 @@ class backend_base
 
     template <typename SelectionHandle>
     void
-    instrument_before_impl(SelectionHandle /*s*/)
+    instrument_before_impl([[maybe_unused]] SelectionHandle s)
     {
+        if constexpr (oneapi::dpl::experimental::extra_resource_traits<ExtraResourceType>::has_reset_v)
+        {
+            s.get_extra_resource().reset();
+        }
     }
 
     template <typename SelectionHandle, typename WaitType>
@@ -115,9 +143,17 @@ class backend_base
     auto
     submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
-      static_cast<Backend*>(this)->instrument_before_impl(s);
-      auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
-	    return static_cast<Backend*>(this)->instrument_after_impl(s, w);
+        static_cast<Backend*>(this)->instrument_before_impl(s);
+        if constexpr (has_extra_resources_v)
+        {
+            auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), s.get_extra_resource(), std::forward<Args>(args)...);
+            return static_cast<Backend*>(this)->instrument_after_impl(s, w);
+        }
+        else
+        {
+            auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
+            return static_cast<Backend*>(this)->instrument_after_impl(s, w);
+        }
     }
 
     template<typename WaitType>
@@ -163,13 +199,13 @@ class backend_base
 
 };
 
-template< typename ResourceType >
-class default_backend : public backend_base<ResourceType, default_backend<ResourceType>> {
+template< typename ResourceType, typename ExtraResourceType = oneapi::dpl::experimental::empty_extra_resource>
+class default_backend : public backend_base<ResourceType, ExtraResourceType, default_backend<ResourceType, ExtraResourceType>> {
 public:
     using resource_type = ResourceType;
-    using my_base = backend_base<ResourceType, default_backend<ResourceType>>;
+    using my_base = backend_base<ResourceType, ExtraResourceType, default_backend<ResourceType, ExtraResourceType>>;
     default_backend() : my_base() {}
-    default_backend(const std::vector<ResourceType>& u) : my_base(u) {}
+    default_backend(const std::vector<ResourceType>& u, const std::vector<ExtraResourceType>& r) : my_base(u, r) {}
 };
 
 } // namespace experimental
