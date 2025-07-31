@@ -82,19 +82,6 @@ class backend_base
         }
     }
 
-    ~backend_base()
-    {
-        if constexpr (oneapi::dpl::experimental::extra_resource_traits<extra_resource_t>::has_cleanup_v)
-        {
-            for (auto& e : extra_resources_)
-            {
-                e.cleanup();
-            }
-        }
-        extra_resources_.~extra_resource_container_t();
-        resources_.~resource_container_t();
-    }
-
     auto
     get_submission_group()
     {
@@ -105,7 +92,7 @@ class backend_base
         return static_cast<Backend*>(this)->get_resources_impl();
     }
 
-    std::enable_if<has_extra_resources_v, extra_resource_container_t>
+    extra_resource_container_t
     get_extra_resources() const
     {
         return extra_resources_;

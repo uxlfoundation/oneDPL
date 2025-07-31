@@ -33,7 +33,7 @@ int
 test_dl_initialization(const std::vector<sycl::queue>& u)
 {
     // initialize
-    oneapi::dpl::experimental::dynamic_load_policy<sycl::queue> p{u}; //TODO:Remove need for type specification
+    oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, oneapi::dpl::experimental::empty_extra_resource> p{u}; //TODO:Remove need for type specification
     auto u2 = oneapi::dpl::experimental::get_resources(p);
     if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
     {
@@ -371,6 +371,85 @@ test_submit_and_wait(UniverseContainer u, ResourceFunction&& f)
                     i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e) {
                     if (e != test_resource)
                     {
+                        pass = false;
+                    }
+                    ecount += i;
+                    if constexpr (std::is_same_v<
+                                      typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
+                        return e;
+                    else
+                        return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                });
+            int count = ecount.load();
+            if (count != i * (i + 1) / 2)
+            {
+                std::cout << "ERROR: scheduler did not execute all tasks exactly once\n";
+                return 1;
+            }
+        }
+    }
+    if (!pass)
+    {
+        std::cout << "ERROR: did not select expected resources\n";
+        return 1;
+    }
+    std::cout << "submit_and_wait: OK\n";
+    return 0;
+}
+
+
+template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ExtraUniverseContainer, typename ResourceFunction, typename ExtraResourceFunction>
+int
+test_extra_resource_submit_and_wait(UniverseContainer u, ExtraUniverseContainer v, ResourceFunction&& f, ExtraResourceFunction&& ef)
+{
+    //std::cout<<"testing extra resource..., vsize:"<<v.size()<<"\n";
+    using my_policy_t = Policy;
+    my_policy_t p{u, v};
+    //std::cout<<"initialized\n";
+    const int N = 6;
+    std::atomic<int> ecount = 0;
+    bool pass = true;
+
+    if constexpr (call_select_before_submit)
+    {
+//        std::cout<<"call before submit\n";
+        for (int i = 1; i <= N; ++i)
+        {
+            auto test_resource = f(i);
+            auto test_extra_resource = ef(i);
+            auto func = [&pass, test_resource, test_extra_resource, &ecount,
+                         i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e, typename oneapi::dpl::experimental::policy_traits<Policy>::extra_resource_type ex) {
+                if (e != test_resource || ex != test_extra_resource)
+                {
+                    pass = false;
+                }
+                ecount += i;
+                return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+            };
+            auto s = oneapi::dpl::experimental::select(p, func);
+            oneapi::dpl::experimental::submit_and_wait(s, func);
+            int count = ecount.load();
+            if (count != i * (i + 1) / 2)
+            {
+                std::cout << "ERROR: scheduler did not execute all tasks exactly once\n";
+                return 1;
+            }
+        }
+    }
+    else
+    {
+//        std::cout<<" submit and wait\n";
+        for (int i = 1; i <= N; ++i)
+        {
+            auto test_resource = f(i);
+            auto test_extra_resource = ef(i);
+            oneapi::dpl::experimental::submit_and_wait(
+                p, [&pass, &ecount, test_resource,
+                    test_extra_resource, i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e, typename oneapi::dpl::experimental::policy_traits<Policy>::extra_resource_type ex) {
+                    if (e != test_resource || ex != test_extra_resource)
+                    {
+                        std::cout<<"ERROR: did not select expected resources\n";
+                        //std::cout<<" ex: "<<ex<<" test_extra_resource: "<<test_extra_resource<<"\n";
                         pass = false;
                     }
                     ecount += i;

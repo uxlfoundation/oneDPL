@@ -52,6 +52,7 @@ class default_backend<sycl::queue, _ExtraResource>
     using resource_container_t = std::vector<execution_resource_t>;
 
   private:
+    using base_t = backend_base<sycl::queue, _ExtraResource, default_backend<sycl::queue, _ExtraResource>>;
     static inline bool is_profiling_enabled = false;
     using report_clock_type = std::chrono::steady_clock;
     using report_duration = std::chrono::milliseconds;
@@ -169,24 +170,22 @@ class default_backend<sycl::queue, _ExtraResource>
     default_backend()
     {
         initialize_default_resources();
-        sgroup_ptr_ = std::make_unique<submission_group>(global_rank_);
+        sgroup_ptr_ = std::make_unique<submission_group>(this->resources_);
     }
 
     template <typename NativeUniverseVector, typename ExtraResourceVector = oneapi::dpl::experimental::no_extra_resources>
-    default_backend(const NativeUniverseVector& v, const ExtraResourceVector& r = {})
+    default_backend(const NativeUniverseVector& v, const ExtraResourceVector& r = {}) : base_t(v, r)
     {
         bool profiling = true;
-        global_rank_.reserve(v.size());
-        for (auto e : v)
+        for (auto e : this->get_resources())
         {
-            global_rank_.push_back(e);
             if (!e.template has_property<sycl::property::queue::enable_profiling>())
             {
                 profiling = false;
             }
         }
         is_profiling_enabled = profiling;
-        sgroup_ptr_ = std::make_unique<submission_group>(global_rank_);
+        sgroup_ptr_ = std::make_unique<submission_group>(this->get_resources());
     }
 
     /*
@@ -339,16 +338,11 @@ class default_backend<sycl::queue, _ExtraResource>
     }
 */
     auto
-    get_submission_group()
+    get_submission_group_impl()
     {
         return *sgroup_ptr_;
     }
 
-    auto
-    get_resources_impl()
-    {
-        return global_rank_;
-    }
 
     void
     lazy_report()
@@ -360,7 +354,6 @@ class default_backend<sycl::queue, _ExtraResource>
     }
 
   private:
-    resource_container_t global_rank_;
     std::unique_ptr<submission_group> sgroup_ptr_;
 
     void
@@ -383,7 +376,7 @@ class default_backend<sycl::queue, _ExtraResource>
         }
         for (auto& x : devices)
         {
-            global_rank_.push_back(sycl::queue{x, prop_list});
+            this->resources_.push_back(sycl::queue{x, prop_list});
         }
     }
 };

@@ -49,8 +49,16 @@ main()
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 #if !ONEDPL_FPGA_DEVICE || !ONEDPL_FPGA_EMULATOR
     using policy_t = oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, oneapi::dpl::experimental::empty_extra_resource, oneapi::dpl::experimental::default_backend<sycl::queue, oneapi::dpl::experimental::empty_extra_resource>>;
+    using policy_with_extra_resources_t = oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, int, oneapi::dpl::experimental::default_backend<sycl::queue, int>>;
+
     std::vector<sycl::queue> u;
     build_dl_universe(u);
+
+    std::vector<int> v;
+    for (int i = 0; i < u.size(); ++i)
+    {
+        v.push_back(i);
+    }
 
     auto n = u.size();
 
@@ -63,6 +71,9 @@ main()
         auto f2 = [u](int) { return u[0]; };
         // should always pick first when waiting on sync in each iteration
 
+        // select extra resource
+        auto ef = [v](int i) { return v[i % v.size()]; };
+
         constexpr bool just_call_submit = false;
         constexpr bool call_select_before_submit = true;
 
@@ -72,6 +83,8 @@ main()
         EXPECT_EQ(0, (test_submit_and_wait_on_event<call_select_before_submit, policy_t>(u, f2)), "");
         EXPECT_EQ(0, (test_submit_and_wait<just_call_submit, policy_t>(u, f2)), "");
         EXPECT_EQ(0, (test_submit_and_wait<call_select_before_submit, policy_t>(u, f2)), "");
+        EXPECT_EQ(0, (test_extra_resource_submit_and_wait<just_call_submit, policy_with_extra_resources_t>(u, v, f2, ef)), "");
+        EXPECT_EQ(0, (test_extra_resource_submit_and_wait<call_select_before_submit, policy_with_extra_resources_t>(u, v, f2, ef)), "");
         EXPECT_EQ(0, (test_submit_and_wait_on_group<just_call_submit, policy_t>(u, f)), "");
         EXPECT_EQ(0, (test_submit_and_wait_on_group<call_select_before_submit, policy_t>(u, f)), "");
 

@@ -33,13 +33,15 @@ template <typename ResourceType, typename ExtraResourceType = oneapi::dpl::exper
 #endif
 class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType, ExtraResourceType, Backend>, ResourceType, ExtraResourceType, Backend>
 {
+  public:
+    using extra_resource_type = ExtraResourceType;
+
   protected:
     using base_t = policy_base<dynamic_load_policy<ResourceType, ExtraResourceType, Backend>, ResourceType, ExtraResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
 
     using execution_resource_t = typename base_t::execution_resource_t;
     using extra_resource_container_t = typename base_t::extra_resource_container_t;
-    using extra_resource_t = ExtraResourceType;
     using load_t = int;
 
     struct resource_t
@@ -56,10 +58,10 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
     {
         Policy policy_;
         std::shared_ptr<resource_t> resource_;
-        std::shared_ptr<ExtraResourceType> extra_;
+        ExtraResourceType extra_;
 
       public:
-        dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r, std::shared_ptr<ExtraResourceType> extra) : policy_(p), resource_(std::move(r)), extra_(std::move(extra)) {}
+        dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r, ExtraResourceType extra) : policy_(p), resource_(std::move(r)), extra_(std::move(extra)) {}
 	///using scratch_space_t = typename backend_traits::selection_scratch_t<Backend,execution_info::task_time_t>; //REMOVE???
 	///scratch_space_t scratch_space; //REMOVE???
 
@@ -70,7 +72,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
             return ::oneapi::dpl::experimental::unwrap(resource_->e_);
         }
 
-        std::shared_ptr<ExtraResourceType>
+        ExtraResourceType
         get_extra_resource()
         {
             return extra_;
@@ -107,11 +109,11 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
         {
             if constexpr (base_t::has_extra_resources_v)
             {
-                return base_t::extra_resources_[i];
+                return extra_resources_[i];
             }
             else
             {
-                return std::make_shared<oneapi::dpl::experimental::empty_extra_resource>();
+                return oneapi::dpl::experimental::empty_extra_resource{};
             }
         }
     };
@@ -126,7 +128,10 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
     dynamic_load_policy() { base_t::initialize(); }
     dynamic_load_policy(deferred_initialization_t) {}
     dynamic_load_policy(const std::vector<resource_type>& u) { base_t::initialize(u); }
-    dynamic_load_policy(const std::vector<resource_type>& u, const std::vector<extra_resource_t>& v) { base_t::initialize(u, v); }
+    dynamic_load_policy(const std::vector<resource_type>& u, const std::vector<ExtraResourceType>& v)
+    {
+        base_t::initialize(u, v);
+    }
 
     void
     initialize_impl()
@@ -148,7 +153,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
             selector_->extra_resources_.reserve(er.size());
             for (const auto& e : er)
             {
-                selector_->extra_resources_.push_back(std::make_shared<extra_resource_t>(e));
+                selector_->extra_resources_.push_back(ExtraResourceType{e});
             }
         }
 
@@ -162,7 +167,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 	     if (selector_)
         {
             std::shared_ptr<resource_t> least_loaded;
-            std::shared_ptr<ExtraResourceType> extra_resource;
+            ExtraResourceType extra_resource;
 
             int least_load = std::numeric_limits<load_t>::max();
 

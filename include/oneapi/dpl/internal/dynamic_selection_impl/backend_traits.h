@@ -125,16 +125,6 @@ struct has_reset
     static constexpr bool value = decltype(test<ResourceType>(0))::value;
 };
 
-template <typename ResourceType>
-struct has_cleanup
-{
-    template <typename T>
-    static auto test(int) -> decltype(std::declval<T>().cleanup(), std::true_type{});
-    template <typename>
-    static auto test(...) -> std::false_type;
-    static constexpr bool value = decltype(test<ResourceType>(0))::value;
-};
-
 } //namespace internal
 
 template <typename ResourceType>
@@ -143,8 +133,6 @@ struct extra_resource_traits
     static constexpr bool has_initialize_v = internal::has_initialize<ResourceType>::value; 
 
     static constexpr bool has_reset_v = internal::has_reset<ResourceType>::value;
-
-    static constexpr bool has_cleanup_v = internal::has_cleanup<ResourceType>::value;
 };
 
 } // namespace experimental
