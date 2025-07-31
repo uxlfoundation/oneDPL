@@ -36,7 +36,7 @@ namespace experimental
 {
 
 #if _DS_BACKEND_SYCL != 0
-template <typename Backend = sycl_backend, typename... KeyArgs>
+template <typename ResourceType = sycl::queue, typename Backend = default_backend<sycl::queue>, typename... KeyArgs>
 #else
 template <typename Backend, typename... KeyArgs>
 #endif
@@ -154,12 +154,15 @@ class auto_tune_policy
 
     class auto_tune_selection_type
     {
-        using policy_t = auto_tune_policy<Backend, KeyArgs...>;
+        using policy_t = auto_tune_policy<ResourceType, Backend, KeyArgs...>;
         policy_t policy_;
         resource_with_index_t resource_;
         std::shared_ptr<tuner_t> tuner_;
 
       public:
+	using scratch_space_t = typename backend_traits::selection_scratch_t<Backend,execution_info::task_time_t>;
+	scratch_space_t scratch_space;
+
         auto_tune_selection_type(const policy_t& p, resource_with_index_t r, std::shared_ptr<tuner_t> t)
             : policy_(p), resource_(r), tuner_(::std::move(t))
         {
