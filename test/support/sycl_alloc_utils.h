@@ -157,8 +157,6 @@ public:
 
             //TODO: support copying data provided by non-contiguous iterator
             auto __src = std::addressof(*__it);
-            assert(std::addressof(*(__it + __objects_count)) - __src == __objects_count);
-
             copy_data_impl(__src, __ptr + __offset, __objects_count);
         }
     }
@@ -182,8 +180,6 @@ public:
 
             //TODO: support copying data provided by non-contiguous iterator
             auto __dst = std::addressof(*__it);
-            assert(std::addressof(*(__it + __objects_count)) - __dst == __objects_count);
-
             copy_data_impl(__ptr + __offset, __dst, __objects_count);
         }
     }

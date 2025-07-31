@@ -74,11 +74,55 @@ test_with_usm(Policy&& exec)
 }
 
 template <typename Policy>
+void
+test_diff_iterators(Policy&& exec)
+{
+    // Create a vector of bool values
+    std::vector<bool> input = {true, false, true, true, false, true};
+
+    // Create a vector to store the result (int type)
+    std::vector<int> result(input.size());
+    std::vector<int> result_expected(input.size());
+
+    // Create reverse iterators
+    auto input_rbegin = std::rbegin(input);
+    auto input_rend = std::rend(input);
+    auto result_rbegin = std::rbegin(result);
+    auto result_rbegin_expected = std::rbegin(result_expected);
+
+    constexpr int initial_value = 0;
+
+    // Use exclusive_scan with reverse iterators to convert bool to int
+    // This will scan from right to left (due to reverse iterators)
+    // The initial value (0) will appear at the rightmost position
+    oneapi::dpl::exclusive_scan(
+        std::forward<Policy>(exec),         // Parallel execution policy
+        input_rbegin,                       // Start of reversed input range
+        input_rend,                         // End of reversed input range
+        result_rbegin,                      // Start of reversed output range
+        initial_value                       // Initial value
+    );
+
+    // Calculate expected result using serial exclusive_scan
+    std::exclusive_scan(
+        input_rbegin,                       // Start of reversed input range
+        input_rend,                         // End of reversed input range
+        result_rbegin_expected,             // Start of reversed output range
+        initial_value                       // Initial value
+    );
+
+    EXPECT_EQ_N(result_expected.begin(), result.begin(), result.size(),
+                "wrong effect from exclusive_scan with reverse iterators");
+}
+
+template <typename Policy>
 void test_impl(Policy&& exec)
 {
     // Run tests for USM shared/device memory
     test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
     test_with_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec));
+
+    test_diff_iterators(CLONE_TEST_POLICY(exec));
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
