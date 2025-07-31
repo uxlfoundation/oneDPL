@@ -58,7 +58,7 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
     fixed_resource_policy(const std::vector<resource_type>& u, ::std::size_t index = 0) 
     { 
         base_t::initialize(u); 
-	selector_->index_ = index;
+        selector_->index_ = index;
     }
 
     void 
