@@ -180,7 +180,10 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
                 {
                     least_load = v;
                     least_loaded = r;
-                    extra_resource = selector_->get_extra_resource(i);
+                    if constexpr(base_t::has_extra_resources_v)
+                    {
+                        extra_resource = selector_->get_extra_resource(i);
+                    }
                 }
             }
             return selection_type{dynamic_load_policy<ResourceType, ExtraResourceType, Backend>(*this), least_loaded, extra_resource};

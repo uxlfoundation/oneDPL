@@ -72,7 +72,7 @@ main()
         // should always pick first when waiting on sync in each iteration
 
         // select extra resource
-        auto ef = [v](int i) { return v[i % v.size()]; };
+        auto ef = [v](int i) { return v[0]; };
 
         constexpr bool just_call_submit = false;
         constexpr bool call_select_before_submit = true;
