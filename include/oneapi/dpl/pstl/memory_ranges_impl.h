@@ -49,7 +49,7 @@ __pattern_uninitialized_default_construct(_Tag __tag, _ExecutionPolicy&& __exec,
 
     oneapi::dpl::uninitialized_default_construct(std::forward<_ExecutionPolicy>(__exec), __first, __last);
 
-    return {__last};
+    return std::ranges::borrowed_iterator_t<_R>{__last};
 }
 
 template <typename _ExecutionPolicy, typename _R>
@@ -72,7 +72,7 @@ __pattern_uninitialized_value_construct(_Tag __tag, _ExecutionPolicy&& __exec, _
 
     oneapi::dpl::uninitialized_value_construct(std::forward<_ExecutionPolicy>(__exec), __first, __last);
 
-    return {__last};
+    return std::ranges::borrowed_iterator_t<_R>{__last};
 }
 
 template <typename _ExecutionPolicy, typename _R>
@@ -159,7 +159,7 @@ __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, co
 
     oneapi::dpl::uninitialized_fill(std::forward<_ExecutionPolicy>(__exec), __first, __last, __value);
 
-    return {__last};
+    return std::ranges::borrowed_iterator_t<_R>{__last};
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _T>
@@ -183,7 +183,7 @@ __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 
     oneapi::dpl::destroy(std::forward<_ExecutionPolicy>(__exec), __first, __last);
 
-    return {__last};
+    return std::ranges::borrowed_iterator_t<_R>{__last};
 }
 
 template <typename _ExecutionPolicy, typename _R>
