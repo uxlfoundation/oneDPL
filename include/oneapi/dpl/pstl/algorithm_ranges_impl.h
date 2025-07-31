@@ -520,7 +520,7 @@ __pattern_minmax(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, 
     auto [__it_min, __it_max] =
         __pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
 
-    return std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>{*__it_min, *__it_max};
+    return {*__it_min, *__it_max};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
