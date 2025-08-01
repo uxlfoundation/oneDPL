@@ -27,14 +27,14 @@ namespace experimental
 {
 
 #if _DS_BACKEND_SYCL != 0
-template <typename ResourceType = sycl::queue, typename Backend = default_backend<ResourceType>>
+template <typename ResourceType = sycl::queue, typename ResourceAdapter = std::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #else
-template <typename ResourceType, typename Backend = default_backend<ResourceType>>
+template <typename ResourceType, typename ResourceAdapter = std::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
-class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType, Backend>, ResourceType, Backend>
+class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>
 {
   protected:
-    using base_t = policy_base<dynamic_load_policy<ResourceType, Backend>, ResourceType, Backend>;
+    using base_t = policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
 
     using execution_resource_t = typename base_t::execution_resource_t;
@@ -97,13 +97,13 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
     std::shared_ptr<selector_t> selector_;
 
   public:
-    using selection_type = dl_selection_handle_t<dynamic_load_policy<ResourceType, Backend>>;
+    using selection_type = dl_selection_handle_t<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>>;
     using resource_type = typename base_t::resource_type;
     using wait_type = typename Backend::wait_type; //TODO: Get from policy_base instead?
 
     dynamic_load_policy() { base_t::initialize(); }
     dynamic_load_policy(deferred_initialization_t) {}
-    dynamic_load_policy(const std::vector<resource_type>& u) { base_t::initialize(u); }
+    dynamic_load_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = std::identity{}) { base_t::initialize(u, adapter); }
 
     void
     initialize_impl()
@@ -141,7 +141,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
                     least_loaded = ::std::move(r);
                 }
             }
-            return selection_type{dynamic_load_policy<ResourceType, Backend>(*this), least_loaded};
+            return selection_type{dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this), least_loaded};
         }
         else
         {
