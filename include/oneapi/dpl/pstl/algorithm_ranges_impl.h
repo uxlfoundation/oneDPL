@@ -699,6 +699,7 @@ __pattern_remove_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy
 //---------------------------------------------------------------------------------------------------------------------
 // __pattern_reverse
 //---------------------------------------------------------------------------------------------------------------------
+
 template <typename _Tag, typename _ExecutionPolicy, typename _R>
 void
 __pattern_reverse(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
@@ -720,6 +721,7 @@ __pattern_reverse(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&
 //---------------------------------------------------------------------------------------------------------------------
 // __pattern_reverse_copy
 //---------------------------------------------------------------------------------------------------------------------
+
 template <typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
 __pattern_reverse_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
