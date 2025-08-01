@@ -26,14 +26,14 @@ namespace experimental
 {
 
 #if _DS_BACKEND_SYCL != 0
-template <typename ResourceType = sycl::queue, typename Backend = default_backend<ResourceType>>
+template <typename ResourceType = sycl::queue, typename ResourceAdapter = std::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #else
-template <typename ResourceType, typename Backend = default_backend<ResourceType>>
+template <typename ResourceType, typename ResourceAdapter = std::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
-class round_robin_policy : public policy_base<round_robin_policy<ResourceType, Backend>, ResourceType, Backend> 
+class round_robin_policy : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend> 
 {
   protected:
-    using base_t = policy_base<round_robin_policy<ResourceType, Backend>, ResourceType, Backend>;
+    using base_t = policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
 
     struct selector_t 
@@ -52,7 +52,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, B
 
     round_robin_policy() { base_t::initialize(); }
     round_robin_policy(deferred_initialization_t) {}
-    round_robin_policy(const std::vector<resource_type>& u) { base_t::initialize(u); }
+    round_robin_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = std::identity{}) { base_t::initialize(u, adapter); }
 
     void 
     initialize_impl() 
