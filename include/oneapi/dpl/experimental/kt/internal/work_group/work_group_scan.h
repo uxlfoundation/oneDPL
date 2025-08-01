@@ -61,7 +61,7 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
     // TODO: we should analyze why limiting the sub-group scan causes performance regressions.
     _InputType __sub_group_carry = __sub_group_scan<__sub_group_size, __iters_per_item>(
         __sub_group, __input, __binary_op, __items_in_sub_group_scan);
-    [[maybe_unused]] oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __wg_init;
+    [[maybe_unused]] _InputType __wg_init = __input[0].__v;
     if (__sub_group.get_local_linear_id() == __sub_group_size - 1)
     {
         __local_acc[__sub_group.get_group_linear_id()] = __sub_group_carry;
@@ -105,19 +105,20 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
         // Init callback, most common case is expected to be a decoupled lookback to achieve a global scan between
         // work-groups.
         if constexpr (__b_init_callback)
-            __wg_init.__setup(__process_init_callback(__sub_group, __wg_carry.__v));
+            __wg_init = __process_init_callback(__sub_group, __wg_carry.__v);
+        __wg_carry.__destroy();
     }
     __dpl_sycl::__group_barrier(__item);
     // Determine incoming prefix from previous sub-groups and / or work-groups, and update results in __input
     if constexpr (__b_init_callback)
     {
-        const auto __wg_apply_init = __dpl_sycl::__group_broadcast(__item.get_group(), __wg_init.__v);
+        __wg_init = __dpl_sycl::__group_broadcast(__item.get_group(), __wg_init);
         if (__sub_group_group_id < __active_sub_groups)
         {
             _InputType __sub_group_carry_in =
                 (__sub_group_group_id == 0)
-                    ? __wg_apply_init
-                    : __binary_op(__wg_apply_init,
+                    ? __wg_init
+                    : __binary_op(__wg_init,
                                   __dpl_sycl::__group_broadcast(__sub_group, __local_acc[__sub_group_group_id - 1]));
             for (std::uint16_t __i = 0; __i < __iters_per_item; ++__i)
                 __input[__i].__v = __binary_op(__sub_group_carry_in, __input[__i].__v);
@@ -133,9 +134,6 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
                 __input[__i].__v = __binary_op(__sub_group_carry_in, __input[__i].__v);
         }
     }
-    // Should be optimized out with trivial destructor
-    if (__b_init_callback && __sub_group_group_id == 0)
-        __wg_init.__destroy();
     return __local_acc[__active_sub_groups - 1];
 }
 
