@@ -12,9 +12,12 @@ range-based APIs are suggested to be implemented next in oneDPL.
 The feature is proposed as the next step of range-based API support for oneDPL.
 
 ### Key Requirements
-- The range-based signatures for the mentioned API should correspond to the
-  [proposed specification](https://github.com/uxlfoundation/oneAPI-spec/pull/614)
-  that is based on the [C++ standardization proposal P3179](https://wg21.link/p3179).
+- The range-based signatures for the mentioned API should correspond to the proposed specification,
+  which itself is based on the [P3179](https://wg21.link/p3179) proposal:
+  - [Set parallel range algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/630).
+  - [Memory parallel range algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/631).
+  - [In-place mutating parallel range algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/634).
+  - [Copying mutating parallel range algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/635).
 - The signature of `reverse_copy` should align with [P3709](https://wg21.link/p3709),
   which updates the signature defined in [P3179](https://wg21.link/p3179).
 - The proposed implementation should support all oneDPL execution policies:
