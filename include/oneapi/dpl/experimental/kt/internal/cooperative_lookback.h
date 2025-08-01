@@ -118,18 +118,24 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
     // For initialization routines, we do not need atomicity, so we can write through the
     // reference directly.
     void
-    set_oob()
+    set_oob(const _T __dummy)
     {
         _PackedStatusPrefixT __packed_flag = __oob_status;
+        _PackedStatusPrefixT __integral_bits =
+            static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__dummy));
+        __packed_flag |= __integral_bits << __half_status_prefix_bits;
         __packed_flag_ref = _PackedStatusPrefixT{__packed_flag};
     }
 
     // For initialization routines, we do not need atomicity, so we can write through the
     // reference directly.
     void
-    set_init()
+    set_init(const _T __dummy)
     {
         _PackedStatusPrefixT __packed_flag = __initialized_status;
+        _PackedStatusPrefixT __integral_bits =
+            static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__dummy));
+        __packed_flag |= __integral_bits << __half_status_prefix_bits;
         __packed_flag_ref = _PackedStatusPrefixT{__packed_flag};
     }
 
@@ -250,18 +256,20 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
     // For initialization routines, we do not need atomicity, so we can write through the ptr
     // member variable.
     void
-    set_init()
+    set_init(const _T __dummy)
     {
-        __partial_value_ref = _T{};
+        __partial_value_ref = __dummy;
+        __full_value_ref = __dummy;
         __flag_ref = _FlagStorageType{__initialized_status};
     }
 
     // For initialization routines, we do not need atomicity, so we can write through the ptr
     // member variable.
     void
-    set_oob()
+    set_oob(const _T __dummy)
     {
-        __partial_value_ref = _T{};
+        __partial_value_ref = __dummy;
+        __full_value_ref = __dummy;
         __flag_ref = _FlagStorageType{__oob_status};
     }
 
@@ -369,32 +377,35 @@ struct __cooperative_lookback
 template <typename... _Name>
 class __lookback_init_kernel;
 
-template <std::uint8_t __sub_group_size, typename _FlagType, typename _Type, typename _BinaryOp, typename _KernelName>
+template <std::uint8_t __sub_group_size, typename _FlagType, typename _InRange, typename _Type, typename _BinaryOp, typename _KernelName>
 struct __lookback_init_submitter;
 
-template <std::uint8_t __sub_group_size, typename _FlagType, typename _Type, typename _BinaryOp, typename... _Name>
-struct __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp,
+template <std::uint8_t __sub_group_size, typename _FlagType, typename _InRange, typename _Type, typename _BinaryOp, typename... _Name>
+struct __lookback_init_submitter<__sub_group_size, _FlagType, _InRange, _Type, _BinaryOp,
                                  oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
     sycl::event
-    operator()(sycl::queue __q, std::uint32_t* __atomic_id_ptr,
+    operator()(sycl::queue __q, std::uint32_t* __atomic_id_ptr, const _InRange& __in_rng,
                typename __scan_status_flag<__sub_group_size, _Type>::storage __lookback_storage,
                std::size_t __status_flags_size, std::uint16_t __status_flag_padding) const
     {
         return __q.submit([&](sycl::handler& __hdl) {
+            oneapi::dpl::__ranges::__require_access(__hdl, __in_rng);
             __hdl.parallel_for<_Name...>(sycl::range<1>{__status_flags_size}, [=](const sycl::item<1>& __item) {
                 const std::uint32_t __id = __item.get_linear_id();
                 // Negative values are valid here up until -sub_group_size for initialization of OOB elements.
                 const int __id_offset = int(__id) - int(__status_flag_padding);
+                // Use __in_rng[0] to ensure we have valid objects in all locations to prevent reading uninitialized
+                // memory in lookback.
                 __scan_status_flag<__sub_group_size, _Type> __current_tile(__lookback_storage, __id_offset);
                 if (__id < __status_flag_padding)
                 {
-                    __current_tile.set_oob();
+                    __current_tile.set_oob(__in_rng[0]);
                     if (__id == 0)
                         *__atomic_id_ptr = 0;
                 }
                 else
-                    __current_tile.set_init();
+                    __current_tile.set_init(__in_rng[0]);
             });
         });
     }
