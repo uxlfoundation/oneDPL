@@ -14,8 +14,9 @@ The feature is proposed as the next step of range-based API support for oneDPL.
 ### Key Requirements
 - The range-based signatures for the mentioned API should correspond to the [proposed specification](https://github.com/uxlfoundation/oneAPI-spec/pull/614)
 that is based on the [C++ standardization proposal P3179](https://wg21.link/p3179).
+- The signature of `reverse_copy` should align with [P3709](https://wg21.link/p3709),
+  which updates the signature defined in [P3179](https://github.com/uxlfoundation/oneAPI-spec/pull/614).
 - The proposed implementation should support all oneDPL execution policies: `seq`, `unseq`, `par`, `par_unseq`, and `device_policy`.
-- For `reverse_copy`, return values semantic might be changed in the future or this algorithms will be not added to oneDPL.
 - To add a new value for the feature testing macro `ONEDPL_HAS_RANGE_ALGORITHMS` in oneDPL documentation.
 
 ### Implementation proposal
