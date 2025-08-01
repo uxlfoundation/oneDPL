@@ -125,10 +125,10 @@ __pattern_inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, 
         mask[0] = initial_mask;
     }
 
+    auto policy1 = oneapi::dpl::__par_backend_hetero::make_wrapped_policy<InclusiveScan1>(policy);
     transform(std::forward<Policy>(policy), first1, last1 - 1, first1 + 1, _mask.get() + 1,
               oneapi::dpl::__internal::__not_pred<BinaryPredicate>(binary_pred));
 
-    auto policy1 = oneapi::dpl::__par_backend_hetero::make_wrapped_policy<InclusiveScan1>(policy);
     transform_inclusive_scan(std::move(policy1), make_zip_iterator(first2, _mask.get()),
                              make_zip_iterator(first2, _mask.get()) + n, make_zip_iterator(result, _mask.get()),
                              internal::segmented_scan_fun<ValueType, FlagType, BinaryOperator>(binary_op),
