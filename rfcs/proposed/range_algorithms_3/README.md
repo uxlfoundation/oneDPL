@@ -3,9 +3,10 @@
 ## Introduction
 Based on statistics (observing C++ code within github.com) for the usage of popular algorithms, the following
 range-based APIs are suggested to be implemented next in oneDPL.
-`swap_ranges`, `reverse`, `reverse_copy`, `unique`, `unique_copy`, `set_intersection`, `set_union`, `set_difference`, `set_symmetric_difference`,
-`includes`, `nth_element`, `partition`, `partition_copy`, `remove_copy`, `remove_copy_if`, `lexicographical_compare`, `rotate`, `rotate_copy`,
-`uninitialized_copy`, `uninitialized_move`, `uninitialized_fill`, `uninitialized_default_construct`, `uninitialized_value_construct`, `destroy`
+`swap_ranges`, `reverse`, `reverse_copy`, `unique`, `unique_copy`,
+`includes`, `set_intersection`, `set_union`, `set_difference`, `set_symmetric_difference`,
+`uninitialized_copy`, `uninitialized_move`, `uninitialized_fill`,
+`uninitialized_default_construct`, `uninitialized_value_construct`, `destroy`
 
 ## Motivations
 The feature is proposed as the next step of range-based API support for oneDPL.
@@ -14,7 +15,7 @@ The feature is proposed as the next step of range-based API support for oneDPL.
 - The range-based signatures for the mentioned API should correspond to the [proposed specification](https://github.com/uxlfoundation/oneAPI-spec/pull/614)
 that is based on the [C++ standardization proposal P3179](https://wg21.link/p3179).
 - The proposed implementation should support all oneDPL execution policies: `seq`, `unseq`, `par`, `par_unseq`, and `device_policy`.
-- For the algprithms `reverse_copy`, `rotate_copy` return values semantic might be changed in the future or this algorithms will be not added to oneDPL.
+- For `reverse_copy`, return values semantic might be changed in the future or this algorithms will be not added to oneDPL.
 - To add a new value for the feature testing macro `ONEDPL_HAS_RANGE_ALGORITHMS` in oneDPL documentation.
 
 ### Implementation proposal
@@ -42,4 +43,3 @@ in case of different semantics.
   `std::views::iota`, `std::views::transform`, `std::views::reverse`, `std::views::take`, `std::views::drop`
 - The tests should also call the algorithms with default and custom predicates, comparators and projections.
 - In case of a `device_policy` and `std::vector` with USM allocator, the algorithms accept the vector wrapped into `std::ranges::subrange` or `std::span`.
-
