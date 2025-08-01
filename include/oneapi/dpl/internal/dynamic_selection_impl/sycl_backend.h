@@ -30,11 +30,11 @@ namespace dpl
 namespace experimental
 {
 
-template< >
-class default_backend<sycl::queue> : public backend_base<sycl::queue, default_backend<sycl::queue>>
+template<typename ResourceType, typename ResourceAdapter>
+class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public backend_base<ResourceType, default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>>
 {
   public:
-    using resource_type = sycl::queue;
+    using resource_type = ResourceType;
     using wait_type = sycl::event;
     template <typename... Req>
     struct scratch_t
@@ -51,11 +51,12 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
     using resource_container_t = std::vector<execution_resource_t>;
 
   private:
-    using base_t = backend_base<sycl::queue, default_backend<sycl::queue>>;
+    using base_t = backend_base<ResourceType, default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>>;
     static inline bool is_profiling_enabled = false;
     using report_clock_type = std::chrono::steady_clock;
     using report_duration = std::chrono::milliseconds;
 
+    ResourceAdapter __adapter;
     class async_waiter_base
     {
       public:
@@ -147,44 +148,46 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
     class submission_group
     {
         resource_container_t resources_;
+        ResourceAdapter adapter_;
 
       public:
-        submission_group(const resource_container_t& v) : resources_(v) {}
+        submission_group(const resource_container_t& v, ResourceAdapter adapter) : resources_(v), adapter_(adapter) {}
 
         void
         wait()
         {
             for (auto& r : resources_)
             {
-                unwrap(r).wait();
+                adapter_(unwrap(r)).wait();
             }
         }
     };
 
   public:
-    default_backend(const default_backend& v) = delete;
-    default_backend&
-    operator=(const default_backend&) = delete;
+    default_backend_impl(const default_backend_impl& v) = delete;
+    default_backend_impl&
+    operator=(const default_backend_impl&) = delete;
 
-    default_backend()
+    template <typename T = ResourceAdapter>
+    default_backend_impl(std::enable_if_t<std::is_same_v<T, std::identity>, int> = 0)
     {
         initialize_default_resources();
-        sgroup_ptr_ = std::make_unique<submission_group>(this->resources_);
+        sgroup_ptr_ = std::make_unique<submission_group>(this->resources_, __adapter);
     }
 
     template <typename NativeUniverseVector>
-    default_backend(const NativeUniverseVector& v) : base_t(v)
+    default_backend_impl(const NativeUniverseVector& v, ResourceAdapter adapter) : base_t(v), __adapter(adapter)
     {
         bool profiling = true;
         for (auto e : this->get_resources())
         {
-            if (!e.template has_property<sycl::property::queue::enable_profiling>())
+            if (!__adapter(e).template has_property<sycl::property::queue::enable_profiling>())
             {
                 profiling = false;
             }
         }
         is_profiling_enabled = profiling;
-        sgroup_ptr_ = std::make_unique<submission_group>(this->get_resources());
+        sgroup_ptr_ = std::make_unique<submission_group>(this->get_resources(), __adapter);
     }
 
 /*
@@ -202,7 +205,7 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
         if constexpr (report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>)
         {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
-            auto q = unwrap(s);
+            auto q = __adapter(unwrap(s));
             if (!q.get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag))
             {
                 std::cout << "Cannot time kernels without enabling profiling on queue\n";
@@ -238,7 +241,7 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
                 if constexpr (internal::scratch_space_member<SelectionHandle>::value)
                 {
-                    auto q = unwrap(s);
+                    auto q = __adapter(unwrap(s));
                     sycl::event q_end = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending timestamp
                                                                                                   //get raw nano number
                         uint64_t time_taken_nanoseconds =
@@ -351,8 +354,12 @@ class default_backend<sycl::queue> : public backend_base<sycl::queue, default_ba
   private:
     std::unique_ptr<submission_group> sgroup_ptr_;
 
+
+    // We can only default initialize adapter is std::identity. If a non base resource is provided with an adapter, then
+    // it is the user's responsibilty to initialize the resources
+    template <typename T = ResourceAdapter>
     void
-    initialize_default_resources()
+    initialize_default_resources(std::enable_if_t<!std::is_same_v<T, std::identity>, int> = 0)
     {
         bool profiling = true;
         auto prop_list = sycl::property_list{};
