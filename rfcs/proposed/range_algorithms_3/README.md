@@ -36,7 +36,7 @@ which are already implemented in oneDPL.
   To support  `std::vector` with `USM` allocator
   `std::vector` should be wrapped into `std::ranges::subrange`.
 - In case of a `device_policy` the projections pointer-to-member and pointer-to-function
-  are not supported,for SYCL backend at least.
+  are not supported, for SYCL backend at least.
 
 ### Test coverage
 - If a range-based algorithm shares its implementation with an iterator-based variant
