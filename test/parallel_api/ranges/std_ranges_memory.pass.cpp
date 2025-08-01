@@ -33,7 +33,7 @@ struct Elem
     int val2;
 
     Elem() { val1 = 1; }
-    Elem(int v) { val2 = v;}
+    Elem(int v) { val2 = v; }
     Elem(const Elem& elem) { val2 = elem.val2; }
 };
 
@@ -45,7 +45,7 @@ struct Elem_0
     int val2;
 
     Elem_0(): val1() {} //val1 has a zero-initialization here
-    Elem_0(Elem&& elem) { val2 = elem.val2; }
+    Elem_0(Elem_0&& elem) { val2 = elem.val2; }
     ~Elem_0() { val2 = 3;}
 };
 

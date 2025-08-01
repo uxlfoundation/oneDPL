@@ -143,7 +143,7 @@ std::ranges::uninitialized_move_result<std::ranges::borrowed_iterator_t<_InRange
 __pattern_uninitialized_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r,
                              _OutRange&& __out_r)
 {
-    return std::ranges::uninitialized_move(std::forward<_InRange>(__in_r), std::forward<_InRange>(__out_r));
+    return std::ranges::uninitialized_move(std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r));
 }
 
 //---------------------------------------------------------------------------------------------------------------------
