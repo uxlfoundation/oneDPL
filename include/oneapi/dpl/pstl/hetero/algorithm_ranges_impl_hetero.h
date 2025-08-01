@@ -696,6 +696,49 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     return {std::ranges::begin(__r) + __idx, std::ranges::begin(__r) + __n};
 }
 
+//------------------------------------------------------------------------
+// reverse
+//------------------------------------------------------------------------
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R>
+void
+__pattern_reverse(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r)
+{
+    const auto __n = std::ranges::size(__r);
+    if (__n <= 1)
+        return;
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                      unseq_backend::__reverse_functor<decltype(__n)>{__n}, __n / 2,
+                                                      oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)))
+        .__checked_deferrable_wait();
+}
+
+//------------------------------------------------------------------------
+// reverse_copy
+//------------------------------------------------------------------------
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+void
+__pattern_reverse_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
+                       _OutRange&& __out_r)
+{
+    const auto __n = std::ranges::size(__in_r);
+    if (__n == 0)
+        return;
+
+    using _DiffType = oneapi::dpl::__internal::__difference_t<_InRange>;
+    oneapi::dpl::__par_backend_hetero::__parallel_for(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<_DiffType>{__n}, __n,
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)))
+        .get(); // is a blocking call
+}
+
+//------------------------------------------------------------------------
+// move
+//------------------------------------------------------------------------
+
 template<typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
 __pattern_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r)
