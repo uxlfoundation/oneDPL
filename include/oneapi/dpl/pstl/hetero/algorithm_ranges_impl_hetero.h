@@ -708,9 +708,8 @@ __pattern_reverse(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R
     if (__n <= 1)
         return;
 
-    using _DiffType = oneapi::dpl::__internal::__difference_t<_R>;
     oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                      unseq_backend::__reverse_functor<_DiffType>{__n}, __n / 2,
+                                                      unseq_backend::__reverse_functor<decltype(__n)>{__n}, __n / 2,
                                                       oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)))
         .__checked_deferrable_wait();
 }
