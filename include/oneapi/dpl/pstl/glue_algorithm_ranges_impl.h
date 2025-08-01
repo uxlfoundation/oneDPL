@@ -958,7 +958,7 @@ struct __reverse_copy_fn
         return {__last_in, __stop_in, __stop_out};
     }
 
-}; //__reverse_fn
+}; //__reverse_copy_fn
 } // namespace __internal
 
 inline constexpr __internal::__reverse_copy_fn reverse_copy;
