@@ -899,6 +899,31 @@ struct __replace_fn
 
 inline constexpr __internal::__replace_fn replace;
 
+
+namespace __internal
+{
+struct __reverse_fn
+{
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+        && std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+
+        auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
+        oneapi::dpl::__internal::__ranges::__pattern_reverse(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r));
+        return std::ranges::borrowed_iterator_t<_R>{__last};
+    }
+
+}; //__reverse_fn
+} //__internal
+
+inline constexpr __internal::__reverse_fn reverse;
+
 // [alg.is_sorted_until]
 
 namespace __internal

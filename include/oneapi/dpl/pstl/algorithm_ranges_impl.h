@@ -696,6 +696,31 @@ __pattern_remove_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy
     return std::ranges::remove_if(std::forward<_R>(__r), __pred, __proj);
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+// __pattern_reverse
+//---------------------------------------------------------------------------------------------------------------------
+template <typename _Tag, typename _ExecutionPolicy, typename _R>
+void
+__pattern_reverse(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __begin = std::ranges::begin(__r);
+    auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
+    oneapi::dpl::__internal::__pattern_reverse(__tag, std::forward<_ExecutionPolicy>(__exec), __begin, __end);
+}
+
+template <typename _ExecutionPolicy, typename _R>
+void
+__pattern_reverse(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
+{
+    std::ranges::reverse(std::forward<_R>(__r));
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// __pattern_move
+//---------------------------------------------------------------------------------------------------------------------
+
 template <typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
 __pattern_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r)
