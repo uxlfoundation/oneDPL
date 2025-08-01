@@ -359,7 +359,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
     // it is the user's responsibilty to initialize the resources
     template <typename T = ResourceAdapter>
     void
-    initialize_default_resources(std::enable_if_t<!std::is_same_v<T, std::identity>, int> = 0)
+    initialize_default_resources(std::enable_if_t<std::is_same_v<T, std::identity>, int> = 0)
     {
         bool profiling = true;
         auto prop_list = sycl::property_list{};
