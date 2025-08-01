@@ -710,8 +710,9 @@ __pattern_reverse(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R
 
     using _DiffType = oneapi::dpl::__internal::__difference_t<_R>;
     oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::__reverse_functor<_DiffType>{__n}, __n / 2,
-        oneapi::dpl::__ranges::views::all(std::forward<_R>(__r))).__checked_deferrable_wait();
+                                                      unseq_backend::__reverse_functor<_DiffType>{__n}, __n / 2,
+                                                      oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)))
+        .__checked_deferrable_wait();
 }
 
 //------------------------------------------------------------------------
@@ -729,9 +730,10 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exe
 
     using _DiffType = oneapi::dpl::__internal::__difference_t<_InRange>;
     oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<_DiffType>{__n},
-        __n, oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
-        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r))).get(); // is a blocking call
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<_DiffType>{__n}, __n,
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)))
+        .get(); // is a blocking call
 }
 
 //------------------------------------------------------------------------

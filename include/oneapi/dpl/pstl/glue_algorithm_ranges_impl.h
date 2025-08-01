@@ -899,16 +899,15 @@ struct __replace_fn
 
 inline constexpr __internal::__replace_fn replace;
 
-
 // [alg.reverse]
 
 namespace __internal
 {
 struct __reverse_fn
 {
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _R>
-    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
-        && std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r) const
@@ -916,13 +915,13 @@ struct __reverse_fn
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
         auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
-        oneapi::dpl::__internal::__ranges::__pattern_reverse(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __r);
+        oneapi::dpl::__internal::__ranges::__pattern_reverse(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+                                                             __r);
         return std::ranges::borrowed_iterator_t<_R>{__last};
     }
 
 }; //__reverse_fn
-} //__internal
+} // namespace __internal
 
 inline constexpr __internal::__reverse_fn reverse;
 
@@ -932,11 +931,11 @@ namespace __internal
 {
 struct __reverse_copy_fn
 {
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
-             std::ranges::random_access_range _OutRange>
-    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
-        && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
-        && std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+              std::ranges::random_access_range _OutRange>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
 
     std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<_InRange>,
                                   std::ranges::borrowed_iterator_t<_InRange>,
@@ -953,14 +952,14 @@ struct __reverse_copy_fn
         auto __stop_out = std::ranges::begin(__out_r) + __sz;
 
         oneapi::dpl::__internal::__ranges::__pattern_reverse_copy(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::ranges::take_view(__in_r, __sz), std::ranges::take_view(__out_r, __sz));
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::take_view(__in_r, __sz),
+            std::ranges::take_view(__out_r, __sz));
 
         return {__last_in, __stop_in, __stop_out};
     }
 
 }; //__reverse_fn
-} //__internal
+} // namespace __internal
 
 inline constexpr __internal::__reverse_copy_fn reverse_copy;
 

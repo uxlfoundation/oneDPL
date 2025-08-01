@@ -737,7 +737,7 @@ __pattern_reverse_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
 template <typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
 __pattern_reverse_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r,
-                        _OutRange&& __out_r)
+                       _OutRange&& __out_r)
 {
     std::ranges::reverse_copy(std::forward<_InRange>(__in_r), std::ranges::begin(__out_r));
 }
