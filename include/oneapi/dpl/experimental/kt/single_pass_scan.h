@@ -65,16 +65,16 @@ struct __single_pass_scan_kernel_func
 
     template <bool __is_full>
     void
-    load_global_to_grf(_Type __grf_partials[__data_per_workitem], const std::size_t __sub_group_current_offset,
-                       const std::uint32_t __sub_group_local_id) const
+    load_global_to_grf(oneapi::dpl::__internal::__lazy_ctor_storage<_Type> __grf_partials[__data_per_workitem],
+                       const std::size_t __sub_group_current_offset, const std::uint32_t __sub_group_local_id) const
     {
         if constexpr (__is_full)
         {
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
             {
-                __grf_partials[__i] =
-                    __in_rng[__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i];
+                __grf_partials[__i].__setup(
+                    __in_rng[__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i]);
             }
         }
         else
@@ -84,17 +84,19 @@ struct __single_pass_scan_kernel_func
             {
                 if (__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i < __n)
                 {
-                    __grf_partials[__i] =
-                        __in_rng[__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i];
+                    __grf_partials[__i].__setup(
+                        __in_rng[__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i]);
                 }
+                else // placeholder
+                    __grf_partials[__i].__setup(__in_rng[__n - 1]);
             }
         }
     }
 
     template <bool __is_full>
     void
-    store_grf_to_global(_Type __grf_partials[__data_per_workitem], const std::size_t __sub_group_current_offset,
-                        const std::uint32_t __sub_group_local_id) const
+    store_grf_to_global(oneapi::dpl::__internal::__lazy_ctor_storage<_Type> __grf_partials[__data_per_workitem],
+                        const std::size_t __sub_group_current_offset, const std::uint32_t __sub_group_local_id) const
     {
         if constexpr (__is_full)
         {
@@ -102,7 +104,8 @@ struct __single_pass_scan_kernel_func
             for (std::uint32_t __i = 0; __i < __data_per_workitem; ++__i)
             {
                 __out_rng[__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i] =
-                    __grf_partials[__i];
+                    __grf_partials[__i].__v;
+                __grf_partials[__i].__destroy();
             }
         }
         else
@@ -113,7 +116,8 @@ struct __single_pass_scan_kernel_func
                 if (__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i < __n)
                 {
                     __out_rng[__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i] =
-                        __grf_partials[__i];
+                        __grf_partials[__i].__v;
+                    __grf_partials[__i].__destroy();
                 }
             }
         }
@@ -128,7 +132,7 @@ struct __single_pass_scan_kernel_func
         auto __sub_group_local_id = __sub_group.get_local_linear_id();
         auto __sub_group_group_id = __sub_group.get_group_linear_id();
 
-        _Type __grf_partials[__data_per_workitem];
+        oneapi::dpl::__internal::__lazy_ctor_storage<_Type> __grf_partials[__data_per_workitem];
 
         auto __this_tile_elements = std::min<std::size_t>(__elems_in_tile, __n - __work_group_offset);
         // The first sub-group will query the previous tiles to find a prefix. For tile 0, we set it directly as full

@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <type_traits>
 
+#include "../../../pstl/utils.h"
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "sub_group/sub_group_scan.h"
 
@@ -312,7 +313,7 @@ struct __cooperative_lookback
         {
             __local_flag.set_partial(__local_reduction);
         }
-        _T __running{};
+        oneapi::dpl::__internal::__lazy_ctor_storage<_T> __running;
         std::uint8_t __local_id = __subgroup.get_local_id();
         auto __lookback_iter = [&](auto __is_initialized, int __tile) {
             __scan_status_flag<__sub_group_size, _T> __current_tile(__lookback_storage, __tile - __local_id);
@@ -353,9 +354,11 @@ struct __cooperative_lookback
         }
         if (__subgroup.get_local_id() == 0)
         {
-            __local_flag.set_full(__binary_op(__running, __local_reduction));
+            __local_flag.set_full(__binary_op(__running.__v, __local_reduction));
         }
-        return __running;
+        const _T __return_val = __running.__v;
+        __running.__destroy();
+        return __return_val;
     }
 
     typename __scan_status_flag<__sub_group_size, _T>::storage __lookback_storage;
