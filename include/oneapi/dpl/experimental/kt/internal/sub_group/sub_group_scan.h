@@ -52,12 +52,12 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
     }
     if constexpr (__init_present)
     {
-        __value = __binary_op(__init_and_carry, __value);
-        __init_and_carry = sycl::group_broadcast(__sub_group, __value, __init_broadcast_id);
+        __value = __binary_op(__init_and_carry.__v, __value);
+        __init_and_carry.__v = sycl::group_broadcast(__sub_group, __value, __init_broadcast_id);
     }
     else
     {
-        __init_and_carry = sycl::group_broadcast(__sub_group, __value, __init_broadcast_id);
+        __init_and_carry.__v = sycl::group_broadcast(__sub_group, __value, __init_broadcast_id);
     }
     //return by reference __value and __init_and_carry
 }
@@ -111,20 +111,21 @@ __sub_group_scan_partial(const sycl::sub_group& __sub_group, _ValueType& __value
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _SubGroup,
           typename _BinaryOperation>
 _InputType
-__sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_item], _BinaryOperation __binary_op,
-                 std::uint32_t __items_in_scan)
+__sub_group_scan(const _SubGroup& __sub_group,
+                 oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __input[__iters_per_item],
+                 _BinaryOperation __binary_op, std::uint32_t __items_in_scan)
 {
     const bool __is_full = __items_in_scan == __sub_group_size * __iters_per_item;
-    _InputType __carry{};
+    oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __carry;
     if (__is_full)
     {
-        __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(__sub_group, __input[0],
-                                                                                              __binary_op, __carry);
+        __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
+            __sub_group, __input[0].__v, __binary_op, __carry);
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 1; __i < __iters_per_item; ++__i)
         {
             __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
-                __sub_group, __input[__i], __binary_op, __carry);
+                __sub_group, __input[__i].__v, __binary_op, __carry);
         }
     }
     else
@@ -135,22 +136,24 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_it
         if (__limited_iters_per_item == 1)
         {
             __sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
-                __sub_group, __input[__i], __binary_op, __carry, __items_in_scan - __i * __sub_group_size);
+                __sub_group, __input[__i].__v, __binary_op, __carry, __items_in_scan - __i * __sub_group_size);
         }
         else if (__limited_iters_per_item > 1)
         {
             __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
-                __sub_group, __input[__i++], __binary_op, __carry);
+                __sub_group, __input[__i++].__v, __binary_op, __carry);
             for (; __i < __limited_iters_per_item - 1; ++__i)
             {
                 __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
-                    __sub_group, __input[__i], __binary_op, __carry);
+                    __sub_group, __input[__i].__v, __binary_op, __carry);
             }
             __sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
-                __sub_group, __input[__i], __binary_op, __carry, __items_in_scan - __i * __sub_group_size);
+                __sub_group, __input[__i].__v, __binary_op, __carry, __items_in_scan - __i * __sub_group_size);
         }
     }
-    return __carry;
+    const _InputType __return_carry = __carry.__v;
+    __carry.__destroy();
+    return __return_carry;
 }
 
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _SubGroup,
