@@ -183,7 +183,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-template<typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2>
 void
 __pattern_swap_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2)
 {
@@ -776,9 +776,9 @@ __pattern_unique_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
     auto __end = __beg + std::ranges::size(__r);
     auto __beg_out = std::ranges::begin(__out_r);
 
-    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique_copy(__tag, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)),
-        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)),__pred_2);
+    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique_copy(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __pred_2);
 
     return {__end, __beg_out + __idx};
 }
@@ -823,8 +823,9 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
 
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + std::ranges::size(__r);
-    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)), __pred_2);
+    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)),
+        __pred_2);
 
     return std::ranges::borrowed_subrange_t<_R>(__beg + __idx, __end);
 }

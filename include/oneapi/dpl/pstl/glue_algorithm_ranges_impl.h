@@ -846,10 +846,10 @@ namespace __internal
 
 struct __swap_ranges_fn
 {
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2>
-    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
-        && std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2>
-        && std::indirectly_swappable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>>
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2> &&
+                 std::indirectly_swappable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>>
 
     std::ranges::swap_ranges_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>>
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2) const
@@ -866,7 +866,7 @@ struct __swap_ranges_fn
     }
 
 }; //__swap_ranges_fn
-} //__internal
+} // namespace __internal
 
 inline constexpr __internal::__swap_ranges_fn swap_ranges;
 
@@ -1063,21 +1063,21 @@ namespace __internal
 {
 struct __unique_fn
 {
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-             std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_R>, _Proj>>
-                _Comp = std::ranges::equal_to>
-    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
-        && std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+              std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp =
+                  std::ranges::equal_to>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
 
     std::ranges::borrowed_subrange_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_unique(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_unique(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
     }
 }; //__unique_fn
-} //__internal
+} // namespace __internal
 
 inline constexpr __internal::__unique_fn unique;
 
@@ -1085,13 +1085,13 @@ namespace __internal
 {
 struct __unique_copy_fn
 {
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
-             std::ranges::random_access_range _OutRange, typename _Proj = std::identity,
-             std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_InRange>, _Proj>> _Comp =
-                 std::ranges::equal_to>
-    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
-        && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
-        && std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+              std::ranges::random_access_range _OutRange, typename _Proj = std::identity,
+              std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_InRange>, _Proj>> _Comp =
+                  std::ranges::equal_to>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
 
     std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
                                     std::ranges::borrowed_iterator_t<_OutRange>>
@@ -1104,7 +1104,7 @@ struct __unique_copy_fn
             std::forward<_OutRange>(__out_r), __comp, __proj);
     }
 }; //__unique_fn
-} //__internal
+} // namespace __internal
 
 inline constexpr __internal::__unique_copy_fn unique_copy;
 

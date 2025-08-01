@@ -736,8 +736,8 @@ __pattern_unique(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, 
 
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + std::ranges::size(__r);
-    auto __it = oneapi::dpl::__internal::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec),
-                                                          __beg, __end, __pred_2);
+    auto __it = oneapi::dpl::__internal::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end,
+                                                          __pred_2);
 
     return {__it, __end};
 }
