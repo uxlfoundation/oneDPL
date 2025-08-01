@@ -291,8 +291,8 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
             throw std::bad_alloc();
         _FlagStorageType __lookback_storage(__device_mem, __mem_bytes, __status_flags_size);
         sycl::event __fill_event =
-            __lookback_init_submitter<__sub_group_size, _FlagType, _Type, _BinaryOp, _LookbackInitKernel>{}(
-                __queue, __atomic_id_ptr, __lookback_storage, __status_flags_size, __status_flag_padding);
+            __lookback_init_submitter<__sub_group_size, _FlagType, _InRange, _Type, _BinaryOp, _LookbackInitKernel>{}(
+                __queue, __atomic_id_ptr, __in_rng, __lookback_storage, __status_flags_size, __status_flag_padding);
 
         sycl::event __prev_event = __single_pass_scan_submitter<__sub_group_size, __data_per_workitem, __workgroup_size,
                                                                 _Type, _FlagType, _SinglePassScanKernel>{}(
