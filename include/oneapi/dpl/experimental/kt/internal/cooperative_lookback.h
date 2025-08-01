@@ -24,6 +24,7 @@
 
 #include "../../../pstl/utils.h"
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
+#include "../../../pstl/hetero/dpcpp/parallel_backend_sycl_reduce_then_scan.h"
 #include "sub_group/sub_group_scan.h"
 
 namespace oneapi::dpl::experimental::kt
@@ -339,16 +340,18 @@ struct __cooperative_lookback
             // recomputed the prefix using partial values
             if (__is_full_ballot_bits)
             {
-                __sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true,
-                                         /*__init_present*/ decltype(__is_initialized)::value>(
-                    __subgroup, __tile_value, __binary_op, __running, __lowest_item_with_full + 1);
+                oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial<
+                    __sub_group_size, /*__is_inclusive*/ true,
+                    /*__init_present*/ decltype(__is_initialized)::value>(__subgroup, __tile_value, __binary_op,
+                                                                          __running, __lowest_item_with_full + 1);
                 return true;
             }
             else
             {
-                __sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
-                                 /*__init_present*/ decltype(__is_initialized)::value>(__subgroup, __tile_value,
-                                                                                       __binary_op, __running);
+                oneapi::dpl::__par_backend_hetero::__sub_group_scan<
+                    __sub_group_size, /*__is_inclusive*/ true,
+                    /*__init_present*/ decltype(__is_initialized)::value>(__subgroup, __tile_value, __binary_op,
+                                                                          __running);
                 return false;
             }
         };
