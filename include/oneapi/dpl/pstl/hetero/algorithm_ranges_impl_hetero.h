@@ -824,7 +824,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + std::ranges::size(__r);
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)), __pred_2);
+        oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)), __pred_2);
 
     return std::ranges::borrowed_subrange_t<_R>(__beg + __idx, __end);
 }
