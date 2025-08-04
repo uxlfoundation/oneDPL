@@ -273,6 +273,14 @@ struct test_policy_container
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 ////////////////////////////////////////////////////////////////////////////////
+template <typename Policy, typename Op, typename... Args>
+void 
+invoke_on_all_iterator_t_and_check_compilation(Policy&& policy, Op&& op, Args&&... rest)
+{
+    check_no_comma_iter_compilation_only(policy, op, rest...);
+    invoke_on_all_iterator_types(std::forward<Policy>(policy), std::forward<Op>(op), std::forward<Args>(rest)...);
+}
+
 // Invoke op(policy,rest...) for each non-hetero policy.
 struct invoke_on_all_host_policies
 {
@@ -418,8 +426,9 @@ struct invoke_on_all_hetero_policies
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
             iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
-                my_policy, op, std::forward<Args>(rest)...);
+                my_policy, op, rest...);
 
+            check_no_comma_iter_compilation_only(my_policy, op, rest...);
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
             // Check compilation of the kernel with different policy type qualifiers
             check_compilation(my_policy, [&](auto&& __policy) {
