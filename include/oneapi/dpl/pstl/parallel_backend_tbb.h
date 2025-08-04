@@ -786,7 +786,7 @@ class __merge_func
         {
             if (__last1 - __first1 < __merge_cut_off)
             {
-                for (; __first1 != __last1; ++__first1, ++__first2)
+                for (; __first1 != __last1; ++__first1, (void)++__first2)
                     __move_value_construct()(__first1, __first2);
                 return __first2;
             }

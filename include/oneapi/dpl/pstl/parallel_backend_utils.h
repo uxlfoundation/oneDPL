@@ -96,7 +96,7 @@ struct __serial_move_merge
         constexpr bool __same_move_val = ::std::is_same_v<_MoveValueX, _MoveValueY>;
         constexpr bool __same_move_seq = ::std::is_same_v<_MoveSequenceX, _MoveSequenceY>;
 
-        auto __n = _M_nmerge;
+        std::size_t __n = _M_nmerge;
         assert(__n > 0);
 
         auto __nx = __xe - __xs;
@@ -116,7 +116,8 @@ struct __serial_move_merge
                             __move_value_x(__ys, __zs);
                         else
                             __move_value_y(__ys, __zs);
-                        ++__zs, --__n;
+                        ++__zs;
+                        --__n;
                         if (++__ys == __ye)
                         {
                             break;
@@ -153,7 +154,8 @@ struct __serial_move_merge
                                 __move_value_y(__xs, __zs);
                         }
 
-                        ++__zs, --__n;
+                        ++__zs;
+                        --__n;
                         if (++__xs == __xe)
                         {
                             if constexpr (__same_move_seq)

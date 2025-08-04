@@ -250,7 +250,7 @@ __execute_loop_strided(_Ip __first, _Ip __last, _Function __f, _Sp __stride, _Pa
 
     if (__stride > 0)
     {
-        for (_IndexType __i = 0; __first != __last; ++__first, ++__i)
+        for (_IndexType __i = 0; __first != __last; ++__first, (void)++__i)
         {
             if (__i % __stride == 0)
             {
@@ -261,7 +261,7 @@ __execute_loop_strided(_Ip __first, _Ip __last, _Function __f, _Sp __stride, _Pa
     }
     else
     {
-        for (_IndexType __i = 0; __first != __last; --__first, ++__i)
+        for (_IndexType __i = 0; __first != __last; --__first, (void)++__i)
         {
             if (__i % __stride == 0)
             {
@@ -285,7 +285,7 @@ __execute_loop_strided(_Ip __first, _Ip __last, _Function __f, _Sp __stride, _Pa
 
     assert(__stride > 0);
 
-    for (_IndexType __i = 0; __first != __last; ++__first, ++__i)
+    for (_IndexType __i = 0; __first != __last; ++__first, (void)++__i)
     {
         if (__i % __stride == 0)
         {
@@ -310,7 +310,7 @@ __pattern_for_loop(_ExecutionPolicy&&, _Ip __first, _Ip __last, _Function __f, _
     __index_type __ordinal_position = 0;
 
     // Avoid check for i % stride on each iteration for the most common case.
-    for (; __first != __last; ++__first, ++__ordinal_position)
+    for (; __first != __last; ++__first, (void)++__ordinal_position)
         __pack.__apply_func(__f, __first, __ordinal_position);
 
     __pack.__finalize(__ordinal_position);
@@ -330,7 +330,7 @@ __pattern_for_loop(_ExecutionPolicy&&, _Ip __first, _Ip __last, _Function __f, _
     if (__stride == 1)
     {
         // Avoid check for i % stride on each iteration for the most common case.
-        for (; __first != __last; ++__first, ++__ordinal_position)
+        for (; __first != __last; ++__first, (void)++__ordinal_position)
             __pack.__apply_func(__f, __first, __ordinal_position);
     }
     else
