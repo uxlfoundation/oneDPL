@@ -273,12 +273,141 @@ struct test_policy_container
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 ////////////////////////////////////////////////////////////////////////////////
+
+// Iterator adapter that deletes the comma operator to test comma operator protection
+template <typename Iterator>
+class NoCommaIterator
+{
+public:
+    using iterator_category = typename std::iterator_traits<Iterator>::iterator_category;
+    using value_type = typename std::iterator_traits<Iterator>::value_type;
+    using difference_type = typename std::iterator_traits<Iterator>::difference_type;
+    using pointer = typename std::iterator_traits<Iterator>::pointer;
+    using reference = typename std::iterator_traits<Iterator>::reference;
+
+private:
+    Iterator iter_;
+
+public:
+    // Constructors
+    NoCommaIterator() = default;
+    explicit NoCommaIterator(Iterator iter) : iter_(iter) {}
+    
+    // Copy and move constructors/assignment
+    NoCommaIterator(const NoCommaIterator&) = default;
+    NoCommaIterator(NoCommaIterator&&) = default;
+    NoCommaIterator& operator=(const NoCommaIterator&) = default;
+    NoCommaIterator& operator=(NoCommaIterator&&) = default;
+
+    // Access to underlying iterator
+    Iterator base() const { return iter_; }
+
+    // Dereference operators
+    reference operator*() const { return *iter_; }
+    pointer operator->() const { return iter_.operator->(); }
+    reference operator[](difference_type n) const { return iter_[n]; }
+
+    // Increment/decrement operators
+    NoCommaIterator& operator++() { ++iter_; return *this; }
+    NoCommaIterator operator++(int) { NoCommaIterator tmp(*this); ++iter_; return tmp; }
+    NoCommaIterator& operator--() { --iter_; return *this; }
+    NoCommaIterator operator--(int) { NoCommaIterator tmp(*this); --iter_; return tmp; }
+
+    // Arithmetic operators
+    NoCommaIterator& operator+=(difference_type n) { iter_ += n; return *this; }
+    NoCommaIterator& operator-=(difference_type n) { iter_ -= n; return *this; }
+    NoCommaIterator operator+(difference_type n) const { return NoCommaIterator(iter_ + n); }
+    NoCommaIterator operator-(difference_type n) const { return NoCommaIterator(iter_ - n); }
+    difference_type operator-(const NoCommaIterator& other) const { return iter_ - other.iter_; }
+
+    // Comparison operators
+    bool operator==(const NoCommaIterator& other) const { return iter_ == other.iter_; }
+    bool operator!=(const NoCommaIterator& other) const { return iter_ != other.iter_; }
+    bool operator<(const NoCommaIterator& other) const { return iter_ < other.iter_; }
+    bool operator<=(const NoCommaIterator& other) const { return iter_ <= other.iter_; }
+    bool operator>(const NoCommaIterator& other) const { return iter_ > other.iter_; }
+    bool operator>=(const NoCommaIterator& other) const { return iter_ >= other.iter_; }
+
+    // Deleted comma operator - this is the key feature
+    template<typename T>
+    void operator,(const T&) = delete;
+    template<typename T>
+    void operator,(T&) = delete;
+    template<typename T>
+    void operator,(T&&) = delete;
+};
+
+// Non-member arithmetic operators
+template <typename Iterator>
+NoCommaIterator<Iterator> operator+(typename NoCommaIterator<Iterator>::difference_type n, 
+                                   const NoCommaIterator<Iterator>& iter)
+{
+    return iter + n;
+}
+
+// Helper function to create NoCommaIterator
+template <typename Iterator>
+NoCommaIterator<Iterator> make_no_comma_iterator(Iterator iter)
+{
+    return NoCommaIterator<Iterator>(iter);
+}
+template <typename _T, typename = void>
+struct __is_iterator_type : std::false_type
+{
+};
+
+template <typename _T>
+struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<_T>::difference_type>> : std::true_type
+{
+};
+
+template <typename _T>
+static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
+
+// Helper to conditionally wrap iterators with NoCommaIterator
+template <typename T>
+constexpr auto wrap_no_comma_if_iterator(T&& arg)
+{
+    if constexpr (__is_iterator_type_v<std::decay_t<T>>)
+    {
+        return make_no_comma_iterator(std::forward<T>(arg));
+    }
+    else
+    {
+        return std::forward<T>(arg);
+    }
+}
+
+template <typename Func>
+struct callable_conv_to_no_comma_iters
+{
+    Func f;
+    template <typename... Args>
+    void operator()(Args&&... args)
+    {
+        f(wrap_no_comma_if_iterator(std::forward<Args>(args))...);
+    }
+};
+
+template <typename Policy, typename Op, typename... Args>
+void
+check_compilation_no_comma(Policy&& policy, Op&& op, Args&&... rest)
+{
+    volatile bool always_false = false;
+    if (always_false)
+    {
+        callable_conv_to_no_comma_iters<Op> wrapped_iter_op{std::forward<Op>(op)};
+        iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
+                std::forward<Policy>(policy), wrapped_iter_op, std::forward<Args>(rest)...);
+    }
+}
+
 template <typename Policy, typename Op, typename... Args>
 void 
 invoke_on_all_iterator_t_and_check_compilation(Policy&& policy, Op&& op, Args&&... rest)
 {
-    check_no_comma_iter_compilation_only(policy, op, rest...);
-    invoke_on_all_iterator_types(std::forward<Policy>(policy), std::forward<Op>(op), std::forward<Args>(rest)...);
+    TestUtils::check_compilation_no_comma(policy, op, rest...);
+    invoke_on_all_iterator_types()(std::forward<Policy>(policy), std::forward<Op>(op), std::forward<Args>(rest)...);
 }
 
 // Invoke op(policy,rest...) for each non-hetero policy.
@@ -292,9 +421,9 @@ struct invoke_on_all_host_policies
 
 #if !TEST_ONLY_HETERO_POLICIES
         // Try static execution policies
-        invoke_on_all_iterator_types()(seq,       op, rest...);
-        invoke_on_all_iterator_types()(unseq,     op, rest...);
-        invoke_on_all_iterator_types()(par,       op, rest...);
+        invoke_on_all_iterator_t_and_check_compilation(seq,       op, rest...);
+        invoke_on_all_iterator_t_and_check_compilation(unseq,     op, rest...);
+        invoke_on_all_iterator_t_and_check_compilation(par,       op, rest...);
 #if __SYCL_PSTL_OFFLOAD__
         // If standard library does not provide the par_unseq policy, oneDPL would inject
         // oneDPL par_unseq policy into namespace STD and since std::execution::par_unseq
@@ -302,7 +431,7 @@ struct invoke_on_all_host_policies
         if constexpr (!std::is_same_v<oneapi::dpl::execution::parallel_unsequenced_policy,
                                       std::execution::parallel_unsequenced_policy>)
 #endif // __SYCL_PSTL_OFFLOAD__
-            invoke_on_all_iterator_types()(par_unseq, op, ::std::forward<T>(rest)...);
+            invoke_on_all_iterator_t_and_check_compilation(par_unseq, op, ::std::forward<T>(rest)...);
 #endif
     }
 };
@@ -428,7 +557,7 @@ struct invoke_on_all_hetero_policies
             iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
                 my_policy, op, rest...);
 
-            check_no_comma_iter_compilation_only(my_policy, op, rest...);
+            TestUtils::check_compilation_no_comma(my_policy, op, rest...);
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
             // Check compilation of the kernel with different policy type qualifiers
             check_compilation(my_policy, [&](auto&& __policy) {
