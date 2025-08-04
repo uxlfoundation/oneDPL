@@ -379,13 +379,16 @@ constexpr auto wrap_no_comma_if_iterator(T&& arg)
 }
 
 template <typename Func>
-struct callable_conv_to_no_comma_iters
+struct callable_conv_to_no_comma_iters : std::decay_t<Func>
 {
-    Func f;
+    using base_t = std::decay_t<Func>;
+    callable_conv_to_no_comma_iters(base_t f) : base_t(f)
+    {}
+
     template <typename... Args>
     void operator()(Args&&... args)
     {
-        f(wrap_no_comma_if_iterator(std::forward<Args>(args))...);
+        base_t::operator()(wrap_no_comma_if_iterator(std::forward<Args>(args))...);
     }
 };
 
