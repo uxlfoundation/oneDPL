@@ -1290,10 +1290,6 @@ struct NoDefaultCtorWrapper {
     }
 };
 
-
-
-
-
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
