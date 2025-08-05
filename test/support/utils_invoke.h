@@ -383,9 +383,11 @@ constexpr auto wrap_no_comma_if_iterator(T&& arg)
         {
             return make_no_comma_iterator(std::forward<T>(arg));
         }
+        else 
+            return std::forward<T>(arg);
     }
-    //else
-    return std::forward<T>(arg);
+    else
+        return std::forward<T>(arg);
 }
 
 template <typename Func>
