@@ -380,10 +380,12 @@ struct __cooperative_lookback
 template <typename... _Name>
 class __lookback_init_kernel;
 
-template <std::uint8_t __sub_group_size, typename _FlagType, typename _InRange, typename _Type, typename _BinaryOp, typename _KernelName>
+template <std::uint8_t __sub_group_size, typename _FlagType, typename _InRange, typename _Type, typename _BinaryOp,
+          typename _KernelName>
 struct __lookback_init_submitter;
 
-template <std::uint8_t __sub_group_size, typename _FlagType, typename _InRange, typename _Type, typename _BinaryOp, typename... _Name>
+template <std::uint8_t __sub_group_size, typename _FlagType, typename _InRange, typename _Type, typename _BinaryOp,
+          typename... _Name>
 struct __lookback_init_submitter<__sub_group_size, _FlagType, _InRange, _Type, _BinaryOp,
                                  oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
