@@ -731,7 +731,7 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exe
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<decltype(__n)>{__n}, __n,
         oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)))
-        .get(); // is a blocking call
+        .__checked_deferrable_wait();
 }
 
 //------------------------------------------------------------------------
