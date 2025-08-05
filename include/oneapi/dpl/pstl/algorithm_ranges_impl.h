@@ -728,8 +728,6 @@ __pattern_reverse_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    assert(std::ranges::size(__in_r) <= std::ranges::size(__out_r)); // for debug purposes only
-
     auto __begin = std::ranges::begin(__in_r);
     auto __end = __begin + std::ranges::size(__in_r);
     oneapi::dpl::__internal::__pattern_reverse_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __begin, __end,
