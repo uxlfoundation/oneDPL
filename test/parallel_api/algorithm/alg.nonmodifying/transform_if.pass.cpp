@@ -84,7 +84,7 @@ struct test_transform_if_binary
         auto in_iter = first;
         auto mask_iter = mask;
         auto expected_iter = expected.begin();
-        for (; in_iter != last; in_iter++, mask_iter++, expected_iter++)
+        for (; in_iter != last; in_iter++, (void) mask_iter++, expected_iter++)
         {
             *expected_iter = *mask_iter == 1 ? -(*in_iter) : out_value_type(init_val);
         }
@@ -115,7 +115,7 @@ struct test_transform_if_unary
         std::vector<out_value_type> expected(n);
         auto expected_iter = expected.begin();
         auto in_iter = first;
-        for (; in_iter != last; in_iter++, expected_iter++)
+        for (; in_iter != last; in_iter++, (void) expected_iter++)
         {
             *expected_iter = *in_iter % 3 == 0 ? -(*in_iter) : out_value_type(init_val);
         }
@@ -148,7 +148,7 @@ struct test_transform_if_unary_inplace
         std::vector<in_value_type> expected(n);
         auto expected_iter = expected.begin();
         auto in_iter = first;
-        for (; in_iter != last; in_iter++, expected_iter++)
+        for (; in_iter != last; in_iter++, (void) expected_iter++)
         {
             *expected_iter = *in_iter % 3 == 0 ? -(*in_iter) : *in_iter;
         }
