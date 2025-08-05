@@ -727,9 +727,8 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exe
     if (__n == 0)
         return;
 
-    using _DiffType = oneapi::dpl::__internal::__difference_t<_InRange>;
     oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<_DiffType>{__n}, __n,
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<decltype(__n)>{__n}, __n,
         oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)))
         .get(); // is a blocking call
