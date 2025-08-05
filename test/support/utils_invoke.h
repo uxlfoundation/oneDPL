@@ -24,6 +24,10 @@
 
 #include "iterator_utils.h"
 
+#if TEST_DPCPP_BACKEND_PRESENT
+#include "oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h"
+#endif
+
 #ifdef ONEDPL_USE_PREDEFINED_POLICIES
 #  define TEST_USE_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
 #else
@@ -368,7 +372,12 @@ static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
 template <typename T>
 constexpr auto wrap_no_comma_if_iterator(T&& arg)
 {
-    if constexpr (__is_iterator_type_v<std::decay_t<T>>)
+    if constexpr (__is_iterator_type_v<std::decay_t<T>>
+#if TEST_DPCPP_BACKEND_PRESENT
+        // avoid wrapping iterator-like buffer wrappers
+        && !oneapi::dpl::__ranges::is_hetero_iterator_v<std::decay_t<T>>
+#endif    
+    )
     {
         return make_no_comma_iterator(std::forward<T>(arg));
     }
