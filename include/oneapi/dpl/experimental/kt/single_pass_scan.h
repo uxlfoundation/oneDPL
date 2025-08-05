@@ -119,6 +119,8 @@ struct __single_pass_scan_kernel_func
                         __grf_partials[__i].__v;
                     __grf_partials[__i].__destroy();
                 }
+                else
+                    __grf_partials[__i].__destroy();
             }
         }
     }
