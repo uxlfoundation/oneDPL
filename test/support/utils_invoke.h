@@ -25,7 +25,7 @@
 #include "iterator_utils.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
-#include "oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h"
+#include "utils_sycl_defs.h"
 #endif
 
 #ifdef ONEDPL_USE_PREDEFINED_POLICIES
@@ -374,9 +374,10 @@ constexpr auto wrap_no_comma_if_iterator(T&& arg)
 {
     if constexpr (__is_iterator_type_v<std::decay_t<T>>
 #if TEST_DPCPP_BACKEND_PRESENT
-        // avoid wrapping iterator-like buffer wrappers
-        && !oneapi::dpl::__ranges::is_hetero_iterator_v<std::decay_t<T>>
-#endif    
+        // avoid wrapping iterator-like buffer wrappers, they are not device copyable.
+        // Cannot just exclude hetero iterators because that doesn't fix iterators composed of sycl_iterators.
+        && sycl::is_device_copyable_v<std::decay_t<T>>
+#endif
     )
     {
         return make_no_comma_iterator(std::forward<T>(arg));
