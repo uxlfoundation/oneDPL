@@ -35,8 +35,8 @@ which are already implemented in oneDPL.
   [SYCL device_copyable](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable).
   To support `std::vector` with `USM` allocator
   `std::vector` should be wrapped into `std::ranges::subrange`.
-- In case of a `device_policy` the projections pointer-to-member and pointer-to-function
-  are not supported, for SYCL backend at least.
+- In case of a `device_policy`, the projections pointer-to-member and pointer-to-function
+  are not supported for the SYCL backend due to limitations of use in SYCL kernels.
 
 ### Test coverage
 - If a range-based algorithm shares its implementation with an iterator-based variant
