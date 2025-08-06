@@ -10,6 +10,7 @@
 #include "support/test_config.h"
 
 #include "oneapi/dpl/dynamic_selection"
+#include "oneapi/dpl/functional"
 #include "support/test_dynamic_selection_utils.h"
 #include "support/utils.h"
 
@@ -43,7 +44,7 @@ main()
     if (!u.empty())
     {
         // Test with direct sycl::queue resources
-        using policy_t = oneapi::dpl::experimental::fixed_resource_policy<sycl::queue, std::identity, oneapi::dpl::experimental::default_backend<sycl::queue, std::identity>>;
+        using policy_t = oneapi::dpl::experimental::fixed_resource_policy<sycl::queue, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<sycl::queue, oneapi::dpl::identity>>;
         auto f = [u](int, int offset = 0) { return u[offset]; };
         
         std::cout<<"\nRunning tests for sycl::queue ...\n";

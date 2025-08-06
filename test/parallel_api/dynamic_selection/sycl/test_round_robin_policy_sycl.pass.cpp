@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include "oneapi/dpl/dynamic_selection"
+#include "oneapi/dpl/functional"
 #include "support/test_dynamic_selection_utils.h"
 
 template <typename Policy, typename ResourceContainer, typename FunctionType, typename... Args>
@@ -47,7 +48,7 @@ main()
         std::cout << "UNIVERSE SIZE " << n << std::endl;
 
         // Test with direct sycl::queue resources
-        using policy_t = oneapi::dpl::experimental::round_robin_policy<sycl::queue, std::identity, oneapi::dpl::experimental::default_backend<sycl::queue>>;
+        using policy_t = oneapi::dpl::experimental::round_robin_policy<sycl::queue, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<sycl::queue>>;
         auto f = [u, n](int i) { return u[(i - 1) % n]; };
 
         std::cout << "\nRunning round robin tests for sycl::queue ...\n";

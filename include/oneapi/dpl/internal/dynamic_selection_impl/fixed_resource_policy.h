@@ -11,6 +11,7 @@
 #define _ONEDPL_FIXED_RESOURCE_POLICY_H
 
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
+#include "oneapi/dpl/functional"
 
 #if _DS_BACKEND_SYCL != 0
 #    include "oneapi/dpl/internal/dynamic_selection_impl/sycl_backend.h"
@@ -26,9 +27,9 @@ namespace experimental
 {
 
 #if _DS_BACKEND_SYCL != 0
-template <typename ResourceType = sycl::queue, typename ResourceAdapter = std::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
+template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #else
-template <typename ResourceType, typename ResourceAdapter = std::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
+template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
 class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend> 
 {
@@ -55,7 +56,7 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
     	selector_->index_ = index;
     }
     fixed_resource_policy(deferred_initialization_t) {}
-    fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = std::identity{}, ::std::size_t index = 0) 
+    fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = oneapi::dpl::identity{}, ::std::size_t index = 0) 
     { 
         base_t::initialize(u, adapter); 
         selector_->index_ = index;

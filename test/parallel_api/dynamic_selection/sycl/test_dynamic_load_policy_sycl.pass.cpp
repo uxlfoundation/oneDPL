@@ -10,6 +10,7 @@
 #include "support/test_config.h"
 
 #include "oneapi/dpl/dynamic_selection"
+#include "oneapi/dpl/functional"
 #include <iostream>
 #include "support/test_dynamic_load_utils.h"
 #include "support/utils.h"
@@ -80,7 +81,7 @@ main()
     if (n != 0)
     {
         // Test with direct sycl::queue resources
-        using policy_t = oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, std::identity, oneapi::dpl::experimental::default_backend<sycl::queue>>;
+        using policy_t = oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<sycl::queue>>;
         
         // should be similar to round_robin when waiting on policy
         auto f = [u](int i) { return u[i % u.size()]; };

@@ -11,6 +11,7 @@
 #define _ONEDPL_TEST_DYNAMIC_LOAD_UTILS_H
 
 #include "support/test_config.h"
+#include "oneapi/dpl/functional"
 
 #include <thread>
 #include <chrono>
@@ -117,9 +118,9 @@ test_select(UniverseContainer u, ResourceFunction&& f, Args&&... args)
     return 0;
 }
 
-template <bool call_select_before_submit, typename CustomName, typename Policy, typename UniverseContainer, typename ResourceFunction, typename ResourceAdapter = std::identity>
+template <bool call_select_before_submit, typename CustomName, typename Policy, typename UniverseContainer, typename ResourceFunction, typename ResourceAdapter = oneapi::dpl::identity>
 int
-test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, ResourceAdapter adapter = std::identity{})
+test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, ResourceAdapter adapter = oneapi::dpl::identity{})
 {
     using my_policy_t = Policy;
 

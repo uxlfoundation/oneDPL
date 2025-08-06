@@ -15,6 +15,7 @@
 
 #include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/default_backend.h"
+#include "oneapi/dpl/functional"
 
 #include <chrono>
 #include <ratio>
@@ -169,7 +170,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
     operator=(const default_backend_impl&) = delete;
 
     template <typename T = ResourceAdapter>
-    default_backend_impl(std::enable_if_t<std::is_same_v<T, std::identity>, int> = 0)
+    default_backend_impl(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0)
     {
         initialize_default_resources();
         sgroup_ptr_ = std::make_unique<submission_group>(this->resources_, __adapter);
@@ -355,11 +356,11 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
     std::unique_ptr<submission_group> sgroup_ptr_;
 
 
-    // We can only default initialize adapter is std::identity. If a non base resource is provided with an adapter, then
+    // We can only default initialize adapter is oneapi::dpl::identity. If a non base resource is provided with an adapter, then
     // it is the user's responsibilty to initialize the resources
     template <typename T = ResourceAdapter>
     void
-    initialize_default_resources(std::enable_if_t<std::is_same_v<T, std::identity>, int> = 0)
+    initialize_default_resources(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0)
     {
         bool profiling = true;
         auto prop_list = sycl::property_list{};

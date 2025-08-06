@@ -21,6 +21,7 @@
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/backend_traits.h"
+#include "oneapi/dpl/functional"
 
 namespace oneapi
 {
@@ -176,7 +177,7 @@ public:
     ResourceAdapter __adapter;
 };
 
-template <typename ResourceType, typename ResourceAdapter = std::identity>
+template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity>
 class default_backend : public default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>, ResourceType, ResourceAdapter>
 {
   public:
@@ -186,7 +187,7 @@ class default_backend : public default_backend_impl<std::decay_t<decltype(std::d
     default_backend()
     {
     }
-    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = std::identity{}) : base_t(r, adapt)
+    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = oneapi::dpl::identity{}) : base_t(r, adapt)
     {
     }
 };
