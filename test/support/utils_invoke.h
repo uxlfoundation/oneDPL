@@ -378,13 +378,15 @@ constexpr auto wrap_no_comma_if_iterator(T&& arg)
 #if TEST_DPCPP_BACKEND_PRESENT
         // avoid wrapping iterator-like buffer wrappers, or elements which must be transformed by our
         // data preparation before passing to sycl, as adding an iterator adapter around them causes problems.
-        if constexpr (oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<std::decay_t<T>>)
+        if constexpr (!oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<std::decay_t<T>>)
+        {
+            return std::forward<T>(arg);
+        }
+        else
 #endif
         {
             return make_no_comma_iterator(std::forward<T>(arg));
         }
-        else 
-            return std::forward<T>(arg);
     }
     else
         return std::forward<T>(arg);
