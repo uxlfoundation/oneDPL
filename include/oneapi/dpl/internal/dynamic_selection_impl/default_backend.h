@@ -172,9 +172,9 @@ public:
     using my_base = backend_base<ResourceType, default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>>;
 
     default_backend_impl() : my_base() {}
-    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter) : my_base(u), __adapter(adapter) {}
+    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter_) : my_base(u), adapter(adapter_) {}
   private:
-    ResourceAdapter __adapter;
+    ResourceAdapter adapter;
 };
 
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity>

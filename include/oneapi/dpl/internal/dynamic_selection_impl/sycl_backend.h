@@ -57,7 +57,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
     using report_clock_type = std::chrono::steady_clock;
     using report_duration = std::chrono::milliseconds;
 
-    ResourceAdapter __adapter;
+    ResourceAdapter adapter;
     class async_waiter_base
     {
       public:
@@ -173,22 +173,22 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
     default_backend_impl(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0)
     {
         initialize_default_resources();
-        sgroup_ptr_ = std::make_unique<submission_group>(this->resources_, __adapter);
+        sgroup_ptr_ = std::make_unique<submission_group>(this->resources_, adapter);
     }
 
     template <typename NativeUniverseVector>
-    default_backend_impl(const NativeUniverseVector& v, ResourceAdapter adapter) : base_t(v), __adapter(adapter)
+    default_backend_impl(const NativeUniverseVector& v, ResourceAdapter adapter_) : base_t(v), adapter(adapter_)
     {
         bool profiling = true;
         for (auto e : this->get_resources())
         {
-            if (!__adapter(e).template has_property<sycl::property::queue::enable_profiling>())
+            if (!adapter(e).template has_property<sycl::property::queue::enable_profiling>())
             {
                 profiling = false;
             }
         }
         is_profiling_enabled = profiling;
-        sgroup_ptr_ = std::make_unique<submission_group>(this->get_resources(), __adapter);
+        sgroup_ptr_ = std::make_unique<submission_group>(this->get_resources(), adapter);
     }
 
 /*
@@ -206,7 +206,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
         if constexpr (report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>)
         {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
-            auto q = __adapter(unwrap(s));
+            auto q = adapter(unwrap(s));
             if (!q.get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag))
             {
                 std::cout << "Cannot time kernels without enabling profiling on queue\n";
@@ -242,7 +242,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
                 if constexpr (internal::scratch_space_member<SelectionHandle>::value)
                 {
-                    auto q = __adapter(unwrap(s));
+                    auto q = adapter(unwrap(s));
                     sycl::event q_end = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending timestamp
                                                                                                   //get raw nano number
                         uint64_t time_taken_nanoseconds =
