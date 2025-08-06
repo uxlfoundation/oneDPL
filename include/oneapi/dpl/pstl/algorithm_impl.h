@@ -1474,7 +1474,7 @@ __pattern_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
     if (_DifferenceType(1) < __n)
     {
-        __par_backend::__buffer<_ExecutionPolicy, bool> __mask_buf(__exec, __n);
+        __par_backend::__buffer<bool> __mask_buf(__n);
         return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf, __n_out]() {
             bool* __mask = __mask_buf.get();
             _DifferenceType __res_in{}, __res_out{};

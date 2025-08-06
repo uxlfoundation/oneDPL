@@ -427,7 +427,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
 
 template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
-__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&& __exec, _Index __n, _Tp __initial,
+__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex, _Index __n_out)
 {
     if(__n_out == 0)
@@ -441,7 +441,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
             const _Index __slack = 4;
             _Index __tilesize = (__n - 1) / (__slack * __p) + 1;
             _Index __m = (__n - 1) / __tilesize;
-            __tbb_backend::__buffer<_ExecutionPolicy, _Tp> __buf(__exec, __m + 1);
+            __tbb_backend::__buffer<_Tp> __buf(__m + 1);
             _Tp* __r = __buf.get();
             __tbb_backend::__upsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __reduce,
                                      __combine);
