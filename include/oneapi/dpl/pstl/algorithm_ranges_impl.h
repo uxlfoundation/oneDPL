@@ -706,9 +706,9 @@ __pattern_reverse(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __begin = std::ranges::begin(__r);
-    auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
-    oneapi::dpl::__internal::__pattern_reverse(__tag, std::forward<_ExecutionPolicy>(__exec), __begin, __end);
+    auto __first = std::ranges::begin(__r);
+    auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
+    oneapi::dpl::__internal::__pattern_reverse(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last);
 }
 
 template <typename _ExecutionPolicy, typename _R>
@@ -728,10 +728,11 @@ __pattern_reverse_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __begin = std::ranges::begin(__in_r);
-    auto __end = __begin + std::ranges::size(__in_r);
-    oneapi::dpl::__internal::__pattern_reverse_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __begin, __end,
-                                                    std::ranges::begin(__out_r));
+    auto __first_in = std::ranges::begin(__in_r);
+    auto __last_in = __first_in + std::ranges::size(__in_r);
+    auto __first_out = std::ranges::begin(__out_r);
+    oneapi::dpl::__internal::__pattern_reverse_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first_in,
+                                                    __last_in, __first_out);
 }
 
 template <typename _ExecutionPolicy, typename _InRange, typename _OutRange>
