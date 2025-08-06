@@ -28,9 +28,40 @@ DEFINE_TEST_PERM_IT(test_find, PermItIndexTag)
         ::std::iota(itBegin, itEnd, initVal);
     }
 
+    template <typename Size>
+    struct TestImplementation
+    {
+        Size n;
+
+        template <typename Policy, typename TIterator>
+        void
+        operator()(Policy&& exec, TIterator permItBegin, TIterator permItEnd) const
+        {
+            const auto testing_n = permItEnd - permItBegin;
+            if (testing_n >= 2)
+            {
+                // Get value to find: the second value
+                std::vector<TestValueType> valueToFind(1);
+                dpl::copy(CLONE_TEST_POLICY(exec), permItBegin + 1, permItBegin + 2, valueToFind.begin());
+                wait_and_throw(exec);
+
+                const auto result = dpl::find(CLONE_TEST_POLICY(exec), permItBegin, permItEnd, valueToFind[0]);
+                wait_and_throw(exec);
+
+                EXPECT_TRUE(result != permItEnd, "Wrong result of dpl::find");
+
+                // Copy data back
+                std::vector<TestValueType> foundVal(1);
+                dpl::copy(CLONE_TEST_POLICY(exec), result, result + 1, foundVal.begin());
+                wait_and_throw(exec);
+                EXPECT_EQ(foundVal[0], valueToFind[0], "Incorrect value was found in dpl::find");
+            }
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Size>
     void
-    operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
+    operator()(Policy&& exec, Iterator1 first1, Iterator1 /*last1*/, Size n)
     {
         assert(n > 0);
 
@@ -44,29 +75,7 @@ DEFINE_TEST_PERM_IT(test_find, PermItIndexTag)
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin, auto permItEnd)
-                {
-                    const auto testing_n = permItEnd - permItBegin;
-
-                    if (testing_n >= 2)
-                    {
-                        // Get value to find: the second value
-                        std::vector<TestValueType> valueToFind(1);
-                        dpl::copy(exec, permItBegin + 1, permItBegin + 2, valueToFind.begin());
-                        wait_and_throw(exec);
-
-                        const auto result = dpl::find(exec, permItBegin, permItEnd, valueToFind[0]);
-                        wait_and_throw(exec);
-
-                        EXPECT_TRUE(result != permItEnd, "Wrong result of dpl::find");
-
-                        // Copy data back
-                        std::vector<TestValueType> foundVal(1);
-                        dpl::copy(exec, result, result + 1, foundVal.begin());
-                        wait_and_throw(exec);
-                        EXPECT_EQ(foundVal[0], valueToFind[0], "Incorrect value was found in dpl::find");
-                    }
-                });
+                std::forward<Policy>(exec), TestImplementation<Size>{n});
         }
     }
 };

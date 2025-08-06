@@ -8,6 +8,10 @@ Use these macros to get the current version of |onedpl_long| (|onedpl_short|).
 ================================= ==============================
 Macro                             Description
 ================================= ==============================
+``ONEDPL_SPEC_VERSION``           The version of the `specification
+                                  <https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/>`_
+                                  that the implementation is compliant with.
+--------------------------------- ------------------------------
 ``ONEDPL_VERSION_MAJOR``          A decimal number for the major version of the library.
 --------------------------------- ------------------------------
 ``ONEDPL_VERSION_MINOR``          A decimal number for the minor version.
@@ -43,6 +47,7 @@ Macro                              Macro values and the functionality
 ``ONEDPL_HAS_RANGE_ALGORITHMS``    Parallel range algorithms.
 
                                    * ``202409L`` - see :ref:`available algorithms <range-algorithms-202409L>`.
+                                   * ``202505L`` - see :ref:`available algorithms <range-algorithms-202505L>`.
 ================================== ===============================================
 
 Additional Macros

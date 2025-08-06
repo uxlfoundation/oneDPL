@@ -38,7 +38,7 @@ struct test_is_sorted
 
         //try random-access iterator
         bool exam = is_sorted(first, last);
-        bool res = is_sorted(exec, first, last);
+        bool res = is_sorted(std::forward<Policy>(exec), first, last);
         EXPECT_TRUE(exam == res, "is_sorted wrong result for random-access iterator");
     }
 };
@@ -55,7 +55,7 @@ struct test_is_sorted_predicate
 
         //try random-access iterator with a predicate
         bool exam = is_sorted(first, last, ::std::less<T>());
-        bool res = is_sorted(exec, first, last, ::std::less<T>());
+        bool res = is_sorted(std::forward<Policy>(exec), first, last, std::less<T>());
         EXPECT_TRUE(exam == res, "is_sorted wrong result for random-access iterator");
     }
 };
@@ -71,7 +71,7 @@ struct test_is_sorted_until
 
         //try random-access iterator
         auto iexam = is_sorted_until(first, last);
-        auto ires = is_sorted_until(exec, first, last);
+        auto ires = is_sorted_until(std::forward<Policy>(exec), first, last);
         EXPECT_TRUE(iexam == ires, "is_sorted_until wrong result for random-access iterator");
     }
 };
@@ -88,7 +88,7 @@ struct test_is_sorted_until_predicate
 
         //try random-access iterator with a predicate
         auto iexam = is_sorted_until(first, last, ::std::less<T>());
-        auto ires = is_sorted_until(exec, first, last, ::std::less<T>());
+        auto ires = is_sorted_until(std::forward<Policy>(exec), first, last, std::less<T>());
         EXPECT_TRUE(iexam == ires, "is_sorted_until with predicate wrong result for random-access iterator");
     }
 };
@@ -97,9 +97,9 @@ template <typename T>
 void
 test_is_sorted_by_type()
 {
-    const ::std::size_t max_n = 1000000;
+    const ::std::size_t max_size = 1000000;
 
-    for (::std::size_t n1 = 1; n1 <= max_n; n1 = n1 <= 16 ? n1 + 1 : ::std::size_t(3.1415 * n1))
+    for (::std::size_t n1 = 1; n1 <= max_size; n1 = n1 <= 16 ? n1 + 1 : ::std::size_t(3.1415 * n1))
     {
         Sequence<T> in(n1, [](::std::size_t v) -> T { return T(v); }); //fill 0..n
 #ifdef _PSTL_TEST_IS_SORTED
@@ -207,7 +207,7 @@ struct test_non_const_is_sorted
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        is_sorted(exec, iter, iter, ::std::less<T>());
+        is_sorted(std::forward<Policy>(exec), iter, iter, std::less<T>());
     }
 };
 
@@ -218,7 +218,7 @@ struct test_non_const_is_sorted_until
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        is_sorted_until(exec, iter, iter, ::std::less<T>());
+        is_sorted_until(std::forward<Policy>(exec), iter, iter, std::less<T>());
     }
 };
 

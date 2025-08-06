@@ -22,13 +22,15 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
     const int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
@@ -38,29 +40,26 @@ main()
     const int idx_max = max_n - 1;
 
     int res1 = -1, res2 = - 1, res3 = -1, res4 = -1, res5 = -1;
-    ::std::pair<int, int> res_minmax1(-1, -1);
-    ::std::pair<int, int> res_minmax2(-1, -1);
-    using namespace TestUtils;
+    std::pair<int, int> res_minmax1(-1, -1);
+    std::pair<int, int> res_minmax2(-1, -1);
+
     using namespace oneapi::dpl::experimental::ranges;
     {
         sycl::buffer<int> A(data, sycl::range<1>(max_n));
 
         auto view = all_view(A);
 
-        auto exec = TestUtils::default_dpcpp_policy;
-        using Policy = decltype(TestUtils::default_dpcpp_policy);
-
         //min element
-        res1 = min_element(exec, A);
-        res2 = min_element(make_new_policy<new_kernel_name<Policy, 0>>(exec), view, ::std::less<int>());
-        res3 = min_element(make_new_policy<new_kernel_name<Policy, 1>>(exec), view | views::take(1));
+        res1 = min_element(CLONE_TEST_POLICY_IDX(exec, 0), A);
+        res2 = min_element(CLONE_TEST_POLICY_IDX(exec, 1), view, std::less<int>());
+        res3 = min_element(CLONE_TEST_POLICY_IDX(exec, 2), view | views::take(1));
 
         //max_element
-        res4 = max_element(make_new_policy<new_kernel_name<Policy, 2>>(exec), A);
-        res5 = max_element(make_new_policy<new_kernel_name<Policy, 3>>(exec), view, ::std::less<int>());
+        res4 = max_element(CLONE_TEST_POLICY_IDX(exec, 3), A);
+        res5 = max_element(CLONE_TEST_POLICY_IDX(exec, 4), view, std::less<int>());
 
-        res_minmax1 = minmax_element(make_new_policy<new_kernel_name<Policy, 4>>(exec), A);
-        res_minmax2 = minmax_element(make_new_policy<new_kernel_name<Policy, 5>>(exec), view, ::std::less<int>());
+        res_minmax1 = minmax_element(CLONE_TEST_POLICY_IDX(exec, 5), A);
+        res_minmax2 = minmax_element(CLONE_TEST_POLICY_IDX(exec, 6), view, std::less<int>());
     }
 
     //check result
@@ -73,6 +72,20 @@ main()
 
     EXPECT_TRUE(res_minmax1.first == idx_val && res_minmax1.second == idx_max, "wrong effect from 'minmax_element', sycl ranges");
     EXPECT_TRUE(res_minmax2.first == idx_val && res_minmax2.second == idx_max, "wrong effect from 'minmax_element' with predicate, sycl ranges");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+#endif
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

@@ -7,7 +7,7 @@ oneDPL is part of the [UXL Foundation] and is an implementation of the
 [oneAPI specification] for the oneDPL component.
 
 [UXL Foundation]: http://www.uxlfoundation.org
-[oneAPI specification]: https://spec.oneapi.io
+[oneAPI specification]: https://oneapi-spec.uxlfoundation.org
 
 oneDPL works with the Intel® oneAPI DPC++/C++ Compiler to provide high-productivity
 APIs to developers, which can minimize Data Parallel C++ (DPC++) programming efforts
@@ -23,7 +23,7 @@ Visit the latest [Release Notes](https://github.com/uxlfoundation/oneDPL/blob/ma
 
 ## License
 oneDPL is licensed under [Apache License Version 2.0 with LLVM exceptions](https://github.com/uxlfoundation/oneDPL/blob/main/LICENSE.txt).
-Refer to the [LICENSE](licensing/LICENSE.txt) file for the full license text and copyright notice.
+Refer to the [LICENSE](LICENSE.txt) file for the full license text and copyright notice.
 
 ## Security
 See the [Intel Security Center](https://www.intel.com/content/www/us/en/security-center/default.html)

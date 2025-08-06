@@ -18,29 +18,16 @@
 #include _PSTL_TEST_HEADER(execution)
 #include _PSTL_TEST_HEADER(algorithm)
 #include _PSTL_TEST_HEADER(iterator)
+#include _PSTL_TEST_HEADER(functional) // for oneapi::dpl::identity
 
 #include "support/utils.h"
 
 using namespace TestUtils;
 
-struct noop
-{
-    int
-    operator()(int a) const
-    {
-        return a;
-    }
-};
-
-struct noop_nodefault
+struct noop_nodefault : oneapi::dpl::identity
 {
     noop_nodefault() = delete;
     noop_nodefault(int) {}
-    int
-    operator()(int a) const
-    {
-        return a;
-    }
 };
 
 struct stateful_functor
@@ -61,6 +48,9 @@ struct stateful_functor_no_copy_assign
 
     stateful_functor_no_copy_assign&
     operator=(const stateful_functor_no_copy_assign&) = delete;
+
+    stateful_functor_no_copy_assign(const stateful_functor_no_copy_assign&) = default;
+    
     int
     operator()(int a) const
     {
@@ -79,9 +69,10 @@ test_copy_assignment()
     static_assert((std::is_copy_assignable_v<decltype(trans1)>),
                   "transform_iterator with lambda is not copy assignable");
 
-    oneapi::dpl::transform_iterator<oneapi::dpl::counting_iterator<int>, noop> trans2{count, noop{}};
+    oneapi::dpl::transform_iterator<oneapi::dpl::counting_iterator<int>, oneapi::dpl::identity> trans2{
+        count, oneapi::dpl::identity{}};
     static_assert(std::is_copy_assignable_v<decltype(trans2)>,
-                  "transform_iterator with noop functor is not copy assignable");
+                  "transform_iterator with oneapi::dpl::identity functor is not copy assignable");
 
     oneapi::dpl::transform_iterator<oneapi::dpl::counting_iterator<int>, stateful_functor> trans3{count,
                                                                                                   stateful_functor{1}};
@@ -130,7 +121,7 @@ test_default_constructible()
                   "transform_iterator with lambda does not match default constructibility trait of the lambda itself");
 
     //both types are default constructible
-    oneapi::dpl::transform_iterator<int*, noop> trans2{ptr, noop{}};
+    oneapi::dpl::transform_iterator<int*, oneapi::dpl::identity> trans2{ptr, oneapi::dpl::identity{}};
     static_assert(std::is_default_constructible_v<decltype(trans2)>,
                   "transform_iterator with default constructible functor is seen to be non-default constructible");
 
@@ -139,13 +130,13 @@ test_default_constructible()
     static_assert(!std::is_default_constructible_v<decltype(trans3)>,
                   "transform_iterator with non-default constructible functor is seen to be default constructible");
 
-    oneapi::dpl::transform_iterator<decltype(trans3), noop> trans4{trans3, noop{}};
+    oneapi::dpl::transform_iterator<decltype(trans3), oneapi::dpl::identity> trans4{trans3, oneapi::dpl::identity{}};
     static_assert(
         !std::is_default_constructible_v<decltype(trans4)>,
         "transform_iterator with non-default constructible iterator source is seen to be default constructible");
 
-    oneapi::dpl::transform_iterator<int*, noop> a(ptr);
-    static_assert(std::is_constructible_v<oneapi::dpl::transform_iterator<int*, noop>, int*>,
+    oneapi::dpl::transform_iterator<int*, oneapi::dpl::identity> a(ptr);
+    static_assert(std::is_constructible_v<oneapi::dpl::transform_iterator<int*, oneapi::dpl::identity>, int*>,
                   "transform_iterator with default constructible functor is not constructible from its source iterator "
                   "type alone");
     static_assert(!std::is_constructible_v<oneapi::dpl::transform_iterator<int*, noop_nodefault>, int*>,

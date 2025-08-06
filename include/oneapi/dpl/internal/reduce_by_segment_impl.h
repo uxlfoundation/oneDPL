@@ -46,7 +46,6 @@
 #include <type_traits>
 #include <utility>
 #include <algorithm>
-#include <array>
 
 #include "../pstl/iterator_impl.h"
 #include "function.h"
@@ -113,7 +112,7 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
 
     // buffer that is used to store a flag indicating if the associated key is not equal to
     // the next key, and thus its associated sum should be part of the final result
-    oneapi::dpl::__par_backend::__buffer<Policy, FlagType> _mask(policy, n + 1);
+    oneapi::dpl::__par_backend::__buffer<FlagType> _mask(n + 1);
     auto mask = _mask.get();
     mask[0] = 1;
 
@@ -129,11 +128,11 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     // buffer stores the sums of values associated with a given key. Sums are copied with
     // a shift into result2, and the shift is computed at the same time as the sums, so the
     // sums can't be written to result2 directly.
-    oneapi::dpl::__par_backend::__buffer<Policy, ValueType> _scanned_values(policy, n);
+    oneapi::dpl::__par_backend::__buffer<ValueType> _scanned_values(n);
 
     // Buffer is used to store results of the scan of the mask. Values indicate which position
     // in result2 needs to be written with the scanned_values element.
-    oneapi::dpl::__par_backend::__buffer<Policy, FlagType> _scanned_tail_flags(policy, n);
+    oneapi::dpl::__par_backend::__buffer<FlagType> _scanned_tail_flags(n);
 
     // Compute the sum of the segments. scanned_tail_flags values are not used.
     inclusive_scan(policy, make_zip_iterator(first2, _mask.get()), make_zip_iterator(first2, _mask.get()) + n,
@@ -184,17 +183,11 @@ reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& pol
     //          keys_result   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 } -- result1
     //          values_result = { 1, 2, 3, 4, 2, 6, 2, 6, 0 } -- result2
 
-    using _CountType = std::uint64_t;
-
-    namespace __bknd = __par_backend_hetero;
-
-    const auto n = std::distance(first1, last1);
-
-    if (n == 0)
+    if (first1 == last1)
         return std::make_pair(result1, result2);
 
     // number of unique keys
-    _CountType __n = oneapi::dpl::__internal::__pattern_reduce_by_segment(
+    const auto __n = oneapi::dpl::__internal::__pattern_reduce_by_segment(
         __tag, std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred, binary_op);
 
     return std::make_pair(result1 + __n, result2 + __n);

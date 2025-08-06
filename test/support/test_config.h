@@ -34,7 +34,7 @@
 // When such an issue is fixed, we must replace the usage of these "Latest" macros with the appropriate version number
 // before updating to the newest version in this section.
 
-#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250000
+#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250200
 
 #define _PSTL_TEST_LATEST_MSVC_STL_VERSION 143
 
@@ -78,13 +78,6 @@
 #define TEST_GCC10_EXCLUSIVE_SCAN_BROKEN (_GLIBCXX_RELEASE == 10)
 // GCC7 std::get doesn't return const rvalue reference from const rvalue reference of tuple
 #define _PSTL_TEST_GCC7_RVALUE_TUPLE_GET_BROKEN (_GLIBCXX_RELEASE > 0 && _GLIBCXX_RELEASE < 8)
-// Array swap broken on Windows because Microsoft implementation of std::swap function for std::array
-// call some internal function which is not declared as SYCL external and we have compile error
-#if defined(_MSC_VER)
-#   define TEST_XPU_ARRAY_SWAP_BROKEN (_MSC_VER <= 1937)
-#else
-#   define TEST_XPU_ARRAY_SWAP_BROKEN 0
-#endif
 
 #define _PSTL_SYCL_TEST_USM 1
 
@@ -123,6 +116,11 @@
 // Enables full scope of testing
 #ifndef TEST_LONG_RUN
 #define TEST_LONG_RUN 0
+#endif
+
+// Enable check compilation with different policy value category
+#ifndef TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+#    define TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY (!__SYCL_UNNAMED_LAMBDA__ || TEST_EXPLICIT_KERNEL_NAMES)
 #endif
 
 // Enable test when the TBB backend is available
@@ -184,10 +182,12 @@
 #define _PSTL_ICC_TEST_COMPLEX_POW_SCALAR_COMPLEX_PASS_BROKEN_TEST_EDGES  _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
 #define _PSTL_ICC_TEST_COMPLEX_NORM_MINUS_INF_NAN_BROKEN_TEST_EDGES       _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
 #define _PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES                    _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
-#define _PSTL_ICC_TEST_COMPLEX_EXP_BROKEN_TEST_EDGES                     (20240201 < __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
-#define _PSTL_TEST_COMPLEX_ACOS_BROKEN_IN_KERNEL                         (__INTEL_LLVM_COMPILER <= 20240200 && __SYCL_DEVICE_ONLY__)
-#define _PSTL_TEST_COMPLEX_EXP_BROKEN                                    (__INTEL_LLVM_COMPILER <= 20240200 && __SYCL_DEVICE_ONLY__)
-#define _PSTL_TEST_COMPLEX_TANH_BROKEN_IN_KERNEL                         (__INTEL_LLVM_COMPILER <= 20240200 && __SYCL_DEVICE_ONLY__)
+#define _PSTL_ICC_TEST_COMPLEX_EXP_BROKEN_TEST_EDGES                     (20240201 < __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER < 20250100)
+#define _PSTL_ICC_TEST_COMPLEX_EXP_BROKEN_TEST_EDGES_LATEST              (20240201 < __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
+#define _PSTL_TEST_COMPLEX_ACOS_BROKEN_IN_KERNEL                         (__SYCL_DEVICE_ONLY__ && __INTEL_LLVM_COMPILER < 20250100)
+#define _PSTL_TEST_COMPLEX_EXP_BROKEN                                    (__SYCL_DEVICE_ONLY__ && __INTEL_LLVM_COMPILER < 20250100)
+#define _PSTL_TEST_COMPLEX_TANH_BROKEN_IN_KERNEL                         (__SYCL_DEVICE_ONLY__ && __INTEL_LLVM_COMPILER < 20250100)
+
 
 #define _PSTL_ICC_TEST_COMPLEX_ISINF_BROKEN (_MSVC_STL_VERSION && __INTEL_LLVM_COMPILER)
 #define _PSTL_ICC_TEST_COMPLEX_ISNAN_BROKEN (_MSVC_STL_VERSION && __INTEL_LLVM_COMPILER)
@@ -205,11 +205,20 @@
 #define _PSTL_TEST_COMPLEX_SINH_BROKEN  _PSTL_TEST_COMPLEX_OP_BROKEN
 #define _PSTL_TEST_COMPLEX_TANH_BROKEN  _PSTL_TEST_COMPLEX_OP_BROKEN
 
+#define _PSTL_TEST_COMPLEX_OP_USING_DOUBLE (_MSVC_STL_VERSION && _MSVC_STL_VERSION <= _PSTL_TEST_LATEST_MSVC_STL_VERSION)
+#define _PSTL_TEST_COMPLEX_OP_ACOS_USING_DOUBLE               _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_ACOSH_USING_DOUBLE              _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_ASIN_USING_DOUBLE               _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_ASINH_USING_DOUBLE              _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_LOG_USING_DOUBLE                _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_LOG10_USING_DOUBLE              _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_POW_SCALAR_COMPLEX_USING_DOUBLE _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+
 // oneAPI DPC++ compiler 2025.0.0 and earlier is unable to eliminate a "dead" function call to an undefined function
 // within a sycl kernel which MSVC uses to allow comparisons with literal zero without warning
 #define _PSTL_TEST_COMPARISON_BROKEN                                                                                   \
     ((__cplusplus >= 202002L || _MSVC_LANG >= 202002L) && _MSVC_STL_VERSION >= 143 && _MSVC_STL_UPDATE >= 202303L &&   \
-    __INTEL_LLVM_COMPILER > 0 && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
+    __INTEL_LLVM_COMPILER > 0 && __INTEL_LLVM_COMPILER < 20250100)
 
 #define _PSTL_TEST_COMPLEX_TIMES_COMPLEX_BROKEN (_PSTL_TEST_COMPLEX_OP_BROKEN || _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER)
 #define _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN _PSTL_TEST_COMPLEX_OP_BROKEN
@@ -258,7 +267,7 @@
 // building for an FPGA device.  This prevents fpga compilation of usm-allocated std vector wrapped in zip, transform,
 // and permutation iterators (as a map).
 #if (TEST_DPCPP_BACKEND_PRESENT && defined(ONEDPL_FPGA_DEVICE) && defined(__INTEL_LLVM_COMPILER) &&                   \
-        __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
+        __INTEL_LLVM_COMPILER < 20250100)
 #    define _PSTL_ICPX_FPGA_TEST_USM_VECTOR_ITERATOR_BROKEN 1
 #else
 #    define _PSTL_ICPX_FPGA_TEST_USM_VECTOR_ITERATOR_BROKEN 0
@@ -268,12 +277,13 @@
 // the test while the issue is being reported to the compiler team. Once it is resolved, this macro can be removed
 // or limited to older compiler versions.
 #define _PSTL_RED_BY_SEG_WINDOWS_COMPILE_ORDER_BROKEN                                                                  \
-    (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
+    (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250100)
 
 // Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
-#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= 20250100)
+#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250300)
 
-// Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
-#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= 20250100)
+#if TEST_ONLY_HETERO_POLICIES && !TEST_DPCPP_BACKEND_PRESENT
+#    error "TEST_ONLY_HETERO_POLICIES is passed but device backend is not available"
+#endif
 
 #endif // _TEST_CONFIG_H

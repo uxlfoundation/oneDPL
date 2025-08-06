@@ -27,13 +27,18 @@
 #include "../pstl/parallel_backend.h"
 #include "function.h"
 #include "../pstl/utils.h"
-#include "scan_by_segment_impl.h"
+
+#if _ONEDPL_BACKEND_SYCL
+#    include "../pstl/hetero/algorithm_impl_hetero.h"
+#endif
+
+#include "../pstl/functional_impl.h" // for oneapi::dpl::identity
 
 namespace oneapi
 {
 namespace dpl
 {
-namespace internal
+namespace __internal
 {
 
 template <typename Name>
@@ -42,9 +47,9 @@ class InclusiveScan1;
 template <class _Tag, typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
           typename BinaryPredicate, typename BinaryOperator>
 OutputIterator
-pattern_inclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1, InputIterator1 last1,
-                                  InputIterator2 first2, OutputIterator result, BinaryPredicate binary_pred,
-                                  BinaryOperator binary_op)
+__pattern_inclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1, InputIterator1 last1,
+                                    InputIterator2 first2, OutputIterator result, BinaryPredicate binary_pred,
+                                    BinaryOperator binary_op)
 {
     static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
 
@@ -62,7 +67,7 @@ pattern_inclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1, 
     typedef unsigned int FlagType;
     typedef typename ::std::iterator_traits<InputIterator2>::value_type ValueType;
 
-    oneapi::dpl::__par_backend::__buffer<Policy, FlagType> _mask(policy, n);
+    oneapi::dpl::__par_backend::__buffer<FlagType> _mask(n);
     auto mask = _mask.get();
 
     mask[0] = 1;
@@ -81,24 +86,24 @@ pattern_inclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1, 
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename BinaryPredicate, typename BinaryOperator>
 OutputIterator
-inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputIterator1 first1,
-                               InputIterator1 last1, InputIterator2 first2, OutputIterator result,
-                               BinaryPredicate binary_pred, BinaryOperator binary_op,
-                               ::std::true_type /* has_known_identity */)
+__pattern_inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy,
+                                         InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
+                                         OutputIterator result, BinaryPredicate binary_pred, BinaryOperator binary_op,
+                                         std::true_type /* has_known_identity */)
 {
     using iter_value_t = typename ::std::iterator_traits<InputIterator2>::value_type;
     iter_value_t identity = unseq_backend::__known_identity<BinaryOperator, iter_value_t>;
-    return internal::__scan_by_segment_impl_common(__tag, ::std::forward<Policy>(policy), first1, last1, first2, result,
-                                                   identity, binary_pred, binary_op, ::std::true_type{});
+    return __internal::__pattern_scan_by_segment(__tag, std::forward<Policy>(policy), first1, last1, first2, result,
+                                                 identity, binary_pred, binary_op, std::true_type{});
 }
 
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename BinaryPredicate, typename BinaryOperator>
 OutputIterator
-inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
-                               InputIterator1 last1, InputIterator2 first2, OutputIterator result,
-                               BinaryPredicate binary_pred, BinaryOperator binary_op,
-                               ::std::false_type /* has_known_identity */)
+__pattern_inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIterator1 first1,
+                                         InputIterator1 last1, InputIterator2 first2, OutputIterator result,
+                                         BinaryPredicate binary_pred, BinaryOperator binary_op,
+                                         std::false_type /* has_known_identity */)
 {
 
     typedef unsigned int FlagType;
@@ -112,7 +117,7 @@ inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& p
 
     FlagType initial_mask = 1;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<Policy, FlagType> _mask(policy, n);
+    oneapi::dpl::__par_backend_hetero::__buffer<FlagType> _mask(n);
     {
         auto mask_buf = _mask.get_buffer();
         auto mask = mask_buf.get_host_access(sycl::read_write);
@@ -120,32 +125,32 @@ inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, Policy&& p
         mask[0] = initial_mask;
     }
 
-    transform(::std::forward<Policy>(policy), first1, last1 - 1, first1 + 1, _mask.get() + 1,
+    transform(policy, first1, last1 - 1, first1 + 1, _mask.get() + 1,
               oneapi::dpl::__internal::__not_pred<BinaryPredicate>(binary_pred));
 
-    auto policy1 = oneapi::dpl::__par_backend_hetero::make_wrapped_policy<InclusiveScan1>(policy);
-    transform_inclusive_scan(::std::move(policy1), make_zip_iterator(first2, _mask.get()),
+    auto policy1 = oneapi::dpl::__par_backend_hetero::make_wrapped_policy<InclusiveScan1>(std::forward<Policy>(policy));
+    transform_inclusive_scan(std::move(policy1), make_zip_iterator(first2, _mask.get()),
                              make_zip_iterator(first2, _mask.get()) + n, make_zip_iterator(result, _mask.get()),
                              internal::segmented_scan_fun<ValueType, FlagType, BinaryOperator>(binary_op),
-                             oneapi::dpl::__internal::__no_op());
+                             oneapi::dpl::identity{});
     return result + n;
 }
 
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename BinaryPredicate, typename BinaryOperator>
 OutputIterator
-pattern_inclusive_scan_by_segment(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputIterator1 first1,
-                                  InputIterator1 last1, InputIterator2 first2, OutputIterator result,
-                                  BinaryPredicate binary_pred, BinaryOperator binary_op)
+__pattern_inclusive_scan_by_segment(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputIterator1 first1,
+                                    InputIterator1 last1, InputIterator2 first2, OutputIterator result,
+                                    BinaryPredicate binary_pred, BinaryOperator binary_op)
 {
-    return internal::inclusive_scan_by_segment_impl(
+    return __internal::__pattern_inclusive_scan_by_segment_impl(
         __tag, ::std::forward<Policy>(policy), first1, last1, first2, result, binary_pred, binary_op,
         typename unseq_backend::__has_known_identity<
             BinaryOperator, typename ::std::iterator_traits<InputIterator2>::value_type>::type{});
 }
 
 #endif
-} // namespace internal
+} // namespace __internal
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
           typename BinaryPredicate, typename BinaryOperator>
@@ -155,8 +160,8 @@ inclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first1, first2, result);
 
-    return internal::pattern_inclusive_scan_by_segment(__dispatch_tag, ::std::forward<Policy>(policy), first1, last1,
-                                                       first2, result, binary_pred, binary_op);
+    return __internal::__pattern_inclusive_scan_by_segment(__dispatch_tag, std::forward<Policy>(policy), first1, last1,
+                                                           first2, result, binary_pred, binary_op);
 }
 
 template <typename Policy, typename InputIter1, typename InputIter2, typename OutputIter, typename BinaryPredicate>

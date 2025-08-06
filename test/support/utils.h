@@ -89,13 +89,20 @@ issue_error_message(::std::stringstream& outstr)
     ::std::exit(EXIT_FAILURE);
 }
 
+template <typename TStream>
+inline void
+log_file_lineno_msg(TStream& os, const char* file, std::int32_t line, const char* message)
+{
+    os << "error at " << file << ":" << line << " - " << message;
+}
+
 inline void
 expect(bool expected, bool condition, const char* file, std::int32_t line, const char* message)
 {
     if (condition != expected)
     {
-        ::std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message;
+        std::stringstream outstr;
+        log_file_lineno_msg(outstr, file, line, message);
         issue_error_message(outstr);
     }
 }
@@ -113,14 +120,56 @@ is_equal_val(const T1& val1, const T2& val2)
         const auto eps = std::numeric_limits<T>::epsilon();
         return std::fabs(T(val1) - T(val2)) < eps;
     }
-
-    if constexpr (std::is_same_v<T1, T2>)
+    else if constexpr (std::is_same_v<T1, T2>)
     {
         return val1 == val2;
     }
     else
     {
         return T(val1) == T(val2);
+    }
+}
+
+template <typename T, typename TOutputStream, typename = void>
+struct IsOutputStreamable : std::false_type
+{
+};
+
+template <typename T, typename TOutputStream>
+struct IsOutputStreamable<T, TOutputStream,
+                             std::void_t<decltype(std::declval<TOutputStream>() << std::declval<T>())>> : std::true_type
+{
+};
+
+struct TagExpected{};
+struct TagActual{};
+
+inline
+std::string log_value_title(TagExpected)
+{
+    return " expected ";
+}
+
+inline
+std::string log_value_title(TagActual)
+{
+    return " got ";
+}
+
+template <typename TStream, typename Tag, typename TValue>
+ void log_value(TStream& os, Tag, const TValue& value, bool bCommaNeeded)
+{
+    if (bCommaNeeded)
+        os << ",";
+    os << log_value_title(Tag{});
+
+    if constexpr (IsOutputStreamable<TValue, decltype(os)>::value)
+    {
+        os << value;
+    }
+    else
+    {
+        os << "(unable to log value)";
     }
 }
 
@@ -133,8 +182,10 @@ expect_equal_val(const T1& expected, const T2& actual, const char* file, std::in
     if (!is_equal_val(expected, actual))
     {
         std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message << ", expected " << expected << " got "
-               << actual;
+        log_file_lineno_msg(outstr, file, line, message);
+        log_value(outstr, TagExpected{}, expected, true);
+        log_value(outstr, TagActual{}, actual, true);
+
         issue_error_message(outstr);
     }
 }
@@ -147,9 +198,9 @@ expect_equal(const R1& expected, const R2& actual, const char* file, std::int32_
     size_t m = actual.size();
     if (n != m)
     {
-        ::std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message << ", expected sequence of size " << n
-               << " got sequence of size " << m;
+        std::stringstream outstr;
+        log_file_lineno_msg(outstr, file, line, message);
+        outstr << ", expected sequence of size " << n << " got sequence of size " << m;
         issue_error_message(outstr);
         return;
     }
@@ -158,9 +209,12 @@ expect_equal(const R1& expected, const R2& actual, const char* file, std::int32_
     {
         if (!is_equal_val(expected[k], actual[k]))
         {
-            ::std::stringstream outstr;
-            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k << " expected "
-                   << expected[k] << " got " << actual[k];
+            std::stringstream outstr;
+            log_file_lineno_msg(outstr, file, line, message);
+            outstr << ", at index " << k;
+            log_value(outstr, TagExpected{}, expected[k], false);
+            log_value(outstr, TagActual{}, actual[k], false);
+
             issue_error_message(outstr);
             ++error_count;
         }
@@ -184,8 +238,12 @@ expect_equal(Iterator1 expected_first, Iterator2 actual_first, Size n, const cha
     {
         if (!is_equal_val(*expected_first, *actual_first))
         {
-            ::std::stringstream outstr;
-            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k;
+            std::stringstream outstr;
+            log_file_lineno_msg(outstr, file, line, message);
+            outstr << ", at index " << k;
+            log_value(outstr, TagExpected{}, *expected_first, false);
+            log_value(outstr, TagActual{}, *actual_first, false);
+
             issue_error_message(outstr);
             ++error_count;
         }
@@ -760,13 +818,6 @@ test_algo_basic_double(F&& f)
     invoke_on_all_host_policies()(::std::forward<F>(f), in.begin(), out.begin());
 }
 
-template <typename Policy, typename F>
-static void
-invoke_if(Policy&&, F f)
-{
-    f();
-}
-
 template <typename T, typename = bool>
 struct can_use_default_less_operator : ::std::false_type
 {
@@ -786,7 +837,7 @@ template <typename _Tp>
 struct UserBinaryPredicate
 {
     bool
-    operator()(const _Tp& __x, const _Tp& __y) const
+    operator()(const _Tp&, const _Tp& __y) const
     {
         using KeyT = ::std::decay_t<_Tp>;
         return __y != KeyT(1);
@@ -868,7 +919,7 @@ struct MaxAbsFunctor<MatrixPoint<_Tp>>
     }
 };
 
-struct TupleAddFunctor
+struct TupleAddFunctor1
 {
     template <typename Tup1, typename Tup2>
     auto
@@ -876,6 +927,22 @@ struct TupleAddFunctor
     {
         using ::std::get;
         Tup1 tup_sum = ::std::make_tuple(get<0>(lhs) + get<0>(rhs), get<1>(lhs) + get<1>(rhs));
+        return tup_sum;
+    }
+};
+
+// Exercise an explicit return of std::tuple to check for issues related to ambiguous return types between
+// oneapi::dpl::__internal::tuple and std::tuple
+struct TupleAddFunctor2
+{
+    template <typename Tup1, typename Tup2>
+    auto
+    operator()(const Tup1& lhs, const Tup2& rhs) const
+    {
+        using std::get;
+        using return_t =
+            std::tuple<decltype(get<0>(lhs) + get<0>(rhs)), decltype(get<1>(lhs) + get<1>(rhs))>;
+        return_t tup_sum{get<0>(lhs) + get<0>(rhs), get<1>(lhs) + get<1>(rhs)};
         return tup_sum;
     }
 };
@@ -921,43 +988,6 @@ constexpr bool __vector_impl_distinguishes_usm_allocator_from_default_v =
     !std::is_same_v<__usm_host_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>>;
 
 #endif //TEST_DPCPP_BACKEND_PRESENT
-
-////////////////////////////////////////////////////////////////////////////////
-// Implementation of create_new_policy for all policies (host + hetero)
-template <typename Policy>
-using __is_able_to_create_new_policy =
-#if TEST_DPCPP_BACKEND_PRESENT
-    oneapi::dpl::__internal::__is_hetero_execution_policy<::std::decay_t<Policy>>;
-#else
-    ::std::false_type;
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-#if TEST_DPCPP_BACKEND_PRESENT
-template <typename _NewKernelName, typename Policy, ::std::enable_if_t<__is_able_to_create_new_policy<Policy>::value, int> = 0>
-auto
-create_new_policy(Policy&& policy)
-{
-    return TestUtils::make_new_policy<_NewKernelName>(::std::forward<Policy>(policy));
-}
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-template <typename _NewKernelName, typename Policy, ::std::enable_if_t<!__is_able_to_create_new_policy<Policy>::value, int> = 0>
-auto
-create_new_policy(Policy&& policy)
-{
-    return ::std::forward<Policy>(policy);
-}
-
-template <int idx, typename Policy>
-auto
-create_new_policy_idx(Policy&& policy)
-{
-#if TEST_DPCPP_BACKEND_PRESENT
-    return create_new_policy<TestUtils::new_kernel_name<Policy, idx>>(::std::forward<Policy>(policy));
-#else
-    return ::std::forward<Policy>(policy);
-#endif
-}
 
 #if TEST_DPCPP_BACKEND_PRESENT
 template <typename KernelName, int idx>
@@ -1013,6 +1043,253 @@ generate_arithmetic_data(T* input, std::size_t size, std::uint32_t seed)
         input[j] = input[i];
     }
 }
+
+// Utility that models __estimate_best_start_size in the SYCL backend parallel_for to ensure large enough inputs are
+// used to test the large submitter path. A multiplier to the max size is added to ensure we get a few separate test inputs
+// for this path. For debug testing, only test with a single large size to avoid timeouts. Returns a monotonically increasing
+// sequence for use in testing.
+inline std::vector<std::size_t>
+get_pattern_for_test_sizes()
+{
+    std::size_t max_size = 0;
+    // We do not enable large input size testing for FPGA devices as __parallel_for_submitter_fpga only has a single
+    // implementation with the standard input sizes providing full coverage, and testing large inputs is slow with the
+    // FPGA emulator.
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
+    sycl::queue q = TestUtils::get_test_queue();
+    sycl::device d = q.get_device();
+    constexpr std::size_t max_iters_per_item = 16;
+    constexpr std::size_t multiplier = 4;
+    constexpr std::size_t max_work_group_size = 512;
+    const std::size_t large_submitter_limit =
+        max_iters_per_item * max_work_group_size * d.get_info<sycl::info::device::max_compute_units>();
+#endif
+#if TEST_DPCPP_BACKEND_PRESENT && !PSTL_USE_DEBUG && !ONEDPL_FPGA_DEVICE
+    std::size_t cap = 10000000;
+    max_size = multiplier * large_submitter_limit;
+    // Ensure that TestUtils::max_n <= max <= cap
+    max_size = std::max(TestUtils::max_n, std::min(cap, max_size));
+#else
+    max_size = TestUtils::max_n;
+#endif
+    // Generate the sequence of test input sizes
+    std::vector<std::size_t> sizes;
+    for (std::size_t n = 0; n <= max_size; n = n <= 16 ? n + 1 : std::size_t(3.1415 * n))
+        sizes.push_back(n);
+#if TEST_DPCPP_BACKEND_PRESENT && PSTL_USE_DEBUG && !ONEDPL_FPGA_DEVICE
+    if (max_size < large_submitter_limit)
+        sizes.push_back(large_submitter_limit);
+#endif
+    return sizes;
+}
+
+template <typename T>
+struct IsMultipleOf
+{
+    T value;
+
+    bool operator()(T v) const
+    {
+        return v % value == 0;
+    }
+};
+
+template <typename T>
+struct IsEven
+{
+    bool
+    operator()(T v) const
+    {
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            std::uint32_t i = (std::uint32_t)v;
+            return i % 2 == 0;
+        }
+        else
+        {
+            return v % 2 == 0;
+        }
+    }
+};
+
+template <typename T>
+struct IsOdd
+{
+    bool
+    operator()(T v) const
+    {
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            std::uint32_t i = (std::uint32_t)v;
+            return i % 2 != 0;
+        }
+        else
+        {
+            return v % 2 != 0;
+        }
+    }
+};
+
+template <typename T>
+struct IsGreatThan
+{
+    T value;
+
+    bool
+    operator()(T v) const
+    {
+        return v > value;
+    }
+};
+
+template <typename T>
+struct IsLessThan
+{
+    T value;
+
+    bool
+    operator()(T v) const
+    {
+        return v < value;
+    }
+};
+
+template <typename T>
+struct IsGreat
+{
+    bool operator()(T x, T y) const
+    {
+        return x > y;
+    }
+};
+
+template <typename T>
+struct IsLess
+{
+    bool operator()(T x, T y) const
+    {
+        return x < y;
+    }
+};
+
+template <typename T>
+struct IsEqual
+{
+    bool operator()(T x, T y) const
+    {
+        return x == y;
+    }
+};
+
+template <typename T>
+struct IsNotEqual
+{
+    bool operator()(T x, T y) const
+    {
+        return x != y;
+    }
+};
+
+template <typename T>
+struct IsEqualTo
+{
+    T val;
+
+    bool operator()(T x) const
+    {
+        return val == x;
+    }
+};
+
+template <typename T, typename Predicate>
+struct NotPred
+{
+    Predicate pred;
+
+    bool
+    operator()(T x) const
+    {
+        return !pred(x);
+    }
+};
+
+template <typename T1, typename T2>
+struct SumOp
+{
+    auto operator()(T1 i, T2 j) const
+    {
+        return i + j;
+    }
+};
+
+template <typename T>
+struct SumWithOp
+{
+    T const_val;
+
+    auto operator()(T val) const
+    {
+        return val + const_val;
+    }
+};
+
+template <typename T>
+struct Pow2
+{
+    T
+    operator()(T x) const
+    {
+        return x * x;
+    }
+};
+
+template <typename _T>
+struct NoDefaultCtorWrapper {
+    _T value;
+
+    // Default constructor
+    NoDefaultCtorWrapper() = delete;
+
+    NoDefaultCtorWrapper(_T v) : value(v) {}
+
+    operator _T() const { return value; }
+
+    // Move constructor
+    NoDefaultCtorWrapper(NoDefaultCtorWrapper&&) = default;
+
+    // Move assignment operator
+    NoDefaultCtorWrapper& operator=(NoDefaultCtorWrapper&&) = default;
+
+    // Deleted copy constructor and copy assignment operator
+    NoDefaultCtorWrapper(const NoDefaultCtorWrapper&) = default;
+    NoDefaultCtorWrapper& operator=(const NoDefaultCtorWrapper&) = default;
+    
+    NoDefaultCtorWrapper operator-() const
+    {
+        return NoDefaultCtorWrapper{-value};
+    }
+
+    friend bool operator==(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return a.value == b.value;
+    } 
+    friend NoDefaultCtorWrapper operator+(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return NoDefaultCtorWrapper{a.value + b.value};
+    } 
+
+    friend NoDefaultCtorWrapper operator*(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return NoDefaultCtorWrapper{a.value * b.value};
+    } 
+
+    // non-trivial destructor for testing
+    ~NoDefaultCtorWrapper()
+    {
+        value.~_T();
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H

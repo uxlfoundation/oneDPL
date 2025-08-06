@@ -76,17 +76,17 @@ kernel_test1(sycl::queue& deviceQueue)
             }
 
             {
-                constexpr dpl::tuple<> t = dpl::tuple_cat();
+                [[maybe_unused]] constexpr dpl::tuple<> t = dpl::tuple_cat();
             }
 
             {
                 constexpr dpl::tuple<> t1;
-                constexpr dpl::tuple<> t2 = dpl::tuple_cat(t1);
+                [[maybe_unused]] constexpr dpl::tuple<> t2 = dpl::tuple_cat(t1);
             }
 
             {
                 constexpr dpl::array<int, 0> empty_array = {};
-                constexpr dpl::tuple<> t = dpl::tuple_cat(empty_array);
+                [[maybe_unused]] constexpr dpl::tuple<> t = dpl::tuple_cat(empty_array);
             }
 
             {

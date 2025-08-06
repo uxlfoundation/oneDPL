@@ -70,7 +70,7 @@ struct test_replace
         copy(data_b, data_e, actual_b);
 
         replace(expected_b, expected_e, old_value, value);
-        replace(exec, actual_b, actual_e, old_value, value);
+        replace(std::forward<ExecutionPolicy>(exec), actual_b, actual_e, old_value, value);
 
         EXPECT_TRUE((check<T, Iterator2>(actual_b, actual_e)), "wrong result of self assignment check");
         EXPECT_TRUE(equal(expected_b, expected_e, actual_b), "wrong result of replace");
@@ -105,7 +105,7 @@ struct test_replace_if
         copy(data_b, data_e, actual_b);
 
         replace_if(expected_b, expected_e, pred, value);
-        replace_if(exec, actual_b, actual_e, pred, value);
+        replace_if(std::forward<ExecutionPolicy>(exec), actual_b, actual_e, pred, value);
         EXPECT_TRUE(equal(expected_b, expected_e, actual_b), "wrong result of replace_if");
     }
 };
@@ -114,7 +114,8 @@ template <typename T1, typename T2, typename Pred>
 void
 test(Pred pred)
 {
-    const ::std::size_t max_len = 100000;
+    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
+    const std::size_t max_len = test_sizes.back();
 
     const T1 value = T1(0);
     const T1 new_value = T1(666);
@@ -124,7 +125,7 @@ test(Pred pred)
 
     Sequence<T2> data(max_len, [=](::std::size_t i) { return i % 3 == 2 ? T1(i) : value; });
 
-    for (::std::size_t len = 0; len < max_len; len = len <= 16 ? len + 1 : ::std::size_t(3.1415 * len))
+    for (std::size_t len : test_sizes)
     {
 #ifdef _PSTL_TEST_REPLACE
         invoke_on_all_policies<0>()(test_replace<T1, T2>{},
@@ -150,11 +151,8 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-        invoke_if(exec, [&]() { replace_if(exec, iter, iter, non_const(is_even), T(0)); });
+        auto is_even = TestUtils::IsEven<float64_t>{};
+        replace_if(std::forward<Policy>(exec), iter, iter, non_const(is_even), T(0));
     }
 };
 
@@ -162,6 +160,7 @@ int
 main()
 {
     test<std::int32_t, float32_t>(oneapi::dpl::__internal::__equal_value<std::int32_t>(666));
+    test<std::uint8_t, std::uint8_t>([](const std::uint8_t& elem) { return elem % 3 < 2; });
     test<std::uint16_t, std::uint8_t>([](const std::uint16_t& elem) { return elem % 3 < 2; });
     test<float64_t, std::int64_t>([](const float64_t& elem) { return elem * elem - 3.5 * elem > 10; });
     //test<copy_int, copy_int>([](const copy_int& val) { return val.value / 5 > 2; });

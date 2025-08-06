@@ -25,16 +25,16 @@
 
 #include <functional>
 #include <iostream>
+#include <tuple>
+#include <iterator>
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "support/sycl_alloc_utils.h"
 
-template <sycl::usm::alloc alloc_type, typename KernelName>
+template <sycl::usm::alloc alloc_type, std::size_t KernelIdx, typename BinaryOp, typename Policy>
 void
-test_with_usm()
+test_with_usm(Policy&& exec, BinaryOp binary_op)
 {
-    sycl::queue q = TestUtils::get_test_queue();
-
     constexpr int n = 9;
 
     //data initialization
@@ -48,14 +48,14 @@ test_with_usm()
     int output_values2[n] = { };
 
     // allocate USM memory and copying data to USM shared/device memory
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper1(q, keys1, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper2(q, keys2, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper3(q, values1, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper4(q, values2, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper5(q, output_keys1, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper6(q, output_keys2, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper7(q, output_values1, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper8(q, output_values2, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper1(exec, keys1, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper2(exec, keys2, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper3(exec, values1, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper4(exec, values2, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper5(exec, output_keys1, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper6(exec, output_keys2, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper7(exec, output_values1, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper8(exec, output_values2, n);
     auto d_keys1          = dt_helper1.get_data();
     auto d_keys2          = dt_helper2.get_data();
     auto d_values1        = dt_helper3.get_data();
@@ -72,11 +72,12 @@ test_with_usm()
     auto begin_keys_out= oneapi::dpl::make_zip_iterator(d_output_keys1, d_output_keys2);
     auto begin_vals_out= oneapi::dpl::make_zip_iterator(d_output_values1, d_output_values2);
 
-    //run reduce_by_segment algorithm 
+    //run reduce_by_segment algorithm
+    using _NewKernelName = TestUtils::unique_kernel_name<BinaryOp, KernelIdx>;
     auto new_last = oneapi::dpl::reduce_by_segment(
-        TestUtils::make_device_policy<KernelName>(q), begin_keys_in,
-        end_keys_in, begin_vals_in, begin_keys_out, begin_vals_out,
-       ::std::equal_to<>(), TestUtils::TupleAddFunctor());
+        CLONE_TEST_POLICY_NAME(exec, _NewKernelName),
+        begin_keys_in, end_keys_in, begin_vals_in, begin_keys_out, begin_vals_out,
+        std::equal_to<>(), binary_op);
 
     //retrieve result on the host and check the result
     dt_helper5.retrieve_data(output_keys1);
@@ -107,14 +108,15 @@ test_with_usm()
     EXPECT_EQ_N(exp_keys2, output_keys2, n, "wrong keys2 from reduce_by_segment");
     EXPECT_EQ_N(exp_values1, output_values1, n, "wrong values1 from reduce_by_segment");
     EXPECT_EQ_N(exp_values2, output_values2, n, "wrong values2 from reduce_by_segment");
+    EXPECT_EQ(std::distance(begin_keys_out, new_last.first), 6, "wrong number of keys from reduce_by_segment");
+    EXPECT_EQ(std::distance(begin_vals_out, new_last.second), 6, "wrong number of values from reduce_by_segment");
 }
 
-template <typename KernelName>
+template <std::size_t KernelIdx, typename Policy, typename BinaryOp>
 void
-test_zip_with_discard()
+test_zip_with_discard(Policy&& exec, BinaryOp binary_op)
 {
     constexpr sycl::usm::alloc alloc_type = sycl::usm::alloc::device;
-    sycl::queue q = TestUtils::get_test_queue();
 
     constexpr int n = 5;
 
@@ -127,12 +129,12 @@ test_zip_with_discard()
     int output_values[n] = {};
 
     // allocate USM memory and copying data to USM shared/device memory
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper1(q, keys1, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper2(q, keys2, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper3(q, values1, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper4(q, values2, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper5(q, output_keys, n);
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper6(q, output_values, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper1(exec, keys1, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper2(exec, keys2, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper3(exec, values1, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper4(exec, values2, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper5(exec, output_keys, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper6(exec, output_values, n);
     auto d_keys1 = dt_helper1.get_data();
     auto d_keys2 = dt_helper2.get_data();
     auto d_values1 = dt_helper3.get_data();
@@ -148,9 +150,13 @@ test_zip_with_discard()
     auto begin_vals_out = oneapi::dpl::make_zip_iterator(oneapi::dpl::discard_iterator(), d_output_values);
 
     //run reduce_by_segment algorithm
-    auto new_last = oneapi::dpl::reduce_by_segment(TestUtils::make_device_policy<KernelName>(q), begin_keys_in,
-                                                   end_keys_in, begin_vals_in, begin_keys_out, begin_vals_out,
-                                                   std::equal_to<>(), TestUtils::TupleAddFunctor());
+    using _NewKernelName = TestUtils::unique_kernel_name<BinaryOp, KernelIdx>;
+    auto new_last = oneapi::dpl::reduce_by_segment(
+        CLONE_TEST_POLICY_NAME(exec, _NewKernelName),
+        begin_keys_in, end_keys_in,
+        begin_vals_in, begin_keys_out,
+        begin_vals_out,
+        std::equal_to<>(), binary_op);
 
     //retrieve result on the host and check the result
     dt_helper5.retrieve_data(output_keys);
@@ -160,20 +166,41 @@ test_zip_with_discard()
     const int exp_values[n] = {4, 4, 2};
     EXPECT_EQ_N(exp_keys, output_keys, n, "wrong keys from reduce_by_segment");
     EXPECT_EQ_N(exp_values, output_values, n, "wrong values from reduce_by_segment");
+    EXPECT_EQ(std::distance(begin_keys_out, new_last.first), 3, "wrong number of keys from reduce_by_segment");
+    EXPECT_EQ(std::distance(begin_vals_out, new_last.second), 3, "wrong number of values from reduce_by_segment");
 }
-#endif
+
+template <typename Policy, typename BinaryOp>
+void test_with_op(Policy&& exec, BinaryOp binary_op)
+{
+    // Run tests for USM shared/device memory
+    test_with_usm<sycl::usm::alloc::shared, 0>(CLONE_TEST_POLICY(exec), binary_op);
+    test_with_usm<sycl::usm::alloc::device, 1>(CLONE_TEST_POLICY(exec), binary_op);
+
+    test_zip_with_discard<2>(CLONE_TEST_POLICY(exec), binary_op);
+}
+
+template <typename Policy>
+void test_impl(Policy&& exec)
+{
+    test_with_op(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor1{});
+    test_with_op(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor2{});
+}
+
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 //The code below for test a call of reduce_by_segment with zip iterators was kept "as is", as an example reported by a user; just "memory deallocation" added.
 int main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    // Run tests for USM shared memory
-    test_with_usm<sycl::usm::alloc::shared, class KernelName1>();
-    // Run tests for USM device memory
-    test_with_usm<sycl::usm::alloc::device, class KernelName2>();
 
-    test_zip_with_discard<class KernelName3>();
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
 #endif
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }

@@ -36,7 +36,7 @@ struct test_partition_copy
                OutputIterator, OutputIterator2 false_first, OutputIterator2, UnaryOp unary_op)
     {
 
-        auto actual_ret = ::std::partition_copy(exec, first, last, true_first, false_first, unary_op);
+        auto actual_ret = std::partition_copy(std::forward<Policy>(exec), first, last, true_first, false_first, unary_op);
 
         EXPECT_TRUE(::std::distance(true_first, actual_ret.first) == ::std::count_if(first, last, unary_op),
                     "partition_copy has wrong effect from true sequence");
@@ -93,19 +93,14 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-
-        partition_copy(exec, input_iter, input_iter, out_iter, out_iter, non_const(is_even));
+        partition_copy(std::forward<Policy>(exec), input_iter, input_iter, out_iter, out_iter, non_const(TestUtils::IsEven<float64_t>{}));
     }
 };
 
 int
 main()
 {
-    test<std::int16_t>([](const std::int32_t value) { return value % 2 == 0; });
+    test<std::int16_t>(TestUtils::IsEven<std::int32_t>{});
     test<std::int32_t>([](const std::int32_t) { return true; });
 
 #if !ONEDPL_FPGA_DEVICE

@@ -30,9 +30,11 @@
 
 #include "support/sycl_alloc_utils.h"
 
-template <sycl::usm::alloc alloc_type>
+class TagCopy;
+
+template <sycl::usm::alloc alloc_type, typename Policy>
 void
-test_with_usm(sycl::queue& q, const ::std::size_t count)
+test_with_usm(Policy&& exec, const std::size_t count)
 {
     // Prepare source data
     std::vector<int> h_idx(count);
@@ -40,16 +42,15 @@ test_with_usm(sycl::queue& q, const ::std::size_t count)
         h_idx[i] = i + 1;
 
     // Copy source data to USM shared/device memory
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper_h_idx(q, ::std::begin(h_idx), ::std::end(h_idx));
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper_h_idx(exec, std::begin(h_idx), std::end(h_idx));
     auto d_idx = dt_helper_h_idx.get_data();
 
-    TestUtils::usm_data_transfer<alloc_type, int> dt_helper_h_val(q, count);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_helper_h_val(exec, count);
     auto d_val = dt_helper_h_val.get_data();
 
     // Run dpl::exclusive_scan algorithm on USM shared-device memory
-    auto myPolicy = TestUtils::make_device_policy<
-        TestUtils::unique_kernel_name<class copy, TestUtils::uniq_kernel_index<alloc_type>()>>(q);
-    oneapi::dpl::exclusive_scan(myPolicy, d_idx, d_idx + count, d_val, 0);
+    using newKernelName = TestUtils::unique_kernel_name<TagCopy, TestUtils::uniq_kernel_index<alloc_type>()>;
+    oneapi::dpl::exclusive_scan(CLONE_TEST_POLICY_NAME(exec, newKernelName), d_idx, d_idx + count, d_val, 0);
 
     // Copy results from USM shared/device memory to host
     std::vector<int> h_val(count);
@@ -62,31 +63,36 @@ test_with_usm(sycl::queue& q, const ::std::size_t count)
     EXPECT_EQ_N(h_sval_expected.begin(), h_val.begin(), count, "wrong effect from exclusive_scan");
 }
 
-template <sycl::usm::alloc alloc_type>
+template <sycl::usm::alloc alloc_type, typename Policy>
 void
-test_with_usm(sycl::queue& q)
+test_with_usm(Policy&& exec)
 {
     for (::std::size_t n = 0; n <= TestUtils::max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
-        test_with_usm<alloc_type>(q, n);
+        test_with_usm<alloc_type>(CLONE_TEST_POLICY(exec), n);
     }
 }
 
+template <typename Policy>
+void test_impl(Policy&& exec)
+{
+    // Run tests for USM shared/device memory
+    test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
+    test_with_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec));
+}
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    sycl::queue q = TestUtils::get_test_queue();
-#if _ONEDPL_DEBUG_SYCL
-    std::cout << "    Device Name = " << q.get_device().get_info<sycl::info::device::name>().c_str() << "\n";
-#endif // _ONEDPL_DEBUG_SYCL
 
-    // Run tests for USM shared memory
-    test_with_usm<sycl::usm::alloc::shared>(q);
-    // Run tests for USM device memory
-    test_with_usm<sycl::usm::alloc::device>(q);
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+#endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);

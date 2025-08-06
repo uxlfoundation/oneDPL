@@ -47,7 +47,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     if (__first1 == __last1)
         return __init;
 
-    using _Functor = unseq_backend::walk_n<_ExecutionPolicy, _BinaryOperation2>;
+    using _Functor = unseq_backend::walk_n<_BinaryOperation2>;
     using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
 
     auto __n = __last1 - __first1;
@@ -80,7 +80,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     if (__first == __last)
         return __init;
 
-    using _Functor = unseq_backend::walk_n<_ExecutionPolicy, _UnaryOperation>;
+    using _Functor = unseq_backend::walk_n<_UnaryOperation>;
     using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator>();
@@ -147,7 +147,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
             __unary_op, __init, __binary_op, _Inclusive{})
-            .__deferrable_wait();
+            .__checked_deferrable_wait();
     }
     else
     {
@@ -159,10 +159,9 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
 
         auto __policy =
             __par_backend_hetero::make_wrapped_policy<ExecutionPolicyWrapper>(::std::forward<_ExecutionPolicy>(__exec));
-        using _NewExecutionPolicy = decltype(__policy);
 
         // Create temporary buffer
-        oneapi::dpl::__par_backend_hetero::__buffer<_NewExecutionPolicy, _Type> __tmp_buf(__policy, __n);
+        oneapi::dpl::__par_backend_hetero::__buffer<_Type> __tmp_buf(__n);
         auto __first_tmp = __tmp_buf.get();
         auto __last_tmp = __first_tmp + __n;
         auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _Iterator2>();
@@ -177,7 +176,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         // Move data from temporary buffer into results
         oneapi::dpl::__internal::__pattern_walk2_brick(
             __tag, ::std::move(__policy), __first_tmp, __last_tmp, __result,
-            oneapi::dpl::__internal::__brick_move<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
+            oneapi::dpl::__internal::__brick_move<__hetero_tag<_BackendTag>>{});
 
         //TODO: optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
     }
@@ -227,15 +226,12 @@ struct adjacent_difference_wrapper
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _BinaryOperation>
 _ForwardIterator2
-__pattern_adjacent_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first,
+__pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first,
                               _ForwardIterator1 __last, _ForwardIterator2 __d_first, _BinaryOperation __op)
 {
     auto __n = __last - __first;
     if (__n <= 0)
         return __d_first;
-
-    using _It1ValueT = typename ::std::iterator_traits<_ForwardIterator1>::value_type;
-    using _It2ValueTRef = typename ::std::iterator_traits<_ForwardIterator2>::reference;
 
     _ForwardIterator2 __d_last = __d_first + __n;
 
@@ -246,15 +242,13 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         auto __wrapped_policy = __par_backend_hetero::make_wrapped_policy<adjacent_difference_wrapper>(
             ::std::forward<_ExecutionPolicy>(__exec));
 
-        __internal::__pattern_walk2_brick(__tag, __wrapped_policy, __first, __last, __d_first,
-                                          __internal::__brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
+        __internal::__pattern_walk2_brick(__hetero_tag<_BackendTag>{}, __wrapped_policy, __first, __last, __d_first,
+                                          __internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
     else
 #endif
     {
-        auto __fn = [__op](_It1ValueT __in1, _It1ValueT __in2, _It2ValueTRef __out1) {
-            __out1 = __op(__in2, __in1); // This move assignment is allowed by the C++ standard draft N4810
-        };
+        oneapi::dpl::__internal::__transform_functor<_BinaryOperation, std::true_type> __fn{__op};
 
         auto __keep1 =
             oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();
@@ -263,11 +257,12 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
             oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _ForwardIterator2>();
         auto __buf2 = __keep2(__d_first, __d_last);
 
-        using _Function = unseq_backend::walk_adjacent_difference<_ExecutionPolicy, decltype(__fn)>;
+        using _Function = unseq_backend::walk_adjacent_difference<decltype(__fn)>;
 
-        oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, __exec, _Function{__fn}, __n,
+        oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, __exec,
+                                                          _Function{__fn, static_cast<std::size_t>(__n)}, __n,
                                                           __buf1.all_view(), __buf2.all_view())
-            .__deferrable_wait();
+            .__checked_deferrable_wait();
     }
 
     return __d_last;

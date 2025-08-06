@@ -62,13 +62,6 @@ struct sycl_iterator
         auto old_iter = sycl_iterator<inMode, T, Allocator>{in.get_buffer(), 0};
         idx = in - old_iter;
     }
-    sycl_iterator&
-    operator=(const sycl_iterator& in)
-    {
-        buffer = in.buffer;
-        idx = in.idx;
-        return *this;
-    }
     sycl_iterator
     operator+(difference_type forward) const
     {
@@ -114,20 +107,28 @@ struct sycl_iterator
         return *this - it < 0;
     }
 
-    // This function is required for types for which oneapi::dpl::__ranges::is_sycl_iterator_v = true to ensure proper
-    //  handling by oneapi::dpl::__ranges::__get_sycl_range
+    // This function is required for types for which oneapi::dpl::__ranges::is_hetero_iterator = true to ensure
+    // proper handling by oneapi::dpl::__ranges::__get_sycl_range
     sycl::buffer<T, dim, Allocator>
     get_buffer() const
     {
         return buffer;
     }
 
-    // This function is required for types for which oneapi::dpl::__ranges::is_sycl_iterator_v = true to ensure proper
-    //  handling by oneapi::dpl::__ranges::__get_sycl_range
+    // This function is required for types for which oneapi::dpl::__ranges::is_hetero_iterator = true to ensure
+    // proper handling by oneapi::dpl::__ranges::__get_sycl_range
     Size
     get_idx() const
     {
         return idx;
+    }
+
+    // While sycl_iterator cannot be "passed directly" because it is not device_copyable or a random access iterator,
+    // it does represent indirectly device accessible data.
+    friend std::true_type
+    is_onedpl_indirectly_device_accessible(sycl_iterator)
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
     }
 };
 
@@ -169,21 +170,28 @@ template <typename Iter, typename ValueType = std::decay_t<typename std::iterato
 using __usm_host_alloc_vec_iter =
     typename std::vector<ValueType, typename sycl::usm_allocator<ValueType, sycl::usm::alloc::host>>::iterator;
 
-// Evaluates to true if the provided type is an iterator with a value_type and if the implementation of a
+// Evaluates to true_type if the provided type is an iterator with a value_type and if the implementation of a
 // std::vector<value_type, Alloc>::iterator can be distinguished between three different allocators, the
 // default, usm_shared, and usm_host. If all are distinct, it is very unlikely any non-usm based allocator
 // could be confused with a usm allocator.
 template <typename Iter>
-constexpr bool __vector_iter_distinguishes_by_allocator_v =
-    !std::is_same_v<__default_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>> &&
-    !std::is_same_v<__default_alloc_vec_iter<Iter>, __usm_host_alloc_vec_iter<Iter>> &&
-    !std::is_same_v<__usm_host_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>>;
+using __vector_iter_distinguishes_by_allocator =
+    std::conjunction<std::negation<std::is_same<__default_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>>>,
+                     std::negation<std::is_same<__default_alloc_vec_iter<Iter>, __usm_host_alloc_vec_iter<Iter>>>,
+                     std::negation<std::is_same<__usm_host_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>>>>;
 
 template <typename Iter>
-constexpr bool __is_known_usm_vector_iter_v =
-    oneapi::dpl::__internal::__vector_iter_distinguishes_by_allocator_v<Iter> &&
-    (std::is_same_v<Iter, oneapi::dpl::__internal::__usm_shared_alloc_vec_iter<Iter>> ||
-     std::is_same_v<Iter, oneapi::dpl::__internal::__usm_host_alloc_vec_iter<Iter>>);
+inline constexpr bool __vector_iter_distinguishes_by_allocator_v =
+    __vector_iter_distinguishes_by_allocator<Iter>::value;
+
+template <typename Iter>
+using __is_known_usm_vector_iter =
+    std::conjunction<__vector_iter_distinguishes_by_allocator<Iter>,
+                     std::disjunction<std::is_same<Iter, oneapi::dpl::__internal::__usm_shared_alloc_vec_iter<Iter>>,
+                                      std::is_same<Iter, oneapi::dpl::__internal::__usm_host_alloc_vec_iter<Iter>>>>;
+
+template <typename Iter>
+inline constexpr bool __is_known_usm_vector_iter_v = __is_known_usm_vector_iter<Iter>::value;
 
 } // namespace __internal
 

@@ -31,7 +31,7 @@ struct test_one_policy
     operator()(Policy&& exec, InputIterator first, InputIterator last, OutputIterator out_first,
                OutputIterator out_last, UnaryOp op)
     {
-        auto orr = ::std::transform(exec, first, last, out_first, op);
+        auto orr = std::transform(std::forward<Policy>(exec), first, last, out_first, op);
         EXPECT_TRUE(out_last == orr, "transform returned wrong iterator");
         check_and_reset(first, last, out_first);
     }
@@ -84,7 +84,7 @@ template <::std::size_t CallNumber, typename Tin, typename Tout, typename _Op = 
 void
 test()
 {
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         Sequence<Tin> in(n, [](std::int32_t k) { return k % 5 != 1 ? 3 * k - 7 : 0; });
 
@@ -108,7 +108,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        invoke_if(exec, [&]() { transform(exec, input_iter, input_iter, out_iter, non_const(::std::negate<T>())); });
+        transform(std::forward<Policy>(exec), input_iter, input_iter, out_iter, non_const(std::negate<T>()));
     }
 };
 

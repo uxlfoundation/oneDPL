@@ -37,10 +37,10 @@ struct run_unique
         fill_data(first2, last2, generator);
 
         ForwardIt i = unique(first1, last1);
-        ForwardIt k = unique(exec, first2, last2);
+        ForwardIt k = unique(std::forward<Policy>(exec), first2, last2);
 
         auto n = ::std::distance(first1, i);
-        EXPECT_TRUE(::std::distance(first2, k) == n, "wrong return value from unique without predicate");
+        EXPECT_EQ(n, std::distance(first2, k), "wrong return value from unique without predicate");
         EXPECT_EQ_N(first1, first2, n, "wrong effect from unique without predicate");
     }
 };
@@ -60,10 +60,10 @@ struct run_unique_predicate
         fill_data(first2, last2, generator);
 
         ForwardIt i = unique(first1, last1, pred);
-        ForwardIt k = unique(exec, first2, last2, pred);
+        ForwardIt k = unique(std::forward<Policy>(exec), first2, last2, pred);
 
         auto n = ::std::distance(first1, i);
-        EXPECT_TRUE(::std::distance(first2, k) == n, "wrong return value from unique with predicate");
+        EXPECT_EQ(n, std::distance(first2, k), "wrong return value from unique with predicate");
         EXPECT_EQ_N(first1, first2, n, "wrong effect from unique with predicate");
     }
 };
@@ -112,7 +112,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        invoke_if(exec, [&]() { unique(exec, iter, iter, non_const(::std::equal_to<T>())); });
+        unique(std::forward<Policy>(exec), iter, iter, non_const(std::equal_to<T>()));
     }
 };
 

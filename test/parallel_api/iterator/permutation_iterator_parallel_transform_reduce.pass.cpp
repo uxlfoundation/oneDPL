@@ -29,9 +29,36 @@ DEFINE_TEST_PERM_IT(test_transform_reduce, PermItIndexTag)
         ::std::iota(itBegin, itEnd, initVal);
     }
 
+    template <typename Size>
+    struct TestImplementation
+    {
+        Size n;
+
+        template <typename Policy, typename TPermutationIterator>
+        void
+        operator()(Policy&& exec, TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        {
+            const auto testing_n = permItEnd - permItBegin;
+
+            const auto result = dpl::transform_reduce(CLONE_TEST_POLICY(exec), permItBegin, permItEnd, TestValueType{},
+                                                      std::plus<TestValueType>(), std::negate<TestValueType>());
+            wait_and_throw(exec);
+
+            // Copy data back
+            std::vector<TestValueType> sourceData(testing_n);
+            dpl::copy(CLONE_TEST_POLICY(exec), permItBegin, permItEnd, sourceData.begin());
+            wait_and_throw(exec);
+
+            const auto expected =
+                TestUtils::transform_reduce_serial(sourceData.begin(), sourceData.end(), TestValueType{},
+                                                   std::plus<TestValueType>(), std::negate<TestValueType>());
+            EXPECT_EQ(expected, result, "Wrong result of dpl::transform_reduce");
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Size>
     void
-    operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
+    operator()(Policy&& exec, Iterator1 first1, Iterator1 /*last1*/, Size n)
     {
         if constexpr (is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>)
         {
@@ -43,25 +70,7 @@ DEFINE_TEST_PERM_IT(test_transform_reduce, PermItIndexTag)
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin, auto permItEnd)
-                {
-                    const auto testing_n = permItEnd - permItBegin;
-
-                    const auto result = dpl::transform_reduce(exec, permItBegin, permItEnd, TestValueType{},
-                                                              ::std::plus<TestValueType>(), ::std::negate<TestValueType>());
-                    wait_and_throw(exec);
-
-                    // Copy data back
-                    std::vector<TestValueType> sourceData(testing_n);
-                    dpl::copy(exec, permItBegin, permItEnd, sourceData.begin());
-                    wait_and_throw(exec);
-
-                    const auto expected =
-                        TestUtils::transform_reduce_serial(sourceData.begin(), sourceData.end(), TestValueType{},
-                                                           ::std::plus<TestValueType>(),
-                                                           ::std::negate<TestValueType>());
-                    EXPECT_EQ(expected, result, "Wrong result of dpl::transform_reduce");
-                });
+                std::forward<Policy>(exec), TestImplementation<Size>{n});
         }
     }
 };
@@ -87,7 +96,7 @@ run_algo_tests()
 int
 main()
 {
-    using ValueType = ::std::uint32_t;
+    using ValueType = std::int32_t;
 
 #if TEST_DPCPP_BACKEND_PRESENT
     run_algo_tests<ValueType, perm_it_index_tags_usm_shared>();

@@ -31,16 +31,46 @@ DEFINE_TEST_PERM_IT(test_partial_sort, PermItIndexTag)
             *it = n - index;
     }
 
-    template <typename TIterator>
-    void check_results(TIterator itBegin, TIterator itEnd)
+    template <typename Size>
+    struct TestImplementation
     {
-        const auto result = std::is_sorted(oneapi::dpl::execution::par_unseq, itBegin, itEnd);
-        EXPECT_TRUE(result, "Wrong partial_sort data results");
-    }
+        Size n;
+
+        template <typename Policy, typename TPermutationIterator>
+        void
+        operator()(Policy&& exec, TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        {
+            const auto testing_n = permItEnd - permItBegin;
+
+            // run at most 3 iters per n, 0 elements should be noop / cheap
+            const auto partial_sorting_step = std::max(testing_n / 2, decltype(testing_n){1});
+            for (std::size_t p = 0; p <= testing_n; p += partial_sorting_step)
+            {
+                dpl::partial_sort(CLONE_TEST_POLICY(exec), permItBegin, permItBegin + p, permItEnd);
+                wait_and_throw(exec);
+
+                // Copy data back
+                std::vector<TestValueType> partialSortResult(p);
+                dpl::copy(CLONE_TEST_POLICY(exec), permItBegin, permItBegin + p, partialSortResult.begin());
+                wait_and_throw(exec);
+
+                // Check results
+                check_results(partialSortResult.begin(), partialSortResult.end());
+            }
+        }
+
+        template <typename TIterator>
+        void
+        check_results(TIterator itBegin, TIterator itEnd) const
+        {
+            const auto result = std::is_sorted(oneapi::dpl::execution::par_unseq, itBegin, itEnd);
+            EXPECT_TRUE(result, "Wrong partial_sort data results");
+        }
+    };
 
     template <typename Policy, typename Iterator1, typename Size>
     void
-    operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
+    operator()(Policy&& exec, Iterator1 first1, Iterator1 /*last1*/, Size n)
     {
         if constexpr (is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>)
         {
@@ -52,25 +82,7 @@ DEFINE_TEST_PERM_IT(test_partial_sort, PermItIndexTag)
             host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                [&](auto permItBegin, auto permItEnd)
-                {
-                    const auto testing_n = permItEnd - permItBegin;
-                    // run at most 3 iters per n, 0 elements should be noop / cheap
-                    const auto partial_sorting_step = std::max(testing_n / 2, decltype(testing_n){1});
-                    for (::std::size_t p = 0; p <= testing_n; p += partial_sorting_step)
-                    {
-                        dpl::partial_sort(exec, permItBegin, permItBegin + p, permItEnd);
-                        wait_and_throw(exec);
-
-                        // Copy data back
-                        std::vector<TestValueType> partialSortResult(p);
-                        dpl::copy(exec, permItBegin, permItBegin + p, partialSortResult.begin());
-                        wait_and_throw(exec);
-
-                        // Check results
-                        check_results(partialSortResult.begin(), partialSortResult.end());
-                    }
-                });
+                std::forward<Policy>(exec), TestImplementation<Size>{n});
         }
     }
 };

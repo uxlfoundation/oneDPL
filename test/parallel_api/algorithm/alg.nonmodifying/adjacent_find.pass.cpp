@@ -32,7 +32,7 @@ struct test_adjacent_find
         using namespace std;
 
         auto k = ::std::adjacent_find(first, last);
-        auto i = adjacent_find(exec, first, last);
+        auto i = adjacent_find(std::forward<Policy>(exec), first, last);
         EXPECT_TRUE(i == k, "wrong return value from adjacent_find without predicate");
     }
 };
@@ -47,8 +47,17 @@ struct test_adjacent_find_predicate
         using namespace std;
 
         auto k = ::std::adjacent_find(first, last, pred);
-        auto i = adjacent_find(exec, first, last, pred);
+        auto i = adjacent_find(std::forward<Policy>(exec), first, last, pred);
         EXPECT_TRUE(i == k, "wrong return value from adjacent_find with predicate");
+    }
+};
+
+template <typename T>
+struct CustomPred
+{
+    bool operator()(T x, T y) const
+    {
+        return (x - y) * (x - y) == 4;
     }
 };
 
@@ -56,7 +65,7 @@ template <typename T>
 void
 test_adjacent_find_by_type()
 {
-    auto custom_pred = [](T x, T y){return (x - y)*(x - y) == 4; };
+    CustomPred<T> custom_pred;
     size_t counts[] = {2, 3, 500};
     for (std::int32_t c = 0; c < const_size(counts); ++c)
     {
@@ -136,7 +145,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        adjacent_find(exec, iter, iter, non_const(::std::equal_to<T>()));
+        adjacent_find(std::forward<Policy>(exec), iter, iter, non_const(std::equal_to<T>()));
     }
 };
 

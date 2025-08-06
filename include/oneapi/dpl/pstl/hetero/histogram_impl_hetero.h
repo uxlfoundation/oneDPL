@@ -54,7 +54,7 @@ struct __binhash_manager_base
 
     template <typename _Handler>
     auto
-    prepare_device_binhash(_Handler& __cgh) const
+    prepare_device_binhash(_Handler&) const
     {
         return __bin_hash;
     }
@@ -143,7 +143,9 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
 
         auto __init_event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
-            unseq_backend::walk_n<_ExecutionPolicy, decltype(__fill_func)>{__fill_func}, __num_bins, __bins);
+            unseq_backend::walk_n_vectors_or_scalars<decltype(__fill_func)>{__fill_func,
+                                                                            static_cast<std::size_t>(__num_bins)},
+            __num_bins, __bins);
 
         if (__n > 0)
         {
@@ -155,9 +157,10 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
                                                         _RandomAccessIterator1>();
             auto __input_buf = __keep_input(__first, __last);
 
-            __parallel_histogram(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __init_event,
-                                 __input_buf.all_view(), ::std::move(__bins), __binhash_manager)
-                .__deferrable_wait();
+            oneapi::dpl::__par_backend_hetero::__parallel_histogram(
+                _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __init_event, __input_buf.all_view(),
+                ::std::move(__bins), __binhash_manager)
+                .__checked_deferrable_wait();
         }
         else
         {

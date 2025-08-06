@@ -29,7 +29,7 @@ template <class T>
 void
 test()
 {
-    test(dpl::complex<T>(0, 0), dpl::complex<T>(-TestUtils::infinity_val, 0));
+    test(dpl::complex<T>(0, 0), dpl::complex<T>(-TestUtils::infinity_val<T>, 0));
 }
 
 void test_edges()
@@ -62,7 +62,12 @@ void test_edges()
 
 ONEDPL_TEST_NUM_MAIN
 {
+#if !_PSTL_TEST_COMPLEX_OP_LOG10_USING_DOUBLE
     test<float>();
+#else
+    IF_DOUBLE_SUPPORT(test<float>())
+#endif
+
     IF_DOUBLE_SUPPORT(test<double>())
     IF_LONG_DOUBLE_SUPPORT(test<long double>())
     IF_DOUBLE_SUPPORT(test_edges())

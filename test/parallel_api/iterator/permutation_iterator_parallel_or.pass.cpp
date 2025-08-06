@@ -28,9 +28,32 @@ DEFINE_TEST_PERM_IT(test_is_heap, PermItIndexTag)
         ::std::iota(itBegin, itEnd, initVal);
     }
 
+    template <typename Size>
+    struct TestImplementation
+    {
+        Size n;
+
+        template <typename Policy, typename TPermutationIterator>
+        void operator()(Policy&& exec, TPermutationIterator permItBegin, TPermutationIterator permItEnd) const
+        {
+            const auto testing_n = permItEnd - permItBegin;
+
+            const auto resultIsHeap = dpl::is_heap(CLONE_TEST_POLICY(exec), permItBegin, permItEnd);
+            wait_and_throw(exec);
+
+            // Copy data back
+            std::vector<TestValueType> expected(testing_n);
+            dpl::copy(CLONE_TEST_POLICY(exec), permItBegin, permItEnd, expected.begin());
+            wait_and_throw(exec);
+
+            const auto expectedIsHeap = std::is_heap(expected.begin(), expected.end());
+            EXPECT_EQ(expectedIsHeap, resultIsHeap, "Wrong result of dpl::is_heap");
+        }
+    };
+
     template <typename Policy, typename Iterator1, typename Size>
     void
-    operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Size n)
+    operator()(Policy&& exec, Iterator1 first1, Iterator1 /*last1*/, Size n)
     {
         if constexpr (is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>)
         {
@@ -46,21 +69,7 @@ DEFINE_TEST_PERM_IT(test_is_heap, PermItIndexTag)
                 host_keys.update_data();
 
                 test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
-                    [&](auto permItBegin, auto permItEnd)
-                    {
-                        const auto testing_n = permItEnd - permItBegin;
-
-                        const auto resultIsHeap = dpl::is_heap(exec, permItBegin, permItEnd);
-                        wait_and_throw(exec);
-
-                        // Copy data back
-                        std::vector<TestValueType> expected(testing_n);
-                        dpl::copy(exec, permItBegin, permItEnd, expected.begin());
-                        wait_and_throw(exec);
-
-                        const auto expectedIsHeap = std::is_heap(expected.begin(), expected.end());
-                        EXPECT_EQ(expectedIsHeap, resultIsHeap, "Wrong result of dpl::is_heap");
-                    });
+                    CLONE_TEST_POLICY(exec), TestImplementation<Size>{n});
             }
         }
     }

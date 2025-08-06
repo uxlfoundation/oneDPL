@@ -30,7 +30,7 @@ struct test_one_policy
     operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 /* last2 */,
                OutputIterator out_first, OutputIterator /* out_last */, BinaryOp op)
     {
-        ::std::transform(exec, first1, last1, first2, out_first, op);
+        std::transform(std::forward<Policy>(exec), first1, last1, first2, out_first, op);
         check_and_reset(first1, last1, first2, out_first);
     }
 
@@ -38,7 +38,6 @@ struct test_one_policy
     void
     check_and_reset(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, OutputIterator out_first)
     {
-        typedef typename ::std::iterator_traits<OutputIterator>::value_type Out;
         typename ::std::iterator_traits<OutputIterator>::difference_type k = 0;
         for (; first1 != last1; ++first1, ++first2, ++out_first, ++k)
         {
@@ -70,7 +69,7 @@ struct test_one_policy
     {
         return Out(1.5) + std::get<0>(t1) - std::get<0>(t2);
     }
-    
+
     template <typename T>
     auto&
     get_actual(oneapi::dpl::__internal::tuple<T&>&& t)
@@ -100,24 +99,29 @@ test(Predicate pred, _IteratorAdapter adap = {})
 {
     // Testing is restricted for debug build + OpenMP backend as without optimization the compiler generates
     // very slow code leading to test timeouts.
-    size_t max_n =
+
+    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
+    size_t max_size =
 #if PSTL_USE_DEBUG && ONEDPL_USE_OPENMP_BACKEND
         10000;
 #else
-        100000;
+        test_sizes.back();
 #endif
-    for (size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : test_sizes)
     {
-        Sequence<In1> in1(n, [](size_t k) { return k % 5 != 1 ? In1(3 * k + 7) : 0; });
-        Sequence<In2> in2(n, [](size_t k) { return k % 7 != 2 ? In2(5 * k + 5) : 0; });
+        if (n <= max_size)
+        {
+            Sequence<In1> in1(n, [](size_t k) { return k % 5 != 1 ? In1(3 * k + 7) : 0; });
+            Sequence<In2> in2(n, [](size_t k) { return k % 7 != 2 ? In2(5 * k + 5) : 0; });
 
-        Sequence<Out> out(n, [](size_t) { return -1; });
+            Sequence<Out> out(n, [](size_t) { return -1; });
 
-        invoke_on_all_policies<CallNumber>()(test_one_policy(), adap(in1.begin()), adap(in1.end()), adap(in2.begin()),
-                                             adap(in2.end()), adap(out.begin()), adap(out.end()), pred);
-        invoke_on_all_policies<CallNumber + 1>()(test_one_policy(), adap(in1.cbegin()), adap(in1.cend()),
-                                                 adap(in2.cbegin()), adap(in2.cend()), adap(out.begin()),
-                                                 adap(out.end()), pred);
+            invoke_on_all_policies<CallNumber>()(test_one_policy(), adap(in1.begin()), adap(in1.end()), adap(in2.begin()),
+                                                 adap(in2.end()), adap(out.begin()), adap(out.end()), pred);
+            invoke_on_all_policies<CallNumber + 1>()(test_one_policy(), adap(in1.cbegin()), adap(in1.cend()),
+                                                     adap(in2.cbegin()), adap(in2.cend()), adap(out.begin()),
+                                                     adap(out.end()), pred);
+        }
     }
 }
 
@@ -128,10 +132,8 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        invoke_if(exec, [&]() {
-            InputIterator input_iter2 = input_iter;
-            transform(exec, input_iter, input_iter, input_iter2, out_iter, non_const(::std::plus<T>()));
-        });
+        InputIterator input_iter2 = input_iter;
+        transform(std::forward<Policy>(exec), input_iter, input_iter, input_iter2, out_iter, non_const(std::plus<T>()));
     }
 };
 
@@ -152,6 +154,8 @@ main()
 
     //test case for zip iterator
     test<50, std::int32_t, std::int32_t, std::int32_t>(TheOperationZip<std::int32_t>(1), _ZipIteratorAdapter{});
+
+    test<60, std::uint16_t, std::uint16_t, std::int32_t>(TheOperation<std::uint16_t, std::uint16_t, std::int32_t>(1));
 
     return done();
 }

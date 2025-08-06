@@ -15,6 +15,8 @@
 
 #include "sycl_iterator_test.h"
 
+#include "support/utils_invoke.h"
+
 #if TEST_DPCPP_BACKEND_PRESENT
 
 constexpr int a[] = {0, 0, 1, 1, 2, 6, 6, 9, 9};
@@ -107,7 +109,7 @@ DEFINE_TEST(test_uninitialized_fill)
         typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
         auto value = T1(2);
 
-        ::std::uninitialized_fill(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1 + (n / 3), first1 + (n / 2),
+        std::uninitialized_fill(CLONE_TEST_POLICY_IDX(exec, 0), first1 + (n / 3), first1 + (n / 2),
                                   value);
         wait_and_throw(exec);
 
@@ -131,7 +133,7 @@ DEFINE_TEST(test_uninitialized_fill_n)
         typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
         auto value = T1(2);
 
-        ::std::uninitialized_fill_n(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, n, value + 1);
+        std::uninitialized_fill_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n, value + 1);
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -157,7 +159,7 @@ DEFINE_TEST(test_uninitialized_default_construct)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::uninitialized_default_construct(make_new_policy<new_kernel_name<Policy, 0>>(exec),
+        std::uninitialized_default_construct(CLONE_TEST_POLICY_IDX(exec, 0),
                                              first1 + (n / 3), first1 + (n / 2));
         wait_and_throw(exec);
 
@@ -184,7 +186,7 @@ DEFINE_TEST(test_uninitialized_default_construct_n)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::uninitialized_default_construct_n(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, n);
+        std::uninitialized_default_construct_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n);
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -208,7 +210,7 @@ DEFINE_TEST(test_uninitialized_value_construct)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::uninitialized_value_construct(make_new_policy<new_kernel_name<Policy, 0>>(exec),
+        std::uninitialized_value_construct(CLONE_TEST_POLICY_IDX(exec, 0),
                                            first1 + (n / 3), first1 + (n / 2));
         wait_and_throw(exec);
 
@@ -234,7 +236,7 @@ DEFINE_TEST(test_uninitialized_value_construct_n)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::uninitialized_value_construct_n(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, n);
+        std::uninitialized_value_construct_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n);
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -258,8 +260,8 @@ DEFINE_TEST(test_destroy)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::destroy(make_new_policy<policy_name_wrapper<new_kernel_name<Policy, 0>, T1>>(exec), first1 + (n / 3),
-                       first1 + (n / 2));
+        using _NewKernelName = policy_name_wrapper<new_kernel_name<Policy, 0>, T1>;
+        std::destroy(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), first1 + (n / 3), first1 + (n / 2));
         if (!::std::is_trivially_destructible_v<T1>)
             value = T1{-2};
         wait_and_throw(exec);
@@ -286,7 +288,8 @@ DEFINE_TEST(test_destroy_n)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::destroy_n(make_new_policy<policy_name_wrapper<new_kernel_name<Policy, 0>, T1>>(exec), first1, n);
+        using _NewKernelName = policy_name_wrapper<new_kernel_name<Policy, 0>, T1>;
+        std::destroy_n(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), first1, n);
         if(!::std::is_trivially_destructible_v<T1>)
             value = T1{-2};
         wait_and_throw(exec);
@@ -310,7 +313,7 @@ DEFINE_TEST(test_fill)
         typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
         auto value = T1(2);
 
-        ::std::fill(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1 + (n / 3), first1 + (n / 2), value);
+        std::fill(CLONE_TEST_POLICY_IDX(exec, 0), first1 + (n / 3), first1 + (n / 2), value);
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -331,7 +334,7 @@ DEFINE_TEST(test_fill_n)
         typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
         auto value = T1(2);
 
-        ::std::fill_n(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, n, value + 1);
+        std::fill_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n, value + 1);
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -352,7 +355,7 @@ DEFINE_TEST(test_generate)
         typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
         auto value = T1(4);
 
-        ::std::generate(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1 + (n / 3), first1 + (n / 2),
+        std::generate(CLONE_TEST_POLICY_IDX(exec, 0), first1 + (n / 3), first1 + (n / 2),
                       Generator_count<T1>(value));
         wait_and_throw(exec);
 
@@ -375,7 +378,7 @@ DEFINE_TEST(test_generate_n)
         typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
         auto value = T1(4);
 
-        ::std::generate_n(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, n, Generator_count<T1>(value + 1));
+        std::generate_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n, Generator_count<T1>(value + 1));
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -401,7 +404,7 @@ DEFINE_TEST(test_for_each)
         ::std::fill(host_keys.get() + (n / 3), host_keys.get() + (n / 2), value - 1);
         host_keys.update_data();
 
-        ::std::for_each(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1 + (n / 3), first1 + (n / 2), Inc());
+        std::for_each(CLONE_TEST_POLICY_IDX(exec, 0), first1 + (n / 3), first1 + (n / 2), Inc());
         wait_and_throw(exec);
 
         // We call due to SYCL 1.2.1: 4.7.2.3.
@@ -429,7 +432,7 @@ DEFINE_TEST(test_for_each_n)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::for_each_n(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, n, Inc());
+        std::for_each_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n, Inc());
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -454,7 +457,7 @@ DEFINE_TEST(test_replace)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::replace(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, value, T1(value + 1));
+        std::replace(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, value, T1(value + 1));
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
@@ -478,7 +481,7 @@ DEFINE_TEST(test_replace_if)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::replace_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1,
+        std::replace_if(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1,
                           oneapi::dpl::__internal::__equal_value<T1>(value), T1(value + 1));
         wait_and_throw(exec);
 
@@ -505,13 +508,11 @@ DEFINE_TEST(test_reverse)
         local_copy.assign(host_keys.get(), host_keys.get() + n);
         ::std::reverse(local_copy.begin(), local_copy.end());
 
-        ::std::reverse(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last);
+        std::reverse(CLONE_TEST_POLICY_IDX(exec, 0), first, last);
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
-        auto host_first1 = host_keys.get();
-        for (int i = 0; i < (last - first); ++i)
-            EXPECT_TRUE(local_copy[i] == host_first1[i], "wrong effect from reverse");
+        EXPECT_EQ_N(local_copy.begin(), host_keys.get(), last - first, "wrong effect from reverse");
     }
 };
 
@@ -532,13 +533,11 @@ DEFINE_TEST(test_rotate)
         local_copy.assign(host_keys.get(), host_keys.get() + n);
         ::std::rotate(local_copy.begin(), local_copy.begin() + 1, local_copy.end());
 
-        ::std::rotate(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, first + 1, last);
+        std::rotate(CLONE_TEST_POLICY_IDX(exec, 0), first, first + 1, last);
         wait_and_throw(exec);
 
         host_keys.retrieve_data();
-        auto host_first1 = host_keys.get();
-        for (int i = 0; i < (last - first); ++i)
-            EXPECT_TRUE(local_copy[i] == host_first1[i], "wrong effect from rotate");
+        EXPECT_EQ_N(local_copy.begin(), host_keys.get(), last - first, "wrong effect from rotate");
     }
 };
 
@@ -562,7 +561,7 @@ DEFINE_TEST(test_includes)
         host_keys.update_data(a_size);
         host_vals.update_data(b_size);
 
-        auto result = ::std::includes(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, last2);
+        auto result = std::includes(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2, last2);
         wait_and_throw(exec);
 
         EXPECT_TRUE(result, "wrong effect from includes a, b");
@@ -571,7 +570,7 @@ DEFINE_TEST(test_includes)
         ::std::copy(c, c + c_size, host_vals.get());
         host_vals.update_data(c_size);
 
-        result = ::std::includes(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2, last2);
+        result = std::includes(CLONE_TEST_POLICY_IDX(exec, 1), first1, last1, first2, last2);
         wait_and_throw(exec);
 
         EXPECT_TRUE(!result, "wrong effect from includes a, c");
@@ -596,7 +595,7 @@ DEFINE_TEST(test_swap_ranges)
         ::std::iota(host_vals.get(), host_vals.get() + n, value_type(n));
         update_data(host_keys, host_vals);
 
-        Iterator2 actual_return = ::std::swap_ranges(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2);
+        Iterator2 actual_return = std::swap_ranges(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2);
 
         wait_and_throw(exec);
 
@@ -638,13 +637,11 @@ DEFINE_TEST(test_reverse_copy)
         local_copy.assign(host_keys.get(), host_keys.get() + n);
         ::std::reverse(local_copy.begin(), local_copy.end());
 
-        ::std::reverse_copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, last, result_first);
+        std::reverse_copy(CLONE_TEST_POLICY_IDX(exec, 0), first, last, result_first);
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
-        auto host_first2 = host_vals.get();
-        for (int i = 0; i < n; ++i)
-            EXPECT_TRUE(local_copy[i] == host_first2[i], "wrong effect from reverse_copy");
+        EXPECT_EQ_N(local_copy.begin(), host_vals.get(), n, "wrong effect from reverse_copy");
     }
 };
 
@@ -667,12 +664,11 @@ DEFINE_TEST(test_rotate_copy)
         local_copy.assign(host_keys.get(), host_keys.get() + n);
         ::std::rotate(local_copy.begin(), local_copy.begin() + 1, local_copy.end());
 
-        ::std::rotate_copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first, first + 1, last, result_first);
+        std::rotate_copy(CLONE_TEST_POLICY_IDX(exec, 0), first, first + 1, last, result_first);
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
-        for (int i = 0; i < n; ++i)
-            EXPECT_TRUE(local_copy[i] == host_vals.get()[i], "wrong effect from rotate_copy");
+        EXPECT_EQ_N(local_copy.begin(), host_vals.get(), n, "wrong effect from rotate_copy");
     }
 };
 
@@ -694,7 +690,7 @@ DEFINE_TEST(test_uninitialized_copy)
         ::std::fill(host_vals.get(), host_vals.get() + n, IteratorValueType{ -1 });
         update_data(host_keys, host_vals);
 
-        ::std::uninitialized_copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2);
+        std::uninitialized_copy(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2);
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
@@ -720,7 +716,7 @@ DEFINE_TEST(test_uninitialized_copy_n)
         ::std::fill_n(host_vals.get(), n, IteratorValueType{0});
         update_data(host_keys, host_vals);
 
-        ::std::uninitialized_copy_n(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, n, first2);
+        std::uninitialized_copy_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n, first2);
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
@@ -745,7 +741,7 @@ DEFINE_TEST(test_uninitialized_move)
         ::std::fill_n(host_vals.get(), n, IteratorValueType{ -1 });
         update_data(host_keys, host_vals);
 
-        ::std::uninitialized_move(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2);
+        std::uninitialized_move(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2);
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
@@ -771,7 +767,7 @@ DEFINE_TEST(test_uninitialized_move_n)
         ::std::fill_n(host_vals.get(), n, IteratorValueType{ -1 });
         update_data(host_keys, host_vals);
 
-        ::std::uninitialized_move_n(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, n, first2);
+        std::uninitialized_move_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n, first2);
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
@@ -798,7 +794,7 @@ DEFINE_TEST(test_transform_unary)
         ::std::fill(host_vals.get(), host_vals.get() + n, value + 1);
         update_data(host_keys, host_vals);
 
-        ::std::transform(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1 + n / 2, last1, first2 + n / 2, Flip(7));
+        std::transform(CLONE_TEST_POLICY_IDX(exec, 0), first1 + n / 2, last1, first2 + n / 2, Flip(7));
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
@@ -826,7 +822,7 @@ DEFINE_TEST(test_transform_binary)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::transform(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first1, first2, Plus());
+        std::transform(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first1, first2, Plus());
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
@@ -851,7 +847,7 @@ DEFINE_TEST(test_replace_copy)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::replace_copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, value, T1(value + 1));
+        std::replace_copy(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2, value, T1(value + 1));
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
@@ -876,7 +872,7 @@ DEFINE_TEST(test_replace_copy_if)
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
 
-        ::std::replace_copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2,
+        std::replace_copy_if(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2,
                              oneapi::dpl::__internal::__equal_value<T1>(value), T1(value + 1));
         wait_and_throw(exec);
 
@@ -903,7 +899,7 @@ DEFINE_TEST(test_copy)
         ::std::fill(host_vals.get(), host_vals.get() + n, IteratorValueType{0});
         update_data(host_keys, host_vals);
 
-        ::std::copy(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2);
+        std::copy(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2);
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
@@ -930,7 +926,7 @@ DEFINE_TEST(test_copy_n)
         ::std::fill(host_vals.get(), host_vals.get() + n, IteratorValueType{ 0 });
         update_data(host_keys, host_vals);
 
-        ::std::copy_n(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, n, first2);
+        std::copy_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n, first2);
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
@@ -956,7 +952,7 @@ DEFINE_TEST(test_move)
         ::std::fill(host_vals.get(), host_vals.get() + n, IteratorValueType{ 0 });
         update_data(host_keys, host_vals);
 
-        ::std::move(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2);
+        std::move(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2);
         wait_and_throw(exec);
 
         host_vals.retrieve_data();
@@ -967,6 +963,16 @@ DEFINE_TEST(test_move)
 
 DEFINE_TEST(test_adjacent_difference)
 {
+    template <typename Iterator1ValueType, typename Iterator2ValueType>
+    struct test_adjacent_difference_fo
+    {
+        Iterator2ValueType
+        operator()(const Iterator1ValueType& a, const Iterator1ValueType& b) const
+        {
+            return a + b;
+        }
+    };
+
     DEFINE_TEST_CONSTRUCTOR(test_adjacent_difference, 1.0f, 1.0f)
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
@@ -982,7 +988,7 @@ DEFINE_TEST(test_adjacent_difference)
         Iterator1ValueType fill_value{1};
         Iterator2ValueType blank_value{0};
 
-        auto __f = [](Iterator1ValueType& a, Iterator1ValueType& b) -> Iterator2ValueType { return a + b; };
+        auto __f = test_adjacent_difference_fo<Iterator1ValueType, Iterator2ValueType>{};
 
         // init
         ::std::for_each(host_keys.get(), host_keys.get() + n,
@@ -991,7 +997,7 @@ DEFINE_TEST(test_adjacent_difference)
         update_data(host_keys, host_vals);
 
         // test with custom functor
-        ::std::adjacent_difference(make_new_policy<new_kernel_name<Policy, 0>>(exec), first1, last1, first2, __f);
+        std::adjacent_difference(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2, __f);
         wait_and_throw(exec);
 
         {
@@ -1000,18 +1006,18 @@ DEFINE_TEST(test_adjacent_difference)
             auto host_first1 = host_keys.get();
             auto host_first2 = host_vals.get();
 
-            bool is_correct = *host_first1 == *host_first2; // for the first element
-            for (int i = 1; i < n; ++i)                     // for subsequent elements
-                is_correct = is_correct && *(host_first2 + i) == __f(*(host_first1 + i), *(host_first1 + i - 1));
-
-            EXPECT_TRUE(is_correct, "wrong effect from adjacent_difference #1");
+            EXPECT_EQ(*host_first1, *host_first2, "wrong effect from adjacent_difference for the first element");
+            for (int i = 1; i < n; ++i)
+            {
+                EXPECT_EQ(*(host_first2 + i), __f(*(host_first1 + i), *(host_first1 + i - 1)), "wrong effect from adjacent_difference for subsequent elements");
+            }
         }
 
         // test with default functor
         ::std::fill(host_vals.get(), host_vals.get() + n, blank_value);
         host_vals.update_data();
 
-        ::std::adjacent_difference(make_new_policy<new_kernel_name<Policy, 1>>(exec), first1, last1, first2);
+        std::adjacent_difference(CLONE_TEST_POLICY_IDX(exec, 1), first1, last1, first2);
         wait_and_throw(exec);
 
         retrieve_data(host_keys, host_vals);
@@ -1019,11 +1025,10 @@ DEFINE_TEST(test_adjacent_difference)
         auto host_first1 = host_keys.get();
         auto host_first2 = host_vals.get();
 
-        bool is_correct = *host_first1 == *host_first2; // for the first element
-        for (int i = 1; i < n; ++i)                     // for subsequent elements
-            is_correct = is_correct && *(host_first2 + i) == (*(host_first1 + i) - *(host_first1 + i - 1));
+        EXPECT_EQ(*host_first1, *host_first2, "wrong effect from adjacent_difference #2 for the first element");
 
-        EXPECT_TRUE(is_correct, "wrong effect from adjacent_difference #2");
+        for (int i = 1; i < n; ++i)
+            EXPECT_EQ(*(host_first2 + i), *(host_first1 + i) - *(host_first1 + i - 1), "wrong effect from adjacent_difference #2 for subsequent elements");
     }
 };
 

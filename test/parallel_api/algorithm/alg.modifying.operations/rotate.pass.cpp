@@ -89,7 +89,7 @@ struct test_one_policy
         Iterator actual_m = ::std::next(actual_b, shift);
 
         copy(data_b, data_e, actual_b);
-        Iterator actual_return = rotate(exec, actual_b, actual_m, actual_e);
+        Iterator actual_return = rotate(CLONE_TEST_POLICY(exec), actual_b, actual_m, actual_e);
 
         EXPECT_TRUE(actual_return == ::std::next(actual_b, ::std::distance(actual_m, actual_e)), "wrong result of rotate");
         auto comparator = compare<T>();
@@ -97,7 +97,7 @@ struct test_one_policy
         check = check && ::std::equal(actual_b, actual_return, ::std::next(data_b, shift), comparator);
 
         EXPECT_TRUE(check, "wrong effect of rotate");
-        EXPECT_TRUE(check_move(exec, actual_b, actual_e, shift), "wrong move test of rotate");
+        EXPECT_TRUE(check_move(CLONE_TEST_POLICY(exec), actual_b, actual_e, shift), "wrong move test of rotate");
     }
 
     template <typename ExecutionPolicy, typename Iterator, typename Size>
@@ -132,12 +132,13 @@ template <typename T>
 void
 test()
 {
-    const std::int32_t max_len = 100000;
+    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
+    const std::int32_t max_len = test_sizes.back();
 
     Sequence<T> actual(max_len, [](::std::size_t i) { return T(i); });
     Sequence<T> data(max_len, [](::std::size_t i) { return T(i); });
 
-    for (std::int32_t len = 0; len < max_len; len = len <= 16 ? len + 1 : std::int32_t(3.1415 * len))
+    for (std::int32_t len : test_sizes)
     {
         std::int32_t shifts[] = {0, 1, 2, len / 3, (2 * len) / 3, len - 1};
         for (auto shift : shifts)
@@ -154,6 +155,8 @@ test()
 int
 main()
 {
+    test<std::int8_t>();
+    test<std::int16_t>();
     test<std::int32_t>();
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<wrapper<float64_t>>();

@@ -80,9 +80,9 @@ struct test_one_policy
     {
         prepare_data(first, last, n1, trash);
         RandomAccessIterator exp = ::std::partial_sort_copy(first, last, exp_first, exp_last, compare);
-        RandomAccessIterator res = ::std::partial_sort_copy(exec, first, last, d_first, d_last, compare);
+        RandomAccessIterator res = std::partial_sort_copy(std::forward<Policy>(exec), first, last, d_first, d_last, compare);
 
-        EXPECT_TRUE((exp - exp_first) == (res - d_first), "wrong result from partial_sort_copy with predicate");
+        EXPECT_EQ(exp - exp_first, res - d_first, "wrong result from partial_sort_copy with predicate");
         EXPECT_EQ_N(exp_first, d_first, n2, "wrong effect from partial_sort_copy with predicate");
     }
 
@@ -92,9 +92,9 @@ struct test_one_policy
     {
         prepare_data(first, last, n1, trash);
         RandomAccessIterator exp = ::std::partial_sort_copy(first, last, exp_first, exp_last);
-        RandomAccessIterator res = ::std::partial_sort_copy(exec, first, last, d_first, d_last);
+        RandomAccessIterator res = std::partial_sort_copy(std::forward<Policy>(exec), first, last, d_first, d_last);
 
-        EXPECT_TRUE((exp - exp_first) == (res - d_first), "wrong result from partial_sort_copy without predicate");
+        EXPECT_EQ(exp - exp_first, res - d_first, "wrong result from partial_sort_copy without predicate");
         EXPECT_EQ_N(exp_first, d_first, n2, "wrong effect from partial_sort_copy without predicate");
     }
 
@@ -164,9 +164,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        invoke_if(exec, [&]() {
-            partial_sort_copy(exec, input_iter, input_iter, out_iter, out_iter, non_const(::std::less<T>()));
-        });
+        partial_sort_copy(std::forward<Policy>(exec), input_iter, input_iter, out_iter, out_iter, non_const(std::less<T>()));
     }
 };
 
@@ -177,7 +175,7 @@ main()
     test_partial_sort_copy<Num<float32_t>>([](Num<float32_t> x, Num<float32_t> y) { return x < y; });
     test_algo_basic_double<std::int32_t>(run_for_rnd<test_non_const<std::int32_t>>());
 #endif
-    test_partial_sort_copy<std::int32_t>([](std::int32_t x, std::int32_t y) { return x > y; });
+    test_partial_sort_copy<std::int32_t>(TestUtils::IsGreat<std::int32_t>{});
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     test_partial_sort_copy<MemoryChecker>(

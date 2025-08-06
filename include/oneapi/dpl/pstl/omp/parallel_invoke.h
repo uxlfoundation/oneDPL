@@ -29,10 +29,10 @@ template <typename _F1, typename _F2>
 void
 __parallel_invoke_body(_F1&& __f1, _F2&& __f2)
 {
-    _PSTL_PRAGMA(omp taskgroup)
+    _ONEDPL_PRAGMA(omp taskgroup)
     {
-        _PSTL_PRAGMA(omp task untied mergeable) { std::forward<_F1>(__f1)(); }
-        _PSTL_PRAGMA(omp task untied mergeable) { std::forward<_F2>(__f2)(); }
+        _ONEDPL_PRAGMA(omp task untied mergeable) { std::forward<_F1>(__f1)(); }
+        _ONEDPL_PRAGMA(omp task untied mergeable) { std::forward<_F2>(__f2)(); }
     }
 }
 
@@ -46,8 +46,8 @@ __parallel_invoke(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&
     }
     else
     {
-        _PSTL_PRAGMA(omp parallel)
-        _PSTL_PRAGMA(omp single nowait)
+        _ONEDPL_PRAGMA(omp parallel)
+        _ONEDPL_PRAGMA(omp single nowait)
         oneapi::dpl::__omp_backend::__parallel_invoke_body(std::forward<_F1>(__f1), std::forward<_F2>(__f2));
     }
 }

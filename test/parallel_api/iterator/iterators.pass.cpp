@@ -93,10 +93,8 @@ test_random_iterator_skip_default_ctor_check(const RandomIt& it)
     EXPECT_TRUE((it + 1) - it == 1, "wrong result with iterator subtraction");
 
     // There is a bug in clang when we pass the same arguments in the function
-    if(it[1]!=*(it + 1)){
-        ::std::cout<<"wrong result with operator[]"<<::std::endl;
-        exit(1);
-    }
+    if (it[1] != *(it + 1))
+        EXPECT_TRUE(false, "wrong result with operator[]");
 
     EXPECT_TRUE(it < it + 1, "operator< returned false negative");
     EXPECT_TRUE(!(it < it),  "operator< returned false positive");
@@ -239,10 +237,7 @@ void test_transform_effect(VecIt1 first1, VecIt1 last1, VecIt2 first2) {
     );
 
     for (typename ::std::iterator_traits<VecIt1>::difference_type i = 0; i < last1 - first1; ++i)
-        if ( first2[i] != (typename ::std::iterator_traits<VecIt2>::value_type) triple(first1[i]) ) {
-            ::std::cout << "wrong effect with transform iterator" << ::std::endl;
-            exit(1);
-        }
+        EXPECT_EQ(static_cast<typename std::iterator_traits<VecIt2>::value_type>(triple(first1[i])), first2[i], "wrong effect with transform iterator");
 }
 
 //We need this functor to run fill algorithm with transform iterators. Operator() should return lvalue reference.
@@ -272,7 +267,7 @@ struct test_transform_iterator {
         transform_functor new_functor;
         ref_transform_functor ref_functor;
         //check default constructibility of transform_iterator with default constructible components
-        oneapi::dpl::transform_iterator<T1*, transform_functor> _it0;
+        [[maybe_unused]] oneapi::dpl::transform_iterator<T1*, transform_functor> _it0;
         oneapi::dpl::transform_iterator<typename ::std::vector<T1>::iterator, transform_functor> _it1(in1.begin());
         oneapi::dpl::transform_iterator<typename ::std::vector<T1>::iterator, transform_functor> _it2(in1.begin(), new_functor);
 
@@ -280,7 +275,7 @@ struct test_transform_iterator {
         auto list_it1 = oneapi::dpl::make_transform_iterator(f_list.begin(), ref_functor);
         auto list_it2 = oneapi::dpl::make_transform_iterator(f_list.end(), ref_functor);
         ::std::fill(list_it1, list_it2, 7);
-        EXPECT_TRUE(::std::all_of(f_list.begin(), f_list.end(), [](int x){ return x == 7; }), 
+        EXPECT_TRUE(::std::all_of(f_list.begin(), f_list.end(), [](int x){ return x == 7; }),
             "wrong result from fill with forward_iterator wrapped with transform_iterator");
 
         auto test_lambda = [](T2& x){ return x + 1; };
@@ -349,9 +344,9 @@ struct test_permutation_iterator
 
 struct test_discard_iterator
 {
-    template <typename T1, typename T2>
+    template <typename T1>
     void
-    operator()(::std::vector<T1>& in1, ::std::vector<T2>& in2)
+    operator()(std::vector<T1>& in1)
     {
         ::std::iota(in1.begin(), in1.end(), T1(0));
 
@@ -380,7 +375,7 @@ void test_iterator_by_type(IntType n) {
     test_zip_iterator()(in, in2);
     test_transform_iterator()(in, in2);
     test_permutation_iterator()(in, in2);
-    test_discard_iterator()(in, in2);
+    test_discard_iterator()(in);
 }
 
 int main() {

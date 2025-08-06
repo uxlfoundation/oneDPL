@@ -70,16 +70,16 @@ compute_and_check(Iterator1 first, Iterator1 last, Iterator2 d_first, T, Functio
     if (first == last)
         return true;
 
-    T2 temp(*first);
-    if (!compare(temp, *d_first))
+    T2 temp1(*first);
+    if (!compare(temp1, *d_first))
         return false;
     Iterator1 second = ::std::next(first);
 
     ++d_first;
     for (; second != last; ++first, ++second, ++d_first)
     {
-        T2 temp(f(*second, *first));
-        if (!compare(temp, *d_first))
+        T2 temp2(f(*second, *first));
+        if (!compare(temp2, *d_first))
             return false;
     }
 
@@ -108,7 +108,7 @@ struct test_adjacent_difference
 
         fill(actual_b, actual_e, trash);
 
-        Iterator2 actual_return = adjacent_difference(exec, data_b, data_e, actual_b);
+        Iterator2 actual_return = adjacent_difference(std::forward<ExecutionPolicy>(exec), data_b, data_e, actual_b);
         EXPECT_TRUE(compute_and_check(data_b, data_e, actual_b, T2(0), ::std::minus<T2>()),
                     "wrong effect of adjacent_difference");
         EXPECT_TRUE(actual_return == actual_e, "wrong result of adjacent_difference");
@@ -128,7 +128,7 @@ struct test_adjacent_difference_functor
 
         fill(actual_b, actual_e, trash);
 
-        Iterator2 actual_return = adjacent_difference(exec, data_b, data_e, actual_b, f);
+        Iterator2 actual_return = adjacent_difference(std::forward<ExecutionPolicy>(exec), data_b, data_e, actual_b, f);
         EXPECT_TRUE(compute_and_check(data_b, data_e, actual_b, T2(0), f),
                     "wrong effect of adjacent_difference with functor");
         EXPECT_TRUE(actual_return == actual_e, "wrong result of adjacent_difference with functor");
@@ -139,7 +139,8 @@ template <typename T1, typename T2, typename Pred>
 void
 test(Pred pred)
 {
-    const ::std::size_t max_len = 100000;
+    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
+    const std::size_t max_len = test_sizes.back();
 
     const T2 value = T2(77);
     const T1 trash = T1(31);
@@ -148,7 +149,7 @@ test(Pred pred)
 
     Sequence<T2> data(max_len, [=](::std::size_t i) { return i % 3 == 2 ? T2(i * i) : value; });
 
-    for (::std::size_t len = 0; len < max_len; len = len <= 16 ? len + 1 : ::std::size_t(3.1415 * len))
+    for (std::size_t len : test_sizes)
     {
         invoke_on_all_policies<0>()(test_adjacent_difference<T1>(), data.begin(), data.begin() + len, actual.begin(),
                                     actual.begin() + len, trash);
@@ -165,6 +166,7 @@ int
 main()
 {
     test<std::uint8_t, std::uint32_t>([](std::uint32_t a, std::uint32_t b) { return a - b; });
+    test<std::uint16_t, std::uint16_t>([](std::uint16_t a, std::uint16_t b) { return a > b ? a - b : b - a; });
     test<std::int32_t, std::int64_t>([](std::int64_t a, std::int64_t b) { return a / (b + 1); });
     test<std::int64_t, float32_t>([](float32_t a, float32_t b) { return (a + b) / 2; });
 #if !TEST_DPCPP_BACKEND_PRESENT

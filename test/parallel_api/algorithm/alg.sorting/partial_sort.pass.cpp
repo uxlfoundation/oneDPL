@@ -19,6 +19,7 @@
 #include _PSTL_TEST_HEADER(algorithm)
 
 #include "support/utils.h"
+#include "support/utils_invoke.h"   // CLONE_TEST_POLICY
 
 #include <cmath>
 
@@ -66,19 +67,19 @@ struct test_brick_partial_sort
         ::std::copy_n(first, n, exp_first);
         ::std::copy_n(first, n, tmp_first);
 
-        for (::std::size_t p = 0; p < n; p = p <= 16 ? p + 1 : ::std::size_t(31.415 * p))
+        for (::std::size_t m = 0; m < n; m = m <= 16 ? m + 1 : ::std::size_t(31.415 * m))
         {
-            auto m1 = tmp_first + p;
-            auto m2 = exp_first + p;
+            auto m1 = tmp_first + m;
+            auto m2 = exp_first + m;
 
             ::std::partial_sort(exp_first, m2, exp_last, compare);
-#if !TEST_DPCPP_BACKEND_PRESENT
+#if !TEST_DPCPP_BACKEND_PRESENT && PSTL_USE_DEBUG
             count_comp = 0;
 #endif
-            ::std::partial_sort(exec, tmp_first, m1, tmp_last, compare);
-            EXPECT_EQ_N(exp_first, tmp_first, p, "wrong effect from partial_sort with predicate");
+            std::partial_sort(CLONE_TEST_POLICY(exec), tmp_first, m1, tmp_last, compare);
+            EXPECT_EQ_N(exp_first, tmp_first, m, "wrong effect from partial_sort with predicate");
 
-#if !TEST_DPCPP_BACKEND_PRESENT
+#if !TEST_DPCPP_BACKEND_PRESENT && PSTL_USE_DEBUG
             //checking upper bound number of comparisons; O(p*(last-first)log(middle-first)); where p - number of threads;
             if (m1 - tmp_first > 1)
             {
@@ -88,15 +89,12 @@ struct test_brick_partial_sort
 #else
                 auto p = 1;
 #endif
-
-#if PSTL_USE_DEBUG
                 if (count_comp > complex * p)
                 {
                     ::std::cout << "complexity exceeded" << ::std::endl;
                 }
-#endif
             }
-#endif // !TEST_DPCPP_BACKEND_PRESENT
+#endif // !TEST_DPCPP_BACKEND_PRESENT && PSTL_USE_DEBUG
         }
     }
 
@@ -123,7 +121,7 @@ struct test_brick_partial_sort
             auto m2 = exp_first + p;
 
             ::std::partial_sort(exp_first, m2, exp_last);
-            ::std::partial_sort(exec, tmp_first, m1, tmp_last);
+            std::partial_sort(CLONE_TEST_POLICY(exec), tmp_first, m1, tmp_last);
             EXPECT_EQ_N(exp_first, tmp_first, p, "wrong effect from partial_sort without predicate");
         }
     }
@@ -165,7 +163,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        partial_sort(exec, iter, iter, iter, non_const(::std::less<T>()));
+        partial_sort(std::forward<Policy>(exec), iter, iter, iter, non_const(std::less<T>()));
     }
 };
 
@@ -181,8 +179,7 @@ main()
     EXPECT_TRUE(count_val == 0, "cleanup error");
 #endif
 
-    test_partial_sort<std::int32_t>(
-        [](std::int32_t x, std::int32_t y) { return x > y; }); // Reversed so accidental use of < will be detected.
+    test_partial_sort<std::int32_t>(TestUtils::IsGreat<std::int32_t>{}); // Reversed so accidental use of < will be detected.
 
     test_algo_basic_single<std::int32_t>(run_for_rnd<test_non_const<std::int32_t>>());
 

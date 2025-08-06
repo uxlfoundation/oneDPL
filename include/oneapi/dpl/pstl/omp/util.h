@@ -16,26 +16,16 @@
 #ifndef _ONEDPL_INTERNAL_OMP_UTIL_H
 #define _ONEDPL_INTERNAL_OMP_UTIL_H
 
-#include <algorithm>
-#include <atomic>
-#include <iterator>
-#include <cstddef>
-#include <cstdio>
-#include <memory>
-#include <vector>
-#include <type_traits>
+#include <iterator>    //std::iterator_traits, std::distance
+#include <cstddef>     //std::size_t
+#include <memory>      //std::allocator
+#include <type_traits> // std::decay, is_integral_v, enable_if_t
+#include <utility>     // std::forward
 #include <omp.h>
 
 #include "../parallel_backend_utils.h"
 #include "../unseq_backend_simd.h"
 #include "../utils.h"
-
-// Portability "#pragma" definition
-#ifdef _MSC_VER
-#    define _PSTL_PRAGMA(x) __pragma(x)
-#else
-#    define _PSTL_PRAGMA(x) _Pragma(#    x)
-#endif
 
 namespace oneapi
 {
@@ -57,8 +47,8 @@ __cancel_execution(oneapi::dpl::__internal::__omp_backend_tag)
 // raw buffer
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _Tp>
-using __buffer = oneapi::dpl::__utils::__buffer_impl<std::decay_t<_ExecutionPolicy>, _Tp, std::allocator>;
+template <typename _Tp>
+using __buffer = oneapi::dpl::__utils::__buffer_impl<_Tp, std::allocator>;
 
 // Preliminary size of each chunk: requires further discussion
 constexpr std::size_t __default_chunk_size = 2048;
@@ -151,6 +141,50 @@ __process_chunk(const __chunk_metrics& __metrics, _Iterator __base, _Index __chu
     auto __first = __base + __index;
     auto __last = __first + __this_chunk_size;
     __f(__first, __last);
+}
+
+namespace __detail
+{
+
+// Workaround for VS 2017: declare an alias to the CRTP base template
+template <typename _ValueType, typename... _Args>
+struct __enumerable_thread_local_storage;
+
+template <typename... _Ts>
+using __etls_base = __utils::__enumerable_thread_local_storage_base<__enumerable_thread_local_storage, _Ts...>;
+
+template <typename _ValueType, typename... _Args>
+struct __enumerable_thread_local_storage : public __etls_base<_ValueType, _Args...>
+{
+
+    template <typename... _LocalArgs>
+    __enumerable_thread_local_storage(_LocalArgs&&... __args)
+        : __etls_base<_ValueType, _Args...>({std::forward<_LocalArgs>(__args)...})
+    {
+    }
+
+    static std::size_t
+    get_num_threads()
+    {
+        return omp_in_parallel() ? omp_get_num_threads() : omp_get_max_threads();
+    }
+
+    static std::size_t
+    get_thread_num()
+    {
+        return omp_get_thread_num();
+    }
+};
+
+} // namespace __detail
+
+// enumerable thread local storage should only be created with this make function
+template <typename _ValueType, typename... _Args>
+__detail::__enumerable_thread_local_storage<_ValueType, std::remove_reference_t<_Args>...>
+__make_enumerable_tls(_Args&&... __args)
+{
+    return __detail::__enumerable_thread_local_storage<_ValueType, std::remove_reference_t<_Args>...>(
+        std::forward<_Args>(__args)...);
 }
 
 } // namespace __omp_backend

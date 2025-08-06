@@ -76,7 +76,7 @@ struct test_partition
                UnaryOp unary_op, Generator generator)
     {
         fill_data(first, last, generator);
-        BiDirIt actual_ret = ::std::partition(exec, first, last, unary_op);
+        BiDirIt actual_ret = std::partition(std::forward<Policy>(exec), first, last, unary_op);
         EXPECT_TRUE(::std::all_of(first, actual_ret, unary_op) && !::std::any_of(actual_ret, last, unary_op),
                     "wrong effect from partition");
     }
@@ -112,13 +112,8 @@ struct test_non_const_partition
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-        invoke_if(exec, [&]() {
-            partition(exec, iter, iter, non_const(is_even));
-        });
+        auto is_even = TestUtils::IsEven<float64_t>{};
+        partition(std::forward<Policy>(exec), iter, iter, non_const(is_even));
     }
 };
 

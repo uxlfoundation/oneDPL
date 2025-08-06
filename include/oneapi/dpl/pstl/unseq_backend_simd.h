@@ -32,36 +32,16 @@ namespace __unseq_backend
 // Expect vector width up to 64 (or 512 bit)
 const ::std::size_t __lane_size = 64;
 
-template <class _Iterator, class _DifferenceType, class _Function>
-_Iterator
-__simd_walk_1(_Iterator __first, _DifferenceType __n, _Function __f)
+template <typename _DifferenceType, typename _Function, typename... _Iterators>
+auto
+__simd_walk_n(_DifferenceType __n, _Function __f, _Iterators... __it)
 {
     _ONEDPL_PRAGMA_SIMD
     for (_DifferenceType __i = 0; __i < __n; ++__i)
-        __f(__first[__i]);
+        __f(__it[__i]...);
 
-    return __first + __n;
-}
-
-template <class _Iterator1, class _DifferenceType, class _Iterator2, class _Function>
-_Iterator2
-__simd_walk_2(_Iterator1 __first1, _DifferenceType __n, _Iterator2 __first2, _Function __f) noexcept
-{
-    _ONEDPL_PRAGMA_SIMD
-    for (_DifferenceType __i = 0; __i < __n; ++__i)
-        __f(__first1[__i], __first2[__i]);
-    return __first2 + __n;
-}
-
-template <class _Iterator1, class _DifferenceType, class _Iterator2, class _Iterator3, class _Function>
-_Iterator3
-__simd_walk_3(_Iterator1 __first1, _DifferenceType __n, _Iterator2 __first2, _Iterator3 __first3,
-              _Function __f) noexcept
-{
-    _ONEDPL_PRAGMA_SIMD
-    for (_DifferenceType __i = 0; __i < __n; ++__i)
-        __f(__first1[__i], __first2[__i], __first3[__i]);
-    return __first3 + __n;
+    //A conciser writing (__it, ...) produces a warning in -Wunused-value mode.
+    return __internal::__get_last_arg(__it...) + __n;
 }
 
 // TODO: check whether __simd_first() can be used here
@@ -684,6 +664,12 @@ struct _Combiner
     // "initializer(omp_priv = omp_orig). That solution was done just for UDR simd bricks, when an identity
     // value unknown and it assumes getting an identity by _Tp value initialization - _Tp{}.
     _Combiner(const _Combiner& __obj) : __value{}, __bin_op(__obj.__bin_op) {}
+
+    // This assignment operator copies the reduced value back to the caller
+    // It does not participate in the creation of an initial value,
+    // hence its behaviour is different from the copy constructor above
+    _Combiner&
+    operator=(const _Combiner& __obj) = default;
 
     void
     operator()(const _Combiner& __obj)

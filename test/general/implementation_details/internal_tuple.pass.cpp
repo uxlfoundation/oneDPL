@@ -90,8 +90,8 @@ main()
     test_tuple(std::tuple<int, int, int>{1, 2, 3}, std::tuple<int, int, int>{1, 2, 3});
     test_tuple(std::tuple<int, int, int>{1, 2, 3}, std::tuple<int, int, int>{1, 2, 4});
     test_tuple(std::tuple<int, int, int>{1, 2, 3}, std::tuple<int, int, int>{0, 2, 4});
-    test_tuple(std::tuple<int, int, std::uint64_t>{1, 2, 3}, std::tuple<std::uint32_t, int, int>{1, 2, 3});
-    test_tuple(std::tuple<int, int, std::uint64_t>{1, 2, 3}, std::tuple<std::uint32_t, int, int>{0, 2, 4});
+    test_tuple(std::tuple<int, int, std::int64_t>{1, 2, 3}, std::tuple<int, int, std::int64_t>{1, 2, 3});
+    test_tuple(std::tuple<std::uint32_t, std::uint32_t, std::uint64_t>{1, 2, 3}, std::tuple<std::uint64_t, std::uint32_t, std::uint32_t>{0, 2, 4});
     test_tuple(std::tuple<>{}, std::tuple<>{});
 
     return TestUtils::done();

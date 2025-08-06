@@ -42,7 +42,7 @@ void test_edges()
         for (unsigned j = 0; j < N; ++j)
         {
             dpl::complex<double> r = dpl::pow(dpl::real(testcases[i]), testcases[j]);
-            dpl::complex<double> z = dpl::exp(testcases[j] * dpl::log(dpl::complex<double>(dpl::real(testcases[i]))));
+            [[maybe_unused]] dpl::complex<double> z = dpl::exp(testcases[j] * dpl::log(dpl::complex<double>(dpl::real(testcases[i]))));
             if (std::isnan(dpl::real(r)))
             {
 #if !_PSTL_ICC_TEST_COMPLEX_POW_SCALAR_COMPLEX_PASS_BROKEN_TEST_EDGES       // testcases[1], testcases[13]
@@ -73,7 +73,12 @@ void test_edges()
 
 ONEDPL_TEST_NUM_MAIN
 {
+#if !_PSTL_TEST_COMPLEX_OP_POW_SCALAR_COMPLEX_USING_DOUBLE
     test<float>();
+#else
+    IF_DOUBLE_SUPPORT(test<float>())
+#endif
+
     IF_DOUBLE_SUPPORT(test<double>())
     IF_LONG_DOUBLE_SUPPORT(test<long double>())
     IF_DOUBLE_SUPPORT(test_edges())

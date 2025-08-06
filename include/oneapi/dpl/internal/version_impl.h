@@ -12,10 +12,13 @@
 
 // The library version
 #define ONEDPL_VERSION_MAJOR 2022
-#define ONEDPL_VERSION_MINOR 7
-#define ONEDPL_VERSION_PATCH 1
+#define ONEDPL_VERSION_MINOR 9
+#define ONEDPL_VERSION_PATCH 0
 
-#if _ONEDPL___cplusplus >= 202002L && __has_include(<version>)
+// The oneAPI Specification version this implementation is compliant with
+#define ONEDPL_SPEC_VERSION 104
+
+#if __has_include(<version>)
 #    include <version> // The standard C++20 header
 #    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 1
 // Clang 15 and older do not support range adaptors, see https://bugs.llvm.org/show_bug.cgi?id=44833
@@ -35,7 +38,7 @@
 // Feature macros
 #define ONEDPL_HAS_RANDOM_NUMBERS         202409L
 #if _ONEDPL_CPP20_RANGES_PRESENT
-#    define ONEDPL_HAS_RANGE_ALGORITHMS   202409L
+#    define ONEDPL_HAS_RANGE_ALGORITHMS   202505L
 #endif
 
 #endif // _ONEDPL_VERSION_IMPL_H

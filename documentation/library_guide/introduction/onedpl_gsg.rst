@@ -216,8 +216,6 @@ Find More
      - Check the release notes to learn about updates in the latest release.
    * - `oneDPL Samples <https://github.com/oneapi-src/oneAPI-samples/tree/master/Libraries/oneDPL>`_
      - Learn how to use |onedpl_short| with samples.
-   * - |yocto_layers|_
-     - Add oneAPI components to a Yocto project build using the meta-intel layers.
    * - `oneAPI Samples Catalog <https://oneapi-src.github.io/oneAPI-samples/>`_
      - Explore the complete list of oneAPI code samples in the oneAPI Samples Catalog (GitHub*).
        These samples were designed to help you develop, offload, and optimize multiarchitecture applications targeting CPUs, GPUs, and FPGAs.

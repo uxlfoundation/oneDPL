@@ -75,7 +75,7 @@ struct test_transform_if_binary
         using in_value_type2 = typename ::std::iterator_traits<InputIterator2>::value_type;
         using out_value_type = typename ::std::iterator_traits<OutputIterator>::value_type;
         // call transform_if
-        oneapi::dpl::transform_if(exec, first, last, mask, result_begin,
+        oneapi::dpl::transform_if(std::forward<Policy>(exec), first, last, mask, result_begin,
                                   mutable_negate_first<in_value_type1, in_value_type2>{},
                                   mutable_check_mask_second<in_value_type1, in_value_type2>{});
 
@@ -108,7 +108,7 @@ struct test_transform_if_unary
         using out_value_type = typename ::std::iterator_traits<OutputIterator>::value_type;
 
         // call transform_if
-        oneapi::dpl::transform_if(exec, first, last, result_begin, mutable_negate<in_value_type>{},
+        oneapi::dpl::transform_if(std::forward<Policy>(exec), first, last, result_begin, mutable_negate<in_value_type>{},
                                   mutable_check_mod3_is_0<in_value_type>{});
 
         //calculate expected
@@ -141,7 +141,7 @@ struct test_transform_if_unary_inplace
         std::copy(first, last, result_begin);
 
         // call transform_if inplace
-        oneapi::dpl::transform_if(exec, result_begin, result_end, result_begin, mutable_negate<in_value_type>{},
+        oneapi::dpl::transform_if(std::forward<Policy>(exec), result_begin, result_end, result_begin, mutable_negate<in_value_type>{},
                                   mutable_check_mod3_is_0<in_value_type>{});
 
         //calculate expected
@@ -162,10 +162,10 @@ void
 test()
 {
     const ::std::int64_t init_val = 999;
-    for (size_t n = 1; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         {
-            Sequence<_Type> in1(n, [=](size_t k) { return (3 * k); });
+            Sequence<_Type> in1(n, [=](size_t k) { return (3 * k) % std::numeric_limits<_Type>::max(); });
             Sequence<_Type> in2(n, [=](size_t k) { return k % 2 == 0 ? 1 : 0; });
 
             Sequence<_Type> out(n, [=](size_t) { return init_val; });
@@ -178,7 +178,7 @@ test()
 #endif
         }
         {
-            Sequence<_Type> in1(n, [=](size_t k) { return k; });
+            Sequence<_Type> in1(n, [=](size_t k) { return k % std::numeric_limits<_Type>::max(); });
             Sequence<_Type> out(n, [=](size_t) { return init_val; });
 
             invoke_on_all_policies<2>()(test_transform_if_unary<_Type>(), in1.begin(), in1.end(), out.begin(),
@@ -195,11 +195,10 @@ template <typename _Type>
 void
 test_inplace()
 {
-    const ::std::int64_t init_val = 999;
-    for (size_t n = 1; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         {
-            Sequence<_Type> in1(n, [=](size_t k) { return k; });
+            Sequence<_Type> in1(n, [=](size_t k) { return k % std::numeric_limits<_Type>::max(); });
             Sequence<_Type> out(n, [=](size_t) { return 0; });
 
             invoke_on_all_policies<4>()(test_transform_if_unary_inplace<_Type>(), in1.begin(), in1.end(), out.begin(),
@@ -211,11 +210,15 @@ test_inplace()
 int
 main()
 {
-    test<::std::int32_t>();
-    test<::std::int64_t>();
+    test<std::int8_t>();
+    test<std::int16_t>();
+    test<std::int32_t>();
+    test<std::int64_t>();
 
-    test_inplace<::std::int32_t>();
-    test_inplace<::std::int64_t>();
+    test_inplace<std::int8_t>();
+    test_inplace<std::int16_t>();
+    test_inplace<std::int32_t>();
+    test_inplace<std::int64_t>();
 
     return done();
 }

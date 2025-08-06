@@ -33,7 +33,7 @@ struct test_merge
                OutputIterator out_first, OutputIterator out_last)
     {
         using namespace std;
-        const auto res = merge(exec, first1, last1, first2, last2, out_first);
+        const auto res = merge(std::forward<Policy>(exec), first1, last1, first2, last2, out_first);
         EXPECT_TRUE(res == out_last, "wrong return result from merge");
         EXPECT_TRUE(is_sorted(out_first, res), "wrong result from merge");
     }
@@ -47,7 +47,7 @@ struct test_merge
     {
         using namespace std;
         typedef typename std::iterator_traits<std::reverse_iterator<InputIterator1>>::value_type T;
-        const auto res = merge(exec, first1, last1, first2, last2, out_first, std::greater<T>());
+        const auto res = merge(std::forward<Policy>(exec), first1, last1, first2, last2, out_first, std::greater<T>());
 
         EXPECT_TRUE(res == out_last, "wrong return result from merge with predicate");
         EXPECT_TRUE(is_sorted(out_first, res, std::greater<T>()), "wrong result from merge with predicate");
@@ -68,7 +68,7 @@ struct test_merge_compare
                OutputIterator out_first, OutputIterator out_last, Compare comp)
     {
         using namespace std;
-        const auto res = merge(exec, first1, last1, first2, last2, out_first, comp);
+        const auto res = merge(std::forward<Policy>(exec), first1, last1, first2, last2, out_first, comp);
         EXPECT_TRUE(res == out_last, "wrong return result from merge with predicate");
         EXPECT_TRUE(is_sorted(out_first, res, comp), "wrong result from merge with predicate");
         EXPECT_TRUE(includes(out_first, res, first1, last1, comp), "first sequence is not a part of result");
@@ -86,7 +86,7 @@ struct test_merge_compare
     {
         using namespace std;
         typedef typename std::iterator_traits<std::reverse_iterator<InputIterator1>>::value_type T;
-        const auto res = merge(exec, first1, last1, first2, last2, out_first, std::greater<T>());
+        const auto res = merge(std::forward<Policy>(exec), first1, last1, first2, last2, out_first, std::greater<T>());
 
         EXPECT_TRUE(res == out_last, "wrong return result from merge with predicate");
         EXPECT_TRUE(is_sorted(out_first, res, std::greater<T>()), "wrong result from merge with predicate");
@@ -137,7 +137,8 @@ template <typename FStep>
 void
 test_merge_by_type(size_t start_size, size_t max_size, FStep fstep)
 {
-    test_merge_by_type<std::int32_t>([](size_t v) { return (v % 2 == 0 ? v : -v) * 3; }, [](size_t v) { return v * 2; }, start_size, max_size, fstep);
+    test_merge_by_type<std::int32_t>([](std::int32_t v) { return (v % 2 == 0 ? v : -v) * 3; },
+                                     [](std::int32_t v) { return v * 2; }, start_size, max_size, fstep);
 #if !ONEDPL_FPGA_DEVICE
     test_merge_by_type<float64_t>([](size_t v) { return float64_t(v); }, [](size_t v) { return float64_t(v - 100); }, start_size, max_size, fstep);
 #endif
@@ -157,7 +158,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputIterator out_iter)
     {
-        merge(exec, input_iter, input_iter, input_iter, input_iter, out_iter, non_const(std::less<T>()));
+        merge(std::forward<Policy>(exec), input_iter, input_iter, input_iter, input_iter, out_iter, non_const(std::less<T>()));
     }
 };
 
@@ -169,7 +170,7 @@ struct test_merge_tuple
     operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
                OutputIterator out_first, Compare comp, Checker check)
     {
-        std::merge(exec, first1, last1, first2, last2, out_first, comp);
+        std::merge(std::forward<Policy>(exec), first1, last1, first2, last2, out_first, comp);
         check();
     }
 };
@@ -186,15 +187,12 @@ main()
     auto fstep_small = [](std::size_t size){ return size <= 16 ? size + 1 : size_t(3.1415 * size);};
     test_merge_by_type(start_size_small, max_size_small, fstep_small);
 
-    // Large data sizes (on GPU only)
+    // Large data sizes
 #if TEST_DPCPP_BACKEND_PRESENT
-    if (!TestUtils::get_test_queue().get_device().is_cpu())
-    {
-        const size_t start_size_large = 4'000'000;
-        const size_t max_size_large = 8'000'000;
-        auto fstep_large = [](std::size_t size){ return size + 2'000'000; };
-        test_merge_by_type(start_size_large, max_size_large, fstep_large);
-    }
+    const size_t start_size_large = 4'000'000;
+    const size_t max_size_large = 8'000'000;
+    auto fstep_large = [](std::size_t size){ return size + 2'000'000; };
+    test_merge_by_type(start_size_large, max_size_large, fstep_large);
 #endif
 
 #if !TEST_DPCPP_BACKEND_PRESENT

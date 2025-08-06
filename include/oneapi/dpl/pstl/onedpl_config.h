@@ -157,6 +157,15 @@
 #define _ONEDPL_CPP17_EXECUTION_POLICIES_PRESENT                                                                       \
     (_ONEDPL___cplusplus >= 201703L && (_MSC_VER >= 1912 || (_GLIBCXX_RELEASE >= 9 && __GLIBCXX__ >= 20190503)))
 
+// In the SYCL backend reduce-then-scan path, we need to be able to differentiate between when a compiler enables
+// optimizations and when it does not. With GCC and clang-based compilers, we can detect this with the __OPTIMIZE__
+// flag.
+#if _ONEDPL_GCC_VERSION > 0 || defined(_ONEDPL_CLANG_VERSION)
+#    define _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED __OPTIMIZE__
+#else
+#    define _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED 0
+#endif
+
 #define _ONEDPL_EARLYEXIT_PRESENT (__INTEL_COMPILER >= 1800)
 #if (defined(_PSTL_PRAGMA_SIMD_EARLYEXIT) && _PSTL_EARLYEXIT_PRESENT)
 #    define _ONEDPL_PRAGMA_SIMD_EARLYEXIT _PSTL_PRAGMA_SIMD_EARLYEXIT
@@ -222,7 +231,7 @@
 // Check the user-defined macro to use non-temporal stores
 #ifndef _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
 #    if defined(PSTL_USE_NONTEMPORAL_STORES) && (__INTEL_LLVM_COMPILER || __INTEL_COMPILER >= 1600)
-#        define _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED _PSTL_PRAGMA(vector nontemporal)
+#        define _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED _ONEDPL_PRAGMA(vector nontemporal)
 #    else
 #        define _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
 #    endif
@@ -268,10 +277,12 @@
 #    define _ONEDPL_CPP23_TUPLE_LIKE_COMMON_REFERENCE_PRESENT                                                          \
         (_ONEDPL___cplusplus >= 202302L && __cpp_lib_tuple_like >= 202207L)
 #    define _ONEDPL_CPP23_RANGES_ZIP_PRESENT (_ONEDPL___cplusplus >= 202302L && __cpp_lib_ranges_zip >= 202110L)
+#    define _ONEDPL_CPP26_DEFAULT_VALUE_TYPE_PRESENT (__cpp_lib_algorithm_default_value_type >= 202403L)
 #else
 #    define _ONEDPL_CPP20_CONCEPTS_PRESENT 0
 #    define _ONEDPL_CPP23_TUPLE_LIKE_COMMON_REFERENCE_PRESENT 0
 #    define _ONEDPL_CPP23_RANGES_ZIP_PRESENT 0
+#    define _ONEDPL_CPP26_DEFAULT_VALUE_TYPE_PRESENT 0
 #endif
 
 // When C++20 concepts are available, we must use std::tuple as a proxy reference to satisfy iterator concepts, which
@@ -334,13 +345,6 @@
 #    if !(_ONEDPL_FPGA_DEVICE)
 #        define _ONEDPL_USE_SUB_GROUPS 1
 #        define _ONEDPL_USE_GROUP_ALGOS 1
-#    endif
-
-// Compilation of a kernel is requiried to obtain valid work_group_size
-// when target devices are CPU or FPGA emulator. Since CPU and GPU devices
-// cannot be distinguished during compilation, the macro is enabled by default.
-#    if !defined(_ONEDPL_COMPILE_KERNEL)
-#        define _ONEDPL_COMPILE_KERNEL 1
 #    endif
 
 #    define _ONEDPL_BUILT_IN_STABLE_NAME_PRESENT __has_builtin(__builtin_sycl_unique_stable_name)

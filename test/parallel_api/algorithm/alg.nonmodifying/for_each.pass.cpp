@@ -60,7 +60,7 @@ struct test_for_each
 
         // Try for_each
         ::std::for_each(expected_first, expected_last, Flip<T>(1));
-        for_each(exec, first, last, Flip<T>(1));
+        for_each(std::forward<Policy>(exec), first, last, Flip<T>(1));
         EXPECT_EQ_N(expected_first, first, n, "wrong effect from for_each");
     }
 };
@@ -76,7 +76,7 @@ struct test_for_each_n
 
         // Try for_each_n
         ::std::for_each_n(oneapi::dpl::execution::seq, expected_first, n, Flip<T>(1));
-        for_each_n(exec, first, n, Flip<T>(1));
+        for_each_n(std::forward<Policy>(exec), first, n, Flip<T>(1));
         EXPECT_EQ_N(expected_first, first, n, "wrong effect from for_each_n");
     }
 };
@@ -85,7 +85,7 @@ template <typename T>
 void
 test()
 {
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         Sequence<T> in_out(n, Gen<T>());
         Sequence<T> expected(n, Gen<T>());
@@ -100,17 +100,23 @@ test()
     }
 }
 
+template <typename TRef>
+struct TransformOp
+{
+    void operator()(TRef x) const
+    {
+        x = x + 1;
+    }
+};
+
 struct test_non_const_for_each
 {
     template <typename Policy, typename Iterator>
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        invoke_if(exec, [&]() {
-            auto f = [](typename ::std::iterator_traits<Iterator>::reference x) { x = x + 1; };
-
-            for_each(exec, iter, iter, non_const(f));
-        });
+        auto f = TransformOp<typename std::iterator_traits<Iterator>::reference>{};
+        for_each(std::forward<Policy>(exec), iter, iter, non_const(f));
     }
 };
 
@@ -120,11 +126,8 @@ struct test_non_const_for_each_n
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        invoke_if(exec, [&]() {
-            auto f = [](typename ::std::iterator_traits<Iterator>::reference x) { x = x + 1; };
-
-            for_each_n(exec, iter, 0, non_const(f));
-        });
+        auto f = TransformOp<typename std::iterator_traits<Iterator>::reference>{};
+        for_each_n(std::forward<Policy>(exec), iter, 0, non_const(f));
     }
 };
 

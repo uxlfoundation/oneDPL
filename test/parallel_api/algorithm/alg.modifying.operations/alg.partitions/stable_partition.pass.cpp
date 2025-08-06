@@ -78,10 +78,10 @@ struct test_stable_partition
         fill_data(exp_first, exp_last, generator);
         BiDirIt exp_ret = ::std::stable_partition(exp_first, exp_last, unary_op);
         fill_data(first, last, generator);
-        BiDirIt actual_ret = ::std::stable_partition(exec, first, last, unary_op);
+        BiDirIt actual_ret = std::stable_partition(std::forward<Policy>(exec), first, last, unary_op);
 
-        EXPECT_TRUE(::std::distance(first, actual_ret) == ::std::distance(exp_first, exp_ret),
-                    "wrong result from stable_partition");
+        EXPECT_EQ(std::distance(exp_first, exp_ret), std::distance(first, actual_ret),
+                  "wrong result from stable_partition");
         EXPECT_TRUE((is_equal<BiDirIt>(exp_first, exp_last, first)), "wrong effect from stable_partition");
     }
 
@@ -114,15 +114,10 @@ struct test_non_const_stable_partition
 {
     template <typename Policy, typename Iterator>
     void
-        operator()(Policy&& exec, Iterator iter)
+    operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-        invoke_if(exec, [&]() {
-            stable_partition(exec, iter, iter, non_const(is_even));
-        });
+        auto is_even = TestUtils::IsEven<float64_t>{};
+        stable_partition(std::forward<Policy>(exec), iter, iter, non_const(is_even));
     }
 };
 

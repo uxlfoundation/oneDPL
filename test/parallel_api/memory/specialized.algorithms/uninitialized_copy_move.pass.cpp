@@ -62,8 +62,8 @@ struct test_uninitialized_copy
         ::std::destroy_n(oneapi::dpl::execution::seq, out_first, n);
         T::SetCount(0);
 
-        ::std::uninitialized_copy(exec, first, last, out_first);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_copy");
+        std::uninitialized_copy(std::forward<Policy>(exec), first, last, out_first);
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_copy");
     }
 
     template <typename Policy, typename InputIterator, typename OutputIterator>
@@ -71,7 +71,7 @@ struct test_uninitialized_copy
     operator()(Policy&& exec, InputIterator first, InputIterator last, OutputIterator out_first, size_t n,
                /*is_trivial<T>=*/::std::true_type)
     {
-        ::std::uninitialized_copy(exec, first, last, out_first);
+        std::uninitialized_copy(std::forward<Policy>(exec), first, last, out_first);
         EXPECT_TRUE(IsCheckValueCorrectness(first, out_first, n), "wrong uninitialized_copy");
     }
 };
@@ -91,8 +91,8 @@ struct test_uninitialized_copy_n
         ::std::destroy_n(oneapi::dpl::execution::seq, out_first, n);
         T::SetCount(0);
 
-        ::std::uninitialized_copy_n(exec, first, n, out_first);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_copy_n");
+        std::uninitialized_copy_n(std::forward<Policy>(exec), first, n, out_first);
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_copy_n");
     }
 
     template <typename Policy, typename InputIterator, typename OutputIterator>
@@ -100,7 +100,7 @@ struct test_uninitialized_copy_n
     operator()(Policy&& exec, InputIterator first, InputIterator /* last */, OutputIterator out_first, size_t n,
                /*is_trivial<T>=*/::std::true_type)
     {
-        ::std::uninitialized_copy_n(exec, first, n, out_first);
+        std::uninitialized_copy_n(std::forward<Policy>(exec), first, n, out_first);
         EXPECT_TRUE(IsCheckValueCorrectness(first, out_first, n), "wrong uninitialized_copy_n");
     }
 };
@@ -120,8 +120,8 @@ struct test_uninitialized_move
         ::std::destroy_n(oneapi::dpl::execution::seq, out_first, n);
         T::SetCount(0);
 
-        ::std::uninitialized_move(exec, first, last, out_first);
-        EXPECT_TRUE(T::MoveCount() == n, "wrong uninitialized_move");
+        std::uninitialized_move(std::forward<Policy>(exec), first, last, out_first);
+        EXPECT_EQ(n, T::MoveCount(), "wrong uninitialized_move");
     }
 
     template <typename Policy, typename InputIterator, typename OutputIterator>
@@ -129,7 +129,7 @@ struct test_uninitialized_move
     operator()(Policy&& exec, InputIterator first, InputIterator last, OutputIterator out_first, size_t n,
                /*is_trivial<T>=*/::std::true_type)
     {
-        ::std::uninitialized_move(exec, first, last, out_first);
+        std::uninitialized_move(std::forward<Policy>(exec), first, last, out_first);
         EXPECT_TRUE(IsCheckValueCorrectness(first, out_first, n), "wrong uninitialized_move");
     }
 };
@@ -149,8 +149,8 @@ struct test_uninitialized_move_n
         ::std::destroy_n(oneapi::dpl::execution::seq, out_first, n);
         T::SetCount(0);
 
-        ::std::uninitialized_move_n(exec, first, n, out_first);
-        EXPECT_TRUE(T::MoveCount() == n, "wrong uninitialized_move_n");
+        std::uninitialized_move_n(std::forward<Policy>(exec), first, n, out_first);
+        EXPECT_EQ(n, T::MoveCount(), "wrong uninitialized_move_n");
     }
 
     template <typename Policy, typename InputIterator, typename OutputIterator>
@@ -158,7 +158,7 @@ struct test_uninitialized_move_n
     operator()(Policy&& exec, InputIterator first, InputIterator /* last */, OutputIterator out_first, size_t n,
                /*is_trivial<T>=*/::std::true_type)
     {
-        ::std::uninitialized_move_n(exec, first, n, out_first);
+        std::uninitialized_move_n(std::forward<Policy>(exec), first, n, out_first);
         EXPECT_TRUE(IsCheckValueCorrectness(first, out_first, n), "wrong uninitialized_move_n");
     }
 };

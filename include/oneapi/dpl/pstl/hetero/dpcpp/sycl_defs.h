@@ -42,6 +42,10 @@
 #endif
 #define _ONEDPL_LIBSYCL_VERSION_LESS_THAN(_VERSION) (_ONEDPL_LIBSYCL_VERSION && _ONEDPL_LIBSYCL_VERSION < _VERSION)
 
+#if defined(ACPP_VERSION_MAJOR) && defined(ACPP_VERSION_MINOR) && defined(ACPP_VERSION_PATCH)
+#    define _ONEDPL_ACPP_VERSION (ACPP_VERSION_MAJOR * 10000 + ACPP_VERSION_MINOR * 100 + ACPP_VERSION_PATCH)
+#endif
+
 #if _ONEDPL_FPGA_DEVICE
 #    if _ONEDPL_LIBSYCL_VERSION >= 50400
 #        include <sycl/ext/intel/fpga_extensions.hpp>
@@ -59,10 +63,13 @@
 #define _ONEDPL_SYCL2020_COLLECTIVES_PRESENT                  (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_SYCL2020_BUFFER_SIZE_PRESENT                  (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_SYCL2020_ACCESSOR_SIZE_PRESENT                (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
-#define _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT                (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
+// Kernel bundle support is not expected in ACPP, see https://github.com/AdaptiveCpp/AdaptiveCpp/issues/1296.
+#define _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT                                                                        \
+    (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300) && !_ONEDPL_ACPP_VERSION)
 #define _ONEDPL_SYCL2020_KNOWN_IDENTITY_PRESENT               (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_SYCL2020_FUNCTIONAL_OBJECTS_PRESENT           (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_SYCL2020_REQD_SUB_GROUP_SIZE_PRESENT          (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
+#define _ONEDPL_SYCL2020_GROUP_BARRIER_PRESENT                (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_SYCL2020_TARGET_PRESENT                       (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50400))
 #define _ONEDPL_SYCL2020_TARGET_DEVICE_PRESENT                (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50400))
 #define _ONEDPL_SYCL2020_ATOMIC_REF_PRESENT                   (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50500))
@@ -83,9 +90,22 @@
 
 // Feature macros for DPC++ SYCL runtime library alternatives to non-supported SYCL 2020 features
 #define _ONEDPL_LIBSYCL_COLLECTIVES_PRESENT                   (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
+#define _ONEDPL_LIBSYCL_PROGRAM_PRESENT                       (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_LIBSYCL_KNOWN_IDENTITY_PRESENT                (_ONEDPL_LIBSYCL_VERSION == 50200)
 #define _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT                                                                         \
     (SYCL_EXT_ONEAPI_SUB_GROUP_MASK >= 1 && _ONEDPL_LIBSYCL_VERSION >= 50700)
+
+// Compilation of a kernel is requiried to obtain valid work_group_size
+// when target devices are CPU or FPGA emulator. Since CPU and GPU devices
+// cannot be distinguished during compilation, the macro is enabled by default.
+#define _ONEDPL_CAN_COMPILE_KERNEL (_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT || _ONEDPL_LIBSYCL_PROGRAM_PRESENT)
+#if !defined(_ONEDPL_COMPILE_KERNEL)
+#    define _ONEDPL_COMPILE_KERNEL _ONEDPL_CAN_COMPILE_KERNEL
+#else
+#    if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_CAN_COMPILE_KERNEL
+#        error "No SYCL kernel compilation method available (neither SYCL 2020 kernel bundle nor other alternatives)."
+#    endif
+#endif
 
 #define _ONEDPL_SYCL_DEVICE_COPYABLE_SPECIALIZATION_BROKEN (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(70100))
 
@@ -206,17 +226,44 @@ __get_accessor_size(const _Accessor& __accessor)
 #endif
 }
 
+// TODO: switch to SYCL 2020 with DPC++ compiler.
+// SYCL 1.2.1 version is used due to having an API with a local memory fence,
+// which gives better performance on Intel GPUs.
+// The performance gap is negligible since
+// https://github.com/intel/intel-graphics-compiler/commit/ed639f68d142bc963a7b626badc207a42fb281cb (Aug 20, 2024)
+// But the fix is not a part of the LTS GPU drivers (Linux) yet.
+//
+// This macro may also serve as a temporary workaround to strengthen the barriers
+// if there are cases where the memory ordering is not strong enough.
+#if !defined(_ONEDPL_SYCL121_GROUP_BARRIER)
+#    if _ONEDPL_LIBSYCL_VERSION
+#        define _ONEDPL_SYCL121_GROUP_BARRIER 1
+#    else
+// For safety, assume that other SYCL implementations comply with SYCL 2020, which is a oneDPL requirement.
+#        define _ONEDPL_SYCL121_GROUP_BARRIER 0
+#    endif
+#endif
+
+#if _ONEDPL_SYCL121_GROUP_BARRIER
+using __fence_space_t = sycl::access::fence_space;
+inline constexpr __fence_space_t __fence_space_local = sycl::access::fence_space::local_space;
+inline constexpr __fence_space_t __fence_space_global = sycl::access::fence_space::global_space;
+#else
+struct __fence_space_t{}; // No-op dummy type since SYCL 2020 does not specify memory fence spaces in group barriers
+inline constexpr __fence_space_t __fence_space_local{};
+inline constexpr __fence_space_t __fence_space_global{};
+#endif // _ONEDPL_SYCL121_GROUP_BARRIER
+
 template <typename _Item>
-constexpr void
-__group_barrier(_Item __item)
+void
+__group_barrier(_Item __item, [[maybe_unused]] __dpl_sycl::__fence_space_t __space = __fence_space_local)
 {
-#if 0 // !defined(_ONEDPL_LIBSYCL_VERSION) || _ONEDPL_LIBSYCL_VERSION >= 50300
-    //TODO: usage of sycl::group_barrier: probably, we have to revise SYCL parallel patterns which use a group_barrier.
-    // 1) sycl::group_barrier() implementation is not ready
-    // 2) sycl::group_barrier and sycl::item::group_barrier are not quite equivalent
+#if _ONEDPL_SYCL121_GROUP_BARRIER
+    __item.barrier(__space);
+#elif _ONEDPL_SYCL2020_GROUP_BARRIER_PRESENT
     sycl::group_barrier(__item.get_group(), sycl::memory_scope::work_group);
 #else
-    __item.barrier(sycl::access::fence_space::local_space);
+#    error "sycl::group_barrier is not supported, and no alternative is available"
 #endif
 }
 

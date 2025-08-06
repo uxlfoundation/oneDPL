@@ -16,6 +16,7 @@
 #include "zip_iterator_funcs.h"
 #include "support/test_config.h"
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #   include "support/utils_sycl.h"
@@ -60,7 +61,7 @@ DEFINE_TEST(test_transform_inclusive_scan)
 
         auto value = T1(333);
 
-        auto res = std::transform_inclusive_scan(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1,
+        auto res = std::transform_inclusive_scan(CLONE_TEST_POLICY_IDX(exec, 0), tuple_first1,
                                                  tuple_last1, tuple_first2, TupleNoOp{}, TupleNoOp{},
                                                  std::make_tuple(value, value));
 #if _PSTL_SYCL_TEST_USM
@@ -99,19 +100,19 @@ DEFINE_TEST(test_unique)
         }
 
         auto tuple_lastnew =
-            std::unique(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
+            std::unique(CLONE_TEST_POLICY_IDX(exec, 0), tuple_first1, tuple_last1,
                         TuplePredicate<std::equal_to<Iterator1ValueType>, 0>{std::equal_to<Iterator1ValueType>{}});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
 #endif
 
-        bool is_correct = (tuple_lastnew - tuple_first1) == expected_size;
-        host_keys.retrieve_data();
-        for (int i = 0; i < std::min(tuple_lastnew - tuple_first1, expected_size) && is_correct; ++i)
-            if ((*host_keys.get() + i) != i + 1)
-                is_correct = false;
+        EXPECT_EQ(expected_size, tuple_lastnew - tuple_first1, "wrong effect from unique(tuple) : incorrect size");
 
-        EXPECT_TRUE(is_correct, "wrong effect from unique(tuple)");
+        host_keys.retrieve_data();
+        for (int i = 0; i < std::min(tuple_lastnew - tuple_first1, expected_size); ++i)
+        {
+            EXPECT_EQ(i + 1, *(host_keys.get() + i), "wrong effect from unique(tuple) : incorrect data");
+        }
     }
 };
 
@@ -148,19 +149,19 @@ DEFINE_TEST(test_unique_copy)
         }
 
         auto tuple_last2 = std::unique_copy(
-            make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2,
+            CLONE_TEST_POLICY_IDX(exec, 0), tuple_first1, tuple_last1, tuple_first2,
             TuplePredicate<std::equal_to<Iterator1ValueType>, 0>{std::equal_to<Iterator1ValueType>{}});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
 #endif
 
-        bool is_correct = (tuple_last2 - tuple_first2) == expected_size;
-        host_vals.retrieve_data();
-        for (int i = 0; i < std::min(tuple_last2 - tuple_first2, expected_size) && is_correct; ++i)
-            if ((*host_vals.get() + i) != i + 1)
-                is_correct = false;
+        EXPECT_EQ(expected_size, tuple_last2 - tuple_first2, "wrong effect from unique_copy(tuple) : incorrect size");
 
-        EXPECT_TRUE(is_correct, "wrong effect from unique_copy(tuple)");
+        host_vals.retrieve_data();
+        for (int i = 0; i < std::min(tuple_last2 - tuple_first2, expected_size); ++i)
+        {
+            EXPECT_EQ(i + 1, *(host_vals.get() + i), "wrong effect from unique_copy(tuple) : incorrect data");
+        }
     }
 };
 
@@ -176,6 +177,17 @@ struct Assigner {
 DEFINE_TEST(test_counting_zip_transform)
 {
     DEFINE_TEST_CONSTRUCTOR(test_counting_zip_transform, 1.0f, 1.0f)
+
+    template <typename ValueType>
+    struct ForwardAsTuple
+    {
+        auto operator()(ValueType& x1) const
+        {
+            // It's required to use forward_as_tuple instead of make_tuple
+            // as the latter do not propagate references.
+            return std::forward_as_tuple(x1, std::ignore);
+        }
+    };
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
     void
@@ -207,14 +219,8 @@ DEFINE_TEST(test_counting_zip_transform)
         // This usage pattern can be rewritten equivalently and more simply using zip_iterator and discard_iterator,
         // see test_counting_zip_discard
         auto res =
-            std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), start, start + n,
-                         oneapi::dpl::make_transform_iterator(first2,
-                                                              [](ValueType& x1)
-                                                              {
-                                                                  // It's required to use forward_as_tuple instead of make_tuple
-                                                                  // as the latter do not propagate references.
-                                                                  return std::forward_as_tuple(x1, std::ignore);
-                                                              }),
+            std::copy_if(CLONE_TEST_POLICY_IDX(exec, 0), start, start + n,
+                         oneapi::dpl::make_transform_iterator(first2, ForwardAsTuple<ValueType>{}),
                          Assigner{});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
@@ -261,7 +267,7 @@ DEFINE_TEST(test_counting_zip_discard)
             EXPECT_TRUE(sycl::is_device_copyable_v<decltype(out)>, "zip_iterator (discard_iterator2) not properly copyable");
         }
 
-        auto res = std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), start, start + n, out, Assigner{});
+        auto res = std::copy_if(CLONE_TEST_POLICY_IDX(exec, 0), start, start + n, out, Assigner{});
 
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();

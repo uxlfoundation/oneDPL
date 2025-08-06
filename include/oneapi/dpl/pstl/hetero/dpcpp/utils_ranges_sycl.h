@@ -196,62 +196,6 @@ struct is_permutation<Iter, ::std::enable_if_t<Iter::is_permutation::value>> : :
 {
 };
 
-//is_passed_directly trait definition; specializations for the oneDPL iterators
-
-template <typename Iter, typename Void = void>
-struct is_passed_directly : ::std::is_pointer<Iter>
-{
-};
-
-//support legacy "is_passed_directly" trait
-template <typename Iter>
-struct is_passed_directly<Iter, ::std::enable_if_t<Iter::is_passed_directly::value>> : ::std::true_type
-{
-};
-
-//support std::vector::iterator with usm host / shared allocator as passed directly
-template <typename Iter>
-struct is_passed_directly<Iter, std::enable_if_t<oneapi::dpl::__internal::__is_known_usm_vector_iter_v<Iter>>>
-    : std::true_type
-{
-};
-
-template <typename Ip>
-struct is_passed_directly<oneapi::dpl::counting_iterator<Ip>> : ::std::true_type
-{
-};
-
-template <>
-struct is_passed_directly<oneapi::dpl::discard_iterator> : ::std::true_type
-{
-};
-
-template <typename Iter>
-struct is_passed_directly<::std::reverse_iterator<Iter>> : is_passed_directly<Iter>
-{
-};
-
-template <typename Iter, typename Unary>
-struct is_passed_directly<oneapi::dpl::transform_iterator<Iter, Unary>> : is_passed_directly<Iter>
-{
-};
-
-template <typename SourceIterator, typename IndexIterator>
-struct is_passed_directly<oneapi::dpl::permutation_iterator<SourceIterator, IndexIterator>>
-    : ::std::conjunction<
-          is_passed_directly<SourceIterator>,
-          is_passed_directly<typename oneapi::dpl::permutation_iterator<SourceIterator, IndexIterator>::IndexMap>>
-{
-};
-
-template <typename... Iters>
-struct is_passed_directly<zip_iterator<Iters...>> : ::std::conjunction<is_passed_directly<Iters>...>
-{
-};
-
-template <typename Iter>
-inline constexpr bool is_passed_directly_v = is_passed_directly<Iter>::value;
-
 // A trait for checking if iterator is heterogeneous or not
 
 template <typename Iter>
@@ -275,7 +219,17 @@ struct is_hetero_legacy_trait<Iter, ::std::enable_if_t<Iter::is_hetero::value>> 
 };
 
 template <typename Iter>
-inline constexpr bool is_sycl_iterator_v = is_sycl_iterator<Iter>::value || is_hetero_legacy_trait<Iter>::value;
+using is_hetero_iterator = std::disjunction<is_sycl_iterator<Iter>, is_hetero_legacy_trait<Iter>>;
+
+template <typename Iter>
+inline constexpr bool is_hetero_iterator_v = is_hetero_iterator<Iter>::value;
+
+template <typename _Iter>
+using __is_passed_directly_device_ready =
+    std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Iter>, sycl::is_device_copyable<_Iter>>;
+
+template <typename _Iter>
+inline constexpr bool __is_passed_directly_device_ready_v = __is_passed_directly_device_ready<_Iter>::value;
 
 //A trait for checking if it needs to create a temporary SYCL buffer or not
 
@@ -285,8 +239,10 @@ struct is_temp_buff : ::std::false_type
 };
 
 template <typename _Iter>
-struct is_temp_buff<_Iter, ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && !::std::is_pointer_v<_Iter> &&
-                                              !is_passed_directly_v<_Iter>>> : ::std::true_type
+struct is_temp_buff<_Iter,
+                    std::enable_if_t<!oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> && !std::is_pointer_v<_Iter> &&
+                                     !oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>>>
+    : std::true_type
 {
 };
 
@@ -294,19 +250,6 @@ template <typename _Iter>
 using val_t = typename ::std::iterator_traits<_Iter>::value_type;
 
 //range/zip_view/all_view/ variadic utilities
-
-template <typename _Range, typename... _Ranges>
-struct __get_first_range_type
-{
-    using type = _Range;
-};
-
-template <typename _Range, typename... _Ranges>
-constexpr auto
-__get_first_range_size(const _Range& __rng, const _Ranges&...) -> decltype(__rng.size())
-{
-    return __rng.size();
-}
 
 //forward declaration required for _require_access_args
 template <typename _Range, typename... _Ranges>
@@ -414,7 +357,7 @@ struct __range_holder
     }
 };
 
-template <sycl::access::mode AccMode, typename _Iterator>
+template <sycl::access::mode AccMode, typename _Iterator = void> //TODO: _Iterator is not used and should be removed
 struct __get_sycl_range
 {
     __get_sycl_range()
@@ -519,7 +462,7 @@ struct __get_sycl_range
 
     //specialization for permutation_iterator using sycl_iterator as source
     template <sycl::access::mode _LocalAccMode, typename _It, typename _Map,
-              ::std::enable_if_t<is_sycl_iterator_v<_It>, int> = 0>
+              std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_It>, int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_It, _Map> __first,
                          oneapi::dpl::permutation_iterator<_It, _Map> __last)
@@ -527,7 +470,7 @@ struct __get_sycl_range
         auto __n = __last - __first;
         assert(__n > 0);
 
-        // Types for which oneapi::dpl::__ranges::is_sycl_iterator_v = true should have both:
+        // Types for which oneapi::dpl::__ranges::is_hetero_iterator_v = true should have both:
         //  "get_buffer()" to return the buffer they are base upon and
         //  "get_idx()" to return the buffer offset
 
@@ -547,7 +490,9 @@ struct __get_sycl_range
 
     //specialization for permutation_iterator using USM pointer or direct pass object as source
     template <sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
-              ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && is_passed_directly_v<_Iter>, int> = 0>
+              std::enable_if_t<!oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> &&
+                                   oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
+                               int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_Iter, _Map> __first,
                          oneapi::dpl::permutation_iterator<_Iter, _Map> __last)
@@ -563,9 +508,11 @@ struct __get_sycl_range
     }
 
     // specialization for general case, permutation_iterator with base iterator that is not sycl_iterator or
-    // passed directly.
+    // device accessible content iterators.
     template <sycl::access::mode _LocalAccMode, typename _Iter, typename _Map,
-              ::std::enable_if_t<!is_sycl_iterator_v<_Iter> && !is_passed_directly_v<_Iter>, int> = 0>
+              std::enable_if_t<!oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> &&
+                                   !oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
+                               int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_Iter, _Map> __first,
                          oneapi::dpl::permutation_iterator<_Iter, _Map> __last)
@@ -574,7 +521,7 @@ struct __get_sycl_range
         assert(__n > 0);
 
         //TODO: investigate better method of handling this specifically for fancy_iterators which are composed fully
-        //      of a combination of fancy_iterators, sycl_iterators, and is_passed_directly types.
+        //      of a combination of fancy_iterators, sycl_iterators, and passed_directly types.
         //      Currently this relies on UB because the size of the accessor when handling sycl_iterators
         //      in recursion below this level is incorrect.
         auto res_src = this->operator()(__first.base(), __first.base() + 1 /*source size*/);
@@ -600,7 +547,8 @@ struct __get_sycl_range
 
     // for raw pointers and direct pass objects (for example, counting_iterator, iterator of USM-containers)
     template <sycl::access::mode _LocalAccMode, typename _Iter>
-    ::std::enable_if_t<is_passed_directly_v<_Iter>, __range_holder<oneapi::dpl::__ranges::guard_view<_Iter>>>
+    std::enable_if_t<oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
+                     __range_holder<oneapi::dpl::__ranges::guard_view<_Iter>>>
     __process_input_iter(_Iter __first, _Iter __last)
     {
         assert(__first < __last);
@@ -612,13 +560,13 @@ struct __get_sycl_range
     template <sycl::access::mode _LocalAccMode, typename _Iter>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
-        -> ::std::enable_if_t<is_sycl_iterator_v<_Iter>,
-                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
+        -> std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
+                            __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
     {
         assert(__first < __last);
         using value_type = val_t<_Iter>;
 
-        // Types for which oneapi::dpl::__ranges::is_sycl_iterator_v = true should have both:
+        // Types for which oneapi::dpl::__ranges::is_hetero_iterator_v = true should have both:
         //  "get_buffer()" to return the buffer they are base upon and
         //  "get_idx()" to return the buffer offset
 
@@ -697,7 +645,7 @@ struct __get_sycl_range
     //implementation of operator()(_Iter __first, _Iter __last) for the host iterator types
     template <sycl::access::mode _LocalAccMode, typename _Iter, typename _GetBufferFunc>
     auto
-    __process_host_iter_impl(_Iter __first, _Iter __last, _GetBufferFunc __get_buf)
+    __process_host_iter_impl([[maybe_unused]] _Iter __first, [[maybe_unused]] _Iter __last, _GetBufferFunc __get_buf)
     {
         static_assert(!oneapi::dpl::__internal::is_const_iterator<_Iter>::value ||
                           _LocalAccMode == sycl::access::mode::read,

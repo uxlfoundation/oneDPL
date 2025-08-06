@@ -25,8 +25,8 @@ static_assert(_PSTL_VERSION_PATCH == 0);
 #endif
 
 static_assert(ONEDPL_VERSION_MAJOR == 2022);
-static_assert(ONEDPL_VERSION_MINOR == 7);
-static_assert(ONEDPL_VERSION_PATCH == 1);
+static_assert(ONEDPL_VERSION_MINOR == 9);
+static_assert(ONEDPL_VERSION_PATCH == 0);
 
 #include "support/utils.h"
 

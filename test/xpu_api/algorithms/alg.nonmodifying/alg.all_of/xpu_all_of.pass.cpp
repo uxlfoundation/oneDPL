@@ -21,15 +21,6 @@
 
 using oneapi::dpl::all_of;
 
-struct test1
-{
-    constexpr bool
-    operator()(const int& i) const
-    {
-        return i % 2 == 0;
-    }
-};
-
 class KernelTest;
 
 void
@@ -45,14 +36,14 @@ kernel_test(sycl::queue& deviceQueue)
                 {
                     int ia[] = {2, 4, 6, 8};
                     const unsigned sa = sizeof(ia) / sizeof(ia[0]);
-                    ret_acc[0] &= all_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia + sa), test1());
-                    ret_acc[0] &= all_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia), test1());
+                    ret_acc[0] &= all_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia + sa), TestUtils::IsEven<int>());
+                    ret_acc[0] &= all_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia), TestUtils::IsEven<int>());
                 }
                 {
                     const int ia[] = {2, 4, 5, 8};
                     const unsigned sa = sizeof(ia) / sizeof(ia[0]);
-                    ret_acc[0] &= !all_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia + sa), test1());
-                    ret_acc[0] &= all_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia), test1());
+                    ret_acc[0] &= !all_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia + sa), TestUtils::IsEven<int>());
+                    ret_acc[0] &= all_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia), TestUtils::IsEven<int>());
                 }
             });
         });

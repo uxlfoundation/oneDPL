@@ -72,7 +72,6 @@ test_initialization(const std::vector<T>& u)
     using my_policy_t = Policy;
     my_policy_t p{u};
     auto u2 = oneapi::dpl::experimental::get_resources(p);
-    auto u2s = u2.size();
     if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
     {
         std::cout << "ERROR: provided resources and queried resources are not equal\n";
@@ -95,7 +94,6 @@ test_initialization(const std::vector<T>& u)
     }
     p2.initialize(u);
     auto u3 = oneapi::dpl::experimental::get_resources(p);
-    auto u3s = u3.size();
     if (!std::equal(std::begin(u3), std::end(u3), std::begin(u)))
     {
         std::cout << "ERROR: reported resources and queried resources are not equal after deferred initialization\n";
@@ -157,7 +155,7 @@ test_select(UniverseContainer u, ResourceFunction&& f)
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, int offset = 0)
+test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
 {
     using my_policy_t = Policy;
     my_policy_t p{u};
@@ -183,7 +181,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, int off
                     return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
             };
             auto s = oneapi::dpl::experimental::select(p);
-            auto e = oneapi::dpl::experimental::submit(s, func);
+            oneapi::dpl::experimental::submit(s, func);
         }
         oneapi::dpl::experimental::wait(p.get_submission_group());
     }
@@ -220,7 +218,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, int off
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, int offset = 0)
+test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f)
 {
     using my_policy_t = Policy;
     my_policy_t p{u};
@@ -298,7 +296,7 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, int off
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, int offset = 0)
+test_submit_and_wait(UniverseContainer u, ResourceFunction&& f)
 {
     using my_policy_t = Policy;
     my_policy_t p{u};

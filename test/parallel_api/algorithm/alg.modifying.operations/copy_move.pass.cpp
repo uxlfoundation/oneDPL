@@ -45,7 +45,7 @@ struct run_copy
 
         // Run copy
         copy(first, last, expected_first);
-        auto k = copy(exec, first, last, out_first);
+        auto k = copy(std::forward<Policy>(exec), first, last, out_first);
         for (size_t j = 0; j < GuardSize; ++j)
             ++k;
         EXPECT_EQ_N(expected_first, out_first, size, "wrong effect from copy");
@@ -68,7 +68,7 @@ struct run_copy_n
 
         // Run copy_n
         copy(first, last, expected_first);
-        auto k = copy_n(exec, first, n, out_first);
+        auto k = copy_n(std::forward<Policy>(exec), first, n, out_first);
         for (size_t j = 0; j < GuardSize; ++j)
             ++k;
         EXPECT_EQ_N(expected_first, out_first, size, "wrong effect from copy_n");
@@ -91,7 +91,7 @@ struct run_move
 
         // Run move
         move(first, last, expected_first);
-        auto k = move(exec, first, last, out_first);
+        auto k = move(std::forward<Policy>(exec), first, last, out_first);
         for (size_t j = 0; j < GuardSize; ++j)
             ++k;
         EXPECT_EQ_N(expected_first, out_first, size, "wrong effect from move");
@@ -113,7 +113,7 @@ struct run_move<Wrapper<T>>
         Wrapper<T>::SetMoveCount(0);
 
         // Run move
-        auto k = move(exec, first, last, out_first);
+        auto k = move(std::forward<Policy>(exec), first, last, out_first);
         for (size_t j = 0; j < GuardSize; ++j)
             ++k;
         EXPECT_TRUE(Wrapper<T>::MoveCount() == size, "wrong effect from move");
@@ -126,7 +126,7 @@ void
 test(T trash, Convert convert)
 {
     // Try sequences of various lengths.
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         // count is number of output elements, plus a handful
         // more for sake of detecting buffer overruns.
@@ -165,6 +165,9 @@ main()
 {
     test<std::int32_t>(-666, [](size_t j) { return std::int32_t(j); });
     test<float64_t>(-666.0, [](size_t j) { return float64_t(j); });
+
+    test<std::uint16_t>(42, [](size_t j) { return std::uint16_t(j); });
+    test<std::uint8_t>(42, [](size_t j) { return std::uint8_t(j); });
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     /*TODO: copy support of a class with no default constructor*/

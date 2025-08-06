@@ -80,7 +80,11 @@
 #                            ifndef NANORANGE_DETAIL_MACROS_HPP_INCLUDED
 #                                define NANORANGE_DETAIL_MACROS_HPP_INCLUDED
 
-#                                include <ciso646>
+#                                if __has_include(<version>)
+#                                   include <version>
+#                                else
+#                                    include <ciso646>
+#                                endif
 
 #                                ifdef NANORANGE_NO_DEPRECATION_WARNINGS
 #                                    define NANO_DEPRECATED
@@ -7771,15 +7775,20 @@ namespace counted_iterator_
 template <typename I>
 class counted_iterator
 {
+  public:
+    using iterator = I;
+    using difference_type = iter_difference_t<I>;
+
+  private:
+    I current_{};
+    iter_difference_t<I> cnt_{0};
+
     static_assert(input_or_output_iterator<I>, "");
 
     template <typename I2>
     friend class counted_iterator;
 
   public:
-    using iterator = I;
-    using difference_type = iter_difference_t<I>;
-
     constexpr counted_iterator() = default;
 
     constexpr counted_iterator(I x, iter_difference_t<I> n) : current_(x), cnt_(n) {}
@@ -8019,10 +8028,6 @@ class counted_iterator
     {
         ranges::iter_swap(x.current_, y.current_);
     }
-
-  private:
-    I current_{};
-    iter_difference_t<I> cnt_{0};
 };
 
 } // namespace counted_iterator_
@@ -8363,12 +8368,6 @@ namespace move_iterator_
 template <typename I>
 class move_iterator
 {
-
-    static_assert(input_iterator<I>, "Template argument to move_iterator must model InputIterator");
-
-    template <typename I2>
-    friend class move_iterator;
-
   public:
     using iterator_type = I;
     using difference_type = iter_difference_t<I>;
@@ -8376,6 +8375,15 @@ class move_iterator
     using iterator_category = input_iterator_tag;
     using reference = iter_rvalue_reference_t<I>;
 
+  private:
+    I current_{};
+
+    static_assert(input_iterator<I>, "Template argument to move_iterator must model InputIterator");
+
+    template <typename I2>
+    friend class move_iterator;
+
+  public:
     constexpr move_iterator() = default;
 
     explicit constexpr move_iterator(I i) : current_(::std::move(i)) {}
@@ -8492,9 +8500,6 @@ class move_iterator
     {
         ranges::iter_swap(x.current_, y.current_);
     }
-
-  private:
-    I current_{};
 };
 
 template <typename I1, typename I2>
@@ -17042,7 +17047,7 @@ struct iota_view : view_interface<iota_view<W, Bound>>
                 }
                 else
                 {
-                    return (y.value_ > x.value) ? D(-D(y.value_ - x.value_)) : D(x.value_ - y.value_);
+                    return (y.value_ > x.value_) ? D(-D(y.value_ - x.value_)) : D(x.value_ - y.value_);
                 }
             }
             else

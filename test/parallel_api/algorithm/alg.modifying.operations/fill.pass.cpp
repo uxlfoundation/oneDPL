@@ -46,7 +46,7 @@ struct test_fill
     {
         fill(first, last, T(value + 1)); // initialize memory with different value
 
-        fill(exec, first, last, value);
+        fill(std::forward<Policy>(exec), first, last, value);
         EXPECT_TRUE(check(first, last, value), "fill wrong result");
     }
 };
@@ -70,14 +70,14 @@ struct test_fill_n
     {
         fill_n(first, n, T(value + 1)); // initialize memory with different value
 
-        const Iterator one_past_last = fill_n(exec, first, n, value);
+        const Iterator one_past_last = fill_n(CLONE_TEST_POLICY(exec), first, n, value);
         const Iterator expected_return = ::std::next(first, n);
 
-        EXPECT_TRUE(expected_return == one_past_last, "fill_n should return Iterator to one past the element assigned");
+        EXPECT_EQ(expected_return, one_past_last, "fill_n should return Iterator to one past the element assigned");
         EXPECT_TRUE(check(first, n, value), "fill_n wrong result");
 
         //n == -1
-        const Iterator res = fill_n(exec, first, -1, value);
+        const Iterator res = fill_n(CLONE_TEST_POLICY(exec), first, -1, value);
         EXPECT_TRUE(res == first, "fill_n wrong result for n == -1");
     }
 };
@@ -100,11 +100,10 @@ test_fill_by_type(::std::size_t n)
 int
 main()
 {
-
-    const ::std::size_t N = 100000;
-
-    for (::std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.1415 * n))
+    for (std::size_t n : TestUtils::get_pattern_for_test_sizes())
     {
+        test_fill_by_type<std::int8_t>(n);
+        test_fill_by_type<std::int16_t>(n);
         test_fill_by_type<std::int32_t>(n);
         test_fill_by_type<float64_t>(n);
     }

@@ -53,7 +53,7 @@ struct test_transform_exclusive_scan
         using namespace std;
 
         transform_exclusive_scan(oneapi::dpl::execution::seq, first, last, expected_first, init, binary_op, unary_op);
-        auto orr2 = transform_exclusive_scan(exec, first, last, out_first, init, binary_op, unary_op);
+        auto orr2 = transform_exclusive_scan(std::forward<Policy>(exec), first, last, out_first, init, binary_op, unary_op);
         EXPECT_TRUE(out_last == orr2, "transform_exclusive_scan returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from transform_exclusive_scan");
         ::std::fill_n(out_first, n, trash);
@@ -82,7 +82,7 @@ struct test_transform_inclusive_scan_init
         using namespace std;
 
         transform_inclusive_scan(oneapi::dpl::execution::seq, first, last, expected_first, binary_op, unary_op, init);
-        auto orr2 = transform_inclusive_scan(exec, first, last, out_first, binary_op, unary_op, init);
+        auto orr2 = transform_inclusive_scan(std::forward<Policy>(exec), first, last, out_first, binary_op, unary_op, init);
         EXPECT_TRUE(out_last == orr2, "transform_inclusive_scan returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from transform_inclusive_scan");
         ::std::fill_n(out_first, n, trash);
@@ -113,7 +113,7 @@ struct test_transform_inclusive_scan
         if (n > 0)
         {
             transform_inclusive_scan(oneapi::dpl::execution::seq, first, last, expected_first, binary_op, unary_op);
-            auto orr2 = transform_inclusive_scan(exec, first, last, out_first, binary_op, unary_op);
+            auto orr2 = transform_inclusive_scan(std::forward<Policy>(exec), first, last, out_first, binary_op, unary_op);
             EXPECT_TRUE(out_last == orr2, "transform_inclusive_scan returned wrong iterator");
             EXPECT_EQ_N(expected_first, out_first, n, "wrong result from transform_inclusive_scan");
             ::std::fill_n(out_first, n, trash);

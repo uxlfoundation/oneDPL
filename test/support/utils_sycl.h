@@ -21,6 +21,9 @@
 
 // Do not #include <algorithm>, because if we do we will not detect accidental dependencies.
 #include <iterator>
+#include <exception>
+#include <iostream>
+#include <mutex>            // for std::once_flag
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "utils_sycl_defs.h"
@@ -32,11 +35,6 @@
 #include "utils_invoke.h"
 #include "utils_test_base.h"
 
-#ifdef ONEDPL_USE_PREDEFINED_POLICIES
-#  define TEST_USE_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
-#else
-#  define TEST_USE_PREDEFINED_POLICIES 1
-#endif
 #include _PSTL_TEST_HEADER(execution)
 
 namespace TestUtils
@@ -86,13 +84,6 @@ inline auto default_selector =
 #    else
         sycl::ext::intel::fpga_selector{};
 #    endif // ONEDPL_FPGA_EMULATOR
-
-inline auto&& default_dpcpp_policy =
-#    if TEST_USE_PREDEFINED_POLICIES
-        oneapi::dpl::execution::dpcpp_fpga;
-#    else
-        TestUtils::make_fpga_policy(sycl::queue{default_selector});
-#    endif
 #else
 inline auto default_selector =
 #    if TEST_LIBSYCL_VERSION >= 60000
@@ -100,20 +91,43 @@ inline auto default_selector =
 #    else
         sycl::default_selector{};
 #    endif
-inline auto&& default_dpcpp_policy =
-#    if TEST_USE_PREDEFINED_POLICIES
-        oneapi::dpl::execution::dpcpp_default;
-#    else
-        TestUtils::make_device_policy(sycl::queue{default_selector});
-#    endif
 #endif     // ONEDPL_FPGA_DEVICE
+
+template <typename OutputStream>
+inline void
+log_device_name(OutputStream& os, const sycl::queue& queue)
+{
+    os << "    Device Name = " << queue.get_device().template get_info<sycl::info::device::name>() << "\n";
+}
 
 inline
 sycl::queue get_test_queue()
 {
-    // create the queue with custom asynchronous exceptions handler
-    static sycl::queue my_queue(default_selector, async_handler);
-    return my_queue;
+    try
+    {
+        // create the queue with custom asynchronous exceptions handler
+        static sycl::queue my_queue(default_selector, async_handler);
+
+#if _ONEDPL_DEBUG_SYCL
+
+        static std::once_flag device_name_in_get_test_queue_logged;
+
+        std::call_once(device_name_in_get_test_queue_logged, [&]() {
+            log_device_name(std::cout, my_queue);
+        });
+#endif // _ONEDPL_DEBUG_SYCL
+
+        return my_queue;
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Exception occurred in get_test_queue()";
+        if (exc.what())
+            std::cerr << ": " << exc.what();
+        std::cerr << std::endl;
+
+        throw;
+    }
 }
 
 template <sycl::usm::alloc alloc_type>

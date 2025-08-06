@@ -26,29 +26,43 @@
 
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
     constexpr int max_n = 10;
     constexpr int new_val = -1;
-    auto pred = [](auto i) { return i % 2 == 0; };
+    auto pred = TestUtils::IsEven<int>();
 
     using namespace oneapi::dpl::experimental::ranges;
 
     sycl::buffer<int> A(max_n);
 
     auto src = views::iota(0, max_n);
-    auto res = replace_copy_if(TestUtils::default_dpcpp_policy, src, A, pred, new_val);
+    auto res = replace_copy_if(std::forward<Policy>(exec), src, A, pred, new_val);
 
     //check result
     int expected[max_n];
     auto res_exp = ::std::replace_copy_if(src.begin(), src.end(), expected, pred, new_val) - expected;
-    std::cout << res_exp;
 
-    EXPECT_TRUE(res_exp == res, "wrong result from replace_copy_if");
+    EXPECT_EQ(res_exp, res, "wrong result from replace_copy_if");
     EXPECT_EQ_N(expected, views::host_all(A).begin(), max_n, "wrong effect from replace_copy_if");
+}
+#endif // _ENABLE_RANGES_TESTING
 
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+#endif
 #endif //_ENABLE_RANGES_TESTING
+
     return TestUtils::done(_ENABLE_RANGES_TESTING);
 }

@@ -50,7 +50,7 @@ kernel_test()
 {
     // Test with range that is partitioned, but not sorted.
     sycl::queue deviceQueue = TestUtils::get_test_queue();
-    X seq[] = {1, 3, 5, 7, 1, 6, 4};
+    X seq[] = {{1}, {3}, {5}, {7}, {1}, {6}, {4}};
     auto tmp = seq;
     bool ret = false;
     bool check = false;
@@ -67,7 +67,7 @@ kernel_test()
                 auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
                 auto access = buffer3.get_access<sycl::access::mode::write>(cgh);
                 cgh.single_task<class KernelTest>([=]() {
-                    X tmp[] = {1, 3, 5, 7, 1, 6, 4};
+                    X tmp[] = {{1}, {3}, {5}, {7}, {1}, {6}, {4}};
                     // check if there is change after data transfer
                     check_access[0] = TestUtils::check_data(&access[0], &tmp[0], N);
 

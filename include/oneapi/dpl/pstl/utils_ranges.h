@@ -116,8 +116,47 @@ using __difference_t = std::make_signed_t<decltype(__check_size<_R>(0))>;
 
 } //namespace __internal
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    if _ONEDPL_CPP26_DEFAULT_VALUE_TYPE_PRESENT
+template <std::indirectly_readable I, std::indirectly_regular_unary_invocable<I> Proj>
+using projected_value_t = std::projected_value_t<I, Proj>;
+#    else
+template <std::indirectly_readable I, std::indirectly_regular_unary_invocable<I> Proj>
+using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::iter_value_t<I>&>>;
+#    endif
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 namespace __ranges
 {
+
+struct __first_size_calc
+{
+    template <typename _Range, typename... _Ranges>
+    auto
+    operator()(const _Range& __rng, const _Ranges&...) const
+    {
+#if _ONEDPL_CPP20_RANGES_PRESENT
+        return std::ranges::size(__rng);
+#else
+        return __rng.size();
+#endif
+    }
+};
+
+struct __min_size_calc
+{
+    template <typename... _Ranges>
+    auto
+    operator()(const _Ranges&... __rngs) const
+    {
+        using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+#if _ONEDPL_CPP20_RANGES_PRESENT
+        return std::min({_Size(std::ranges::size(__rngs))...});
+#else
+        return std::min({_Size(__rngs.size())...});
+#endif
+    }
+};
 
 // helpers to check implement "has_base"
 template <typename U>
@@ -203,7 +242,7 @@ class zip_view
     using value_type = oneapi::dpl::__internal::tuple<oneapi::dpl::__internal::__value_t<_Ranges>...>;
     static constexpr ::std::size_t __num_ranges = sizeof...(_Ranges);
 
-    explicit zip_view(_Ranges... __args) : __m_ranges(oneapi::dpl::__internal::make_tuple(__args...)) {}
+    explicit zip_view(_Ranges... __args) : __m_ranges(__args...) {}
 
     auto
     size() const -> decltype(::std::get<0>(::std::declval<_tuple_ranges_t>()).size())

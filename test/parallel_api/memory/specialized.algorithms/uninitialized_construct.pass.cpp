@@ -62,8 +62,8 @@ struct test_uninit_default_construct
         ::std::destroy_n(oneapi::dpl::execution::seq, begin, n);
         T::SetCount(0);
 
-        ::std::uninitialized_default_construct(exec, begin, end);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_default_construct");
+        std::uninitialized_default_construct(std::forward<Policy>(exec), begin, end);
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_default_construct");
 
     }
 
@@ -71,7 +71,7 @@ struct test_uninit_default_construct
     void
     operator()(Policy&& exec, Iterator begin, Iterator end, size_t /* n */, /*is_trivial<T>=*/::std::true_type)
     {
-        ::std::uninitialized_default_construct(exec, begin, end);
+        std::uninitialized_default_construct(std::forward<Policy>(exec), begin, end);
     }
 };
 
@@ -89,15 +89,15 @@ struct test_uninit_default_construct_n
         ::std::destroy_n(oneapi::dpl::execution::seq, begin, n);
         T::SetCount(0);
 
-        ::std::uninitialized_default_construct_n(exec, begin, n);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_default_construct_n");
+        std::uninitialized_default_construct_n(std::forward<Policy>(exec), begin, n);
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_default_construct_n");
     }
 
     template <typename Policy, typename Iterator>
     void
     operator()(Policy&& exec, Iterator begin, Iterator /* end */, size_t n, /*is_trivial<T>=*/::std::true_type)
     {
-        ::std::uninitialized_default_construct_n(exec, begin, n);
+        std::uninitialized_default_construct_n(std::forward<Policy>(exec), begin, n);
     }
 };
 
@@ -115,8 +115,8 @@ struct test_uninit_value_construct
         ::std::destroy_n(oneapi::dpl::execution::seq, begin, n);
         T::SetCount(0);
 
-        ::std::uninitialized_value_construct(exec, begin, end);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_value_construct");
+        std::uninitialized_value_construct(std::forward<Policy>(exec), begin, end);
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_value_construct");
     }
 
     template <typename Policy, typename Iterator>
@@ -125,7 +125,7 @@ struct test_uninit_value_construct
     {
         typedef typename ::std::iterator_traits<Iterator>::value_type T;
 
-        ::std::uninitialized_value_construct(exec, begin, end);
+        std::uninitialized_value_construct(std::forward<Policy>(exec), begin, end);
         EXPECT_TRUE(IsCheckValueCorrectness<T>(begin, end), "wrong uninitialized_value_construct");
     }
 };
@@ -144,8 +144,8 @@ struct test_uninit_value_construct_n
         ::std::destroy_n(oneapi::dpl::execution::seq, begin, n);
         T::SetCount(0);
 
-        ::std::uninitialized_value_construct_n(exec, begin, n);
-        EXPECT_TRUE(T::Count() == n, "wrong uninitialized_value_construct_n");
+        std::uninitialized_value_construct_n(std::forward<Policy>(exec), begin, n);
+        EXPECT_EQ(n, T::Count(), "wrong uninitialized_value_construct_n");
     }
 
     template <typename Policy, typename Iterator>
@@ -154,7 +154,7 @@ struct test_uninit_value_construct_n
     {
         typedef typename ::std::iterator_traits<Iterator>::value_type T;
 
-        ::std::uninitialized_value_construct_n(exec, begin, n);
+        std::uninitialized_value_construct_n(std::forward<Policy>(exec), begin, n);
         EXPECT_TRUE(IsCheckValueCorrectness<T>(begin, end), "wrong uninitialized_value_construct_n");
     }
 };

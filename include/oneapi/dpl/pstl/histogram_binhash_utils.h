@@ -65,7 +65,7 @@ struct __evenly_divided_binhash<_T1, ::std::enable_if_t<!::std::is_floating_poin
     _T1 __range_size;
     ::std::int32_t __num_bins;
     __evenly_divided_binhash(const _T1& __min, const _T1& __max, ::std::size_t __num_bins_)
-        : __minimum(__min), __num_bins(__num_bins_), __range_size(__max - __min)
+        : __minimum(__min), __range_size(__max - __min), __num_bins(__num_bins_)
     {
         assert(__num_bins < ::std::numeric_limits<::std::int32_t>::max());
     }
@@ -105,8 +105,7 @@ struct __custom_boundary_binhash
     __custom_boundary_binhash(_RandomAccessIterator __boundary_first_, _RandomAccessIterator __boundary_last_)
         : __boundary_first(__boundary_first_), __boundary_last(__boundary_last_)
     {
-        ::std::size_t __num_bins = ::std::distance(__boundary_first, __boundary_last);
-        assert(__num_bins < ::std::numeric_limits<::std::int32_t>::max());
+        assert(std::distance(__boundary_first, __boundary_last) < std::numeric_limits<std::int32_t>::max());
     }
 
     template <typename _T2>

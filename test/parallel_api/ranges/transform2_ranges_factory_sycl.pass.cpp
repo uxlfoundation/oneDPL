@@ -23,44 +23,56 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // for CLONE_TEST_POLICY macro
 
+#include <algorithm> // std::transform
 #include <iostream>
 
-std::int32_t
-main()
-{
 #if _ENABLE_RANGES_TESTING
+template <typename Policy>
+void
+test_impl(Policy&& exec)
+{
     constexpr int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     int data2[max_n];
     int data3[max_n];
 
-    auto lambda1 = [](auto i) { return i * i; };
-    auto lambda2 = [](auto i, auto j) { return i + j; };
+    auto pred1 = TestUtils::Pow2<int>();
+    auto pred2 = TestUtils::SumOp<int, int>();
 
     {
         sycl::buffer<int> B(data2, sycl::range<1>(max_n));
         sycl::buffer<int> C(data3, sycl::range<1>(max_n));
 
-        auto view = oneapi::dpl::experimental::ranges::iota_view(0, max_n) | oneapi::dpl::experimental::ranges::views::transform(lambda1);
+        auto view = oneapi::dpl::experimental::ranges::iota_view(0, max_n) | oneapi::dpl::experimental::ranges::views::transform(pred1);
         auto range_res = oneapi::dpl::experimental::ranges::all_view<int, sycl::access::mode::write>(B);
 
-        auto exec = TestUtils::default_dpcpp_policy;
-        using Policy = decltype(exec);
-        auto exec1 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 0>>(exec);
-        auto exec2 = TestUtils::make_new_policy<TestUtils::new_kernel_name<Policy, 1>>(exec);
-
-        oneapi::dpl::experimental::ranges::transform(exec1, view, view, range_res, lambda2);
-        oneapi::dpl::experimental::ranges::transform(exec2, view, view, C, lambda2); //check passing sycl buffer
+        oneapi::dpl::experimental::ranges::transform(CLONE_TEST_POLICY_IDX(exec, 0), view, view, range_res, pred2);
+        oneapi::dpl::experimental::ranges::transform(CLONE_TEST_POLICY_IDX(exec, 1), view, view, C, pred2); //check passing sycl buffer
     }
 
     //check result
     int expected[max_n];
-    ::std::transform(data, data + max_n, expected, lambda1);
-    ::std::transform(expected, expected + max_n, expected, expected, lambda2);
+    std::transform(data, data + max_n, expected, pred1);
+    std::transform(expected, expected + max_n, expected, expected, pred2);
 
     EXPECT_EQ_N(expected, data2, max_n, "wrong effect from transform2 with sycl ranges");
     EXPECT_EQ_N(expected, data3, max_n, "wrong effect from transform2 with sycl buffer");
+}
+#endif // _ENABLE_RANGES_TESTING
+
+std::int32_t
+main()
+{
+#if _ENABLE_RANGES_TESTING
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+#endif
 #endif //_ENABLE_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_RANGES_TESTING);

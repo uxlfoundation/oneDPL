@@ -20,6 +20,7 @@
 #include <oneapi/dpl/iterator>
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 #include "support/binary_search_utils.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -42,7 +43,7 @@ DEFINE_TEST(test_binary_search)
         {
             if (i == 0)
             {
-                EXPECT_TRUE(result[i] == true, "wrong effect from binary_search");
+                EXPECT_TRUE(static_cast<bool>(result[i]) == true, "wrong effect from binary_search");
             }
             else
             {
@@ -59,7 +60,7 @@ DEFINE_TEST(test_binary_search)
     ::std::enable_if_t<oneapi::dpl::__internal::__is_hetero_execution_policy_v<::std::decay_t<Policy>> &&
                            is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
     operator()(Policy&& exec, Iterator1 first, Iterator1 last, Iterator2 value_first, Iterator2 value_last,
-               Iterator3 result_first, Iterator3 result_last, Size n)
+               Iterator3 result_first, Iterator3 /*result_last*/, Size n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
@@ -71,20 +72,19 @@ DEFINE_TEST(test_binary_search)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy = make_new_policy<new_kernel_name<Policy, 0>>(exec);
-        auto res1 = oneapi::dpl::binary_search(new_policy, first, last, value_first, value_last, result_first);
+        auto res1 = oneapi::dpl::binary_search(CLONE_TEST_POLICY_IDX(exec, 0), first, last, value_first, value_last, result_first);
         exec.queue().wait_and_throw();
 
+        EXPECT_EQ(n, std::distance(result_first, res1), "wrong return value, device policy");
         host_res.retrieve_data();
         check_and_clean(host_res.get(), n);
         host_res.update_data();
 
         // call algorithm with comparator
-        auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
-        auto res2 = oneapi::dpl::binary_search(new_policy2, first, last, value_first, value_last, result_first,
-                                               [](ValueT first, ValueT second) { return first < second; });
+        auto res2 = oneapi::dpl::binary_search(CLONE_TEST_POLICY_IDX(exec, 1), first, last, value_first, value_last, result_first, TestUtils::IsLess<ValueT>{});
         exec.queue().wait_and_throw();
 
+        EXPECT_EQ(n, std::distance(result_first, res2), "wrong return value, with predicate, device policy");
         host_res.retrieve_data();
         check_and_clean(host_res.get(), n);
     }
@@ -98,27 +98,27 @@ DEFINE_TEST(test_binary_search)
 #endif
             is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
     operator()(Policy&& exec, Iterator1 first, Iterator1 last, Iterator2 value_first, Iterator2 value_last,
-               Iterator3 result_first, Iterator3 result_last, Size n)
+               Iterator3 result_first, Iterator3 /*result_last*/, Size n)
     {
         typedef typename ::std::iterator_traits<Iterator1>::value_type ValueT;
 
         // call algorithm with no optional arguments
         initialize_data(first, value_first, result_first, n);
 
-        auto res1 = oneapi::dpl::binary_search(exec, first, last, value_first, value_last, result_first);
+        auto res1 = oneapi::dpl::binary_search(CLONE_TEST_POLICY(exec), first, last, value_first, value_last, result_first);
+        EXPECT_EQ(n, std::distance(result_first, res1), "wrong return value, host policy");
         check_and_clean(result_first, n);
 
         // call algorithm with comparator
-        auto res2 = oneapi::dpl::binary_search(exec, first, last, value_first, value_last, result_first,
-                                               [](ValueT first, ValueT second) { return first < second; });
+        auto res2 = oneapi::dpl::binary_search(CLONE_TEST_POLICY(exec), first, last, value_first, value_last, result_first, TestUtils::IsLess<ValueT>{});
+        EXPECT_EQ(n, std::distance(result_first, res2), "wrong return value, with predicate, host policy");
         check_and_clean(result_first, n);
     }
 
     // specialization for non-random_access iterators
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     ::std::enable_if_t<!is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
-    operator()(Policy&& exec, Iterator1 first, Iterator1 last, Iterator2 value_first, Iterator2 value_last,
-               Iterator3 result_first, Iterator3 result_last, Size n)
+    operator()(Policy&&, Iterator1, Iterator1, Iterator2, Iterator2, Iterator3, Iterator3, Size)
     {
     }
 };

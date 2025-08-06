@@ -211,7 +211,6 @@ __onesweep_impl(sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pa
                 const _MemHolder& __mem_holder, ::std::size_t __n)
 {
     using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
-    using _ValT = typename ::std::decay_t<_RngPack1>::_ValT;
     constexpr bool __has_values = ::std::decay_t<_RngPack1>::__has_values;
 
     using _EsimdRadixSortHistogram = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -245,7 +244,7 @@ __onesweep_impl(sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pa
     constexpr ::std::uint32_t __global_hist_item_count = __bin_count * __stage_count;
     const ::std::uint32_t __group_hist_item_count = __bin_count * __stage_count * __sweep_work_group_count;
 
-    // TODO: check if it is more performant to fill it inside the histgogram kernel
+    // TODO: check if it is more performant to fill it inside the histogram kernel
     // This line assumes that global and group histograms are stored sequentially
     sycl::event __event_chain = __q.memset(__mem_holder.__global_hist_ptr(), 0,
                                            (__global_hist_item_count + __group_hist_item_count) * sizeof(_GlobalHistT));
@@ -258,7 +257,7 @@ __onesweep_impl(sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pa
         __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __event_chain);
 
     __event_chain = __radix_sort_onesweep_scan_submitter<__stage_count, __bin_count, _EsimdRadixSortScan>()(
-        __q, __mem_holder.__global_hist_ptr(), __n, __event_chain);
+        __q, __mem_holder.__global_hist_ptr(), __event_chain);
 
     __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
                                                     __work_group_size, _EsimdRadixSortSweepInitial>()(
@@ -372,12 +371,12 @@ __onesweep(sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __pack_out, ::std::s
 template <bool __is_ascending, ::std::uint8_t __radix_bits, bool __in_place, typename _RngPack1, typename _RngPack2,
           typename _KernelParam>
 sycl::event
-__radix_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, _KernelParam __param)
+__radix_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, _KernelParam)
 {
     const auto __n = __pack_in.__keys_rng().size();
     assert(__n > 0);
 
-    // _PRINT_INFO_IN_DEBUG_MODE(__exec); TODO: extend the utility to work with queues
+    _PRINT_INFO_IN_DEBUG_MODE(__q);
     constexpr auto __data_per_workitem = _KernelParam::data_per_workitem;
     constexpr auto __workgroup_size = _KernelParam::workgroup_size;
     using _KernelName = typename _KernelParam::kernel_name;

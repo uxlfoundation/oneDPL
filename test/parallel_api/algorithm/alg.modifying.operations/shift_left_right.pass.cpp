@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- shift_left.pass.cpp -----------------------------------------------===//
+//===-- shift_left_right.pass.cpp -----------------------------------------------===//
 //
 // Copyright (C) Intel Corporation
 //
@@ -40,8 +40,11 @@
 #include <omp.h> // omp_get_max_threads, omp_set_num_threads
 #endif
 
-template<typename Name>
-struct USM;
+template <typename... Name>
+struct USMKernelName;
+
+template <typename... Name>
+struct BufferKernelName;
 
 struct test_shift
 {
@@ -57,7 +60,7 @@ struct test_shift
     operator()(Policy&& exec, It first, typename ::std::iterator_traits<It>::difference_type m,
         It first_exp, typename ::std::iterator_traits<It>::difference_type n, Algo algo)
     {
-        //run a test with host policy and host itertors
+        //run a test with host policy and host iterators
         It res = algo(::std::forward<Policy>(exec), first, ::std::next(first, m), n);
         //check result
         algo.check(res, first, m, first_exp, n);
@@ -74,13 +77,12 @@ struct test_shift
         using _ValueType = typename ::std::iterator_traits<It>::value_type;
         using _DiffType = typename ::std::iterator_traits<It>::difference_type;
 
-        auto queue = exec.queue();
-
         // allocate USM memory and copying data to USM shared/device memory
-        TestUtils::usm_data_transfer<alloc_type, _ValueType> dt_helper(queue, first, m);
+        TestUtils::usm_data_transfer<alloc_type, _ValueType> dt_helper(exec, first, m);
 
         auto ptr = dt_helper.get_data();
-        auto het_res = algo(TestUtils::make_device_policy<USM<Algo>>(::std::forward<Policy>(exec)), ptr, ptr + m, n);
+        using _NewKernelName = USMKernelName<Algo, _ValueType>;
+        auto het_res = algo(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), ptr, ptr + m, n);
         _DiffType res_idx = het_res - ptr;
 
         //3.2 check result
@@ -95,15 +97,17 @@ struct test_shift
     operator()(Policy&& exec, It first, typename ::std::iterator_traits<It>::difference_type m,
         It first_exp, typename ::std::iterator_traits<It>::difference_type n, Algo algo)
     {
-        //1.1 run a test with hetero policy and host itertors
-        auto res = algo(::std::forward<Policy>(exec), first, first + m, n);
+        using _ValueType = typename std::iterator_traits<It>::value_type;
+        using _DiffType = typename std::iterator_traits<It>::difference_type;
+
+        using _NewKernelName = BufferKernelName<_ValueType, Algo>;
+
+        //1.1 run a test with hetero policy and host iterators
+        auto res = algo(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), first, first + m, n);
         //1.2 check result
         algo.check(res, first, m, first_exp, n);
 
-        using _ValueType = typename ::std::iterator_traits<It>::value_type;
-        using _DiffType = typename ::std::iterator_traits<It>::difference_type;
-
-        //2.1 run a test with hetero policy and hetero itertors
+        //2.1 run a test with hetero policy and hetero iterators
         _DiffType res_idx(0);
         {//scope for SYCL buffer lifetime
             sycl::buffer<_ValueType> buf(first, first + m);
@@ -112,7 +116,7 @@ struct test_shift
 
             auto het_begin = oneapi::dpl::begin(buf);
 
-            auto het_res = algo(::std::forward<Policy>(exec), het_begin, het_begin + m, n);
+            auto het_res = algo(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), het_begin, het_begin + m, n);
             res_idx = het_res - het_begin;
         }
         //2.2 check result
@@ -120,8 +124,8 @@ struct test_shift
 
 #if _PSTL_SYCL_TEST_USM
         //3. run a test with hetero policy and USM shared/device memory pointers
-        test_usm<sycl::usm::alloc::shared>(exec, first, m, first_exp, n, algo);
-        test_usm<sycl::usm::alloc::device>(exec, first, m, first_exp, n, algo);
+        test_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec), first, m, first_exp, n, algo);
+        test_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec), first, m, first_exp, n, algo);
 #endif
     }
 #endif
@@ -145,7 +149,7 @@ struct shift_left_algo
         It __last = ::std::next(first, m);
         auto res_exp = (n > 0 && n < m ? ::std::next(first, m - n) : (n > 0 ? first : __last));
 
-        EXPECT_TRUE(res_exp == res, "wrong return value of shift_left");
+        EXPECT_EQ(res_exp, res, "wrong return value of shift_left");
 
         if(res != first && res != __last)
         {
@@ -167,7 +171,7 @@ struct shift_right_algo
     //skip the test for non-bidirectional iterator (forward iterator, etc)
     template <typename Policy, typename It>
     ::std::enable_if_t<!TestUtils::is_base_of_iterator_category_v<::std::bidirectional_iterator_tag, It>, It>
-    operator()(Policy&& exec, It first, It last, typename ::std::iterator_traits<It>::difference_type n)
+    operator()(Policy&&, It first, It, typename std::iterator_traits<It>::difference_type)
     {
         return first;
     }
@@ -182,7 +186,7 @@ struct shift_right_algo
         It __last = ::std::next(first, m);
         auto res_exp = (n > 0 && n < m ? ::std::next(first, n) : (n > 0 ? __last : first));
 
-        EXPECT_TRUE(res_exp == res, "wrong return value of shift_right");
+        EXPECT_EQ(res_exp, res, "wrong return value of shift_right");
 
         if (res != first && res != __last)
         {
@@ -194,8 +198,8 @@ struct shift_right_algo
     //skip the check for non-bidirectional iterator (forward iterator, etc)
     template <typename It, typename ItExp>
     ::std::enable_if_t<!TestUtils::is_base_of_iterator_category_v<::std::bidirectional_iterator_tag, It>>
-    check(It res, It first, typename ::std::iterator_traits<It>::difference_type m, ItExp first_exp,
-        typename ::std::iterator_traits<It>::difference_type n)
+    check(It, It, typename ::std::iterator_traits<It>::difference_type, ItExp,
+        typename ::std::iterator_traits<It>::difference_type)
     {
     }
 };
@@ -208,10 +212,10 @@ test_shift_by_type(Size m, Size n)
     TestUtils::Sequence<T> in(m, [](::std::size_t v) -> T { return T(v); }); //fill data
 
 #ifdef _PSTL_TEST_SHIFT_LEFT
-    TestUtils::invoke_on_all_policies<0>()(test_shift(), in.begin(), m, orig.begin(), n, shift_left_algo{});
+    TestUtils::invoke_on_all_policies()(test_shift(), in.begin(), m, orig.begin(), n, shift_left_algo{});
 #endif
 #ifdef _PSTL_TEST_SHIFT_RIGHT
-    TestUtils::invoke_on_all_policies<1>()(test_shift(), in.begin(), m, orig.begin(), n, shift_right_algo{});
+    TestUtils::invoke_on_all_policies()(test_shift(), in.begin(), m, orig.begin(), n, shift_right_algo{});
 #endif
 }
 
@@ -233,6 +237,16 @@ main()
     {
        test_shift_by_type<ValueType>(m, n);
     }
+#if TEST_DPCPP_BACKEND_PRESENT
+    // Test both paths of the vectorized implementation in the SYCL backend. Use shift factors that will not divide
+    // into the vector size to assess edge case handling.
+    const std::size_t large_n = 1000000;
+    const std::size_t quarter_shift = 250111;
+    const std::size_t three_quarters_shift = 750203;
+    test_shift_by_type<std::uint8_t>(large_n, quarter_shift);
+    test_shift_by_type<std::uint8_t>(three_quarters_shift, large_n);
+    test_shift_by_type<std::uint16_t>(large_n, quarter_shift);
+#endif
 
     return TestUtils::done();
 }
