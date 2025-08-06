@@ -16,12 +16,12 @@
 #ifndef _COMPILE_ONLY_CHECKS_H
 #define _COMPILE_ONLY_CHECKS_H
 
-#include <iterator>      // std::iterator_traits
-#include <type_traits>   // std::decay_t, std::void_t, std::false_type, std::true_type
-#include <utility>       // std::forward, std::move
+#include <iterator>    // std::iterator_traits
+#include <type_traits> // std::decay_t, std::void_t, std::false_type, std::true_type
+#include <utility>     // std::forward, std::move
 
 #if TEST_DPCPP_BACKEND_PRESENT
-#include "oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h"
+#    include "oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h"
 #endif
 
 #include "iterator_utils.h"
@@ -33,55 +33,141 @@ namespace TestUtils
 template <typename Iterator>
 class NoCommaIterator
 {
-public:
+  public:
     using iterator_category = typename std::iterator_traits<Iterator>::iterator_category;
     using value_type = typename std::iterator_traits<Iterator>::value_type;
     using difference_type = typename std::iterator_traits<Iterator>::difference_type;
     using pointer = typename std::iterator_traits<Iterator>::pointer;
     using reference = typename std::iterator_traits<Iterator>::reference;
 
-private:
+  private:
     Iterator iter_;
 
-public:
+  public:
     // Constructors
     NoCommaIterator() = default;
     explicit NoCommaIterator(Iterator iter) : iter_(iter) {}
-    
+
     // Copy and move constructors/assignment
     NoCommaIterator(const NoCommaIterator&) = default;
     NoCommaIterator(NoCommaIterator&&) = default;
-    NoCommaIterator& operator=(const NoCommaIterator&) = default;
-    NoCommaIterator& operator=(NoCommaIterator&&) = default;
+    NoCommaIterator&
+    operator=(const NoCommaIterator&) = default;
+    NoCommaIterator&
+    operator=(NoCommaIterator&&) = default;
 
     // Access to underlying iterator
-    Iterator base() const { return iter_; }
+    Iterator
+    base() const
+    {
+        return iter_;
+    }
 
     // Dereference operators
-    reference operator*() const { return *iter_; }
-    pointer operator->() const { return iter_.operator->(); }
-    reference operator[](difference_type n) const { return iter_[n]; }
+    reference
+    operator*() const
+    {
+        return *iter_;
+    }
+    pointer
+    operator->() const
+    {
+        return iter_.operator->();
+    }
+    reference
+    operator[](difference_type n) const
+    {
+        return iter_[n];
+    }
 
     // Increment/decrement operators
-    NoCommaIterator& operator++() { ++iter_; return *this; }
-    NoCommaIterator operator++(int) { NoCommaIterator tmp(*this); ++iter_; return tmp; }
-    NoCommaIterator& operator--() { --iter_; return *this; }
-    NoCommaIterator operator--(int) { NoCommaIterator tmp(*this); --iter_; return tmp; }
+    NoCommaIterator&
+    operator++()
+    {
+        ++iter_;
+        return *this;
+    }
+    NoCommaIterator
+    operator++(int)
+    {
+        NoCommaIterator tmp(*this);
+        ++iter_;
+        return tmp;
+    }
+    NoCommaIterator&
+    operator--()
+    {
+        --iter_;
+        return *this;
+    }
+    NoCommaIterator
+    operator--(int)
+    {
+        NoCommaIterator tmp(*this);
+        --iter_;
+        return tmp;
+    }
 
     // Arithmetic operators
-    NoCommaIterator& operator+=(difference_type n) { iter_ += n; return *this; }
-    NoCommaIterator& operator-=(difference_type n) { iter_ -= n; return *this; }
-    NoCommaIterator operator+(difference_type n) const { return NoCommaIterator(iter_ + n); }
-    NoCommaIterator operator-(difference_type n) const { return NoCommaIterator(iter_ - n); }
-    difference_type operator-(const NoCommaIterator& other) const { return iter_ - other.iter_; }
+    NoCommaIterator&
+    operator+=(difference_type n)
+    {
+        iter_ += n;
+        return *this;
+    }
+    NoCommaIterator&
+    operator-=(difference_type n)
+    {
+        iter_ -= n;
+        return *this;
+    }
+    NoCommaIterator
+    operator+(difference_type n) const
+    {
+        return NoCommaIterator(iter_ + n);
+    }
+    NoCommaIterator
+    operator-(difference_type n) const
+    {
+        return NoCommaIterator(iter_ - n);
+    }
+    difference_type
+    operator-(const NoCommaIterator& other) const
+    {
+        return iter_ - other.iter_;
+    }
 
     // Comparison operators
-    bool operator==(const NoCommaIterator& other) const { return iter_ == other.iter_; }
-    bool operator!=(const NoCommaIterator& other) const { return iter_ != other.iter_; }
-    bool operator<(const NoCommaIterator& other) const { return iter_ < other.iter_; }
-    bool operator<=(const NoCommaIterator& other) const { return iter_ <= other.iter_; }
-    bool operator>(const NoCommaIterator& other) const { return iter_ > other.iter_; }
-    bool operator>=(const NoCommaIterator& other) const { return iter_ >= other.iter_; }
+    bool
+    operator==(const NoCommaIterator& other) const
+    {
+        return iter_ == other.iter_;
+    }
+    bool
+    operator!=(const NoCommaIterator& other) const
+    {
+        return iter_ != other.iter_;
+    }
+    bool
+    operator<(const NoCommaIterator& other) const
+    {
+        return iter_ < other.iter_;
+    }
+    bool
+    operator<=(const NoCommaIterator& other) const
+    {
+        return iter_ <= other.iter_;
+    }
+    bool
+    operator>(const NoCommaIterator& other) const
+    {
+        return iter_ > other.iter_;
+    }
+    bool
+    operator>=(const NoCommaIterator& other) const
+    {
+        return iter_ >= other.iter_;
+    }
 
     // Deleted comma operator - this is the key feature
     template<typename T>
@@ -94,15 +180,16 @@ public:
 
 // Non-member arithmetic operators
 template <typename Iterator>
-NoCommaIterator<Iterator> operator+(typename NoCommaIterator<Iterator>::difference_type n, 
-                                   const NoCommaIterator<Iterator>& iter)
+NoCommaIterator<Iterator>
+operator+(typename NoCommaIterator<Iterator>::difference_type n, const NoCommaIterator<Iterator>& iter)
 {
     return iter + n;
 }
 
 // Helper function to create NoCommaIterator
 template <typename Iterator>
-NoCommaIterator<Iterator> make_no_comma_iterator(Iterator iter)
+NoCommaIterator<Iterator>
+make_no_comma_iterator(Iterator iter)
 {
     return NoCommaIterator<Iterator>(iter);
 }
@@ -121,11 +208,12 @@ static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
 
 // Helper to conditionally wrap iterators with NoCommaIterator
 template <typename T>
-constexpr auto wrap_no_comma_if_iterator(T&& arg)
+constexpr auto
+wrap_no_comma_if_iterator(T&& arg)
 {
     if constexpr (__is_iterator_type_v<std::decay_t<T>>)
     {
-        
+
 #if TEST_DPCPP_BACKEND_PRESENT
         // avoid wrapping iterator-like buffer wrappers, or elements which must be transformed by our
         // data preparation before passing to sycl, as adding an iterator adapter around them causes problems.
@@ -147,11 +235,11 @@ template <typename Func>
 struct callable_conv_to_no_comma_iters : std::decay_t<Func>
 {
     using base_t = std::decay_t<Func>;
-    callable_conv_to_no_comma_iters(base_t f) : base_t(f)
-    {}
+    callable_conv_to_no_comma_iters(base_t f) : base_t(f) {}
 
     template <typename... Args>
-    void operator()(Args&&... args)
+    void
+    operator()(Args&&... args)
     {
         base_t::operator()(wrap_no_comma_if_iterator(std::forward<Args>(args))...);
     }
@@ -166,7 +254,7 @@ check_compilation_no_comma(Policy&& policy, Op&& op, Args&&... rest)
     {
         callable_conv_to_no_comma_iters<Op> wrapped_iter_op{std::forward<Op>(op)};
         iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
-                std::forward<Policy>(policy), wrapped_iter_op, std::forward<Args>(rest)...);
+            std::forward<Policy>(policy), wrapped_iter_op, std::forward<Args>(rest)...);
     }
 }
 
@@ -177,10 +265,7 @@ struct compile_checker
 
     _ExecutionPolicyDecayed my_policy;
 
-    compile_checker(const _ExecutionPolicy& my_policy)
-        : my_policy(my_policy)
-    {
-    }
+    compile_checker(const _ExecutionPolicy& my_policy) : my_policy(my_policy) {}
 
     // Check compilation of callable argument with different policy value categories:
     // - compile for const _ExecutionPolicyDecayed&
@@ -218,6 +303,5 @@ check_compilation(const _ExecutionPolicy& policy, _CallableTest&& __callable_tes
 }
 
 } //namespace TestUtils
-
 
 #endif // _COMPILE_ONLY_CHECKS_H
