@@ -46,6 +46,7 @@ struct Elem_0
 
     Elem_0(): val1() {} //val1 has a zero-initialization here
     Elem_0(Elem_0&& elem) { val2 = elem.val2; }
+    Elem_0(int v) { val2 = v; }
     ~Elem_0() { val2 = 3;}
 };
 
