@@ -1074,7 +1074,7 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
 
     // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
     // portion of the range so star flag can use sign bit.
-    using _TemporaryType = decltype(__rng1.size());
+    using _TemporaryType = std::make_signed_t<decltype(__rng1.size())>;
     //TODO: limit to diagonals per block, and only write to a block based index of temporary data
     oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
 
