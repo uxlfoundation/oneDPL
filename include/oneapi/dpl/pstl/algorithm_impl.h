@@ -3448,6 +3448,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     const auto __m2 = __left_bound_seq_2 - __first2;
     assert(__m1 == 0 || __m2 == 0);
+    if (__m2 > __set_algo_cut_off)
     {
         auto __res_or = __result;
         __result += __m2; //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
