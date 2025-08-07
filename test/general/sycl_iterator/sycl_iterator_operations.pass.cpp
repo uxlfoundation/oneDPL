@@ -21,6 +21,33 @@
 
 namespace oneapi::dpl::__internal
 {
+void
+test_is_iterator_type()
+{
+    static_assert(__is_iterator_type<int*>::value);
+    static_assert(__is_iterator_type<const int*>::value);
+    static_assert(__is_iterator_type<decltype(std::vector<int>().begin())>::value);
+
+    static_assert(!__is_iterator_type<std::nullptr_t>::value);
+    static_assert(!__is_iterator_type<int>::value);
+}
+
+void
+test_iterators_possibly_equal_internals()
+{
+    static_assert(std::is_same_v<int,  __iterators_possibly_equal_impl::__iterator_value_type_t<int*>>);
+    static_assert(std::is_same_v<int,  __iterators_possibly_equal_impl::__iterator_value_type_t<const int*>>);
+    static_assert(std::is_same_v<void, __iterators_possibly_equal_impl::__iterator_value_type_t<std::nullptr_t>>);
+
+    static_assert(!__iterators_possibly_equal_impl::__is_equality_comparable<int*, int>::value);
+    static_assert(!__iterators_possibly_equal_impl::__is_equality_comparable<int*, float*>::value);
+    static_assert(__iterators_possibly_equal_impl::__is_equality_comparable<int*, const int*>::value);
+    static_assert(__iterators_possibly_equal_impl::__is_equality_comparable<decltype(std::vector<int>().begin()), 
+                                                                            decltype(std::vector<int>().cbegin())>::value);
+    static_assert(!__iterators_possibly_equal_impl::__is_equality_comparable<decltype(std::vector<int>().begin()), 
+                                                                             decltype(std::vector<float>().cbegin())>::value);
+}
+
 // Check the correctness of oneapi::dpl::__internal::__iterators_possibly_equal
 void
 test_iterators_possibly_equal()
@@ -139,6 +166,10 @@ std::int32_t
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
+
+    oneapi::dpl::__internal::test_is_iterator_type();
+
+    oneapi::dpl::__internal::test_iterators_possibly_equal_internals();
 
     // Check the correctness of oneapi::dpl::__internal::__iterators_possibly_equal
     oneapi::dpl::__internal::test_iterators_possibly_equal();
