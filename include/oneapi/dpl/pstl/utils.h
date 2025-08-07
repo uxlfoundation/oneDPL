@@ -920,8 +920,10 @@ __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
     {
         return __it2 == __it1;
     }
-
-    return false;
+    else
+    {
+        return false;
+    }
 }
 
 // Conditionally sets type to _SpirvT if oneDPL is being compiled to a SPIR-V target with the SYCL backend and _NonSpirvT otherwise.
