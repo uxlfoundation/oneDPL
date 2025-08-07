@@ -907,7 +907,7 @@ struct __is_equality_implemented : std::false_type
 template <typename _Iterator1, typename _Iterator2>
 struct __is_equality_implemented<
     _Iterator1, _Iterator2,
-    std::void_t<std::is_same<bool, decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>>
+    std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
     : std::true_type
 {
 };
