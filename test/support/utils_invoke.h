@@ -383,7 +383,8 @@ struct invoke_on_all_hetero_policies
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
             iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
-                my_policy, op, rest...);
+                my_policy, op, std::forward<Args>(rest)...);
+
 
 #if TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
             TestUtils::check_compilation_no_comma(my_policy, op, rest...);
