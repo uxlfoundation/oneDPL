@@ -53,7 +53,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
 
     round_robin_policy() { base_t::initialize(); }
     round_robin_policy(deferred_initialization_t) {}
-    round_robin_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = oneapi::dpl::identity{}) { base_t::initialize(u, adapter); }
+    round_robin_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}) { base_t::initialize(u, adapter); }
 
     void 
     initialize_impl() 

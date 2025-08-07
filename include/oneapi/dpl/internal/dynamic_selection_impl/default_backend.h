@@ -187,7 +187,7 @@ class default_backend : public default_backend_impl<std::decay_t<decltype(std::d
     default_backend()
     {
     }
-    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = oneapi::dpl::identity{}) : base_t(r, adapt)
+    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {}) : base_t(r, adapt)
     {
     }
 };

@@ -120,7 +120,7 @@ test_select(UniverseContainer u, ResourceFunction&& f, Args&&... args)
 
 template <bool call_select_before_submit, typename CustomName, typename Policy, typename UniverseContainer, typename ResourceFunction, typename ResourceAdapter = oneapi::dpl::identity>
 int
-test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, ResourceAdapter adapter = oneapi::dpl::identity{})
+test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, ResourceAdapter adapter = {})
 {
     using my_policy_t = Policy;
 

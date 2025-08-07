@@ -104,7 +104,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
     dynamic_load_policy() { base_t::initialize(); }
     dynamic_load_policy(deferred_initialization_t) {}
-    dynamic_load_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = oneapi::dpl::identity{}) { base_t::initialize(u, adapter); }
+    dynamic_load_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}) { base_t::initialize(u, adapter); }
 
     void
     initialize_impl()

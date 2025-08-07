@@ -56,7 +56,7 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
     	selector_->index_ = index;
     }
     fixed_resource_policy(deferred_initialization_t) {}
-    fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = oneapi::dpl::identity{}, ::std::size_t index = 0) 
+    fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}, ::std::size_t index = 0) 
     { 
         base_t::initialize(u, adapter); 
         selector_->index_ = index;
