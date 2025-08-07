@@ -899,6 +899,19 @@ using __iterator_value_type_t = std::decay_t<typename __iterator_value_type<std:
 template <typename _Iterator1, typename _Iterator2>
 using __both_types_are_iterators = std::conjunction<__is_iterator_type<_Iterator1>, __is_iterator_type<_Iterator2>>;
 
+template <typename _Iterator1, typename _Iterator2, typename = void>
+struct __is_equality_implemented : std::false_type
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_implemented<
+    _Iterator1, _Iterator2,
+    std::void_t<std::is_same<bool, decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>>
+    : std::true_type
+{
+};
+
 // Iterators can be compared for equality if:
 //  - they are both iterators (or pointers);
 //  - the types of their iterated valued are the same;
@@ -907,7 +920,7 @@ template <typename _Iterator1, typename _Iterator2>
 using __is_equality_comparable =
     std::conjunction<__both_types_are_iterators<_Iterator1, _Iterator2>,
                      std::is_same<__iterator_value_type_t<_Iterator1>, __iterator_value_type_t<_Iterator2>>,
-                     std::is_invocable<std::equal_to<>, _Iterator1, _Iterator2>>;
+                    __is_equality_implemented<_Iterator1, _Iterator2>>;
 
 } // namespace __iterators_possibly_equal_impl
 
@@ -931,6 +944,14 @@ __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
         {
             return __it2_base == __it1_base;
         }
+    }
+    else if constexpr (__is_equality_implemented<_Iterator1, _Iterator2>::value)
+    {
+        return __it1 == __it2;
+    }
+    else if constexpr (__is_equality_implemented<_Iterator2, _Iterator1>::value)
+    {
+        return __it2 = __it1;
     }
 
     return false;
