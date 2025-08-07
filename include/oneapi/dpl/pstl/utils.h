@@ -905,9 +905,8 @@ struct __is_equality_implemented : std::false_type
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_implemented<
-    _Iterator1, _Iterator2,
-    std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
+struct __is_equality_implemented<_Iterator1, _Iterator2,
+                                 std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
     : std::true_type
 {
 };
@@ -920,7 +919,7 @@ template <typename _Iterator1, typename _Iterator2>
 using __is_equality_comparable =
     std::conjunction<__both_types_are_iterators<_Iterator1, _Iterator2>,
                      std::is_same<__iterator_value_type_t<_Iterator1>, __iterator_value_type_t<_Iterator2>>,
-                    __is_equality_implemented<_Iterator1, _Iterator2>>;
+                     __is_equality_implemented<_Iterator1, _Iterator2>>;
 
 } // namespace __iterators_possibly_equal_impl
 
