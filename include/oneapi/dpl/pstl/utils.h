@@ -951,7 +951,7 @@ __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
     }
     else if constexpr (__is_equality_implemented<_Iterator2, _Iterator1>::value)
     {
-        return __it2 = __it1;
+        return __it2 == __it1;
     }
 
     return false;
