@@ -857,9 +857,9 @@ struct __iterates_the_same_types : std::false_type
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __iterates_the_same_types<_Iterator1, _Iterator2,
-                                 std::enable_if_t<std::is_same_v<typename __iterator_value_type<_Iterator1>::__type,
-                                                                 typename __iterator_value_type<_Iterator2>::__type>>>
+struct __iterates_the_same_types<
+    _Iterator1, _Iterator2,
+    std::enable_if_t<std::is_same_v<__iterator_value_type_t<_Iterator1>, __iterator_value_type_t<_Iterator2>>>>
     : std::true_type
 {
 };
