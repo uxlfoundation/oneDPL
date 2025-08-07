@@ -898,7 +898,7 @@ template <typename _Iterator1, typename _Iterator2>
 struct __is_equality_comparable<_Iterator1, _Iterator2,
                                 std::enable_if_t<__is_equality_implemented<_Iterator1, _Iterator2>::value>>
     : std::conditional_t<std::conjunction_v<__base_iterator<_Iterator1>, __base_iterator<_Iterator2>>,
-                         __is_equality_implemented<_Iterator1, _Iterator2>, // std::true_type,
+                         __is_equality_implemented<_Iterator1, _Iterator2>,
                          __is_equality_comparable<__base_iterator_t<_Iterator1>, __base_iterator_t<_Iterator2>>>
 {
 };
