@@ -39,13 +39,24 @@ test_iterators_possibly_equal_internals()
     static_assert(std::is_same_v<int,  __iterators_possibly_equal_impl::__iterator_value_type_t<const int*>>);
     static_assert(std::is_same_v<void, __iterators_possibly_equal_impl::__iterator_value_type_t<std::nullptr_t>>);
 
+    static_assert(__iterators_possibly_equal_impl::__is_equality_implemented<int*, int*>::value);
+    static_assert(!__iterators_possibly_equal_impl::__is_equality_implemented<int*, int>::value);
+
     static_assert(!__iterators_possibly_equal_impl::__is_equality_comparable<int*, int>::value);
+    static_assert(__iterators_possibly_equal_impl::__is_equality_comparable<int*, int*>::value);
     static_assert(!__iterators_possibly_equal_impl::__is_equality_comparable<int*, float*>::value);
     static_assert(__iterators_possibly_equal_impl::__is_equality_comparable<int*, const int*>::value);
     static_assert(__iterators_possibly_equal_impl::__is_equality_comparable<decltype(std::vector<int>().begin()), 
                                                                             decltype(std::vector<int>().cbegin())>::value);
     static_assert(!__iterators_possibly_equal_impl::__is_equality_comparable<decltype(std::vector<int>().begin()), 
                                                                              decltype(std::vector<float>().cbegin())>::value);
+
+    static_assert(std::is_same<__iterators_possibly_equal_impl::__iterator_value_type_t<int*>,
+                               __iterators_possibly_equal_impl::__iterator_value_type_t<int*>>::value);
+
+    static_assert(std::is_invocable<std::equal_to<>, int*, int*>::value);
+
+    static_assert(std::is_same_v<int*, decltype(__iterators_possibly_equal_impl::__unwind_iterator<int*>{}(std::declval<int*>()))>);
 }
 
 // Check the correctness of oneapi::dpl::__internal::__iterators_possibly_equal
