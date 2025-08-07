@@ -60,28 +60,28 @@ test_iterators_possibly_equal_internals()
     ////////////////////////////////////////////////////////////////////////////
     // Check if the iterators are equality comparable
 
-    static_assert(!__is_equality_operation_exists<int*, int>::value);
-    static_assert(__is_equality_operation_exists<int*, int*>::value);
-    static_assert(__is_equality_operation_exists<decltype(std::vector<int>().begin()), 
-                                                 decltype(std::vector<int>().cbegin())>::value);
-    static_assert(!__is_equality_operation_exists<decltype(std::vector<int>().begin()), 
-                                                  decltype(std::vector<float>().cbegin())>::value);
+    static_assert(!__is_eq_op_exists<int*, int>::value);
+    static_assert(__is_eq_op_exists<int*, int*>::value);
+    static_assert(__is_eq_op_exists<decltype(std::vector<int>().begin()), 
+                                    decltype(std::vector<int>().cbegin())>::value);
+    static_assert(!__is_eq_op_exists<decltype(std::vector<int>().begin()), 
+                                     decltype(std::vector<float>().cbegin())>::value);
 
-    static_assert(!__is_equality_operation_may_be_called<int*, int>::value);
-    static_assert(__is_equality_operation_may_be_called<int*, int*>::value);
-    static_assert(__is_equality_operation_may_be_called<decltype(std::vector<int>().begin()), 
+    static_assert(!__is_eq_op_may_be_called<int*, int>::value);
+    static_assert(__is_eq_op_may_be_called<int*, int*>::value);
+    static_assert(__is_eq_op_may_be_called<decltype(std::vector<int>().begin()), 
+                                           decltype(std::vector<int>().cbegin())>::value);
+    static_assert(!__is_eq_op_may_be_called<decltype(std::vector<int>().begin()), 
+                                            decltype(std::vector<float>().cbegin())>::value);
+
+    static_assert(!__is_eq_op_may_be_called_through_base<int*, int>::value);
+    static_assert(__is_eq_op_may_be_called_through_base<int*, int*>::value);
+    static_assert(!__is_eq_op_may_be_called_through_base<int*, float*>::value);
+    static_assert(__is_eq_op_may_be_called_through_base<int*, const int*>::value);
+    static_assert(__is_eq_op_may_be_called_through_base<decltype(std::vector<int>().begin()), 
                                                         decltype(std::vector<int>().cbegin())>::value);
-    static_assert(!__is_equality_operation_may_be_called<decltype(std::vector<int>().begin()), 
+    static_assert(!__is_eq_op_may_be_called_through_base<decltype(std::vector<int>().begin()), 
                                                          decltype(std::vector<float>().cbegin())>::value);
-
-    static_assert(!__is_equality_operation_may_be_called_through_base<int*, int>::value);
-    static_assert(__is_equality_operation_may_be_called_through_base<int*, int*>::value);
-    static_assert(!__is_equality_operation_may_be_called_through_base<int*, float*>::value);
-    static_assert(__is_equality_operation_may_be_called_through_base<int*, const int*>::value);
-    static_assert(__is_equality_operation_may_be_called_through_base<decltype(std::vector<int>().begin()), 
-                                                                     decltype(std::vector<int>().cbegin())>::value);
-    static_assert(!__is_equality_operation_may_be_called_through_base<decltype(std::vector<int>().begin()), 
-                                                                      decltype(std::vector<float>().cbegin())>::value);
 
     ////////////////////////////////////////////////////////////////////////////
     using __IteratorType1 = oneapi::dpl::zip_iterator<
@@ -114,12 +114,12 @@ test_iterators_possibly_equal_internals()
 
     static_assert(__is_the_same_types_iterated<__IteratorType1, __IteratorType2>::value);
 
-    static_assert( __is_equality_operation_exists<__IteratorType1, __IteratorType1>::value);
-    static_assert( __is_equality_operation_exists<__IteratorType2, __IteratorType2>::value);
-    static_assert(!__is_equality_operation_exists<__IteratorType1, __IteratorType2>::value);
+    static_assert( __is_eq_op_exists<__IteratorType1, __IteratorType1>::value);
+    static_assert( __is_eq_op_exists<__IteratorType2, __IteratorType2>::value);
+    static_assert(!__is_eq_op_exists<__IteratorType1, __IteratorType2>::value);
 
     static_assert(!
-        oneapi::dpl::__internal::__iterators_possibly_equal_impl::__is_equality_operation_may_be_called<
+        oneapi::dpl::__internal::__iterators_possibly_equal_impl::__is_eq_op_may_be_called<
         oneapi::dpl::zip_iterator<
             oneapi::dpl::__internal::sycl_iterator<
                 sycl::access::mode::read_write,
@@ -138,8 +138,8 @@ test_iterators_possibly_equal_internals()
             >
         >
     >::value);
-    static_assert(!__is_equality_operation_may_be_called<__IteratorType1, __IteratorType2>::value);
-    static_assert(!__is_equality_operation_may_be_called_through_base<__IteratorType1, __IteratorType2>::value);
+    static_assert(!__is_eq_op_may_be_called<__IteratorType1, __IteratorType2>::value);
+    static_assert(!__is_eq_op_may_be_called_through_base<__IteratorType1, __IteratorType2>::value);
 }
 
 // Check the correctness of oneapi::dpl::__internal::__iterators_possibly_equal

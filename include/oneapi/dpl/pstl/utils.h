@@ -865,42 +865,42 @@ struct __is_the_same_types_iterated<
 };
 
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_equality_operation_exists : std::false_type
+struct __is_eq_op_exists : std::false_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_operation_exists<
+struct __is_eq_op_exists<
     _Iterator1, _Iterator2, std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
     : std::true_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_equality_operation_may_be_called : std::false_type
+struct __is_eq_op_may_be_called : std::false_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_operation_may_be_called<
+struct __is_eq_op_may_be_called<
     _Iterator1, _Iterator2,
     std::enable_if_t<std::conjunction_v<__is_the_same_types_iterated<_Iterator1, _Iterator2>,
-                                        __is_equality_operation_exists<_Iterator1, _Iterator2>>>> : std::true_type
+                                        __is_eq_op_exists<_Iterator1, _Iterator2>>>> : std::true_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_equality_operation_may_be_called_through_base : std::false_type
+struct __is_eq_op_may_be_called_through_base : std::false_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_operation_may_be_called_through_base<
-    _Iterator1, _Iterator2, std::enable_if_t<__is_equality_operation_may_be_called<_Iterator1, _Iterator2>::value>>
-    : std::conditional_t<std::conjunction_v<__base_iterator<_Iterator1>, __base_iterator<_Iterator2>>,
-                         __is_equality_operation_may_be_called<_Iterator1, _Iterator2>,
-                         __is_equality_operation_may_be_called_through_base<__base_iterator_t<_Iterator1>,
-                                                                            __base_iterator_t<_Iterator2>>>
+struct __is_eq_op_may_be_called_through_base<_Iterator1, _Iterator2,
+                                             std::enable_if_t<__is_eq_op_may_be_called<_Iterator1, _Iterator2>::value>>
+    : std::conditional_t<
+          std::conjunction_v<__base_iterator<_Iterator1>, __base_iterator<_Iterator2>>,
+          __is_eq_op_may_be_called<_Iterator1, _Iterator2>,
+          __is_eq_op_may_be_called_through_base<__base_iterator_t<_Iterator1>, __base_iterator_t<_Iterator2>>>
 {
 };
 
@@ -913,11 +913,11 @@ __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
     using namespace __iterators_possibly_equal_impl;
 
-    if constexpr (__is_equality_operation_may_be_called_through_base<_Iterator1, _Iterator2>::value)
+    if constexpr (__is_eq_op_may_be_called_through_base<_Iterator1, _Iterator2>::value)
     {
         return __it1 == __it2;
     }
-    else if constexpr (__is_equality_operation_may_be_called_through_base<_Iterator2, _Iterator1>::value)
+    else if constexpr (__is_eq_op_may_be_called_through_base<_Iterator2, _Iterator1>::value)
     {
         return __it2 == __it1;
     }
