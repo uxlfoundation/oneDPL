@@ -821,13 +821,13 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
 namespace __iterators_possibly_equal_impl
 {
 template <typename _Iterator, typename = void>
-struct __base_iterator : std::true_type
+struct __base_iterator_type : std::true_type
 {
     using __type = std::decay_t<_Iterator>;
 };
 
 template <typename _Iterator>
-struct __base_iterator<_Iterator, std::void_t<decltype(std::declval<std::decay_t<_Iterator>>().base())>>
+struct __base_iterator_type<_Iterator, std::void_t<decltype(std::declval<std::decay_t<_Iterator>>().base())>>
     : std::false_type
 {
     using __type = decltype(std::declval<std::decay_t<_Iterator>>().base());
@@ -849,12 +849,12 @@ template <typename Iterator>
 using __iterator_value_type_t = typename __iterator_value_type<Iterator>::__type;
 
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_the_same_types_iterated : std::false_type
+struct __has_same_value_types : std::false_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __is_the_same_types_iterated<
+struct __has_same_value_types<
     _Iterator1, _Iterator2,
     std::enable_if_t<std::is_same_v<__iterator_value_type_t<_Iterator1>, __iterator_value_type_t<_Iterator2>>>>
     : std::true_type
@@ -862,42 +862,42 @@ struct __is_the_same_types_iterated<
 };
 
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_eq_op_exists : std::false_type
+struct __has_equality_op : std::false_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __is_eq_op_exists<_Iterator1, _Iterator2,
+struct __has_equality_op<_Iterator1, _Iterator2,
                          std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
     : std::true_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_eq_op_may_be_called : std::false_type
+struct __is_equality_self_comparable : std::false_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __is_eq_op_may_be_called<
-    _Iterator1, _Iterator2,
-    std::enable_if_t<std::conjunction_v<__is_the_same_types_iterated<_Iterator1, _Iterator2>,
-                                        __is_eq_op_exists<_Iterator1, _Iterator2>>>> : std::true_type
+struct __is_equality_self_comparable<_Iterator1, _Iterator2,
+                                     std::enable_if_t<std::conjunction_v<__has_same_value_types<_Iterator1, _Iterator2>,
+                                                                         __has_equality_op<_Iterator1, _Iterator2>>>>
+    : std::true_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_eq_op_may_be_called_through_base : std::false_type
+struct __is_equality_comparable : std::false_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __is_eq_op_may_be_called_through_base<_Iterator1, _Iterator2,
-                                             std::enable_if_t<__is_eq_op_may_be_called<_Iterator1, _Iterator2>::value>>
-    : std::conditional_t<std::conjunction_v<__base_iterator<_Iterator1>, __base_iterator<_Iterator2>>,
-                         __is_eq_op_may_be_called<_Iterator1, _Iterator2>,
-                         __is_eq_op_may_be_called_through_base<typename __base_iterator<_Iterator1>::__type,
-                                                               typename __base_iterator<_Iterator2>::__type>>
+struct __is_equality_comparable<_Iterator1, _Iterator2,
+                                std::enable_if_t<__is_equality_self_comparable<_Iterator1, _Iterator2>::value>>
+    : std::conditional_t<std::conjunction_v<__base_iterator_type<_Iterator1>, __base_iterator_type<_Iterator2>>,
+                         __is_equality_self_comparable<_Iterator1, _Iterator2>,
+                         __is_equality_comparable<typename __base_iterator_type<_Iterator1>::__type,
+                                                  typename __base_iterator_type<_Iterator2>::__type>>
 {
 };
 
@@ -910,11 +910,11 @@ __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
     using namespace __iterators_possibly_equal_impl;
 
-    if constexpr (__is_eq_op_may_be_called_through_base<_Iterator1, _Iterator2>::value)
+    if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
     {
         return __it1 == __it2;
     }
-    else if constexpr (__is_eq_op_may_be_called_through_base<_Iterator2, _Iterator1>::value)
+    else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
     {
         return __it2 == __it1;
     }

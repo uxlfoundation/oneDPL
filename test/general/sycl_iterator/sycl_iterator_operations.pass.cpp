@@ -39,8 +39,8 @@ test_iterators_possibly_equal_internals()
 
     ////////////////////////////////////////////////////////////////////////////
     // The definitions of base iterator types
-    static_assert(std::is_same_v<int*, typename __base_iterator<int*>::__type>);
-    static_assert(std::is_same_v<int,  typename __base_iterator<int >::__type>);
+    static_assert(std::is_same_v<int*, typename __base_iterator_type<int*>::__type>);
+    static_assert(std::is_same_v<int,  typename __base_iterator_type<int >::__type>);
 
     ////////////////////////////////////////////////////////////////////////////
     // The definitions of iterator value_type
@@ -50,38 +50,38 @@ test_iterators_possibly_equal_internals()
 
     ////////////////////////////////////////////////////////////////////////////
     // Check that the iterators iterate over the same types
-    static_assert(!__is_the_same_types_iterated<int*, int>::value);
-    static_assert(__is_the_same_types_iterated<int*, int*>::value);
-    static_assert(!__is_the_same_types_iterated<decltype(std::vector<int>().begin()), 
-                                                 decltype(std::vector<float>().cbegin())>::value);
-    static_assert(__is_the_same_types_iterated<decltype(std::vector<int>().begin()), 
-                                                decltype(std::vector<int>().crbegin())>::value);
+    static_assert(!__has_same_value_types<int*, int >::value);
+    static_assert( __has_same_value_types<int*, int*>::value);
+    static_assert(!__has_same_value_types<decltype(std::vector<int>().begin()), 
+                                          decltype(std::vector<float>().cbegin())>::value);
+    static_assert( __has_same_value_types<decltype(std::vector<int>().begin()), 
+                                          decltype(std::vector<int>().crbegin())>::value);
 
     ////////////////////////////////////////////////////////////////////////////
     // Check if the iterators are equality comparable
 
-    static_assert(!__is_eq_op_exists<int*, int>::value);
-    static_assert(__is_eq_op_exists<int*, int*>::value);
-    static_assert(__is_eq_op_exists<decltype(std::vector<int>().begin()), 
-                                    decltype(std::vector<int>().cbegin())>::value);
-    static_assert(!__is_eq_op_exists<decltype(std::vector<int>().begin()), 
+    static_assert(!__has_equality_op<int*, int >::value);
+    static_assert( __has_equality_op<int*, int*>::value);
+    static_assert( __has_equality_op<decltype(std::vector<int>().begin()), 
+                                     decltype(std::vector<int>().cbegin())>::value);
+    static_assert(!__has_equality_op<decltype(std::vector<int>().begin()), 
                                      decltype(std::vector<float>().cbegin())>::value);
 
-    static_assert(!__is_eq_op_may_be_called<int*, int>::value);
-    static_assert(__is_eq_op_may_be_called<int*, int*>::value);
-    static_assert(__is_eq_op_may_be_called<decltype(std::vector<int>().begin()), 
-                                           decltype(std::vector<int>().cbegin())>::value);
-    static_assert(!__is_eq_op_may_be_called<decltype(std::vector<int>().begin()), 
-                                            decltype(std::vector<float>().cbegin())>::value);
+    static_assert(!__is_equality_self_comparable<int*, int >::value);
+    static_assert( __is_equality_self_comparable<int*, int*>::value);
+    static_assert( __is_equality_self_comparable<decltype(std::vector<int>().begin()), 
+                                                 decltype(std::vector<int>().cbegin())>::value);
+    static_assert(!__is_equality_self_comparable<decltype(std::vector<int>().begin()), 
+                                                 decltype(std::vector<float>().cbegin())>::value);
 
-    static_assert(!__is_eq_op_may_be_called_through_base<int*, int>::value);
-    static_assert(__is_eq_op_may_be_called_through_base<int*, int*>::value);
-    static_assert(!__is_eq_op_may_be_called_through_base<int*, float*>::value);
-    static_assert(__is_eq_op_may_be_called_through_base<int*, const int*>::value);
-    static_assert(__is_eq_op_may_be_called_through_base<decltype(std::vector<int>().begin()), 
-                                                        decltype(std::vector<int>().cbegin())>::value);
-    static_assert(!__is_eq_op_may_be_called_through_base<decltype(std::vector<int>().begin()), 
-                                                         decltype(std::vector<float>().cbegin())>::value);
+    static_assert(!__is_equality_comparable<int*, int       >::value);
+    static_assert( __is_equality_comparable<int*, int*      >::value);
+    static_assert(!__is_equality_comparable<int*, float*    >::value);
+    static_assert( __is_equality_comparable<int*, const int*>::value);
+    static_assert( __is_equality_comparable<decltype(std::vector<int>().begin()), 
+                                            decltype(std::vector<int>().cbegin())>::value);
+    static_assert(!__is_equality_comparable<decltype(std::vector<int>().begin()), 
+                                            decltype(std::vector<float>().cbegin())>::value);
 
     ////////////////////////////////////////////////////////////////////////////
     using __IteratorType1 = oneapi::dpl::zip_iterator<
@@ -112,14 +112,14 @@ test_iterators_possibly_equal_internals()
     static_assert(!std::is_same_v<__iterator_value_type_t<__IteratorType1>, void>);
     static_assert(!std::is_same_v<__iterator_value_type_t<__IteratorType2>, void>);
 
-    static_assert(__is_the_same_types_iterated<__IteratorType1, __IteratorType2>::value);
+    static_assert(__has_same_value_types<__IteratorType1, __IteratorType2>::value);
 
-    static_assert( __is_eq_op_exists<__IteratorType1, __IteratorType1>::value);
-    static_assert( __is_eq_op_exists<__IteratorType2, __IteratorType2>::value);
-    static_assert(!__is_eq_op_exists<__IteratorType1, __IteratorType2>::value);
+    static_assert( __has_equality_op<__IteratorType1, __IteratorType1>::value);
+    static_assert( __has_equality_op<__IteratorType2, __IteratorType2>::value);
+    static_assert(!__has_equality_op<__IteratorType1, __IteratorType2>::value);
 
     static_assert(!
-        oneapi::dpl::__internal::__iterators_possibly_equal_impl::__is_eq_op_may_be_called<
+        oneapi::dpl::__internal::__iterators_possibly_equal_impl::__is_equality_self_comparable<
         oneapi::dpl::zip_iterator<
             oneapi::dpl::__internal::sycl_iterator<
                 sycl::access::mode::read_write,
@@ -138,8 +138,8 @@ test_iterators_possibly_equal_internals()
             >
         >
     >::value);
-    static_assert(!__is_eq_op_may_be_called<__IteratorType1, __IteratorType2>::value);
-    static_assert(!__is_eq_op_may_be_called_through_base<__IteratorType1, __IteratorType2>::value);
+    static_assert(!__is_equality_self_comparable<__IteratorType1, __IteratorType2>::value);
+    static_assert(!__is_equality_comparable<__IteratorType1, __IteratorType2>::value);
 }
 
 // Check the correctness of oneapi::dpl::__internal::__iterators_possibly_equal
