@@ -100,7 +100,7 @@ void
 fill_data(Iterator first, Iterator last, F f)
 {
     typedef typename ::std::iterator_traits<Iterator>::value_type T;
-    for (::std::size_t i = 0; first != last; ++first, ++i)
+    for (::std::size_t i = 0; first != last; (void) ++first, ++i)
     {
         *first = T(f(i));
     }

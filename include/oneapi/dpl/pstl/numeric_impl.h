@@ -171,7 +171,7 @@ __brick_transform_scan(_ForwardIterator __first, _ForwardIterator __last, _Outpu
                        _UnaryOperation __unary_op, _Tp __init, _BinaryOperation __binary_op,
                        /*Inclusive*/ ::std::false_type, /*is_vector=*/::std::false_type) noexcept
 {
-    for (; __first != __last; ++__first, ++__result)
+    for (; __first != __last; ++__first, (void)++__result)
     {
         // Copy the value pointed to by __first to avoid overwriting it when __result == __first
         _Tp __temp = *__first;
@@ -189,7 +189,7 @@ __brick_transform_scan(_RandomAccessIterator __first, _RandomAccessIterator __la
                        _UnaryOperation __unary_op, _Tp __init, _BinaryOperation __binary_op,
                        /*Inclusive*/ ::std::true_type, /*is_vector=*/::std::false_type) noexcept
 {
-    for (; __first != __last; ++__first, ++__result)
+    for (; __first != __last; ++__first, (void)++__result)
     {
         _ONEDPL_PRAGMA_FORCEINLINE
         __init = __binary_op(__init, __unary_op(*__first));

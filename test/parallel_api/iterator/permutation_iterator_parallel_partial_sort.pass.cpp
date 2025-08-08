@@ -27,7 +27,7 @@ DEFINE_TEST_PERM_IT(test_partial_sort, PermItIndexTag)
     void generate_data(TIterator itBegin, TIterator itEnd, Size n)
     {
         Size index = 0;
-        for (auto it = itBegin; it != itEnd; ++it, ++index)
+        for (auto it = itBegin; it != itEnd; ++it, (void) ++index)
             *it = n - index;
     }
 
