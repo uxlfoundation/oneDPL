@@ -45,6 +45,10 @@
 #    include <cstring> // memcpy
 #endif
 
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+#include <concepts> // for std::equality_comparable_with
+#endif
+
 namespace oneapi
 {
 namespace dpl
@@ -820,6 +824,12 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
 
 namespace __iterators_possibly_equal_impl
 {
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable : std::bool_constant<std::equality_comparable_with<_Iterator1, _Iterator2>>
+{
+};
+#else
 template <typename _Iterator, typename = void>
 struct __base_iterator_type : std::true_type
 {
@@ -897,6 +907,7 @@ struct __is_equality_comparable<_Iterator1, _Iterator2,
                                                   typename __base_iterator_type<_Iterator2>::__type>>
 {
 };
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
 
 } // namespace __iterators_possibly_equal_impl
 

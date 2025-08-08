@@ -32,6 +32,7 @@ test_is_iterator_type()
     static_assert(!__is_iterator_type<int>::value);
 }
 
+#if !_ONEDPL_CPP20_CONCEPTS_PRESENT
 void
 test_iterators_possibly_equal_internals()
 {
@@ -136,6 +137,7 @@ test_iterators_possibly_equal_internals()
     static_assert(!__is_equality_self_comparable<__IteratorType1, __IteratorType2>::value);
     static_assert(!__is_equality_comparable<__IteratorType1, __IteratorType2>::value);
 }
+#endif
 
 // Check the correctness of oneapi::dpl::__internal::__iterators_possibly_equal
 void
@@ -258,7 +260,9 @@ main()
 
     oneapi::dpl::__internal::test_is_iterator_type();
 
+#if !_ONEDPL_CPP20_CONCEPTS_PRESENT
     oneapi::dpl::__internal::test_iterators_possibly_equal_internals();
+#endif
 
     // Check the correctness of oneapi::dpl::__internal::__iterators_possibly_equal
     oneapi::dpl::__internal::test_iterators_possibly_equal();
