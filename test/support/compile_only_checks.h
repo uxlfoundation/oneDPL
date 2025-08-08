@@ -208,7 +208,7 @@ static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
 
 // Helper to conditionally wrap iterators with NoCommaIterator
 template <typename T>
-constexpr auto
+constexpr decltype(auto)
 wrap_no_comma_if_iterator(T&& arg)
 {
     if constexpr (__is_iterator_type_v<std::decay_t<T>>)
