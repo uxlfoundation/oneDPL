@@ -143,14 +143,14 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
     _FlagStorageType
     get_status(_PackedStatusPrefixT __packed) const
     {
-        _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) >> __half_status_prefix_bits;
+        constexpr _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) >> __half_status_prefix_bits;
         return static_cast<_FlagStorageType>(__packed & __prefix_mask);
     }
 
     _T
     get_value(_PackedStatusPrefixT __packed) const
     {
-        _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) << __half_status_prefix_bits;
+        constexpr _PackedStatusPrefixT __prefix_mask = ~_PackedStatusPrefixT(0) << __half_status_prefix_bits;
         _TIntegralBitsType __integral_bits =
             static_cast<_TIntegralBitsType>((__packed & __prefix_mask) >> __half_status_prefix_bits);
         return sycl::bit_cast<_T, _TIntegralBitsType>(__integral_bits);
