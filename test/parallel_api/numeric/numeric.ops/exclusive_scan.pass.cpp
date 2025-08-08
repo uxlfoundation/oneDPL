@@ -93,7 +93,8 @@ test_diff_iterators(Policy&& exec)
     input[4] = false;
     input[5] = true;
 
-    // Create reverse iterators
+    // Create reverse iterators to test exclusive_scan's behavior when scanning from right to left.
+    // This verifies that exclusive_scan correctly handles reverse iterator ranges and produces expected results.
     auto input_rbegin = std::reverse_iterator<bool*>(input + N);
     auto input_rend = std::reverse_iterator<bool*>(input);
 
