@@ -46,7 +46,7 @@
 #endif
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-#include <concepts> // for std::equality_comparable_with
+#    include <concepts> // for std::equality_comparable_with
 #endif
 
 namespace oneapi
