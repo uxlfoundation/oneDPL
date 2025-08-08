@@ -44,9 +44,9 @@ test_iterators_possibly_equal_internals()
 
     ////////////////////////////////////////////////////////////////////////////
     // The definitions of iterator value_type
-    static_assert(std::is_same_v<int,  __iterator_value_type_t<int*>>);
-    static_assert(std::is_same_v<void, __iterator_value_type_t<int >>);
-    static_assert(std::is_same_v<int,  __iterator_value_type_t<decltype(std::vector<int>().begin())>>);
+    static_assert(std::is_same_v<int,  typename __iterator_value_type<int*>::__type>);
+    static_assert(std::is_same_v<void, typename __iterator_value_type<int >::__type>);
+    static_assert(std::is_same_v<int,  typename __iterator_value_type<decltype(std::vector<int>().begin())>::__type>);
 
     ////////////////////////////////////////////////////////////////////////////
     // Check that the iterators iterate over the same types
@@ -104,13 +104,8 @@ test_iterators_possibly_equal_internals()
 
     static_assert(!std::is_same_v<__IteratorType1, __IteratorType2>);
 
-    // oneapi::dpl::__internal::tuple<unsigned long long, unsigned int>
-    //__iterator_value_type_t<__IteratorType1>::dummy;
-    // oneapi::dpl::__internal::tuple<unsigned long long, unsigned int>
-    //__iterator_value_type_t<__IteratorType2>::dummy;
-
-    static_assert(!std::is_same_v<__iterator_value_type_t<__IteratorType1>, void>);
-    static_assert(!std::is_same_v<__iterator_value_type_t<__IteratorType2>, void>);
+    static_assert(!std::is_same_v<typename __iterator_value_type<__IteratorType1>::__type, void>);
+    static_assert(!std::is_same_v<typename __iterator_value_type<__IteratorType2>::__type, void>);
 
     static_assert(__has_same_value_types<__IteratorType1, __IteratorType2>::value);
 
