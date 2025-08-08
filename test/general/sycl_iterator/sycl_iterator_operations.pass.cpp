@@ -140,26 +140,25 @@ test_iterators_possibly_equal_internals()
     static_assert( __has_equality_op<__IteratorType2, __IteratorType2>::value);
     static_assert(!__has_equality_op<__IteratorType1, __IteratorType2>::value);
 
-    static_assert(!
-        oneapi::dpl::__internal::__iterators_possibly_equal_impl::__is_equality_self_comparable<
-        oneapi::dpl::zip_iterator<
-            oneapi::dpl::__internal::sycl_iterator<
-                sycl::access::mode::read_write,
-                unsigned long long
-            >,
-            oneapi::dpl::__internal::sycl_iterator<
-                sycl::access::mode::read_write,
-                unsigned int
-            >
-        >,
-        oneapi::dpl::zip_iterator<
-            unsigned long long *,
-            oneapi::dpl::__internal::sycl_iterator<
-                sycl::access::mode::read_write,
-                unsigned int
-            >
-        >
-    >::value);
+    static_assert(!__is_equality_comparable_v<
+                        oneapi::dpl::zip_iterator<
+                            oneapi::dpl::__internal::sycl_iterator<
+                                sycl::access::mode::read_write,
+                                unsigned long long
+                            >,
+                            oneapi::dpl::__internal::sycl_iterator<
+                                sycl::access::mode::read_write,
+                                unsigned int
+                            >
+                        >,
+                        oneapi::dpl::zip_iterator<
+                            unsigned long long *,
+                            oneapi::dpl::__internal::sycl_iterator<
+                                sycl::access::mode::read_write,
+                                unsigned int
+                            >
+                        >
+                    >);
     static_assert(!__is_equality_self_comparable<__IteratorType1, __IteratorType2>::value);
     static_assert(!__is_equality_comparable_v<__IteratorType1, __IteratorType2>);
 }
