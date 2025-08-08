@@ -905,13 +905,11 @@ template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-    using namespace __iterators_possibly_equal_impl;
-
-    if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+    if constexpr (__iterators_possibly_equal_impl::__is_equality_comparable<_Iterator1, _Iterator2>::value)
     {
         return __it1 == __it2;
     }
-    else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
+    else if constexpr (__iterators_possibly_equal_impl::__is_equality_comparable<_Iterator2, _Iterator1>::value)
     {
         return __it2 == __it1;
     }
