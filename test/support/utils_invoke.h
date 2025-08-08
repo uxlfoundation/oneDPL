@@ -283,10 +283,36 @@ struct invoke_on_all_host_policies
         using namespace oneapi::dpl::execution;
 
 #if !TEST_ONLY_HETERO_POLICIES
+
         // Try static execution policies
         invoke_on_all_iterator_types()(seq,       op, rest...);
         invoke_on_all_iterator_types()(unseq,     op, rest...);
         invoke_on_all_iterator_types()(par,       op, rest...);
+
+        volatile bool always_false = false;
+        if (always_false)
+        {
+            oneapi::dpl::execution::sequenced_policy   user_sequenced_policy;
+            oneapi::dpl::execution::unsequenced_policy user_unsequenced_policy;
+            oneapi::dpl::execution::parallel_policy    user_parallel_policy;
+
+            // Try static execution policies
+            invoke_on_all_iterator_types()(user_sequenced_policy,   op, rest...);
+            invoke_on_all_iterator_types()(user_unsequenced_policy, op, rest...);
+            invoke_on_all_iterator_types()(user_parallel_policy,    op, rest...);
+
+            const auto& user_sequenced_policy_const_ref   = user_sequenced_policy;
+            const auto& user_unsequenced_policy_const_ref = user_unsequenced_policy;
+            const auto& user_parallel_policy_const_ref    = user_parallel_policy;
+            invoke_on_all_iterator_types()(user_sequenced_policy_const_ref,   op, rest...);
+            invoke_on_all_iterator_types()(user_unsequenced_policy_const_ref, op, rest...);
+            invoke_on_all_iterator_types()(user_parallel_policy_const_ref,    op, rest...);
+
+            invoke_on_all_iterator_types()(std::move(user_sequenced_policy),   op, rest...);
+            invoke_on_all_iterator_types()(std::move(user_unsequenced_policy), op, rest...);
+            invoke_on_all_iterator_types()(std::move(user_parallel_policy),    op, rest...);
+        }
+
 #if __SYCL_PSTL_OFFLOAD__
         // If standard library does not provide the par_unseq policy, oneDPL would inject
         // oneDPL par_unseq policy into namespace STD and since std::execution::par_unseq
@@ -294,7 +320,20 @@ struct invoke_on_all_host_policies
         if constexpr (!std::is_same_v<oneapi::dpl::execution::parallel_unsequenced_policy,
                                       std::execution::parallel_unsequenced_policy>)
 #endif // __SYCL_PSTL_OFFLOAD__
-            invoke_on_all_iterator_types()(par_unseq, op, ::std::forward<T>(rest)...);
+        {
+            invoke_on_all_iterator_types()(par_unseq, op, std::forward<T>(rest)...);
+
+            if (always_false)
+            {
+                oneapi::dpl::execution::parallel_unsequenced_policy user_parallel_unsequenced_policy;
+                invoke_on_all_iterator_types()(user_parallel_unsequenced_policy, op, std::forward<T>(rest)...);
+
+                const auto& user_parallel_unsequenced_policy_const_ref = user_parallel_unsequenced_policy;
+                invoke_on_all_iterator_types()(user_parallel_unsequenced_policy_const_ref, op, std::forward<T>(rest)...);
+
+                invoke_on_all_iterator_types()(std::move(user_parallel_unsequenced_policy), op, std::forward<T>(rest)...);
+            }
+        }
 #endif
     }
 };
