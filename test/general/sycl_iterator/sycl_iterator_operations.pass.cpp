@@ -39,8 +39,8 @@ test_iterators_possibly_equal_internals()
 
     ////////////////////////////////////////////////////////////////////////////
     // The definitions of base iterator types
-    static_assert(std::is_same_v<int*, __base_iterator_t<int*>>);
-    static_assert(std::is_same_v<int,  __base_iterator_t<int >>);
+    static_assert(std::is_same_v<int*, typename __base_iterator<int*>::__type>);
+    static_assert(std::is_same_v<int,  typename __base_iterator<int >::__type>);
 
     ////////////////////////////////////////////////////////////////////////////
     // The definitions of iterator value_type

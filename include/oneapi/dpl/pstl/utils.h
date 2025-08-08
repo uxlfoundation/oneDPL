@@ -833,9 +833,6 @@ struct __base_iterator<_Iterator, std::void_t<decltype(std::declval<std::decay_t
     using __type = decltype(std::declval<std::decay_t<_Iterator>>().base());
 };
 
-template <typename Iterator>
-using __base_iterator_t = typename __base_iterator<Iterator>::__type;
-
 template <typename _Iterator, typename = void>
 struct __iterator_value_type
 {
@@ -897,10 +894,10 @@ struct __is_eq_op_may_be_called_through_base : std::false_type
 template <typename _Iterator1, typename _Iterator2>
 struct __is_eq_op_may_be_called_through_base<_Iterator1, _Iterator2,
                                              std::enable_if_t<__is_eq_op_may_be_called<_Iterator1, _Iterator2>::value>>
-    : std::conditional_t<
-          std::conjunction_v<__base_iterator<_Iterator1>, __base_iterator<_Iterator2>>,
-          __is_eq_op_may_be_called<_Iterator1, _Iterator2>,
-          __is_eq_op_may_be_called_through_base<__base_iterator_t<_Iterator1>, __base_iterator_t<_Iterator2>>>
+    : std::conditional_t<std::conjunction_v<__base_iterator<_Iterator1>, __base_iterator<_Iterator2>>,
+                         __is_eq_op_may_be_called<_Iterator1, _Iterator2>,
+                         __is_eq_op_may_be_called_through_base<typename __base_iterator<_Iterator1>::__type,
+                                                               typename __base_iterator<_Iterator2>::__type>>
 {
 };
 
