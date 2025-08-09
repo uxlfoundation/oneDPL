@@ -21,6 +21,147 @@
 
 namespace oneapi::dpl::__internal
 {
+void
+test_is_iterator_type()
+{
+    static_assert(__is_iterator_type<int*>::value);
+    static_assert(__is_iterator_type<const int*>::value);
+    static_assert(__is_iterator_type<decltype(std::vector<int>().begin())>::value);
+
+    static_assert(!__is_iterator_type<std::nullptr_t>::value);
+    static_assert(!__is_iterator_type<int>::value);
+}
+
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+void
+test_iterators_possibly_equal_internals_on_concepts()
+{
+    using __IteratorType1 = oneapi::dpl::zip_iterator<
+        oneapi::dpl::__internal::sycl_iterator<
+            sycl::access::mode::read_write,
+            unsigned long long
+        >,
+        oneapi::dpl::__internal::sycl_iterator<
+            sycl::access::mode::read_write,
+            unsigned int
+        >
+    >;
+    using __IteratorType2 = oneapi::dpl::zip_iterator<
+        unsigned long long *,
+        oneapi::dpl::__internal::sycl_iterator<
+            sycl::access::mode::read_write,
+            unsigned int
+        >
+    >;
+
+    static_assert(!__is_equality_comparable_v<__IteratorType1, __IteratorType2>);
+}
+#else
+void
+test_iterators_possibly_equal_internals()
+{
+    using namespace __is_equality_comparable_impl;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // The definitions of base iterator types
+    static_assert(std::is_same_v<int*, typename __base_iterator_type<int*>::__type>);
+    static_assert(std::is_same_v<int,  typename __base_iterator_type<int >::__type>);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // The definitions of iterator value_type
+    static_assert(std::is_same_v<int,  typename __iterator_value_type<int*>::__type>);
+    static_assert(std::is_same_v<void, typename __iterator_value_type<int >::__type>);
+    static_assert(std::is_same_v<int,  typename __iterator_value_type<decltype(std::vector<int>().begin())>::__type>);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Check that the iterators iterate over the same types
+    static_assert(!__has_same_value_types<int*, int >::value);
+    static_assert( __has_same_value_types<int*, int*>::value);
+    static_assert(!__has_same_value_types<decltype(std::vector<int>().begin()), 
+                                          decltype(std::vector<float>().cbegin())>::value);
+    static_assert( __has_same_value_types<decltype(std::vector<int>().begin()), 
+                                          decltype(std::vector<int>().crbegin())>::value);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Check if the iterators are equality comparable
+
+    static_assert(!__has_equality_op<int*, int >::value);
+    static_assert( __has_equality_op<int*, int*>::value);
+    static_assert( __has_equality_op<decltype(std::vector<int>().begin()), 
+                                     decltype(std::vector<int>().cbegin())>::value);
+    static_assert(!__has_equality_op<decltype(std::vector<int>().begin()), 
+                                     decltype(std::vector<float>().cbegin())>::value);
+
+    static_assert(!__is_equality_self_comparable<int*, int >::value);
+    static_assert( __is_equality_self_comparable<int*, int*>::value);
+    static_assert( __is_equality_self_comparable<decltype(std::vector<int>().begin()), 
+                                                 decltype(std::vector<int>().cbegin())>::value);
+    static_assert(!__is_equality_self_comparable<decltype(std::vector<int>().begin()), 
+                                                 decltype(std::vector<float>().cbegin())>::value);
+
+    static_assert(!__is_equality_comparable_v<int*, int       >);
+    static_assert( __is_equality_comparable_v<int*, int*      >);
+    static_assert(!__is_equality_comparable_v<int*, float*    >);
+    static_assert( __is_equality_comparable_v<int*, const int*>);
+    static_assert( __is_equality_comparable_v<decltype(std::vector<int>().begin()), 
+                                              decltype(std::vector<int>().cbegin())>);
+    static_assert(!__is_equality_comparable_v<decltype(std::vector<int>().begin()), 
+                                              decltype(std::vector<float>().cbegin())>);
+
+    ////////////////////////////////////////////////////////////////////////////
+    using __IteratorType1 = oneapi::dpl::zip_iterator<
+        oneapi::dpl::__internal::sycl_iterator<
+            sycl::access::mode::read_write,
+            unsigned long long
+        >,
+        oneapi::dpl::__internal::sycl_iterator<
+            sycl::access::mode::read_write,
+            unsigned int
+        >
+    >;
+    using __IteratorType2 = oneapi::dpl::zip_iterator<
+        unsigned long long *,
+        oneapi::dpl::__internal::sycl_iterator<
+            sycl::access::mode::read_write,
+            unsigned int
+        >
+    >;
+
+    static_assert(!std::is_same_v<__IteratorType1, __IteratorType2>);
+
+    static_assert(!std::is_same_v<typename __iterator_value_type<__IteratorType1>::__type, void>);
+    static_assert(!std::is_same_v<typename __iterator_value_type<__IteratorType2>::__type, void>);
+
+    static_assert(__has_same_value_types<__IteratorType1, __IteratorType2>::value);
+
+    static_assert( __has_equality_op<__IteratorType1, __IteratorType1>::value);
+    static_assert( __has_equality_op<__IteratorType2, __IteratorType2>::value);
+    static_assert(!__has_equality_op<__IteratorType1, __IteratorType2>::value);
+
+    static_assert(!__is_equality_comparable_v<
+                        oneapi::dpl::zip_iterator<
+                            oneapi::dpl::__internal::sycl_iterator<
+                                sycl::access::mode::read_write,
+                                unsigned long long
+                            >,
+                            oneapi::dpl::__internal::sycl_iterator<
+                                sycl::access::mode::read_write,
+                                unsigned int
+                            >
+                        >,
+                        oneapi::dpl::zip_iterator<
+                            unsigned long long *,
+                            oneapi::dpl::__internal::sycl_iterator<
+                                sycl::access::mode::read_write,
+                                unsigned int
+                            >
+                        >
+                    >);
+    static_assert(!__is_equality_self_comparable<__IteratorType1, __IteratorType2>::value);
+    static_assert(!__is_equality_comparable_v<__IteratorType1, __IteratorType2>);
+}
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
+
 // Check the correctness of oneapi::dpl::__internal::__iterators_possibly_equal
 void
 test_iterators_possibly_equal()
@@ -139,6 +280,14 @@ std::int32_t
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
+
+    oneapi::dpl::__internal::test_is_iterator_type();
+
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+    oneapi::dpl::__internal::test_iterators_possibly_equal_internals_on_concepts();
+#else
+    oneapi::dpl::__internal::test_iterators_possibly_equal_internals();
+#endif
 
     // Check the correctness of oneapi::dpl::__internal::__iterators_possibly_equal
     oneapi::dpl::__internal::test_iterators_possibly_equal();
