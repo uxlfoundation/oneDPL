@@ -36,8 +36,6 @@ test_is_iterator_type()
 void
 test_iterators_possibly_equal_internals_on_concepts()
 {
-    using namespace __is_equality_comparable_impl;
-
     using __IteratorType1 = oneapi::dpl::zip_iterator<
         oneapi::dpl::__internal::sycl_iterator<
             sycl::access::mode::read_write,
