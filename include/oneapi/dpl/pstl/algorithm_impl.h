@@ -3397,12 +3397,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         __par_backend::__parallel_invoke(
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec),
             [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                  __result, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, std::move(__exec), __first1, __last1, __result, __copy_range);
             },
             [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
-                                                  __result + __n1, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, std::move(__exec), __first2, __last2, __result + __n1,
+                                                  __copy_range);
             });
         return __result + __n1 + __n2;
     }
@@ -3416,12 +3415,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         __par_backend::__parallel_invoke(
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec),
             [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
-                                                  __result, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, std::move(__exec), __first2, __last2, __result, __copy_range);
             },
             [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                  __result + __n2, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, std::move(__exec), __first1, __last1, __result + __n2,
+                                                  __copy_range);
             });
         return __result + __n1 + __n2;
     }
@@ -3435,14 +3433,13 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec),
             //do parallel copying of [first1; left_bound_seq_1)
             [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                  __left_bound_seq_1, __res_or, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, std::move(__exec), __first1, __left_bound_seq_1, __res_or,
+                                                  __copy_range);
             },
             [=, &__result] {
                 __result = __internal::__parallel_set_op(
-                    __tag, ::std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
-                    __result, __comp, [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                    __set_union_op);
+                    __tag, std::move(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result, __comp,
+                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op);
             });
         return __result;
     }
@@ -3457,14 +3454,13 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec),
             //do parallel copying of [first2; left_bound_seq_2)
             [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first2,
-                                                  __left_bound_seq_2, __res_or, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, std::move(__exec), __first2, __left_bound_seq_2, __res_or,
+                                                  __copy_range);
             },
             [=, &__result] {
                 __result = __internal::__parallel_set_op(
-                    __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
-                    __result, __comp, [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                    __set_union_op);
+                    __tag, std::move(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result, __comp,
+                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op);
             });
         return __result;
     }
