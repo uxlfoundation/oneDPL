@@ -170,8 +170,17 @@ constexpr int calc_res_size(int n, int) { return n; }
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_zero = [](auto) { return 0;};
 
+void call_with_host_policies(auto algo, auto... args)
+{
+    algo(oneapi::dpl::execution::seq, args...);
+    algo(oneapi::dpl::execution::unseq, args...);
+    algo(oneapi::dpl::execution::par, args...);
+    algo(oneapi::dpl::execution::par_unseq, args...);
+}
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
+
 struct test
 {
     void
