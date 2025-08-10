@@ -875,18 +875,15 @@ template <typename _Iterator1, typename _Iterator2>
 using __is_equality_self_comparable =
     std::conjunction<__has_same_value_types<_Iterator1, _Iterator2>, __has_equality_op<_Iterator1, _Iterator2>>;
 
-template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_equality_comparable : std::false_type
-{
-};
-
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable<_Iterator1, _Iterator2,
-                                std::enable_if_t<__is_equality_self_comparable<_Iterator1, _Iterator2>::value>>
-    : std::conditional_t<std::conjunction_v<__base_iterator_type<_Iterator1>, __base_iterator_type<_Iterator2>>,
-                         __is_equality_self_comparable<_Iterator1, _Iterator2>,
-                         __is_equality_comparable<typename __base_iterator_type<_Iterator1>::__type,
-                                                  typename __base_iterator_type<_Iterator2>::__type>>
+struct __is_equality_comparable
+    : std::conditional_t<
+          __is_equality_self_comparable<_Iterator1, _Iterator2>::value,
+          std::conditional_t<std::conjunction_v<__base_iterator_type<_Iterator1>, __base_iterator_type<_Iterator2>>,
+                             __is_equality_self_comparable<_Iterator1, _Iterator2>,
+                             __is_equality_comparable<typename __base_iterator_type<_Iterator1>::__type,
+                                                      typename __base_iterator_type<_Iterator2>::__type>>,
+          std::false_type>
 {
 };
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
