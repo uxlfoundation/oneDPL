@@ -871,18 +871,9 @@ struct __has_equality_op<_Iterator1, _Iterator2,
 {
 };
 
-template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_equality_self_comparable : std::false_type
-{
-};
-
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_self_comparable<_Iterator1, _Iterator2,
-                                     std::enable_if_t<std::conjunction_v<__has_same_value_types<_Iterator1, _Iterator2>,
-                                                                         __has_equality_op<_Iterator1, _Iterator2>>>>
-    : std::true_type
-{
-};
+using __is_equality_self_comparable =
+    std::conjunction<__has_same_value_types<_Iterator1, _Iterator2>, __has_equality_op<_Iterator1, _Iterator2>>;
 
 template <typename _Iterator1, typename _Iterator2, typename = void>
 struct __is_equality_comparable : std::false_type
