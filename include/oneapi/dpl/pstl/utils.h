@@ -829,14 +829,24 @@ template <typename _Iterator1, typename _Iterator2>
 using __is_equality_comparable = std::bool_constant<std::equality_comparable_with<_Iterator1, _Iterator2>>;
 #else
 template <typename _Iterator, typename = void>
-struct __base_iterator_type : std::true_type
+struct __has_base_iterator : std::false_type
+{
+};
+
+template <typename _Iterator>
+struct __has_base_iterator<_Iterator, std::void_t<decltype(std::declval<std::decay_t<_Iterator>>().base())>>
+    : std::true_type
+{
+};
+
+template <typename _Iterator, typename = void>
+struct __base_iterator_type
 {
     using __type = std::decay_t<_Iterator>;
 };
 
 template <typename _Iterator>
 struct __base_iterator_type<_Iterator, std::void_t<decltype(std::declval<std::decay_t<_Iterator>>().base())>>
-    : std::false_type
 {
     using __type = decltype(std::declval<std::decay_t<_Iterator>>().base());
 };
@@ -877,7 +887,7 @@ template <typename _Iterator1, typename _Iterator2>
 struct __is_equality_comparable
     : std::conditional_t<
           __is_equality_self_comparable<_Iterator1, _Iterator2>::value,
-          std::conditional_t<std::conjunction_v<__base_iterator_type<_Iterator1>, __base_iterator_type<_Iterator2>>,
+          std::conditional_t<std::conjunction_v<__has_base_iterator<_Iterator1>, __has_base_iterator<_Iterator2>>,
                              __is_equality_self_comparable<_Iterator1, _Iterator2>,
                              __is_equality_comparable<typename __base_iterator_type<_Iterator1>::__type,
                                                       typename __base_iterator_type<_Iterator2>::__type>>,
