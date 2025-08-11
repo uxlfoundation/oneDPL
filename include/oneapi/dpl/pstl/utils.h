@@ -880,10 +880,12 @@ struct __has_equality_op<_Iterator1, _Iterator2,
 
 template <typename _Iterator1, typename _Iterator2>
 struct __is_equality_comparable_with
-    : std::conditional_t<std::disjunction_v<__has_base_iterator<_Iterator1>, __has_base_iterator<_Iterator2>>,
-                         __is_equality_comparable_with<typename __base_iterator_type<_Iterator1>::__type,
-                                                       typename __base_iterator_type<_Iterator2>::__type>,
-                         __has_equality_op<_Iterator1, _Iterator2>>
+    : std::conditional_t<
+          std::disjunction_v<__has_base_iterator<_Iterator1>, __has_base_iterator<_Iterator2>>,
+          std::conjunction<__is_equality_comparable_with<typename __base_iterator_type<_Iterator1>::__type,
+                                                         typename __base_iterator_type<_Iterator2>::__type>,
+                           __has_equality_op<_Iterator1, _Iterator2>>,
+          __has_equality_op<_Iterator1, _Iterator2>>
 {
 };
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
