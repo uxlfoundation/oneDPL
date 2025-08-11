@@ -869,6 +869,8 @@ struct __has_base_iterator<
 template <typename _Iterator, typename = void>
 struct __base_iterator_type
 {
+    //If no base is available, we use the iterator type itself. This is to support a reasonable definition of
+    //an iterator adapter which could be compared to its base type with a user defined operator==.
     using __type = std::decay_t<_Iterator>;
 };
 
