@@ -16,6 +16,7 @@
 #include "support/test_config.h"
 
 #include _PSTL_TEST_HEADER(iterator)
+#include _PSTL_TEST_HEADER(numeric) // for __iterators_possibly_equal(const sycl_iterator<_Mode1, _T, _Allocator>& __it1, const sycl_iterator<_Mode2, _T, _Allocator>& __it2)
 
 #include <vector>
 #include <type_traits>
