@@ -885,7 +885,6 @@ struct __is_equality_comparable
 {
 };
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
-
 } // namespace __is_equality_comparable_impl
 
 template <typename _Iterator1, typename _Iterator2>
