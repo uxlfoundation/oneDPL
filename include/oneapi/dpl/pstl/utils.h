@@ -893,10 +893,10 @@ struct __is_equality_comparable : std::false_type
 template <typename _Iterator1, typename _Iterator2>
 struct __is_equality_comparable<_Iterator1, _Iterator2,
                                 std::enable_if_t<__is_equality_self_comparable<_Iterator1, _Iterator2>::value>>
-    : std::conditional_t<std::conjunction_v<__base_iterator_type<_Iterator1>, __base_iterator_type<_Iterator2>>,
-                         __is_equality_self_comparable<_Iterator1, _Iterator2>,
+    : std::conditional_t<std::disjunction_v<__has_base_iterator<_Iterator1>, __has_base_iterator<_Iterator2>>,
                          __is_equality_comparable<typename __base_iterator_type<_Iterator1>::__type,
-                                                  typename __base_iterator_type<_Iterator2>::__type>>
+                                                  typename __base_iterator_type<_Iterator2>::__type>,
+                         __is_equality_self_comparable<_Iterator1, _Iterator2>>
 {
 };
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
