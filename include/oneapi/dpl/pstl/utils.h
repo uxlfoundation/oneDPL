@@ -876,10 +876,6 @@ struct __iterator_value_type<_Iterator, std::void_t<typename std::iterator_trait
     using __type = typename std::iterator_traits<std::decay_t<_Iterator>>::value_type;
 };
 
-template <typename _Iterator1, typename _Iterator2>
-using __has_same_value_types = std::is_same<typename __iterator_value_type<_Iterator1>::__type,
-                                            typename __iterator_value_type<_Iterator2>::__type>;
-
 template <typename _Iterator1, typename _Iterator2, typename = void>
 struct __has_equality_op : std::false_type
 {
@@ -893,8 +889,7 @@ struct __has_equality_op<_Iterator1, _Iterator2,
 };
 
 template <typename _Iterator1, typename _Iterator2>
-using __is_equality_self_comparable =
-    std::conjunction<__has_same_value_types<_Iterator1, _Iterator2>, __has_equality_op<_Iterator1, _Iterator2>>;
+using __is_equality_self_comparable = __has_equality_op<_Iterator1, _Iterator2>;
 
 template <typename _Iterator1, typename _Iterator2>
 struct __is_equality_comparable
