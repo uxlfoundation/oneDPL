@@ -839,14 +839,6 @@ static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
 namespace __is_equality_comparable_impl
 {
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-//Prior to C++20, some iterators (move_iterator, reverse_iterator) were defined in such a way where compile time check
-//of the availability of operator== disagrees with the actual availability of the operator due to an overly permissive
-//definition. This disagreement means that for these types, a simple check similar to __has_equality_op below is
-//insufficient at compile time to determine if the types are equality comparable with each other and could easily result
-//in a build error when base types are not also equality comparable. To support these types, we must recurse to compare
-//base iterator types as well if they exist. This must be applied recursively. Some code within MS STL requires that we
-//first check the base type and only continue to the self type if that check succeeds.
-
 
 
 template <typename _Iterator1, typename _Iterator2>
@@ -892,14 +884,15 @@ struct __has_equality_op<_Iterator1, _Iterator2,
 {
 };
 
-// Checks if two iterators are equality comparable with each other.
-// This is a recursive check that first checks the base iterators if they exist, and then
-// checks the current iterators for equality comparability. This ordering is required for MS STL implementations
-// where checking the current iterators first may result in a build error.
+// Pre-C++20 iterator adapters (move_iterator, reverse_iterator) have overly permissive operator== definitions that
+// cause compile-time checks to disagree with runtime availability. This issue requires more than simple
+// __has_equality_op checks to determine if two iterators are equality comparable. We must recursively check base
+// iterator types first to avoid build errors with incompatible base types.
 template <typename _Iterator1, typename _Iterator2>
 struct __is_equality_comparable_with
     : std::conditional_t<
           std::disjunction_v<__has_base_iterator<_Iterator1>, __has_base_iterator<_Iterator2>>,
+           //MS STL impl encounters build errors if we check the current iterator before confirming bases are comparable
           std::conjunction<__is_equality_comparable_with<typename __base_iterator_type<_Iterator1>::__type,
                                                          typename __base_iterator_type<_Iterator2>::__type>,
                            __has_equality_op<_Iterator1, _Iterator2>>,
