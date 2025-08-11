@@ -839,7 +839,7 @@ namespace __is_equality_comparable_impl
 {
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
 template <typename _Iterator1, typename _Iterator2>
-using __is_equality_comparable_with = std::equality_comparable_with<_Iterator1, _Iterator2>;
+using __is_equality_comparable_with = std::bool_constant<std::equality_comparable_with<_Iterator1, _Iterator2>>;
 #else
 template <typename _Iterator, typename = void>
 struct __has_base_iterator : std::false_type
