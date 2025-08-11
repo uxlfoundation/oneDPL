@@ -828,7 +828,8 @@ struct __is_iterator_type : std::false_type
 };
 
 template <typename _T>
-struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<_T>::difference_type>> : std::true_type
+struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<std::decay_t<_T>>::difference_type>>
+    : std::true_type
 {
 };
 
