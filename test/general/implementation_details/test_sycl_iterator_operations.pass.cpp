@@ -97,6 +97,16 @@ test_iterators_possibly_equal_internals()
                                                    decltype(std::vector<float>().cbegin())>);
 
     ////////////////////////////////////////////////////////////////////////////
+    // Check if move_iterator and reverse_iterator work as expected
+    static_assert(!__is_equality_comparable_with_v<move_iterator<int*>, move_iterator<bool*>>);
+    static_assert( __is_equality_comparable_with_v<move_iterator<int*>, move_iterator<int*>>);
+    static_assert(!__is_equality_comparable_with_v<move_iterator<int*>, reverse_iterator<int*>>);
+    static_assert(!__is_equality_comparable_with_v<move_iterator<int*>, reverse_iterator<move_iterator<int*>>>);
+    static_assert( __is_equality_comparable_with_v<reverse_iterator<move_iterator<int*>>, reverse_iterator<move_iterator<int*>>>);
+    static_assert( __is_equality_comparable_with_v<reverse_iterator<double*>, reverse_iterator<double*>>);
+    static_assert(!__is_equality_comparable_with_v<reverse_iterator<int*>, reverse_iterator<bool*>>);
+
+    ////////////////////////////////////////////////////////////////////////////
     using __zip_iterator_1 = oneapi::dpl::zip_iterator<
         oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, unsigned long long>,
         oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, unsigned int>>;
