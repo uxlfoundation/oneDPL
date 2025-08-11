@@ -102,7 +102,7 @@ test_iterators_possibly_equal_internals()
     static_assert( __is_equality_comparable_with_v<move_iterator<int*>, move_iterator<int*>>);
     static_assert(!__is_equality_comparable_with_v<move_iterator<int*>, reverse_iterator<int*>>);
     static_assert(!__is_equality_comparable_with_v<move_iterator<int*>, reverse_iterator<move_iterator<int*>>>);
-    static_assert( __is_equality_comparable_with_v<reverse_iterator<move_iterator<int*> >, reverse_iterator<move_iterator<int*>>>);
+    static_assert( __is_equality_comparable_with_v<reverse_iterator<move_iterator<int*>>, reverse_iterator<move_iterator<int*>>>);
     static_assert( __is_equality_comparable_with_v<reverse_iterator<double*>, reverse_iterator<double*>>);
     static_assert(!__is_equality_comparable_with_v<reverse_iterator<int*>, reverse_iterator<bool*>>);
 
