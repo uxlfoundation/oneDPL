@@ -822,23 +822,44 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
                                    oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
+template <typename _T, typename = void>
+struct __is_iterator_type : std::false_type
+{
+};
+
+template <typename _T>
+struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<_T>::difference_type>> : std::true_type
+{
+};
+
+template <typename _T>
+static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
+
 namespace __is_equality_comparable_impl
 {
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable : std::bool_constant<std::equality_comparable_with<_Iterator1, _Iterator2>>
-{
-};
+using __is_equality_comparable_with = std::bool_constant<std::equality_comparable_with<_Iterator1, _Iterator2>>;
 #else
 template <typename _Iterator, typename = void>
-struct __base_iterator_type : std::true_type
+struct __has_base_iterator : std::false_type
+{
+};
+
+template <typename _Iterator>
+struct __has_base_iterator<_Iterator, std::void_t<decltype(std::declval<std::decay_t<_Iterator>>().base())>>
+    : __is_iterator_type<decltype(std::declval<std::decay_t<_Iterator>>().base())>
+{
+};
+
+template <typename _Iterator, typename = void>
+struct __base_iterator_type
 {
     using __type = std::decay_t<_Iterator>;
 };
 
 template <typename _Iterator>
 struct __base_iterator_type<_Iterator, std::void_t<decltype(std::declval<std::decay_t<_Iterator>>().base())>>
-    : std::false_type
 {
     using __type = decltype(std::declval<std::decay_t<_Iterator>>().base());
 };
@@ -855,10 +876,6 @@ struct __iterator_value_type<_Iterator, std::void_t<typename std::iterator_trait
     using __type = typename std::iterator_traits<std::decay_t<_Iterator>>::value_type;
 };
 
-template <typename _Iterator1, typename _Iterator2>
-using __has_same_value_types = std::is_same<typename __iterator_value_type<_Iterator1>::__type,
-                                            typename __iterator_value_type<_Iterator2>::__type>;
-
 template <typename _Iterator1, typename _Iterator2, typename = void>
 struct __has_equality_op : std::false_type
 {
@@ -872,41 +889,30 @@ struct __has_equality_op<_Iterator1, _Iterator2,
 };
 
 template <typename _Iterator1, typename _Iterator2>
-using __is_equality_self_comparable =
-    std::conjunction<__has_same_value_types<_Iterator1, _Iterator2>, __has_equality_op<_Iterator1, _Iterator2>>;
-
-template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_equality_comparable : std::false_type
-{
-};
-
-template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable<_Iterator1, _Iterator2,
-                                std::enable_if_t<__is_equality_self_comparable<_Iterator1, _Iterator2>::value>>
-    : std::conditional_t<std::conjunction_v<__base_iterator_type<_Iterator1>, __base_iterator_type<_Iterator2>>,
-                         __is_equality_self_comparable<_Iterator1, _Iterator2>,
-                         __is_equality_comparable<typename __base_iterator_type<_Iterator1>::__type,
-                                                  typename __base_iterator_type<_Iterator2>::__type>>
+struct __is_equality_comparable_with
+    : std::conditional_t<std::disjunction_v<__has_base_iterator<_Iterator1>, __has_base_iterator<_Iterator2>>,
+                         __is_equality_comparable_with<typename __base_iterator_type<_Iterator1>::__type,
+                                                       typename __base_iterator_type<_Iterator2>::__type>,
+                         __has_equality_op<_Iterator1, _Iterator2>>
 {
 };
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
-
 } // namespace __is_equality_comparable_impl
 
 template <typename _Iterator1, typename _Iterator2>
-inline constexpr bool __is_equality_comparable_v =
-    __is_equality_comparable_impl::__is_equality_comparable<_Iterator1, _Iterator2>::value;
+inline constexpr bool __is_equality_comparable_with_v =
+    __is_equality_comparable_impl::__is_equality_comparable_with<_Iterator1, _Iterator2>::value;
 
 // Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
 template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-    if constexpr (__is_equality_comparable_v<_Iterator1, _Iterator2>)
+    if constexpr (__is_equality_comparable_with_v<_Iterator1, _Iterator2>)
     {
         return __it1 == __it2;
     }
-    else if constexpr (__is_equality_comparable_v<_Iterator2, _Iterator1>)
+    else if constexpr (__is_equality_comparable_with_v<_Iterator2, _Iterator1>)
     {
         return __it2 == __it1;
     }
@@ -930,19 +936,6 @@ struct __spirv_target_conditional :
 // Trait that has a true value if _ONEDPL_DETECT_SPIRV_COMPILATION is set and false otherwise. This may be used within kernels
 // to determine SPIR-V targets.
 inline constexpr bool __is_spirv_target_v = __spirv_target_conditional<::std::true_type, ::std::false_type>::value;
-
-template <typename _T, typename = void>
-struct __is_iterator_type : std::false_type
-{
-};
-
-template <typename _T>
-struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<_T>::difference_type>> : std::true_type
-{
-};
-
-template <typename _T>
-static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>
