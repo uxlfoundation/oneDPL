@@ -847,8 +847,9 @@ struct __has_base_iterator : std::false_type
 };
 
 template <typename _Iterator>
-struct __has_base_iterator<_Iterator, std::void_t<decltype(std::declval<std::decay_t<_Iterator>>().base())>>
-    : __is_iterator_type<decltype(std::declval<std::decay_t<_Iterator>>().base())>
+struct __has_base_iterator<
+    _Iterator, std::enable_if_t<__is_iterator_type_v<decltype(std::declval<std::decay_t<_Iterator>>().base())>>>
+    : std::true_type
 {
 };
 
