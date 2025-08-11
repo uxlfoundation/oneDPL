@@ -871,11 +871,19 @@ struct __is_iterator_type : std::false_type
 {
 };
 
+#if _ONEDPL___cplusplus < 202002L
 template <typename _T>
-struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<std::decay_t<_T>>::difference_type>>
+struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<std::remove_reference_t<_T>>::difference_type>>
     : std::true_type
 {
 };
+#else
+template <typename _T>
+struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<std::remove_cvref_t<_T>>::difference_type>>
+    : std::true_type
+{
+};
+#endif // _ONEDPL___cplusplus < 202002L
 
 template <typename _T>
 static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
