@@ -866,18 +866,6 @@ struct __base_iterator_type<_Iterator, std::void_t<decltype(std::declval<std::de
     using __type = decltype(std::declval<std::decay_t<_Iterator>>().base());
 };
 
-template <typename _Iterator, typename = void>
-struct __iterator_value_type
-{
-    using __type = void;
-};
-
-template <typename _Iterator>
-struct __iterator_value_type<_Iterator, std::void_t<typename std::iterator_traits<std::decay_t<_Iterator>>::value_type>>
-{
-    using __type = typename std::iterator_traits<std::decay_t<_Iterator>>::value_type;
-};
-
 template <typename _Iterator1, typename _Iterator2, typename = void>
 struct __has_equality_op : std::false_type
 {

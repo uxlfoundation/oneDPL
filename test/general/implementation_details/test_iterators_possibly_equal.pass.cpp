@@ -62,12 +62,6 @@ test_iterators_possibly_equal_internals()
     static_assert(std::is_same_v<int,  typename __base_iterator_type<int >::__type>);
 
     ////////////////////////////////////////////////////////////////////////////
-    // The definitions of iterator value_type
-    static_assert(std::is_same_v<int,  typename __iterator_value_type<int*>::__type>);
-    static_assert(std::is_same_v<void, typename __iterator_value_type<int >::__type>);
-    static_assert(std::is_same_v<int,  typename __iterator_value_type<decltype(std::vector<int>().begin())>::__type>);
-
-    ////////////////////////////////////////////////////////////////////////////
     // Check if the iterators are equality comparable
 
     static_assert(!__has_equality_op<int*, int >::value);
@@ -106,9 +100,6 @@ test_iterators_possibly_equal_internals()
     using __zip_iterator_2_base = decltype(declval<__zip_iterator_2>().base());
 
     static_assert(!std::is_same_v<__zip_iterator_1, __zip_iterator_2>);
-
-    static_assert(!std::is_same_v<typename __iterator_value_type<__zip_iterator_1>::__type, void>);
-    static_assert(!std::is_same_v<typename __iterator_value_type<__zip_iterator_2>::__type, void>);
 
     static_assert( __has_equality_op<__zip_iterator_1, __zip_iterator_1>::value);
     static_assert( __has_equality_op<__zip_iterator_2, __zip_iterator_2>::value);
