@@ -822,6 +822,19 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
                                    oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
+template <typename _T, typename = void>
+struct __is_iterator_type : std::false_type
+{
+};
+
+template <typename _T>
+struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<_T>::difference_type>> : std::true_type
+{
+};
+
+template <typename _T>
+static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
+
 namespace __is_equality_comparable_impl
 {
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
@@ -931,19 +944,6 @@ struct __spirv_target_conditional :
 // Trait that has a true value if _ONEDPL_DETECT_SPIRV_COMPILATION is set and false otherwise. This may be used within kernels
 // to determine SPIR-V targets.
 inline constexpr bool __is_spirv_target_v = __spirv_target_conditional<::std::true_type, ::std::false_type>::value;
-
-template <typename _T, typename = void>
-struct __is_iterator_type : std::false_type
-{
-};
-
-template <typename _T>
-struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<_T>::difference_type>> : std::true_type
-{
-};
-
-template <typename _T>
-static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>
