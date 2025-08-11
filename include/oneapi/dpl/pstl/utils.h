@@ -860,6 +860,8 @@ struct __has_base_iterator<
 template <typename _Iterator, typename = void>
 struct __base_iterator_type
 {
+    // If no base is available, use the iterator type itself. This supports iterator adapters
+    // that can be compared to their base type with a user-defined operator==.
     using __type = std::decay_t<_Iterator>;
 };
 
@@ -881,10 +883,16 @@ struct __has_equality_op<_Iterator1, _Iterator2,
 {
 };
 
+// Checks equality comparability of two iterators.
+// Pre-C++20 iterator adapters (move_iterator, reverse_iterator) have overly permissive operator== definitions that
+// cause compile-time checks to disagree with runtime availability. This issue requires more than simple
+// __has_equality_op checks to determine if two iterators are equality comparable. We must recursively check base
+// iterator types first to avoid build errors with incompatible base types.
 template <typename _Iterator1, typename _Iterator2>
 struct __is_equality_comparable_with
     : std::conditional_t<
           std::disjunction_v<__has_base_iterator<_Iterator1>, __has_base_iterator<_Iterator2>>,
+          // MS STL encounters build errors if we check current iterator before confirming bases are comparable
           std::conjunction<__is_equality_comparable_with<typename __base_iterator_type<_Iterator1>::__type,
                                                          typename __base_iterator_type<_Iterator2>::__type>,
                            __has_equality_op<_Iterator1, _Iterator2>>,
