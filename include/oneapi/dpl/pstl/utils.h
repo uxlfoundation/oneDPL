@@ -885,7 +885,7 @@ struct __has_equality_op<_Iterator1, _Iterator2,
 
 // Checks equality comparability of two iterators.
 // Pre-C++20 iterator adapters (move_iterator, reverse_iterator) have overly permissive operator== definitions that
-// cause compile-time checks to disagree with runtime availability. This issue requires more than simple
+// cause SFINAE checks to pass for operators that cannot then compile. This issue requires more than simple
 // __has_equality_op checks to determine if two iterators are equality comparable. We must recursively check base
 // iterator types first to avoid build errors with incompatible base types.
 template <typename _Iterator1, typename _Iterator2>
