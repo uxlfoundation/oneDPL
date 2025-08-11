@@ -128,7 +128,6 @@ test_iterators_possibly_equal_internals()
 void
 test_iterators_possibly_equal()
 {
-#if 0
     // Check some internals from oneapi::dpl::__internal
     using namespace oneapi::dpl::__internal;
 
@@ -208,7 +207,6 @@ test_iterators_possibly_equal()
         // check pointer + pointer to other const type
         EXPECT_FALSE(__iterators_possibly_equal(intData, &floatData), "wrong __iterators_possibly_equal result");
     }
-#endif
 }
 
 class CustomIterator
