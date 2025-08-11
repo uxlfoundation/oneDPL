@@ -102,7 +102,8 @@ test_diff_iterators(Policy&& exec)
 
     // Use exclusive_scan with reverse iterators to convert bool to int
     // This will scan from right to left (due to reverse iterators)
-    // The initial value (0) will appear at the rightmost position
+    // The use of reverse iterators causes exclusive_scan to process elements in reverse order,
+    // but the algorithm's semantics remain unchanged. The initial value (0) will appear at the rightmost position.
     auto result_rbegin = std::reverse_iterator<int*>(result + N);
     oneapi::dpl::exclusive_scan(
         std::forward<Policy>(exec),         // Parallel execution policy
