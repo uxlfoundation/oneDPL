@@ -76,12 +76,12 @@ test_iterators_possibly_equal_internals()
     static_assert(!__has_equality_op<decltype(std::vector<int>().begin()), 
                                      decltype(std::vector<float>().cbegin())>::value);
 
-    static_assert(!__is_equality_self_comparable<int*, int >::value);
-    static_assert( __is_equality_self_comparable<int*, int*>::value);
-    static_assert( __is_equality_self_comparable<decltype(std::vector<int>().begin()), 
-                                                 decltype(std::vector<int>().cbegin())>::value);
-    static_assert(!__is_equality_self_comparable<decltype(std::vector<int>().begin()), 
-                                                 decltype(std::vector<float>().cbegin())>::value);
+    static_assert(!__has_equality_op<int*, int >::value);
+    static_assert( __has_equality_op<int*, int*>::value);
+    static_assert( __has_equality_op<decltype(std::vector<int>().begin()), 
+                                     decltype(std::vector<int>().cbegin())>::value);
+    static_assert(!__has_equality_op<decltype(std::vector<int>().begin()), 
+                                     decltype(std::vector<float>().cbegin())>::value);
 
     static_assert(!__is_equality_comparable_v<int*, int       >);
     static_assert( __is_equality_comparable_v<int*, int*      >);
@@ -119,7 +119,7 @@ test_iterators_possibly_equal_internals()
     static_assert(std::is_same_v<typename __base_iterator_type<__zip_iterator_1>::__type, __zip_iterator_1_base>);
     static_assert(std::is_same_v<typename __base_iterator_type<__zip_iterator_2>::__type, __zip_iterator_2_base>);
 
-    static_assert(!__is_equality_self_comparable<__zip_iterator_1, __zip_iterator_2>::value);
+    static_assert(!__has_equality_op<__zip_iterator_1, __zip_iterator_2>::value);
     static_assert(!__is_equality_comparable_v<__zip_iterator_1, __zip_iterator_2>);
 }
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
