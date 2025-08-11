@@ -13,9 +13,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "sycl_iterator_test.h"
+#include "support/test_config.h"
+
+#include _PSTL_TEST_HEADER(iterator)
 
 #include <vector>
+#include <type_traits>
+
+#include "support/utils.h"
+
+#if TEST_DPCPP_BACKEND_PRESENT
+#include "support/utils_sycl.h"
+#endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
 
