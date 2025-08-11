@@ -839,9 +839,12 @@ static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
 namespace __is_equality_comparable_impl
 {
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
+
 template <typename _Iterator1, typename _Iterator2>
 using __is_equality_comparable_with = std::bool_constant<std::equality_comparable_with<_Iterator1, _Iterator2>>;
+
 #else
+
 template <typename _Iterator, typename = void>
 struct __has_base_iterator : std::false_type
 {
@@ -888,6 +891,7 @@ struct __is_equality_comparable_with
           __has_equality_op<_Iterator1, _Iterator2>>
 {
 };
+
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
 } // namespace __is_equality_comparable_impl
 
