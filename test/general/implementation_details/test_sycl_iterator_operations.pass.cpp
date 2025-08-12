@@ -96,12 +96,7 @@ void check_is_equality_comparable_with()
     static_assert(!__is_equality_comparable_with_v<__zip_iterator_1, __zip_iterator_2>);
 }
 
-#if _ONEDPL_CPP20_CONCEPTS_PRESENT
-void
-test_iterators_possibly_equal_internals_on_concepts()
-{
-}
-#else
+#if !_ONEDPL_CPP20_CONCEPTS_PRESENT
 void
 test_iterators_possibly_equal_internals()
 {
@@ -283,9 +278,7 @@ main()
 
     oneapi::dpl::__internal::check_is_equality_comparable_with();
 
-#if _ONEDPL_CPP20_CONCEPTS_PRESENT
-    oneapi::dpl::__internal::test_iterators_possibly_equal_internals_on_concepts();
-#else
+#if !_ONEDPL_CPP20_CONCEPTS_PRESENT
     oneapi::dpl::__internal::test_iterators_possibly_equal_internals();
 #endif
 
