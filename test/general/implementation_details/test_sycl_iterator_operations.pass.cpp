@@ -131,9 +131,6 @@ test_iterators_possibly_equal_internals()
         oneapi::dpl::zip_iterator<unsigned long long*,
                                   oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, unsigned int>>;
 
-    using __zip_iterator_1_base = decltype(declval<__zip_iterator_1>().base());
-    using __zip_iterator_2_base = decltype(declval<__zip_iterator_2>().base());
-
     static_assert(!std::is_same_v<__zip_iterator_1, __zip_iterator_2>);
 
     static_assert( __has_equality_op<__zip_iterator_1, __zip_iterator_1>::value);
