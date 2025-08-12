@@ -54,12 +54,12 @@ struct __scan_status_flag
     using _AtomicValueT = sycl::atomic_ref<_T, sycl::memory_order::acq_rel, sycl::memory_scope::device,
                                            sycl::access::address_space::global_space>;
 
-    static constexpr _FlagStorageType __initialized_status = 0;
-    static constexpr _FlagStorageType __partial_status = 1;
-    static constexpr _FlagStorageType __full_status = 2;
-    static constexpr _FlagStorageType __oob_status = 3;
+    inline static constexpr _FlagStorageType __initialized_status = 0;
+    inline static constexpr _FlagStorageType __partial_status = 1;
+    inline static constexpr _FlagStorageType __full_status = 2;
+    inline static constexpr _FlagStorageType __oob_status = 3;
 
-    static constexpr int __padding = SUBGROUP_SIZE;
+    inline static constexpr int __padding = SUBGROUP_SIZE;
 
     __scan_status_flag(_FlagStorageType* __flags, _T* __full_vals, _T* __partial_vals, const std::uint32_t __tile_id)
         : __tile_id(__tile_id), __flags_begin(__flags), __full_vals_begin(__full_vals),
@@ -170,7 +170,7 @@ template <std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size, typ
 struct __lookback_kernel_func
 {
     using _FlagStorageType = typename _FlagType::_FlagStorageType;
-    static constexpr std::uint32_t __elems_in_tile = __workgroup_size * __data_per_workitem;
+    inline static constexpr std::uint32_t __elems_in_tile = __workgroup_size * __data_per_workitem;
 
     _InRng __in_rng;
     _OutRng __out_rng;
