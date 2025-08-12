@@ -839,7 +839,7 @@ static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
 
 template <typename _Iterator1, typename _Iterator2>
-using __is_equality_comparable_with = std::bool_constant<std::equality_comparable_with<_Iterator1, _Iterator2>>;
+inline constexpr bool __is_equality_comparable_with_v = std::equality_comparable_with<_Iterator1, _Iterator2>;
 
 #else
 
@@ -898,10 +898,10 @@ struct __is_equality_comparable_with
 {
 };
 
-#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
-
 template <typename _Iterator1, typename _Iterator2>
 inline constexpr bool __is_equality_comparable_with_v = __is_equality_comparable_with<_Iterator1, _Iterator2>::value;
+
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
 
 // Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
 template <typename _Iterator1, typename _Iterator2>
