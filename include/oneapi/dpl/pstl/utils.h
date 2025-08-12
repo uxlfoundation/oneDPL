@@ -878,7 +878,7 @@ struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<std::dec
 };
 
 template <typename _T>
-static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
+inline constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>
