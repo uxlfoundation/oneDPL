@@ -60,17 +60,6 @@ void
 test_iterators_possibly_equal_internals()
 {
     ////////////////////////////////////////////////////////////////////////////
-    // The definitions of base iterator types
-    static_assert(!__need_unwrap_to_base_iterator<int*>::value);
-    static_assert(!__need_unwrap_to_base_iterator<int >::value);
-    static_assert( __need_unwrap_to_base_iterator<decltype(std::vector<float>().rbegin())>::value);
-
-    static_assert(std::is_same_v<int*, typename __base_iterator_type<int*>::__type>);
-    static_assert(std::is_same_v<int,  typename __base_iterator_type<int >::__type>);
-
-    static_assert(std::is_same_v<decltype(std::vector<int>().begin()),  typename __base_iterator_type<decltype(std::vector<int>().rbegin())>::__type>);
-
-    ////////////////////////////////////////////////////////////////////////////
     // Check if the iterators are equality comparable
 
     static_assert(!__has_equality_op<int*, int >::value);
@@ -98,10 +87,11 @@ test_iterators_possibly_equal_internals()
 
     ////////////////////////////////////////////////////////////////////////////
     // Check if move_iterator and reverse_iterator work as expected
-    static_assert(!__is_equality_comparable_with_v<move_iterator<int*>, move_iterator<bool*>>);
-    static_assert( __is_equality_comparable_with_v<move_iterator<int*>, move_iterator<int*>>);
-    static_assert( __is_equality_comparable_with_v<move_iterator<int*>, reverse_iterator<int*>>);
-    static_assert( __is_equality_comparable_with_v<move_iterator<int*>, reverse_iterator<move_iterator<int*>>>);
+    static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, std::move_iterator<bool*>>);
+    static_assert( __is_equality_comparable_with_v<std::move_iterator<int*>, int*>);
+    static_assert( __is_equality_comparable_with_v<std::move_iterator<int*>, std::move_iterator<int*>>);
+    static_assert( __is_equality_comparable_with_v<std::move_iterator<int*>, std::reverse_iterator<int*>>);
+    static_assert( __is_equality_comparable_with_v<std::move_iterator<int*>, std::reverse_iterator<move_iterator<int*>>>);
     static_assert( __is_equality_comparable_with_v<reverse_iterator<move_iterator<int*>>, reverse_iterator<move_iterator<int*>>>);
     static_assert( __is_equality_comparable_with_v<reverse_iterator<double*>, reverse_iterator<double*>>);
     static_assert(!__is_equality_comparable_with_v<reverse_iterator<int*>, reverse_iterator<bool*>>);
