@@ -215,6 +215,16 @@ test_iterators_possibly_equal()
         // check pointer + pointer to other const type
         EXPECT_FALSE(__internal::__iterators_possibly_equal(intData, &floatData), "wrong __iterators_possibly_equal result");
     }
+
+    // For now we are not going to support comparison of iterators with raw pointers
+    {
+        std::vector<int> dataVec{1, 2, 3};
+        std::vector<int>::iterator itBegin = dataVec.begin();
+        int* rawData = dataVec.data();
+
+        static_assert(!__is_equality_comparable_with_v<decltype(itBegin), decltype(rawData)>);
+        EXPECT_FALSE(__internal::__iterators_possibly_equal(itBegin, rawData), "wrong __iterators_possibly_equal result");
+    }
 }
 
 class CustomIterator
