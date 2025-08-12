@@ -1,12 +1,13 @@
 # Support the third portion of the oneDPL Range APIs
 
 ## Introduction
-Based on statistics (observing C++ code within github.com) for the usage of popular algorithms, the following
-range-based APIs are suggested to be implemented next in oneDPL.
-`swap_ranges`, `reverse`, `reverse_copy`, `unique`, `unique_copy`,
-`includes`, `set_intersection`, `set_union`, `set_difference`, `set_symmetric_difference`,
-`uninitialized_copy`, `uninitialized_move`, `uninitialized_fill`,
-`uninitialized_default_construct`, `uninitialized_value_construct`, `destroy`
+Based on statistics (observing C++ code within github.com) for the usage of popular algorithms,
+the following range-based APIs are suggested to be implemented next in oneDPL:
+- Set algorithms: `includes`, `set_intersection`, `set_union`, `set_difference`, `set_symmetric_difference`
+- In-place mutating algorithms: `reverse`, `swap_ranges`, `unique`.
+- Memory algorithms: `uninitialized_copy`, `uninitialized_move`, `uninitialized_fill`,
+  `uninitialized_default_construct`, `uninitialized_value_construct`, `destroy`.
+- Copying mutating algorithms: `reverse_copy`, `unique_copy`.
 
 ## Motivations
 The feature is proposed as the next step of range-based API support for oneDPL.
@@ -14,10 +15,10 @@ The feature is proposed as the next step of range-based API support for oneDPL.
 ### Key Requirements
 - The range-based signatures for the mentioned API should correspond to the proposed specification,
   which itself is based on the [P3179](https://wg21.link/p3179) proposal:
-  - [Set parallel range algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/630).
-  - [Memory parallel range algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/631).
-  - [In-place mutating parallel range algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/634).
-  - [Copying mutating parallel range algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/635).
+  - [Set algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/630).
+  - [Memory algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/631).
+  - [In-place mutating algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/634).
+  - [Copying mutating algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/635).
 - The signature of `reverse_copy` should align with [P3709](https://wg21.link/p3709),
   which updates the signature defined in [P3179](https://wg21.link/p3179).
 - The proposed implementation should support all oneDPL execution policies:
@@ -52,7 +53,9 @@ which are already implemented in oneDPL.
 - Output data, return type, and value should be checked/compared with the reference result
   computed by the corresponding serial `std::ranges` algorithm or
   by a custom implemented serial version in case of different semantics.
-- The tests should also call the algorithms with following standard range adapters:
+- The memory algorithms should be tested with `std::ranges::subrange` and `std::span`,
+  adapters which can be used with manually allocated and managed storage.
+- Other algorithms should be tested with following standard range adapters:
   `std::ranges::subrange`, `std::span`, `std::views::all`, `std::views::iota`,
   `std::views::transform`, `std::views::reverse`, `std::views::take`, `std::views::drop`.
 - The tests should also call the algorithms with default and custom predicates,
