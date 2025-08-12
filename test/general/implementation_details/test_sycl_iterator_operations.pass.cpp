@@ -142,7 +142,7 @@ test_iterators_possibly_equal()
     // Check some internals from oneapi::dpl::__internal
     using namespace oneapi::dpl::__internal;
 
-    constexpr size_t count = 0;
+    constexpr std::size_t count = 0;
     sycl::buffer<int> buf1(count);
     sycl::buffer<int> buf2(count);
 
