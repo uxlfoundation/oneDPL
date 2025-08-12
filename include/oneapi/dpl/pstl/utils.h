@@ -829,19 +829,24 @@ inline constexpr bool __is_equality_comparable_with_v = std::equality_comparable
 
 #else
 
-template <typename _Iterator, typename = void>
+template <typename _Iterator>
 struct __has_base_iterator : std::false_type
 {
 };
 
-// Specialization for reverse iterators: we going to extract base type from them.
+// We support std::reverse_iterator
 template <typename _Iterator>
-struct __has_base_iterator<std::reverse_iterator<_Iterator>>
-    : std::true_type
+struct __has_base_iterator<std::reverse_iterator<_Iterator>> : std::true_type
 {
 };
 
+// We support std::move_iterator
 template <typename _Iterator>
+struct __has_base_iterator<std::move_iterator<_Iterator>> : std::true_type
+{
+};
+
+template <typename _Iterator, typename = void>
 struct __base_iterator_type
 {
     // If no base is available, use the iterator type itself. This supports iterator adapters
@@ -849,12 +854,10 @@ struct __base_iterator_type
     using __type = std::decay_t<_Iterator>;
 };
 
-// Specialization for reverse iterators to extract the base iterator type.
 template <typename _Iterator>
-struct __base_iterator_type<std::reverse_iterator<_Iterator>>
+struct __base_iterator_type<_Iterator, std::void_t<decltype(std::declval<std::decay_t<_Iterator>>().base())>>
 {
-    // The base iterator type of a reverse iterator is the type returned by its base() method.
-    using __type = decltype(std::declval<std::reverse_iterator<_Iterator>>().base());
+    using __type = decltype(std::declval<std::decay_t<_Iterator>>().base());
 };
 
 template <typename _Iterator1, typename _Iterator2, typename = void>
@@ -881,7 +884,8 @@ struct __is_equality_comparable_with
           // MS STL encounters build errors if we check current iterator before confirming bases are comparable
           std::conjunction<__is_equality_comparable_with<typename __base_iterator_type<_Iterator1>::__type,
                                                          typename __base_iterator_type<_Iterator2>::__type>,
-                           __has_equality_op<_Iterator1, _Iterator2>>,
+                           __has_equality_op<typename __base_iterator_type<_Iterator1>::__type,
+                                             typename __base_iterator_type<_Iterator1>::__type>>,
           __has_equality_op<_Iterator1, _Iterator2>>
 {
 };
