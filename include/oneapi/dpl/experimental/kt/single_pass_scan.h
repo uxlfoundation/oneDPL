@@ -43,7 +43,7 @@ class __lookback_init_kernel;
 template <typename... _Name>
 class __lookback_kernel;
 
-static constexpr int SUBGROUP_SIZE = 32;
+inline constexpr int SUBGROUP_SIZE = 32;
 
 template <typename _T>
 struct __scan_status_flag
