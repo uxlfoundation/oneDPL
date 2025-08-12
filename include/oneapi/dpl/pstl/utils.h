@@ -866,24 +866,24 @@ struct __spirv_target_conditional :
 // to determine SPIR-V targets.
 inline constexpr bool __is_spirv_target_v = __spirv_target_conditional<::std::true_type, ::std::false_type>::value;
 
-template <typename _Iterator>
-using __remove_cvref_t
-#if _ONEDPL___cplusplus < 202002L
-    = std::remove_cv_t<std::remove_reference_t<_Iterator>>;
-#else
-    = std::remove_cvref_t<_Iterator>;
-#endif
-
 template <typename _T, typename = void>
 struct __is_iterator_type : std::false_type
 {
 };
 
+#if _ONEDPL___cplusplus < 202002L
 template <typename _T>
-struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<__remove_cvref_t<_T>>::difference_type>>
+struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<std::remove_reference_t<_T>>::difference_type>>
     : std::true_type
 {
 };
+#else
+template <typename _T>
+struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<std::remove_cvref_t<_T>>::difference_type>>
+    : std::true_type
+{
+};
+#endif // _ONEDPL___cplusplus < 202002L
 
 template <typename _T>
 static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
