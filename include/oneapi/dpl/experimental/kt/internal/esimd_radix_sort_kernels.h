@@ -356,9 +356,9 @@ struct __radix_sort_onesweep_kernel
 
     using _KeyT = typename _InRngPack::_KeyT;
     using _ValT = typename _InRngPack::_ValT;
-    inline static constexpr bool __has_values = !::std::is_void_v<_ValT>;
+    inline static constexpr bool __has_values = !std::is_void_v<_ValT>;
 
-    inline static constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
+    inline static constexpr std::uint32_t __bin_count = 1 << __radix_bits;
 
     template <typename _T, ::std::uint16_t _N>
     using _SimdT = __dpl_esimd::__ns::simd<_T, _N>;
@@ -368,12 +368,12 @@ struct __radix_sort_onesweep_kernel
     using _LocHistT = _SimdT<_LocOffsetT, __bin_count>;
     using _GlobHistT = _SimdT<_GlobOffsetT, __bin_count>;
 
-    inline static constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
+    inline static constexpr std::uint32_t __bit_count = sizeof(_KeyT) * 8;
     inline static constexpr _LocOffsetT __mask = __bin_count - 1;
-    inline static constexpr ::std::uint32_t __hist_stride = __bin_count * sizeof(_LocOffsetT);
-    inline static constexpr ::std::uint32_t __work_item_all_hists_size = __work_group_size * __hist_stride;
-    inline static constexpr ::std::uint32_t __group_hist_size = __hist_stride;
-    inline static constexpr ::std::uint32_t __global_hist_size = __bin_count * sizeof(_GlobOffsetT);
+    inline static constexpr std::uint32_t __hist_stride = __bin_count * sizeof(_LocOffsetT);
+    inline static constexpr std::uint32_t __work_item_all_hists_size = __work_group_size * __hist_stride;
+    inline static constexpr std::uint32_t __group_hist_size = __hist_stride;
+    inline static constexpr std::uint32_t __global_hist_size = __bin_count * sizeof(_GlobOffsetT);
 
     static constexpr ::std::uint32_t
     __calc_reorder_slm_size()

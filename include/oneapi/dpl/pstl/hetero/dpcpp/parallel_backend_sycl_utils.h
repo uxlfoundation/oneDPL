@@ -186,7 +186,7 @@ namespace __internal
 template <typename _CustomName>
 struct _HasDefaultName
 {
-    inline static constexpr bool value = ::std::is_same_v<_CustomName, oneapi::dpl::execution::DefaultKernelName>
+    inline static constexpr bool value = std::is_same_v<_CustomName, oneapi::dpl::execution::DefaultKernelName>
 #if _ONEDPL_FPGA_DEVICE
                                   || ::std::is_same_v<_CustomName, oneapi::dpl::execution::DefaultKernelNameFPGA>
 #endif
@@ -224,7 +224,7 @@ template <typename _KernelName, typename _Tp>
 class __kernel_name_composer
 {
     inline static constexpr auto __name = __builtin_sycl_unique_stable_name(_Tp);
-    inline static constexpr ::std::size_t __name_size = __builtin_strlen(__name);
+    inline static constexpr std::size_t __name_size = __builtin_strlen(__name);
 
     template <::std::size_t... _Is>
     static __composite<_KernelName, __name[_Is]...>
@@ -253,7 +253,7 @@ using __kernel_name_generator =
 template <typename... _KernelNames>
 class __kernel_compiler
 {
-    inline static constexpr ::std::size_t __kernel_count = sizeof...(_KernelNames);
+    inline static constexpr std::size_t __kernel_count = sizeof...(_KernelNames);
     using __kernel_array_type = ::std::array<sycl::kernel, __kernel_count>;
 
     static_assert(__kernel_count > 0, "At least one kernel name should be provided");

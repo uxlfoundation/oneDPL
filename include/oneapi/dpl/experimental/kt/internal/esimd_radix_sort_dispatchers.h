@@ -78,7 +78,7 @@ __one_wg(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, ::std::
 template <typename _HistT, typename _KeyT, typename _ValT = void>
 class __onesweep_memory_holder
 {
-    inline static constexpr bool __has_values = !::std::is_void_v<_ValT>;
+    inline static constexpr bool __has_values = !std::is_void_v<_ValT>;
 
     ::std::uint8_t* __m_raw_mem_ptr = nullptr;
     // Memory to store global histograms, where each stage has its own histogram

@@ -748,7 +748,7 @@ template <typename _CustomName, typename _SizeType>
 struct __invoke_single_group_copy_if
 {
     // Specialization for devices that have a max work-group size of at least 1024
-    inline static constexpr ::std::uint16_t __targeted_wg_size = 1024;
+    inline static constexpr std::uint16_t __targeted_wg_size = 1024;
 
     template <std::uint16_t _Size, typename _InRng, typename _OutRng, typename _Pred,
               typename _Assign = oneapi::dpl::__internal::__pstl_assign>
