@@ -189,8 +189,8 @@ test_iterators_possibly_equal()
         float floatData = .0;
 
         std::vector<int> dataVec{1, 2, 3};
-        const auto intConstData = dataVec.data();
-        auto intData = dataVec.data();
+        std::vector<int>::const_iterator intConstData = dataVec.cbegin();
+        std::vector<int>::iterator intData = dataVec.begin();
 
         // check pointer + pointer
         EXPECT_TRUE(__iterators_possibly_equal(intData, intData), "wrong __iterators_possibly_equal result");
