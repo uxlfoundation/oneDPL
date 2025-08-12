@@ -61,6 +61,9 @@ test_iterators_possibly_equal_internals()
 {
     ////////////////////////////////////////////////////////////////////////////
     // The definitions of base iterator types
+    static_assert(!__has_base_iterator<int*>::value);
+    static_assert(!__has_base_iterator<int >::value);
+    static_assert( __has_base_iterator<decltype(std::vector<float>().rbegin())>::value);
 
     static_assert(std::is_same_v<int*, typename __base_iterator_type<int*>::__type>);
     static_assert(std::is_same_v<int,  typename __base_iterator_type<int >::__type>);
@@ -121,11 +124,12 @@ test_iterators_possibly_equal_internals()
     static_assert( __has_equality_op<__zip_iterator_2, __zip_iterator_2>::value);
     static_assert(!__has_equality_op<__zip_iterator_1, __zip_iterator_2>::value);
 
-    //static_assert(__has_base_iterator<__zip_iterator_1>::value == __is_iterator_type<__zip_iterator_1_base>::value);
-    //static_assert(__has_base_iterator<__zip_iterator_2>::value == __is_iterator_type<__zip_iterator_2_base>::value);
+    static_assert(__has_base_iterator<__zip_iterator_1>::value == __is_iterator_type<__zip_iterator_1_base>::value);
+    static_assert(__has_base_iterator<__zip_iterator_2>::value == __is_iterator_type<__zip_iterator_2_base>::value);
 
-    //static_assert(std::is_same_v<typename __base_iterator_type<__zip_iterator_1>::__type, __zip_iterator_1_base>);
-    //static_assert(std::is_same_v<typename __base_iterator_type<__zip_iterator_2>::__type, __zip_iterator_2_base>);
+    // We are not goint to extract base iterators from zip iterators
+    static_assert(!std::is_same_v<typename __base_iterator_type<__zip_iterator_1>::__type, __zip_iterator_1_base>);
+    static_assert(!std::is_same_v<typename __base_iterator_type<__zip_iterator_2>::__type, __zip_iterator_2_base>);
 
     static_assert(!__has_equality_op<__zip_iterator_1, __zip_iterator_2>::value);
     static_assert(!__is_equality_comparable_with_v<__zip_iterator_1, __zip_iterator_2>);
@@ -214,6 +218,17 @@ test_iterators_possibly_equal()
                     "wrong __iterators_possibly_equal result");
         // check pointer + pointer to other const type
         EXPECT_FALSE(__internal::__iterators_possibly_equal(intData, &floatData), "wrong __iterators_possibly_equal result");
+    }
+
+    {
+        std::vector<int>   dataVecInt;
+        std::vector<float> dataVecFloat;
+
+        auto itRBeginInt = dataVecInt.rbegin();
+        auto itRBeginFloat = dataVecFloat.rbegin();
+
+        static_assert(!__is_equality_comparable_with_v<decltype(itRBeginInt), decltype(itRBeginFloat)>);
+        EXPECT_FALSE(__internal::__iterators_possibly_equal(itRBeginInt, itRBeginFloat), "wrong __iterators_possibly_equal result");
     }
 
     // For now we are not going to support comparison of iterators with raw pointers
