@@ -244,21 +244,21 @@ namespace execution_info
 {
 struct task_time_t
 {
-    static constexpr bool is_execution_info_v = true;
+    inline static constexpr bool is_execution_info_v = true;
     using value_type = uint64_t;
 };
 inline constexpr task_time_t task_time;
 
 struct task_completion_t
 {
-    static constexpr bool is_execution_info_v = true;
+    inline static constexpr bool is_execution_info_v = true;
     using value_type = void;
 };
 inline constexpr task_completion_t task_completion;
 
 struct task_submission_t
 {
-    static constexpr bool is_execution_info_v = true;
+    inline static constexpr bool is_execution_info_v = true;
     using value_type = void;
 };
 inline constexpr task_submission_t task_submission;
@@ -287,7 +287,7 @@ report(S&& s, const Info& i, const Value& v)
 template <typename S, typename Info>
 struct report_info
 {
-    static constexpr bool value = internal::has_report<S, Info>::value;
+    inline static constexpr bool value = internal::has_report<S, Info>::value;
 };
 template <typename S, typename Info>
 inline constexpr bool report_info_v = report_info<S, Info>::value;
@@ -295,7 +295,7 @@ inline constexpr bool report_info_v = report_info<S, Info>::value;
 template <typename S, typename Info, typename ValueType>
 struct report_value
 {
-    static constexpr bool value = internal::has_report_value<S, Info, ValueType>::value;
+    inline static constexpr bool value = internal::has_report_value<S, Info, ValueType>::value;
 };
 template <typename S, typename Info, typename ValueType>
 inline constexpr bool report_value_v = report_value<S, Info, ValueType>::value;
