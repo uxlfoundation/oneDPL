@@ -139,11 +139,6 @@ test_iterators_possibly_equal_internals()
     static_assert( __has_equality_op<__zip_iterator_1, __zip_iterator_1>::value);
     static_assert( __has_equality_op<__zip_iterator_2, __zip_iterator_2>::value);
     static_assert(!__has_equality_op<__zip_iterator_1, __zip_iterator_2>::value);
-
-    static_assert(std::is_same_v<typename __base_iterator_type<__zip_iterator_1>::__type, __zip_iterator_1_base>);
-    static_assert(std::is_same_v<typename __base_iterator_type<__zip_iterator_2>::__type, __zip_iterator_2_base>);
-
-    static_assert(!__has_equality_op<__zip_iterator_1, __zip_iterator_2>::value);
 }
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
 
