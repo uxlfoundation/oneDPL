@@ -1858,8 +1858,8 @@ struct __is_radix_sort_usable_for_type
     inline static constexpr bool value =
 #if _ONEDPL_USE_RADIX_SORT
         (::std::is_arithmetic_v<_T> || ::std::is_same_v<sycl::half, _T>) &&
-            (__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value ||
-            __internal::__is_comp_descending<::std::decay_t<_Compare>>::value);
+        (__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value ||
+         __internal::__is_comp_descending<::std::decay_t<_Compare>>::value);
 #else
         false;
 #endif // _ONEDPL_USE_RADIX_SORT

@@ -188,7 +188,7 @@ struct _HasDefaultName
 {
     inline static constexpr bool value = std::is_same_v<_CustomName, oneapi::dpl::execution::DefaultKernelName>
 #if _ONEDPL_FPGA_DEVICE
-                                  || ::std::is_same_v<_CustomName, oneapi::dpl::execution::DefaultKernelNameFPGA>
+                                         || ::std::is_same_v<_CustomName, oneapi::dpl::execution::DefaultKernelNameFPGA>
 #endif
         ;
 };
