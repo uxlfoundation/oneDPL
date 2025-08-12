@@ -52,8 +52,8 @@ class auto_tune_policy
     using report_clock_type = std::chrono::steady_clock;
     using report_duration = std::chrono::milliseconds;
 
-    static constexpr timing_t never_resample = 0;
-    static constexpr size_type use_best_resource = ~size_type(0);
+    inline static constexpr timing_t never_resample = 0;
+    inline static constexpr size_type use_best_resource = ~size_type(0);
 
     struct resource_with_index_t
     {

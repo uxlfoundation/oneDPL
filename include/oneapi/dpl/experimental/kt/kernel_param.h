@@ -21,8 +21,8 @@ template <std::uint16_t __data_per_work_item, std::uint16_t __work_group_size,
           typename _KernelName = oneapi::dpl::execution::DefaultKernelName>
 struct kernel_param
 {
-    static constexpr std::uint16_t data_per_workitem = __data_per_work_item;
-    static constexpr std::uint16_t workgroup_size = __work_group_size;
+    inline static constexpr std::uint16_t data_per_workitem = __data_per_work_item;
+    inline static constexpr std::uint16_t workgroup_size = __work_group_size;
     using kernel_name = _KernelName;
 };
 

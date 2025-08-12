@@ -113,7 +113,7 @@ template <typename... _Name>
 struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name...>>
 {
     // Limit the work-group size to 512 which has empirically yielded the best results across different architectures.
-    static constexpr std::uint16_t __max_work_group_size = 512;
+    inline static constexpr std::uint16_t __max_work_group_size = 512;
 
     // SPIR-V compilation targets show best performance with a stride of the sub-group size.
     // Other compilation targets perform best with a work-group size stride. This utility can only be called from the

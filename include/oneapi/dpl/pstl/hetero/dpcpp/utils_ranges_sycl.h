@@ -370,10 +370,10 @@ struct __get_sycl_range
     std::vector<std::unique_ptr<oneapi::dpl::__internal::__lifetime_keeper_base>> m_buffers;
 
     template <sycl::access::mode _LocalAccMode>
-    static constexpr bool __is_copy_direct_v =
+    inline static constexpr bool __is_copy_direct_v =
         _LocalAccMode == sycl::access::mode::read_write || _LocalAccMode == sycl::access::mode::read;
     template <sycl::access::mode _LocalAccMode>
-    static constexpr bool __is_copy_back_v =
+    inline static constexpr bool __is_copy_back_v =
         _LocalAccMode == sycl::access::mode::read_write || _LocalAccMode == sycl::access::mode::write;
 
     //SFINAE iterator type checks
@@ -384,7 +384,7 @@ struct __get_sycl_range
     static constexpr std::false_type
     __is_addressable(...);
     template <typename It>
-    static constexpr bool __is_addressable_v = decltype(__is_addressable<It>(0))::value;
+    inline static constexpr bool __is_addressable_v = decltype(__is_addressable<It>(0))::value;
 
     template <typename _F, typename _It, typename _DiffType>
     static auto

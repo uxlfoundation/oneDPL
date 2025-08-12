@@ -41,7 +41,7 @@ namespace backend_traits
 template <typename S>
 struct lazy_report_value
 {
-    static constexpr bool value = ::oneapi::dpl::experimental::internal::has_lazy_report<S>::value;
+    inline static constexpr bool value = ::oneapi::dpl::experimental::internal::has_lazy_report<S>::value;
 };
 template <typename S>
 inline constexpr bool lazy_report_v = lazy_report_value<S>::value;

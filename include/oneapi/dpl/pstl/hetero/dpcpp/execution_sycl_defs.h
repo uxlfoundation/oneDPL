@@ -193,7 +193,7 @@ class fpga_policy : public device_policy<KernelName>
     using base = device_policy<KernelName>;
 
   public:
-    static constexpr unsigned int unroll_factor = factor;
+    inline static constexpr unsigned int unroll_factor = factor;
 
     fpga_policy() : base(__internal::__get_fpga_default_queue()) {}
 
