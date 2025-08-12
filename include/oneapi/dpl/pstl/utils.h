@@ -835,7 +835,8 @@ struct __has_equality_op : std::false_type
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __has_equality_op<_Iterator1, _Iterator2, std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
+struct __has_equality_op<_Iterator1, _Iterator2,
+                         std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
     : std::true_type
 {
 };
