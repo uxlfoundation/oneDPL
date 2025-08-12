@@ -42,10 +42,40 @@ test_is_iterator_type()
     static_assert(!__is_iterator_type<int>::value);
 }
 
-#if _ONEDPL_CPP20_CONCEPTS_PRESENT
-void
-test_iterators_possibly_equal_internals_on_concepts()
+void check_is_equality_comparable_with()
 {
+    static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, int*>);
+    static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, float*>);
+    static_assert(!__is_equality_comparable_with_v<int*,   std::move_iterator<int*>>);
+    static_assert(!__is_equality_comparable_with_v<float*, std::move_iterator<int*>>);
+
+    static_assert( __is_equality_comparable_with_v<std::move_iterator<int*>, std::move_iterator<int*>>);
+    static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, std::reverse_iterator<int*>>);
+    static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, std::reverse_iterator<move_iterator<int*>>>);
+
+    static_assert(!__is_equality_comparable_with_v<int*, int       >);
+    static_assert( __is_equality_comparable_with_v<int*, int*      >);
+    static_assert(!__is_equality_comparable_with_v<int*, float*    >);
+    static_assert( __is_equality_comparable_with_v<int*, const int*>);
+    static_assert( __is_equality_comparable_with_v<decltype(std::vector<int>().begin()), 
+                                                   decltype(std::vector<int>().cbegin())>);
+    static_assert(!__is_equality_comparable_with_v<decltype(std::vector<int>().begin()), 
+                                                   decltype(std::vector<float>().cbegin())>);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Check if move_iterator and reverse_iterator work as expected
+    static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, std::move_iterator<bool*>>);
+    static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, int*>);
+    static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, float*>);
+    static_assert(!__is_equality_comparable_with_v<int*,   std::move_iterator<int*>>);
+    static_assert(!__is_equality_comparable_with_v<float*, std::move_iterator<int*>>);
+    static_assert( __is_equality_comparable_with_v<std::move_iterator<int*>, std::move_iterator<int*>>);
+    static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, std::reverse_iterator<int*>>);
+    static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, std::reverse_iterator<move_iterator<int*>>>);
+    static_assert( __is_equality_comparable_with_v<reverse_iterator<move_iterator<int*>>, reverse_iterator<move_iterator<int*>>>);
+    static_assert( __is_equality_comparable_with_v<reverse_iterator<double*>, reverse_iterator<double*>>);
+    static_assert(!__is_equality_comparable_with_v<reverse_iterator<int*>, reverse_iterator<bool*>>);
+
     using __zip_iterator_1 = oneapi::dpl::zip_iterator<
         oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, unsigned long long>,
         oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, unsigned int>>;
@@ -54,6 +84,22 @@ test_iterators_possibly_equal_internals_on_concepts()
                                   oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, unsigned int>>;
 
     static_assert(!__is_equality_comparable_with_v<__zip_iterator_1, __zip_iterator_2>);
+
+    using __zip_iterator_1 = oneapi::dpl::zip_iterator<
+        oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, unsigned long long>,
+        oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, unsigned int>>;
+
+    using __zip_iterator_2 =
+        oneapi::dpl::zip_iterator<unsigned long long*,
+                                  oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, unsigned int>>;
+
+    static_assert(!__is_equality_comparable_with_v<__zip_iterator_1, __zip_iterator_2>);
+}
+
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+void
+test_iterators_possibly_equal_internals_on_concepts()
+{
 }
 #else
 void
@@ -75,26 +121,6 @@ test_iterators_possibly_equal_internals()
                                      decltype(std::vector<int>().cbegin())>::value);
     static_assert(!__has_equality_op<decltype(std::vector<int>().begin()), 
                                      decltype(std::vector<float>().cbegin())>::value);
-
-    static_assert(!__is_equality_comparable_with_v<int*, int       >);
-    static_assert( __is_equality_comparable_with_v<int*, int*      >);
-    static_assert(!__is_equality_comparable_with_v<int*, float*    >);
-    static_assert( __is_equality_comparable_with_v<int*, const int*>);
-    static_assert( __is_equality_comparable_with_v<decltype(std::vector<int>().begin()), 
-                                                   decltype(std::vector<int>().cbegin())>);
-    static_assert(!__is_equality_comparable_with_v<decltype(std::vector<int>().begin()), 
-                                                   decltype(std::vector<float>().cbegin())>);
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Check if move_iterator and reverse_iterator work as expected
-    static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, std::move_iterator<bool*>>);
-    static_assert( __is_equality_comparable_with_v<std::move_iterator<int*>, int*>);
-    static_assert( __is_equality_comparable_with_v<std::move_iterator<int*>, std::move_iterator<int*>>);
-    static_assert( __is_equality_comparable_with_v<std::move_iterator<int*>, std::reverse_iterator<int*>>);
-    static_assert( __is_equality_comparable_with_v<std::move_iterator<int*>, std::reverse_iterator<move_iterator<int*>>>);
-    static_assert( __is_equality_comparable_with_v<reverse_iterator<move_iterator<int*>>, reverse_iterator<move_iterator<int*>>>);
-    static_assert( __is_equality_comparable_with_v<reverse_iterator<double*>, reverse_iterator<double*>>);
-    static_assert(!__is_equality_comparable_with_v<reverse_iterator<int*>, reverse_iterator<bool*>>);
 
     ////////////////////////////////////////////////////////////////////////////
     using __zip_iterator_1 = oneapi::dpl::zip_iterator<
@@ -121,7 +147,6 @@ test_iterators_possibly_equal_internals()
     static_assert(std::is_same_v<typename __base_iterator_type<__zip_iterator_2>::__type, __zip_iterator_2_base>);
 
     static_assert(!__has_equality_op<__zip_iterator_1, __zip_iterator_2>::value);
-    static_assert(!__is_equality_comparable_with_v<__zip_iterator_1, __zip_iterator_2>);
 }
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
 
@@ -266,6 +291,8 @@ main()
 #if TEST_DPCPP_BACKEND_PRESENT
 
     oneapi::dpl::__internal::test_is_iterator_type();
+
+    oneapi::dpl::__internal::check_is_equality_comparable_with();
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
     oneapi::dpl::__internal::test_iterators_possibly_equal_internals_on_concepts();
