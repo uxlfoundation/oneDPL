@@ -127,8 +127,8 @@ struct __subgroup_radix_sort
     }
 
     static_assert(__wg_size <= 1024);
-    static constexpr uint16_t __bin_count = 1 << __radix;
-    static constexpr uint16_t __counter_buf_sz = __wg_size * __bin_count + 1; //+1(init value) for exclusive scan result
+    inline static constexpr uint16_t __bin_count = 1 << __radix;
+    inline static constexpr uint16_t __counter_buf_sz = __wg_size * __bin_count + 1; //+1(init value) for exclusive scan result
 
     template <typename _T, typename _Size>
     auto

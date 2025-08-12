@@ -186,7 +186,7 @@ namespace __internal
 template <typename _CustomName>
 struct _HasDefaultName
 {
-    static constexpr bool value = ::std::is_same_v<_CustomName, oneapi::dpl::execution::DefaultKernelName>
+    inline static constexpr bool value = ::std::is_same_v<_CustomName, oneapi::dpl::execution::DefaultKernelName>
 #if _ONEDPL_FPGA_DEVICE
                                   || ::std::is_same_v<_CustomName, oneapi::dpl::execution::DefaultKernelNameFPGA>
 #endif
@@ -196,7 +196,7 @@ struct _HasDefaultName
 template <template <typename...> class _ExternalName, typename... _InternalName>
 struct _HasDefaultName<_ExternalName<_InternalName...>>
 {
-    static constexpr bool value = (... || _HasDefaultName<_InternalName>::value);
+    inline static constexpr bool value = (... || _HasDefaultName<_InternalName>::value);
 };
 
 template <typename... _Name>
@@ -223,8 +223,8 @@ struct __composite
 template <typename _KernelName, typename _Tp>
 class __kernel_name_composer
 {
-    static constexpr auto __name = __builtin_sycl_unique_stable_name(_Tp);
-    static constexpr ::std::size_t __name_size = __builtin_strlen(__name);
+    inline static constexpr auto __name = __builtin_sycl_unique_stable_name(_Tp);
+    inline static constexpr ::std::size_t __name_size = __builtin_strlen(__name);
 
     template <::std::size_t... _Is>
     static __composite<_KernelName, __name[_Is]...>
@@ -253,7 +253,7 @@ using __kernel_name_generator =
 template <typename... _KernelNames>
 class __kernel_compiler
 {
-    static constexpr ::std::size_t __kernel_count = sizeof...(_KernelNames);
+    inline static constexpr ::std::size_t __kernel_count = sizeof...(_KernelNames);
     using __kernel_array_type = ::std::array<sycl::kernel, __kernel_count>;
 
     static_assert(__kernel_count > 0, "At least one kernel name should be provided");
@@ -322,34 +322,34 @@ __print_device_debug_info(const sycl::queue&, size_t = 0, size_t = 0)
 template <typename _Comp>
 struct __is_comp_ascending
 {
-    static constexpr bool value = false;
+    inline static constexpr bool value = false;
 };
 template <typename _T>
 struct __is_comp_ascending<::std::less<_T>>
 {
-    static constexpr bool value = true;
+    inline static constexpr bool value = true;
 };
 template <>
 struct __is_comp_ascending<oneapi::dpl::__internal::__pstl_less>
 {
-    static constexpr bool value = true;
+    inline static constexpr bool value = true;
 };
 
 // traits for descending functors
 template <typename _Comp>
 struct __is_comp_descending
 {
-    static constexpr bool value = false;
+    inline static constexpr bool value = false;
 };
 template <typename _T>
 struct __is_comp_descending<::std::greater<_T>>
 {
-    static constexpr bool value = true;
+    inline static constexpr bool value = true;
 };
 template <>
 struct __is_comp_descending<oneapi::dpl::__internal::__pstl_greater>
 {
-    static constexpr bool value = true;
+    inline static constexpr bool value = true;
 };
 
 //-----------------------------------------------------------------------

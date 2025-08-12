@@ -80,52 +80,52 @@ template <access_mode inMode, access_mode outMode>
 struct iter_mode_resolver
 {
     static_assert(inMode == outMode, "Access mode provided by user conflicts with the one required by the algorithm");
-    static constexpr access_mode value = inMode;
+    inline static constexpr access_mode value = inMode;
 };
 
 template <>
 struct iter_mode_resolver<access_mode::read, access_mode::read_write>
 {
-    static constexpr access_mode value = access_mode::read;
+    inline static constexpr access_mode value = access_mode::read;
 };
 
 template <>
 struct iter_mode_resolver<access_mode::write, access_mode::read_write>
 {
-    static constexpr access_mode value = access_mode::write;
+    inline static constexpr access_mode value = access_mode::write;
 };
 
 template <>
 struct iter_mode_resolver<access_mode::read_write, access_mode::read>
 {
     //TODO: warn user that the access mode is changed
-    static constexpr access_mode value = access_mode::read;
+    inline static constexpr access_mode value = access_mode::read;
 };
 
 template <>
 struct iter_mode_resolver<access_mode::read_write, access_mode::write>
 {
     //TODO: warn user that the access mode is changed
-    static constexpr access_mode value = access_mode::write;
+    inline static constexpr access_mode value = access_mode::write;
 };
 
 template <>
 struct iter_mode_resolver<access_mode::discard_write, access_mode::write>
 {
-    static constexpr access_mode value = access_mode::discard_write;
+    inline static constexpr access_mode value = access_mode::discard_write;
 };
 
 template <>
 struct iter_mode_resolver<access_mode::discard_read_write, access_mode::write>
 {
     //TODO: warn user that the access mode is changed
-    static constexpr access_mode value = access_mode::write;
+    inline static constexpr access_mode value = access_mode::write;
 };
 
 template <>
 struct iter_mode_resolver<access_mode::discard_read_write, access_mode::read_write>
 {
-    static constexpr access_mode value = access_mode::discard_read_write;
+    inline static constexpr access_mode value = access_mode::discard_read_write;
 };
 
 //-----------------------------------------------------------------------------
@@ -748,7 +748,7 @@ template <typename _CustomName, typename _SizeType>
 struct __invoke_single_group_copy_if
 {
     // Specialization for devices that have a max work-group size of at least 1024
-    static constexpr ::std::uint16_t __targeted_wg_size = 1024;
+    inline static constexpr ::std::uint16_t __targeted_wg_size = 1024;
 
     template <std::uint16_t _Size, typename _InRng, typename _OutRng, typename _Pred,
               typename _Assign = oneapi::dpl::__internal::__pstl_assign>
@@ -1266,7 +1266,7 @@ struct __parallel_or_tag
 
     // Store that a match was found. Its position is not relevant for or semantics
     // in the __save_state_to (local state) / __save_state_to_atomic (global state) methods.
-    static constexpr _AtomicType __found_state = 1;
+    inline static constexpr _AtomicType __found_state = 1;
 
     template <sycl::access::address_space _Space>
     static void
@@ -1855,7 +1855,7 @@ __parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _Exe
 template <typename _T, typename _Compare>
 struct __is_radix_sort_usable_for_type
 {
-    static constexpr bool value =
+    inline static constexpr bool value =
 #if _ONEDPL_USE_RADIX_SORT
         (::std::is_arithmetic_v<_T> || ::std::is_same_v<sycl::half, _T>) &&
             (__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value ||
