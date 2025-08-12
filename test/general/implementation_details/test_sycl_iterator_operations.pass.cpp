@@ -188,7 +188,7 @@ test_iterators_possibly_equal()
     {
         float floatData = .0;
 
-        ::std::vector<int> dataVec{1, 2, 3};
+        std::vector<int> dataVec{1, 2, 3};
         const auto intConstData = dataVec.data();
         auto intData = dataVec.data();
 
