@@ -53,7 +53,7 @@ which are already implemented in oneDPL.
 - Output data, return type, and value should be checked/compared with the reference result
   computed by the corresponding serial `std::ranges` algorithm or
   by a custom implemented serial version in case of different semantics.
-- The memory algorithms should be tested with `std::ranges::subrange` and `std::span`,
+- The memory algorithms should be tested with `std::ranges::subrange` and `std::span`
   adapters which can be used with manually allocated and managed storage.
 - Other algorithms should be tested with following standard range adapters:
   `std::ranges::subrange`, `std::span`, `std::views::all`, `std::views::iota`,
