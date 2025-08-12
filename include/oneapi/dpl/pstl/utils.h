@@ -829,64 +829,29 @@ inline constexpr bool __is_equality_comparable_with_v = std::equality_comparable
 
 #else
 
-template <typename _Iterator>
-struct __need_unwrap_to_base_iterator : std::false_type
-{
-};
-
-// We support std::reverse_iterator
-template <typename _Iterator>
-struct __need_unwrap_to_base_iterator<std::reverse_iterator<_Iterator>> : std::true_type
-{
-};
-
-// We support std::move_iterator
-template <typename _Iterator>
-struct __need_unwrap_to_base_iterator<std::move_iterator<_Iterator>> : std::true_type
-{
-};
-
-template <typename _Iterator, typename = void>
-struct __base_iterator_type
-{
-    // If no base is available, use the iterator type itself. This supports iterator adapters
-    // that can be compared to their base type with a user-defined operator==.
-    using __type = std::decay_t<_Iterator>;
-};
-
-template <typename _Iterator>
-struct __base_iterator_type<_Iterator, std::void_t<decltype(std::declval<std::decay_t<_Iterator>>().base())>>
-{
-    using __type = decltype(std::declval<std::decay_t<_Iterator>>().base());
-};
-
 template <typename _Iterator1, typename _Iterator2, typename = void>
 struct __has_equality_op : std::false_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __has_equality_op<_Iterator1, _Iterator2,
-                         std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
+struct __has_equality_op<_Iterator1, _Iterator2, std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
     : std::true_type
 {
 };
 
-// Checks equality comparability of two iterators.
-// Pre-C++20 iterator adapters (move_iterator, reverse_iterator) have overly permissive operator== definitions that
-// cause SFINAE checks to pass for operators that cannot then compile. This issue requires more than simple
-// __has_equality_op checks to determine if two iterators are equality comparable. We must recursively check base
-// iterator types first to avoid build errors with incompatible base types.
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable_with
-    : std::conditional_t<
-          std::disjunction_v<__need_unwrap_to_base_iterator<_Iterator1>, __need_unwrap_to_base_iterator<_Iterator2>>,
-          // MS STL encounters build errors if we check current iterator before confirming bases are comparable
-          std::conjunction<__is_equality_comparable_with<typename __base_iterator_type<_Iterator1>::__type,
-                                                         typename __base_iterator_type<_Iterator2>::__type>,
-                           __has_equality_op<typename __base_iterator_type<_Iterator1>::__type,
-                                             typename __base_iterator_type<_Iterator1>::__type>>,
-          __has_equality_op<_Iterator1, _Iterator2>>
+struct __is_equality_comparable_with : __has_equality_op<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with<std::reverse_iterator<_Iterator1>, std::reverse_iterator<_Iterator2>> : __is_equality_comparable_with<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with<std::move_iterator<_Iterator1>, std::move_iterator<_Iterator2>> : __is_equality_comparable_with<_Iterator1, _Iterator2>
 {
 };
 
