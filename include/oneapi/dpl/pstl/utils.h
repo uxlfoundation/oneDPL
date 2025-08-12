@@ -830,19 +830,19 @@ inline constexpr bool __is_equality_comparable_with_v = std::equality_comparable
 #else
 
 template <typename _Iterator>
-struct __has_base_iterator : std::false_type
+struct __need_unwrap_to_base_iterator : std::false_type
 {
 };
 
 // We support std::reverse_iterator
 template <typename _Iterator>
-struct __has_base_iterator<std::reverse_iterator<_Iterator>> : std::true_type
+struct __need_unwrap_to_base_iterator<std::reverse_iterator<_Iterator>> : std::true_type
 {
 };
 
 // We support std::move_iterator
 template <typename _Iterator>
-struct __has_base_iterator<std::move_iterator<_Iterator>> : std::true_type
+struct __need_unwrap_to_base_iterator<std::move_iterator<_Iterator>> : std::true_type
 {
 };
 
@@ -880,7 +880,7 @@ struct __has_equality_op<_Iterator1, _Iterator2,
 template <typename _Iterator1, typename _Iterator2>
 struct __is_equality_comparable_with
     : std::conditional_t<
-          std::disjunction_v<__has_base_iterator<_Iterator1>, __has_base_iterator<_Iterator2>>,
+          std::disjunction_v<__need_unwrap_to_base_iterator<_Iterator1>, __need_unwrap_to_base_iterator<_Iterator2>>,
           // MS STL encounters build errors if we check current iterator before confirming bases are comparable
           std::conjunction<__is_equality_comparable_with<typename __base_iterator_type<_Iterator1>::__type,
                                                          typename __base_iterator_type<_Iterator2>::__type>,
