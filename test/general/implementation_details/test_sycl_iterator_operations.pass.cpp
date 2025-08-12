@@ -59,8 +59,6 @@ test_iterators_possibly_equal_internals_on_concepts()
 void
 test_iterators_possibly_equal_internals()
 {
-    using namespace __is_equality_comparable_impl;
-
     ////////////////////////////////////////////////////////////////////////////
     // The definitions of base iterator types
     static_assert(!__has_base_iterator<int*>::value);

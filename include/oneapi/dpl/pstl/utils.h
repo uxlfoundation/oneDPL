@@ -836,8 +836,6 @@ struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<std::dec
 template <typename _T>
 static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
 
-namespace __is_equality_comparable_impl
-{
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
 
 template <typename _Iterator1, typename _Iterator2>
@@ -901,11 +899,9 @@ struct __is_equality_comparable_with
 };
 
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
-} // namespace __is_equality_comparable_impl
 
 template <typename _Iterator1, typename _Iterator2>
-inline constexpr bool __is_equality_comparable_with_v =
-    __is_equality_comparable_impl::__is_equality_comparable_with<_Iterator1, _Iterator2>::value;
+inline constexpr bool __is_equality_comparable_with_v = __is_equality_comparable_with<_Iterator1, _Iterator2>::value;
 
 // Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
 template <typename _Iterator1, typename _Iterator2>
