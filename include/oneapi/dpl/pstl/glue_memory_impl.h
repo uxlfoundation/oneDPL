@@ -18,6 +18,7 @@
 
 #include "execution_defs.h"
 #include "utils.h"
+#include "utils_execution.h"
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_impl_hetero.h"
@@ -192,29 +193,6 @@ uninitialized_fill_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size 
             oneapi::dpl::__internal::__op_uninitialized_fill<_Tp, std::decay_t<_ExecutionPolicy>>{__value});
     }
 }
-
-#if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-
-inline const oneapi::dpl::execution::parallel_policy&
-get_unvectorized_policy(const oneapi::dpl::execution::parallel_unsequenced_policy&)
-{
-    return oneapi::dpl::execution::par;
-}
-
-inline const oneapi::dpl::execution::sequenced_policy&
-get_unvectorized_policy(const oneapi::dpl::execution::unsequenced_policy&)
-{
-    return oneapi::dpl::execution::seq;
-}
-
-template <typename _ExecutionPolicy>
-const _ExecutionPolicy&
-get_unvectorized_policy(const _ExecutionPolicy& __exec)
-{
-    return __exec;
-}
-
-#endif // (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
 
 namespace __internal
 {

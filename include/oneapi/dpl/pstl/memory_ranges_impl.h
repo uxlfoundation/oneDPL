@@ -24,16 +24,11 @@
 #    include <functional>
 #    include <type_traits>
 
+#    include "memory_fwd.h"
+#    include "algorithm_fwd.h"
 #    include "execution_impl.h"
-#    include "glue_memory_impl.h"
 
-namespace oneapi
-{
-namespace dpl
-{
-namespace __internal
-{
-namespace __ranges
+namespace oneapi::dpl::__internal::__ranges
 {
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -44,11 +39,19 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_default_construct(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    using _ValueType = typename std::ranges::range_value_t<_R>;
+
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    oneapi::dpl::uninitialized_default_construct(std::forward<_ExecutionPolicy>(__exec), __first, __last);
-
+    if constexpr (!std::is_trivially_default_constructible_v<_ValueType>)
+    {
+        oneapi::dpl::__internal::__pattern_walk1(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__op_uninitialized_default_construct<std::decay_t<_ExecutionPolicy>>{});
+    }
     return std::ranges::borrowed_iterator_t<_R>{__last};
 }
 
@@ -67,11 +70,25 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_value_construct(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    using _ValueType = typename std::ranges::range_value_t<_R>;
+
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
-
-    oneapi::dpl::uninitialized_value_construct(std::forward<_ExecutionPolicy>(__exec), __first, __last);
-
+    if constexpr (std::is_trivially_default_constructible_v<_ValueType> &&
+                  std::is_trivially_copy_assignable_v<_ValueType>)
+    {
+        oneapi::dpl::__internal::__pattern_walk_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__brick_fill<_Tag, _ValueType>{_ValueType()});
+    }
+    else
+    {
+        oneapi::dpl::__internal::__pattern_walk1(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__op_uninitialized_value_construct<std::decay_t<_ExecutionPolicy>>{});
+    }
     return std::ranges::borrowed_iterator_t<_R>{__last};
 }
 
@@ -91,17 +108,34 @@ std::ranges::uninitialized_copy_result<std::ranges::borrowed_iterator_t<_InRange
                                        std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
 {
-    assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    using _OutValueType = std::ranges::range_value_t<_OutRange>;
+    using _OutRefType = std::ranges::range_reference_t<_OutRange>;
+    using _InRefType = std::ranges::range_reference_t<_InRange>;
 
     const auto __first1 = std::ranges::begin(__in_r);
     const auto __first2 = std::ranges::begin(__out_r);
-    const auto __size = std::ranges::size(__in_r);
 
+    assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
+    const auto __size = std::ranges::size(__in_r);
     const auto __last1 = __first1 + __size;
     const auto __last2 = __first2 + __size;
 
-    oneapi::dpl::uninitialized_copy(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2);
-
+    if constexpr (std::is_trivially_constructible_v<_OutValueType, _InRefType> && // required operation is trivial
+                  std::is_trivially_default_constructible_v<_OutValueType> &&     // actual operations are trivial
+                  std::is_trivially_assignable_v<_OutRefType, _InRefType>)
+    {
+        oneapi::dpl::__internal::__pattern_walk2_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+            oneapi::dpl::__internal::__brick_copy<_Tag>{});
+    }
+    else
+    {
+        oneapi::dpl::__internal::__pattern_walk2(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+            oneapi::dpl::__internal::__op_uninitialized_copy<std::decay_t<_ExecutionPolicy>>{});
+    }
     return {__last1, __last2};
 }
 
@@ -123,17 +157,34 @@ std::ranges::uninitialized_move_result<std::ranges::borrowed_iterator_t<_InRange
                                        std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
 {
-    assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    using _OutValueType = std::ranges::range_value_t<_OutRange>;
+    using _OutRefType = std::ranges::range_reference_t<_OutRange>;
+    using _InRefType = std::ranges::range_reference_t<_InRange>;
 
     const auto __first1 = std::ranges::begin(__in_r);
     const auto __first2 = std::ranges::begin(__out_r);
-    const auto __size = std::ranges::size(__in_r);
 
+    assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
+    const auto __size = std::ranges::size(__in_r);
     const auto __last1 = __first1 + __size;
     const auto __last2 = __first2 + __size;
 
-    oneapi::dpl::uninitialized_move(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2);
-
+    if constexpr (std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> &&
+                  std::is_trivially_default_constructible_v<_OutValueType> &&
+                  std::is_trivially_assignable_v<_OutRefType, _InRefType>)
+    {
+        oneapi::dpl::__internal::__pattern_walk2_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+            oneapi::dpl::__internal::__brick_copy<_Tag>{});
+    }
+    else
+    {
+        oneapi::dpl::__internal::__pattern_walk2(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+            oneapi::dpl::__internal::__op_uninitialized_move<std::decay_t<_ExecutionPolicy>>{});
+    }
     return {__last1, __last2};
 }
 
@@ -154,10 +205,27 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _T>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __value)
 {
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    using _ValueType = std::ranges::range_value_t<_R>;
+
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    oneapi::dpl::uninitialized_fill(std::forward<_ExecutionPolicy>(__exec), __first, __last, __value);
+    if constexpr (std::is_trivially_constructible_v<_ValueType, _T> && // required operation is trivial
+                  std::is_trivially_default_constructible_v<_ValueType> && // actual operations are trivial
+                  std::is_trivially_copy_assignable_v<_ValueType>)
+    {
+        oneapi::dpl::__internal::__pattern_walk_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__brick_fill<_Tag, _ValueType>{_ValueType(__value)});
+    }
+    else
+    {
+        oneapi::dpl::__internal::__pattern_walk1(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__op_uninitialized_fill<_T, std::decay_t<_ExecutionPolicy>>{__value});
+    }
 
     return std::ranges::borrowed_iterator_t<_R>{__last};
 }
@@ -178,11 +246,20 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    using _ValueType = std::ranges::range_value_t<_R>;
+    using _ReferenceType = std::ranges::range_reference_t<_R>;
+
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    oneapi::dpl::destroy(std::forward<_ExecutionPolicy>(__exec), __first, __last);
-
+    if constexpr (!std::is_trivially_destructible_v<_ValueType>)
+    {
+        oneapi::dpl::__internal::__pattern_walk1(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__destroy_fn<_ValueType, _ReferenceType>{});
+    }
     return std::ranges::borrowed_iterator_t<_R>{__last};
 }
 
@@ -193,10 +270,7 @@ __pattern_destroy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&
     return std::ranges::destroy(std::forward<_R>(__r));
 }
 
-} // namespace __ranges
-} // namespace __internal
-} // namespace dpl
-} // namespace oneapi
+} // namespace oneapi::dpl::__internal::__ranges
 
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 #endif // _ONEDPL_MEMORY_RANGES_IMPL_H
