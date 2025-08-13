@@ -46,7 +46,7 @@
 #endif
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-#    include <concepts> // for std::equality_comparable_with
+#    include <concepts> // for std::contiguous_iterator, std::equality_comparable_with
 #endif
 
 namespace oneapi
@@ -824,6 +824,42 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
                                oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__reorder_pred<_Compare>>{
                                    oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
+
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+template <typename _Iterator>
+constexpr bool __is_contiguous_iterator_v = std::contiguous_iterator<_Iterator>;
+
+#else
+
+template <typename _Iterator, typename = void>
+struct __is_contiguous_iterator : std::false_type
+{
+};
+
+// The pointers are always contiguous iterators.
+template <typename _Iterator>
+struct __is_contiguous_iterator<_Iterator*, void> : std::true_type
+{
+};
+
+// The iterators with random_access_iterator_tag that are pointers to the elements of an array are contiguous iterators.
+template <typename _Iterator>
+struct __is_contiguous_iterator<
+    _Iterator,
+    std::enable_if_t<
+        std::conjunction_v<
+            std::is_same<typename __iterator_traits<_Iterator>::iterator_category, std::random_access_iterator_tag>,
+            std::is_pointer<decltype(std::addressof(*std::declval<_Iterator>()))>
+        >
+    >> : std::true_type
+{
+};
+
+template <typename _Iterator>
+constexpr bool __is_contiguous_iterator_v = __is_contiguous_iterator<_Iterator>::value;
+
+#endif
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
 
