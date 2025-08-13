@@ -31,17 +31,6 @@
 
 namespace oneapi::dpl::__internal
 {
-void
-test_is_iterator_type()
-{
-    static_assert(__is_iterator_type<int*>::value);
-    static_assert(__is_iterator_type<const int*>::value);
-    static_assert(__is_iterator_type<decltype(std::vector<int>().begin())>::value);
-
-    static_assert(!__is_iterator_type<std::nullptr_t>::value);
-    static_assert(!__is_iterator_type<int>::value);
-}
-
 void check_is_equality_comparable_with()
 {
     static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, int*>);
@@ -279,8 +268,6 @@ std::int32_t
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-
-    oneapi::dpl::__internal::test_is_iterator_type();
 
     oneapi::dpl::__internal::check_is_equality_comparable_with();
 
