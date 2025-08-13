@@ -34,29 +34,29 @@ namespace oneapi::dpl::__internal
 
 void check_is_contiguous_iterator()
 {
-    static_assert(__is_contiguous_iterator_v<int*>);
-    static_assert(__is_contiguous_iterator_v<const int*>);
-    static_assert(__is_contiguous_iterator_v<std::vector<int>::iterator>);
-    static_assert(__is_contiguous_iterator_v<std::vector<int>::const_iterator>);
+    static_assert(__is_contiguous_iterator<int*>::value);
+    static_assert(__is_contiguous_iterator<const int*>::value);
+    static_assert(__is_contiguous_iterator<std::vector<int>::iterator>::value);
+    static_assert(__is_contiguous_iterator<std::vector<int>::const_iterator>::value);
 
-    static_assert(!__is_contiguous_iterator_v<std::move_iterator<int*>>);
-    static_assert(!__is_contiguous_iterator_v<std::reverse_iterator<int*>>);
-    static_assert(!__is_contiguous_iterator_v<std::reverse_iterator<std::move_iterator<int*>>>);
+    static_assert(!__is_contiguous_iterator<std::move_iterator<int*>>::value);
+    static_assert(!__is_contiguous_iterator<std::reverse_iterator<int*>>::value);
+    static_assert(!__is_contiguous_iterator<std::reverse_iterator<std::move_iterator<int*>>>::value);
 }
 
 void check_has_dereference_operator()
 {
-    static_assert(__has_dereference_operator_v<int*>);
-    static_assert(__has_dereference_operator_v<const int*>);
-    static_assert(__has_dereference_operator_v<std::vector<int>::iterator>);
-    static_assert(__has_dereference_operator_v<std::vector<int>::const_iterator>);
+    static_assert(__has_dereference_operator<int*>::value);
+    static_assert(__has_dereference_operator<const int*>::value);
+    static_assert(__has_dereference_operator<std::vector<int>::iterator>::value);
+    static_assert(__has_dereference_operator<std::vector<int>::const_iterator>::value);
 
-    static_assert(__has_dereference_operator_v<std::move_iterator<int*>>);
-    static_assert(__has_dereference_operator_v<std::reverse_iterator<int*>>);
-    static_assert(__has_dereference_operator_v<std::reverse_iterator<std::move_iterator<int*>>>);
+    static_assert(__has_dereference_operator<std::move_iterator<int*>>::value);
+    static_assert(__has_dereference_operator<std::reverse_iterator<int*>>::value);
+    static_assert(__has_dereference_operator<std::reverse_iterator<std::move_iterator<int*>>>::value);
 
     using _SyclIterator = oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, unsigned long long>;
-    static_assert(!__has_dereference_operator_v<_SyclIterator>);
+    static_assert(!__has_dereference_operator<_SyclIterator>::value);
 }
 
 void check_is_equality_comparable_with()
