@@ -925,6 +925,19 @@ struct __has_iterated_element_address<_Iterator, std::void_t<decltype(std::addre
 template <typename _Iterator>
 constexpr bool __has_iterated_element_address_v = __has_iterated_element_address<_Iterator>::value;
 
+template <typename _Iterator, typename = void>
+struct __has_base_method : std::false_type
+{
+};
+
+template <typename _Iterator>
+struct __has_base_method<_Iterator, std::void_t<decltype(std::declval<_Iterator>().base())>> : std::true_type
+{
+};
+
+template <typename _Iterator>
+constexpr bool __has_base_method_v = __has_base_method<_Iterator>::value;
+
 // Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
 template <typename _Iterator1, typename _Iterator2>
 constexpr bool
