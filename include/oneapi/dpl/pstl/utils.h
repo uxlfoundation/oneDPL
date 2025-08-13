@@ -872,8 +872,8 @@ struct __is_type_with_iterator_traits : std::false_type
 };
 
 template <typename _T>
-struct __is_type_with_iterator_traits<_T, std::void_t<typename std::iterator_traits<std::remove_reference_t<_T>>::difference_type>>
-    : std::true_type
+struct __is_type_with_iterator_traits<
+    _T, std::void_t<typename std::iterator_traits<std::remove_reference_t<_T>>::difference_type>> : std::true_type
 {
 };
 
