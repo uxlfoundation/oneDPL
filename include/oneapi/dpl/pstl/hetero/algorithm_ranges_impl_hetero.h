@@ -702,7 +702,7 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R>
 void
-__pattern_reverse(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r)
+__pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r)
 {
     const auto __n = std::ranges::size(__r);
     if (__n <= 1)
@@ -720,7 +720,7 @@ __pattern_reverse(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
-__pattern_reverse_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
+__pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r,
                        _OutRange&& __out_r)
 {
     const auto __n = std::ranges::size(__in_r);
