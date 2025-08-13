@@ -898,18 +898,18 @@ struct __spirv_target_conditional :
 inline constexpr bool __is_spirv_target_v = __spirv_target_conditional<::std::true_type, ::std::false_type>::value;
 
 template <typename _T, typename = void>
-struct __is_iterator_type : std::false_type
+struct __is_type_with_iterator_traits : std::false_type
 {
 };
 
 template <typename _T>
-struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<std::decay_t<_T>>::difference_type>>
-    : std::true_type
+struct __is_type_with_iterator_traits<
+    _T, std::void_t<typename std::iterator_traits<std::remove_reference_t<_T>>::difference_type>> : std::true_type
 {
 };
 
 template <typename _T>
-static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
+static constexpr bool __is_type_with_iterator_traits_v = __is_type_with_iterator_traits<_T>::value;
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>
