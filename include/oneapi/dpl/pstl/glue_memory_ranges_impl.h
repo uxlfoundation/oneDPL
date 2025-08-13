@@ -31,9 +31,9 @@
 #    include "oneapi/dpl/pstl/ranges_defs.h"
 
 #    include "memory_ranges_impl.h"
-#if _ONEDPL_HETERO_BACKEND
-#    include "hetero/memory_ranges_impl_hetero.h"
-#endif
+#    if _ONEDPL_HETERO_BACKEND
+#        include "hetero/memory_ranges_impl_hetero.h"
+#    endif
 
 namespace oneapi
 {
@@ -201,15 +201,14 @@ struct __destroy_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r) const
     {
         const auto __tag =
-#if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-            oneapi::dpl::__internal::__select_backend(
-                oneapi::dpl::__internal::get_unvectorized_policy(__exec));
-#else
+#    if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
+            oneapi::dpl::__internal::__select_backend(oneapi::dpl::__internal::get_unvectorized_policy(__exec));
+#    else
             oneapi::dpl::__internal::__select_backend(__exec);
-#endif
+#    endif
 
-        return oneapi::dpl::__internal::__ranges::__pattern_destroy(
-            __tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r));
+        return oneapi::dpl::__internal::__ranges::__pattern_destroy(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                                    std::forward<_R>(__r));
     }
 }; //__destroy_fn
 } // namespace __internal

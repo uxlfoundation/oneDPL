@@ -126,9 +126,8 @@ __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
                   std::is_trivially_default_constructible_v<_OutValueType> &&     // actual operations are trivial
                   std::is_trivially_assignable_v<_OutRefType, _InRefType>)
     {
-        oneapi::dpl::__internal::__pattern_walk2_brick(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-            oneapi::dpl::__internal::__brick_copy<_Tag>{});
+        oneapi::dpl::__internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+                                                       __first2, oneapi::dpl::__internal::__brick_copy<_Tag>{});
     }
     else
     {
@@ -175,9 +174,8 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
                   std::is_trivially_default_constructible_v<_OutValueType> &&
                   std::is_trivially_assignable_v<_OutRefType, _InRefType>)
     {
-        oneapi::dpl::__internal::__pattern_walk2_brick(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-            oneapi::dpl::__internal::__brick_copy<_Tag>{});
+        oneapi::dpl::__internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+                                                       __first2, oneapi::dpl::__internal::__brick_copy<_Tag>{});
     }
     else
     {
@@ -212,7 +210,7 @@ __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, co
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    if constexpr (std::is_trivially_constructible_v<_ValueType, _T> && // required operation is trivial
+    if constexpr (std::is_trivially_constructible_v<_ValueType, _T> &&     // required operation is trivial
                   std::is_trivially_default_constructible_v<_ValueType> && // actual operations are trivial
                   std::is_trivially_copy_assignable_v<_ValueType>)
     {
@@ -256,9 +254,8 @@ __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 
     if constexpr (!std::is_trivially_destructible_v<_ValueType>)
     {
-        oneapi::dpl::__internal::__pattern_walk1(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            oneapi::dpl::__internal::__destroy_fn<_ValueType, _ReferenceType>{});
+        oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                                 oneapi::dpl::__internal::__destroy_fn<_ValueType, _ReferenceType>{});
     }
     return std::ranges::borrowed_iterator_t<_R>{__last};
 }
