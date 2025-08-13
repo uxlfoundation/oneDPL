@@ -202,6 +202,12 @@ test_iterators_possibly_equal()
     }
 
     {
+        std::vector<int> dataVec1{1, 2, 3};
+        std::vector<int> dataVec2{4, 5, 6};
+        EXPECT_FALSE(__internal::__iterators_possibly_equal(dataVec1.begin(), dataVec2.begin()), "wrong __iterators_possibly_equal result");
+    }
+
+    {
         int srcIntData = 0;
         const auto& intConstData = srcIntData;
         auto& intData = srcIntData;
