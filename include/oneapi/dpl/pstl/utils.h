@@ -975,7 +975,22 @@ template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-    if constexpr (__is_equality_comparable_with_v<_Iterator1, _Iterator2>)
+    auto __it1_unwrapped = __unwrap_iterator(__it1);
+    auto __it2_unwrapped = __unwrap_iterator(__it2);
+
+    using __it1_unwrapped_t = std::decay_t<decltype(__it1_unwrapped)>;
+    using __it2_unwrapped_t = std::decay_t<decltype(__it2_unwrapped)>;
+
+    // Processing the case when two iterators are contiguous iterators.
+    if constexpr (__can_compare_address_v<__it1_unwrapped_t> && __can_compare_address_v<__it2_unwrapped_t>)
+    {
+        // If both iterators are contiguous, we can compare their addresses directly.
+        // TODO move back for reverse iterator
+        return (void*)std::addressof(*__it1_unwrapped) == (void*)std::addressof(*__it2_unwrapped);
+    }
+
+    // Processing the case when one or both iterators are not contiguous iterators.
+    else if constexpr (__is_equality_comparable_with_v<_Iterator1, _Iterator2>)
     {
         return __it1 == __it2;
     }
