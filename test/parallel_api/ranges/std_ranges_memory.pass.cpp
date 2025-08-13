@@ -78,7 +78,7 @@ main()
             return std::pair<bool, bool>{bres1, bres2};
         };
 
-    test_memory_algo<Elem, -1>{}.run_host(dpl_ranges::uninitialized_default_construct, uninitialized_default_construct_checker);
+    test_memory_algo<Elem, -1>{}.run(dpl_ranges::uninitialized_default_construct, uninitialized_default_construct_checker);
 
     auto uninitialized_value_construct_checker =
         [](const auto& res, const auto& r) {
@@ -90,7 +90,7 @@ main()
             return std::pair<bool, bool>{bres1, bres2};
         };
 
-    test_memory_algo<Elem_0, -1>{}.run_host(dpl_ranges::uninitialized_value_construct, uninitialized_value_construct_checker);
+    test_memory_algo<Elem_0, -1>{}.run(dpl_ranges::uninitialized_value_construct, uninitialized_value_construct_checker);
 
     auto uninitialized_fill_checker =
         [](const auto& res, const auto& r, const auto& value) {
@@ -102,7 +102,7 @@ main()
             return std::pair<bool, bool>{bres1, bres2};
         };
 
-    test_memory_algo<Elem, -1>{}.run_host(dpl_ranges::uninitialized_fill, uninitialized_fill_checker, 2);
+    test_memory_algo<Elem, -1>{}.run(dpl_ranges::uninitialized_fill, uninitialized_fill_checker, 2);
 
     auto uninitialized_copy_move_checker =
         [](const auto& res, auto&& r_in, auto&& r_out) {
@@ -123,8 +123,8 @@ main()
             return std::pair<bool, bool>{bres1, bres2};
         };
 
-    test_memory_algo<Elem, -1>{}.run_host(dpl_ranges::uninitialized_copy, uninitialized_copy_move_checker);
-    test_memory_algo<Elem_0, -1>{}.run_host(dpl_ranges::uninitialized_move, uninitialized_copy_move_checker);
+    test_memory_algo<Elem, -1>{}.run(dpl_ranges::uninitialized_copy, uninitialized_copy_move_checker);
+    test_memory_algo<Elem_0, -1>{}.run(dpl_ranges::uninitialized_move, uninitialized_copy_move_checker);
 
     auto destroy_checker =
         [](const auto& res, const auto& r) {
@@ -136,18 +136,7 @@ main()
             return std::pair<bool, bool>{bres1, bres2};
         };
 
-    test_memory_algo<Elem_0, -1>{}.run_host(dpl_ranges::destroy, destroy_checker);
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    test_memory_algo<Elem, -1>{}.run_device(dpl_ranges::uninitialized_default_construct, uninitialized_default_construct_checker);
-    test_memory_algo<Elem_0, -1>{}.run_device(dpl_ranges::uninitialized_value_construct, uninitialized_value_construct_checker);
-    test_memory_algo<Elem, -1>{}.run_device(dpl_ranges::uninitialized_fill, uninitialized_fill_checker, 2);
-
-    test_memory_algo<Elem, -1>{}.run_device(dpl_ranges::uninitialized_copy, uninitialized_copy_move_checker);
-    test_memory_algo<Elem_0, -1>{}.run_device(dpl_ranges::uninitialized_move, uninitialized_copy_move_checker);
-
-    test_memory_algo<Elem_0, -1>{}.run_device(dpl_ranges::destroy, destroy_checker);
-#endif //TEST_DPCPP_BACKEND_PRESENT
+    test_memory_algo<Elem_0, -1>{}.run(dpl_ranges::destroy, destroy_checker);
 
 #endif //_ENABLE_STD_RANGES_TESTING
 

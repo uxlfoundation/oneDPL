@@ -48,6 +48,14 @@ struct test_memory_algo
     }
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
+    void run(auto algo, auto checker, auto&&... args)
+    {
+        run_host(algo, checker, args...);
+#if TEST_DPCPP_BACKEND_PRESENT
+        run_device(algo, checker, std::forward<decltype(args)>(args)...);
+#endif //TEST_DPCPP_BACKEND_PRESENT
+    }
+
 private:
     void run_one_policy(auto& alloc, auto&& policy, auto algo, auto checker, auto&&... args)
     {
@@ -66,19 +74,19 @@ private:
             std::ranges::subrange r1(pData1, pData1 + n1);
             std::uninitialized_fill(pData1, pData1 + n1, 5);
 
-            run(std::forward<decltype(policy)>(policy), algo, checker, std::move(r1), std::move(r), std::forward<decltype(args)>(args)...);
+            run_impl(std::forward<decltype(policy)>(policy), algo, checker, std::move(r1), std::move(r), std::forward<decltype(args)>(args)...);
 
             alloc.deallocate(pData1, n1);
         }
         // One range: destroy, uninitialized_fill, uninitialized_default_construct, uninitialized_value_construct
         else
         {
-            run(std::forward<decltype(policy)>(policy), algo, checker, std::move(r), std::forward<decltype(args)>(args)...);
+            run_impl(std::forward<decltype(policy)>(policy), algo, checker, std::move(r), std::forward<decltype(args)>(args)...);
         }
         alloc.deallocate(pData, n);
     }
 
-    void run(auto&& policy, auto algo, auto checker, auto&&... args)
+    void run_impl(auto&& policy, auto algo, auto checker, auto&&... args)
     {
         auto res = algo(std::forward<decltype(policy)>(policy), std::forward<decltype(args)>(args)...);
         auto [bres1, bres2] = checker(res, std::forward<decltype(args)>(args)...);
