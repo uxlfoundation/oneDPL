@@ -31,6 +31,34 @@
 
 namespace oneapi::dpl::__internal
 {
+
+void check_is_contiguous_iterator()
+{
+    static_assert(__is_contiguous_iterator_v<int*>);
+    static_assert(__is_contiguous_iterator_v<const int*>);
+    static_assert(__is_contiguous_iterator_v<std::vector<int>::iterator>);
+    static_assert(__is_contiguous_iterator_v<std::vector<int>::const_iterator>);
+
+    static_assert(!__is_contiguous_iterator_v<std::move_iterator<int*>>);
+    static_assert(!__is_contiguous_iterator_v<std::reverse_iterator<int*>>);
+    static_assert(!__is_contiguous_iterator_v<std::reverse_iterator<std::move_iterator<int*>>>);
+}
+
+void check_has_dereference_operator()
+{
+    static_assert(__has_dereference_operator_v<int*>);
+    static_assert(__has_dereference_operator_v<const int*>);
+    static_assert(__has_dereference_operator_v<std::vector<int>::iterator>);
+    static_assert(__has_dereference_operator_v<std::vector<int>::const_iterator>);
+
+    static_assert(__has_dereference_operator_v<std::move_iterator<int*>>);
+    static_assert(__has_dereference_operator_v<std::reverse_iterator<int*>>);
+    static_assert(__has_dereference_operator_v<std::reverse_iterator<std::move_iterator<int*>>>);
+
+    using _SyclIterator = oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, unsigned long long>;
+    static_assert(!__has_dereference_operator_v<_SyclIterator>);
+}
+
 void check_is_equality_comparable_with()
 {
     static_assert(!__is_equality_comparable_with_v<std::move_iterator<int*>, int*>);
@@ -268,6 +296,9 @@ std::int32_t
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
+
+    oneapi::dpl::__internal::check_is_contiguous_iterator();
+    oneapi::dpl::__internal::check_has_dereference_operator();
 
     oneapi::dpl::__internal::check_is_equality_comparable_with();
 
