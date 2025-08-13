@@ -828,7 +828,7 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
 
 template <typename _Iterator>
-constexpr bool __is_contiguous_iterator_v = std::contiguous_iterator<_Iterator>;
+using __is_contiguous_iterator = std::bool_constant<std::contiguous_iterator<_Iterator>>;
 
 #else
 
@@ -855,9 +855,6 @@ struct __is_contiguous_iterator<
     >> : std::true_type
 {
 };
-
-template <typename _Iterator>
-constexpr bool __is_contiguous_iterator_v = __is_contiguous_iterator<_Iterator>::value;
 
 #endif
 
