@@ -138,7 +138,7 @@ template <typename InputIterator, typename OutputIterator, typename UnaryOperati
 transform_inclusive_scan_serial(InputIterator first, InputIterator last, OutputIterator result, UnaryOperation unary_op,
                                 T init, BinaryOperation binary_op) noexcept
 {
-    for (; first != last; ++first, ++result)
+    for (; first != last; ++first, (void) ++result)
     {
         init = binary_op(init, unary_op(*first));
         *result = init;
@@ -152,7 +152,7 @@ template <typename InputIterator, typename OutputIterator, typename UnaryOperati
 transform_exclusive_scan_serial(InputIterator first, InputIterator last, OutputIterator result, UnaryOperation unary_op,
                                 T init, BinaryOperation binary_op) noexcept
 {
-    for (; first != last; ++first, ++result)
+    for (; first != last; ++first, (void) ++result)
     {
         *result = init;
         init = binary_op(init, unary_op(*first));
