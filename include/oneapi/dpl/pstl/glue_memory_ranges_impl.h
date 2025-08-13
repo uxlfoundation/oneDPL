@@ -45,18 +45,15 @@ namespace ranges
 namespace __internal
 {
 
-template <typename _I>
-concept __nothrow_random_access_iterator =
-    std::random_access_iterator<_I> && std::is_lvalue_reference_v<std::iter_reference_t<_I>> &&
-    std::same_as<std::remove_cvref_t<std::iter_reference_t<_I>>, std::iter_value_t<_I>>;
-
-template <typename _S, typename _I>
-concept __nothrow_sentinel_for = std::sentinel_for<_S, _I>;
-
+// C++20 analogue of nothrow-random-access-range proposed for C++26 in P3179R9; exposition only
+// Semantic requirements are listed in the oneDPL documentation
 template <typename _R>
 concept __nothrow_random_access_range =
-    std::ranges::range<_R> && __nothrow_random_access_iterator<std::ranges::iterator_t<_R>> &&
-    __nothrow_sentinel_for<std::ranges::sentinel_t<_R>, std::ranges::iterator_t<_R>>;
+    std::ranges::random_access_range<_R> &&
+    std::is_lvalue_reference_v<std::iter_reference_t<std::ranges::iterator_t<_R>>> &&
+    std::same_as<std::remove_cvref_t<std::iter_reference_t<std::ranges::iterator_t<_R>>>,
+                 std::iter_value_t<std::ranges::iterator_t<_R>>>;
+
 } // namespace __internal
 
 namespace __internal

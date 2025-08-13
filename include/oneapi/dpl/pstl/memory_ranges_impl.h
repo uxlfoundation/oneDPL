@@ -253,8 +253,9 @@ __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 
     if constexpr (!std::is_trivially_destructible_v<_ValueType>)
     {
-        oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                                 oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{});
+        oneapi::dpl::__internal::__pattern_walk1(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{});
     }
     return std::ranges::borrowed_iterator_t<_R>{__last};
 }
