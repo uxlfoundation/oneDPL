@@ -42,7 +42,7 @@ test_long_form(T init, BinaryOp binary_op, F f)
     // Try sequences of various lengths
     for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
-        T expected(std::move(init));
+        T expected(init);
         Sequence<T> in(n, [n, f](size_t k) { return f((std::int32_t(k ^ n) % 1000 - 500)); });
         for (size_t k = 0; k < n; ++k)
             expected = binary_op(expected, in[k]);

@@ -1271,16 +1271,16 @@ struct MoveOnlyWrapper {
     friend bool operator==(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
     {
         return a.value == b.value;
-    } 
+    }
     friend MoveOnlyWrapper operator+(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
     {
         return MoveOnlyWrapper{a.value + b.value};
-    } 
+    }
 
     friend MoveOnlyWrapper operator*(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
     {
         return MoveOnlyWrapper{a.value * b.value};
-    } 
+    }
 };
 
 template <typename _T>

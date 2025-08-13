@@ -124,7 +124,7 @@ __brick_transform_reduce(_RandomAccessIterator __first, _RandomAccessIterator __
     typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _DifferenceType;
     return __unseq_backend::__simd_transform_reduce(
         __last - __first, std::move(__init), __binary_op,
-        [=, &__unary_op](_DifferenceType __i) { return _Tp{__unary_op(__first[__i])}; });
+        [=, &__unary_op](_DifferenceType __i) { return __unary_op(__first[__i]); });
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Tp, class _BinaryOperation,
