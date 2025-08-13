@@ -247,7 +247,6 @@ __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     using _ValueType = std::ranges::range_value_t<_R>;
-    using _ReferenceType = std::ranges::range_reference_t<_R>;
 
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
@@ -255,7 +254,7 @@ __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
     if constexpr (!std::is_trivially_destructible_v<_ValueType>)
     {
         oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                                 oneapi::dpl::__internal::__destroy_fn<_ValueType, _ReferenceType>{});
+                                                 oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{});
     }
     return std::ranges::borrowed_iterator_t<_R>{__last};
 }
