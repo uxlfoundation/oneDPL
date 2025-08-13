@@ -61,7 +61,7 @@ using __iterator_traits = std::iterator_traits<std::remove_reference_t<_Iterator
 
 template <typename Iterator>
 using is_const_iterator =
-    typename ::std::is_const<::std::remove_pointer_t<typename ::std::iterator_traits<Iterator>::pointer>>;
+    typename ::std::is_const<::std::remove_pointer_t<typename __iterator_traits<Iterator>::pointer>>;
 
 template <typename _Fp>
 auto
@@ -428,7 +428,7 @@ class __replace_copy_functor
 //! Like ::std::next, but with specialization for dpcpp case
 template <typename _Iter>
 _Iter
-__pstl_next(_Iter __iter, typename ::std::iterator_traits<_Iter>::difference_type __n = 1)
+__pstl_next(_Iter __iter, typename __iterator_traits<_Iter>::difference_type __n = 1)
 {
     return ::std::next(__iter, __n);
 }
@@ -438,7 +438,7 @@ template <sycl::access::mode _Mode, typename... _Params>
 oneapi::dpl::__internal::sycl_iterator<_Mode, _Params...>
 __pstl_next(
     oneapi::dpl::__internal::sycl_iterator<_Mode, _Params...> __iter,
-    typename ::std::iterator_traits<oneapi::dpl::__internal::sycl_iterator<_Mode, _Params...>>::difference_type __n = 1)
+    typename __iterator_traits<oneapi::dpl::__internal::sycl_iterator<_Mode, _Params...>>::difference_type __n = 1)
 {
     return __iter + __n;
 }
@@ -511,18 +511,18 @@ struct __next_to_last
 {
     template <typename _Iterator>
     ::std::enable_if_t<::std::is_base_of_v<::std::random_access_iterator_tag,
-                                           typename ::std::iterator_traits<_Iterator>::iterator_category>,
+                                           typename __iterator_traits<_Iterator>::iterator_category>,
                        _Iterator>
-    operator()(_Iterator __it, _Iterator __last, typename ::std::iterator_traits<_Iterator>::difference_type __n)
+    operator()(_Iterator __it, _Iterator __last, typename __iterator_traits<_Iterator>::difference_type __n)
     {
         return __n > __last - __it ? __last : __it + __n;
     }
 
     template <typename _Iterator>
     ::std::enable_if_t<!::std::is_base_of_v<::std::random_access_iterator_tag,
-                                            typename ::std::iterator_traits<_Iterator>::iterator_category>,
+                                            typename __iterator_traits<_Iterator>::iterator_category>,
                        _Iterator>
-    operator()(_Iterator __it, _Iterator __last, typename ::std::iterator_traits<_Iterator>::difference_type __n)
+    operator()(_Iterator __it, _Iterator __last, typename __iterator_traits<_Iterator>::difference_type __n)
     {
         for (; --__n >= 0 && __it != __last; ++__it)
             ;
@@ -907,7 +907,7 @@ struct __is_type_with_iterator_traits : std::false_type
 
 template <typename _T>
 struct __is_type_with_iterator_traits<
-    _T, std::void_t<typename std::iterator_traits<std::remove_reference_t<_T>>::difference_type>> : std::true_type
+    _T, std::void_t<typename __iterator_traits<_T>::difference_type>> : std::true_type
 {
 };
 
