@@ -964,6 +964,12 @@ __unwrap_iterator(_Iterator&& __it)
     }
 }
 
+template <typename _Iterator>
+constexpr bool __can_compare_address_v =
+    std::conjunction_v<__is_contiguous_iterator<_Iterator>,
+                       __has_dereference_operator<_Iterator>,
+                       __has_iterated_element_address<_Iterator>>;
+
 // Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
 template <typename _Iterator1, typename _Iterator2>
 constexpr bool
