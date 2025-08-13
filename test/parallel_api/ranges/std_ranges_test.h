@@ -457,7 +457,7 @@ struct host_subrange_impl
 
     using type = ViewType;
     ViewType view;
-    T* mem = NULL;
+    T* mem = nullptr;
 
     std::allocator<T> alloc;
 
@@ -496,7 +496,7 @@ struct host_vector
 {
     using type = std::vector<T>;
     type vec;
-    T* p = NULL;
+    T* p = nullptr;
 
     template<typename Policy>
     host_vector(Policy&&, T* data, int n): vec(data, data + n), p(data) {}
@@ -526,7 +526,7 @@ struct usm_vector
     using type = std::vector<T, shared_allocator>;
 
     std::vector<T, shared_allocator> vec;
-    T* p = NULL;
+    T* p = nullptr;
 
     template<typename Policy>
     usm_vector(Policy&& exec, T* data, int n): vec(data, data + n, shared_allocator(exec.queue())), p(data)
@@ -560,7 +560,7 @@ struct usm_subrange_impl
     using type = ViewType;
 
     shared_allocator alloc;
-    T* p = NULL;
+    T* p = nullptr;
     ViewType view;
 
     template<typename Policy>
