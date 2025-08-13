@@ -912,6 +912,19 @@ struct __has_dereference_operator<_Iterator, std::void_t<decltype(*std::declval<
 template <typename _Iterator>
 constexpr bool __has_dereference_operator_v = __has_dereference_operator<_Iterator>::value;
 
+template <typename _Iterator, typename = void>
+struct __has_iterated_element_address : std::false_type
+{
+};
+
+template <typename _Iterator>
+struct __has_iterated_element_address<_Iterator, std::void_t<decltype(std::addressof(*std::declval<_Iterator>()))>> : std::true_type
+{
+};
+
+template <typename _Iterator>
+constexpr bool __has_iterated_element_address_v = __has_iterated_element_address<_Iterator>::value;
+
 // Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
 template <typename _Iterator1, typename _Iterator2>
 constexpr bool
