@@ -938,6 +938,32 @@ struct __has_base_method<_Iterator, std::void_t<decltype(std::declval<_Iterator>
 template <typename _Iterator>
 constexpr bool __has_base_method_v = __has_base_method<_Iterator>::value;
 
+template <typename _Iterator>
+decltype(auto)
+__unwrap_iterator(std::reverse_iterator<_Iterator>&& __it)
+{
+    auto __it_base = __it.base();
+
+    // reverse_iterator points to the element before the base iterator
+    std::prev(__it_base);
+
+    return __unwrap_iterator(__it_base); // TODO should we move __it_base into __unwrap_iterator?
+}
+
+template <typename _Iterator>
+decltype(auto)
+__unwrap_iterator(_Iterator&& __it)
+{
+    if constexpr (__has_base_method_v<std::decay_t<_Iterator>>)
+    {
+        return __unwrap_iterator(__it.base());
+    }
+    else
+    {
+        return std::forward<_Iterator>(__it);
+    }
+}
+
 // Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
 template <typename _Iterator1, typename _Iterator2>
 constexpr bool
