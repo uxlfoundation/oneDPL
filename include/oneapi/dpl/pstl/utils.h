@@ -919,9 +919,6 @@ struct __has_iterated_element_address<_Iterator, std::void_t<decltype(std::addre
 {
 };
 
-template <typename _Iterator>
-constexpr bool __has_iterated_element_address_v = __has_iterated_element_address<_Iterator>::value;
-
 template <typename _Iterator, typename = void>
 struct __has_base_method : std::false_type
 {
