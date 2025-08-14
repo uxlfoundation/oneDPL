@@ -845,25 +845,19 @@ struct __has_equality_op<_Iterator1, _Iterator2,
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable_with_impl : __has_equality_op<_Iterator1, _Iterator2>
+struct __is_equality_comparable_with : __has_equality_op<_Iterator1, _Iterator2>
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable_with_impl<std::reverse_iterator<_Iterator1>, std::reverse_iterator<_Iterator2>>
-    : __is_equality_comparable_with_impl<_Iterator1, _Iterator2>
+struct __is_equality_comparable_with<std::reverse_iterator<_Iterator1>, std::reverse_iterator<_Iterator2>>
+    : __is_equality_comparable_with<_Iterator1, _Iterator2>
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable_with_impl<std::move_iterator<_Iterator1>, std::move_iterator<_Iterator2>>
-    : __is_equality_comparable_with_impl<_Iterator1, _Iterator2>
-{
-};
-
-template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable_with
-    : __is_equality_comparable_with_impl<__clean_iterator_t<_Iterator1>, __clean_iterator_t<_Iterator2>>
+struct __is_equality_comparable_with<std::move_iterator<_Iterator1>, std::move_iterator<_Iterator2>>
+    : __is_equality_comparable_with<_Iterator1, _Iterator2>
 {
 };
 
