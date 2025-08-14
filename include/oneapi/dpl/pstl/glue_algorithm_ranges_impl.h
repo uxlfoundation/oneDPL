@@ -48,6 +48,36 @@ namespace dpl
 #if _ONEDPL_CPP20_RANGES_PRESENT
 namespace ranges
 {
+namespace __internal
+{
+template <typename _Rng, typename _Proj = std::identity>
+void
+__print_range_alg(std::ostream& stream, const std::string& __title, _Rng&& __rng, _Proj __proj = {})
+{
+    bool __comma_needed = false;
+
+    if (!__title.empty())
+        stream << __title << " : ";
+
+    for (const auto& elem : __rng)
+    {
+        if (__comma_needed)
+            stream << ", ";
+
+        stream << std::invoke(__proj, elem);
+
+        __comma_needed = true;
+    }
+
+    if (!__comma_needed)
+        stream << "<empty range>";
+    else
+        stream << " (" << std::ranges::size(__rng) << " elements)";
+
+    stream << std::endl;
+}
+
+} // namespace __internal
 
 // [alg.foreach]
 
