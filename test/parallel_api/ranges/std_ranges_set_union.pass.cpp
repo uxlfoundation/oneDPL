@@ -32,6 +32,9 @@ main()
         using ret_type = std::ranges::set_union_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
                                                        std::ranges::borrowed_iterator_t<decltype(r2)>,
                                                        std::ranges::borrowed_iterator_t<decltype(r_out)>>;
+
+        __print_range(std::cout, r_out, "std::ranges::set_union : ");
+
         return ret_type{res.in1, res.in2, res.out};
     };
 
