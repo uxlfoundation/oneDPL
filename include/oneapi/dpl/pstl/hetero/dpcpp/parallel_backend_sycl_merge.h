@@ -27,6 +27,16 @@
 #include "parallel_backend_sycl_utils.h"
 #include "../../functional_impl.h" // for oneapi::dpl::identity
 
+#ifdef __SYCL_DEVICE_ONLY__
+#define __SYCL_CONSTANT_AS __attribute__((opencl_constant))
+#else
+#define __SYCL_CONSTANT_AS
+#endif
+
+const __SYCL_CONSTANT_AS char fmtTitle[] = "%s %s (%d) : ";
+const __SYCL_CONSTANT_AS char fmtItem[] = "%d ";
+const __SYCL_CONSTANT_AS char fmtNewLine[] = "\n";
+
 namespace oneapi
 {
 namespace dpl
@@ -173,6 +183,16 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
     bool __rng1_idx_less_n1 = false;
     bool __rng2_idx_less_n2 = false;
 
+    sycl::ext::oneapi::experimental::printf(fmtTitle, "__serial_merge : ", "__rng1", __rng1_size);
+    for (std::size_t _idx1 = 0; _idx1 < __rng1_size; ++_idx1)
+        sycl::ext::oneapi::experimental::printf(fmtItem, __rng1[_idx1]);
+    sycl::ext::oneapi::experimental::printf(fmtNewLine);
+
+    sycl::ext::oneapi::experimental::printf(fmtTitle, "__serial_merge : ", "__rng2", __rng2_size);
+    for (std::size_t _idx2 = 0; _idx2 < __rng2_size; ++_idx2)
+        sycl::ext::oneapi::experimental::printf(fmtItem, __rng2[_idx2]);
+    sycl::ext::oneapi::experimental::printf(fmtNewLine);
+
     for (_Index __rng3_idx = __start3; __rng3_idx < __rng3_idx_end; ++__rng3_idx)
     {
         __rng1_idx_less_n1 = __rng1_idx < __rng1_idx_end;
@@ -201,6 +221,12 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
                 __rng3[__rng3_idx] = __rng1[__rng1_idx++];
         }
     }
+
+    sycl::ext::oneapi::experimental::printf(fmtTitle, "__serial_merge : ", "__rng3", __rng3_size);
+    for (std::size_t _idx3 = 0; _idx3 < __rng3_size; ++_idx3)
+        sycl::ext::oneapi::experimental::printf(fmtItem, __rng3[_idx3]);
+    sycl::ext::oneapi::experimental::printf(fmtNewLine);
+
     return {__rng1_idx, __rng2_idx};
 }
 
