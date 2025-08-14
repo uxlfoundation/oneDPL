@@ -917,9 +917,36 @@ struct __set_intersection_fn
                _Proj1 __proj1 = {}, _Proj2 __proj2 = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_set_intersection(__dispatch_tag,
+
+        if constexpr (!std::is_same_v<_Proj1, std::identity>)
+        {
+            __print_range_alg(std::cout, "__set_intersection_fn::operator()::__r1 (source)     ", __r1);
+            __print_range_alg(std::cout, "__set_intersection_fn::operator()::__r1 (transformed)", __r1, __proj1);
+        }
+        else
+        {
+            __print_range_alg(std::cout, "__set_intersection_fn::operator()::__r1              ", __r1);
+        }
+
+        if constexpr (!std::is_same_v<_Proj2, std::identity>)
+        {
+            __print_range_alg(std::cout, "__set_intersection_fn::operator()::__r2 (source)     ", __r2);
+            __print_range_alg(std::cout, "__set_intersection_fn::operator()::__r2 (transformed)", __r2, __proj2);
+        }
+        else
+        {
+            __print_range_alg(std::cout, "__set_intersection_fn::operator()::__r2              ", __r2);
+        }
+
+        auto __res = oneapi::dpl::__internal::__ranges::__pattern_set_intersection(__dispatch_tag,
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
+
+        std::cout << "======================================" << std::endl;
+        __print_range_alg(std::cout, "__set_intersection_fn::operator()::__out_r ", __out_r);
+        std::cout << "======================================\n\n" << std::endl;
+
+        return __res;
     }
 }; //__set_intersection_fn
 } //__internal
