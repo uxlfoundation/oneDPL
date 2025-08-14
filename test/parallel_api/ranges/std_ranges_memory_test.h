@@ -57,43 +57,63 @@ struct test_memory_algo
     }
 
 private:
+    // Tests both subrange and span
     void run_one_policy(auto& alloc, auto&& policy, auto algo, auto checker, auto&&... args)
     {
-        const std::size_t n = medium_size;
-        Elem* pData = alloc.allocate(n);
-
-        std::memset(reinterpret_cast<void*>(pData), no_init_val, n*sizeof(Elem));
-        std::ranges::subrange r(pData, pData + n);
+        const std::size_t n_in = medium_size;
+        Elem* data_in1 = alloc.allocate(n_in);
+        Elem* data_in2 = alloc.allocate(n_in);
+        std::memset(reinterpret_cast<void*>(data_in1), no_init_val, n_in*sizeof(Elem));
+        std::memset(reinterpret_cast<void*>(data_in2), no_init_val, n_in*sizeof(Elem));
+        std::ranges::subrange subrange_in(data_in1, data_in1 + n_in);
+        std::span span_in(data_in2, n_in);
 
         // Two ranges: uninitialized_copy, uninitialized_move
         if constexpr (test_mode_id<std::remove_cvref_t<decltype(algo)>> == 1)
         {
-            const std::size_t n1 = n/2;
-            Elem* pData1 = alloc.allocate(n1);
-            std::memset(reinterpret_cast<void*>(pData1), no_init_val, n1*sizeof(Elem));
-            std::ranges::subrange r1(pData1, pData1 + n1);
-            std::uninitialized_fill(pData1, pData1 + n1, 5);
+            const std::size_t n_out = n_in / 2; // to check minimal size logic
+            Elem* data_out1 = alloc.allocate(n_out);
+            Elem* data_out2 = alloc.allocate(n_out);
+            std::ranges::subrange subrange_out(data_out1, data_out1 + n_out);
+            std::span span_out(data_out2, n_out);
+            std::memset(reinterpret_cast<void*>(data_out1), no_init_val, n_out*sizeof(Elem));
+            std::memset(reinterpret_cast<void*>(data_out2), no_init_val, n_out*sizeof(Elem));
 
-            run_impl(std::forward<decltype(policy)>(policy), algo, checker, std::move(r1), std::move(r), std::forward<decltype(args)>(args)...);
+            std::uninitialized_fill(data_in1, data_in1 + n_in, 5);
+            std::uninitialized_fill(data_in2, data_in2 + n_in, 5);
 
-            alloc.deallocate(pData1, n1);
+            run_impl(policy, algo, checker, std::move(subrange_in), std::move(subrange_out), args...);
+#if TEST_CPP20_SPAN_PRESENT
+            run_impl(std::forward<decltype(policy)>(policy), algo, checker,
+                     std::move(span_in), std::move(span_out), std::forward<decltype(args)>(args)...);
+#endif
+            alloc.deallocate(data_out1, n_out);
+            alloc.deallocate(data_out2, n_out);
         }
         // One range: destroy, uninitialized_fill, uninitialized_default_construct, uninitialized_value_construct
         else
         {
-            run_impl(std::forward<decltype(policy)>(policy), algo, checker, std::move(r), std::forward<decltype(args)>(args)...);
+            run_impl(policy, algo, checker, std::move(subrange_in), args...);
+#if TEST_CPP20_SPAN_PRESENT
+            run_impl(std::forward<decltype(policy)>(policy), algo, checker, std::move(span_in),
+                     std::forward<decltype(args)>(args)...);
+#endif
         }
-        alloc.deallocate(pData, n);
+        alloc.deallocate(data_in1, n_in);
+        alloc.deallocate(data_in2, n_in);
     }
 
     void run_impl(auto&& policy, auto algo, auto checker, auto&&... args)
     {
         auto res = algo(std::forward<decltype(policy)>(policy), std::forward<decltype(args)>(args)...);
         auto [bres1, bres2] = checker(res, std::forward<decltype(args)>(args)...);
-        EXPECT_TRUE(bres1, (std::string("wrong return value from memory algo with ranges: ") + typeid(algo).name()
-            + typeid(policy).name()).c_str());
-        EXPECT_TRUE(bres2, (std::string("wrong effect from memory algo with ranges: ") + typeid(algo).name()
-            + typeid(policy).name()).c_str());
+
+        std::string wrong_return = std::string("wrong return value from memory algo with ranges: ") +
+                                    typeid(algo).name() + typeid(policy).name();
+        std::string wrong_effect = std::string("wrong effect from memory algo with ranges: ") +
+                                    typeid(algo).name() + typeid(policy).name();
+        EXPECT_TRUE(bres1, wrong_return.c_str());
+        EXPECT_TRUE(bres2, wrong_effect.c_str());
     }
 };
 
