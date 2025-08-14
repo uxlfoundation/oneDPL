@@ -720,8 +720,7 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
-__pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r,
-                       _OutRange&& __out_r)
+__pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
 {
     const auto __n = std::ranges::size(__in_r);
     if (__n == 0)
