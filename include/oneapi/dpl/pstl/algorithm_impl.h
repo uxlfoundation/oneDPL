@@ -3383,7 +3383,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         return __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                  __result, __copy_range);
 
-    // {} {2}: parallel copying justmake  second sequence
+    // {} {2}: parallel copying just second sequence
     if (__n1 == 0)
         return __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
                                                  __result, __copy_range);
