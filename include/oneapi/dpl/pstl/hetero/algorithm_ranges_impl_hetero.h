@@ -956,7 +956,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     const auto __res = oneapi::dpl::__internal::__ranges::__pattern_merge(__tag,
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_2>(std::forward<_ExecutionPolicy>(__exec)),
         oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
-        oneapi::dpl::__ranges::drop_view_simple(__buf, __n_diff),
+        oneapi::dpl::__ranges::take_view_simple(__buf, __n_diff),
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp_2);
 
     const auto __idx = __res.first + __res.second;
