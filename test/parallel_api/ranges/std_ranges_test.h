@@ -96,6 +96,12 @@ struct P2
 
     auto
     operator<=>(const P2&) const = default;
+
+    friend std::ostream&
+    operator<<(std::ostream& stream, const P2& __item)
+    {
+        return stream << "P2(" << __item.x << ", " << __item.y << ")";
+    }    
 };
 static_assert(std::totally_ordered<P2>, "P2 must be totally ordered to be used in ranges algorithms");
 
