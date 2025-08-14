@@ -744,6 +744,31 @@ struct test_range_algo
     }
 };
 
+template <typename _Rng>
+void
+__print_range(std::ostream& stream, _Rng&& __rng, const std::string& __title = "")
+{
+    bool __comma_needed = false;
+
+    if (!__title.empty())
+        stream << __title << " : ";
+
+    for (const auto& elem : __rng)
+    {
+        if (__comma_needed)
+            stream << ", ";
+
+        stream << elem;
+
+        __comma_needed = true;
+    }
+
+    if (!__comma_needed)
+        stream << "<empty range>";
+
+    stream << std::endl;
+}
+
 }; //namespace test_std_ranges
 
 #endif //_ENABLE_STD_RANGES_TESTING
