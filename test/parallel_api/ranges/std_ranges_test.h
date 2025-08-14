@@ -179,9 +179,13 @@ struct test
     void
     host_policies(int n_serial, int n_parallel, auto algo, auto& checker, auto... args)
     {
+        std::cout << "\noneapi::dpl::execution::seq : " << std::endl;
         operator()(n_serial,   oneapi::dpl::execution::seq,       algo, checker, args...);
+        std::cout << "\noneapi::dpl::execution::unseq : " << std::endl;
         operator()(n_serial,   oneapi::dpl::execution::unseq,     algo, checker, args...);
+        std::cout << "\noneapi::dpl::execution::par : " << std::endl;
         operator()(n_parallel, oneapi::dpl::execution::par,       algo, checker, args...);
+        std::cout << "\noneapi::dpl::execution::par_unseq : " << std::endl;
         operator()(n_parallel, oneapi::dpl::execution::par_unseq, algo, checker, args...);
     }
 
