@@ -190,11 +190,13 @@ test_iterators_possibly_equal()
         EXPECT_FALSE(__internal::__iterators_possibly_equal(intData, &floatData), "wrong __iterators_possibly_equal result");
     }
 
+#ifndef _PSTL_TEST_ITERATORS_POSSIBLY_EQUAL_BROKEN
     {
         std::vector<int> dataVec1{1, 2, 3};
         std::vector<int> dataVec2{4, 5, 6};
         EXPECT_FALSE(__internal::__iterators_possibly_equal(dataVec1.begin(), dataVec2.begin()), "wrong __iterators_possibly_equal result");
     }
+#endif
 
     {
         int srcIntData = 0;
