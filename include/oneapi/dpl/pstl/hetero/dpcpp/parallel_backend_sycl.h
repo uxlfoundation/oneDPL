@@ -1094,7 +1094,7 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
     constexpr std::uint32_t __bytes_per_work_item_iter =
         __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
 
-    auto __in_rng = oneapi::dpl::__ranges::make_zip_view(
+    auto __in_in_tmp_rng = oneapi::dpl::__ranges::make_zip_view(
         std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
         oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
             __temp_diags.get_buffer()));
@@ -1102,12 +1102,12 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
 
     if (__total_size >= __partition_threshold)
     {
-        __partition_event =
-            __parallel_set_balanced_path_partition<_CustomName>(__q, __in_rng, __num_diagonals, __gen_reduce_input);
+        __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, __in_in_tmp_rng, __num_diagonals,
+                                                                                __gen_reduce_input);
     }
     return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
-        __q, __num_diagonals, __in_rng, std::forward<_Range3>(__result), __gen_reduce_input, _ReduceOp{},
-        _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp}, _ScanInputTransform{}, _WriteOp{},
+        __q, __num_diagonals, std::move(__in_in_tmp_rng), std::forward<_Range3>(__result), __gen_reduce_input,
+        _ReduceOp{}, _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp}, _ScanInputTransform{}, _WriteOp{},
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{},
         /*__is_unique_pattern=*/std::false_type{}, __partition_event);
 }
