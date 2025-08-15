@@ -901,7 +901,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     const auto __sz1 = std::ranges::size(__r1);
     const auto __sz2 = std::ranges::size(__r2);
-        
+
     //{1} is empty
     if (__r1.empty())
     {
@@ -1016,15 +1016,13 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                                                           std::ranges::borrowed_iterator_t<_OutRange>>;
 
     const auto __first1 = std::ranges::begin(__r1);
-    const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
 
     // {} \ {2}: the difference is empty
     if (__r1.empty())
-        return __return_t{__first1, __first2, __result};
+        return __return_t{__first1, __result};
 
     const auto __sz1 = std::ranges::size(__r1);
-    const auto __sz2 = std::ranges::size(__r2);
 
     // {1} \ {}: the difference is {1}
     if (__r2.empty())
