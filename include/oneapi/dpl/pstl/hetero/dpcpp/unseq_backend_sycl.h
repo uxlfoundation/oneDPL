@@ -987,14 +987,18 @@ struct __scan
 // __brick_includes
 //------------------------------------------------------------------------
 
-template <typename _Compare, typename _Size1, typename _Size2>
+template <typename _Compare, typename _Size1, typename _Size2,
+          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 struct __brick_includes
 {
     _Compare __comp;
     _Size1 __na;
     _Size2 __nb;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
 
-    __brick_includes(_Compare __c, _Size1 __n1, _Size2 __n2) : __comp(__c), __na(__n1), __nb(__n2) {}
+    __brick_includes(_Compare __c, _Size1 __n1, _Size2 __n2, _Proj1 __p1 = _Proj1{}, _Proj2 __p2 = _Proj2{}) :
+        __comp(__c), __na(__n1), __nb(__n2), __proj1(__p1), __proj2(__p2) {}
 
     template <typename _ItemId, typename _Acc1, typename _Acc2>
     bool
@@ -1012,13 +1016,17 @@ struct __brick_includes
         auto __b_end = __nb;
 
         // testing __comp(*__first2, *__first1) or __comp(*(__last1 - 1), *(__last2 - 1))
-        if ((__idx == 0 && __comp(__b[__b_beg + 0], __a[__a_beg + 0])) ||
-            (__idx == __nb - 1 && __comp(__a[__a_end - 1], __b[__b_end - 1])))
+        if ((__idx == 0 &&
+             __comp(std::invoke(__proj2, __b[__b_beg + 0]), std::invoke(__proj1, __a[__a_beg + 0]))) ||
+            (__idx == __nb - 1 &&
+             __comp(std::invoke(__proj1, __a[__a_end - 1]), std::invoke(__proj2, __b[__b_end - 1]))))
             return true; //__a doesn't include __b
 
         const auto __idx_b = __b_beg + __idx;
         const auto __val_b = __b[__idx_b];
-        auto __res = __internal::__pstl_lower_bound(__a, __a_beg, __a_end, __val_b, __comp);
+
+        oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj2> __pred_comp{__comp, __proj1, __proj2};
+        auto __res = __internal::__pstl_lower_bound(__a, __a_beg, __a_end, __val_b, __pred_comp);
 
         // {a} < {b} or __val_b != __a[__res]
         if (__res == __a_end || __comp(__val_b, __a[__res]))
@@ -1027,12 +1035,14 @@ struct __brick_includes
         auto __val_a = __a[__res];
 
         //searching number of duplication
-        const auto __count_a = __internal::__pstl_right_bound(__a, __res, __a_end, __val_a, __comp) -
-                               __internal::__pstl_left_bound(__a, __a_beg, __res, __val_a, __comp);
+        oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj1> __pred_comp_a{__comp, __proj1, __proj1};
+        const auto __count_a = __internal::__pstl_right_bound(__a, __res, __a_end, __val_a, __pred_comp_a) -
+                               __internal::__pstl_left_bound(__a, __a_beg, __res, __val_a, __pred_comp_a);
 
-        const auto __count_b = __internal::__pstl_right_bound(__b, _Size2(__idx_b), __b_end, __val_b, __comp) -
+        oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj2> __pred_comp_b{__comp, __proj2, __proj2};
+        const auto __count_b = __internal::__pstl_right_bound(__b, _Size2(__idx_b), __b_end, __val_b, __pred_comp_b) -
                                __idx_b + __idx_b -
-                               __internal::__pstl_left_bound(__b, __b_beg, _Size2(__idx_b), __val_b, __comp);
+                               __internal::__pstl_left_bound(__b, __b_beg, _Size2(__idx_b), __val_b, __pred_comp_b);
 
         return __count_b > __count_a; //false means __a includes __b
     }
@@ -1249,15 +1259,20 @@ struct _SymmetricDifferenceTag : public std::true_type
     static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
 };
 
-template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
+template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference,
+          typename _Proj1 = oneapi::dpl::identity,
+          typename _Proj2 = oneapi::dpl::identity>
 class __brick_set_op
 {
     _Compare __comp;
     _Size1 __na;
     _Size2 __nb;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
 
   public:
-    __brick_set_op(_Compare __c, _Size1 __n1, _Size2 __n2) : __comp(__c), __na(__n1), __nb(__n2) {}
+    __brick_set_op(_Compare __c, _Size1 __n1, _Size2 __n2, _Proj1 __p1 = _Proj1{}, _Proj2 __p2 = _Proj2{})
+        : __comp(__c), __na(__n1), __nb(__n2), __proj1(__p1), __proj2(__p2) {}
 
     template <typename _ItemId, typename _Acc>
     bool
@@ -1275,10 +1290,15 @@ class __brick_set_op
         const auto __idx_a = __idx;
         auto __val_a = __a[__a_beg + __idx_a];
 
-        auto __res = __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __val_a, __comp);
+        auto __proj_comp_aa = oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj1>(__comp, __proj1, __proj1);
+        auto __proj_comp_bb = oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj2>(__comp, __proj2, __proj2);
+        auto __proj_comp_ab = oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj2>(__comp, __proj1, __proj2);
+        auto __proj_comp_ba = oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1>(__comp, __proj2, __proj1);
+
+        auto __res = __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __val_a, __proj_comp_ba);
 
         bool bres = _IsOpDifference(); //initialization in true in case of difference operation; false - intersection.
-        if (__res == __nb || __comp(__val_a, __b[__b_beg + __res]))
+        if (__res == __nb || __proj_comp_ab(__val_a, __b[__b_beg + __res]))
         {
             // there is no __val_a in __b, so __b in the difference {__a}/{__b};
         }
@@ -1293,11 +1313,10 @@ class __brick_set_op
             //duplication in __b than a mask is 1
 
             const _Size1 __count_a_left =
-                __idx_a - __internal::__pstl_left_bound(__a, _Size1(0), _Size1(__idx_a), __val_a, __comp) + 1;
+                __idx_a - __internal::__pstl_left_bound(__a, _Size1(0), _Size1(__idx_a), __val_a, __proj_comp_aa) + 1;
 
-            const _Size2 __count_b = __internal::__pstl_right_bound(__b, _Size2(__res), __nb, __val_b, __comp) - __res +
-                                     __res -
-                                     __internal::__pstl_left_bound(__b, _Size2(0), _Size2(__res), __val_b, __comp);
+            const _Size2 __count_b = __internal::__pstl_right_bound(__b, _Size2(__res), __nb, __val_b, __proj_comp_bb) - __res +
+                                     __res - __internal::__pstl_left_bound(__b, _Size2(0), _Size2(__res), __val_b, __proj_comp_bb);
 
             if constexpr (_IsOpDifference::value)
                 bres = __count_a_left > __count_b; /*difference*/
