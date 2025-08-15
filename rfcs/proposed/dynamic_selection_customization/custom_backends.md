@@ -1,0 +1,267 @@
+# Custom Backends for Dynamic Selection
+
+This document provides detailed information about customizing backends for Dynamic Selection. 
+For an overview of both backend and policy customization approaches, see the main
+[README](README.md).
+
+## Current Backend Design
+
+As described in [the current design](https://github.com/uxlfoundation/oneDPL/tree/main/rfcs/experimental/dynamic_selection),
+type `T` satisfies the *Backend* contract if given,
+
+- `b` an arbitrary identifier of type `T`
+- `args` an arbitrary parameter pack of types `typename… Args`
+- `s` is of type `S` and satisfies *Selection* and `is_same_v<resource_t<S>, resource_t<T>>` is `true`
+- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+
+| Functions and Traits  | Description |
+| --------------------- | ----------- |
+| `resource_t<T>` | Backend trait for the resource type. |
+| `wait_t<T>` | Backend trait for type that is expected to be returned by the user function |
+| `b.submit(s, f, args…)` | Invokes `f` with the resource from the *Selection* and the `args`. Does not wait for the `wait_t<T>` object returned by `f`. Returns an object that satisfies *Submission*. |
+| *Submission* type | `b.submit(s, f, args…)` returns a type that must define two member functions, `wait()` and `unwrap`. |
+| `b.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
+| `b.get_submission_group()` | Returns an object that has a member function `void wait()`. Calling this `wait` function blocks until all previous submissions to this backend are complete. |
+| `lazy_report_v<T>` | `true` if the backend requires a call to `lazy_report()` to trigger reporting of `execution_info` back to the policy |
+| `b.lazy_report()` | An optional function, only needed if `lazy_report_v<T>` is `true`. Is invoked by the policy before making a selection. |
+
+Currently, these functions and traits (except the `lazy_report` function) must be implemented 
+in each backend. The experimental backend for SYCL queues is a bit more than 250 lines of code. 
+With sensible defaults, this proposal aims to simplify backend writing to open up Dynamic Selection to more use cases.
+
+## Proposed Design to Enable Easier Customization of Backends
+
+This proposal presents a flexible backend system based on a `backend_base` template class and a `default_backend` template that can be used for most resource types. The design uses CRTP (Curiously Recurring Template Pattern) to allow customization while providing sensible defaults.
+
+### Key Components
+
+1. **`backend_base<ResourceType, Backend>`**: A proposed base class template that implements the core backend functionality using CRTP.
+2. **`default_backend<ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support.
+3. **SYCL specialization**: A proposed specialized implementation for `sycl::queue` resources that handles SYCL-specific event management and profiling.
+
+### Core Features
+
+- **Resource Management**: Backends store resources in a vector and provide `get_resources()` to access them
+- **Submission System**: The `submit()` method invokes user functions with selected resources and returns submission objects
+- **Instrumentation**: Functions `instrument_before` and `instrument_after` can be optionally overridden to provide reporting for policies that require reporting.
+- **Group Operations**: `get_submission_group()` returns an object that can wait for all submissions to complete
+- **Trait Support**: Type traits for `resource_t<T>`, `wait_t<T>`, and lazy reporting detection
+- **Scratch Space**: Optional scratch space allocation for backend-specific needs via traits
+
+### Implementation Details
+
+The proposed `backend_base` class provides core functionality that can be customized by derived classes:
+
+```cpp
+template<typename ResourceType, typename Backend>
+class backend_base
+{
+  public:
+    using resource_type = ResourceType;
+    using execution_resource_t = resource_type;
+    using resource_container_t = std::vector<ResourceType>;
+
+    template <typename SelectionHandle, typename Function, typename... Args>
+    auto submit(SelectionHandle s, Function&& f, Args&&... args);
+
+    auto get_submission_group();
+    auto get_resources();
+
+  protected:
+    resource_container_t resources_;
+    // Implementation methods that can be overridden
+};
+```
+
+The proposed `default_backend` extends this with adapter support:
+
+```cpp
+template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity>
+class default_backend : public default_backend_impl<...>
+{
+  public:
+    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {});
+};
+```
+
+Adapters allow backends to be reused when it is possible to transform a custom resource
+type into a known resource type with an existing backend.
+
+### Default Implementation Details
+
+The `default_backend` provides default implementations for the core backend methods:
+
+#### `submit()` Implementation
+The default `submit()` method applies the adapter to transform the resource, invokes the user
+function, and wraps the result:
+
+```cpp
+template <typename SelectionHandle, typename Function, typename... Args>
+auto submit(SelectionHandle s, Function&& f, Args&&... args) {
+    auto adapted_resource = adapter(unwrap(s));
+    auto result = std::forward<Function>(f)(adapted_resource, std::forward<Args>(args)...);
+    return default_submission{result};
+}
+```
+**Assumptions**: The user function must be callable with the adapted resource type and return a type that can be stored and optionally waited upon.
+
+#### Instrumentation Support
+The default backend provides `instrument_before` and `instrument_after` functions that are essentially empty implementations:
+
+```cpp
+template <typename SelectionHandle>
+void instrument_before(SelectionHandle s) { 
+    // Empty implementation - no general instrumentation possible
+}
+
+template <typename SelectionHandle, typename WaitType>
+auto instrument_after(SelectionHandle s, WaitType w) {
+    return default_submission{w}; // Simply wrap the result
+}
+```
+
+**Rationale**: It is not possible to define a general mechanism for instrumenting code execution for arbitrary custom resource types. Each resource type has different characteristics for timing, profiling, and performance measurement. Specialized backends (like the SYCL backend) can override these methods to provide resource-specific instrumentation.
+
+#### `get_resources()` Implementation
+Returns the vector of resources stored during construction:
+```cpp
+auto get_resources() const noexcept {
+    return resources_;
+}
+```
+**Assumptions**: Resources can be copied or moved into a `std::vector` and remain valid throughout the backend's lifetime.
+
+#### `get_submission_group()` Implementation
+Returns a group object that can wait on all resources if they provide a `wait()` method:
+```cpp
+auto get_submission_group() {
+    return default_submission_group{resources_, adapter};
+}
+```
+The `default_submission_group` attempts to call `wait()` on each adapted resource:
+```cpp
+class default_submission_group {
+    void wait() {
+        if constexpr (has_wait_method_v<adapted_resource_type>) {
+            for (auto& resource : resources_) {
+                adapter(resource).wait();
+            }
+        } else {
+            throw std::logic_error("wait() not supported by resource type");
+        }
+    }
+};
+```
+**Assumptions**: For group waiting to work, the adapted resource type must provide a `wait()` method that blocks until all work on that resource is complete. The default implementation does not wait on each
+submission, but instead waits on each resource. This works for some resource types, such as sycl queues
+or oneTBB task_group objects, but may not be applicable to all types.
+
+For SYCL resources, the proposed specialization provides:
+- Event-based waiting with `sycl::event` as the wait type
+- Profiling support for performance reporting
+- Asynchronous submission handling
+- SYCL-specific error handling
+
+## Support for Custom Resource Types
+
+A primary goal of this proposal is to enable easy use of completely custom resource types with Dynamic Selection. The default backend can work with any resource type, making it straightforward to integrate new kinds of compute resources without writing complex backend code.
+
+### Custom Resource Example: TBB Task Groups and Arenas
+
+The following example demonstrates this with TBB task groups and arenas. Consider a custom resource
+type that combines a `tbb::task_arena` and `tbb::task_group`:
+
+```cpp
+namespace numa {
+    class ArenaAndGroup {
+        tbb::task_arena *a_;
+        tbb::task_group *tg_;
+    public:
+        ArenaAndGroup(tbb::task_arena *a, tbb::task_group *tg) : a_(a), tg_(tg) {}
+      
+        template<typename F>
+        auto run(F&& f) {
+            a_->enqueue(tg_->defer([&]() { std::forward<F>(f)(); }));
+            return *this;
+        }
+
+        void wait() { 
+            a_->execute([this]() { tg_->wait(); }); 
+        }
+
+        void clear() { delete a_; delete tg_; }
+    };
+}
+```
+
+This custom resource can be used directly with Dynamic Selection policies that do
+not require instrumentation:
+
+```cpp
+ex::round_robin_policy<numa::ArenaAndGroup> rr{ /* resources */ };
+for (auto i : numa_nodes) {
+    ex::submit(rr, 
+        [](numa::ArenaAndGroup ag) { 
+            ag.run([]() { std::printf("o\n"); });
+            return ag; 
+        }
+    );
+}
+ex::wait(rr.get_submission_group());
+```
+
+If `ArenaAndGroup` will be used with policies that require instrumentation, then
+a custom backend that overrides `instrument_before` and `instrument_after` will be
+needed.
+
+## Adapter Support for Resource Transformation
+
+For some cases a backend may be reused if a custom resource can be transformed into 
+a resource that already has a well defined backed. This proposal therefore also includes
+support for **resource adapters**. Adapters allow backends to work with resources that
+require transformation before use.
+
+### Adapter Concept
+
+An adapter is a callable object that transforms a resource from the stored type to the type
+expected by the backend functions. The default adapter is `oneapi::dpl::identity`, which performs
+no transformation.
+
+### Example: Pointer Dereferencing
+
+A common use case is working with pointers to resources:
+
+```cpp
+// Adapter to dereference a pointer
+auto deref_op = [](auto pointer){ return *pointer; };
+
+// Policy using pointer resources with dereferencing adapter
+using policy_pointer_t = oneapi::dpl::experimental::round_robin_policy<
+    sycl::queue*, 
+    decltype(deref_op), 
+    oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>
+>;
+
+std::vector<sycl::queue*> u_ptrs;
+policy_pointer_t p(u_ptrs, deref_op);
+```
+
+### Adapter Usage Patterns
+
+Adapters enable several useful patterns:
+
+1. **Pointer Resources**: Store pointers but work with references/values
+2. **Wrapper Types**: Unwrap resource containers or smart pointers  
+3. **Type Conversion**: Convert between compatible resource types
+4. **Ownership Management**: Separate resource storage from resource usage
+
+## Conclusion
+
+This proposal presents a simplified approach to backend customization for Dynamic Selection. Key benefits include:
+
+1. **Reduced Complexity**: The default backend eliminates the need to write backend code for most use cases
+2. **Custom Resource Integration**: Direct support for any resource type without transformation overhead
+3. **Optional Adapter Pattern**: Enables flexible resource management when transformation enable reuse of an existing backend.
+4. **SYCL Optimization**: Specialized backend for SYCL resources maintains performance while providing additional features
+5. **Extensibility**: Easy to add new backend specializations
+
