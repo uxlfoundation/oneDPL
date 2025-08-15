@@ -1105,7 +1105,7 @@ __parallel_set_write_a_b_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2
     constexpr std::uint32_t __bytes_per_work_item_iter =
         __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
 
-    auto __in_in_tmp_rng = oneapi::dpl::__ranges::make_zip_view(
+    auto __in_in_tmp_rng = oneapi::dpl::__ranges::zip_view(
         std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
         oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
             __temp_diags.get_buffer()));
