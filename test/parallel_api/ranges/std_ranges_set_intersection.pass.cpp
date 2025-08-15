@@ -36,7 +36,6 @@ main()
     };
 
     test_range_algo<0, int, data_in_in_out>{big_sz}(dpl_ranges::set_intersection, set_intersection_checker);
-    test_range_algo<0, int, data_in_in_out>{big_sz}(dpl_ranges::set_intersection, set_intersection_checker);
     test_range_algo<1, int, data_in_in_out>{big_sz}(dpl_ranges::set_intersection, set_intersection_checker, std::ranges::less{}, proj);
 
     test_range_algo<2, int, data_in_in_out>{}(dpl_ranges::set_intersection, set_intersection_checker, std::ranges::less{}, proj, proj);
