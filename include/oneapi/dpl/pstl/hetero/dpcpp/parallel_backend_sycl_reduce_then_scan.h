@@ -1952,7 +1952,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
                                       _WriteOp __write_op, _InitType __init, _Inclusive, _IsUniquePattern,
-                                      std::uint32_t __work_group_size = 0, sycl::event __prior_event = {})
+                                      sycl::event __prior_event = {})
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<_CustomName>>;
@@ -1960,11 +1960,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         __reduce_then_scan_scan_kernel<_CustomName>>;
     using _ValueType = typename _InitType::__value_type;
 
-    //if the work-group size is not specified (0), calculate it
-    if (__work_group_size == 0)
-    {
-        __work_group_size = __get_reduce_then_scan_workgroup_size(__q);
-    }
+    const std::uint32_t __work_group_size = __get_reduce_then_scan_workgroup_size(__q);
 
     constexpr std::uint8_t __min_sub_group_size = __get_reduce_then_scan_workaround_sg_sz();
     // Empirically determined maximum. May be less for non-full blocks.
