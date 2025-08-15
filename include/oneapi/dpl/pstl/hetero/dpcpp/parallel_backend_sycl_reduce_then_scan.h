@@ -878,15 +878,15 @@ struct __partition_set_balanced_path_submitter;
 template <typename _GenInput, typename... _KernelName>
 struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional_kernel_name<_KernelName...>>
 {
-    template <typename _InRng>
+    template <typename _InInOutRng>
     sycl::event
-    operator()(sycl::queue& __q, _InRng&& __in_rng, std::size_t __num_diagonals) const
+    operator()(sycl::queue& __q, _InInOutRng&& __in_in_out_rng, std::size_t __num_diagonals) const
     {
         const std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
         const std::size_t __n =
             oneapi::dpl::__internal::__dpl_ceiling_div(__num_diagonals + __tile_size - 1, __tile_size);
-        return __q.submit([&__in_rng, this, __n, __num_diagonals](sycl::handler& __cgh) {
-            oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
+        return __q.submit([&__in_in_out_rng, this, __n, __num_diagonals](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __in_in_out_rng);
 
             __cgh.parallel_for<_KernelName...>(
                 sycl::range</*dim=*/1>(__n), [=, *this](sycl::item</*dim=*/1> __item_id) {
@@ -894,7 +894,7 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
                     const std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
                     std::size_t __id = (__global_idx * __tile_size < __num_diagonals) ? __global_idx * __tile_size
                                                                                       : __num_diagonals - 1;
-                    __gen_input.__calc_partition_bounds(__in_rng, __id);
+                    __gen_input.__calc_partition_bounds(__in_in_out_rng, __id);
                 });
         });
     }
@@ -2053,9 +2053,9 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     return __future{std::move(__prior_event), std::move(__result_and_scratch)};
 }
 
-template <typename _CustomName, typename _InRng, typename _GenReduceInput>
+template <typename _CustomName, typename _InInOutRng, typename _GenReduceInput>
 sycl::event
-__parallel_set_balanced_path_partition(sycl::queue& __q, _InRng&& __in_rng, std::size_t __num_diagonals,
+__parallel_set_balanced_path_partition(sycl::queue& __q, _InInOutRng&& __in_in_out_rng, std::size_t __num_diagonals,
                                        _GenReduceInput __gen_reduce_input)
 {
     using _PartitionKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -2064,7 +2064,7 @@ __parallel_set_balanced_path_partition(sycl::queue& __q, _InRng&& __in_rng, std:
 
     _PartitionSubmitter __partition_submitter{__gen_reduce_input};
 
-    return __partition_submitter(__q, std::forward<_InRng>(__in_rng), __num_diagonals);
+    return __partition_submitter(__q, std::forward<_InInOutRng>(__in_in_out_rng), __num_diagonals);
 }
 
 } // namespace __par_backend_hetero
