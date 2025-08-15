@@ -962,6 +962,13 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             __comp, unseq_backend::_DifferenceTag<std::false_type>(), __proj2, __proj1)
             .get();
 
+    // Copy data back from __diff to host std::vector to check results
+    std::vector<_ValueType> __diff_vec(__n_diff);
+    {
+        auto host_acc = __diff.get_buffer().get_host_access(sycl::read_only);
+        std::copy(host_acc.begin(), host_acc.begin() + __n_diff, __diff_vec.begin());
+    }
+
     //2. Merge {1} and the difference
     const auto __res = oneapi::dpl::__internal::__ranges::__pattern_merge(__tag,
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_2>(std::forward<_ExecutionPolicy>(__exec)),
