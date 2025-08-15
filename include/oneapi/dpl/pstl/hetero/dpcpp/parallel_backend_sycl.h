@@ -1082,7 +1082,9 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
     oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
 
     constexpr std::uint32_t __average_input_ele_size = (sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2;
-    // Partition into blocks of half SLM size
+
+    // Partition into blocks based on SLM size. We want this to fit within L1 cache, and SLM is a related concept and
+    // can be queried based upon the device. Performance is not sensitive to exact size in practice.
     const std::size_t __partition_size =
         __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
 
