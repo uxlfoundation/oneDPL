@@ -925,6 +925,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     }
 
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj1, _Proj2> __comp_2{__comp, __proj1, __proj2};
+    oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj1> __comp_2_reverted{__comp, __proj2, __proj1};
 
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
     {
@@ -947,10 +948,13 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     //1. Calc difference {2} \ {1}
     const auto __n_diff =
         oneapi::dpl::__par_backend_hetero::__parallel_set_op(
-            _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_scan_then_propagate>(__exec),
+            _BackendTag{},
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_scan_then_propagate>(__exec),
             oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
-            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
-            __buf, __comp_2, unseq_backend::_DifferenceTag<std::false_type>()).get();
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)), __buf,
+            __comp_2_reverted, // We should use the reversed comparator because we pass __r2, __r1
+            unseq_backend::_DifferenceTag<std::false_type>())
+            .get();
 
     //2. Merge {1} and the difference
     const auto __res = oneapi::dpl::__internal::__ranges::__pattern_merge(__tag,
