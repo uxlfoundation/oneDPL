@@ -19,6 +19,26 @@ std::int32_t
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
+
+#if 0
+    {
+        std::vector<int> __r1 = {0, 1, 2, 3, 4};
+        std::vector<int> __r2 = {0, 0, 0, 1, 1};
+        std::vector<int> __r3_std(__r1.size() + __r2.size());
+        std::vector<int> __r3_std_ranges = __r3_std;
+
+        auto __comp  = std::less<int>{};
+        auto __proj1 = test_std_ranges::proj;
+        auto __proj2 = std::identity{};
+        oneapi::dpl::__internal::__binary_op<decltype(__comp), decltype(__proj1), decltype(__proj2)> __comp_2{__comp, __proj1, __proj2};
+
+        std::set_union(__r1.begin(), __r1.end(), __r2.begin(), __r2.end(), __r3_std.begin(), __comp_2);
+        std::ranges::set_union(__r1, __r2, std::ranges::begin(__r3_std_ranges), __comp, __proj1, __proj2);
+
+        EXPECT_EQ_N(__r3_std.begin(), __r3_std_ranges.begin(), __r3_std.size(), "");
+    }
+#endif
+
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
