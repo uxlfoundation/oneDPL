@@ -1392,15 +1392,6 @@ __get_reduce_then_scan_actual_sg_sz_device()
 #endif
 }
 
-inline std::uint32_t
-__get_reduce_then_scan_workgroup_size(const sycl::queue& q)
-{
-    const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(q);
-    const std::uint8_t __sg_size = __get_reduce_then_scan_workaround_sg_sz();
-    // Round down to multiple of sub-group size
-    return __max_wg_size - (__max_wg_size % __sg_size);
-}
-
 struct __reduce_then_scan_sub_group_params
 {
     __reduce_then_scan_sub_group_params(std::uint32_t __work_group_size, std::uint8_t __sub_group_size,
@@ -1960,14 +1951,17 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         __reduce_then_scan_scan_kernel<_CustomName>>;
     using _ValueType = typename _InitType::__value_type;
 
-    const std::uint32_t __work_group_size = __get_reduce_then_scan_workgroup_size(__q);
-
     constexpr std::uint8_t __min_sub_group_size = __get_reduce_then_scan_workaround_sg_sz();
+    constexpr std::uint8_t __max_sub_group_size = __get_reduce_then_scan_default_sg_sz();
     // Empirically determined maximum. May be less for non-full blocks.
     constexpr std::uint16_t __max_inputs_per_item =
         std::max(std::uint16_t{1}, std::uint16_t{512 / __bytes_per_work_item_iter});
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
+
+    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, 8192);
+    // Round down to nearest multiple of the subgroup size
+    const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
 
     // TODO: Investigate potentially basing this on some scale of the number of compute units. 128 work-groups has been
     // found to be reasonable number for most devices.
