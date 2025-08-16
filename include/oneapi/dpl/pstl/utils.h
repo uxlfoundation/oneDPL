@@ -856,14 +856,21 @@ struct _ReverseCounter
 };
 
 // Reverse searching for the first element strongly less than a passed value - left bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare>
+template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
 _Index
-__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp)
+__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj = {})
 {
     auto __beg = _ReverseCounter<_Index, _Buffer>{__last - 1};
     auto __end = _ReverseCounter<_Index, _Buffer>{__first - 1};
 
-    return __pstl_upper_bound(__a, __beg, __end, __val, __reorder_pred<_Compare>{__comp});
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+
+    // Now required to apply __proj not to the first comparison argument, but to the second one
+    __binary_op<decltype(__reordered_comp), oneapi::dpl::identity, _Proj> __reordered_comp_pack(
+        __reordered_comp, oneapi::dpl::identity{}, __proj);
+
+    // And we can guarantee that we pass arguments in the right order in according to our projections
+    return __pstl_upper_bound(__a, __beg, __end, __val, __binary_op_caller_arg_dir_fwd{__reordered_comp_pack});
 }
 
 // Lower bound implementation based on Shar's algorithm for binary search.
