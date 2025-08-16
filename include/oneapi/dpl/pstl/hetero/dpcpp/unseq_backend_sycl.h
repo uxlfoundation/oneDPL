@@ -1034,14 +1034,12 @@ struct __brick_includes
         auto __val_a = __a[__res];
 
         //searching number of duplication
-        oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj1> __pred_comp_a{__comp, __proj1, __proj1};
-        const auto __count_a = __internal::__pstl_right_bound(__a, __res, __a_end, __val_a, __pred_comp_a) -
-                               __internal::__pstl_left_bound(__a, __a_beg, __res, __val_a, __pred_comp_a);
+        const auto __count_a = __internal::__pstl_right_bound(__a, __res, __a_end, __proj1(__val_a), __comp, __proj1) -
+                               __internal::__pstl_left_bound(__a, __a_beg, __res, __proj1(__val_a), __comp, __proj1);
 
-        oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj2> __pred_comp_b{__comp, __proj2, __proj2};
-        const auto __count_b = __internal::__pstl_right_bound(__b, _Size2(__idx_b), __b_end, __val_b, __pred_comp_b) -
+        const auto __count_b = __internal::__pstl_right_bound(__b, _Size2(__idx_b), __b_end, __proj2(__val_b), __comp, __proj2) -
                                __idx_b + __idx_b -
-                               __internal::__pstl_left_bound(__b, __b_beg, _Size2(__idx_b), __val_b, __pred_comp_b);
+                               __internal::__pstl_left_bound(__b, __b_beg, _Size2(__idx_b), __proj2(__val_b), __comp, __proj2);
 
         return __count_b > __count_a; //false means __a includes __b
     }
