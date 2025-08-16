@@ -40,7 +40,7 @@ namespace __ranges
 // pattern_for_each
 //---------------------------------------------------------------------------------------------------------------------
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Fun>
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Fun, typename _Proj>
 void
 __pattern_for_each(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _Proj __proj)
 {
@@ -53,7 +53,7 @@ __pattern_for_each(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _P
         std::ranges::begin(__r) + std::ranges::size(__r), __f_1);
 }
 
-template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Fun>
+template <typename _ExecutionPolicy, typename _R, typename _Fun, typename _Proj>
 void
 __pattern_for_each(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Fun __f, _Proj __proj)
 {
