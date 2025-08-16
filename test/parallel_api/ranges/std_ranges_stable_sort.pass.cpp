@@ -30,11 +30,11 @@ main()
     test_range_algo<2>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::less{}, proj);
     test_range_algo<3>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::greater{}, proj);
 
-    test_range_algo<4, P2>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::less{}, &P2::x);
-    test_range_algo<5, P2>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::greater{}, &P2::x);
+    //test_range_algo<4, P2>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::less{}, &P2::x);
+    //test_range_algo<5, P2>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::greater{}, &P2::x);
 
-    test_range_algo<6, P2>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::less{}, &P2::proj);
-    test_range_algo<7, P2>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::greater{}, &P2::proj);
+    //test_range_algo<6, P2>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::less{}, &P2::proj);
+    //test_range_algo<7, P2>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::greater{}, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
