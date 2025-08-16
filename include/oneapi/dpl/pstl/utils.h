@@ -89,7 +89,7 @@ class __not_pred
     bool
     operator()(_Args&&... __args) const
     {
-        return !_M_pred(::std::forward<_Args>(__args)...);
+        return !std::invoke(_M_pred, std::forward<_Args>(__args)...);
     }
 };
 
