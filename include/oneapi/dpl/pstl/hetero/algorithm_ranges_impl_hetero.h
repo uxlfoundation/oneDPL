@@ -883,6 +883,16 @@ __pattern_includes(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
         oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_read(__r1));
 }
 
+//Dummy names to avoid kernel problems
+template <typename Name>
+struct __set_union_copy_case_1;
+
+template <typename Name>
+struct __set_union_copy_case_2;
+
+template <typename Name>
+struct __set_union_scan_then_propagate;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
 auto
@@ -963,6 +973,9 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
 }
 
+template <typename Name>
+struct __set_intersection_scan_then_propagate;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
 auto
@@ -1003,6 +1016,13 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
 }
+
+//Dummy names to avoid kernel problems
+template <typename Name>
+struct __set_difference_copy_case_1;
+
+template <typename Name>
+struct __set_difference_scan_then_propagate;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
@@ -1053,6 +1073,19 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 
     return __return_t{__first1 + __sz1, __result + __idx};
 }
+
+//Dummy names to avoid kernel problems
+template <typename Name>
+struct __set_symmetric_difference_copy_case_1;
+
+template <typename Name>
+struct __set_symmetric_difference_copy_case_2;
+
+template <typename Name>
+struct __set_symmetric_difference_phase_1;
+
+template <typename Name>
+struct __set_symmetric_difference_phase_2;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
