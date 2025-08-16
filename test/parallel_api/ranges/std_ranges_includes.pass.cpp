@@ -38,8 +38,8 @@ main()
     test_range_algo<3, int, data_in_in, decltype(x3), decltype(x1)>{}(
         dpl_ranges::includes, includes_checker, std::ranges::less{}, x1, x3);
 
-    // test_range_algo<4, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::x, &P2::x);
-    // test_range_algo<5, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::proj, &P2::proj);
+    test_range_algo<4, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::x, &P2::x);
+    test_range_algo<5, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

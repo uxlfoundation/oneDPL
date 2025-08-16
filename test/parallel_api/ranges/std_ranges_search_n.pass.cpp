@@ -26,8 +26,8 @@ main()
 
     test_range_algo<0>{big_sz}(dpl_ranges::search_n, search_n_checker, 1, 5, binary_pred);
     test_range_algo<1>{}(dpl_ranges::search_n, search_n_checker, 3, 5, binary_pred, proj);
-    //test_range_algo<2, P2>{}(dpl_ranges::search_n, search_n_checker, 1, 2, binary_pred, &P2::x);
-    //test_range_algo<3, P2>{}(dpl_ranges::search_n, search_n_checker, 3, 5, binary_pred, &P2::proj);
+    test_range_algo<2, P2>{}(dpl_ranges::search_n, search_n_checker, 1, 2, binary_pred, &P2::x);
+    test_range_algo<3, P2>{}(dpl_ranges::search_n, search_n_checker, 3, 5, binary_pred, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
