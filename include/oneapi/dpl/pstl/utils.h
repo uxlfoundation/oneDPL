@@ -166,7 +166,7 @@ struct __binary_op
 
     // Forward agreements order: apply __proj1(__val1), __proj2(__val2)
     template <typename _TValue1, typename _TValue2>
-    decltype(auto)
+    inline decltype(auto)
     call_arg_dir_fwd(_TValue1&& __val1, _TValue2&& __val2) const
     {
         return std::invoke(__f, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
@@ -175,7 +175,7 @@ struct __binary_op
 
     // Reverse agreements order: apply __proj2(__val1), __proj1(__val2)
     template <typename _TValue1, typename _TValue2>
-    decltype(auto)
+    inline decltype(auto)
     call_arg_dir_rew(_TValue1&& __val1, _TValue2&& __val2) const
     {
         return std::invoke(__f, std::invoke(__proj2, std::forward<_TValue1>(__val1)),
