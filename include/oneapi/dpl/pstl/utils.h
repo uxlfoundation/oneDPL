@@ -105,7 +105,7 @@ class __reorder_pred
     bool
     operator()(_FTp&& __a, _STp&& __b) const
     {
-        return _M_pred(::std::forward<_STp>(__b), ::std::forward<_FTp>(__a));
+        return std::invoke(_M_pred, std::forward<_STp>(__b), std::forward<_FTp>(__a));
     }
 };
 
