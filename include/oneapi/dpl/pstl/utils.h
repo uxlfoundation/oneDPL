@@ -716,13 +716,20 @@ __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
     return __first;
 }
 
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
+template <typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
 _Size1
-__pstl_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+__pstl_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
 {
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    // Now required to apply __proj not to the first comparison argument, but to the second one
+    __binary_op<decltype(__negation_reordered_comp), oneapi::dpl::identity, _Proj> __negation_reordered_comp_pack(
+        __negation_reordered_comp, oneapi::dpl::identity{}, __proj);
+
+    // And we can guarantee that we pass arguments in the right order in according to our projections
     return __pstl_lower_bound(__acc, __first, __last, __value,
-                              oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__reorder_pred<_Compare>>{
-                                  oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
+                              __binary_op_caller_arg_dir_fwd{__negation_reordered_comp_pack});
 }
 
 // Searching for the first element strongly greater than a passed value - right bound
