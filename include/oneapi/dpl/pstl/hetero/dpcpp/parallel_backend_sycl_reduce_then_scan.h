@@ -575,10 +575,10 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __proj_comp_reversed{__comp, __proj2, __proj1};
 
     _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
-        __rng1, _Index{0}, __merge_path_rng1, __ele_val, __proj_comp);
+        __rng1, _Index{0}, __merge_path_rng1, __proj1(__ele_val), __comp, __proj1);
     // find first element of repeating sequence in the second set of the next element
     _Index __rng2_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
-        __rng2, _Index{0}, __merge_path_rng2, __ele_val, __proj_comp_reversed);
+        __rng2, _Index{0}, __merge_path_rng2, __proj1(__ele_val), __comp, __proj2);
 
     _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
     _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
