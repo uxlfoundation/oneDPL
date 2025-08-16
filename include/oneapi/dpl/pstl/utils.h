@@ -688,7 +688,7 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
             __cur_idx = __biased_step;
         __it = __first + __cur_idx;
 
-        if (std::invoke(__comp, std::invoke(__proj, __acc[__it]), __value))
+        if (__comp(std::invoke(__proj, __acc[__it]), __value))
         {
             __first = __it + 1;
         }
