@@ -1289,15 +1289,10 @@ class __brick_set_op
         const auto __idx_a = __idx;
         auto __val_a = __a[__a_beg + __idx_a];
 
-        oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj1> __proj_comp_aa{__comp, __proj1, __proj1};
-        oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj2> __proj_comp_bb{__comp, __proj2, __proj2};
-        oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj2> __proj_comp_ab{__comp, __proj1, __proj2};
-        oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __proj_comp_ba{__comp, __proj2, __proj1};
-
-        auto __res = __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __val_a, __proj_comp_ba);
+        auto __res = __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __proj1(__val_a), __comp, __proj2);
 
         bool bres = _IsOpDifference(); //initialization in true in case of difference operation; false - intersection.
-        if (__res == __nb || __proj_comp_ab(__val_a, __b[__b_beg + __res]))
+        if (__res == __nb || __comp(__proj1(__val_a), __proj2(__b[__b_beg + __res])))
         {
             // there is no __val_a in __b, so __b in the difference {__a}/{__b};
         }
@@ -1312,10 +1307,13 @@ class __brick_set_op
             //duplication in __b than a mask is 1
 
             const _Size1 __count_a_left =
-                __idx_a - __internal::__pstl_left_bound(__a, _Size1(0), _Size1(__idx_a), __val_a, __proj_comp_aa) + 1;
+                __idx_a -
+                __internal::__pstl_left_bound(__a, _Size1(0), _Size1(__idx_a), __proj1(__val_a), __comp, __proj1) + 1;
 
-            const _Size2 __count_b = __internal::__pstl_right_bound(__b, _Size2(__res), __nb, __val_b, __proj_comp_bb) - __res +
-                                     __res - __internal::__pstl_left_bound(__b, _Size2(0), _Size2(__res), __val_b, __proj_comp_bb);
+            const _Size2 __count_b =
+                __internal::__pstl_right_bound(__b, _Size2(__res), __nb, __proj2(__val_b), __comp, __proj2) - __res +
+                __res -
+                __internal::__pstl_left_bound(__b, _Size2(0), _Size2(__res), __proj2(__val_b), __comp, __proj2);
 
             if constexpr (_IsOpDifference::value)
                 bres = __count_a_left > __count_b; /*difference*/
