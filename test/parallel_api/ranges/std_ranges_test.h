@@ -323,10 +323,18 @@ private:
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), args...);
 
         static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), args...))>, "Wrong return type");
-
-        EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
-                  (std::string("wrong return value from algo: ") + typeid(decltype(algo)).name() +
-                   typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+        if constexpr (!std::is_same_v<decltype(res), bool>)
+        {
+            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong return value from algo: ") + typeid(decltype(algo)).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+        }
+        else
+        {
+            EXPECT_EQ(expected_res, res,
+                      (std::string("wrong return value from algo: ") + typeid(decltype(algo)).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+        }
     }
 
     struct TransformOp
