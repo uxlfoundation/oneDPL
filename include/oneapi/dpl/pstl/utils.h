@@ -166,8 +166,8 @@ struct __binary_op
     decltype(auto)
     operator()(_TValue1&& __val1, _TValue2&& __val2) const
     {
-        // static_assert(std::is_same<_Proj1, _Proj2>::value,
-        //               "We don't know the order of arguments so we don't know how to apply projections");
+        static_assert(std::is_same<_Proj1, _Proj2>::value,
+                      "We don't know the order of arguments so we don't know how to apply projections");
 
         return std::invoke(__f, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
                            std::invoke(__proj2, std::forward<_TValue2>(__val2)));
