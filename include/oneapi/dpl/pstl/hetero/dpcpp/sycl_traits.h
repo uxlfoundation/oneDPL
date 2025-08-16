@@ -74,6 +74,12 @@ struct __predicate;
 template <typename _F, typename _Proj>
 struct __unary_op;
 
+template <typename Pred>
+struct __binary_op_caller_arg_dir_fwd;
+
+template <typename Pred>
+struct __binary_op_caller_arg_dir_rew;
+
 template <typename _F, typename _Proj1, typename _Proj2>
 struct __binary_op;
 
@@ -195,6 +201,18 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 template <typename _F, typename _Proj>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__unary_op, _F, _Proj)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F, _Proj>
+{
+};
+
+template <typename Pred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__binary_op_caller_arg_dir_fwd, Pred)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<Pred>
+{
+};
+
+template <typename Pred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__binary_op_caller_arg_dir_rew, Pred)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<Pred>
 {
 };
 
