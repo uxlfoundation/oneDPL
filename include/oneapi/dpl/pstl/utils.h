@@ -191,6 +191,56 @@ struct __binary_op
     }
 };
 
+template <typename _Pred>
+struct __is_binary_op : std::false_type
+{
+};
+
+template <typename _F, typename _Proj1, typename _Proj2>
+struct __is_binary_op<__binary_op<_F, _Proj1, _Proj2>> : std::true_type
+{
+};
+
+template <typename Pred>
+struct __binary_op_caller_arg_dir_fwd
+{
+    mutable Pred __pred;
+
+    template <typename _TValue1, typename _TValue2>
+    decltype(auto)
+    operator()(_TValue1&& __val1, _TValue2&& __val) const
+    {
+        if constexpr (__is_binary_op<Pred>::value)
+        {
+            return __pred.call_arg_dir_fwd(std::forward<_TValue1>(__val1), std::forward<_TValue2>(__val));
+        }
+        else
+        {
+            return __pred(std::forward<_TValue1>(__val1), std::forward<_TValue2>(__val));
+        }
+    }
+};
+
+template <typename Pred>
+struct __binary_op_caller_arg_dir_rew
+{
+    mutable Pred __pred;
+
+    template <typename _TValue1, typename _TValue2>
+    decltype(auto)
+    operator()(_TValue1&& __val1, _TValue2&& __val) const
+    {
+        if constexpr (__is_binary_op<Pred>::value)
+        {
+            return __pred.call_arg_dir_rew(std::forward<_TValue1>(__val1), std::forward<_TValue2>(__val));
+        }
+        else
+        {
+            return __pred(std::forward<_TValue1>(__val1), std::forward<_TValue2>(__val));
+        }
+    }
+};
+
 //! "==" comparison.
 /** Not called "equal" to avoid (possibly unfounded) concerns about accidental invocation via
     argument-dependent name lookup by code expecting to find the usual ::std::equal. */
@@ -703,7 +753,7 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
             __cur_idx = __biased_step;
         __it = __first + __cur_idx;
 
-        if (__comp(__acc[__it], __value))
+        if (__binary_op_caller_arg_dir_fwd{__comp}(__acc[__it], __value))
         {
             __first = __it + 1;
         }
