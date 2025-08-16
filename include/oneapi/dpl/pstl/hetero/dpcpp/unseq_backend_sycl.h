@@ -997,8 +997,10 @@ struct __brick_includes
     _Proj1 __proj1;
     _Proj2 __proj2;
 
-    __brick_includes(_Compare __c, _Size1 __n1, _Size2 __n2, _Proj1 __p1 = _Proj1{}, _Proj2 __p2 = _Proj2{}) :
-        __comp(__c), __na(__n1), __nb(__n2), __proj1(__p1), __proj2(__p2) {}
+    __brick_includes(_Compare __comp, _Size1 __n1, _Size2 __n2, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+        : __comp(__comp), __na(__n1), __nb(__n2), __proj1(__proj1), __proj2(__proj2)
+    {
+    }
 
     template <typename _ItemId, typename _Acc1, typename _Acc2>
     bool
