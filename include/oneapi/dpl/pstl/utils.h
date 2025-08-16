@@ -785,9 +785,11 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
     return __first;
 }
 
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare,
+          typename _Proj = oneapi::dpl::identity>
 _Size1
-__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp,
+                     _Proj __proj = {})
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
