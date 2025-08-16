@@ -717,11 +717,7 @@ __biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
-    // Now required to apply __proj not to the first comparison argument, but to the second one
-    __binary_op<decltype(__negation_reordered_comp), oneapi::dpl::identity, _Proj> __negation_reordered_comp_pack{
-        __negation_reordered_comp, oneapi::dpl::identity{}, __proj};
-
-    return __biased_lower_bound<__bias_last>(__acc, __first, __last, __value, __negation_reordered_comp_pack);
+    return __biased_lower_bound<__bias_last>(__acc, __first, __last, __value, __negation_reordered_comp, __proj);
 }
 
 template <typename _IntType, typename _Acc>
