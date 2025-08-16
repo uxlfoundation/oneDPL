@@ -45,6 +45,8 @@
 #    include <cstring> // memcpy
 #endif
 
+#include "functional_impl.h"
+
 namespace oneapi
 {
 namespace dpl
@@ -735,9 +737,11 @@ __pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __
 // When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
 // After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
 // resulting in a standard binary search.
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare,
+          typename _Proj = oneapi::dpl::identity>
 _Size1
-__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp,
+                     _Proj __proj = {})
 {
     auto __n = __last - __first;
     std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
@@ -753,7 +757,8 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
             __cur_idx = __biased_step;
         __it = __first + __cur_idx;
 
-        if (__binary_op_caller_arg_dir_fwd{__comp}(__acc[__it], __value))
+        //if (__binary_op_caller_arg_dir_fwd{__comp}(__acc[__it], __value))
+        if (__comp(__acc[__it], __value))
         {
             __first = __it + 1;
         }
@@ -777,6 +782,7 @@ template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Val
 _Size1
 __biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
 {
+    static_assert(false, "required to pass projection into __biased_upper_bound");
     return __biased_lower_bound<__bias_last>(
         __acc, __first, __last, __value,
         oneapi::dpl::__internal::__not_pred{oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
