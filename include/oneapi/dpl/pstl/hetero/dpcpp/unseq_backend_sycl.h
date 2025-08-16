@@ -1025,7 +1025,7 @@ struct __brick_includes
         const auto __idx_b = __b_beg + __idx;
         const auto __val_b = __b[__idx_b];
 
-        auto __res = __internal::__pstl_lower_bound(__a, __a_beg, __a_end, __proj2(__val_b), __proj1);
+        auto __res = __internal::__pstl_lower_bound(__a, __a_beg, __a_end, __proj2(__val_b), __comp, __proj1);
 
         // {a} < {b} or __val_b != __a[__res]
         if (__res == __a_end || __comp(__val_b, __a[__res]))
