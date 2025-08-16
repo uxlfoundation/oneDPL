@@ -165,7 +165,17 @@ template <typename TStream, typename Tag, typename TValue>
 
     if constexpr (IsOutputStreamable<TValue, decltype(os)>::value)
     {
-        os << value;
+        if constexpr (std::is_same_v<bool, std::decay_t<TValue>>)
+        {
+            if (value)
+                os << "true";
+            else
+                os << "false";
+        }
+        else
+        {
+            os << value;
+        }
     }
     else
     {

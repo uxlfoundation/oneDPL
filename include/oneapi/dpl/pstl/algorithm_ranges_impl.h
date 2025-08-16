@@ -40,7 +40,7 @@ namespace __ranges
 // pattern_for_each
 //---------------------------------------------------------------------------------------------------------------------
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Fun>
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Fun, typename _Proj>
 void
 __pattern_for_each(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _Proj __proj)
 {
@@ -53,7 +53,7 @@ __pattern_for_each(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _P
         std::ranges::begin(__r) + std::ranges::size(__r), __f_1);
 }
 
-template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Fun>
+template <typename _ExecutionPolicy, typename _R, typename _Fun, typename _Proj>
 void
 __pattern_for_each(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Fun __f, _Proj __proj)
 {
@@ -635,6 +635,231 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
                                                   __n_2, __it_out, __n_out, __comp, __proj1, __proj2);
 
     return __return_type{__res1, __res2, __it_out + __n_out};
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// includes
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _R1, typename _R2, typename _Comp, typename _Proj1, typename _Proj2>
+bool
+__brick_includes(_R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                 /*__is_vector=*/std::false_type) noexcept
+{
+    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _Comp, typename _Proj1, typename _Proj2>
+bool
+__brick_includes(_R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                 /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
+          typename _Proj2>
+bool
+__pattern_includes(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1,
+                   _Proj2 __proj2)
+{
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick_includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2,
+                            typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
+          typename _Proj2>
+bool
+__pattern_includes(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp,
+                   _Proj1 __proj1, _Proj2 __proj2)
+{
+    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// set_union
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                  /*__is_vector=*/std::false_type) noexcept
+{
+    return std::ranges::set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r), __comp,
+                                  __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                  /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::ranges::set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r), __comp,
+                                  __proj1, __proj2);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
+          typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+                    _Proj1 __proj1, _Proj2 __proj2)
+{
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp,
+                             __proj1, __proj2, typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
+          typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__pattern_set_union(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return std::ranges::set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r), __comp,
+                                  __proj1, __proj2);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// set_intersection
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                         /*__is_vector=*/std::false_type) noexcept
+{
+    return std::ranges::set_intersection(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
+                                         __comp, __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                         /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::ranges::set_intersection(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
+                                         __comp, __proj1, __proj2);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+auto
+__pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick_set_intersection(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                    __comp, __proj1, __proj2, typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+auto
+__pattern_set_intersection(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                           _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return std::ranges::set_intersection(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
+                                         __comp, __proj1, __proj2);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// set_difference
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                  /*__is_vector=*/std::false_type) noexcept
+{
+    return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
+                                       __comp, __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                  /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
+                                       __comp, __proj1, __proj2);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+auto
+__pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                         _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                  __comp, __proj1, __proj2, typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
+          typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__pattern_set_difference(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                         _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
+                                       __comp, __proj1, __proj2);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// set_symmetric_difference
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
+                                 _Proj2 __proj2,
+                                 /*__is_vector=*/std::false_type) noexcept
+{
+    return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                 std::ranges::begin(__out_r), __comp, __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
+                                 _Proj2 __proj2,
+                                 /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                 std::ranges::begin(__out_r), __comp, __proj1, __proj2);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+auto
+__pattern_set_symmetric_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick_set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                            std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2,
+                                            typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+auto
+__pattern_set_symmetric_difference(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                                   _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                 std::ranges::begin(__out_r), __comp, __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
