@@ -638,27 +638,43 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-// pattern_includes
+// includes
 //---------------------------------------------------------------------------------------------------------------------
+
+template <typename _R1, typename _R2, typename _Comp, typename _Proj1, typename _Proj2>
+bool
+__brick_includes(_R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                 /*__is_vector=*/std::false_type) noexcept
+{
+    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _Comp, typename _Proj1, typename _Proj2>
+bool
+__brick_includes(_R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                 /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+}
+
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
           typename _Proj2>
 bool
 __pattern_includes(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1,
                    _Proj2 __proj2)
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj1, _Proj2> __comp_2{__comp, __proj1, __proj2};
-
-    return oneapi::dpl::__internal::__pattern_includes(__tag, std::forward<_ExecutionPolicy>(__exec),
-        std::ranges::begin(__r1), std::ranges::begin(__r1) + std::ranges::size(__r1),
-        std::ranges::begin(__r2), std::ranges::begin(__r2) + std::ranges::size(__r2), __comp_2);
+    return __brick_includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2,
+                            typename _Tag::__is_vector{});
 }
 
-template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1, typename _Proj2>
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
+          typename _Proj2>
 bool
-__pattern_includes(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2,
-                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_includes(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp,
+                   _Proj1 __proj1, _Proj2 __proj2)
 {
     return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
 }
