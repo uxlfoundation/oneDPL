@@ -733,11 +733,11 @@ __pstl_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
 }
 
 // Searching for the first element strongly greater than a passed value - right bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare>
+template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
 _Index
-__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp)
+__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj = {})
 {
-    return __pstl_upper_bound(__a, __first, __last, __val, __comp);
+    return __pstl_upper_bound(__a, __first, __last, __val, __comp, __proj);
 }
 
 // Performs a "biased" binary search targets the split point close to one edge of the range.
