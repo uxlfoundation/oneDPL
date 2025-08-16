@@ -595,9 +595,8 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     // Calculate the max location to search in the second set for future repeats, limiting to the edge of the range
     _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2.size());
 
-    // hack: __proj_comp is used because __pstl_upper_bound flips arguments inside again
-    _Index __balanced_path_intersection_rng2 =
-        oneapi::dpl::__internal::__pstl_upper_bound(__rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __proj_comp);
+    _Index __balanced_path_intersection_rng2 = oneapi::dpl::__internal::__pstl_upper_bound(
+        __rng2, __merge_path_rng2, __fwd_search_bound, __proj1(__ele_val), __comp, __proj2);
     // Calculate the number of matchable "future" repeats in the second set
     _Index __matchable_forward_ele_rng2 = __balanced_path_intersection_rng2 - __merge_path_rng2;
     _Index __total_matched_rng2 = __balanced_path_intersection_rng2 - __rng2_repeat_start;
