@@ -93,11 +93,9 @@ struct P2
     int y = {};
 
     int proj() const { return x; }
-
-    auto
-    operator<=>(const P2&) const = default;
+    friend bool operator==(const P2& a, const P2& b) { return a.x == b.x && a.y == b.y; }
 };
-static_assert(std::totally_ordered<P2>, "P2 must be totally ordered to be used in ranges algorithms");
+
 
 // These are copies of __range_size and __range_size_t utilities from oneDPL
 // to get a size type of a range be it sized or not
