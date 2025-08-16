@@ -571,10 +571,10 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
 
     // find first element of repeating sequence in the first set of the previous element
     _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
-        __rng1, _Index{0}, __merge_path_rng1, __proj1(__ele_val), __comp, __proj1);
+        __rng1, _Index{0}, __merge_path_rng1, std::invoke(__proj1, __ele_val), __comp, __proj1);
     // find first element of repeating sequence in the second set of the next element
     _Index __rng2_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
-        __rng2, _Index{0}, __merge_path_rng2, __proj1(__ele_val), __comp, __proj2);
+        __rng2, _Index{0}, __merge_path_rng2, std::invoke(__proj1, __ele_val), __comp, __proj2);
 
     _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
     _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
@@ -593,7 +593,7 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
     _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2.size());
 
     _Index __balanced_path_intersection_rng2 = oneapi::dpl::__internal::__pstl_upper_bound(
-        __rng2, __merge_path_rng2, __fwd_search_bound, __proj1(__ele_val), __comp, __proj2);
+        __rng2, __merge_path_rng2, __fwd_search_bound, std::invoke(__proj1, __ele_val), __comp, __proj2);
     // Calculate the number of matchable "future" repeats in the second set
     _Index __matchable_forward_ele_rng2 = __balanced_path_intersection_rng2 - __merge_path_rng2;
     _Index __total_matched_rng2 = __balanced_path_intersection_rng2 - __rng2_repeat_start;

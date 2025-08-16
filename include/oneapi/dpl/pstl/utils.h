@@ -706,7 +706,7 @@ __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
         __it = __first;
         __cur = __n / 2;
         __it += __cur;
-        if (__comp(__proj(__acc[__it]), __value))
+        if (__comp(std::invoke(__proj, __acc[__it]), __value))
         {
             __n -= __cur + 1, __first = ++__it;
         }
