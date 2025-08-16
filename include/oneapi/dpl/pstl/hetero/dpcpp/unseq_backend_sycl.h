@@ -1290,10 +1290,10 @@ class __brick_set_op
         const auto __idx_a = __idx;
         auto __val_a = __a[__a_beg + __idx_a];
 
-        auto __proj_comp_aa = oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj1>(__comp, __proj1, __proj1);
-        auto __proj_comp_bb = oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj2>(__comp, __proj2, __proj2);
-        auto __proj_comp_ab = oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj2>(__comp, __proj1, __proj2);
-        auto __proj_comp_ba = oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1>(__comp, __proj2, __proj1);
+        oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj1> __proj_comp_aa{__comp, __proj1, __proj1};
+        oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj2> __proj_comp_bb{__comp, __proj2, __proj2};
+        oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj2> __proj_comp_ab{__comp, __proj1, __proj2};
+        oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __proj_comp_ba{__comp, __proj2, __proj1};
 
         auto __res = __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __val_a, __proj_comp_ba);
 
