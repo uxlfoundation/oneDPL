@@ -728,8 +728,9 @@ __pstl_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
         __negation_reordered_comp, oneapi::dpl::identity{}, __proj};
 
     // And we can guarantee that we pass arguments in the right order in according to our projections
-    return __pstl_lower_bound(__acc, __first, __last, __value,
-                              __binary_op_caller_arg_dir_fwd{__negation_reordered_comp_pack});
+    return __pstl_lower_bound(
+        __acc, __first, __last, __value,
+        __binary_op_caller_arg_dir_fwd<decltype(__negation_reordered_comp_pack)>{__negation_reordered_comp_pack});
 }
 
 // Searching for the first element strongly greater than a passed value - right bound
@@ -876,7 +877,8 @@ __pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __v
         __reordered_comp, oneapi::dpl::identity{}, __proj};
 
     // And we can guarantee that we pass arguments in the right order in according to our projections
-    return __pstl_upper_bound(__a, __beg, __end, __val, __binary_op_caller_arg_dir_fwd{__reordered_comp_pack});
+    return __pstl_upper_bound(__a, __beg, __end, __val,
+                              __binary_op_caller_arg_dir_fwd<decltype(__reordered_comp_pack)>{__reordered_comp_pack});
 }
 
 // Lower bound implementation based on Shar's algorithm for binary search.
