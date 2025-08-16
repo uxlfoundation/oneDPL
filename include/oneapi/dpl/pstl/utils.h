@@ -162,6 +162,24 @@ struct __binary_op
     mutable _Proj1 __proj1;
     mutable _Proj2 __proj2;
 
+    // Forward agreements order: apply __proj1(__val1), __proj2(__val2)
+    template <typename _TValue1, typename _TValue2>
+    decltype(auto)
+    call_arg_dir_fwd(_TValue1&& __val1, _TValue2&& __val2) const
+    {
+        return std::invoke(__f, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj2, std::forward<_TValue2>(__val2)));
+    }
+
+    // Reverse agreements order: apply __proj2(__val1), __proj1(__val2)
+    template <typename _TValue1, typename _TValue2>
+    decltype(auto)
+    call_arg_dir_rew(_TValue1&& __val1, _TValue2&& __val2) const
+    {
+        return std::invoke(__f, std::invoke(__proj2, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj1, std::forward<_TValue2>(__val2)));
+    }
+
     template <typename _TValue1, typename _TValue2>
     decltype(auto)
     operator()(_TValue1&& __val1, _TValue2&& __val2) const
@@ -169,8 +187,7 @@ struct __binary_op
         static_assert(std::is_same<_Proj1, _Proj2>::value,
                       "We don't know the order of arguments so we don't know how to apply projections");
 
-        return std::invoke(__f, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
-                           std::invoke(__proj2, std::forward<_TValue2>(__val2)));
+        return call_arg_dir_fwd(std::forward<_TValue1>(__val1), std::forward<_TValue2>(__val2));
     }
 };
 
