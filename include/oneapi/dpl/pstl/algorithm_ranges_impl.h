@@ -55,7 +55,7 @@ __pattern_for_each(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _P
 
 template <typename _ExecutionPolicy, typename _R, typename _Fun, typename _Proj>
 void
-__pattern_for_each(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Fun __f, _Proj __proj)
+__pattern_for_each(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Fun __f, _Proj __proj)
 {
     std::ranges::for_each(std::forward<_R>(__r), __f, __proj);
 }
@@ -702,8 +702,8 @@ __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Pr
                                   __proj1, __proj2);
 }
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
-          typename _Comp, typename _Proj1, typename _Proj2>
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
 auto
 __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                     _Proj1 __proj1, _Proj2 __proj2)
@@ -714,11 +714,11 @@ __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r
                              __proj1, __proj2, typename _Tag::__is_vector{});
 }
 
-template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
-          typename _Comp, typename _Proj1, typename _Proj2>
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
 auto
-__pattern_set_union(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
-                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_union(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     return std::ranges::set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r), __comp,
                                   __proj1, __proj2);
@@ -776,7 +776,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 auto
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
-                  /*__is_vector=*/std::false_type) noexcept
+                       /*__is_vector=*/std::false_type) noexcept
 {
     return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
                                        __comp, __proj1, __proj2);
@@ -785,7 +785,7 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 auto
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
-                  /*__is_vector=*/std::true_type) noexcept
+                       /*__is_vector=*/std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
     return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
@@ -804,8 +804,8 @@ __pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&
                                   __comp, __proj1, __proj2, typename _Tag::__is_vector{});
 }
 
-template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
-          typename _Comp, typename _Proj1, typename _Proj2>
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
 auto
 __pattern_set_difference(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)

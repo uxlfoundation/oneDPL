@@ -398,8 +398,8 @@ template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBo
 void
 __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
                                   std::size_t& __idx2, _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                  _SizeType& __idx, std::uint16_t& __count, _Compare __comp,
-                                  _Proj1 __proj1 = _Proj1{}, _Proj2 __proj2 = _Proj2{})
+                                  _SizeType& __idx, std::uint16_t& __count, _Compare __comp, _Proj1 __proj1 = _Proj1{},
+                                  _Proj2 __proj2 = _Proj2{})
 {
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
@@ -480,8 +480,8 @@ struct __set_generic_operation
               typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
     std::uint16_t
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               _SizeType __num_eles_min, _TempOutput& __temp_out,
-               _Compare __comp, _Proj1 __proj1 = _Proj1{}, _Proj2 __proj2 = _Proj2{}) const
+               _SizeType __num_eles_min, _TempOutput& __temp_out, _Compare __comp, _Proj1 __proj1 = _Proj1{},
+               _Proj2 __proj2 = _Proj2{}) const
     {
 
         std::uint16_t __count = 0;
@@ -495,7 +495,8 @@ struct __set_generic_operation
             {
                 // no bounds checking
                 __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false>(
-                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1, __proj2);
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
+                    __proj2);
             }
         }
         else
@@ -504,7 +505,8 @@ struct __set_generic_operation
             {
                 //bounds check all
                 __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true>(
-                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1, __proj2);
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
+                    __proj2);
             }
         }
         return __count;
@@ -613,8 +615,8 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
 // Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
 // balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
 // to the output for the reduction operation.
-template <typename _SetOpCount, typename _Compare,
-          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+template <typename _SetOpCount, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
+          typename _Proj2 = oneapi::dpl::identity>
 struct __gen_set_balanced_path
 {
     using TempData = __noop_temp_data;
@@ -635,7 +637,8 @@ struct __gen_set_balanced_path
             return 0;
         //find merge path intersection
         auto [__rng1_pos, __rng2_pos] = oneapi::dpl::__par_backend_hetero::__find_start_point(
-            __rng1, _SizeType{0}, __rng1.size(), __rng2, _SizeType{0}, __rng2.size(), __i_elem, __comp, __proj1, __proj2);
+            __rng1, _SizeType{0}, __rng1.size(), __rng2, _SizeType{0}, __rng2.size(), __i_elem, __comp, __proj1,
+            __proj2);
 
         //Find balanced path for diagonal start
         auto [__rng1_balanced_pos, __rng2_balanced_pos, __star_offset] =
@@ -663,8 +666,8 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <typename _SetOpCount, typename _TempData, typename _Compare,
-          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
+          typename _Proj2 = oneapi::dpl::identity>
 struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
