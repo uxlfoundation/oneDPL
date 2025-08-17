@@ -23,7 +23,7 @@ main()
     namespace dpl_ranges = oneapi::dpl::ranges;
 
     // TODO: use data_in_in_out_lim when set_symmetric_difference supports
-    // output range not-sufficiently large to hold all the proccessed elements
+    // output range not-sufficiently large to hold all the processed elements
     // this will also require adding a custom serial implementation of the algorithm into the checker
 
     auto checker = [](std::ranges::random_access_range auto&& r1,
