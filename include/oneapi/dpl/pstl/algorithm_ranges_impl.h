@@ -24,8 +24,8 @@
 #include <functional>
 #include <type_traits>
 
-#include "algorithm_fwd.h"
 #include "execution_impl.h"
+#include "algorithm_impl.h"
 
 namespace oneapi
 {
@@ -703,10 +703,10 @@ __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Pr
 }
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
-          typename _Proj1, typename _Proj2>
+          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 auto
 __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
-                    _Proj1 __proj1, _Proj2 __proj2)
+                    _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
@@ -715,13 +715,42 @@ __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r
 }
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
-          typename _Proj1, typename _Proj2>
+          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 auto
-__pattern_set_union(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
-                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                    _Comp __comp, _Proj1 __proj1 = oneapi::dpl::identity{}, _Proj2 __proj2 = oneapi::dpl::identity{})
 {
-    return std::ranges::set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r), __comp,
-                                  __proj1, __proj2);
+    using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
+    using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
+    using _Tp = std::ranges::range_value_t<_OutRange>;
+
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
+
+    auto __first1 = std::ranges::begin(__r1);
+    auto __last1 = __first1 + __n1;
+    auto __first2 = std::ranges::begin(__r2);
+    auto __last2 = __first2 + __n2;
+    auto __result = std::ranges::begin(__out_r);
+
+    // use serial algorithm
+    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+        return std::ranges::set_union(__r1, __r2, std::begin(__out_r), __comp, __proj1, __proj2);
+
+    auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
+        __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+           _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+            return oneapi::dpl::__utils::__set_union_construct(__first1, __last1, __first2, __last2, __result, __comp,
+                                                               oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),
+                                                               __proj1, __proj2);
+        }, __proj1, __proj2);
+
+    using _return_t = std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>,
+                                                    std::ranges::borrowed_iterator_t<_R2>,
+                                                    std::ranges::borrowed_iterator_t<_OutRange>>;
+
+    return _return_t{__first1 + __n1, __first2 + __n2, __result + (__out_last - __result)};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
