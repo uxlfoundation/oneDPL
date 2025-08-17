@@ -1207,7 +1207,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             .get();
 
     //3. Merge the differences
-    const std::pair __res = oneapi::dpl::__internal::__ranges::__pattern_merge(
+    /*const std::pair __res =*/ oneapi::dpl::__internal::__ranges::__pattern_merge(
         __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::take_view_simple(__buf_1, __n_diff_1),
         oneapi::dpl::__ranges::take_view_simple(__buf_2, __n_diff_2), oneapi::dpl::__ranges::views::all_write(__out_r),
         __comp, __proj1, __proj2);
