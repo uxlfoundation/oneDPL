@@ -263,10 +263,7 @@ __pattern_search(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    // TODO we should replace this lambda
-    auto __pred_2 = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) { return std::invoke(__pred,
-        std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
-        std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
+    oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __pred_2{__pred, __proj1, __proj2};
 
     auto __res = oneapi::dpl::__internal::__pattern_search(__tag, std::forward<_ExecutionPolicy>(__exec),
         std::ranges::begin(__r1), std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
