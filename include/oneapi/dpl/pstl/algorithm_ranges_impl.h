@@ -46,6 +46,7 @@ __pattern_for_each(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _P
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __f_1 =
         [__f, __proj](auto&& __val) { std::invoke(__f, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
@@ -72,6 +73,7 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _O
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
     assert(std::ranges::size(__in_r) <= std::ranges::size(__out_r)); // for debug purposes only
 
+    // TODO we should replace this lambda
     auto __unary_op = [__op, __proj](auto&& __val) {
         return std::invoke(__op, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
@@ -100,6 +102,7 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange1&& __in_r1, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __f = [__binary_op, __proj1, __proj2](auto&& __val1, auto&& __val2) {
         return std::invoke(__binary_op, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
             std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
@@ -129,6 +132,7 @@ __pattern_find_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __pred_1 = [__pred, __proj](auto&& __val) {
         return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
 
@@ -156,6 +160,7 @@ __pattern_find_first_of(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&&
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __bin_pred = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) {
         return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
                            std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));
@@ -187,6 +192,7 @@ __pattern_find_end(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __bin_pred = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) {
         return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
                            std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));
@@ -221,6 +227,7 @@ __pattern_any_of(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __pred_1 = [__pred, __proj](auto&& __val) {
         return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
     return oneapi::dpl::__internal::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec),
@@ -245,6 +252,7 @@ __pattern_adjacent_find_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __pred_2 = [__pred, __proj](auto&& __val, auto&& __next) { return std::invoke(__pred, std::invoke(__proj,
         std::forward<decltype(__val)>(__val)), std::invoke(__proj, std::forward<decltype(__next)>(__next)));};
 
@@ -273,6 +281,7 @@ __pattern_search(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __pred_2 = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) { return std::invoke(__pred,
         std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
         std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
@@ -304,6 +313,7 @@ __pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r,
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __pred_2 = [__pred, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__pred,
         std::invoke(__proj, std::forward<decltype(__val1)>(__val1)), std::forward<decltype(__val2)>(__val2));};
 
@@ -331,6 +341,7 @@ __pattern_count_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __pred_1 = [__pred, __proj](auto&& __val) { return std::invoke(__pred, std::invoke(__proj,
         std::forward<decltype(__val)>(__val)));};
     return oneapi::dpl::__internal::__pattern_count(__tag, std::forward<_ExecutionPolicy>(__exec),
@@ -379,6 +390,7 @@ __pattern_equal(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __pred_2 = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2)
         { return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
         std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));};
@@ -406,6 +418,7 @@ __pattern_is_sorted(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __com
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda to oneapi::dpl::internal::__binary_op
     auto __pred_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
         std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
 
@@ -432,6 +445,7 @@ __pattern_sort_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda to oneapi::dpl::internal::__binary_op
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
         std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
     oneapi::dpl::__internal::__pattern_sort(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -458,6 +472,7 @@ __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda to oneapi::dpl::internal::__binary_op
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
         std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
 
@@ -493,6 +508,7 @@ __pattern_minmax_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda to oneapi::dpl::internal::__binary_op
     auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
         std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
 
@@ -558,6 +574,7 @@ __pattern_copy_if_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __pred_1 = [__pred, __proj](auto&& __val) { return std::invoke(__pred, std::invoke(__proj,
         std::forward<decltype(__val)>(__val)));};
 
@@ -649,6 +666,7 @@ __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    // TODO we should replace this lambda
     auto __bin_pred = [__pred, __proj1, __proj2](auto&& __val1, auto&& __val2) {
         return std::invoke(__pred, std::invoke(__proj1, std::forward<decltype(__val1)>(__val1)),
                            std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));
@@ -676,6 +694,7 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj,
 auto
 __pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
+    // TODO we should replace this lambda
     auto __pred_1 = [__pred, __proj](auto&& __val) {
         return std::invoke(__pred, std::invoke(__proj, std::forward<decltype(__val)>(__val)));
     };
