@@ -71,9 +71,7 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _O
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
     assert(std::ranges::size(__in_r) <= std::ranges::size(__out_r)); // for debug purposes only
 
-    // TODO we should replace this lambda
-    auto __unary_op = [__op, __proj](auto&& __val) {
-        return std::invoke(__op, std::invoke(__proj, std::forward<decltype(__val)>(__val)));};
+    oneapi::dpl::__internal::__unary_op<_F, _Proj> __unary_op{__op, __proj};
 
     oneapi::dpl::__internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r),
         std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r),
