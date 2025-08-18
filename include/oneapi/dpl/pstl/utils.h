@@ -624,6 +624,7 @@ __dpl_signbit(const _T& __x)
     return (__x & __mask) != 0;
 }
 
+// Adapts __pstl_lower_bound and other related functions to use with host backends
 struct _SubscriptAdapter
 {
     template <typename _Iterator>

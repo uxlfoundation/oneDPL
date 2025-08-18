@@ -3311,26 +3311,24 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
         __par_backend::__parallel_strict_scan(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n1, _SetRange{0, 0, 0}, //-1, 0},
             [=](_DifferenceType __i, _DifferenceType __len) {                                  // Reduce
-                oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj1> __proj1_comp{__comp, __proj1, __proj1};
-                oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __proj_comp_reversed{__comp, __proj2, __proj1};
 
                 //[__b; __e) - a subrange of the first sequence, to reduce
                 _RandomAccessIterator1 __b = __first1 + __i, __e = __first1 + (__i + __len);
 
                 //try searching for the first element which not equal to *__b
                 if (__b != __first1)
-                    __b = ::std::upper_bound(__b, __last1, *__b, __proj1_comp);
+                    __b = __internal::__pstl_upper_bound(__internal::_SubscriptAdapter{}, __b, __last1, std::invoke(__proj1, *__b), __comp, __proj1);
 
                 //try searching for the first element which not equal to *__e
                 if (__e != __last1)
-                    __e = ::std::upper_bound(__e, __last1, *__e, __proj1_comp);
+                    __e = __internal::__pstl_upper_bound(__internal::_SubscriptAdapter{}, __e, __last1, std::invoke(__proj1, *__e), __comp, __proj1);
 
                 //check is [__b; __e) empty
                 if (__e - __b < 1)
                 {
                     _RandomAccessIterator2 __bb = __last2;
                     if (__b != __last1)
-                        __bb = ::std::lower_bound(__first2, __last2, *__b, __proj_comp_reversed);
+                        __bb = __internal::__pstl_lower_bound(__internal::_SubscriptAdapter{}, __first2, __last2, std::invoke(__proj1, *__b), __comp, __proj2);
 
                     const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
                     return _SetRange{0, 0, __buf_pos};
@@ -3339,11 +3337,11 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
                 //try searching for "corresponding" subrange [__bb; __ee) in the second sequence
                 _RandomAccessIterator2 __bb = __first2;
                 if (__b != __first1)
-                    __bb = ::std::lower_bound(__first2, __last2, *__b, __proj_comp_reversed);
+                    __bb = __internal::__pstl_lower_bound(__internal::_SubscriptAdapter{}, __first2, __last2, std::invoke(__proj1, *__b), __comp, __proj2);
 
                 _RandomAccessIterator2 __ee = __last2;
                 if (__e != __last1)
-                    __ee = ::std::lower_bound(__bb, __last2, *__e, __proj_comp_reversed);
+                    __ee = __internal::__pstl_lower_bound(__internal::_SubscriptAdapter{}, __bb, __last2, std::invoke(__proj1, *__e), __comp, __proj2);
 
                 const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
                 auto __buffer_b = __tmp_memory + __buf_pos;
