@@ -1197,26 +1197,26 @@ __set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
     auto __keep_tmp1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf)>();
     auto __tmp_rng1 = __keep_tmp1(__buf, __buf + __n2);
-    //1. Calc difference {2} \ {1}
+    //1. Calc difference {1} \ {2}
     const std::size_t __n_diff = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
-        __q, __rng2, __rng1, __tmp_rng1.all_view(), __comp, oneapi::dpl::unseq_backend::_DifferenceTag{});
+        __q, __rng1, __rng2, __tmp_rng1.all_view(), __comp, oneapi::dpl::unseq_backend::_DifferenceTag{});
 
-    //2. Merge {1} and the difference
+    //2. Merge {2} and the difference
     if (__n_diff == 0)
     {
         oneapi::dpl::__par_backend_hetero::__parallel_copy_impl<__set_union_copy_wrapper<_CustomName>>(
-            __q, __rng1.size(), std::forward<_Range1>(__rng1), std::forward<_Range3>(__result))
+            __q, __rng2.size(), std::forward<_Range1>(__rng2), std::forward<_Range3>(__result))
             .wait();
-        return __rng1.size();
+        return __rng2.size();
     }
 
     auto __keep_tmp2 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__buf)>();
     auto __tmp_rng2 = __keep_tmp2(__buf, __buf + __n_diff);
     oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<__set_union_merge_wrapper<_CustomName>>(
-        __q, std::forward<_Range1>(__rng1), __tmp_rng2.all_view(), std::forward<_Range3>(__result), __comp)
+        __q, std::forward<_Range1>(__rng2), __tmp_rng2.all_view(), std::forward<_Range3>(__result), __comp)
         .wait();
-    return __n_diff + __rng1.size();
+    return __n_diff + __rng2.size();
 }
 
 template <typename _CustomName>
