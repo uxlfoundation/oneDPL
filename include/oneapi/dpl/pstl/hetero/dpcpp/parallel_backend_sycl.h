@@ -1191,32 +1191,35 @@ __set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range3>;
 
     // temporary buffer to store intermediate result
-    const auto __n1 = __rng1.size();
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n1);
+    const auto __n2 = __rng2.size();
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
     auto __buf = __diff.get();
     auto __keep_tmp1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf)>();
-    auto __tmp_rng1 = __keep_tmp1(__buf, __buf + __n1);
-    //1. Calc difference {1} \ {2}
+    auto __tmp_rng1 = __keep_tmp1(__buf, __buf + __n2);
+    //1. Calc difference {2} \ {1}
     const std::size_t __n_diff = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
-        __q, __rng1, __rng2, __tmp_rng1.all_view(), __comp, oneapi::dpl::unseq_backend::_DifferenceTag{});
+        __q, __rng2, __rng1, __tmp_rng1.all_view(), __comp, oneapi::dpl::unseq_backend::_DifferenceTag{});
 
     //2. Merge {2} and the difference
     if (__n_diff == 0)
     {
+        // merely copy if no elements are in diff
         oneapi::dpl::__par_backend_hetero::__parallel_copy_impl<__set_union_copy_wrapper<_CustomName>>(
-            __q, __rng2.size(), std::forward<_Range1>(__rng2), std::forward<_Range3>(__result))
+            __q, __rng1.size(), std::forward<_Range1>(__rng1), std::forward<_Range3>(__result))
             .wait();
-        return __rng2.size();
     }
-
-    auto __keep_tmp2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__buf)>();
-    auto __tmp_rng2 = __keep_tmp2(__buf, __buf + __n_diff);
-    oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<__set_union_merge_wrapper<_CustomName>>(
-        __q, std::forward<_Range1>(__rng2), __tmp_rng2.all_view(), std::forward<_Range3>(__result), __comp)
-        .wait();
-    return __n_diff + __rng2.size();
+    else
+    {
+        // merge if elements are in diff
+        auto __keep_tmp2 =
+            oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__buf)>();
+        auto __tmp_rng2 = __keep_tmp2(__buf, __buf + __n_diff);
+        oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<__set_union_merge_wrapper<_CustomName>>(
+            __q, std::forward<_Range1>(__rng1), __tmp_rng2.all_view(), std::forward<_Range3>(__result), __comp)
+            .wait();
+    }
+    return __n_diff + __rng1.size();
 }
 
 template <typename _CustomName>
@@ -1352,19 +1355,27 @@ struct scan_then_propagate_wrapper
 };
 
 template <typename _SetTag>
-struct __consider_write_a_alg
+bool __use_write_a_alg(_SetTag, std::size_t __n1, std::size_t /*__n2*/)
 {
-    // empirically determined threshold for using write_a algorithm
-    static constexpr std::size_t __threshold = 32768;
-    static constexpr bool __value = true;
-};
+    return __n1 <= 32768;
+}
 
-// With complex compound alg, symmetric difference should always use single shot algorithm when available
-template <>
-struct __consider_write_a_alg<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag>
+template <typename _SetTag>
+bool __use_write_a_alg(oneapi::dpl::unseq_backend::_UnionTag, std::size_t /*__n1*/, std::size_t __n2)
 {
-    static constexpr bool __value = false;
-};
+    // For union operations, we must are using __n2 as the set a in a difference operation prior to a merge, so the
+    // threshold should be on __n2. This must be in this order because semantically elements must be copied from __rng1
+    // when they are shared (important for algorithms where the key being compared is not the full element).
+    return __n2 <= 32768;
+}
+
+template <typename _SetTag>
+bool __use_write_a_alg(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, std::size_t /*__n1*/, std::size_t /*__n2*/)
+{
+    // With complex compound alg, symmetric difference should always use single shot algorithm when available
+    return false;
+}
+
 
 // Selects the right implementation of set based on the size and platform
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
@@ -1379,15 +1390,12 @@ __set_op_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __
     //can we use reduce then scan?
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
     {
-        if constexpr (__consider_write_a_alg<_SetTag>::__value)
+        if (__use_write_a_alg(__set_tag, __n1, __n2))
         {
-            if (__n1 <= __consider_write_a_alg<_SetTag>::__threshold)
-            {
-                // use reduce then scan with set_a write
-                return __set_write_a_only_op<_CustomName>(
-                    __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
-                    __comp, __set_tag, std::true_type{});
-            }
+            // use reduce then scan with set_a write
+            return __set_write_a_only_op<_CustomName>(
+                __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
+                __comp, __set_tag, std::true_type{});
         }
         return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(
                    __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
