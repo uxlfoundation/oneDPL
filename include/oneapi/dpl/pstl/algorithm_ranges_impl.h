@@ -673,10 +673,79 @@ __pattern_includes(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
           typename _Proj2>
 bool
-__pattern_includes(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp,
+__pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp,
                    _Proj1 __proj1, _Proj2 __proj2)
 {
-    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+    using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
+    using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
+
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
+
+    // TODO wht this code absent in __pattern_includes + __parallel_tag for iterators?
+    // use serial algorithm
+    //if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+    //    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+
+    auto __first1 = std::ranges::begin(__r1);
+    auto __last1 = __first1 + __n1;
+    auto __first2 = std::ranges::begin(__r2);
+    auto __last2 = __first2 + __n2;
+
+    if (__first2 == __last2)
+        return true;
+
+    auto _deref1 = [&__proj1](_RandomAccessIterator1 __it) { return std::invoke(__proj1, *__it); };
+    auto _deref2 = [&__proj2](_RandomAccessIterator2 __it) { return std::invoke(__proj2, *__it); };
+
+    //optimization; {1} - the first sequence, {2} - the second sequence
+    //{1} is empty or size_of{2} > size_of{1}
+    if (__first1 == __last1 || __last2 - __first2 > __last1 - __first1 ||
+        // {1}:     [**********]     or   [**********]
+        // {2}: [***********]                   [***********]
+        __comp(_deref2(__first2), _deref1(__first1)) || __comp(_deref1(__last1 - 1), _deref2(__last2 - 1)))
+        return false;
+
+    __first1 = oneapi::dpl::__internal::__pstl_lower_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __first1, __last1, _deref2(__first2), __comp, __proj1);
+    if (__first1 == __last1)
+        return false;
+
+    if (__last2 - __first2 == 1)
+        return !__comp(_deref1(__first1), _deref2(__first2)) && !__comp(_deref2(__first2), _deref1(__first1));
+
+    return !__internal::__parallel_or(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
+        [__first1, __last1, __first2, __last2, &__comp, &__proj1, &__proj2, &_deref1, &_deref2](_RandomAccessIterator2 __i, _RandomAccessIterator2 __j) {
+            assert(__j > __i);
+            //assert(__j - __i > 1);
+
+            //1. moving boundaries to "consume" subsequence of equal elements
+            auto __is_equal_sorted = [&__comp, &_deref2](_RandomAccessIterator2 __a, _RandomAccessIterator2 __b) -> bool {
+                //enough one call of __comp due to compared couple belongs to one sorted sequence
+                return !__comp(_deref2(__a), _deref2(__b));
+            };
+
+            //1.1 left bound, case "aaa[aaaxyz...]" - searching "x"
+            if (__i > __first2 && __is_equal_sorted(__i - 1, __i))
+            {
+                //whole subrange continues to have equal elements - return "no op"
+                if (__is_equal_sorted(__i, __j - 1))
+                    return false;
+
+                __i = oneapi::dpl::__internal::__pstl_upper_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __i, __last2, _deref2(__i), __comp, __proj2);
+            }
+
+            //1.2 right bound, case "[...aaa]aaaxyz" - searching "x"
+            if (__j < __last2 && __is_equal_sorted(__j - 1, __j))
+                __j = oneapi::dpl::__internal::__pstl_upper_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __j, __last2, _deref2(__j), __comp, __proj2);
+
+            //2. testing is __a subsequence of the second range included into the first range
+            auto __b = oneapi::dpl::__internal::__pstl_lower_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __first1, __last1, _deref2(__i), __comp, __proj1);
+
+            //assert(!__comp(*(__last1 - 1), *__b));
+            //assert(!__comp(*(__j - 1), *__i));
+            return !std::ranges::includes(__b, __last1, __i, __j, __comp, __proj1, __proj2);
+        });
 }
 
 //---------------------------------------------------------------------------------------------------------------------
