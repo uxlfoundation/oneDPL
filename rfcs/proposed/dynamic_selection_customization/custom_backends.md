@@ -36,8 +36,9 @@ This proposal presents a flexible backend system based on a `backend_base` templ
 ### Key Components
 
 1. **`backend_base<ResourceType, Backend>`**: A proposed base class template that implements the core backend functionality using CRTP.
-2. **`default_backend<ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support.
-3. **SYCL specialization**: A proposed specialized implementation for `sycl::queue` resources that handles SYCL-specific event management and profiling.
+2. **`default_backend_impl<typename BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support.
+3. **`default_backend<ResourceType, ResourceAdapter>`**: A proposed template that determines the `BaseResourceType` from the `ResourceType` and `ResourceAdapter`. A developer creates a partial specialization of `default_backend` to create a specific backend.
+4. **A SYCL specialization of default_backend**: A specialized implementation for `sycl::queue` resources that handles SYCL-specific event management and profiling. Using an adapter, it is possible to reuse this for other types that can be adapted into a `sycl::queue`, such as a `sycl::queue *` or a struct that contains a `sycl::queue`.
 
 ### Core Features
 
@@ -50,7 +51,7 @@ This proposal presents a flexible backend system based on a `backend_base` templ
 
 ### Implementation Details
 
-The proposed `backend_base` class provides core functionality that can be customized by derived classes:
+The `backend_base` class provides core functionality that can be customized by derived classes:
 
 ```cpp
 template<typename ResourceType, typename Backend>
@@ -73,37 +74,71 @@ class backend_base
 };
 ```
 
-The proposed `default_backend` extends this with adapter support:
+The `default_backend_impl` class extends `backend_base` with adapter support but requires the
+`BaseResourceType` to be known:
 
 ```cpp
-template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity>
-class default_backend : public default_backend_impl<...>
-{
-  public:
-    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {});
+template< typename BaseResourceType, typename ResourceType, typename ResourceAdapter >
+class default_backend_impl : 
+  public backend_base<ResourceType, default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>> {
+public:
+    using resource_type = ResourceType;
+    using my_base = backend_base<ResourceType, default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>>;
+
+    default_backend_impl() : my_base() {}
+    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter_) 
+       : my_base(u), adapter(adapter_) {}
 };
 ```
 
-Adapters allow backends to be reused when it is possible to transform a custom resource
-type into a known resource type with an existing backend.
+The class `default_backend` determines the `BaseResourceType` from the `ResourceType` and the type
+returned by `Adapter`.
+
+```cpp
+template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity>
+class default_backend : 
+  public default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>())>,
+         ResourceType, ResourceAdapter>
+{
+  public:
+    using base_t = default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>, ResourceType, ResourceAdapter>;
+    using wait_type = typename base_t::wait_type;
+
+    default_backend()
+    {
+    }
+    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {}) : base_t(r, adapt)
+    {
+    }
+};
+```
+The `default_backend` class is partially specialized to create a specific backend. Adapters allow backends
+to be reused when it is possible to provide an adapter to transform a custom resource type into a known
+resource type with an already existing backend. 
 
 ### Default Implementation Details
 
-The `default_backend` provides default implementations for the core backend methods:
+The `backend_base` provides default implementations for the core backend methods:
 
-#### `submit()` Implementation
-The default `submit()` method applies the adapter to transform the resource, invokes the user
-function, and wraps the result:
+#### `submit_impl` Implementation
+The default `submit_impl` method calls `instrument_before`, then the user-provided function with the 
+unwrapped resource, and finally returns what is returned by a call to `instrument_after`:
 
 ```cpp
 template <typename SelectionHandle, typename Function, typename... Args>
-auto submit(SelectionHandle s, Function&& f, Args&&... args) {
-    auto adapted_resource = adapter(unwrap(s));
-    auto result = std::forward<Function>(f)(adapted_resource, std::forward<Args>(args)...);
-    return default_submission{result};
+auto
+submit_impl(SelectionHandle s, Function&& f, Args&&... args)
+{
+    static_cast<Backend*>(this)->instrument_before_impl(s);
+    auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
+    return static_cast<Backend*>(this)->instrument_after_impl(s, w);
 }
 ```
-**Assumptions**: The user function must be callable with the adapted resource type and return a type that can be stored and optionally waited upon.
+**Assumptions**: The user function must be callable with a `ResourceType` resource and the `Function f` 
+returns an object that can be waited on. So if an adapter is provided, the user function is still called
+with the unadapted resource type. For example, if an adapter `[](auto pointer){ return *pointer; }` is used to
+reuse a `sycl::queue` with `sycl::queue *` resources, the user's function is still called with a 
+`sycl::queue *`.
 
 #### Instrumentation Support
 The default backend provides `instrument_before` and `instrument_after` functions that are essentially empty implementations:
@@ -138,11 +173,13 @@ auto get_submission_group() {
     return default_submission_group{resources_, adapter};
 }
 ```
-The `default_submission_group` attempts to call `wait()` on each adapted resource:
+The `default_submission_group` attempts to call `wait()` on the `BaseResourceType` by applying
+`adapter` to the `ResourceType` object.
+:
 ```cpp
 class default_submission_group {
     void wait() {
-        if constexpr (has_wait_method_v<adapted_resource_type>) {
+        if constexpr (has_wait_method_v<BaseResourceType>) {
             for (auto& resource : resources_) {
                 adapter(resource).wait();
             }
@@ -152,9 +189,14 @@ class default_submission_group {
     }
 };
 ```
-**Assumptions**: For group waiting to work, the adapted resource type must provide a `wait()` method that blocks until all work on that resource is complete. The default implementation does not wait on each
-submission, but instead waits on each resource. This works for some resource types, such as sycl queues
-or oneTBB task_group objects, but may not be applicable to all types.
+**Assumptions**: For group waiting to work, the `BaseResourecType` must provide a `wait()` method
+that blocks until all work on that resource is complete. Note that the default implementation does
+not wait on each submission, but instead waits on each resource. This works for some resource types,
+such as SYCL queues or oneTBB `task_group` objects, but may not be applicable to all types. Using
+an adapter may allow types that do not provide a `wait` function to be used if they have a `wait` function
+when adapted.  For example, an adapter `[](auto pointer){ return *pointer; }`, would allow `sycl::queue *`
+or `tbb::task_group *` to be used as a `ResourceType`, because when adapted to their `BaseResourceType`
+of `sycl::queue` or `tbb::task_group`, they define `wait` methods.
 
 For SYCL resources, the proposed specialization provides:
 - Event-based waiting with `sycl::event` as the wait type
@@ -164,12 +206,12 @@ For SYCL resources, the proposed specialization provides:
 
 ## Support for Custom Resource Types
 
-A primary goal of this proposal is to enable easy use of completely custom resource types with Dynamic Selection. The default backend can work with any resource type, making it straightforward to integrate new kinds of compute resources without writing complex backend code.
+A primary goal of this proposal is to enable easy use of custom resource types with Dynamic Selection. The default backend can work many resource types, making it straightforward to integrate new kinds of compute resources without writing complex backend code. If the defaults are not sufficient, a custom backend can be written by 
+partially specializing `default_backend`. 
 
 ### Custom Resource Example: TBB Task Groups and Arenas
 
-The following example demonstrates this with TBB task groups and arenas. Consider a custom resource
-type that combines a `tbb::task_arena` and `tbb::task_group`:
+Consider a custom resource type that combines a `tbb::task_arena` and `tbb::task_group`:
 
 ```cpp
 namespace numa {
@@ -211,14 +253,14 @@ ex::wait(rr.get_submission_group());
 ```
 
 If `ArenaAndGroup` will be used with policies that require instrumentation, then
-a custom backend that overrides `instrument_before` and `instrument_after` will be
-needed.
+a custom backend that provides `instrument_before_impl` and `instrument_after_impl`
+will be needed. This can be done by partially specializing `default_backend`.
 
 ## Adapter Support for Resource Transformation
 
-For some cases a backend may be reused if a custom resource can be transformed into 
-a resource that already has a well defined backed. This proposal therefore also includes
-support for **resource adapters**. Adapters allow backends to work with resources that
+For some cases a backend may be reused if a custom resource `ResourceType` can be transformed
+into a resource `BaseResourceType` that already has a well defined backed. This proposal
+includes support for **resource adapters**. Adapters allow backends to work with resources that
 require transformation before use.
 
 ### Adapter Concept
@@ -253,7 +295,7 @@ Adapters enable several useful patterns:
 1. **Pointer Resources**: Store pointers but work with references/values
 2. **Wrapper Types**: Unwrap resource containers or smart pointers  
 3. **Type Conversion**: Convert between compatible resource types
-4. **Ownership Management**: Separate resource storage from resource usage
+4. **Ownership Management**: Pair a context (memory space, side information, etc.) with a core resource, but rely on the implementation of the core resource without extra backend implementation.
 
 ## Conclusion
 
