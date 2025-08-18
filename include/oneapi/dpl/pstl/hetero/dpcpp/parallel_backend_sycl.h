@@ -1191,12 +1191,12 @@ __set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range3>;
 
     // temporary buffer to store intermediate result
-    const auto __n2 = __rng2.size();
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
+    const auto __n1 = __rng1.size();
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n1);
     auto __buf = __diff.get();
     auto __keep_tmp1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf)>();
-    auto __tmp_rng1 = __keep_tmp1(__buf, __buf + __n2);
+    auto __tmp_rng1 = __keep_tmp1(__buf, __buf + __n1);
     //1. Calc difference {1} \ {2}
     const std::size_t __n_diff = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
         __q, __rng1, __rng2, __tmp_rng1.all_view(), __comp, oneapi::dpl::unseq_backend::_DifferenceTag{});
