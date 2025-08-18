@@ -3393,11 +3393,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         return __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
                                                  __result, __copy_range);
 
-    oneapi::dpl::__internal::__binary_op<_Compare, _Proj1, _Proj2> __proj_comp{__comp, __proj1, __proj2};
-    oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __proj_comp_reversed{__comp, __proj2, __proj1};
-
     // testing  whether the sequences are intersected
-    _RandomAccessIterator1 __left_bound_seq_1 = ::std::lower_bound(__first1, __last1, *__first2, __proj_comp);
+    _RandomAccessIterator1 __left_bound_seq_1 = __internal::__pstl_lower_bound(
+        __internal::_SubscriptAdapter{}, __first1, __last1, std::invoke(__proj2, *__first2), __comp, __proj1);
 
     if (__left_bound_seq_1 == __last1)
     {
@@ -3414,7 +3412,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     }
 
     // testing  whether the sequences are intersected
-    _RandomAccessIterator2 __left_bound_seq_2 = ::std::lower_bound(__first2, __last2, *__first1, __proj_comp_reversed);
+    _RandomAccessIterator2 __left_bound_seq_2 = __internal::__pstl_lower_bound(
+        __internal::_SubscriptAdapter{}, __first2, __last2, std::invoke(__proj1, *__first1), __comp, __proj2);
 
     if (__left_bound_seq_2 == __last2)
     {
