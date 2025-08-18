@@ -2973,7 +2973,7 @@ __serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterat
             *__k = *__x;
             ++__x;
         }
-        else if (std::invoke(__comp, std::invoke(__proj2, *__y), std::invoke(__proj1, *__x)))
+        else if (__comp(std::invoke(__proj2, *__y), std::invoke(__proj1, *__x)))
         {
             *__k = *__y;
             ++__y;
@@ -3069,8 +3069,8 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
                         auto __r = __get_row(__d);
                         auto __c = __get_column(__d);
 
-                        const auto __res = std::invoke(__comp, std::invoke(__proj2, __it_2[__c]),
-                                                       std::invoke(__proj1, __it_1[__r])) ? 0 : 1;
+                        const auto __res = __comp(std::invoke(__proj2, __it_2[__c]),
+                                                  std::invoke(__proj1, __it_1[__r])) ? 0 : 1;
 
                         return __res < __val;
                     });

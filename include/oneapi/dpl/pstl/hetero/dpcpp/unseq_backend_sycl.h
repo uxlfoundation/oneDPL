@@ -1030,7 +1030,7 @@ struct __brick_includes
             __internal::__pstl_lower_bound(__a, __a_beg, __a_end, std::invoke(__proj2, __val_b), __comp, __proj1);
 
         // {a} < {b} or __val_b != __a[__res]
-        if (__res == __a_end || std::invoke(__comp, std::invoke(__proj2, __val_b), std::invoke(__proj1, __a[__res])))
+        if (__res == __a_end || __comp(std::invoke(__proj2, __val_b), std::invoke(__proj1, __a[__res])))
             return true; //__a doesn't include __b
 
         auto __val_a = __a[__res];
@@ -1297,8 +1297,7 @@ class __brick_set_op
             __internal::__pstl_lower_bound(__b, _Size2(0), __nb, std::invoke(__proj1, __val_a), __comp, __proj2);
 
         bool bres = _IsOpDifference(); //initialization in true in case of difference operation; false - intersection.
-        if (__res == __nb ||
-            std::invoke(__comp, std::invoke(__proj1, __val_a), std::invoke(__proj2, __b[__b_beg + __res])))
+        if (__res == __nb || __comp(std::invoke(__proj1, __val_a), std::invoke(__proj2, __b[__b_beg + __res])))
         {
             // there is no __val_a in __b, so __b in the difference {__a}/{__b};
         }
