@@ -1355,7 +1355,7 @@ template <typename _SetTag>
 struct __consider_write_a_alg
 {
     // empirically determined threshold for using write_a algorithm
-    static constexpr std::size_t __threshold = 65536;
+    static constexpr std::size_t __threshold = 32768;
     static constexpr bool __value = true;
 };
 
@@ -1381,7 +1381,7 @@ __set_op_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __
     {
         if constexpr (__consider_write_a_alg<_SetTag>::__value)
         {
-            if (__n1 + __n2 <= __consider_write_a_alg<_SetTag>::__threshold)
+            if (__n1 <= __consider_write_a_alg<_SetTag>::__threshold)
             {
                 // use reduce then scan with set_a write
                 return __set_write_a_only_op<_CustomName>(
