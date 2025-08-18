@@ -25,7 +25,7 @@
 #include <type_traits>
 
 #include "execution_impl.h"
-#include "algorithm_impl.h"
+#    include "algorithm_impl.h"
 
 namespace oneapi
 {
@@ -713,7 +713,8 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         __comp(_deref2(__first2), _deref1(__first1)) || __comp(_deref1(__last1 - 1), _deref2(__last2 - 1)))
         return false;
 
-    __first1 = oneapi::dpl::__internal::__pstl_lower_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __first1, __last1, _deref2(__first2), __comp, __proj1);
+    __first1 = oneapi::dpl::__internal::__pstl_lower_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __first1,
+                                                           __last1, _deref2(__first2), __comp, __proj1);
     if (__first1 == __last1)
         return false;
 
@@ -722,12 +723,14 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 
     return !__internal::__parallel_or(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
-        [__first1, __last1, __first2, __last2, &__comp, &__proj1, &__proj2, &_deref1, &_deref2](_RandomAccessIterator2 __i, _RandomAccessIterator2 __j) {
+        [__first1, __last1, __first2, __last2, &__comp, &__proj1, &__proj2, &_deref1,
+         &_deref2](_RandomAccessIterator2 __i, _RandomAccessIterator2 __j) {
             assert(__j > __i);
             //assert(__j - __i > 1);
 
             //1. moving boundaries to "consume" subsequence of equal elements
-            auto __is_equal_sorted = [&__comp, &_deref2](_RandomAccessIterator2 __a, _RandomAccessIterator2 __b) -> bool {
+            auto __is_equal_sorted = [&__comp, &_deref2](_RandomAccessIterator2 __a,
+                                                         _RandomAccessIterator2 __b) -> bool {
                 //enough one call of __comp due to compared couple belongs to one sorted sequence
                 return !__comp(_deref2(__a), _deref2(__b));
             };
@@ -739,15 +742,18 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                 if (__is_equal_sorted(__i, __j - 1))
                     return false;
 
-                __i = oneapi::dpl::__internal::__pstl_upper_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __i, __last2, _deref2(__i), __comp, __proj2);
+                __i = oneapi::dpl::__internal::__pstl_upper_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __i,
+                                                                  __last2, _deref2(__i), __comp, __proj2);
             }
 
             //1.2 right bound, case "[...aaa]aaaxyz" - searching "x"
             if (__j < __last2 && __is_equal_sorted(__j - 1, __j))
-                __j = oneapi::dpl::__internal::__pstl_upper_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __j, __last2, _deref2(__j), __comp, __proj2);
+                __j = oneapi::dpl::__internal::__pstl_upper_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __j,
+                                                                  __last2, _deref2(__j), __comp, __proj2);
 
             //2. testing is __a subsequence of the second range included into the first range
-            auto __b = oneapi::dpl::__internal::__pstl_lower_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __first1, __last1, _deref2(__i), __comp, __proj1);
+            auto __b = oneapi::dpl::__internal::__pstl_lower_bound(oneapi::dpl::__internal::_SubscriptAdapter{},
+                                                                   __first1, __last1, _deref2(__i), __comp, __proj1);
 
             //assert(!__comp(*(__last1 - 1), *__b));
             //assert(!__comp(*(__j - 1), *__i));
@@ -798,8 +804,9 @@ __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 __pattern_set_union_return_t<_R1, _R2, _OutRange>
-__pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
-                    _Comp __comp, _Proj1 __proj1 = oneapi::dpl::identity{}, _Proj2 __proj2 = oneapi::dpl::identity{})
+__pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1 = oneapi::dpl::identity{},
+                    _Proj2 __proj2 = oneapi::dpl::identity{})
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
@@ -822,10 +829,11 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
            _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-            return oneapi::dpl::__utils::__set_union_construct(__first1, __last1, __first2, __last2, __result, __comp,
-                                                               oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),
-                                                               __proj1, __proj2);
-        }, __proj1, __proj2);
+            return oneapi::dpl::__utils::__set_union_construct(
+                __first1, __last1, __first2, __last2, __result, __comp,
+                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __proj1, __proj2);
+        },
+        __proj1, __proj2);
 
     return __pattern_set_union_return_t<_R1, _R2, _OutRange>{__first1 + __n1, __first2 + __n2,
                                                              __result + (__out_last - __result)};
@@ -1019,8 +1027,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     // {1} \ {}: parallel copying just first sequence
     if (__n2 == 0)
     {
-        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
-                                           __internal::__brick_copy<__parallel_tag<_IsVector>>{});
+        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+                                                __result, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
         return __pattern_set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
     }
 
@@ -1043,8 +1051,9 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, parallel copying just first sequence
     if (__left_bound_seq_2 == __last2)
     {
-        auto __out_last = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                            __result, __brick_copy<__parallel_tag<_IsVector>>{});
+        auto __out_last =
+            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+                                              __result, __brick_copy<__parallel_tag<_IsVector>>{});
         return __pattern_set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
     }
 
@@ -1094,8 +1103,9 @@ __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _C
 }
 
 template <typename _R1, typename _R2, typename _OutRange>
-using __pattern_set_symmetric_difference_return_t = 
-    std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+using __pattern_set_symmetric_difference_return_t =
+    std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                                 std::ranges::borrowed_iterator_t<_R2>,
                                                  std::ranges::borrowed_iterator_t<_OutRange>>;
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
