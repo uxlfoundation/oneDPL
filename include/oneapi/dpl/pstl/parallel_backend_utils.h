@@ -245,21 +245,21 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
 }
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
-          typename _CopyFunc, typename _CopyFromFirstSet>
+          typename _CopyFunc, typename _CopyFromFirstSet, typename _Proj1 = oneapi::dpl::identity,
+          typename _Proj2 = oneapi::dpl::identity>
 _OutputIterator
 __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                              _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _CopyFunc _copy,
-                             _CopyFromFirstSet)
+                             _CopyFromFirstSet, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
     for (; __first1 != __last1 && __first2 != __last2;)
     {
-        if (__comp(*__first1, *__first2))
+        if (__comp(std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
             ++__first1;
         else
         {
-            if (!__comp(*__first2, *__first1))
+            if (!__comp(std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             {
-
                 if constexpr (_CopyFromFirstSet::value)
                 {
                     _copy(*__first1, *__result);
