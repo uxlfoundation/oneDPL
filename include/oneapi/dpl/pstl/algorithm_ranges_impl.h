@@ -702,9 +702,14 @@ __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Pr
                                   __proj1, __proj2);
 }
 
+template <typename _R1, typename _R2, typename _OutRange>
+using __pattern_set_union_return_t =
+    std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                  std::ranges::borrowed_iterator_t<_OutRange>>;
+
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
-auto
+__pattern_set_union_return_t<_R1, _R2, _OutRange>
 __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                     _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
@@ -716,7 +721,7 @@ __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
-auto
+__pattern_set_union_return_t<_R1, _R2, _OutRange>
 __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                     _Comp __comp, _Proj1 __proj1 = oneapi::dpl::identity{}, _Proj2 __proj2 = oneapi::dpl::identity{})
 {
@@ -746,11 +751,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                                                                __proj1, __proj2);
         }, __proj1, __proj2);
 
-    using _return_t = std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>,
-                                                    std::ranges::borrowed_iterator_t<_R2>,
-                                                    std::ranges::borrowed_iterator_t<_OutRange>>;
-
-    return _return_t{__first1 + __n1, __first2 + __n2, __result + (__out_last - __result)};
+    return __pattern_set_union_return_t<_R1, _R2, _OutRange>{__first1 + __n1, __first2 + __n2,
+                                                             __result + (__out_last - __result)};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
