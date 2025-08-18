@@ -1357,7 +1357,7 @@ struct scan_then_propagate_wrapper
 template <typename _SetTag>
 bool __use_write_a_alg(_SetTag, std::size_t __n1, std::size_t /*__n2*/)
 {
-    return __n1 <= 32768;
+    return __n1 < 65536;
 }
 
 template <typename _SetTag>
@@ -1366,7 +1366,7 @@ bool __use_write_a_alg(oneapi::dpl::unseq_backend::_UnionTag, std::size_t /*__n1
     // For union operations, we must are using __n2 as the set a in a difference operation prior to a merge, so the
     // threshold should be on __n2. This must be in this order because semantically elements must be copied from __rng1
     // when they are shared (important for algorithms where the key being compared is not the full element).
-    return __n2 <= 32768;
+    return __n2 < 65536;
 }
 
 template <typename _SetTag>
