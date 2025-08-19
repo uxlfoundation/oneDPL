@@ -98,11 +98,11 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange1&& __in_r1, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__binary_op<_F, _Proj1, _Proj2> __f{__binary_op, __proj1, __proj2};
+    oneapi::dpl::__internal::__binary_op<_F, _Proj1, _Proj2> __comp_2{__binary_op, __proj1, __proj2};
 
     oneapi::dpl::__internal::__pattern_walk3(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r1),
         std::ranges::begin(__in_r1) + std::ranges::size(__in_r1), std::ranges::begin(__in_r2),
-        std::ranges::begin(__out_r), oneapi::dpl::__internal::__transform_functor<decltype(__f)>{std::move(__f)});
+        std::ranges::begin(__out_r), oneapi::dpl::__internal::__transform_functor<decltype(__comp_2)>{std::move(__comp_2)});
 }
 
 template<typename _ExecutionPolicy, typename _InRange1, typename _InRange2, typename _OutRange, typename _F,
@@ -151,12 +151,12 @@ __pattern_find_first_of(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&&
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __bin_pred{__pred, __proj1, __proj2};
+    oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __comp_2{__pred, __proj1, __proj2};
 
     return std::ranges::borrowed_iterator_t<_R1>(oneapi::dpl::__internal::__pattern_find_first_of(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
         std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
-        std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred));
+        std::ranges::begin(__r2) + std::ranges::size(__r2), __comp_2));
 }
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
@@ -179,7 +179,7 @@ __pattern_find_end(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __bin_pred{__pred, __proj1, __proj2};
+    oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __comp_2{__pred, __proj1, __proj2};
 
     auto __last1 = std::ranges::begin(__r1) + std::ranges::size(__r1);
     if (std::ranges::empty(__r2))
@@ -187,7 +187,7 @@ __pattern_find_end(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 
     auto __it = oneapi::dpl::__internal::__pattern_find_end(__tag,
         std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1), __last1, std::ranges::begin(__r2),
-        std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred);
+        std::ranges::begin(__r2) + std::ranges::size(__r2), __comp_2);
 
     return std::ranges::borrowed_subrange_t<_R1>(__it, __it + (__it == __last1 ? 0 : std::ranges::size(__r2)));
 }
@@ -629,12 +629,12 @@ __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __bin_pred{__pred, __proj1, __proj2};
+    oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __comp_2{__pred, __proj1, __proj2};
 
     return oneapi::dpl::__internal::__pattern_mismatch(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
         std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
-        std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred);
+        std::ranges::begin(__r2) + std::ranges::size(__r2), __comp_2);
 }
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
