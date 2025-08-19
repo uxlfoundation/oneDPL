@@ -2959,6 +2959,8 @@ std::pair<_Iterator1, _Iterator2>
 __serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterator2 __y_e, _Iterator3 __out_b,
                        _Iterator3 __out_e, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+    oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj1> __pred_2(__comp, __proj2, __proj1);
+
     for (_Iterator3 __k = __out_b; __k != __out_e; ++__k)
     {
         if (__x == __x_e)
@@ -2973,7 +2975,7 @@ __serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterat
             *__k = *__x;
             ++__x;
         }
-        else if (std::invoke(__comp, std::invoke(__proj2, *__y), std::invoke(__proj1, *__x)))
+        else if (__pred_2(*__y, *__x))
         {
             *__k = *__y;
             ++__y;
@@ -3044,6 +3046,8 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
     _It1 __it_res_1;
     _It2 __it_res_2;
 
+    oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj1> __pred_2(__comp, __proj2, __proj1);
+
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index3(0), __n_out,
@@ -3069,8 +3073,7 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
                         auto __r = __get_row(__d);
                         auto __c = __get_column(__d);
 
-                        const auto __res = std::invoke(__comp, std::invoke(__proj2, __it_2[__c]),
-                                                       std::invoke(__proj1, __it_1[__r])) ? 0 : 1;
+                        const auto __res = __pred_2(__it_2[__c], __it_1[__r]) ? 0 : 1;
 
                         return __res < __val;
                     });

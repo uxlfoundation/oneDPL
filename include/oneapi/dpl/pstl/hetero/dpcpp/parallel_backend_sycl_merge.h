@@ -125,12 +125,13 @@ __find_start_point(const _Rng1& __rng1, const _Index __rng1_from, _Index __rng1_
     __it_t __diag_it_begin(idx1_from);
     __it_t __diag_it_end(idx1_to);
 
-    const __it_t __res = std::lower_bound(
-        __diag_it_begin, __diag_it_end, false,
-        [&__rng1, &__rng2, __index_sum, __comp, __proj1, __proj2](_Index __idx, const bool __value) mutable {
-            return __value == std::invoke(__comp, std::invoke(__proj2, __rng2[__index_sum - __idx]),
-                                          std::invoke(__proj1, __rng1[__idx]));
-        });
+    oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __pred_2{__comp, __proj2, __proj1};
+
+    const __it_t __res =
+        std::lower_bound(__diag_it_begin, __diag_it_end, false,
+                         [&__rng1, &__rng2, __index_sum, __pred_2](_Index __idx, const bool __value) mutable {
+                             return __value == __pred_2(__rng2[__index_sum - __idx], __rng1[__idx]);
+                         });
 
     return _split_point_t<_Index>{*__res, __index_sum - *__res + 1};
 }
@@ -173,6 +174,8 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
     bool __rng1_idx_less_n1 = false;
     bool __rng2_idx_less_n2 = false;
 
+    oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __pred_2{__comp, __proj2, __proj1};
+
     for (_Index __rng3_idx = __start3; __rng3_idx < __rng3_idx_end; ++__rng3_idx)
     {
         __rng1_idx_less_n1 = __rng1_idx < __rng1_idx_end;
@@ -185,16 +188,15 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
         {
             // This implementation is required for performance optimization
             __rng3[__rng3_idx] = (!__rng1_idx_less_n1 || (__rng1_idx_less_n1 && __rng2_idx_less_n2 &&
-                                                          std::invoke(__comp, std::invoke(__proj2, __rng2[__rng2_idx]),
-                                                                      std::invoke(__proj1, __rng1[__rng1_idx]))))
+                                                          __pred_2(__rng2[__rng2_idx], __rng1[__rng1_idx])))
                                      ? __rng2[__rng2_idx++]
                                      : __rng1[__rng1_idx++];
         }
         else
         {
             // TODO required to understand why the usual if-else is slower then ternary operator
-            if (!__rng1_idx_less_n1 || (__rng1_idx_less_n1 && __rng2_idx_less_n2 &&
-                                        __comp(__proj2(__rng2[__rng2_idx]), __proj1(__rng1[__rng1_idx]))))
+            if (!__rng1_idx_less_n1 ||
+                (__rng1_idx_less_n1 && __rng2_idx_less_n2 && __pred_2(__rng2[__rng2_idx], __rng1[__rng1_idx])))
                 __rng3[__rng3_idx] = __rng2[__rng2_idx++];
             else
                 __rng3[__rng3_idx] = __rng1[__rng1_idx++];
