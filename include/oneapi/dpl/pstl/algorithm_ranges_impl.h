@@ -904,21 +904,21 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
-        return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__first1, __first2, __result};
+        return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __result};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 = oneapi::dpl::__internal::__pstl_lower_bound(
         oneapi::dpl::__internal::_SubscriptAdapter{}, __first1, __last1, __deref2(__first2), __comp, __proj1);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
     if (__left_bound_seq_1 == __last1)
-        return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__first1, __first2, __result};
+        return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __result};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_2 = oneapi::dpl::__internal::__pstl_lower_bound(
         oneapi::dpl::__internal::_SubscriptAdapter{}, __first2, __last2, __deref1(__first1), __comp, __proj2);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
     if (__left_bound_seq_2 == __last2)
-        return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__first1, __first2, __result};
+        return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __result};
 
     const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
     if (__m1 > oneapi::dpl::__internal::__set_algo_cut_off)
@@ -935,7 +935,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     /*CopyFromFirstSet = */ std::true_type{}, __proj1, __proj2);
             },
             __proj1, __proj2);
-
         return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
     }
 
@@ -954,7 +953,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     /*CopyFromFirstSet = */ std::false_type{}, __proj1, __proj2);
             },
             __proj1, __proj2);
-
         return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
     }
 

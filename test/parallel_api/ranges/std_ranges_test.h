@@ -85,6 +85,11 @@ auto pred1 = [](auto&& val) -> bool { return val > 0; };
 auto pred2 = [](auto&& val) -> bool { return val == 4; };
 auto pred3 = [](auto&& val) -> bool { return val < 0; };
 
+auto mul1 = [](auto&& v) { return v; };
+using mul1_t = decltype(mul1);
+auto div3 = [](auto&& v) { return v / 3; };
+using div3_t = decltype(div3);
+
 struct P2
 {
     P2() {}
@@ -337,15 +342,6 @@ private:
         }
     }
 
-    struct TransformOp
-    {
-        template <typename T>
-        auto operator()(T i) const
-        {
-            return i / 3;
-        }
-    };
-
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
     void
     process_data_in_in_out(int max_n, int n_in1, int n_in2, int n_out, Policy&& exec, Algo algo, Checker& checker,
@@ -354,7 +350,7 @@ private:
         static_assert(mode == data_in_in_out || mode == data_in_in_out_lim);
 
         Container cont_in1(exec, n_in1, DataGen1{});
-        Container cont_in2(exec, n_in2, TransformOp{});
+        Container cont_in2(exec, n_in2, DataGen2{});
 
         Container cont_out(exec, n_out, data_gen_zero);
         Container cont_exp(exec, n_out, data_gen_zero);
@@ -400,6 +396,8 @@ public:
 
         //test cases with empty sequence(s)
         process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>

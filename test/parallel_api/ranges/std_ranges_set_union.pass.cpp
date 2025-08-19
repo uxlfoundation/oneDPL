@@ -38,7 +38,9 @@ main()
     test_range_algo<0, int, data_in_in_out>{big_sz}(dpl_ranges::set_union, set_union_checker);
     test_range_algo<1, int, data_in_in_out>{big_sz}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj);
 
-    test_range_algo<2, int, data_in_in_out>{}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj, proj);
+    // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
+    test_range_algo<2, int, data_in_in_out>{100}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj, proj);
+
     test_range_algo<3,  P2, data_in_in_out>{}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, &P2::x, &P2::x);
     test_range_algo<4,  P2, data_in_in_out>{}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING

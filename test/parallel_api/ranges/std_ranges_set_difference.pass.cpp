@@ -38,12 +38,20 @@ main()
         return ret_type{res.in, res.out};
     };
 
-    test_range_algo<0, int, data_in_in_out>{big_sz}(dpl_ranges::set_difference, checker);
-    test_range_algo<1, int, data_in_in_out>{big_sz}(dpl_ranges::set_difference, checker,std::ranges::less{}, proj);
+    test_range_algo<0, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, checker);
+    test_range_algo<1, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, checker,std::ranges::less{}, proj);
 
-    test_range_algo<2, int, data_in_in_out>{}(dpl_ranges::set_difference, checker, std::ranges::less{}, proj, proj);
-    test_range_algo<3,  P2, data_in_in_out>{}(dpl_ranges::set_difference, checker, std::ranges::less{}, &P2::x, &P2::x);
-    test_range_algo<4,  P2, data_in_in_out>{}(dpl_ranges::set_difference, checker, std::ranges::less{}, &P2::proj, &P2::proj);
+    // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
+    test_range_algo<2, int, data_in_in_out, div3_t, mul1_t>{100}(dpl_ranges::set_difference, checker, std::ranges::less{}, proj, proj);
+
+    test_range_algo<3,  P2, data_in_in_out, div3_t, mul1_t>{}(dpl_ranges::set_difference, checker, std::ranges::less{}, &P2::x, &P2::x);
+    test_range_algo<4,  P2, data_in_in_out, div3_t, mul1_t>{}(dpl_ranges::set_difference, checker, std::ranges::less{}, &P2::proj, &P2::proj);
+
+    // Testing no intersection
+    auto large_shift = [](auto&& v) { return v + 5000; };
+    using ls_t = decltype(large_shift);
+    test_range_algo<5, int, data_in_in_out, mul1_t, ls_t>{1000}(dpl_ranges::set_difference, checker);
+    test_range_algo<6, int, data_in_in_out, ls_t, mul1_t>{1000}(dpl_ranges::set_difference, checker);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
