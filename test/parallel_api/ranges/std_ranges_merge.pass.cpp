@@ -16,6 +16,22 @@
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
+namespace test_std_ranges
+{
+template<>
+int out_size_with_empty_in2<std::remove_cvref_t<decltype(oneapi::dpl::ranges::merge)>>(int in1_size)
+{
+    return in1_size;
+}
+template<>
+int out_size_with_empty_in1<std::remove_cvref_t<decltype(oneapi::dpl::ranges::merge)>>(int in2_size)
+{
+    return in2_size;
+}
+}
+#endif
+
+#if _ENABLE_STD_RANGES_TESTING
 //A checker below modifies a return type; a range based version with policy has another return type.
 struct merge_checker_fn
 {

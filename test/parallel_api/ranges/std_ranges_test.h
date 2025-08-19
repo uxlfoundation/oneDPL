@@ -172,6 +172,14 @@ constexpr int trivial_size{0};
 template<typename>
 constexpr int calc_res_size(int n, int) { return n; }
 
+// If in1 range is empty, then out range is empty
+template<typename Algo>
+int out_size_with_empty_in1(int) { return 0; };
+
+// If in2 range is empty, then out range is empty
+template<typename Algo>
+int out_size_with_empty_in2(int) { return 0; };
+
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_zero = [](auto) { return 0;};
 
@@ -396,8 +404,8 @@ public:
 
         //test cases with empty sequence(s)
         process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, 0, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, r_size, out_size_with_empty_in1<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, 0, out_size_with_empty_in2<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>

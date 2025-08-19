@@ -15,6 +15,22 @@
 
 #include "std_ranges_test.h"
 
+#if _ENABLE_STD_RANGES_TESTING
+namespace test_std_ranges
+{
+template<>
+inline int out_size_with_empty_in2<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_union)>>(int in1_size)
+{
+    return in1_size;
+}
+template<>
+inline int out_size_with_empty_in1<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_union)>>(int in2_size)
+{
+    return in2_size;
+}
+}
+#endif
+
 std::int32_t
 main()
 {
