@@ -523,10 +523,10 @@ __for_loop_impl(_ExecutionPolicy&& __exec, _Ip __start, _Ip __finish, _Fp&& __f,
                 ::std::tuple<_Rest...>&& __t, ::std::index_sequence<_Is...>)
 {
     oneapi::dpl::__internal::__pattern_for_loop(
-        ::std::forward<_ExecutionPolicy>(__exec), __start, __finish, __f, __stride,
+        std::forward<_ExecutionPolicy>(__exec), __start, __finish, __f, __stride,
         oneapi::dpl::__internal::__use_vectorization<_ExecutionPolicy, _Ip>(__exec),
         oneapi::dpl::__internal::__use_parallelization<_ExecutionPolicy, _Ip>(__exec),
-        ::std::get<_Is>(::std::move(__t))...);
+        std::get<_Is>(std::move(__t))...);
 }
 
 template <typename _ExecutionPolicy, typename _Ip, typename _Size, typename _Fp, typename _Sp, typename... _Rest,
@@ -536,10 +536,10 @@ __for_loop_n_impl(_ExecutionPolicy&& __exec, _Ip __start, _Size __n, _Fp&& __f, 
                   ::std::tuple<_Rest...>&& __t, ::std::index_sequence<_Is...>)
 {
     oneapi::dpl::__internal::__pattern_for_loop_n(
-        ::std::forward<_ExecutionPolicy>(__exec), __start, __n, __f, __stride,
+        std::forward<_ExecutionPolicy>(__exec), __start, __n, __f, __stride,
         oneapi::dpl::__internal::__use_vectorization<_ExecutionPolicy, _Ip>(__exec),
         oneapi::dpl::__internal::__use_parallelization<_ExecutionPolicy, _Ip>(__exec),
-        ::std::get<_Is>(::std::move(__t))...);
+        std::get<_Is>(std::move(__t))...);
 }
 
 template <typename _ExecutionPolicy, typename _Ip, typename _Sp, typename... _Rest>

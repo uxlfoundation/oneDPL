@@ -1363,9 +1363,9 @@ swap_ranges(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2);
 
-    return oneapi::dpl::__internal::__ranges::__pattern_swap(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-                                                             views::all(::std::forward<_Range1>(__rng1)),
-                                                             views::all(::std::forward<_Range2>(__rng2)));
+    return oneapi::dpl::__internal::__ranges::__pattern_swap(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+                                                             views::all(std::forward<_Range1>(__rng1)),
+                                                             views::all(std::forward<_Range2>(__rng2)));
 }
 
 namespace __internal
