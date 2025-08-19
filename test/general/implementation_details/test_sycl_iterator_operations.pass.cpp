@@ -85,6 +85,32 @@ void check_is_equality_comparable_with()
     static_assert(!__is_equality_comparable_with_v<__zip_iterator_1, __zip_iterator_2>);
 }
 
+// Additional checks that iterator types with const and/or different value categories work
+void check_is_equality_comparable_with_for_different_types()
+{
+    std::vector<int> container(10);
+
+    std::vector<int>::iterator it1 = container.begin();
+    const auto&                it1_const_ref = it1;
+    decltype(auto)             it1_moved     = std::move(it1);
+
+    using _t1 = decltype(it1);
+    using _t2 = decltype(it1_const_ref);
+    using _t3 = decltype(it1_moved);
+
+    static_assert(__is_equality_comparable_with_v<_t1, _t1>);
+    static_assert(__is_equality_comparable_with_v<_t1, _t2>);
+    static_assert(__is_equality_comparable_with_v<_t1, _t3>);
+
+    static_assert(__is_equality_comparable_with_v<_t2, _t1>);
+    static_assert(__is_equality_comparable_with_v<_t2, _t2>);
+    static_assert(__is_equality_comparable_with_v<_t2, _t3>);
+
+    static_assert(__is_equality_comparable_with_v<_t3, _t1>);
+    static_assert(__is_equality_comparable_with_v<_t3, _t2>);
+    static_assert(__is_equality_comparable_with_v<_t3, _t3>);
+}
+
 #if !_ONEDPL_CPP20_CONCEPTS_PRESENT
 void
 test_iterators_possibly_equal_internals()
@@ -272,6 +298,7 @@ main()
 #if TEST_DPCPP_BACKEND_PRESENT
 
     oneapi::dpl::__internal::check_is_equality_comparable_with();
+    oneapi::dpl::__internal::check_is_equality_comparable_with_for_different_types();
 
 #if !_ONEDPL_CPP20_CONCEPTS_PRESENT
     oneapi::dpl::__internal::test_iterators_possibly_equal_internals();
