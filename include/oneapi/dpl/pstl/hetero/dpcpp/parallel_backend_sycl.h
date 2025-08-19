@@ -1354,23 +1354,25 @@ struct scan_then_propagate_wrapper
 {
 };
 
-template <typename _SetTag>
-bool __use_write_a_alg(_SetTag, std::size_t __n1, std::size_t /*__n2*/)
+template <typename _SetTag, typename _Rng1, typename _Rng2>
+bool __use_write_a_alg(_SetTag, const _Rng1& __rng1, const _Rng2&)
 {
-    return __n1 < 65536;
+    using __value_t = oneapi::dpl::__internal::__value_t<_Rng1>;
+    return __rng1.size() < 32 * 1024 * sizeof(__value_t);
 }
 
-template <typename _SetTag>
-bool __use_write_a_alg(oneapi::dpl::unseq_backend::_UnionTag, std::size_t /*__n1*/, std::size_t __n2)
+template <typename _SetTag, typename _Rng1, typename _Rng2>
+bool __use_write_a_alg(oneapi::dpl::unseq_backend::_UnionTag, const _Rng1&, const _Rng2& __rng2)
 {
     // For union operations, we must are using __n2 as the set a in a difference operation prior to a merge, so the
     // threshold should be on __n2. This must be in this order because semantically elements must be copied from __rng1
     // when they are shared (important for algorithms where the key being compared is not the full element).
-    return __n2 < 65536;
+    using __value_t = oneapi::dpl::__internal::__value_t<_Rng2>;
+    return __rng2.size() < 32 * 1024 * sizeof(__value_t);
 }
 
-template <typename _SetTag>
-bool __use_write_a_alg(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, std::size_t /*__n1*/, std::size_t /*__n2*/)
+template <typename _SetTag, typename _Rng1, typename _Rng2>
+bool __use_write_a_alg(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, const _Rng1&, const _Rng2&)
 {
     // With complex compound alg, symmetric difference should always use single shot algorithm when available
     return false;
@@ -1384,13 +1386,10 @@ std::size_t
 __set_op_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
               _SetTag __set_tag)
 {
-    std::size_t __n1 = __rng1.size();
-    std::size_t __n2 = __rng2.size();
-
     //can we use reduce then scan?
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
     {
-        if (__use_write_a_alg(__set_tag, __n1, __n2))
+        if (__use_write_a_alg(__set_tag, __rng1, __rng2))
         {
             // use reduce then scan with set_a write
             return __set_write_a_only_op<_CustomName>(
