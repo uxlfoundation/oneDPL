@@ -177,6 +177,19 @@ struct __binary_op
     }
 };
 
+template <typename _Iterator, typename _Proj>
+struct __projected_deref
+{
+    //'mutable' is to relax the requirements for a user functor or/and projection type operator() may be non-const
+    mutable _Proj __proj;
+
+    inline auto
+    operator()(_Iterator __it) const -> decltype(std::invoke(__proj, *__it))
+    {
+        return std::invoke(__proj, *__it);
+    }
+};
+
 //! "==" comparison.
 /** Not called "equal" to avoid (possibly unfounded) concerns about accidental invocation via
     argument-dependent name lookup by code expecting to find the usual ::std::equal. */

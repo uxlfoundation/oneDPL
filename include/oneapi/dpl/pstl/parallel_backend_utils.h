@@ -224,14 +224,14 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
-    auto __deref1 = [__proj1](_ForwardIterator1 __it) { return std::invoke(__proj1, *__it); };
-    auto __deref2 = [__proj2](_ForwardIterator2 __it) { return std::invoke(__proj2, *__it); };
+    oneapi::dpl::__internal::__projected_deref<_ForwardIterator1, _Proj1> __invoke_proj1{__proj1};
+    oneapi::dpl::__internal::__projected_deref<_ForwardIterator2, _Proj2> __invoke_proj2{__proj2};
 
     for (; __first1 != __last1; ++__result)
     {
         if (__first2 == __last2)
             return __cc_range(__first1, __last1, __result);
-        if (__comp(__deref2(__first2), __deref1(__first1)))
+        if (__comp(__invoke_proj2(__first2), __invoke_proj1(__first1)))
         {
             ::new (::std::addressof(*__result)) _Tp(*__first2);
             ++__first2;
@@ -239,7 +239,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
         else
         {
             ::new (::std::addressof(*__result)) _Tp(*__first1);
-            if (!__comp(__deref1(__first1), __deref2(__first2)))
+            if (!__comp(__invoke_proj1(__first1), __invoke_proj2(__first2)))
                 ++__first2;
             ++__first1;
         }
@@ -255,16 +255,16 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
                              _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _CopyFunc _copy,
                              _CopyFromFirstSet, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
-    auto __deref1 = [__proj1](_ForwardIterator1 __it) { return std::invoke(__proj1, *__it); };
-    auto __deref2 = [__proj2](_ForwardIterator2 __it) { return std::invoke(__proj2, *__it); };
+    oneapi::dpl::__internal::__projected_deref<_ForwardIterator1, _Proj1> __invoke_proj1{__proj1};
+    oneapi::dpl::__internal::__projected_deref<_ForwardIterator2, _Proj2> __invoke_proj2{__proj2};
 
     for (; __first1 != __last1 && __first2 != __last2;)
     {
-        if (__comp(__deref1(__first1), __deref2(__first2)))
+        if (__comp(__invoke_proj1(__first1), __invoke_proj2(__first2)))
             ++__first1;
         else
         {
-            if (!__comp(__deref2(__first2), __deref1(__first1)))
+            if (!__comp(__invoke_proj2(__first2), __invoke_proj1(__first1)))
             {
                 if constexpr (_CopyFromFirstSet::value)
                 {
@@ -293,15 +293,15 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
-    auto __deref1 = [__proj1](_ForwardIterator1 __it) { return std::invoke(__proj1, *__it); };
-    auto __deref2 = [__proj2](_ForwardIterator2 __it) { return std::invoke(__proj2, *__it); };
+    oneapi::dpl::__internal::__projected_deref<_ForwardIterator1, _Proj1> __invoke_proj1{__proj1};
+    oneapi::dpl::__internal::__projected_deref<_ForwardIterator2, _Proj2> __invoke_proj2{__proj2};
 
     for (; __first1 != __last1;)
     {
         if (__first2 == __last2)
             return __cc_range(__first1, __last1, __result);
 
-        if (__comp(__deref1(__first1), __deref2(__first2)))
+        if (__comp(__invoke_proj1(__first1), __invoke_proj2(__first2)))
         {
             ::new (::std::addressof(*__result)) _Tp(*__first1);
             ++__result;
@@ -309,7 +309,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
         }
         else
         {
-            if (!__comp(__deref2(__first2), __deref1(__first1)))
+            if (!__comp(__invoke_proj2(__first2), __invoke_proj1(__first1)))
                 ++__first1;
             ++__first2;
         }
@@ -327,15 +327,15 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
-    auto __deref1 = [__proj1](_ForwardIterator1 __it) { return std::invoke(__proj1, *__it); };
-    auto __deref2 = [__proj2](_ForwardIterator2 __it) { return std::invoke(__proj2, *__it); };
+    oneapi::dpl::__internal::__projected_deref<_ForwardIterator1, _Proj1> __invoke_proj1{__proj1};
+    oneapi::dpl::__internal::__projected_deref<_ForwardIterator2, _Proj2> __invoke_proj2{__proj2};
 
     for (; __first1 != __last1;)
     {
         if (__first2 == __last2)
             return __cc_range(__first1, __last1, __result);
 
-        if (__comp(__deref1(__first1), __deref2(__first2)))
+        if (__comp(__invoke_proj1(__first1), __invoke_proj2(__first2)))
         {
             ::new (::std::addressof(*__result)) _Tp(*__first1);
             ++__result;
@@ -343,7 +343,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         }
         else
         {
-            if (__comp(__deref2(__first2), __deref1(__first1)))
+            if (__comp(__invoke_proj2(__first2), __invoke_proj1(__first1)))
             {
                 ::new (::std::addressof(*__result)) _Tp(*__first2);
                 ++__result;
