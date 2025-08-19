@@ -239,6 +239,7 @@ __simd_unique_copy(_InputIterator __first, _DifferenceType __n, _OutputIterator 
     _DifferenceType __cnt = 1;
     __result[0] = __first[0];
 
+    _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
     _ONEDPL_PRAGMA_SIMD
     for (_DifferenceType __i = 1; __i < __n; ++__i)
     {
@@ -269,6 +270,7 @@ __simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __re
 {
     _DifferenceType __cnt = 0;
 
+    _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
     _ONEDPL_PRAGMA_SIMD
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
@@ -318,6 +320,7 @@ __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator
                     _Assigner __assigner) noexcept
 {
     _DifferenceType __cnt = 0;
+    _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
     _ONEDPL_PRAGMA_SIMD
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
@@ -338,6 +341,7 @@ __simd_partition_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIte
                          _OutputIterator2 __out_false, bool* __mask) noexcept
 {
     _DifferenceType __cnt_true = 0, __cnt_false = 0;
+    _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
     _ONEDPL_PRAGMA_SIMD
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
@@ -772,6 +776,7 @@ __simd_partition_copy(_InputIterator __first, _DifferenceType __n, _OutputIterat
 {
     _DifferenceType __cnt_true = 0, __cnt_false = 0;
 
+    _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
     _ONEDPL_PRAGMA_SIMD
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
@@ -853,6 +858,7 @@ __simd_remove_if(_RandomAccessIterator __first, _DifferenceType __n, _UnaryPredi
     }
 
     _DifferenceType __cnt = 0;
+    _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
     _ONEDPL_PRAGMA_SIMD
     for (_DifferenceType __i = 1; __i < __n; ++__i)
     {
