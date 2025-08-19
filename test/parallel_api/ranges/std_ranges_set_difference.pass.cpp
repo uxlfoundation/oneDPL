@@ -39,7 +39,7 @@ main()
     };
 
     test_range_algo<0, int, data_in_in_out>{big_sz}(dpl_ranges::set_difference, checker);
-    test_range_algo<1, int, data_in_in_out>{big_sz}(dpl_ranges::set_difference, checker,std::ranges::less{}, proj);
+    test_range_algo<1, int, data_in_in_out>{big_sz}(dpl_ranges::set_difference, checker, std::ranges::less{}, proj);
 
     test_range_algo<2, int, data_in_in_out>{}(dpl_ranges::set_difference, checker, std::ranges::less{}, proj, proj);
     test_range_algo<3,  P2, data_in_in_out>{}(dpl_ranges::set_difference, checker, std::ranges::less{}, &P2::x, &P2::x);
