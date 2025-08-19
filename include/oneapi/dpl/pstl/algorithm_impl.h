@@ -3395,14 +3395,12 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     {
         //{1} < {2}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
         __par_backend::__parallel_invoke(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                  __result, __copy_range);
+            __backend_tag{}, __exec,
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1, __result, __copy_range);
             },
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
-                                                  __result + __n1, __copy_range);
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2, __result + __n1, __copy_range);
             });
         return __result + __n1 + __n2;
     }
@@ -3414,14 +3412,12 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     {
         //{2} < {1}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
         __par_backend::__parallel_invoke(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
-                                                  __result, __copy_range);
+            __backend_tag{}, __exec,
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2, __result, __copy_range);
             },
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                  __result + __n2, __copy_range);
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1, __result + __n2, __copy_range);
             });
         return __result + __n1 + __n2;
     }
@@ -3432,17 +3428,15 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         auto __res_or = __result;
         __result += __m1; //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         __par_backend::__parallel_invoke(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+            __backend_tag{}, __exec,
             //do parallel copying of [first1; left_bound_seq_1)
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                  __left_bound_seq_1, __res_or, __copy_range);
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __left_bound_seq_1, __res_or, __copy_range);
             },
-            [=, &__result] {
+            [=, &__exec, &__result] {
                 __result = __internal::__parallel_set_op(
-                    __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
-                    __result, __comp, [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                    __set_union_op);
+                    __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result, __comp,
+                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op);
             });
         return __result;
     }
@@ -3454,17 +3448,15 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         auto __res_or = __result;
         __result += __m2; //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         __par_backend::__parallel_invoke(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+            __backend_tag{}, __exec,
             //do parallel copying of [first2; left_bound_seq_2)
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
-                                                  __left_bound_seq_2, __res_or, __copy_range);
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __left_bound_seq_2, __res_or, __copy_range);
             },
-            [=, &__result] {
+            [=, &__exec, &__result] {
                 __result = __internal::__parallel_set_op(
-                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
-                    __result, __comp, [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                    __set_union_op);
+                    __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result, __comp,
+                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op);
             });
         return __result;
     }
