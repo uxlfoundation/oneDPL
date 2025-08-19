@@ -80,7 +80,7 @@ template <typename... _Name>
 struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name...>>
 {
     template <typename _Fp, typename _Index, typename... _Ranges>
-    __future<sycl::event>
+    sycl::event
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
@@ -102,7 +102,7 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
             });
         });
 
-        return __future{std::move(__event)};
+        return __event;
     }
 };
 
@@ -167,7 +167,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     }
 
     template <typename _Fp, typename _Index, typename... _Ranges>
-    __future<sycl::event>
+    sycl::event
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         using __params_t = __pfor_params<true /*__enable_tuning*/, _Fp, _Ranges...>;
@@ -200,7 +200,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
                 });
         });
 
-        return __future{std::move(__event)};
+        return __event;
     }
 };
 
@@ -227,7 +227,7 @@ inline constexpr bool __has_pfor_brick_members_v = __has_pfor_brick_members<Bric
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
 //for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
 template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
-__future<sycl::event>
+sycl::event
 __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Fp __brick, _Index __count,
                _Ranges&&... __rngs)
 {
