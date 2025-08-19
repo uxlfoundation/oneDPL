@@ -45,6 +45,10 @@
 #    include <cstring> // memcpy
 #endif
 
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+#    include <concepts> // for std::equality_comparable_with
+#endif
+
 namespace oneapi
 {
 namespace dpl
@@ -818,30 +822,63 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
                                    oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
-// TODO In C++20 we may try to use std::equality_comparable
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+template <typename _Iterator1, typename _Iterator2>
+inline constexpr bool __is_equality_comparable_with_v = std::equality_comparable_with<_Iterator1, _Iterator2>;
+
+#else
+
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_equality_comparable : std::false_type
+struct __has_equality_op : std::false_type
 {
 };
 
-// All with implemented operator ==
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable<
-    _Iterator1, _Iterator2,
-    std::void_t<decltype(::std::declval<::std::decay_t<_Iterator1>>() == ::std::declval<::std::decay_t<_Iterator2>>())>>
+struct __has_equality_op<_Iterator1, _Iterator2,
+                         std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
     : std::true_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl : __has_equality_op<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl<std::reverse_iterator<_Iterator1>, std::reverse_iterator<_Iterator2>>
+    : __is_equality_comparable_with_impl<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl<std::move_iterator<_Iterator1>, std::move_iterator<_Iterator2>>
+    : __is_equality_comparable_with_impl<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with
+    : __is_equality_comparable_with_impl<std::decay_t<_Iterator1>, std::decay_t<_Iterator2>>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+inline constexpr bool __is_equality_comparable_with_v = __is_equality_comparable_with<_Iterator1, _Iterator2>::value;
+
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+// Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
+template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-    if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+    if constexpr (__is_equality_comparable_with_v<_Iterator1, _Iterator2>)
     {
         return __it1 == __it2;
     }
-    else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
+    else if constexpr (__is_equality_comparable_with_v<_Iterator2, _Iterator1>)
     {
         return __it2 == __it1;
     }
@@ -867,17 +904,18 @@ struct __spirv_target_conditional :
 inline constexpr bool __is_spirv_target_v = __spirv_target_conditional<::std::true_type, ::std::false_type>::value;
 
 template <typename _T, typename = void>
-struct __is_iterator_type : std::false_type
+struct __is_type_with_iterator_traits : std::false_type
 {
 };
 
 template <typename _T>
-struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<_T>::difference_type>> : std::true_type
+struct __is_type_with_iterator_traits<
+    _T, std::void_t<typename std::iterator_traits<std::remove_reference_t<_T>>::difference_type>> : std::true_type
 {
 };
 
 template <typename _T>
-static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
+static constexpr bool __is_type_with_iterator_traits_v = __is_type_with_iterator_traits<_T>::value;
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>
@@ -886,6 +924,9 @@ union __lazy_ctor_storage
     using __value_type = _Tp;
     _Tp __v;
     __lazy_ctor_storage() {}
+
+    // empty destructor since we should be explicitly destroying any constructed data
+    ~__lazy_ctor_storage() {}
 
     template <typename _U>
     void
@@ -897,6 +938,22 @@ union __lazy_ctor_storage
     __destroy()
     {
         __v.~_Tp();
+    }
+};
+
+// Scoped destroyer for __lazy_ctor_storage. It can be used to destroy the a __lazy_ctor_storage when it goes out of
+// scope.
+// Note: Should only be used *after* the storage has been initialized with __setup or some other method to ensure that
+//       data is not destroyed before it is initialized. This is relevant for exception handling which may change the
+//       control flow unexpectedly.
+template <typename _DataType>
+struct __scoped_destroyer
+{
+    oneapi::dpl::__internal::__lazy_ctor_storage<_DataType>& ___lazy_ctor_storage_ref;
+    ~__scoped_destroyer()
+    {
+        // Explicitly call destructor of __lazy_ctor_storage
+        ___lazy_ctor_storage_ref.__destroy();
     }
 };
 

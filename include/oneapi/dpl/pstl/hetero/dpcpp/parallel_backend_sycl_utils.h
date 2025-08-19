@@ -518,6 +518,9 @@ struct __result_and_scratch_storage_base
 template <typename _T, std::size_t _NResults = 1>
 struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
+    static_assert(sycl::is_device_copyable_v<_T>,
+                  "The type _T must be device copyable to use __result_and_scratch_storage.");
+
   private:
     using __sycl_buffer_t = sycl::buffer<_T, 1>;
 
@@ -667,9 +670,15 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else if (__supports_USM_device)
         {
-            _T __tmp;
-            __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
-            return __tmp;
+            // Avoid default constructor for _T. We know that _T is device copyable and therefore a copy construction
+            // is equivalent to a bitwise copy. We may treat __lazy_ctor_storage.__v as constructed after the memcpy.
+            oneapi::dpl::__internal::__lazy_ctor_storage<_T> __lazy_ctor_storage;
+            __q.memcpy(&__lazy_ctor_storage.__v, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
+
+            // Setting up _T to be destroyed as this function exits. The __scoped_destroyer calls destroy when it
+            // leaves scope. _T being device copyable provides that it has a public non deleted destructor.
+            oneapi::dpl::__internal::__scoped_destroyer<_T> __destroy_when_leaving_scope{__lazy_ctor_storage};
+            return __lazy_ctor_storage.__v;
         }
         else
         {
