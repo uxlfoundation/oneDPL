@@ -49,7 +49,7 @@ __pattern_for_each(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _P
     oneapi::dpl::__internal::__unary_op<_Fun, _Proj> __pred_1{__f, __proj};
 
     oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
-        std::ranges::begin(__r) + std::ranges::size(__r), __pred_1);
+                                             std::ranges::begin(__r) + std::ranges::size(__r), __pred_1);
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Fun>
@@ -73,7 +73,8 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _O
 
     oneapi::dpl::__internal::__unary_op<_F, _Proj> __pred_1{__op, __proj};
 
-    oneapi::dpl::__internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r),
+    oneapi::dpl::__internal::__pattern_walk2(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r),
         std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r),
         oneapi::dpl::__internal::__transform_functor<decltype(__pred_1)>{std::move(__pred_1)});
 }
@@ -100,9 +101,11 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange1&& __in_r1, 
 
     oneapi::dpl::__internal::__binary_op<_F, _Proj1, _Proj2> __comp_2{__binary_op, __proj1, __proj2};
 
-    oneapi::dpl::__internal::__pattern_walk3(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r1),
+    oneapi::dpl::__internal::__pattern_walk3(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r1),
         std::ranges::begin(__in_r1) + std::ranges::size(__in_r1), std::ranges::begin(__in_r2),
-        std::ranges::begin(__out_r), oneapi::dpl::__internal::__transform_functor<decltype(__comp_2)>{std::move(__comp_2)});
+        std::ranges::begin(__out_r),
+        oneapi::dpl::__internal::__transform_functor<decltype(__comp_2)>{std::move(__comp_2)});
 }
 
 template<typename _ExecutionPolicy, typename _InRange1, typename _InRange2, typename _OutRange, typename _F,
@@ -185,8 +188,8 @@ __pattern_find_end(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
     if (std::ranges::empty(__r2))
         return std::ranges::borrowed_subrange_t<_R1>(__last1, __last1);
 
-    auto __it = oneapi::dpl::__internal::__pattern_find_end(__tag,
-        std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1), __last1, std::ranges::begin(__r2),
+    auto __it = oneapi::dpl::__internal::__pattern_find_end(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1), __last1, std::ranges::begin(__r2),
         std::ranges::begin(__r2) + std::ranges::size(__r2), __comp_2);
 
     return std::ranges::borrowed_subrange_t<_R1>(__it, __it + (__it == __last1 ? 0 : std::ranges::size(__r2)));
