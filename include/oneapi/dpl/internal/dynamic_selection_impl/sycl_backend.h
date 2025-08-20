@@ -31,8 +31,9 @@ namespace dpl
 namespace experimental
 {
 
-template<typename ResourceType, typename ResourceAdapter>
-class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public backend_base<ResourceType, default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>>
+template <typename ResourceType, typename ResourceAdapter>
+class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
+    : public backend_base<ResourceType, default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>>
 {
   public:
     using resource_type = ResourceType;
