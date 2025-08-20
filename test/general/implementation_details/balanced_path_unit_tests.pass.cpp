@@ -357,7 +357,7 @@ template <typename _Rng1, typename _Rng2, typename _Comp>
 bool
 test_find_balanced_path_impl(_Rng1 __rng1, _Rng2 __rng2, _Comp __comp)
 {
-    using _SetOperation = oneapi::dpl::__par_backend_hetero::__get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>>;
+    using _SetOperation = oneapi::dpl::__par_backend_hetero::__get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>;
     using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_simple;
 
     using _GenReduceInput =
