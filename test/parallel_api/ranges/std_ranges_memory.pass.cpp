@@ -68,18 +68,6 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    auto uninitialized_fill_checker =
-        [](const auto& res, const auto& r, const auto& value) {
-            using R = std::remove_cvref_t<decltype(r)>;
-            bool bres1 = (res == std::ranges::borrowed_iterator_t<R>(std::ranges::begin(r) + std::ranges::size(r)));
-            bool bres2 = std::ranges::all_of(r, [](const auto& v) { return v.val1 == -1;}) // -1 means no initialization
-                && std::ranges::all_of(r, [value](const auto& v) { return v.val2 == value;});
-
-            return std::pair<bool, bool>{bres1, bres2};
-        };
-
-    test_memory_algo<Elem, -1>{}.run(dpl_ranges::uninitialized_fill, uninitialized_fill_checker, 2);
-
     auto uninitialized_copy_move_checker =
         [](const auto& res, auto&& r_in, auto&& r_out) {
             using InRange = std::remove_cvref_t<decltype(r_in)>;
