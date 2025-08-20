@@ -94,8 +94,13 @@ __pattern_uninitialized_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     using _OutRefType = std::ranges::range_reference_t<_OutRange>;
     using _InRefType = std::ranges::range_reference_t<_InRange>;
 
-    assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
-    const auto __n = std::ranges::size(__in_r);
+    using _SizeCommon = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
+    const _SizeCommon __n_in_r = std::ranges::size(__in_r);
+    const _SizeCommon __n_out_r = std::ranges::size(__out_r);
+    const _SizeCommon __n_min = std::min(__n_in_r, __n_out_r);
+
+    if (__n_min == 0)
+        return {std::ranges::begin(__in_r) + __n_min, std::ranges::begin(__out_r) + __n_min};
 
     if constexpr (std::is_trivially_constructible_v<_OutValueType, _InRefType> && // required operation is trivial
                   std::is_trivially_default_constructible_v<_OutValueType> &&     // actual operations are trivial
@@ -104,19 +109,19 @@ __pattern_uninitialized_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
-            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+            oneapi::dpl::__ranges::views::all_read(std::ranges::take_view(std::forward<_InRange>(__in_r), __n_min)),
+            oneapi::dpl::__ranges::views::all_write(std::ranges::take_view(std::forward<_OutRange>(__out_r), __n_min)));
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_copy<std::decay_t<_ExecutionPolicy>>{},
-            oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
-            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+            oneapi::dpl::__ranges::views::all_read(std::ranges::take_view(std::forward<_InRange>(__in_r), __n_min)),
+            oneapi::dpl::__ranges::views::all_write(std::ranges::take_view(std::forward<_OutRange>(__out_r), __n_min)));
     }
 
-    return {std::ranges::begin(__in_r) + __n, std::ranges::begin(__out_r) + __n};
+    return {std::ranges::begin(__in_r) + __n_min, std::ranges::begin(__out_r) + __n_min};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
