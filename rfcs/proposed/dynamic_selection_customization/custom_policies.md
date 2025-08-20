@@ -322,7 +322,7 @@ This proposal presents a simplified approach to policy customization for Dynamic
 
 1. **Focused Development**: Policy writers can focus solely on selection strategy implementation
 2. **Automatic Backend Integration**: All resource management and backend operations handled automatically  
-3. **Consistent Interface**: All policies follow the same patterns and provide the same functionality
+3. **Consistent Interface**: All policies follow the same patterns and provide the same baseline functionality with their own selection criteria.
 4. **Reduced Boilerplate**: Eliminates the need to implement resource management, submission delegation, and error handling
 5. **Backward Compatibility**: Maintains the existing Dynamic Selection API contract
 6. **Extensibility**: Easy to add new selection strategies with minimal code
