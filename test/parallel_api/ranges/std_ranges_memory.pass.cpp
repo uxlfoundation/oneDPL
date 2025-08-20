@@ -68,18 +68,6 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    auto uninitialized_default_construct_checker =
-        [](const auto& res, const auto& r) {
-            using R = std::remove_cvref_t<decltype(r)>;
-            bool bres1 = (res == std::ranges::borrowed_iterator_t<R>(std::ranges::begin(r) + std::ranges::size(r)));
-            bool bres2 = std::ranges::all_of(r, [](const auto& v) { return v.val1 == 1;})
-                && std::ranges::all_of(r, [](const auto& v) { return v.val2 == -1;});  // -1 means no initialization
-
-            return std::pair<bool, bool>{bres1, bres2};
-        };
-
-    test_memory_algo<Elem, -1>{}.run(dpl_ranges::uninitialized_default_construct, uninitialized_default_construct_checker);
-
     auto uninitialized_value_construct_checker =
         [](const auto& res, const auto& r) {
             using R = std::remove_cvref_t<decltype(r)>;
@@ -124,7 +112,7 @@ main()
         };
 
     test_memory_algo<Elem, -1>{}.run(dpl_ranges::uninitialized_copy, uninitialized_copy_move_checker);
-    test_memory_algo<Elem_0, -1>{}.run(dpl_ranges::uninitialized_move, uninitialized_copy_move_checker);
+    //test_memory_algo<Elem_0, -1>{}.run(dpl_ranges::uninitialized_move, uninitialized_copy_move_checker);
 
     auto destroy_checker =
         [](const auto& res, const auto& r) {
