@@ -1003,7 +1003,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     // intersection is empty
     if (__r1.empty() || __r2.empty())
-        return __return_t{__first1, __first2, __result};
+        return __return_t{std::ranges::end(__r1), std::ranges::end(__r2), __result};
 
     const auto __sz1 = std::ranges::size(__r1);
     const auto __sz2 = std::ranges::size(__r2);
