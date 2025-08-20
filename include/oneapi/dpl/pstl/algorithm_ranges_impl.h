@@ -25,7 +25,7 @@
 #include <type_traits>
 
 #include "execution_impl.h"
-#    include "algorithm_impl.h"
+#include "algorithm_impl.h"
 
 namespace oneapi
 {
