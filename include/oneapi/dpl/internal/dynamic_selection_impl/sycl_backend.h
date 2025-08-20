@@ -50,6 +50,8 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
 
     using execution_resource_t = resource_type;
     using resource_container_t = std::vector<execution_resource_t>;
+    using resource_adapter_t = ResourceAdapter;
+    using base_resource_t = sycl::queue;
 
   private:
     using base_t = backend_base<ResourceType, default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>>;
