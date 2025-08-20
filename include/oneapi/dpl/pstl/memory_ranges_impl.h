@@ -172,10 +172,16 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     const auto __first1 = std::ranges::begin(__in_r);
     const auto __first2 = std::ranges::begin(__out_r);
 
-    assert(std::ranges::size(__in_r) == std::ranges::size(__out_r));
-    const auto __size = std::ranges::size(__in_r);
-    const auto __last1 = __first1 + __size;
-    const auto __last2 = __first2 + __size;
+    using _SizeCommon = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
+    const _SizeCommon __n_in_r = std::ranges::size(__in_r);
+    const _SizeCommon __n_out_r = std::ranges::size(__out_r);
+    const _SizeCommon __n_min = std::min(__n_in_r, __n_out_r);
+
+    const auto __last1 = __first1 + __n_min;
+    const auto __last2 = __first2 + __n_min;
+
+    if (__n_min == 0)
+        return {__last1, __last2};
 
     if constexpr (std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> &&
                   std::is_trivially_default_constructible_v<_OutValueType> &&
@@ -190,6 +196,7 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
             __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
             oneapi::dpl::__internal::__op_uninitialized_move<std::decay_t<_ExecutionPolicy>>{});
     }
+
     return {__last1, __last2};
 }
 

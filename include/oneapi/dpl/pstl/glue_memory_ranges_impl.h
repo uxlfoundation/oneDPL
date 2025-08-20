@@ -146,12 +146,9 @@ struct __uninitialized_move_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
-        using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
-        const _Size __size = std::ranges::min((_Size)std::ranges::size(__in_r), (_Size)std::ranges::size(__out_r));
-
         return oneapi::dpl::__internal::__ranges::__pattern_uninitialized_move(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::take_view(__in_r, __size),
-            std::ranges::take_view(__out_r, __size));
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r),
+            std::forward<_OutRange>(__out_r));
     }
 }; //__uninitialized_move_fn
 } // namespace __internal
