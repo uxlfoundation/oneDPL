@@ -16,22 +16,6 @@
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
-namespace test_std_ranges
-{
-template<>
-int out_size_with_empty_in2<std::remove_cvref_t<decltype(oneapi::dpl::ranges::merge)>>(int in1_size)
-{
-    return in1_size;
-}
-template<>
-int out_size_with_empty_in1<std::remove_cvref_t<decltype(oneapi::dpl::ranges::merge)>>(int in2_size)
-{
-    return in2_size;
-}
-}
-#endif
-
-#if _ENABLE_STD_RANGES_TESTING
 //A checker below modifies a return type; a range based version with policy has another return type.
 struct merge_checker_fn
 {
@@ -91,8 +75,8 @@ main()
     test_range_algo<0, int, data_in_in_out_lim, mul1_t, div3_t>{big_sz}(dpl_ranges::merge, merge_checker, std::ranges::less{}, std::identity{}, std::identity{});
 
     test_range_algo<1, int, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker, std::ranges::less{}, proj);
-    test_range_algo<2, P2, data_in_in_out_lim,  mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker, std::ranges::less{}, &P2::x, &P2::x);
-    test_range_algo<3, P2, data_in_in_out_lim,  mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker, std::ranges::less{}, &P2::proj, &P2::proj);
+    test_range_algo<2, P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker, std::ranges::less{}, &P2::x, &P2::x);
+    test_range_algo<3, P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
     test_range_algo<7, int, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker);
 #endif //_ENABLE_STD_RANGES_TESTING
