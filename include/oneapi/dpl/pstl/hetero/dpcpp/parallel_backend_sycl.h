@@ -1361,7 +1361,7 @@ bool __use_write_a_alg(_SetTag, _Rng1&& __rng1, _Rng2&&)
     return __rng1.size() < 32 * 1024 * sizeof(__value_t);
 }
 
-template <typename _SetTag, typename _Rng1, typename _Rng2>
+template <typename _Rng1, typename _Rng2>
 bool __use_write_a_alg(oneapi::dpl::unseq_backend::_UnionTag, _Rng1&&, _Rng2&& __rng2)
 {
     // For union operations, we must are using __n2 as the set a in a difference operation prior to a merge, so the
@@ -1371,7 +1371,7 @@ bool __use_write_a_alg(oneapi::dpl::unseq_backend::_UnionTag, _Rng1&&, _Rng2&& _
     return __rng2.size() < 32 * 1024 * sizeof(__value_t);
 }
 
-template <typename _SetTag, typename _Rng1, typename _Rng2>
+template <typename _Rng1, typename _Rng2>
 bool __use_write_a_alg(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _Rng1&&, _Rng2&&)
 {
     // With complex compound alg, symmetric difference should always use single shot algorithm when available
