@@ -36,9 +36,9 @@ This proposal presents a flexible backend system based on a `backend_base` templ
 ### Key Components
 
 1. **`backend_base<ResourceType, Backend>`**: A proposed base class template that implements the core backend functionality using CRTP.
-2. **`default_backend_impl<typename BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support.
-3. **`default_backend<ResourceType, ResourceAdapter>`**: A proposed template that determines the `BaseResourceType` from the `ResourceType` and `ResourceAdapter`. A developer creates a partial specialization of `default_backend` to create a specific backend.
-4. **A SYCL specialization of default_backend**: A specialized implementation for `sycl::queue` resources that handles SYCL-specific event management and profiling. Using an adapter, it is possible to reuse this for other types that can be adapted into a `sycl::queue`, such as a `sycl::queue *` or a struct that contains a `sycl::queue`.
+2. **`default_backend_impl<typename BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support. A developer creates a partial specialization of `default_backend_impl` to create a specific backend for the `BaseResourceType`. Adapters can be used with `default_backend` to reuse `default_backend_impl` for a `ResourceType` that is adapted to a `BaseResourceType`.
+3. **`default_backend<ResourceType, ResourceAdapter>`**: A proposed template that determines the `BaseResourceType` from the `ResourceType` and `ResourceAdapter`.
+4. **A SYCL specialization of default_backend_impl**: A specialized implementation for `sycl::queue` resources that handles SYCL-specific event management and profiling. Using an adapter, it is possible to reuse this for other types that can be adapted into a `sycl::queue`, such as a `sycl::queue *` or a struct that contains a `sycl::queue`.
 
 ### Core Features
 
@@ -112,9 +112,9 @@ class default_backend :
     }
 };
 ```
-The `default_backend` class is partially specialized to create a specific backend. Adapters allow backends
-to be reused when it is possible to provide an adapter to transform a custom resource type into a known
-resource type with an already existing backend. 
+The `default_backend_impl` class is partially specialized to create a specific backend. Adapters allow backends
+to be reused by providing an adapter to transform a custom resource type `ResourceType` into a known
+resource type `BaseResourceType` with an already existing `default_backend_impl`. 
 
 ### Default Implementation Details
 
