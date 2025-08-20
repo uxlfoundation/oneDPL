@@ -82,10 +82,10 @@ private:
             std::uninitialized_fill(data_in1, data_in1 + n_in, 5);
             std::uninitialized_fill(data_in2, data_in2 + n_in, 5);
 
-            run_impl(policy, algo, checker, std::move(subrange_in), std::move(subrange_out), args...);
+            run_impl(CLONE_TEST_POLICY_IDX(policy, 0), algo, checker, std::move(subrange_in), std::move(subrange_out), args...);
 #if TEST_CPP20_SPAN_PRESENT
-            run_impl(std::forward<decltype(policy)>(policy), algo, checker,
-                     std::move(span_in), std::move(span_out), std::forward<decltype(args)>(args)...);
+            run_impl(CLONE_TEST_POLICY_IDX(policy, 1), algo, checker, std::move(span_in), std::move(span_out),
+                     std::forward<decltype(args)>(args)...);
 #endif
             alloc.deallocate(data_out1, n_out);
             alloc.deallocate(data_out2, n_out);
@@ -93,9 +93,9 @@ private:
         // One range: destroy, uninitialized_fill, uninitialized_default_construct, uninitialized_value_construct
         else
         {
-            run_impl(policy, algo, checker, std::move(subrange_in), args...);
+            run_impl(CLONE_TEST_POLICY_IDX(policy, 2), algo, checker, std::move(subrange_in), args...);
 #if TEST_CPP20_SPAN_PRESENT
-            run_impl(std::forward<decltype(policy)>(policy), algo, checker, std::move(span_in),
+            run_impl(CLONE_TEST_POLICY_IDX(policy, 3), algo, checker, std::move(span_in),
                      std::forward<decltype(args)>(args)...);
 #endif
         }
