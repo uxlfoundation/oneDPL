@@ -1112,8 +1112,8 @@ __parallel_set_write_a_b_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2
 
     if (__total_size >= __partition_threshold)
     {
-        __partition_event =
-            __parallel_set_balanced_path_partition<_CustomName>(__q, __in_in_tmp_rng, __num_diagonals, __gen_reduce_input);
+        __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, __in_in_tmp_rng, __num_diagonals,
+                                                                                __gen_reduce_input);
     }
     return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
         __q, __num_diagonals, __in_in_tmp_rng, std::forward<_Range3>(__result), __gen_reduce_input, _ReduceOp{},
@@ -1354,14 +1354,16 @@ struct scan_then_propagate_wrapper
 };
 
 template <typename _SetTag, typename _Rng1, typename _Rng2>
-bool __use_write_a_alg(_SetTag, _Rng1&& __rng1, _Rng2&&)
+bool
+__use_write_a_alg(_SetTag, _Rng1&& __rng1, _Rng2&&)
 {
     using __value_t = oneapi::dpl::__internal::__value_t<_Rng1>;
     return __rng1.size() < 32 * 1024 * sizeof(__value_t);
 }
 
 template <typename _Rng1, typename _Rng2>
-bool __use_write_a_alg(oneapi::dpl::unseq_backend::_UnionTag, _Rng1&&, _Rng2&& __rng2)
+bool
+__use_write_a_alg(oneapi::dpl::unseq_backend::_UnionTag, _Rng1&&, _Rng2&& __rng2)
 {
     // For union operations, we must are using __n2 as the set a in a difference operation prior to a merge, so the
     // threshold should be on __n2. This must be in this order because semantically elements must be copied from __rng1
@@ -1371,12 +1373,12 @@ bool __use_write_a_alg(oneapi::dpl::unseq_backend::_UnionTag, _Rng1&&, _Rng2&& _
 }
 
 template <typename _Rng1, typename _Rng2>
-bool __use_write_a_alg(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _Rng1&&, _Rng2&&)
+bool
+__use_write_a_alg(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _Rng1&&, _Rng2&&)
 {
     // With complex compound alg, symmetric difference should always use single shot algorithm when available
     return false;
 }
-
 
 // Selects the right implementation of set based on the size and platform
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
@@ -1391,9 +1393,9 @@ __set_op_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __
         if (__use_write_a_alg(__set_tag, __rng1, __rng2))
         {
             // use reduce then scan with set_a write
-            return __set_write_a_only_op<_CustomName>(
-                __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
-                __comp, __set_tag, std::true_type{});
+            return __set_write_a_only_op<_CustomName>(__q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                                                      std::forward<_Range3>(__result), __comp, __set_tag,
+                                                      std::true_type{});
         }
         return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(
                    __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
