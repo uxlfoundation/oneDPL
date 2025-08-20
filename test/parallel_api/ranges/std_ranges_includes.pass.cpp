@@ -35,7 +35,7 @@ main()
     // but the second is transformed to [0, 3, 6, ...] by its projection.
     auto x1 = [](auto&& v) { return v; };
     auto x3 = [](auto&& v) { return v * 3; };
-    test_range_algo<4, int, data_in_in, decltype(x3), decltype(x1)>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, x1, x3);
+    test_range_algo<4, int, data_in_in, decltype(x3), decltype(x1)>{medium_size}(dpl_ranges::includes, includes_checker, std::ranges::less{}, x1, x3);
 
     test_range_algo<5, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::x, &P2::x);
     test_range_algo<6, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::proj, &P2::proj);

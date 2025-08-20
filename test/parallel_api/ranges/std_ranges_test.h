@@ -173,11 +173,11 @@ template<typename>
 constexpr int calc_res_size(int n, int) { return n; }
 
 // If in1 range is empty, then out range is empty
-template<typename Algo>
+template<typename>
 int out_size_with_empty_in1(int) { return 0; };
 
 // If in2 range is empty, then out range is empty
-template<typename Algo>
+template<typename>
 int out_size_with_empty_in2(int) { return 0; };
 
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
