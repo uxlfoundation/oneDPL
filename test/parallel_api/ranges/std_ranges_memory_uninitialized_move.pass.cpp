@@ -38,6 +38,11 @@ struct Elem_0
     ~Elem_0() { val2 = 3;}
 };
 
+namespace test_std_ranges
+{
+template<>
+constexpr int test_mode_id<std::remove_cvref_t<decltype(oneapi::dpl::ranges::uninitialized_move)>> = 1;
+}
 #endif //_ENABLE_STD_RANGES_TESTING
 
 std::int32_t
@@ -47,18 +52,26 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    auto destroy_checker =
-        [](const auto& res, const auto& r) {
-            using R = std::remove_cvref_t<decltype(r)>;
-            bool bres1 = (res == std::ranges::borrowed_iterator_t<R>(std::ranges::begin(r) + std::ranges::size(r)));
-            bool bres2 = std::ranges::all_of(r, [](const auto& v) { return v.val1 == -1;}) // -1 means no initialization
-                && std::ranges::all_of(r, [](const auto& v) { return v.val2 == 3;});
+    auto uninitialized_copy_move_checker =
+        [](const auto& res, auto&& r_in, auto&& r_out) {
+            using InRange = std::remove_cvref_t<decltype(r_in)>;
+            using OutRange = std::remove_cvref_t<decltype(r_out)>;
+
+            using Size = std::common_type_t<std::ranges::range_size_t<InRange>, std::ranges::range_size_t<OutRange>>;
+            const Size sz = std::ranges::min((Size)std::ranges::size(r_in), (Size)std::ranges::size(r_out));
+
+            const bool bres1 = (res.in == std::ranges::borrowed_iterator_t<InRange>(std::ranges::begin(r_in) + sz)
+                && res.out == std::ranges::borrowed_iterator_t<OutRange>(std::ranges::begin(r_out) + sz));
+
+            const bool bres2 = std::ranges::all_of(r_out, [](const auto& v) { return v.val1 == -1;})
+                && std::ranges::equal(std::ranges::take_view(r_in, sz), std::ranges::take_view(r_out, sz),
+                       [](const auto& v1, const auto& v2) { return v1.val2 == v2.val2;})
+                && std::ranges::all_of(std::ranges::drop_view(r_out, sz), [](const auto& v) { return v.val2 == -1;});
 
             return std::pair<bool, bool>{bres1, bres2};
         };
 
-    test_memory_algo<Elem_0, -1>{}.run(dpl_ranges::destroy, destroy_checker);
-
+    test_memory_algo<Elem_0, -1>{}.run(dpl_ranges::uninitialized_move, uninitialized_copy_move_checker);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
