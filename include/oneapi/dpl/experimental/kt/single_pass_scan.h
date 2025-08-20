@@ -262,8 +262,8 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     // Next power of 2 greater than or equal to __n
     auto __n_uniform = ::oneapi::dpl::__internal::__dpl_bit_ceil(__n);
 
-    constexpr std::size_t __workgroup_size = _KernelParam::workgroup_size;
-    constexpr std::size_t __data_per_workitem = _KernelParam::data_per_workitem;
+    constexpr std::uint16_t __workgroup_size = _KernelParam::workgroup_size;
+    constexpr std::uint16_t __data_per_workitem = _KernelParam::data_per_workitem;
 
     // Avoid non_uniform n by padding up to a multiple of workgroup_size
     std::size_t __elems_in_tile = __workgroup_size * __data_per_workitem;
