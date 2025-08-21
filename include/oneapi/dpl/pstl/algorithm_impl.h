@@ -154,7 +154,7 @@ __pattern_walk1(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
 {
     using __backend_tag = typename __parallel_forward_tag::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_ForwardIterator>::reference _ReferenceType;
+    using _ReferenceType = typename ::std::iterator_traits<_ForwardIterator>::reference;
     auto __func = [&__f](_ReferenceType arg) { __f(arg); };
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -345,8 +345,8 @@ __pattern_walk2(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
         auto __begin = _iterator_tuple(__first1, __first2);
         auto __end = _iterator_tuple(__last1, /*dummy parameter*/ _ForwardIterator2());
 
-        typedef typename ::std::iterator_traits<_ForwardIterator1>::reference _ReferenceType1;
-        typedef typename ::std::iterator_traits<_ForwardIterator2>::reference _ReferenceType2;
+        using _ReferenceType1 = typename ::std::iterator_traits<_ForwardIterator1>::reference;
+        using _ReferenceType2 = typename ::std::iterator_traits<_ForwardIterator2>::reference;
 
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                                            [&__f](::std::tuple<_ReferenceType1, _ReferenceType2> __val) {
@@ -422,8 +422,8 @@ __pattern_walk2_brick(__parallel_forward_tag, _ExecutionPolicy&& __exec, _Forwar
     auto __begin = _iterator_tuple(__first1, __first2);
     auto __end = _iterator_tuple(__last1, /*dummy parameter*/ _ForwardIterator2());
 
-    typedef typename ::std::iterator_traits<_ForwardIterator1>::reference _ReferenceType1;
-    typedef typename ::std::iterator_traits<_ForwardIterator2>::reference _ReferenceType2;
+    using _ReferenceType1 = typename ::std::iterator_traits<_ForwardIterator1>::reference;
+    using _ReferenceType2 = typename ::std::iterator_traits<_ForwardIterator2>::reference;
 
     return __except_handler([&]() {
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
@@ -537,9 +537,9 @@ __pattern_walk3(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
         auto __end = _iterator_tuple(__last1, /*dummy parameter*/ _ForwardIterator2(),
                                      /*dummy parameter*/ _ForwardIterator3());
 
-        typedef typename ::std::iterator_traits<_ForwardIterator1>::reference _ReferenceType1;
-        typedef typename ::std::iterator_traits<_ForwardIterator2>::reference _ReferenceType2;
-        typedef typename ::std::iterator_traits<_ForwardIterator3>::reference _ReferenceType3;
+        using _ReferenceType1 = typename ::std::iterator_traits<_ForwardIterator1>::reference;
+        using _ReferenceType2 = typename ::std::iterator_traits<_ForwardIterator2>::reference;
+        using _ReferenceType3 = typename ::std::iterator_traits<_ForwardIterator3>::reference;
 
         __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                                            [&](::std::tuple<_ReferenceType1, _ReferenceType2, _ReferenceType3> __val) {
@@ -701,7 +701,7 @@ _RandomAccessIterator
 __brick_find_if(_RandomAccessIterator __first, _RandomAccessIterator __last, _Predicate __pred,
                 /*is_vector=*/::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _SizeType;
+    using _SizeType = typename ::std::iterator_traits<_RandomAccessIterator>::difference_type;
     return __unseq_backend::__simd_first(
         __first, _SizeType(0), __last - __first,
         [&__pred](_RandomAccessIterator __it, _SizeType __i) { return __pred(__it[__i]); });
@@ -1325,7 +1325,7 @@ __pattern_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
+    using _DifferenceType = typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type;
     const _DifferenceType __n = __last - __first;
     if (_DifferenceType(1) < __n)
     {
@@ -1389,7 +1389,7 @@ __pattern_count(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _SizeType;
+    using _SizeType = typename ::std::iterator_traits<_RandomAccessIterator>::difference_type;
 
     //trivial pre-checks
     if (__first == __last)
@@ -1445,8 +1445,8 @@ __remove_elements(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _DifferenceType;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::value_type _Tp;
+    using _DifferenceType = typename ::std::iterator_traits<_RandomAccessIterator>::difference_type;
+    using _Tp = typename ::std::iterator_traits<_RandomAccessIterator>::value_type;
     _DifferenceType __n = __last - __first;
     __par_backend::__buffer<bool> __mask_buf(__n);
     // 1. find a first iterator that should be removed
@@ -1520,7 +1520,7 @@ _RandomAccessIterator
 __pattern_unique(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
                  _RandomAccessIterator __last, _BinaryPredicate __pred)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::reference _ReferenceType;
+    using _ReferenceType = typename ::std::iterator_traits<_RandomAccessIterator>::reference;
 
     if (__first == __last)
     {
@@ -1604,7 +1604,7 @@ __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
+    using _DifferenceType = typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type;
     const _DifferenceType __n = __last - __first;
     if (_DifferenceType(2) < __n)
     {
@@ -1663,7 +1663,7 @@ void
 __brick_reverse(_RandomAccessIterator __first, _RandomAccessIterator __last,
                 /*__is_vector=*/::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::reference _ReferenceType;
+    using _ReferenceType = typename ::std::iterator_traits<_RandomAccessIterator>::reference;
 
     const auto __n = (__last - __first) / 2;
     __unseq_backend::__simd_walk_n(__n,
@@ -1693,7 +1693,7 @@ void
 __brick_reverse(_RandomAccessIterator __first, _RandomAccessIterator __last, _RandomAccessIterator __d_last,
                 /*is_vector=*/::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::reference _ReferenceType;
+    using _ReferenceType = typename ::std::iterator_traits<_RandomAccessIterator>::reference;
 
     __unseq_backend::__simd_walk_n(__last - __first,
                                    [](_ReferenceType __x, _ReferenceType __y) {
@@ -1749,8 +1749,8 @@ _RandomAccessIterator2
 __brick_reverse_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __d_first,
                      /*is_vector=*/::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::reference _ReferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::reference _ReferenceType2;
+    using _ReferenceType1 = typename ::std::iterator_traits<_RandomAccessIterator1>::reference;
+    using _ReferenceType2 = typename ::std::iterator_traits<_RandomAccessIterator2>::reference;
 
     return __unseq_backend::__simd_walk_n(__last - __first,
         [](_ReferenceType1 __x, _ReferenceType2 __y) { __y = __x; },
@@ -1859,7 +1859,7 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::value_type _Tp;
+    using _Tp = typename ::std::iterator_traits<_RandomAccessIterator>::value_type;
     auto __n = __last - __first;
     auto __m = __middle - __first;
     if (__m <= __n / 2)
@@ -2002,7 +2002,7 @@ bool
 __brick_is_partitioned(_RandomAccessIterator __first, _RandomAccessIterator __last, _UnaryPredicate __pred,
                        /*is_vector=*/::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _SizeType;
+    using _SizeType = typename ::std::iterator_traits<_RandomAccessIterator>::difference_type;
     if (__first == __last)
     {
         return true;
@@ -2364,8 +2364,8 @@ __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
-    typedef ::std::pair<_DifferenceType, _DifferenceType> _ReturnType;
+    using _DifferenceType = typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _ReturnType = ::std::pair<_DifferenceType, _DifferenceType>;
     const _DifferenceType __n = __last - __first;
     if (_DifferenceType(1) < __n)
     {
@@ -2554,8 +2554,8 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec
         }
         else
         {
-            typedef typename ::std::iterator_traits<_RandomAccessIterator1>::value_type _T1;
-            typedef typename ::std::iterator_traits<_RandomAccessIterator2>::value_type _T2;
+            using _T1 = typename ::std::iterator_traits<_RandomAccessIterator1>::value_type;
+            using _T2 = typename ::std::iterator_traits<_RandomAccessIterator2>::value_type;
             __par_backend::__buffer<_T1> __buf(__n1);
             _T1* __r = __buf.get();
 
@@ -2695,7 +2695,7 @@ __pattern_nth_element(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
     }
 
     using ::std::iter_swap;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::value_type _Tp;
+    using _Tp = typename ::std::iterator_traits<_RandomAccessIterator>::value_type;
     _RandomAccessIterator __x;
     do
     {
@@ -2934,7 +2934,7 @@ _RandomAccessIterator
 __pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
                     _RandomAccessIterator __last, _UnaryPredicate __pred)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::reference _ReferenceType;
+    using _ReferenceType = typename ::std::iterator_traits<_RandomAccessIterator>::reference;
 
     if (__first == __last || __first + 1 == __last)
     {
@@ -3161,7 +3161,7 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
         return;
     }
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::value_type _Tp;
+    using _Tp = typename ::std::iterator_traits<_RandomAccessIterator>::value_type;
     auto __n = __last - __first;
     __par_backend::__buffer<_Tp> __buf(__n);
     _Tp* __r = __buf.get();
@@ -3278,8 +3278,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
-    typedef typename ::std::iterator_traits<_OutputIterator>::value_type _T;
+    using _DifferenceType = typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _T = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
     struct _SetRange
     {
@@ -3372,7 +3372,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
+    using _DifferenceType = typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type;
 
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
@@ -3528,7 +3528,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     if (__n1 + __n2 <= __set_algo_cut_off)
         return ::std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
-    typedef typename ::std::iterator_traits<_OutputIterator>::value_type _Tp;
+    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
     return __parallel_set_union_op(
         __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
@@ -3582,8 +3582,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                            _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                            _RandomAccessIterator2 __last2, _RandomAccessIterator3 __result, _Compare __comp)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator3>::value_type _T;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
+    using _T = typename ::std::iterator_traits<_RandomAccessIterator3>::value_type;
+    using _DifferenceType = typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type;
 
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
@@ -3688,8 +3688,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                          _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                          _RandomAccessIterator2 __last2, _RandomAccessIterator3 __result, _Compare __comp)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator3>::value_type _T;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
+    using _T = typename ::std::iterator_traits<_RandomAccessIterator3>::value_type;
+    using _DifferenceType = typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type;
 
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
@@ -3783,7 +3783,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     if (__n1 + __n2 <= __set_algo_cut_off)
         return ::std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator3>::value_type _T;
+    using _T = typename ::std::iterator_traits<_RandomAccessIterator3>::value_type;
     return __internal::__except_handler([&]() {
         return __internal::__parallel_set_union_op(
             __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
@@ -3812,7 +3812,7 @@ _RandomAccessIterator
 __brick_is_heap_until(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
                       /* __is_vector = */ ::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _SizeType;
+    using _SizeType = typename ::std::iterator_traits<_RandomAccessIterator>::difference_type;
     return __unseq_backend::__simd_first(
         __first, _SizeType(0), __last - __first,
         [&__comp](_RandomAccessIterator __it, _SizeType __i) { return __comp(__it[(__i - 1) / 2], __it[__i]); });
@@ -4043,7 +4043,7 @@ __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
         return ::std::make_pair(__first, __first);
 
     return __internal::__except_handler([&]() {
-        typedef ::std::pair<_RandomAccessIterator, _RandomAccessIterator> _Result;
+        using _Result = ::std::pair<_RandomAccessIterator, _RandomAccessIterator>;
 
         return __par_backend::__parallel_reduce(
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -4165,8 +4165,8 @@ __brick_lexicographical_compare(_RandomAccessIterator1 __first1, _RandomAccessIt
     }
     else
     {
-        typedef typename ::std::iterator_traits<_RandomAccessIterator1>::reference ref_type1;
-        typedef typename ::std::iterator_traits<_RandomAccessIterator2>::reference ref_type2;
+        using ref_type1 = typename ::std::iterator_traits<_RandomAccessIterator1>::reference;
+        using ref_type2 = typename ::std::iterator_traits<_RandomAccessIterator2>::reference;
         --__last1;
         --__last2;
         auto __n = ::std::min(__last1 - __first1, __last2 - __first2);
@@ -4215,8 +4215,8 @@ __pattern_lexicographical_compare(__parallel_tag<_IsVector> __tag, _ExecutionPol
     }
     else
     {
-        typedef typename ::std::iterator_traits<_RandomAccessIterator1>::reference _RefType1;
-        typedef typename ::std::iterator_traits<_RandomAccessIterator2>::reference _RefType2;
+        using _RefType1 = typename ::std::iterator_traits<_RandomAccessIterator1>::reference;
+        using _RefType2 = typename ::std::iterator_traits<_RandomAccessIterator2>::reference;
 
         return __internal::__except_handler([&]() {
             --__last1;

@@ -57,7 +57,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       typename ::std::iterator_traits<_ForwardIterator>::value_type>
 reduce(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
     return transform_reduce(std::forward<_ExecutionPolicy>(__exec), __first, __last, _ValueType{},
                             std::plus<_ValueType>(), oneapi::dpl::identity{});
 }
@@ -69,7 +69,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Tp>
 transform_reduce(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                  _ForwardIterator2 __first2, _Tp __init)
 {
-    typedef typename ::std::iterator_traits<_ForwardIterator1>::value_type _InputType;
+    using _InputType = typename ::std::iterator_traits<_ForwardIterator1>::value_type;
 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2);
 
@@ -185,7 +185,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 inclusive_scan(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                _ForwardIterator2 __result)
 {
-    typedef typename std::iterator_traits<_ForwardIterator1>::value_type _InputType;
+    using _InputType = typename std::iterator_traits<_ForwardIterator1>::value_type;
     return transform_inclusive_scan(std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
                                     std::plus<_InputType>(), oneapi::dpl::identity{});
 }
@@ -274,7 +274,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 adjacent_difference(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                     _ForwardIterator2 __d_first)
 {
-    typedef typename ::std::iterator_traits<_ForwardIterator1>::value_type _ValueType;
+    using _ValueType = typename ::std::iterator_traits<_ForwardIterator1>::value_type;
     return adjacent_difference(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __d_first,
                                ::std::minus<_ValueType>());
 }
