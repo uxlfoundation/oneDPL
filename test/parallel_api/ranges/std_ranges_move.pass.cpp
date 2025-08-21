@@ -25,14 +25,7 @@ main()
     auto move_checker = [](std::ranges::random_access_range auto&& r_in,
                            std::ranges::random_access_range auto&& r_out)
     {
-        const auto size = std::ranges::min(std::ranges::size(r_in), std::ranges::size(r_out));
-
-        std::ranges::copy(std::ranges::take_view(r_in, size), std::ranges::take_view(r_out, size).begin());
-
-        using ret_type = std::ranges::move_result<std::ranges::borrowed_iterator_t<decltype(r_in)>,
-            std::ranges::borrowed_iterator_t<decltype(r_out)>>;
-
-        return ret_type{std::ranges::begin(r_in) + size, std::ranges::begin(r_out) + size};
+        return std::ranges::min(std::forward<decltype(r_in)>(r_in),  std::ranges::begin(r_out));
     };
 
     test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::move,  move_checker);
