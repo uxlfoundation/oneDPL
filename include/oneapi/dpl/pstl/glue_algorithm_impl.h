@@ -171,7 +171,7 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 adjacent_find(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    typedef typename ::std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename ::std::iterator_traits<_ForwardIterator>::value_type;
 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
@@ -304,8 +304,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 swap_ranges(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
             _ForwardIterator2 __first2)
 {
-    typedef typename ::std::iterator_traits<_ForwardIterator1>::reference _ReferenceType1;
-    typedef typename ::std::iterator_traits<_ForwardIterator2>::reference _ReferenceType2;
+    using _ReferenceType1 = typename ::std::iterator_traits<_ForwardIterator1>::reference;
+    using _ReferenceType2 = typename ::std::iterator_traits<_ForwardIterator2>::reference;
 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2);
 
