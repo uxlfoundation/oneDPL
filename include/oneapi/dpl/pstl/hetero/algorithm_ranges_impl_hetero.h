@@ -1177,12 +1177,13 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
         return __return_t{__first1 + __n1, __first2 + __n2, __result + __idx};
     }
 
-    using _ValueType = oneapi::dpl::__internal::__value_t<_OutRange>;
+    using _ValueType1 = oneapi::dpl::__internal::__value_t<_R1>;
+    using _ValueType2 = oneapi::dpl::__internal::__value_t<_R2>;
 
     // temporary buffers to store intermediate result
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_1(__n1);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType1> __diff_1(__n1);
     auto __buf_1 = oneapi::dpl::__ranges::views::all(__diff_1.get_buffer());
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_2(__n2);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType2> __diff_2(__n2);
     auto __buf_2 = oneapi::dpl::__ranges::views::all(__diff_2.get_buffer());
 
     //1. Calc difference {1} \ {2}
