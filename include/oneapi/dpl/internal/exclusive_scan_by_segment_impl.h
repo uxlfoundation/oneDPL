@@ -62,9 +62,9 @@ __pattern_exclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1
         return result + 1;
     }
 
-    typedef typename ::std::iterator_traits<OutputIterator>::value_type OutputType;
-    typedef typename ::std::iterator_traits<InputIterator2>::value_type ValueType;
-    typedef unsigned int FlagType;
+    using OutputType = typename ::std::iterator_traits<OutputIterator>::value_type OutputType;
+    using ValueType = typename ::std::iterator_traits<InputIterator2>::value_type;
+    using FlagType = unsigned int FlagType;
 
     InputIterator2 last2 = first2 + n;
 
@@ -121,9 +121,9 @@ __pattern_exclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, 
 {
 
     const auto n = ::std::distance(first1, last1);
-    typedef typename ::std::iterator_traits<OutputIterator>::value_type OutputType;
-    typedef typename ::std::iterator_traits<InputIterator2>::value_type ValueType;
-    typedef unsigned int FlagType;
+    using OutputType = typename ::std::iterator_traits<OutputIterator>::value_type;
+    using ValueType = typename ::std::iterator_traits<InputIterator2>::value_type;
+    using FlagType = unsigned int;
 
     InputIterator2 last2 = first2 + n;
 
@@ -203,7 +203,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIterator>
 exclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                           OutputIterator result, T init, BinaryPredicate binary_pred)
 {
-    typedef typename ::std::iterator_traits<InputIterator2>::value_type V2;
+    using V2 = typename ::std::iterator_traits<InputIterator2>::value_type;
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, init, binary_pred,
                                      ::std::plus<V2>());
 }
@@ -213,7 +213,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIterator>
 exclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                           OutputIterator result, T init)
 {
-    typedef typename ::std::iterator_traits<InputIterator1>::value_type V1;
+    using V1 = typename ::std::iterator_traits<InputIterator1>::value_type;
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, init,
                                      ::std::equal_to<V1>());
 }
@@ -223,7 +223,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIterator>
 exclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                           OutputIterator result)
 {
-    typedef typename ::std::iterator_traits<InputIterator2>::value_type V2;
+    using V2 = typename ::std::iterator_traits<InputIterator2>::value_type;
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, V2(0));
 }
 

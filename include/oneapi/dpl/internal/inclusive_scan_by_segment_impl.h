@@ -64,8 +64,8 @@ __pattern_inclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1
         return result + 1;
     }
 
-    typedef unsigned int FlagType;
-    typedef typename ::std::iterator_traits<InputIterator2>::value_type ValueType;
+    using FlagType = unsigned int;
+    using ValueType = typename ::std::iterator_traits<InputIterator2>::value_type;
 
     oneapi::dpl::__par_backend::__buffer<FlagType> _mask(n);
     auto mask = _mask.get();
@@ -106,8 +106,8 @@ __pattern_inclusive_scan_by_segment_impl(__internal::__hetero_tag<_BackendTag>, 
                                          std::false_type /* has_known_identity */)
 {
 
-    typedef unsigned int FlagType;
-    typedef typename ::std::iterator_traits<InputIterator2>::value_type ValueType;
+    using FlagType = unsigned int;
+    using ValueType = typename ::std::iterator_traits<InputIterator2>::value_type;
 
     const auto n = ::std::distance(first1, last1);
 
