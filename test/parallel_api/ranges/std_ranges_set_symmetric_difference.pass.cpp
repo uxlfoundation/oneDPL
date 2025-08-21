@@ -47,7 +47,7 @@ void test_mixed_types_host()
     std::vector<A> r1 = {{1}, {2}, {5}};
     std::vector<B> r2 = {{0}, {2}, {2}, {3}};
 
-    std::vector<int> out_expected = {1, 5, 3};
+    std::vector<int> out_expected = {0, 1, 2, 3, 5};
 
     std::vector<int> out_seq(out_expected.size(), 0xCD);
     std::vector<int> out_par(out_expected.size(), 0xCD);
@@ -85,7 +85,7 @@ void test_mixed_types_device()
 
         std::vector<A, r1_alloc_t> v1({{1}, {2}, {5}}, r1_alloc_t(q));
         std::vector<B, r2_alloc_t> v2({{0}, {2}, {2}, {3}}, r2_alloc_t(q));
-        std::vector<int> out_expected = {1, 3, 5};
+        std::vector<int> out_expected = {0, 1, 2, 3, 5};
 
         std::vector<int, r_out_alloc_t> out(out_expected.size(), 0xCD, r_out_alloc_t(q));
 
