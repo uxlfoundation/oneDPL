@@ -1924,7 +1924,10 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     }
     else
     {
-        using _ValueType = typename std::iterator_traits<_OutputIterator>::value_type;
+        // We should use a temporary buffer here to store the intermediate result,
+        // which is the difference {2} \ {1}. The buffer should have the same data type
+        // as the elements in the second sequence.
+        using _ValueType = typename std::iterator_traits<_ForwardIterator2>::value_type;
 
         // temporary buffer to store intermediate result
         const auto __n2 = __last2 - __first2;
