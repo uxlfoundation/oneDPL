@@ -953,7 +953,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
     }
 
-    using _ValueType = oneapi::dpl::__internal::__value_t<_OutRange>;
+    using _ValueType = oneapi::dpl::__internal::__value_t<_R2>;
 
     // temporary buffer to store intermediate result
     const auto __n2 = __r2.size();
