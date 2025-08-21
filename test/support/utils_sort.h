@@ -293,7 +293,7 @@ check_results(SortTestConfig config,
 {
     auto pred = *tmp_first;
     const std::string msg_size = config.err_msg_prefix + ", total size = " + std::to_string(n);
-    for (size_t i = 0; i < n; ++i, ++expected_first, ++tmp_first)
+    for (size_t i = 0; i < n; ++i, ++expected_first, (void) ++tmp_first)
     {
         // Check that expected[i] is equal to tmp[i]
         bool reference_check = Equal(*expected_first, *tmp_first, config.is_stable);

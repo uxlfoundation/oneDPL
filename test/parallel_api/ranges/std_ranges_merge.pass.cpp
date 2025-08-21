@@ -51,12 +51,12 @@ struct merge_checker_fn
     
         if(it_1 == it_1_e)
         {
-            for(; it_2 != it_2_e && it_out != it_out_e; ++it_2, ++it_out)
+            for(; it_2 != it_2_e && it_out != it_out_e; ++it_2, (void) ++it_out)
                 *it_out = *it_2;
         }
         else
         {
-            for(; it_1 != it_1_e && it_out != it_out_e; ++it_1, ++it_out)
+            for(; it_1 != it_1_e && it_out != it_out_e; ++it_1, (void) ++it_out)
                 *it_out = *it_1;
         }
 
