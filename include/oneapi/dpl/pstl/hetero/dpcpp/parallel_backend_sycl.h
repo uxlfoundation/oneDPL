@@ -1188,7 +1188,7 @@ std::size_t
 __set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                       oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan)
 {
-    using _ValueType = oneapi::dpl::__internal::__value_t<_Range3>;
+    using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
 
     // temporary buffer to store intermediate result
     const auto __n2 = __rng2.size();
@@ -1240,14 +1240,15 @@ std::size_t
 __set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
                       oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseReduceThenScan)
 {
-    using _ValueType = oneapi::dpl::__internal::__value_t<_Range3>;
+    using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
+    using _ValueType2 = oneapi::dpl::__internal::__value_t<_Range2>;
 
     // temporary buffers to store intermediate result
     const auto __n1 = __rng1.size();
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_1(__n1);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType1> __diff_1(__n1);
     auto __buf_1 = __diff_1.get();
     const auto __n2 = __rng2.size();
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_2(__n2);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType2> __diff_2(__n2);
     auto __buf_2 = __diff_2.get();
 
     auto __keep_tmp1 =
