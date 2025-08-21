@@ -1008,25 +1008,18 @@ struct __brick_includes
     {
         using std::get;
 
-        auto __proj_rng_1 = [this](auto&& __val) {
-            return std::invoke(__proj1, std::forward<decltype(__val)>(__val));
-        };
-
-        auto __proj_rng_2 = [this](auto&& __val) {
-            return std::invoke(__proj2, std::forward<decltype(__val)>(__val));
-        };
+        auto __proj_rng_1 = [this](auto&& __val) { return std::invoke(__proj1, std::forward<decltype(__val)>(__val)); };
+        auto __proj_rng_2 = [this](auto&& __val) { return std::invoke(__proj2, std::forward<decltype(__val)>(__val)); };
 
         // testing __comp(*__first2, *__first1) or __comp(*(__last1 - 1), *(__last2 - 1))
         if ((__idx == 0 && __comp(__proj_rng_1(__rng1[0]), __proj_rng_2(__rng2[0]))) ||
-            (__idx == __size1 - 1 &&
-             __comp(__proj_rng_2(__rng2[__size2 - 1]), __proj_rng_1(__rng1[__size1 - 1]))))
+            (__idx == __size1 - 1 && __comp(__proj_rng_2(__rng2[__size2 - 1]), __proj_rng_1(__rng1[__size1 - 1]))))
             return true; //__rng2 doesn't include __rng1
 
         const auto __idx_b = 0 + __idx;
         const auto __val_b = __rng1[__idx_b];
 
-        auto __res =
-            __internal::__pstl_lower_bound(__rng2, _Size1{0}, __size2, __proj_rng_1(__val_b), __comp, __proj2);
+        auto __res = __internal::__pstl_lower_bound(__rng2, _Size1{0}, __size2, __proj_rng_1(__val_b), __comp, __proj2);
 
         // {a} < {b} or __val_b != __rng2[__res]
         if (__res == __size2 || __comp(__proj_rng_1(__val_b), __proj_rng_2(__rng2[__res])))
