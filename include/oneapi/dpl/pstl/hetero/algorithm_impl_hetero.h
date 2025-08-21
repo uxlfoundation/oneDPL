@@ -2016,14 +2016,15 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
     }
     else
     {
-        typedef typename std::iterator_traits<_OutputIterator>::value_type _ValueType;
+        typedef typename std::iterator_traits<_ForwardIterator1>::value_type _ValueType1;
+        typedef typename std::iterator_traits<_ForwardIterator2>::value_type _ValueType2;
 
         // temporary buffers to store intermediate result
         const auto __n1 = __last1 - __first1;
-        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_1(__n1);
+        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType1> __diff_1(__n1);
         auto __buf_1 = __diff_1.get();
         const auto __n2 = __last2 - __first2;
-        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_2(__n2);
+        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType2> __diff_2(__n2);
         auto __buf_2 = __diff_2.get();
 
         //1. Calc difference {1} \ {2}
