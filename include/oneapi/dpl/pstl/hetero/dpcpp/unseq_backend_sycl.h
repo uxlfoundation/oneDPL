@@ -1041,7 +1041,6 @@ struct __brick_includes
 
         const auto __count_b =
             __internal::__pstl_right_bound(__rng1, _Size2(__idx_b), __size1, __proj_rng_1(__val_b), __comp, __proj1) -
-            __idx_b + __idx_b -
             __internal::__pstl_left_bound(__rng1, _Size2{0}, _Size2(__idx_b), __proj_rng_1(__val_b), __comp, __proj1);
 
         return __count_b > __count_a; //false means __rng2 includes __rng1
