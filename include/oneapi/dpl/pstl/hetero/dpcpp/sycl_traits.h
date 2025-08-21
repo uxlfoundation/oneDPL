@@ -501,6 +501,9 @@ template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_un
           typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
+template <typename _GenInput, typename _KernelName>
+struct __partition_set_balanced_path_submitter;
+
 } // namespace oneapi::dpl::__par_backend_hetero
 
 template <typename _UnaryOp, typename _InitType>
@@ -657,6 +660,12 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
     __is_inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
     _KernelName...)> : oneapi::dpl::__internal::__are_all_device_copyable<_ReduceOp, _GenScanInput, _ScanInputTransform,
                                                                           _WriteOp, _InitType>
+{
+};
+template <typename _GenInput, typename KernelName>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter, _GenInput, KernelName)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_GenInput>
 {
 };
 
