@@ -46,9 +46,9 @@ using type_identity_t = typename type_identity<_Tp>::type;
 // template <>
 // struct __policy_traits<oneapi::dpl::execution::vector_policy>
 // {
-//     typedef ::std::false_type __allow_parallel;
-//     typedef ::std::false_type __allow_unsequenced;
-//     typedef ::std::true_type __allow_vector;
+//     using __allow_parallel = ::std::false_type;
+//     using __allow_unsequenced = ::std::false_type;
+//     using __allow_vector = ::std::true_type;
 // };
 
 // TODO: add static asserts for parameters according to the requirements
