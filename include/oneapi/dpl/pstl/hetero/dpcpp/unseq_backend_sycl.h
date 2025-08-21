@@ -992,59 +992,59 @@ template <typename _Compare, typename _Size1, typename _Size2, typename _Proj1 =
 struct __brick_includes
 {
     _Compare __comp;
-    const _Size1 __size_a;
-    const _Size2 __size_b;
+    const _Size2 __size1;
+    const _Size1 __size2;
     _Proj1 __proj1;
     _Proj2 __proj2;
 
-    __brick_includes(_Compare __comp, _Size1 __n1, _Size2 __n2, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
-        : __comp(__comp), __size_a(__n1), __size_b(__n2), __proj1(__proj1), __proj2(__proj2)
+    __brick_includes(_Compare __comp, _Size1 __size1, _Size2 __size2, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+        : __comp(__comp), __size1(__size1), __size2(__size2), __proj1(__proj1), __proj2(__proj2)
     {
     }
 
-    template <typename _ItemId, typename _Acc1, typename _Acc2>
+    template <typename _ItemId, typename __Rng1, typename __Rng2>
     bool
-    operator()(_ItemId __idx, const _Acc1& __b, const _Acc2& __a) const
+    operator()(_ItemId __idx, const __Rng1& __rng1, const __Rng2& __rng2) const
     {
         using std::get;
 
-        auto __eval_proj_b = [this](auto&& __val) {
+        auto __proj_rng_1 = [this](auto&& __val) {
             return std::invoke(__proj2, std::forward<decltype(__val)>(__val));
         };
 
-        auto __eval_proj_a = [this](auto&& __val) {
+        auto __proj_rng_2 = [this](auto&& __val) {
             return std::invoke(__proj1, std::forward<decltype(__val)>(__val));
         };
 
         // testing __comp(*__first2, *__first1) or __comp(*(__last1 - 1), *(__last2 - 1))
-        if ((__idx == 0 && __comp(__eval_proj_b(__b[0]), __eval_proj_a(__a[0]))) ||
-            (__idx == __size_b - 1 &&
-             __comp(__eval_proj_a(__a[__size_a - 1]), __eval_proj_b(__b[__size_b - 1]))))
-            return true; //__a doesn't include __b
+        if ((__idx == 0 && __comp(__proj_rng_1(__rng1[0]), __proj_rng_2(__rng2[0]))) ||
+            (__idx == __size1 - 1 &&
+             __comp(__proj_rng_2(__rng2[__size2 - 1]), __proj_rng_1(__rng1[__size1 - 1]))))
+            return true; //__rng2 doesn't include __rng1
 
         const auto __idx_b = 0 + __idx;
-        const auto __val_b = __b[__idx_b];
+        const auto __val_b = __rng1[__idx_b];
 
         auto __res =
-            __internal::__pstl_lower_bound(__a, _Size1{0}, __size_a, __eval_proj_b(__val_b), __comp, __proj1);
+            __internal::__pstl_lower_bound(__rng2, _Size1{0}, __size2, __proj_rng_1(__val_b), __comp, __proj1);
 
-        // {a} < {b} or __val_b != __a[__res]
-        if (__res == __size_a || __comp(__eval_proj_b(__val_b), __eval_proj_a(__a[__res])))
-            return true; //__a doesn't include __b
+        // {a} < {b} or __val_b != __rng2[__res]
+        if (__res == __size2 || __comp(__proj_rng_1(__val_b), __proj_rng_2(__rng2[__res])))
+            return true; //__rng2 doesn't include __rng1
 
-        auto __val_a = __a[__res];
+        auto __val_a = __rng2[__res];
 
         //searching number of duplication
         const auto __count_a =
-            __internal::__pstl_right_bound(__a, __res, __size_a, __eval_proj_a(__val_a), __comp, __proj1) -
-            __internal::__pstl_left_bound(__a, _Size1{0}, __res, __eval_proj_a(__val_a), __comp, __proj1);
+            __internal::__pstl_right_bound(__rng2, __res, __size2, __proj_rng_2(__val_a), __comp, __proj1) -
+            __internal::__pstl_left_bound(__rng2, _Size1{0}, __res, __proj_rng_2(__val_a), __comp, __proj1);
 
         const auto __count_b =
-            __internal::__pstl_right_bound(__b, _Size2(__idx_b), __size_b, __eval_proj_b(__val_b), __comp, __proj2) -
+            __internal::__pstl_right_bound(__rng1, _Size2(__idx_b), __size1, __proj_rng_1(__val_b), __comp, __proj2) -
             __idx_b + __idx_b -
-            __internal::__pstl_left_bound(__b, _Size2{0}, _Size2(__idx_b), __eval_proj_b(__val_b), __comp, __proj2);
+            __internal::__pstl_left_bound(__rng1, _Size2{0}, _Size2(__idx_b), __proj_rng_1(__val_b), __comp, __proj2);
 
-        return __count_b > __count_a; //false means __a includes __b
+        return __count_b > __count_a; //false means __rng2 includes __rng1
     }
 };
 
