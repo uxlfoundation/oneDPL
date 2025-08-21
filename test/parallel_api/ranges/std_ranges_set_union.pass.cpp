@@ -19,14 +19,14 @@
 namespace test_std_ranges
 {
 template<>
-inline int out_size_with_empty_r2<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_union)>>(int r1_size)
+inline int out_size_with_empty_in2<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_union)>>(int in1_size)
 {
-    return r1_size;
+    return in1_size;
 }
 template<>
-inline int out_size_with_empty_r1<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_union)>>(int r2_size)
+inline int out_size_with_empty_in1<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_union)>>(int in2_size)
 {
-    return r2_size;
+    return in2_size;
 }
 }
 
@@ -79,42 +79,25 @@ void test_mixed_types_device()
     sycl::queue q = policy.queue();
     if (q.get_device().has(sycl::aspect::usm_shared_allocations))
     {
-        A* d_r1 = sycl::malloc_shared<A>(3, q);
-        B* d_r2 = sycl::malloc_shared<B>(4, q);
+        using r1_alloc_t = sycl::usm_allocator<A, sycl::usm::alloc::shared>;
+        using r2_alloc_t = sycl::usm_allocator<B, sycl::usm::alloc::shared>;
+        using r_out_alloc_t = sycl::usm_allocator<int, sycl::usm::alloc::shared>;
 
-        d_r1[0] = {1};
-        d_r1[1] = {2};
-        d_r1[2] = {3};
-
-        d_r2[0] = {0};
-        d_r2[1] = {2};
-        d_r2[2] = {2};
-        d_r2[3] = {3};
-
-        int* d_rout = sycl::malloc_shared<int>(5, q);
-        d_rout[0] = 0xCD;
-        d_rout[1] = 0xCD;
-        d_rout[2] = 0xCD;
-        d_rout[3] = 0xCD;
-        d_rout[4] = 0xCD;
-
+        std::vector<A, r1_alloc_t> v1({{1}, {2}, {3}}, r1_alloc_t(q));
+        std::vector<B, r2_alloc_t> v2({{0}, {2}, {2}, {3}}, r2_alloc_t(q));
+        std::vector<int, r_out_alloc_t> out(5, 0xCD, r_out_alloc_t(q));
         std::vector<int> out_expected = {0, 1, 2, 2, 3};
 
-        std::ranges::subrange r1_range(d_r1, d_r1 + 3);
-        std::ranges::subrange r2_range(d_r2, d_r2 + 4);
-        std::ranges::subrange rout_range(d_rout, d_rout + 5);
+        // Wrap vector with a USM allocator into the subrange because it is not device copyable
+        std::ranges::subrange r1(v1.data(), v1.data() + 3);
+        std::ranges::subrange r2(v2.data(), v2.data() + 4);
+        std::ranges::subrange r_out(out.data(), out.data() + 5);
 
         auto proj_a = [](const A& a) { return a.a; };
         auto proj_b = [](const B& b) { return b.b; };
 
-        oneapi::dpl::ranges::set_union(
-            policy, r1_range, r2_range, rout_range, std::ranges::less{}, proj_a, proj_b);
-
-        EXPECT_EQ_RANGES(out_expected, rout_range, "wrong result with device policy");
-
-        sycl::free(d_r1, q);
-        sycl::free(d_r2, q);
-        sycl::free(d_rout, q);
+        oneapi::dpl::ranges::set_union(policy, r1, r2, r_out, std::ranges::less{}, proj_a, proj_b);
+        EXPECT_EQ_RANGES(out_expected, out, "wrong result with device policy");
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -129,14 +112,14 @@ main()
 
     auto set_union_checker = [](std::ranges::random_access_range auto&& r1,
                                 std::ranges::random_access_range auto&& r2,
-                                std::ranges::random_access_range auto&& rout, auto&&... args)
+                                std::ranges::random_access_range auto&& r_out, auto&&... args)
     {
         auto res = std::ranges::set_union(std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2),
-                                          std::ranges::begin(rout), std::forward<decltype(args)>(args)...);
+                                          std::ranges::begin(r_out), std::forward<decltype(args)>(args)...);
 
         using ret_type = std::ranges::set_union_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
                                                        std::ranges::borrowed_iterator_t<decltype(r2)>,
-                                                       std::ranges::borrowed_iterator_t<decltype(rout)>>;
+                                                       std::ranges::borrowed_iterator_t<decltype(r_out)>>;
         return ret_type{res.in1, res.in2, res.out};
     };
 
