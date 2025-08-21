@@ -1475,7 +1475,7 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
     if (__n1 == 0 || __n2 > __n1)
         return false;
 
-    using __brick_include_type = unseq_backend::__brick_includes<decltype(__n2), decltype(__n1), _Compare>;
+    using __brick_includes_t = unseq_backend::__brick_includes<decltype(__n2), decltype(__n1), _Compare>;
     using _TagType = __par_backend_hetero::__parallel_or_tag;
     using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
@@ -1484,7 +1484,7 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
     auto __buf2 = __keep(__first2, __last2);
 
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                                  __brick_include_type{__n2, __n1, __comp}, _TagType{},
+                                                                  __brick_includes_t{__n2, __n1, __comp}, _TagType{},
                                                                   __size_calc{}, __buf2.all_view(), __buf1.all_view());
 }
 
