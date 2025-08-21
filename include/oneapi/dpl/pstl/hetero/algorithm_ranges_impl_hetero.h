@@ -873,13 +873,13 @@ __pattern_includes(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
         return false;
 
     using __brick_include_type =
-        unseq_backend::__brick_includes<decltype(__comp), decltype(__n2), decltype(__n1), _Proj2, _Proj1>;
+        unseq_backend::__brick_includes<decltype(__n2), decltype(__n1), _Comp, _Proj2, _Proj1>;
     using _TagType = __par_backend_hetero::__parallel_or_tag;
     using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        __brick_include_type{__comp, __n2, __n1, __proj2, __proj1}, _TagType{}, __size_calc{},
+        __brick_include_type{__n2, __n1, __comp, __proj2, __proj1}, _TagType{}, __size_calc{},
         oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_read(__r1));
 }
 
