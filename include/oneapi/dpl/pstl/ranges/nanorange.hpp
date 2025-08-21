@@ -8706,7 +8706,7 @@ struct inplace_merge_fn
 
             // shrink [first, middle) as much as possible (with no moves),
             // returning if it shrinks to 0
-            for (; true; ++first, --len1)
+            for (; true; ++first, (void)--len1)
             {
                 if (len1 == 0)
                 {

@@ -653,7 +653,8 @@ __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
         __it += __cur;
         if (__comp(std::invoke(__proj, __acc[__it]), __value))
         {
-            __n -= __cur + 1, __first = ++__it;
+            __n -= __cur + 1;
+            __first = ++__it;
         }
         else
             __n = __cur;
