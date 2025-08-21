@@ -39,7 +39,7 @@ struct test_one_policy
     check_and_reset(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, OutputIterator out_first)
     {
         typename ::std::iterator_traits<OutputIterator>::difference_type k = 0;
-        for (; first1 != last1; ++first1, ++first2, ++out_first, ++k)
+        for (; first1 != last1; ++first1, (void) ++first2, ++out_first, (void) ++k)
         {
             // check
             using Out = decltype(get_out_type(*out_first));
