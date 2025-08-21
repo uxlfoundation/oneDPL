@@ -46,13 +46,8 @@ main()
                       std::ranges::random_access_range auto&& r2,
                       std::ranges::random_access_range auto&& r_out, auto&&... args)
     {
-        auto res = std::ranges::set_symmetric_difference(std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2),
-                                                         std::ranges::begin(r_out), std::forward<decltype(args)>(args)...);
-
-        using ret_type = std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
-                                                                      std::ranges::borrowed_iterator_t<decltype(r2)>,
-                                                                      std::ranges::borrowed_iterator_t<decltype(r_out)>>;
-        return ret_type{res.in1, res.in2, res.out};
+        return std::ranges::set_symmetric_difference(std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2),
+                                                     std::ranges::begin(r_out), std::forward<decltype(args)>(args)...);
     };
 
     test_range_algo<0, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_symmetric_difference, checker);
