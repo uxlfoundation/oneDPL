@@ -1769,7 +1769,7 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
                         _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator2 __last2,
                         _OutputIterator __result, _Compare __comp, _SetTag __set_tag)
 {
-    typedef typename std::iterator_traits<_ForwardIterator1>::difference_type _Size1;
+    using _Size1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
 
     const _Size1 __n1 = std::distance(__first1, __last1);
     _Size1 __output_size = __n1;
@@ -2013,7 +2013,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
     }
     else
     {
-        typedef typename std::iterator_traits<_OutputIterator>::value_type _ValueType;
+        using _ValueType = typename std::iterator_traits<_OutputIterator>::value_type;
 
         // temporary buffers to store intermediate result
         const auto __n1 = __last1 - __first1;
