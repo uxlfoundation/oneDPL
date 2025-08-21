@@ -1322,7 +1322,6 @@ class __brick_set_op
 
             const _Size2 __count_b =
                 __internal::__pstl_right_bound(__b, _Size2(__res), __nb, __eval_proj_b(__val_b), __comp, __proj2) -
-                __res + __res -
                 __internal::__pstl_left_bound(__b, _Size2(0), _Size2(__res), __eval_proj_b(__val_b), __comp, __proj2);
 
             if constexpr (_IsOpDifference::value)
