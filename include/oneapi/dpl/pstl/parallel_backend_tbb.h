@@ -132,7 +132,7 @@ __parallel_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&
 template <class _Index, class _Up, class _Tp, class _Cp, class _Rp>
 struct __par_trans_red_body
 {
-    oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __lazy_sum;
+    std::optional<_Tp> __lazy_sum;
     _Rp _M_brick_reduce;
     _Up _M_u;
     _Cp _M_combine;
@@ -141,12 +141,12 @@ struct __par_trans_red_body
     sum()
     {
         __TBB_ASSERT(_M_has_sum, "sum expected");
-        return std::move(__lazy_sum.__v);
+        return std::move(__lazy_sum.value());
     }
     __par_trans_red_body(_Up __u, _Tp __init, _Cp __c, _Rp __r)
         : _M_brick_reduce(__r), _M_u(__u), _M_combine(__c), _M_has_sum(true)
     {
-        __lazy_sum.__setup(std::move(__init));
+        __lazy_sum.emplace(std::move(__init));
     }
 
     __par_trans_red_body(__par_trans_red_body& __left, tbb::split)
@@ -154,17 +154,11 @@ struct __par_trans_red_body
     {
     }
 
-    ~__par_trans_red_body()
-    {
-        // 17.6.5.12 tells us to not worry about catching exceptions from destructors.
-        if (_M_has_sum)
-            __lazy_sum.__destroy();
-    }
-
     void
     join(__par_trans_red_body& __rhs)
     {
-        __lazy_sum.__v = _M_combine(std::move(__lazy_sum.__v), std::move(__rhs.__lazy_sum.__v));
+        _Tp& __sum = __lazy_sum.value();
+        __sum = _M_combine(std::move(__sum), std::move(__rhs.__lazy_sum.value()));
     }
 
     void
@@ -175,13 +169,14 @@ struct __par_trans_red_body
         if (!_M_has_sum)
         {
             __TBB_ASSERT(__range.size() > 1, "there should be at least 2 elements");
-            __lazy_sum.__setup(_M_combine(_M_u(__i), _M_u(__i + 1)));
+            __lazy_sum.emplace(_M_combine(_M_u(__i), _M_u(__i + 1)));
             _M_has_sum = true;
             ::std::advance(__i, 2);
             if (__i == __j)
                 return;
         }
-        __lazy_sum.__v = _M_brick_reduce(__i, __j, std::move(__lazy_sum.__v));
+        _Tp& __sum = __lazy_sum.value();
+        __sum = _M_brick_reduce(__i, __j, std::move(__sum));
     }
 };
 
