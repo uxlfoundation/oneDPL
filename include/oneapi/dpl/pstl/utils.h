@@ -805,13 +805,11 @@ __pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __v
     auto __end = _ReverseCounter<_Index, _Buffer>{__first - 1};
 
     __reorder_pred<_Compare> __reordered_comp{__comp};
-
-    // Now required to apply __proj not to the first comparison argument, but to the second one
-    __binary_op<decltype(__reordered_comp), oneapi::dpl::identity, _Proj> __reordered_comp_pack{
+    // __proj must be applied to the second argument after the argument reordering
+    __binary_op<decltype(__reordered_comp), oneapi::dpl::identity, _Proj> __reordered_proj_comp{
         __reordered_comp, oneapi::dpl::identity{}, __proj};
 
-    // And we can guarantee that we pass arguments in the right order in according to our projections
-    return __pstl_upper_bound(__a, __beg, __end, __val, __reordered_comp_pack);
+    return __pstl_upper_bound(__a, __beg, __end, __val, __reordered_proj_comp);
 }
 
 // Lower bound implementation based on Shar's algorithm for binary search.
