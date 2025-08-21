@@ -1009,11 +1009,11 @@ struct __brick_includes
         using std::get;
 
         auto __proj_rng_1 = [this](auto&& __val) {
-            return std::invoke(__proj2, std::forward<decltype(__val)>(__val));
+            return std::invoke(__proj1, std::forward<decltype(__val)>(__val));
         };
 
         auto __proj_rng_2 = [this](auto&& __val) {
-            return std::invoke(__proj1, std::forward<decltype(__val)>(__val));
+            return std::invoke(__proj2, std::forward<decltype(__val)>(__val));
         };
 
         // testing __comp(*__first2, *__first1) or __comp(*(__last1 - 1), *(__last2 - 1))
@@ -1026,7 +1026,7 @@ struct __brick_includes
         const auto __val_b = __rng1[__idx_b];
 
         auto __res =
-            __internal::__pstl_lower_bound(__rng2, _Size1{0}, __size2, __proj_rng_1(__val_b), __comp, __proj1);
+            __internal::__pstl_lower_bound(__rng2, _Size1{0}, __size2, __proj_rng_1(__val_b), __comp, __proj2);
 
         // {a} < {b} or __val_b != __rng2[__res]
         if (__res == __size2 || __comp(__proj_rng_1(__val_b), __proj_rng_2(__rng2[__res])))
@@ -1036,13 +1036,13 @@ struct __brick_includes
 
         //searching number of duplication
         const auto __count_a =
-            __internal::__pstl_right_bound(__rng2, __res, __size2, __proj_rng_2(__val_a), __comp, __proj1) -
-            __internal::__pstl_left_bound(__rng2, _Size1{0}, __res, __proj_rng_2(__val_a), __comp, __proj1);
+            __internal::__pstl_right_bound(__rng2, __res, __size2, __proj_rng_2(__val_a), __comp, __proj2) -
+            __internal::__pstl_left_bound(__rng2, _Size1{0}, __res, __proj_rng_2(__val_a), __comp, __proj2);
 
         const auto __count_b =
-            __internal::__pstl_right_bound(__rng1, _Size2(__idx_b), __size1, __proj_rng_1(__val_b), __comp, __proj2) -
+            __internal::__pstl_right_bound(__rng1, _Size2(__idx_b), __size1, __proj_rng_1(__val_b), __comp, __proj1) -
             __idx_b + __idx_b -
-            __internal::__pstl_left_bound(__rng1, _Size2{0}, _Size2(__idx_b), __proj_rng_1(__val_b), __comp, __proj2);
+            __internal::__pstl_left_bound(__rng1, _Size2{0}, _Size2(__idx_b), __proj_rng_1(__val_b), __comp, __proj1);
 
         return __count_b > __count_a; //false means __rng2 includes __rng1
     }
