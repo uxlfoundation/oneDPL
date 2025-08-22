@@ -774,7 +774,9 @@ struct __merge_fn
         && std::ranges::sized_range<_R2> && std::ranges::sized_range<_OutRange>
         && std::mergeable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
         std::ranges::iterator_t<_OutRange>, _Comp, _Proj1, _Proj2>
-    auto
+    std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>,
+                              std::ranges::borrowed_iterator_t<_R2>,
+                              std::ranges::borrowed_iterator_t<_OutRange>>
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {}, _Proj1 __proj1 = {},
                _Proj2 __proj2 = {}) const
     {
