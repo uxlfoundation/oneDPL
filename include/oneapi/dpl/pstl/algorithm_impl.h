@@ -3319,13 +3319,13 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
                 //try searching for the first element which not equal to *__b
                 if (__b != __first1)
-                    __b = __internal::__pstl_upper_bound(__internal::_SubscriptAdapter{}, __b, __last1, __proj1_deref(__b),
-                                                         __comp, __proj1);
+                    __b = __internal::__pstl_upper_bound(__internal::_SubscriptAdapter{}, __b, __last1,
+                                                         __proj1_deref(__b), __comp, __proj1);
 
                 //try searching for the first element which not equal to *__e
                 if (__e != __last1)
-                    __e = __internal::__pstl_upper_bound(__internal::_SubscriptAdapter{}, __e, __last1, __proj1_deref(__e),
-                                                         __comp, __proj1);
+                    __e = __internal::__pstl_upper_bound(__internal::_SubscriptAdapter{}, __e, __last1,
+                                                         __proj1_deref(__e), __comp, __proj1);
 
                 //check is [__b; __e) empty
                 if (__e - __b < 1)
@@ -3347,8 +3347,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
                 _RandomAccessIterator2 __ee = __last2;
                 if (__e != __last1)
-                    __ee = __internal::__pstl_lower_bound(__internal::_SubscriptAdapter{}, __bb, __last2, __proj1_deref(__e),
-                                                          __comp, __proj2);
+                    __ee = __internal::__pstl_lower_bound(__internal::_SubscriptAdapter{}, __bb, __last2,
+                                                          __proj1_deref(__e), __comp, __proj2);
 
                 const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
                 auto __buffer_b = __tmp_memory + __buf_pos;
