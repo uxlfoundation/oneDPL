@@ -319,7 +319,8 @@ Testing for these changes should include:
     * Less freedom in stored execution resource type
 
 ## Open questions
-What other backends would make sense as examples / descriptive tests for dynamic selection?
+* What other backends would make sense as examples / descriptive tests for dynamic selection?
+* Should users have a way to get / query the resource adapter function from their submitted workloads?
 
 ## Conclusion
 
