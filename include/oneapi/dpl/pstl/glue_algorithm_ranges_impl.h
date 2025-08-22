@@ -167,7 +167,7 @@ struct __find_if_not_fn
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
-    auto
+    std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
