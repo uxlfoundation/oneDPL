@@ -15,6 +15,14 @@
 
 #include "std_ranges_test.h"
 
+#if _ENABLE_STD_RANGES_TESTING
+namespace test_std_ranges
+{
+template<>
+constexpr bool supress_dangling_iterators_check<std::remove_cvref_t<decltype(oneapi::dpl::ranges::mismatch)>> = true;
+}
+#endif
+
 std::int32_t
 main()
 {
