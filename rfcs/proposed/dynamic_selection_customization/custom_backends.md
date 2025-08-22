@@ -31,12 +31,12 @@ With sensible defaults, this proposal aims to simplify backend writing to open u
 
 ## Proposed Design to Enable Easier Customization of Backends
 
-This proposal presents a flexible backend system based on a `backend_base` template class and a `default_backend` template that can be used for most resource types. The design uses CRTP (Curiously Recurring Template Pattern) to allow customization while providing sensible defaults.
+This proposal presents a flexible backend system based on a `backend_base` template class and a `default_backend_impl` template that can be used for most resource types. The design uses CRTP (Curiously Recurring Template Pattern) to allow customization while providing sensible defaults.
 
 ### Key Components
 
 1. **`backend_base<ResourceType, Backend>`**: A proposed base class template that implements the core backend functionality using CRTP.
-2. **`default_backend_impl<typename BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support. A developer creates a partial specialization of `default_backend_impl` to create a specific backend for the `BaseResourceType`. Adapters can be used with `default_backend` to reuse `default_backend_impl` for a `ResourceType` that is adapted to a `BaseResourceType`.
+2. **`default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support. A developer creates a partial specialization of `default_backend_impl` to create a specific backend for the `BaseResourceType`. Adapters can be used with `default_backend` to reuse `default_backend_impl` for a `ResourceType` that is adapted to a `BaseResourceType`.
 3. **`default_backend<ResourceType, ResourceAdapter>`**: A proposed template that determines the `BaseResourceType` from the `ResourceType` and `ResourceAdapter`.
 4. **A SYCL specialization of default_backend_impl**: A specialized implementation for `sycl::queue` resources that handles SYCL-specific event management and profiling. Using an adapter, it is possible to reuse this for other types that can be adapted into a `sycl::queue`, such as a `sycl::queue *` or a struct that contains a `sycl::queue`.
 
@@ -207,7 +207,7 @@ For SYCL resources, the proposed specialization provides:
 ## Support for Custom Resource Types
 
 A primary goal of this proposal is to enable easy use of custom resource types with Dynamic Selection. The default backend can work many resource types, making it straightforward to integrate new kinds of compute resources without writing complex backend code. If the defaults are not sufficient, a custom backend can be written by 
-partially specializing `default_backend`. 
+partially specializing `default_backend_impl`. 
 
 ### Custom Resource Example: TBB Task Groups and Arenas
 
@@ -254,7 +254,7 @@ ex::wait(rr.get_submission_group());
 
 If `ArenaAndGroup` will be used with policies that require instrumentation, then
 a custom backend that provides `instrument_before_impl` and `instrument_after_impl`
-will be needed. This can be done by partially specializing `default_backend`.
+will be needed. This can be done by partially specializing `default_backend_impl`.
 
 ## Adapter Support for Resource Transformation
 
