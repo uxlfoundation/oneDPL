@@ -43,6 +43,10 @@ static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202505L);
 namespace test_std_ranges
 {
 
+// To suppress dangling iterator checks for some tests
+template <typename>
+constexpr bool supress_dangling_iterators_check = false;
+
 // The largest specializations of algorithms with device policies handle 16M+ elements.
 inline constexpr int big_size = (1<<24) + 10; //16M
 
@@ -170,6 +174,39 @@ constexpr int calc_res_size(int n, int) { return n; }
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_zero = [](auto) { return 0;};
 
+template <typename _ReturnType>
+struct __all_dangling_in_result : std::false_type
+{
+};
+
+template <>
+struct __all_dangling_in_result<std::ranges::dangling> : std::true_type
+{
+};
+
+template <>
+struct __all_dangling_in_result<std::ranges::in_in_result<std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <>
+struct __all_dangling_in_result<std::ranges::in_out_result<std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <>
+struct __all_dangling_in_result<std::ranges::in_in_out_result<std::ranges::dangling, std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <>
+struct __all_dangling_in_result<std::ranges::in_out_out_result<std::ranges::dangling, std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <typename _ReturnType>
+constexpr bool __all_dangling_in_result_v = __all_dangling_in_result<_ReturnType>::value;
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test
@@ -207,8 +244,8 @@ private:
         decltype(auto) r_in = tr_in(A);
         auto res = algo(CLONE_TEST_POLICY(exec), r_in, args...);
 
-        //check result
-        static_assert(std::is_same_v<decltype(res), decltype(checker(r_in, args...))>, "Wrong return type");
+        // check result types
+        static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
         using Algo = decltype(algo);
         EXPECT_EQ(ret_in_val(expected_res, expected_view.begin()), ret_in_val(res, r_in.begin()),
@@ -222,6 +259,31 @@ private:
 
         EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("wrong effect algo with ranges: ")
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+
+        // Check dangling iterators in return types for call with temporary data
+        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+            using T = typename Container::__value_type;
+            using TmpContainerT = std::vector<T>;
+
+            // Check dangling with temporary containers in checker
+            using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(), args...));
+
+            // Check dangling with temporary containers in implementation
+            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 200), std::declval<TmpContainerT>(), args...));
+
+            // check result types
+            static_assert(std::is_same_v<checker_ret_t, res_ret_t>, "Wrong return type");
+
+            if constexpr (!std::is_fundamental_v<checker_ret_t>)
+            {
+                if constexpr (!__all_dangling_in_result_v<checker_ret_t>)
+                    checker_ret_t::dummy;
+
+                if constexpr (!__all_dangling_in_result_v<res_ret_t>)
+                    res_ret_t::dummy;
+            }
+        }
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
@@ -247,8 +309,8 @@ private:
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
 
-        //check result
-        static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_out(B), args...))>, "Wrong return type");
+        // check result types
+        static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
         EXPECT_EQ(ret_in_val(expected_res, src_view.begin()), ret_in_val(res, tr_in(A).begin()),
                   (std::string("wrong return value from algo with input range: ") + typeid(Algo).name()).c_str());
@@ -259,6 +321,36 @@ private:
         //check result
         auto n = std::ranges::size(exp_view);
         EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+
+        // Check dangling iterators in return types for call with temporary data
+        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+            using T = typename Container::__value_type;
+            using TmpContainerT = std::vector<T>;
+
+            // Check dangling with temporary containers in checker
+            using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(),
+                                                   std::declval<TmpContainerT>(),
+                                                   args...));
+
+            // Check dangling with temporary containers in implementation
+            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 300),
+                                            std::declval<TmpContainerT>(),
+                                            std::declval<TmpContainerT>(),
+                                            args...));
+
+            // check result types
+            static_assert(std::is_same_v<checker_ret_t, res_ret_t>, "Wrong return type");
+
+            if constexpr (!std::is_fundamental_v<checker_ret_t>)
+            {
+                if constexpr (!__all_dangling_in_result_v<checker_ret_t>)
+                    checker_ret_t::dummy;
+
+                if constexpr (!__all_dangling_in_result_v<res_ret_t>)
+                    res_ret_t::dummy;
+            }
+        }
     }
 
 public:
@@ -322,7 +414,9 @@ private:
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), args...);
 
-        static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), args...))>, "Wrong return type");
+        // check result types
+        static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
+
         if constexpr (!std::is_same_v<decltype(res), bool>)
         {
             EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
@@ -335,6 +429,39 @@ private:
                       (std::string("wrong return value from algo: ") + typeid(decltype(algo)).name() +
                        typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
         }
+
+        // Check dangling iterators in return types for call with temporary data
+        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+            if constexpr (!std::is_same_v<decltype(res), bool>)
+            {
+                using T = typename Container::__value_type;
+                using TmpContainerT = std::vector<T>;
+
+                // Check dangling with temporary containers in checker
+                using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(),
+                                                       std::declval<TmpContainerT>(),
+                                                       args...));
+
+                // Check dangling with temporary containers in implementation
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 400),
+                                                std::declval<TmpContainerT>(),
+                                                std::declval<TmpContainerT>(),
+                                                args...));
+
+                // check result types
+                static_assert(std::is_same_v<checker_ret_t, res_ret_t>, "Wrong return type");
+
+                if constexpr (!std::is_fundamental_v<checker_ret_t>)
+                {
+                    if constexpr (!__all_dangling_in_result_v<checker_ret_t>)
+                        checker_ret_t::dummy;
+
+                    if constexpr (!__all_dangling_in_result_v<res_ret_t>)
+                        res_ret_t::dummy;
+                }
+            }
+        }        
     }
 
     struct TransformOp
@@ -373,7 +500,8 @@ private:
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
 
-        static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), tr_out(C), args...))>, "Wrong return type");
+        // check result types
+        static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
         EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
                   (std::string("wrong return value from algo with input range 1: ") + typeid(Algo).name()).c_str());
@@ -388,6 +516,38 @@ private:
         auto n = std::ranges::size(expected_view);
         EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Policy).name()
             + typeid(Algo).name()).c_str());
+
+        // Check dangling iterators in return types for call with temporary data
+        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+            using T = typename Container::__value_type;
+            using TmpContainerT = std::vector<T>;
+
+            // Check dangling with temporary containers in checker
+            using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(),
+                                                   std::declval<TmpContainerT>(),
+                                                   std::declval<TmpContainerT>(),
+                                                   args...));
+
+            // Check dangling with temporary containers in implementation
+            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 100),
+                                            std::declval<TmpContainerT>(),
+                                            std::declval<TmpContainerT>(),
+                                            std::declval<TmpContainerT>(),
+                                            args...));
+
+            // check result types
+            static_assert(std::is_same_v<checker_ret_t, res_ret_t>, "Wrong return type");
+
+            if constexpr (!std::is_fundamental_v<checker_ret_t>)
+            {
+                if constexpr (!__all_dangling_in_result_v<checker_ret_t>)
+                    checker_ret_t::dummy;
+
+                if constexpr (!__all_dangling_in_result_v<res_ret_t>)
+                    res_ret_t::dummy;
+            }
+        }
     }
 
 public:
@@ -460,6 +620,8 @@ private:
 template<typename T, typename ViewType>
 struct host_subrange_impl
 {
+    using __value_type = T;
+
     static_assert(std::is_trivially_copyable_v<T>,
         "Memory initialization within the class relies on trivially copyability of the type T");
 
@@ -502,6 +664,8 @@ using  host_span = host_subrange_impl<T, std::span<T>>;
 template<typename T>
 struct host_vector
 {
+    using __value_type = T;
+
     using type = std::vector<T>;
     type vec;
     T* p = nullptr;
@@ -530,6 +694,8 @@ struct host_vector
 template<typename T>
 struct usm_vector
 {
+    using __value_type = T;
+
     using shared_allocator = sycl::usm_allocator<T, sycl::usm::alloc::shared>;
     using type = std::vector<T, shared_allocator>;
 
@@ -561,6 +727,8 @@ struct usm_vector
 template<typename T, typename ViewType>
 struct usm_subrange_impl
 {
+    using __value_type = T;
+
     static_assert(std::is_trivially_copyable_v<T>,
         "Memory initialization within the class relies on trivially copyability of the type T");
 
