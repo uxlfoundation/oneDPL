@@ -360,7 +360,6 @@ inline void unsupported_types_notifier(const sycl::device& device)
     }
 }
 
-
 // Invoke test::operator()(policy,rest...) for each possible policy.
 template <::std::size_t CallNumber = 0>
 struct invoke_on_all_hetero_policies
@@ -385,11 +384,6 @@ struct invoke_on_all_hetero_policies
             iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
                 my_policy, op, std::forward<Args>(rest)...);
 
-
-#if TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
-            TestUtils::check_compilation_no_comma(my_policy, op, rest...);
-#endif
-
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
             // Check compilation of the kernel with different policy type qualifiers
             check_compilation(my_policy, [&](auto&& __policy) {
@@ -397,6 +391,11 @@ struct invoke_on_all_hetero_policies
                     std::forward<decltype(__policy)>(__policy), op, std::forward<Args>(rest)...);
             });
 #endif // TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+
+#if TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
+            TestUtils::check_compilation_no_comma(CLONE_TEST_POLICY_IDX(my_policy, 1), op, rest...);
+#endif
+
         }
         else
         {
