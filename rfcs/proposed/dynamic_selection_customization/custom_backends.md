@@ -311,12 +311,12 @@ Testing for these changes should include:
  be paired 1-to-1 with execution resources if provided, and if specified, passed to user-submitted workloads alongside the
  execution resource. This extra resource would be user-defined and would exist to provide freedom to the user to attach
  other information to a resource while still relying upon a defined backend since the execution resource would not be changed.
-    Advantages:
-    * Slightly more straightforward to use than the resource adapter idea
-    Disadvantages:
-    * Much more complex impact on dynamic selection code (less elegant)
-    * More overhead in copying around extra resources and/or requiring users to provide extra resources which can be copied around with minimal overhead
-    * Less freedom in stored execution resource type
+#### Advantages:
+* Slightly more straightforward to use than the resource adapter idea
+#### Disadvantages:
+* Much more complex impact on dynamic selection code (less elegant)
+* More overhead in copying around extra resources and/or requiring users to provide extra resources which can be copied around with minimal overhead
+* Less freedom in stored execution resource type
 
 ## Open questions
 * What other backends would make sense as examples / descriptive tests for dynamic selection?
