@@ -297,6 +297,30 @@ Adapters enable several useful patterns:
 3. **Type Conversion**: Convert between compatible resource types
 4. **Ownership Management**: Pair a context (memory space, side information, etc.) with a core resource, but rely on the implementation of the core resource without extra backend implementation.
 
+## Testing
+Testing for this should include:
+ * test of sycl backend using a ``sycl::queue*`` as the execution resource with a dereferencing resource adapter function.
+ * test of automatic backend selection via providing a universe of resources to construction which are used to deduce backend
+ * Test of backend using default backend for a simple resource type
+ * Test of backend using backend with minimally overriden instrument before and instrument after for a simple resource type
+
+## Explored Alternatives
+
+### Extra Resource (alternative to resource adapter)
+ As an alternative to the resource adapter idea, we explored adding an optional "extra resource" universe which would
+ be paired 1-to-1 with execution resources if provided, and if specified passed to user submitted workloads alongside the
+ execution resource. This extra resource would be user defined and would exist to provide freedom to the user to attach
+ other information to a resource while still relying upon a defined backend since the execution resource would not be changed.
+    Advantages:
+    * Slightly more straightforward to use than the resource adapter idea
+    Disadvantages:
+    * Much more complex in impact to dynamic selection code (less elegant)
+    * More overhead in copying around extra resources and/or coaching users to provide extra resources which can be copied around with minimal overhead
+    * Less freedom of stored execution resource type
+
+## Open questions
+What other backends would make sense as examples / descriptive tests for dynamic selection?
+
 ## Conclusion
 
 This proposal presents a simplified approach to backend customization for Dynamic Selection. Key benefits include:
