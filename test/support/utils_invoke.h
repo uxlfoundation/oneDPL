@@ -360,6 +360,7 @@ inline void unsupported_types_notifier(const sycl::device& device)
     }
 }
 
+
 // Invoke test::operator()(policy,rest...) for each possible policy.
 template <::std::size_t CallNumber = 0>
 struct invoke_on_all_hetero_policies
@@ -383,6 +384,7 @@ struct invoke_on_all_hetero_policies
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
             iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
                 my_policy, op, std::forward<Args>(rest)...);
+
 
 #if TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
             TestUtils::check_compilation_no_comma(CLONE_TEST_POLICY_IDX(my_policy, 1), op, rest...);
