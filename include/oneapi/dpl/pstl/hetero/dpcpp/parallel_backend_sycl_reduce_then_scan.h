@@ -211,6 +211,43 @@ struct __write_red_by_seg
     std::size_t __n;
 };
 
+template <bool __is_inclusive, typename _InitType, typename _BinaryOp>
+struct __write_scan_by_seg
+{
+    using _TempData = __noop_temp_data;
+    _InitType __init_value;
+    _BinaryOp __binary_op;
+
+    template <typename _OutRng, typename _ValueType>
+    void
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    {
+        using std::get;
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
+        // through.
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(get<0>(__v)))>,
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        if constexpr (__is_inclusive)
+        {
+            static_assert(std::is_same_v<_InitType,
+                                         oneapi::dpl::unseq_backend::__no_init_value<typename _InitType::__value_type>>,
+                          "inclusive_scan_by_segment must not have an initial element");
+            __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
+        }
+        else
+        {
+            static_assert(
+                std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__init_value<typename _InitType::__value_type>>,
+                "exclusive_scan_by_segment must have an initial element");
+            __out_rng[__id] =
+                get<1>(__v) ? static_cast<_ConvertedTupleType>(__init_value.__value)
+                            : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
+        }
+    }
+};
+
 // Writes multiple elements from temp data to the output range. The values to write are stored in `__temp_data` from a
 // previous operation, and must be written to the output range in the appropriate location. The zeroth element of `__v`
 // will contain the index of one past the last element to write, and the first element of `__v` will contain the number
@@ -730,6 +767,27 @@ struct __gen_red_by_seg_reduce_input
     _BinaryPred __binary_pred;
 };
 
+template <typename _BinaryPred>
+struct __gen_scan_by_seg_reduce_input
+{
+    using TempData = __noop_temp_data;
+    // Returns the following tuple:
+    // (new_seg_mask, value)
+    // bool new_seg_mask : true for a start of a new segment, false otherwise
+    // ValueType value   : Current element's value for reduction
+    template <typename _InRng>
+    auto
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    {
+        const auto __in_keys = std::get<0>(__in_rng.tuple());
+        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
+        const std::uint32_t __new_seg_mask = __id == 0 || !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
+        return oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]});
+    }
+    _BinaryPred __binary_pred;
+};
+
 // Generates input for a scan operation by applying a binary predicate to the keys of the input range.
 template <typename _BinaryPred>
 struct __gen_red_by_seg_scan_input
@@ -781,6 +839,32 @@ struct __gen_red_by_seg_scan_input
     _BinaryPred __binary_pred;
     // For correctness of the function call operator, __n must be greater than 1.
     std::size_t __n;
+};
+
+template <typename _BinaryPred>
+struct __gen_scan_by_seg_scan_input
+{
+    using TempData = __noop_temp_data;
+    // Returns the following tuple:
+    // ((new_seg_mask, value), new_seg_mask)
+    // bool new_seg_mask : true for a start of a new segment, false otherwise
+    // ValueType value   : Current element's value for reduction
+    template <typename _InRng>
+    auto
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    {
+        const auto __in_keys = std::get<0>(__in_rng.tuple());
+        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
+        // Mark the first index as a new segment as well as an indexing corresponding to any key
+        // that does not satisfy the binary predicate with the previous key. The first tuple mask element
+        // is scanned over, and the third is a placeholder for exclusive_scan_by_segment to perform init
+        // handling in the output write.
+        const std::uint32_t __new_seg_mask = __id == 0 || !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
+        return oneapi::dpl::__internal::make_tuple(
+            oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]}), __new_seg_mask);
+    }
+    _BinaryPred __binary_pred;
 };
 
 // Reduction operation for reduce-by-segment
@@ -838,15 +922,40 @@ struct __red_by_seg_op
     {
         using std::get;
         using _OpReturnType = decltype(__binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
-        // The left-hand side has processed elements from the same segment, so update the reduction value.
         if (get<0>(__rhs_tup) == 0)
         {
+            // The left-hand side and right-hand side are processing the same segment, so update the reduction value.
+            // We additionally propagate the left-hand side's flag get<0>(__lhs_tup) forward to communicate in the next
+            // iteration if the segment end has been found.
             return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup),
                                                        __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         }
         // We are looking at elements from a previous segment so just update the output index.
         return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup) + get<0>(__rhs_tup),
                                                    _OpReturnType{get<1>(__rhs_tup)});
+    }
+    _BinaryOp __binary_op;
+};
+
+template <typename _BinaryOp>
+struct __scan_by_seg_op
+{
+    template <typename _Tup1, typename _Tup2>
+    auto
+    operator()(const _Tup1& __lhs_tup, const _Tup2& __rhs_tup) const
+    {
+        using std::get;
+        using _OpReturnType = decltype(__binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
+        if (get<0>(__rhs_tup) == 0)
+        {
+            // The left-hand side and right-hand side are processing on the same segment, so update the scan value. We
+            // additionally propagate the left-hand side's flag get<0>(__lhs_tup) forward to communicate in the next
+            // iteration if the segment end has been found.
+            return oneapi::dpl::__internal::make_tuple(get<0>(__lhs_tup),
+                                                       __binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
+        }
+        // We are looking at elements from a previous segment, so no operation is performed
+        return oneapi::dpl::__internal::make_tuple(std::uint32_t{1}, _OpReturnType{get<1>(__rhs_tup)});
     }
     _BinaryOp __binary_op;
 };
@@ -1237,7 +1346,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                         oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
                     if (__iters == 1)
                     {
-                        // fill with unused dummy values to avoid overruning input
+                        // fill with unused dummy values to avoid overrunning input
                         std::uint32_t __load_id = std::min(std::uint32_t{__sub_group_local_id}, __active_subgroups - 1);
                         _InitValueType __v = __sub_group_partials[__load_id];
                         __sub_group_scan_partial<__sub_group_size, /*__is_inclusive=*/true, /*__init_present=*/false>(
@@ -1266,7 +1375,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                         // If we are past the input range, then the previous value of v is passed to the sub-group scan.
                         // It does not affect the result as our sub_group_scan will use a mask to only process in-range elements.
 
-                        // fill with unused dummy values to avoid overruning input
+                        // fill with unused dummy values to avoid overrunning input
                         std::uint32_t __load_id =
                             std::min(__reduction_scan_id, __sub_group_params.__num_sub_groups_local - 1);
 
@@ -1474,7 +1583,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
 
                             std::size_t __remaining_elements =
                                 __elements_to_process - ((__pre_carry_iters - 1) * __sub_group_size);
-                            // fill with unused dummy values to avoid overruning input
+                            // fill with unused dummy values to avoid overrunning input
                             std::size_t __final_reduction_id =
                                 std::min(std::size_t{__reduction_id}, __subgroups_before_my_group - 1);
                             __value = __tmp_ptr[__final_reduction_id];
