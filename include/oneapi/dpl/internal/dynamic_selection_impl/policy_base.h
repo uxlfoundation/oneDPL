@@ -57,10 +57,11 @@ class policy_base
         static_cast<Policy*>(this)->initialize_impl();
     }
 
+    template <typename... Args>
     void 
-    initialize(const std::vector<resource_type>& u) 
+    initialize(const std::vector<resource_type>& u, Args... args) 
     {
-        if (!backend_) backend_ = std::make_shared<backend_t>(u);
+        if (!backend_) backend_ = std::make_shared<backend_t>(u, args...);
         static_cast<Policy*>(this)->initialize_impl();
     }
 

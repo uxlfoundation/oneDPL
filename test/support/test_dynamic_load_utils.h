@@ -11,6 +11,7 @@
 #define _ONEDPL_TEST_DYNAMIC_LOAD_UTILS_H
 
 #include "support/test_config.h"
+#include "oneapi/dpl/functional"
 
 #include <thread>
 #include <chrono>
@@ -29,11 +30,12 @@ template <typename Policy, int idx>
 using new_kernel_name = unique_kernel_name<std::decay_t<Policy>, idx>;
 } // namespace TestUtils
 
+template <typename Policy, typename UniverseContainer, typename... Args>
 int
-test_dl_initialization(const std::vector<sycl::queue>& u)
+test_dl_initialization(const UniverseContainer& u, Args&&... args)
 {
     // initialize
-    oneapi::dpl::experimental::dynamic_load_policy<sycl::queue> p{u}; //TODO:Remove need for type specification
+    Policy p{u, std::forward<Args>(args)...}; //TODO:Remove need for type specification
     auto u2 = oneapi::dpl::experimental::get_resources(p);
     if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
     {
@@ -42,7 +44,7 @@ test_dl_initialization(const std::vector<sycl::queue>& u)
     }
 
     // deferred initialization
-    oneapi::dpl::experimental::dynamic_load_policy<sycl::queue> p2{oneapi::dpl::experimental::deferred_initialization};
+    Policy p2{oneapi::dpl::experimental::deferred_initialization};
     try
     {
         auto u3 = oneapi::dpl::experimental::get_resources(p2);
@@ -55,7 +57,7 @@ test_dl_initialization(const std::vector<sycl::queue>& u)
     catch (...)
     {
     }
-    p2.initialize(u);
+    p2.initialize(u, std::forward<Args>(args)...);
     auto u3 = oneapi::dpl::experimental::get_resources(p);
     if (!std::equal(std::begin(u3), std::end(u3), std::begin(u)))
     {
@@ -67,12 +69,12 @@ test_dl_initialization(const std::vector<sycl::queue>& u)
     return 0;
 }
 
-template <typename Policy, typename UniverseContainer, typename ResourceFunction, bool AutoTune = false>
+template <typename Policy, typename UniverseContainer, typename ResourceFunction, bool AutoTune = false, typename... Args>
 int
-test_select(UniverseContainer u, ResourceFunction&& f)
+test_select(UniverseContainer u, ResourceFunction&& f, Args&&... args)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u};
+    my_policy_t p{u, std::forward<Args>(args)...};
 
     const int N = 100;
     std::atomic<int> ecount = 0;
@@ -116,12 +118,14 @@ test_select(UniverseContainer u, ResourceFunction&& f)
     return 0;
 }
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
+template <bool call_select_before_submit, typename CustomName, typename Policy, typename UniverseContainer, typename ResourceFunction, typename ResourceAdapter = oneapi::dpl::identity>
 int
-test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
+test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, ResourceAdapter adapter = {})
 {
     using my_policy_t = Policy;
-    my_policy_t p{u};
+
+    // This doesnt test the default initializer for policy when adapter isn't provided, but other tests do.
+    my_policy_t p{u, adapter};
 
     // Do a matrix multiply operation with each work item processing a row of the result matrix
 
@@ -169,11 +173,11 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                 }
                 if (target == 0)
                 {
-                    auto e2 = e.submit([&](sycl::handler& cgh) {
+                    auto e2 = adapter(e).submit([&](sycl::handler& cgh) {
                         auto accessorA = bufferA.get_access<sycl::access::mode::read>(cgh);
                         auto accessorB = bufferB.get_access<sycl::access::mode::read>(cgh);
                         auto accessorResultMatrix = bufferResultMatrix.get_access<sycl::access::mode::write>(cgh);
-                        cgh.parallel_for<TestUtils::unique_kernel_name<class load2, 0>>(
+                        cgh.parallel_for<TestUtils::unique_kernel_name<CustomName, 0>>(
                             sycl::range<1>(rows_c), [=](sycl::item<1> row_c) {
                                 for (size_t col_c = 0; col_c < cols_c; ++col_c)
                                 {
@@ -190,7 +194,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                 }
                 else
                 {
-                    auto e2 = e.submit([&](sycl::handler&) {});
+                    auto e2 = adapter(e).submit([&](sycl::handler&) {});
                     return e2;
                 }
             };
@@ -215,11 +219,11 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                     }
                     if (target == 0)
                     {
-                        auto e2 = e.submit([&](sycl::handler& cgh) {
+                        auto e2 = adapter(e).submit([&](sycl::handler& cgh) {
                             auto accessorA = bufferA.get_access<sycl::access::mode::read>(cgh);
                             auto accessorB = bufferB.get_access<sycl::access::mode::read>(cgh);
                             auto accessorResultMatrix = bufferResultMatrix.get_access<sycl::access::mode::write>(cgh);
-                            cgh.parallel_for<TestUtils::unique_kernel_name<class load1, 0>>(
+                            cgh.parallel_for<TestUtils::unique_kernel_name<CustomName, 1>>(
                                 sycl::range<1>(rows_c), [=](sycl::item<1> row_c) {
                                     for (size_t col_c = 0; col_c < cols_c; ++col_c)
                                     {
@@ -236,7 +240,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
                     }
                     else
                     {
-                        auto e2 = e.submit([&](sycl::handler&) {
+                        auto e2 = adapter(e).submit([&](sycl::handler&) {
                             // for(int i=0;i<1;i++);
                         });
                         return e2;
@@ -256,12 +260,12 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
     return 0;
 }
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
+template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction, typename... Args>
 int
-test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f)
+test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, Args&&... args)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u};
+    my_policy_t p{u, std::forward<Args>(args)...};
 
     const int N = 6;
     bool pass = true;
@@ -326,12 +330,12 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f)
     return 0;
 }
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
+template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction, typename... Args>
 int
-test_submit_and_wait(UniverseContainer u, ResourceFunction&& f)
+test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, Args&&... args)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u};
+    my_policy_t p{u, std::forward<Args>(args)...};
 
     const int N = 6;
     std::atomic<int> ecount = 0;
