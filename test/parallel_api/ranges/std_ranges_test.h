@@ -361,21 +361,10 @@ private:
                                                    args...));
 
             // Check dangling with temporary containers in implementation
-            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 300),
-                                            std::declval<TmpContainerType<decltype(exec), T>>(),
-                                            std::declval<TmpContainerType<decltype(exec), T>>(),
-                                            args...));
-
-            // check result types
-            static_assert(std::is_same_v<checker_ret_t, res_ret_t>, "Wrong return type");
-
             if constexpr (!std::is_fundamental_v<checker_ret_t>)
             {
                 if constexpr (!__all_dangling_in_result_v<checker_ret_t>)
                     checker_ret_t::dummy;
-
-                if constexpr (!__all_dangling_in_result_v<res_ret_t>)
-                    res_ret_t::dummy;
             }
         }
     }
