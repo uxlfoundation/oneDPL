@@ -387,7 +387,9 @@ struct invoke_on_all_hetero_policies
 
 
 #if TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
-            TestUtils::check_compilation_no_comma(my_policy, op, rest...);
+            // Check compilation of the kernel with comma operator deleted iterators. Use policy wrapped with unique
+            // identifier to differentiate from other calls, but, preserve the policy for other two calls.
+            TestUtils::check_compilation_no_comma(CLONE_TEST_POLICY_IDX(my_policy, 0), op, rest...);
 #endif
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
