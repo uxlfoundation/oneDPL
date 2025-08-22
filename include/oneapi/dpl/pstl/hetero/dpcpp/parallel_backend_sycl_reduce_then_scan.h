@@ -475,7 +475,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 
     const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
     const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
-    if (__comp(std::invoke(__proj1, __ele_rng1), std::invoke(__proj2, __ele_rng2)))
+    if (std::invoke(__comp, std::invoke(__proj1, __ele_rng1), std::invoke(__proj2, __ele_rng2)))
     {
         if constexpr (_CopyDiffSetA)
         {
@@ -485,7 +485,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
         ++__idx1;
         ++__idx;
     }
-    else if (__comp(std::invoke(__proj2, __ele_rng2), std::invoke(__proj1, __ele_rng1)))
+    else if (std::invoke(__comp, std::invoke(__proj2, __ele_rng2), std::invoke(__proj1, __ele_rng1)))
     {
         if constexpr (_CopyDiffSetB)
         {
@@ -601,7 +601,7 @@ __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const
 
     auto __ele_val = __rng1[__merge_path_rng1 - 1];
 
-    if (__comp(std::invoke(__proj1, __ele_val), std::invoke(__proj2, __rng2[__merge_path_rng2])))
+    if (std::invoke(__comp, std::invoke(__proj1, __ele_val), std::invoke(__proj2, __rng2[__merge_path_rng2])))
     {
         // There is no chance that the balanced path differs from the merge path here, because the previous element of
         // rng1 does not match the next element of rng2. We can just return the merge path.
