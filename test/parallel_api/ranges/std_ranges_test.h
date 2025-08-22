@@ -254,6 +254,12 @@ struct test
     }
 
 private:
+
+    template <typename Policy, typename T>
+    using TmpContainerType =
+        std::conditional_t<__is_host_execution_policy<Policy>::value, std::vector<T>,
+                            std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
+
     void
     process_data_in(int max_n, auto&& exec, auto algo, auto& checker, auto tr_in, auto... args)
     {
@@ -287,14 +293,12 @@ private:
         if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
             using T = typename Container::__value_type;
-            using TmpContainerT = std::conditional_t<__is_host_execution_policy<decltype(exec)>::value, std::vector<T>,
-                                                     std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
 
             // Check dangling with temporary containers in checker
-            using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(), args...));
+            using checker_ret_t = decltype(checker(std::declval<TmpContainerType<decltype(exec), T>>(), args...));
 
             // Check dangling with temporary containers in implementation
-            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 200), std::declval<TmpContainerT>(), args...));
+            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 200), std::declval<TmpContainerType<decltype(exec), T>>(), args...));
 
             // check result types
             static_assert(std::is_same_v<checker_ret_t, res_ret_t>, "Wrong return type");
@@ -350,19 +354,16 @@ private:
         if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
             using T = typename Container::__value_type;
-            using TmpContainerT = std::conditional_t<__is_host_execution_policy<decltype(exec)>::value, std::vector<T>,
-                                                     std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
-
 
             // Check dangling with temporary containers in checker
-            using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(),
-                                                   std::declval<TmpContainerT>(),
+            using checker_ret_t = decltype(checker(std::declval<TmpContainerType<decltype(exec), T>>(),
+                                                   std::declval<TmpContainerType<decltype(exec), T>>(),
                                                    args...));
 
             // Check dangling with temporary containers in implementation
             using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 300),
-                                            std::declval<TmpContainerT>(),
-                                            std::declval<TmpContainerT>(),
+                                            std::declval<TmpContainerType<decltype(exec), T>>(),
+                                            std::declval<TmpContainerType<decltype(exec), T>>(),
                                             args...));
 
             // check result types
@@ -462,20 +463,16 @@ private:
             if constexpr (!std::is_same_v<decltype(res), bool>)
             {
                 using T = typename Container::__value_type;
-                using TmpContainerT =
-                    std::conditional_t<__is_host_execution_policy<decltype(exec)>::value, std::vector<T>,
-                                       std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
-
 
                 // Check dangling with temporary containers in checker
-                using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(),
-                                                       std::declval<TmpContainerT>(),
+                using checker_ret_t = decltype(checker(std::declval<TmpContainerType<decltype(exec), T>>(),
+                                                       std::declval<TmpContainerType<decltype(exec), T>>(),
                                                        args...));
 
                 // Check dangling with temporary containers in implementation
                 using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 400),
-                                                std::declval<TmpContainerT>(),
-                                                std::declval<TmpContainerT>(),
+                                                std::declval<TmpContainerType<decltype(exec), T>>(),
+                                                std::declval<TmpContainerType<decltype(exec), T>>(),
                                                 args...));
 
                 // check result types
@@ -550,21 +547,18 @@ private:
         if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
             using T = typename Container::__value_type;
-            using TmpContainerT = std::conditional_t<__is_host_execution_policy<decltype(exec)>::value, std::vector<T>,
-                                                     std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
-
 
             // Check dangling with temporary containers in checker
-            using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(),
-                                                   std::declval<TmpContainerT>(),
-                                                   std::declval<TmpContainerT>(),
+            using checker_ret_t = decltype(checker(std::declval<TmpContainerType<decltype(exec), T>>(),
+                                                   std::declval<TmpContainerType<decltype(exec), T>>(),
+                                                   std::declval<TmpContainerType<decltype(exec), T>>(),
                                                    args...));
 
             // Check dangling with temporary containers in implementation
             using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 100),
-                                            std::declval<TmpContainerT>(),
-                                            std::declval<TmpContainerT>(),
-                                            std::declval<TmpContainerT>(),
+                                            std::declval<TmpContainerType<decltype(exec), T>>(),
+                                            std::declval<TmpContainerType<decltype(exec), T>>(),
+                                            std::declval<TmpContainerType<decltype(exec), T>>(),
                                             args...));
 
             // check result types
