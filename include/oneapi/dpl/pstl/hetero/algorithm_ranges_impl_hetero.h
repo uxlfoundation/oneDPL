@@ -482,7 +482,7 @@ struct __pattern_search_n_pred
 };
 
 template<typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _T, typename _Pred, typename _Proj>
-auto
+std::ranges::borrowed_subrange_t<_R>
 __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r,
                    std::ranges::range_difference_t<_R> __count, const _T& __value, _Pred __pred, _Proj __proj)
 {
