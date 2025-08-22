@@ -97,7 +97,8 @@ Difference with Standard C++ Parallel Algorithms
   ``transform_inclusive_scan``, and ``transform_exclusive_scan``, the initial value type must be ``MoveAssignable``
   in addition to the existing ``MoveConstructible`` requirement. While this is not required by the C++ standard, it is
   necessary for reasonable (non-recursive) implementations and is consistent with other standard library implementations
-  in practice.
+  in practice. Insufficient type requirements for numeric algorithms are discussed in detail in
+  https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0571r2.html.
 * For the following algorithms, ``par_unseq`` and ``unseq`` policies do not result in SIMD execution:
   ``includes``, ``inplace_merge``, ``merge``, ``set_difference``, ``set_intersection``,
   ``set_symmetric_difference``, ``set_union``, ``stable_partition``, ``unique``.
