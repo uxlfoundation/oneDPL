@@ -174,6 +174,29 @@ constexpr int calc_res_size(int n, int) { return n; }
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_zero = [](auto) { return 0;};
 
+// Extension: host execution policy type trait
+template <class _T>
+struct __is_host_execution_policy : std::false_type
+{
+};
+
+template <>
+struct __is_host_execution_policy<oneapi::dpl::execution::sequenced_policy> : std::true_type
+{
+};
+template <>
+struct __is_host_execution_policy<oneapi::dpl::execution::parallel_policy> : std::true_type
+{
+};
+template <>
+struct __is_host_execution_policy<oneapi::dpl::execution::parallel_unsequenced_policy> : std::true_type
+{
+};
+template <>
+struct __is_host_execution_policy<oneapi::dpl::execution::unsequenced_policy> : std::true_type
+{
+};
+
 template <typename _ReturnType>
 struct __all_dangling_in_result : std::false_type
 {
@@ -264,7 +287,8 @@ private:
         if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
             using T = typename Container::__value_type;
-            using TmpContainerT = std::vector<T>;
+            using TmpContainerT = std::conditional_t<__is_host_execution_policy<decltype(exec)>::value, std::vector<T>,
+                                                     std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
 
             // Check dangling with temporary containers in checker
             using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(), args...));
@@ -326,7 +350,9 @@ private:
         if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
             using T = typename Container::__value_type;
-            using TmpContainerT = std::vector<T>;
+            using TmpContainerT = std::conditional_t<__is_host_execution_policy<decltype(exec)>::value, std::vector<T>,
+                                                     std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
+
 
             // Check dangling with temporary containers in checker
             using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(),
@@ -436,7 +462,10 @@ private:
             if constexpr (!std::is_same_v<decltype(res), bool>)
             {
                 using T = typename Container::__value_type;
-                using TmpContainerT = std::vector<T>;
+                using TmpContainerT =
+                    std::conditional_t<__is_host_execution_policy<decltype(exec)>::value, std::vector<T>,
+                                       std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
+
 
                 // Check dangling with temporary containers in checker
                 using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(),
@@ -521,7 +550,9 @@ private:
         if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
             using T = typename Container::__value_type;
-            using TmpContainerT = std::vector<T>;
+            using TmpContainerT = std::conditional_t<__is_host_execution_policy<decltype(exec)>::value, std::vector<T>,
+                                                     std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
+
 
             // Check dangling with temporary containers in checker
             using checker_ret_t = decltype(checker(std::declval<TmpContainerT>(),
