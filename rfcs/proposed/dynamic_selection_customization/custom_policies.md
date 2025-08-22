@@ -316,6 +316,13 @@ class random_policy : public policy_base<random_policy<ResourceType, ResourceAda
 };
 ```
 
+## Testing
+Testing for these changes should include:
+ * Test of policy providing a universe of resources to construction which are used to deduce the resource/backend.
+ * Much of the proof of the benefit of these changes will be demonstrated through the reduction of redundancy in
+   implementations of provided policies. They should take advantage of the ``policy_base`` and only implement what is
+   necessary.
+
 ## Conclusion
 
 This proposal presents a simplified approach to policy customization for Dynamic Selection. Key benefits include:
