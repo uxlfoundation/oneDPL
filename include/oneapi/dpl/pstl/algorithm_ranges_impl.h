@@ -24,8 +24,8 @@
 #    include <functional>
 #    include <type_traits>
 
+#    include "algorithm_fwd.h"
 #    include "execution_impl.h"
-#    include "algorithm_impl.h"
 
 namespace oneapi
 {
@@ -466,7 +466,6 @@ __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
         return __comp(std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
                       std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));
     };
-
     return oneapi::dpl::__internal::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
 }
@@ -503,7 +502,6 @@ __pattern_minmax_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp 
         return __comp(std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
                       std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));
     };
-
     return oneapi::dpl::__internal::__pattern_minmax_element(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
