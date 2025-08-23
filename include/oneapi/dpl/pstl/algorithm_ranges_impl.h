@@ -18,14 +18,14 @@
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
-#include <ranges>
-#include <utility>
-#include <cassert>
-#include <functional>
-#include <type_traits>
+#    include <ranges>
+#    include <utility>
+#    include <cassert>
+#    include <functional>
+#    include <type_traits>
 
-#include "algorithm_fwd.h"
-#include "execution_impl.h"
+#    include "algorithm_fwd.h"
+#    include "execution_impl.h"
 
 namespace oneapi
 {
@@ -40,7 +40,7 @@ namespace __ranges
 // pattern_for_each
 //---------------------------------------------------------------------------------------------------------------------
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Fun>
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Fun, typename _Proj>
 void
 __pattern_for_each(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _Proj __proj)
 {
@@ -53,9 +53,9 @@ __pattern_for_each(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _P
         std::ranges::begin(__r) + std::ranges::size(__r), __f_1);
 }
 
-template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Fun>
+template <typename _ExecutionPolicy, typename _R, typename _Fun, typename _Proj>
 void
-__pattern_for_each(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Fun __f, _Proj __proj)
+__pattern_for_each(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Fun __f, _Proj __proj)
 {
     std::ranges::for_each(std::forward<_R>(__r), __f, __proj);
 }
@@ -406,8 +406,10 @@ __pattern_is_sorted(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __com
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __pred_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
-        std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
+    auto __pred_2 = [__comp, __proj](auto&& __val1, auto&& __val2) {
+        return __comp(std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
+                      std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));
+    };
 
     return oneapi::dpl::__internal::__pattern_adjacent_find(__tag, std::forward<_ExecutionPolicy>(__exec),
         std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r),
@@ -432,8 +434,10 @@ __pattern_sort_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
-        std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
+    auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) {
+        return __comp(std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
+                      std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));
+    };
     oneapi::dpl::__internal::__pattern_sort(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
                                             std::ranges::begin(__r) + std::ranges::size(__r), __comp_2, __leaf_sort);
 
@@ -458,9 +462,10 @@ __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
-        std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
-
+    auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) {
+        return __comp(std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
+                      std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));
+    };
     return oneapi::dpl::__internal::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
 }
@@ -493,9 +498,10 @@ __pattern_minmax_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) { return std::invoke(__comp, std::invoke(__proj,
-        std::forward<decltype(__val1)>(__val1)), std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));};
-
+    auto __comp_2 = [__comp, __proj](auto&& __val1, auto&& __val2) {
+        return __comp(std::invoke(__proj, std::forward<decltype(__val1)>(__val1)),
+                      std::invoke(__proj, std::forward<decltype(__val2)>(__val2)));
+    };
     return oneapi::dpl::__internal::__pattern_minmax_element(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
