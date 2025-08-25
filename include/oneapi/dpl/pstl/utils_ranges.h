@@ -279,11 +279,11 @@ class zip_view
     _tuple_ranges_t __m_ranges;
 };
 
-template <typename... _Ranges>
+template <typename... _Views>
 auto
-make_zip_view(_Ranges... args)
+make_zip_view(_Views... args)
 {
-    return zip_view<_Ranges...>(args...);
+    return zip_view<_Views...>(args...);
 }
 
 // a custom view, over a pair of "passed directly" iterators
