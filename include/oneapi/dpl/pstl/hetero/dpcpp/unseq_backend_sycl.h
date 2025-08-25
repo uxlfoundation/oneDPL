@@ -1013,7 +1013,8 @@ struct __brick_includes
 
         // testing __comp(*__first2, *__first1) or __comp(*(__last1 - 1), *(__last2 - 1))
         if ((__idx == 0 && std::invoke(__comp, __proj_rng_1(__rng1[0]), __proj_rng_2(__rng2[0]))) ||
-            (__idx == __size1 - 1 && std::invoke(__comp, __proj_rng_2(__rng2[__size2 - 1]), __proj_rng_1(__rng1[__size1 - 1]))))
+            (__idx == __size1 - 1 &&
+             std::invoke(__comp, __proj_rng_2(__rng2[__size2 - 1]), __proj_rng_1(__rng1[__size1 - 1]))))
             return true; //__rng2 doesn't include __rng1
 
         const auto __idx_b = 0 + __idx;
