@@ -18,22 +18,22 @@
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
-#    include <utility>
-#    include <ranges>
-#    include <functional>
-#    include <type_traits>
-#    include <iterator>
+#include <utility>
+#include <ranges>
+#include <functional>
+#include <type_traits>
+#include <iterator>
 
-#    include <concepts>
+#include <concepts>
 
-#    include "execution_defs.h"
-#    include "utils_execution.h"
-#    include "oneapi/dpl/pstl/ranges_defs.h"
+#include "execution_defs.h"
+#include "utils_execution.h"
+#include "oneapi/dpl/pstl/ranges_defs.h"
 
-#    include "memory_ranges_impl.h"
-#    if _ONEDPL_HETERO_BACKEND
-#        include "hetero/memory_ranges_impl_hetero.h"
-#    endif
+#include "memory_ranges_impl.h"
+#if _ONEDPL_HETERO_BACKEND
+#    include "hetero/memory_ranges_impl_hetero.h"
+#endif
 
 namespace oneapi
 {

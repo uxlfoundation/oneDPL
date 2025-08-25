@@ -18,15 +18,15 @@
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
-#    include <ranges>
-#    include <utility>
-#    include <cassert>
-#    include <functional>
-#    include <type_traits>
+#include <ranges>
+#include <utility>
+#include <cassert>
+#include <functional>
+#include <type_traits>
 
-#    include "memory_fwd.h"
-#    include "algorithm_fwd.h"
-#    include "execution_impl.h"
+#include "memory_fwd.h"
+#include "algorithm_fwd.h"
+#include "execution_impl.h"
 
 namespace oneapi
 {
