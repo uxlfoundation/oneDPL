@@ -22,7 +22,11 @@
 
 #include "execution_defs.h"
 
-namespace oneapi::dpl::__internal
+namespace oneapi
+{
+namespace dpl
+{
+namespace __internal
 {
 
 inline const oneapi::dpl::execution::parallel_policy&
@@ -44,7 +48,9 @@ get_unvectorized_policy(const _ExecutionPolicy& __exec)
     return __exec;
 }
 
-} // namespace oneapi::dpl::__internal
+} // namespace __internal
+} // namespace dpl
+} // namespace oneapi
 
 #endif // (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
 

@@ -28,7 +28,13 @@
 #    include "algorithm_fwd.h"
 #    include "execution_impl.h"
 
-namespace oneapi::dpl::__internal::__ranges
+namespace oneapi
+{
+namespace dpl
+{
+namespace __internal
+{
+namespace __ranges
 {
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -281,7 +287,11 @@ __pattern_destroy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&
     return std::ranges::destroy(std::forward<_R>(__r));
 }
 
-} // namespace oneapi::dpl::__internal::__ranges
+
+} // namespace __ranges
+} // namespace __internal
+} // namespace dpl
+} // namespace oneapi
 
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 #endif // _ONEDPL_MEMORY_RANGES_IMPL_H

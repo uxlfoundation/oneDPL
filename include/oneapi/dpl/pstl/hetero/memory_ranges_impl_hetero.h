@@ -28,7 +28,13 @@
 #    include "dpcpp/utils_ranges_sycl.h"      // for oneapi::dpl::__internal::__ranges::views::all, etc.
 #    include "dpcpp/execution_sycl_defs.h"    // for __hetero_tag
 
-namespace oneapi::dpl::__internal::__ranges
+namespace oneapi
+{
+namespace dpl
+{
+namespace __internal
+{
+namespace __ranges
 {
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -222,7 +228,10 @@ __pattern_destroy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R
     return std::ranges::borrowed_iterator_t<_R>{std::ranges::end(__r)};
 }
 
-} // namespace oneapi::dpl::__internal::__ranges
+} // namespace __ranges
+} // namespace __internal
+} // namespace dpl
+} // namespace oneapi
 
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 #endif // _ONEDPL_MEMORY_RANGES_IMPL_HETERO_H
