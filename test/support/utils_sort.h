@@ -321,7 +321,7 @@ check_results(SortTestConfig config,
 // while testing PSTL offload
 template <typename Policy, typename InputIterator, typename OutputIterator, typename OutputIterator2, typename Size,
           typename... Compare>
-std::enable_if_t<oneapi::dpl::__internal::is_host_execution_policy<std::decay_t<Policy>>::value
+std::enable_if_t<oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value
 #if __SYCL_PSTL_OFFLOAD__
                  || std::is_same_v<std::decay_t<Policy>, std::execution::parallel_unsequenced_policy>
 #endif
