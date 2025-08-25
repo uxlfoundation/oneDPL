@@ -237,7 +237,7 @@ struct test
 
 private:
 
-    template <typename Policy, typename T>
+    template <typename T>
     using TmpContainerType = std::array<T,0>;
 
     // Test dangling iterators in return types for call with temporary data
@@ -252,7 +252,7 @@ private:
 
             // Check dangling with temporary containers in implementation
             using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
-                                            std::declval<TmpContainerType<decltype(exec), T>>(),
+                                            std::declval<TmpContainerType<T>>(),
                                             args...));
 
             if constexpr (!std::is_fundamental_v<res_ret_t>)
@@ -275,8 +275,8 @@ private:
 
             // Check dangling with temporary containers in implementation
             using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
-                                            std::declval<TmpContainerType<decltype(exec), T>>(),
-                                            std::declval<TmpContainerType<decltype(exec), T>>(),
+                                            std::declval<TmpContainerType<T>>(),
+                                            std::declval<TmpContainerType<T>>(),
                                             args...));
 
             if constexpr (!std::is_fundamental_v<res_ret_t>)
@@ -299,9 +299,9 @@ private:
 
             // Check dangling with temporary containers in implementation
             using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
-                                            std::declval<TmpContainerType<decltype(exec), T>>(),
-                                            std::declval<TmpContainerType<decltype(exec), T>>(),
-                                            std::declval<TmpContainerType<decltype(exec), T>>(),
+                                            std::declval<TmpContainerType<T>>(),
+                                            std::declval<TmpContainerType<T>>(),
+                                            std::declval<TmpContainerType<T>>(),
                                             args...));
 
             if constexpr (!std::is_fundamental_v<res_ret_t>)
