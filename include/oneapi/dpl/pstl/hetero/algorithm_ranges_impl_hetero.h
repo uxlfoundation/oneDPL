@@ -1046,7 +1046,7 @@ __pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r,
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
           typename _Proj2>
-std::pair<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>>
+std::pair<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>>
 __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
                    _Proj1 __proj1, _Proj2 __proj2)
 {
