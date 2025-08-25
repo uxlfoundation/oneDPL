@@ -927,7 +927,9 @@ union __lazy_ctor_storage
     _Tp __v;
     __lazy_ctor_storage() {}
 
-    // empty destructor since we should be explicitly destroying any constructed data
+    // Empty destructor, we must explicitly manage destruction of data constructed.
+    // A defaulted destructor of a union would not automatically call destructors of the variant __v, but also does not
+    // support non-trivial destructors for _Tp. This allows us to support non-trivial destructors for _Tp.
     ~__lazy_ctor_storage() {}
 
     template <typename _U>
