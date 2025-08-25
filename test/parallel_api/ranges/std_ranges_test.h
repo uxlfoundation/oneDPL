@@ -282,7 +282,7 @@ private:
             if constexpr (!std::is_fundamental_v<res_ret_t>)
             {
                 if constexpr (!all_dangling_in_result_v<res_ret_t>)
-                    res_ret_t::dummy;
+                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "rest_ret_t is expected to be or consist of std::ranges::dangling");
             }
         }
     }
@@ -306,7 +306,7 @@ private:
             if constexpr (!std::is_fundamental_v<res_ret_t>)
             {
                 if constexpr (!all_dangling_in_result_v<res_ret_t>)
-                    res_ret_t::dummy;
+                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "rest_ret_t is expected to be or consist of std::ranges::dangling");
             }
         }        
     }
@@ -331,7 +331,7 @@ private:
             if constexpr (!std::is_fundamental_v<res_ret_t>)
             {
                 if constexpr (!all_dangling_in_result_v<res_ret_t>)
-                    res_ret_t::dummy;
+                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "rest_ret_t is expected to be or consist of std::ranges::dangling");
             }
         }        
     }
