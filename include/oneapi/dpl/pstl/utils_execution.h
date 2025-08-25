@@ -16,10 +16,11 @@
 #ifndef _ONEDPL_UTILS_EXECUTION_H
 #define _ONEDPL_UTILS_EXECUTION_H
 
+#include "onedpl_config.h"
+
 #if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
 
-#    include "onedpl_config.h"
-#    include "execution_defs.h"
+#include "execution_defs.h"
 
 namespace oneapi::dpl::__internal
 {
