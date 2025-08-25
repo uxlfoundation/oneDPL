@@ -150,7 +150,7 @@ __pattern_find_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&,
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
           typename _Proj2>
-auto
+std::ranges::borrowed_iterator_t<_R1>
 __pattern_find_first_of(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                         _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -168,7 +168,7 @@ __pattern_find_first_of(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&&
 }
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
-auto
+std::ranges::borrowed_iterator_t<_R1>
 __pattern_find_first_of(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2,
                         _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
 {
