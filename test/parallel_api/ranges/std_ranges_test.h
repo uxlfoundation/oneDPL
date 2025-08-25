@@ -238,7 +238,7 @@ struct test
 private:
 
     template <typename Policy, typename T>
-    using TmpContainerType = std::array<T,10>;
+    using TmpContainerType = std::array<T,0>;
 
     // Test dangling iterators in return types for call with temporary data
     template <int idx, typename Policy, typename Algo, typename ...Args>
