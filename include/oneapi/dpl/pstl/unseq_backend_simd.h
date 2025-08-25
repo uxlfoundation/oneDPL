@@ -207,7 +207,7 @@ __simd_first(_Index1 __first1, _DifferenceType __n, _Index2 __first2, _Pred __pr
     }
 
     //Keep remainder scalar
-    for (; __last1 != __first1; ++__first1, ++__first2)
+    for (; __last1 != __first1; ++__first1, (void)++__first2)
         if (__pred(*(__first1), *(__first2)))
             return ::std::make_pair(__first1, __first2);
 
