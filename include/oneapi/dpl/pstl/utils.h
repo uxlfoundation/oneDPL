@@ -17,6 +17,7 @@
 #define _ONEDPL_UTILS_H
 
 #include "onedpl_config.h"
+#include "tuple_impl.h" // Internal tuple and get specializations needed by __segmented_scan_fun
 
 #include <new>
 #include <tuple>
@@ -43,6 +44,10 @@
 #        define __has_builtin(__x) 0
 #    endif
 #    include <cstring> // memcpy
+#endif
+
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+#    include <concepts> // for std::equality_comparable_with
 #endif
 
 namespace oneapi
@@ -636,7 +641,8 @@ __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
         __it += __cur;
         if (__comp(__acc[__it], __value))
         {
-            __n -= __cur + 1, __first = ++__it;
+            __n -= __cur + 1;
+            __first = ++__it;
         }
         else
             __n = __cur;
@@ -818,30 +824,63 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
                                    oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
-// TODO In C++20 we may try to use std::equality_comparable
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+template <typename _Iterator1, typename _Iterator2>
+inline constexpr bool __is_equality_comparable_with_v = std::equality_comparable_with<_Iterator1, _Iterator2>;
+
+#else
+
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_equality_comparable : std::false_type
+struct __has_equality_op : std::false_type
 {
 };
 
-// All with implemented operator ==
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable<
-    _Iterator1, _Iterator2,
-    std::void_t<decltype(::std::declval<::std::decay_t<_Iterator1>>() == ::std::declval<::std::decay_t<_Iterator2>>())>>
+struct __has_equality_op<_Iterator1, _Iterator2,
+                         std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
     : std::true_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl : __has_equality_op<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl<std::reverse_iterator<_Iterator1>, std::reverse_iterator<_Iterator2>>
+    : __is_equality_comparable_with_impl<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl<std::move_iterator<_Iterator1>, std::move_iterator<_Iterator2>>
+    : __is_equality_comparable_with_impl<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with
+    : __is_equality_comparable_with_impl<std::decay_t<_Iterator1>, std::decay_t<_Iterator2>>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+inline constexpr bool __is_equality_comparable_with_v = __is_equality_comparable_with<_Iterator1, _Iterator2>::value;
+
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+// Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
+template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-    if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+    if constexpr (__is_equality_comparable_with_v<_Iterator1, _Iterator2>)
     {
         return __it1 == __it2;
     }
-    else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
+    else if constexpr (__is_equality_comparable_with_v<_Iterator2, _Iterator1>)
     {
         return __it2 == __it1;
     }
@@ -867,13 +906,13 @@ struct __spirv_target_conditional :
 inline constexpr bool __is_spirv_target_v = __spirv_target_conditional<::std::true_type, ::std::false_type>::value;
 
 template <typename _T, typename = void>
-struct __is_iterator_type : std::false_type
+struct __is_type_with_iterator_traits : std::false_type
 {
 };
 
 template <typename _T>
-struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<std::decay_t<_T>>::difference_type>>
-    : std::true_type
+struct __is_type_with_iterator_traits<
+    _T, std::void_t<typename std::iterator_traits<std::remove_reference_t<_T>>::difference_type>> : std::true_type
 {
 };
 
@@ -989,6 +1028,39 @@ struct __count_fn_pred
     }
 };
 #endif
+
+template <typename _ValueType, typename _FlagType, typename _BinaryOp>
+struct __segmented_scan_fun
+{
+    template <typename _T1, typename _T2>
+    _T1
+    operator()(const _T1& __x, const _T2& __y) const
+    {
+        using std::get;
+        using __x_t = std::tuple_element_t<0, _T1>;
+        auto __new_x = get<1>(__y) ? __x_t(get<0>(__y)) : __x_t(__binary_op(get<0>(__x), get<0>(__y)));
+        auto __new_y = get<1>(__x) | get<1>(__y);
+        return _T1(__new_x, __new_y);
+    }
+
+    _BinaryOp __binary_op;
+};
+
+template <typename _T, typename _Predicate>
+struct __replace_if_fun
+{
+    using __result_of = _T;
+
+    template <typename _T1, typename _T2>
+    _T
+    operator()(_T1&& __a, _T2&& __s) const
+    {
+        return __pred(std::forward<_T2>(__s)) ? __new_value : __a;
+    }
+
+    _Predicate __pred;
+    const _T __new_value;
+};
 
 } // namespace __internal
 } // namespace dpl

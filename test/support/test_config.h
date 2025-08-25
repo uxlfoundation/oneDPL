@@ -123,6 +123,10 @@
 #    define TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY (!__SYCL_UNNAMED_LAMBDA__ || TEST_EXPLICIT_KERNEL_NAMES)
 #endif
 
+#ifndef TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
+#    define TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS 1
+#endif
+
 // Enable test when the TBB backend is available
 #if !defined(ONEDPL_USE_TBB_BACKEND) || ONEDPL_USE_TBB_BACKEND
 #define TEST_TBB_BACKEND_PRESENT 1
@@ -281,6 +285,9 @@
 
 // Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
 #define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250300)
+
+// To prevent the assertion from Microsoft STL implementation about the comparison of iterators from different containers
+#define _PSTL_TEST_ITERATORS_POSSIBLY_EQUAL_BROKEN (_DEBUG && _MSC_VER)
 
 #if TEST_ONLY_HETERO_POLICIES && !TEST_DPCPP_BACKEND_PRESENT
 #    error "TEST_ONLY_HETERO_POLICIES is passed but device backend is not available"

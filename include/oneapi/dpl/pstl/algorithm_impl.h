@@ -95,7 +95,7 @@ template <class _ForwardIterator, class _Size, class _Function>
 _ForwardIterator
 __for_each_n_it_serial(_ForwardIterator __first, _Size __n, _Function __f)
 {
-    for (; __n > 0; ++__first, --__n)
+    for (; __n > 0; ++__first, (void)--__n)
         __f(__first);
     return __first;
 }
@@ -273,7 +273,7 @@ _ForwardIterator2
 __brick_walk2(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __f,
               /*vector=*/::std::false_type) noexcept
 {
-    for (; __first1 != __last1; ++__first1, ++__first2)
+    for (; __first1 != __last1; ++__first1, (void)++__first2)
         __f(*__first1, *__first2);
     return __first2;
 }
@@ -292,7 +292,7 @@ _ForwardIterator2
 __brick_walk2_n(_ForwardIterator1 __first1, _Size __n, _ForwardIterator2 __first2, _Function __f,
                 /*vector=*/::std::false_type) noexcept
 {
-    for (; __n > 0; --__n, ++__first1, ++__first2)
+    for (; __n > 0; --__n, (void)++__first1, ++__first2)
         __f(*__first1, *__first2);
     return __first2;
 }
@@ -479,7 +479,7 @@ _ForwardIterator3
 __brick_walk3(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
               _ForwardIterator3 __first3, _Function __f, /*vector=*/::std::false_type) noexcept
 {
-    for (; __first1 != __last1; ++__first1, ++__first2, ++__first3)
+    for (; __first1 != __last1; ++__first1, (void)++__first2, ++__first3)
         __f(*__first1, *__first2, *__first3);
     return __first3;
 }
@@ -1161,7 +1161,7 @@ struct __brick_move_destroy
     {
         using _IteratorValueType = typename ::std::iterator_traits<_Iterator>::value_type;
 
-        for (; __first != __last; ++__first, ++__result)
+        for (; __first != __last; ++__first, (void)++__result)
         {
             *__result = ::std::move(*__first);
             (*__first).~_IteratorValueType();
@@ -1227,7 +1227,7 @@ __brick_calc_mask_1(_ForwardIterator __first, _ForwardIterator __last, bool* __r
     static_assert(__is_random_access_iterator_v<_ForwardIterator>,
                   "Pattern-brick error. Should be a random access iterator.");
 
-    for (; __first != __last; ++__first, ++__mask)
+    for (; __first != __last; ++__first, (void)++__mask)
     {
         *__mask = __pred(*__first);
         if (*__mask)
@@ -1252,7 +1252,7 @@ void
 __brick_copy_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result, bool* __mask,
                      _Assigner __assigner, /*vector=*/::std::false_type) noexcept
 {
-    for (; __first != __last; ++__first, ++__mask)
+    for (; __first != __last; ++__first, (void)++__mask)
     {
         if (*__mask)
         {
@@ -1279,7 +1279,7 @@ void
 __brick_partition_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator1 __out_true,
                           _OutputIterator2 __out_false, bool* __mask, /*vector=*/::std::false_type) noexcept
 {
-    for (; __first != __last; ++__first, ++__mask)
+    for (; __first != __last; ++__first, (void)++__mask)
     {
         if (*__mask)
         {
@@ -1580,7 +1580,7 @@ __brick_calc_mask_2(_RandomAccessIterator __first, _RandomAccessIterator __last,
                     _BinaryPredicate __pred, /*vector=*/::std::false_type) noexcept
 {
     _DifferenceType __count = 0;
-    for (; __first != __last; ++__first, ++__mask)
+    for (; __first != __last; ++__first, (void)++__mask)
     {
         *__mask = !__pred(*__first, *(__first - 1));
         __count += *__mask;
@@ -2565,7 +2565,7 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec
                     _RandomAccessIterator1 __it = __first + (__i - __r);
 
                     // 1. Copy elements from input to raw memory
-                    for (_T1* __k = __i; __k != __j; ++__k, ++__it)
+                    for (_T1* __k = __i; __k != __j; ++__k, (void)++__it)
                     {
                         ::new (__k) _T2(*__it);
                     }
@@ -3310,7 +3310,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n1, _SetRange{0, 0, 0}, //-1, 0},
             [=](_DifferenceType __i, _DifferenceType __len) {                                  // Reduce
                 //[__b; __e) - a subrange of the first sequence, to reduce
-                _RandomAccessIterator1 __b = __first1 + __i, __e = __first1 + (__i + __len);
+                _RandomAccessIterator1 __b = __first1 + __i;
+                _RandomAccessIterator1 __e = __first1 + (__i + __len);
 
                 //try searching for the first element which not equal to *__b
                 if (__b != __first1)
@@ -3395,14 +3396,12 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     {
         //{1} < {2}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
         __par_backend::__parallel_invoke(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec),
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                  __result, __copy_range);
+            __backend_tag{}, __exec,
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1, __result, __copy_range);
             },
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
-                                                  __result + __n1, __copy_range);
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2, __result + __n1, __copy_range);
             });
         return __result + __n1 + __n2;
     }
@@ -3414,14 +3413,12 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     {
         //{2} < {1}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
         __par_backend::__parallel_invoke(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec),
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
-                                                  __result, __copy_range);
+            __backend_tag{}, __exec,
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2, __result, __copy_range);
             },
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                  __result + __n2, __copy_range);
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1, __result + __n2, __copy_range);
             });
         return __result + __n1 + __n2;
     }
@@ -3432,17 +3429,15 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         auto __res_or = __result;
         __result += __m1; //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         __par_backend::__parallel_invoke(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec),
+            __backend_tag{}, __exec,
             //do parallel copying of [first1; left_bound_seq_1)
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                  __left_bound_seq_1, __res_or, __copy_range);
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __left_bound_seq_1, __res_or, __copy_range);
             },
-            [=, &__result] {
+            [=, &__exec, &__result] {
                 __result = __internal::__parallel_set_op(
-                    __tag, ::std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
-                    __result, __comp, [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                    __set_union_op);
+                    __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result, __comp,
+                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op);
             });
         return __result;
     }
@@ -3454,17 +3449,15 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         auto __res_or = __result;
         __result += __m2; //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         __par_backend::__parallel_invoke(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec),
+            __backend_tag{}, __exec,
             //do parallel copying of [first2; left_bound_seq_2)
-            [=] {
-                __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first2,
-                                                  __left_bound_seq_2, __res_or, __copy_range);
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __left_bound_seq_2, __res_or, __copy_range);
             },
-            [=, &__result] {
+            [=, &__exec, &__result] {
                 __result = __internal::__parallel_set_op(
-                    __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
-                    __result, __comp, [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                    __set_union_op);
+                    __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result, __comp,
+                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op);
             });
         return __result;
     }
@@ -4291,7 +4284,7 @@ __brick_shift_left(_ForwardIterator __first, _ForwardIterator __last,
         return __first;
 
     //Moving the rest elements from a position number n to the begin of the sequence.
-    for (; __it != __last; ++__it, ++__first)
+    for (; __it != __last; ++__it, (void)++__first)
         *__first = ::std::move(*__it);
 
     return __first;
