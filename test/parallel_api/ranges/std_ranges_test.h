@@ -264,6 +264,87 @@ private:
       std::vector<T>;
 #endif
 
+    // Test dangling iterators in return types for call with temporary data
+    template <int idx, typename Policy, typename Algo, typename ...Args>
+    constexpr void
+    test_dangling_pointers_arg_1(Policy&& exec, Algo&& algo, Args&& ...args)
+    {
+        // Check dangling iterators in return types for call with temporary data
+        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+            if constexpr (!std::is_same_v<decltype(res), bool>)
+            {
+                using T = typename Container::__value_type;
+
+                // Check dangling with temporary containers in implementation
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
+                                                std::declval<TmpContainerType<decltype(exec), T>>(),
+                                                args...));
+
+                if constexpr (!std::is_fundamental_v<res_ret_t>)
+                {
+                    if constexpr (!__all_dangling_in_result_v<res_ret_t>)
+                        res_ret_t::dummy;
+                }
+            }
+        }        
+    }
+
+    // Test dangling iterators in return types for call with temporary data
+    template <int idx, typename Policy, typename Algo, typename ...Args>
+    constexpr void
+    test_dangling_pointers_args_2(Policy&& exec, Algo&& algo, Args&& ...args)
+    {
+        // Check dangling iterators in return types for call with temporary data
+        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+            if constexpr (!std::is_same_v<decltype(res), bool>)
+            {
+                using T = typename Container::__value_type;
+
+                // Check dangling with temporary containers in implementation
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
+                                                std::declval<TmpContainerType<decltype(exec), T>>(),
+                                                std::declval<TmpContainerType<decltype(exec), T>>(),
+                                                args...));
+
+                if constexpr (!std::is_fundamental_v<res_ret_t>)
+                {
+                    if constexpr (!__all_dangling_in_result_v<res_ret_t>)
+                        res_ret_t::dummy;
+                }
+            }
+        }        
+    }
+
+    // Test dangling iterators in return types for call with temporary data
+    template <int idx, typename Policy, typename Algo, typename ...Args>
+    constexpr void
+    test_dangling_pointers_args_3(Policy&& exec, Algo&& algo, Args&& ...args)
+    {
+        // Check dangling iterators in return types for call with temporary data
+        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+            if constexpr (!std::is_same_v<decltype(res), bool>)
+            {
+                using T = typename Container::__value_type;
+
+                // Check dangling with temporary containers in implementation
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
+                                                std::declval<TmpContainerType<decltype(exec), T>>(),
+                                                std::declval<TmpContainerType<decltype(exec), T>>(),
+                                                std::declval<TmpContainerType<decltype(exec), T>>(),
+                                                args...));
+
+                if constexpr (!std::is_fundamental_v<res_ret_t>)
+                {
+                    if constexpr (!__all_dangling_in_result_v<res_ret_t>)
+                        res_ret_t::dummy;
+                }
+            }
+        }        
+    }
+
     void
     process_data_in(int max_n, auto&& exec, auto algo, auto& checker, auto tr_in, auto... args)
     {
@@ -293,29 +374,8 @@ private:
         EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("wrong effect algo with ranges: ")
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
 
-        // Check dangling iterators in return types for call with temporary data
-        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
-        {
-            using T = typename Container::__value_type;
-
-            // Check dangling with temporary containers in checker
-            using checker_ret_t = decltype(checker(std::declval<TmpContainerType<decltype(exec), T>>(), args...));
-
-            // Check dangling with temporary containers in implementation
-            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 200), std::declval<TmpContainerType<decltype(exec), T>>(), args...));
-
-            // check result types
-            static_assert(std::is_same_v<checker_ret_t, res_ret_t>, "Wrong return type");
-
-            if constexpr (!std::is_fundamental_v<checker_ret_t>)
-            {
-                if constexpr (!__all_dangling_in_result_v<checker_ret_t>)
-                    checker_ret_t::dummy;
-
-                if constexpr (!__all_dangling_in_result_v<res_ret_t>)
-                    res_ret_t::dummy;
-            }
-        }
+        // Test dangling iterators in return types for call with temporary data
+        test_dangling_pointers_arg_1<100>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
@@ -354,23 +414,8 @@ private:
         auto n = std::ranges::size(exp_view);
         EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
 
-        // Check dangling iterators in return types for call with temporary data
-        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
-        {
-            using T = typename Container::__value_type;
-
-            // Check dangling with temporary containers in checker
-            using checker_ret_t = decltype(checker(std::declval<TmpContainerType<decltype(exec), T>>(),
-                                                   std::declval<TmpContainerType<decltype(exec), T>>(),
-                                                   args...));
-
-            // Check dangling with temporary containers in implementation
-            if constexpr (!std::is_fundamental_v<checker_ret_t>)
-            {
-                if constexpr (!__all_dangling_in_result_v<checker_ret_t>)
-                    checker_ret_t::dummy;
-            }
-        }
+        // Test dangling iterators in return types for call with temporary data
+        test_dangling_pointers_args_2<200>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
 public:
@@ -450,37 +495,8 @@ private:
                        typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
         }
 
-        // Check dangling iterators in return types for call with temporary data
-        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
-        {
-            if constexpr (!std::is_same_v<decltype(res), bool>)
-            {
-                using T = typename Container::__value_type;
-
-                // Check dangling with temporary containers in checker
-                using checker_ret_t = decltype(checker(std::declval<TmpContainerType<decltype(exec), T>>(),
-                                                       std::declval<TmpContainerType<decltype(exec), T>>(),
-                                                       args...));
-
-                // Check dangling with temporary containers in implementation
-                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 400),
-                                                std::declval<TmpContainerType<decltype(exec), T>>(),
-                                                std::declval<TmpContainerType<decltype(exec), T>>(),
-                                                args...));
-
-                // check result types
-                static_assert(std::is_same_v<checker_ret_t, res_ret_t>, "Wrong return type");
-
-                if constexpr (!std::is_fundamental_v<checker_ret_t>)
-                {
-                    if constexpr (!__all_dangling_in_result_v<checker_ret_t>)
-                        checker_ret_t::dummy;
-
-                    if constexpr (!__all_dangling_in_result_v<res_ret_t>)
-                        res_ret_t::dummy;
-                }
-            }
-        }        
+        // Test dangling iterators in return types for call with temporary data
+        test_dangling_pointers_args_2<300>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
     struct TransformOp
@@ -536,36 +552,8 @@ private:
         EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Policy).name()
             + typeid(Algo).name()).c_str());
 
-        // Check dangling iterators in return types for call with temporary data
-        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
-        {
-            using T = typename Container::__value_type;
-
-            // Check dangling with temporary containers in checker
-            using checker_ret_t = decltype(checker(std::declval<TmpContainerType<decltype(exec), T>>(),
-                                                   std::declval<TmpContainerType<decltype(exec), T>>(),
-                                                   std::declval<TmpContainerType<decltype(exec), T>>(),
-                                                   args...));
-
-            // Check dangling with temporary containers in implementation
-            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 100),
-                                            std::declval<TmpContainerType<decltype(exec), T>>(),
-                                            std::declval<TmpContainerType<decltype(exec), T>>(),
-                                            std::declval<TmpContainerType<decltype(exec), T>>(),
-                                            args...));
-
-            // check result types
-            static_assert(std::is_same_v<checker_ret_t, res_ret_t>, "Wrong return type");
-
-            if constexpr (!std::is_fundamental_v<checker_ret_t>)
-            {
-                if constexpr (!__all_dangling_in_result_v<checker_ret_t>)
-                    checker_ret_t::dummy;
-
-                if constexpr (!__all_dangling_in_result_v<res_ret_t>)
-                    res_ret_t::dummy;
-            }
-        }
+        // Test dangling iterators in return types for call with temporary data
+        test_dangling_pointers_args_3<400>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
 public:
