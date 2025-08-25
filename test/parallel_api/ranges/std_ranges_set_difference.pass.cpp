@@ -144,6 +144,6 @@ main()
 #endif
 
 #endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
-
+    std::cout << "_LIBCPP_VERSION: " << _LIBCPP_VERSION << std::endl;
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN);
 }
