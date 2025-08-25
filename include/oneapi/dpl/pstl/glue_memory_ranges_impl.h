@@ -61,7 +61,7 @@ namespace __internal
 
 struct __uninitialized_default_construct_fn
 {
-    template <typename _ExecutionPolicy, oneapi::dpl::ranges::__internal::__nothrow_random_access_range _R>
+    template <typename _ExecutionPolicy, __nothrow_random_access_range _R>
         requires std::default_initializable<std::ranges::range_value_t<_R>> &&
                  oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R>
@@ -83,7 +83,7 @@ namespace __internal
 {
 struct __uninitialized_value_construct_fn
 {
-    template <typename _ExecutionPolicy, oneapi::dpl::ranges::__internal::__nothrow_random_access_range _R>
+    template <typename _ExecutionPolicy, __nothrow_random_access_range _R>
         requires std::default_initializable<std::ranges::range_value_t<_R>> &&
                  oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R>
@@ -107,7 +107,7 @@ namespace __internal
 struct __uninitialized_copy_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
-              oneapi::dpl::ranges::__internal::__nothrow_random_access_range _OutRange>
+              __nothrow_random_access_range _OutRange>
         requires std::constructible_from<std::ranges::range_value_t<_OutRange>,
                                          std::ranges::range_reference_t<_InRange>> &&
                  oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
@@ -134,7 +134,7 @@ namespace __internal
 struct __uninitialized_move_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
-              oneapi::dpl::ranges::__internal::__nothrow_random_access_range _OutRange>
+              __nothrow_random_access_range _OutRange>
         requires std::constructible_from<std::ranges::range_value_t<_OutRange>,
                                          std::ranges::range_rvalue_reference_t<_InRange>> &&
                  oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
@@ -160,7 +160,7 @@ namespace __internal
 
 struct __uninitialized_fill_fn
 {
-    template <typename _ExecutionPolicy, oneapi::dpl::ranges::__internal::__nothrow_random_access_range _R, typename _T>
+    template <typename _ExecutionPolicy, __nothrow_random_access_range _R, typename _T>
         requires std::constructible_from<std::ranges::range_value_t<_R>, const _T&> &&
                  oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R>
@@ -183,7 +183,7 @@ namespace __internal
 
 struct __destroy_fn
 {
-    template <typename _ExecutionPolicy, oneapi::dpl::ranges::__internal::__nothrow_random_access_range _R>
+    template <typename _ExecutionPolicy, __nothrow_random_access_range _R>
         requires std::destructible<std::ranges::range_value_t<_R>> &&
                  oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R>
