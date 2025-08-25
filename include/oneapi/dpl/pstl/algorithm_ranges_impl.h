@@ -24,8 +24,8 @@
 #    include <functional>
 #    include <type_traits>
 
-#    include "algorithm_fwd.h"
 #    include "execution_impl.h"
+#    include "algorithm_impl.h"
 
 namespace oneapi
 {
