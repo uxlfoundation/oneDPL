@@ -174,29 +174,6 @@ constexpr int calc_res_size(int n, int) { return n; }
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_zero = [](auto) { return 0;};
 
-// Extension: host execution policy type trait
-template <class _T>
-struct is_host_execution_policy : std::false_type
-{
-};
-
-template <>
-struct is_host_execution_policy<oneapi::dpl::execution::sequenced_policy> : std::true_type
-{
-};
-template <>
-struct is_host_execution_policy<oneapi::dpl::execution::parallel_policy> : std::true_type
-{
-};
-template <>
-struct is_host_execution_policy<oneapi::dpl::execution::parallel_unsequenced_policy> : std::true_type
-{
-};
-template <>
-struct is_host_execution_policy<oneapi::dpl::execution::unsequenced_policy> : std::true_type
-{
-};
-
 template <typename _ReturnType>
 struct all_dangling_in_result : std::false_type
 {
@@ -258,7 +235,7 @@ private:
   template <typename Policy, typename T>
   using TmpContainerType =
 #if TEST_DPCPP_BACKEND_PRESENT
-      std::conditional_t<is_host_execution_policy<Policy>::value, std::vector<T>,
+      std::conditional_t<oneapi::dpl::__internal::__is_host_execution_policy<Policy>::value, std::vector<T>,
                          std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
 #else
       std::vector<T>;
