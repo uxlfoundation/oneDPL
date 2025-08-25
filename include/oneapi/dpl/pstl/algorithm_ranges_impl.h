@@ -298,7 +298,7 @@ __pattern_search(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, 
 //---------------------------------------------------------------------------------------------------------------------
 
 template<typename _Tag, typename _ExecutionPolicy, typename _R, typename _T, typename _Pred, typename _Proj>
-auto
+std::ranges::borrowed_subrange_t<_R>
 __pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r,
                    std::ranges::range_difference_t<_R> __count, const _T& __value, _Pred __pred, _Proj __proj)
 {
@@ -314,7 +314,7 @@ __pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r,
 }
 
 template<typename _ExecutionPolicy, typename _R, typename _T, typename _Pred, typename _Proj>
-auto
+std::ranges::borrowed_subrange_t<_R>
 __pattern_search_n(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, std::ranges::range_difference_t<_R> __count, const _T& __value,
                    _Pred __pred, _Proj __proj)
 {
