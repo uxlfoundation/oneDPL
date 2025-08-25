@@ -125,11 +125,12 @@ __find_start_point(const _Rng1& __rng1, const _Index __rng1_from, _Index __rng1_
     __it_t __diag_it_begin(idx1_from);
     __it_t __diag_it_end(idx1_to);
 
+    oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __comp_2_rev{__comp, __proj2, __proj1};
+
     const __it_t __res = std::lower_bound(
         __diag_it_begin, __diag_it_end, false,
-        [&__rng1, &__rng2, __index_sum, __comp, __proj1, __proj2](_Index __idx, const bool __value) mutable {
-            return __value == std::invoke(__comp, std::invoke(__proj2, __rng2[__index_sum - __idx]),
-                                          std::invoke(__proj1, __rng1[__idx]));
+        [&__rng1, &__rng2, __index_sum, __comp_2_rev](_Index __idx, const bool __value) mutable {
+            return __value == __comp_2_rev(__rng2[__index_sum - __idx], __rng1[__idx]);
         });
 
     return _split_point_t<_Index>{*__res, __index_sum - *__res + 1};
