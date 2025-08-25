@@ -1015,7 +1015,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
-std::pair<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_R>>
+std::pair<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_R>>
 __pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp,
                          _Proj __proj)
 {
