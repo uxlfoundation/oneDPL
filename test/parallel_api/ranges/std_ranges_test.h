@@ -237,14 +237,8 @@ struct test
 
 private:
 
-  template <typename Policy, typename T>
-  using TmpContainerType =
-#if TEST_DPCPP_BACKEND_PRESENT
-      std::conditional_t<oneapi::dpl::__internal::__is_host_execution_policy<Policy>::value, std::vector<T>,
-                         std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
-#else
-      std::vector<T>;
-#endif
+    template <typename Policy, typename T>
+    using TmpContainerType = std::array<T,10>;
 
     // Test dangling iterators in return types for call with temporary data
     template <int idx, typename Policy, typename Algo, typename ...Args>
