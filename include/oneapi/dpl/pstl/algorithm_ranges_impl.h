@@ -457,7 +457,7 @@ __pattern_sort_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPoli
 //---------------------------------------------------------------------------------------------------------------------
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
-auto
+std::ranges::borrowed_iterator_t<_R>
 __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
@@ -471,7 +471,7 @@ __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
-auto
+std::ranges::borrowed_iterator_t<_R>
 __pattern_min_element(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
 {
     return std::ranges::min_element(std::forward<_R>(__r), __comp, __proj);
