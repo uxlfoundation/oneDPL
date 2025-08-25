@@ -127,11 +127,11 @@ __find_start_point(const _Rng1& __rng1, const _Index __rng1_from, _Index __rng1_
 
     oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __comp_2_rev{__comp, __proj2, __proj1};
 
-    const __it_t __res = std::lower_bound(
-        __diag_it_begin, __diag_it_end, false,
-        [&__rng1, &__rng2, __index_sum, __comp_2_rev](_Index __idx, const bool __value) mutable {
-            return __value == __comp_2_rev(__rng2[__index_sum - __idx], __rng1[__idx]);
-        });
+    const __it_t __res =
+        std::lower_bound(__diag_it_begin, __diag_it_end, false,
+                         [&__rng1, &__rng2, __index_sum, __comp_2_rev](_Index __idx, const bool __value) mutable {
+                             return __value == __comp_2_rev(__rng2[__index_sum - __idx], __rng1[__idx]);
+                         });
 
     return _split_point_t<_Index>{*__res, __index_sum - *__res + 1};
 }
@@ -195,8 +195,8 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
         else
         {
             // TODO required to understand why the usual if-else is slower then ternary operator
-            if (!__rng1_idx_less_n1 || (__rng1_idx_less_n1 && __rng2_idx_less_n2 &&
-                                        __comp_2_rev(__rng2[__rng2_idx], __rng1[__rng1_idx])))
+            if (!__rng1_idx_less_n1 ||
+                (__rng1_idx_less_n1 && __rng2_idx_less_n2 && __comp_2_rev(__rng2[__rng2_idx], __rng1[__rng1_idx])))
                 __rng3[__rng3_idx] = __rng2[__rng2_idx++];
             else
                 __rng3[__rng3_idx] = __rng1[__rng1_idx++];
