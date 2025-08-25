@@ -139,7 +139,7 @@ __pattern_find_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 std::ranges::borrowed_iterator_t<_R>
-__pattern_find_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred, _Proj __proj)
+__pattern_find_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred, _Proj __proj)
 {
     return std::ranges::find_if(std::forward<_R>(__r), __pred, __proj);
 }
@@ -151,8 +151,8 @@ __pattern_find_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&,
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
           typename _Proj2>
 std::ranges::borrowed_iterator_t<_R1>
-__pattern_find_first_of(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
-                        _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_find_first_of(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred, _Proj1 __proj1,
+                        _Proj2 __proj2)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
@@ -240,8 +240,7 @@ __pattern_any_of(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, 
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 std::ranges::borrowed_iterator_t<_R>
-__pattern_adjacent_find_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
-                        _Proj __proj)
+__pattern_adjacent_find_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
@@ -256,7 +255,8 @@ __pattern_adjacent_find_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, 
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 std::ranges::borrowed_iterator_t<_R>
-__pattern_adjacent_find_ranges(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred, _Proj __proj)
+__pattern_adjacent_find_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
+                               _Proj __proj)
 {
     return std::ranges::adjacent_find(std::forward<_R>(__r), __pred, __proj);
 }
@@ -265,11 +265,11 @@ __pattern_adjacent_find_ranges(__serial_tag</*IsVector*/std::false_type>, _Execu
 // pattern_search
 //---------------------------------------------------------------------------------------------------------------------
 
-template<typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
-         typename _Proj2>
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
+          typename _Proj2>
 std::ranges::borrowed_subrange_t<_R1>
-__pattern_search(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
-                 _Proj1 __proj1, _Proj2 __proj2)
+__pattern_search(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred, _Proj1 __proj1,
+                 _Proj2 __proj2)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
@@ -285,10 +285,10 @@ __pattern_search(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, 
         ? __res : __res + std::ranges::size(__r2));
 }
 
-template<typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
-         typename _Proj2>
+template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
 std::ranges::borrowed_subrange_t<_R1>
-__pattern_search(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_search(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Pred __pred,
+                 _Proj1 __proj1, _Proj2 __proj2)
 {
     return std::ranges::search(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
 }
@@ -297,10 +297,10 @@ __pattern_search(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, 
 // pattern_search_n
 //---------------------------------------------------------------------------------------------------------------------
 
-template<typename _Tag, typename _ExecutionPolicy, typename _R, typename _T, typename _Pred, typename _Proj>
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _T, typename _Pred, typename _Proj>
 std::ranges::borrowed_subrange_t<_R>
-__pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r,
-                   std::ranges::range_difference_t<_R> __count, const _T& __value, _Pred __pred, _Proj __proj)
+__pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges::range_difference_t<_R> __count,
+                   const _T& __value, _Pred __pred, _Proj __proj)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
@@ -313,10 +313,10 @@ __pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r,
     return std::ranges::borrowed_subrange_t<_R>(__res, __res == std::ranges::end(__r) ? __res : __res + __count);
 }
 
-template<typename _ExecutionPolicy, typename _R, typename _T, typename _Pred, typename _Proj>
+template <typename _ExecutionPolicy, typename _R, typename _T, typename _Pred, typename _Proj>
 std::ranges::borrowed_subrange_t<_R>
-__pattern_search_n(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, std::ranges::range_difference_t<_R> __count, const _T& __value,
-                   _Pred __pred, _Proj __proj)
+__pattern_search_n(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r,
+                   std::ranges::range_difference_t<_R> __count, const _T& __value, _Pred __pred, _Proj __proj)
 {
     return std::ranges::search_n(std::forward<_R>(__r), __count, __value, __pred, __proj);
 }
@@ -472,7 +472,8 @@ __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 std::ranges::borrowed_iterator_t<_R>
-__pattern_min_element(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
+__pattern_min_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp,
+                      _Proj __proj)
 {
     return std::ranges::min_element(std::forward<_R>(__r), __comp, __proj);
 }
