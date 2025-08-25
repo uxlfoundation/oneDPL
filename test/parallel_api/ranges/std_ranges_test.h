@@ -228,7 +228,7 @@ struct all_dangling_in_result<std::ranges::in_out_out_result<std::ranges::dangli
 };
 
 template <typename _ReturnType>
-constexpr bool __all_dangling_in_result_v = all_dangling_in_result<_ReturnType>::value;
+constexpr bool all_dangling_in_result_v = all_dangling_in_result<_ReturnType>::value;
 
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
@@ -281,7 +281,7 @@ private:
 
             if constexpr (!std::is_fundamental_v<res_ret_t>)
             {
-                if constexpr (!__all_dangling_in_result_v<res_ret_t>)
+                if constexpr (!all_dangling_in_result_v<res_ret_t>)
                     res_ret_t::dummy;
             }
         }
@@ -305,7 +305,7 @@ private:
 
             if constexpr (!std::is_fundamental_v<res_ret_t>)
             {
-                if constexpr (!__all_dangling_in_result_v<res_ret_t>)
+                if constexpr (!all_dangling_in_result_v<res_ret_t>)
                     res_ret_t::dummy;
             }
         }        
@@ -330,7 +330,7 @@ private:
 
             if constexpr (!std::is_fundamental_v<res_ret_t>)
             {
-                if constexpr (!__all_dangling_in_result_v<res_ret_t>)
+                if constexpr (!all_dangling_in_result_v<res_ret_t>)
                     res_ret_t::dummy;
             }
         }        
