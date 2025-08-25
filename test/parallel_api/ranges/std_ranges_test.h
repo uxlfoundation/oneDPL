@@ -176,59 +176,59 @@ auto data_gen_zero = [](auto) { return 0;};
 
 // Extension: host execution policy type trait
 template <class _T>
-struct __is_host_execution_policy : std::false_type
+struct is_host_execution_policy : std::false_type
 {
 };
 
 template <>
-struct __is_host_execution_policy<oneapi::dpl::execution::sequenced_policy> : std::true_type
+struct is_host_execution_policy<oneapi::dpl::execution::sequenced_policy> : std::true_type
 {
 };
 template <>
-struct __is_host_execution_policy<oneapi::dpl::execution::parallel_policy> : std::true_type
+struct is_host_execution_policy<oneapi::dpl::execution::parallel_policy> : std::true_type
 {
 };
 template <>
-struct __is_host_execution_policy<oneapi::dpl::execution::parallel_unsequenced_policy> : std::true_type
+struct is_host_execution_policy<oneapi::dpl::execution::parallel_unsequenced_policy> : std::true_type
 {
 };
 template <>
-struct __is_host_execution_policy<oneapi::dpl::execution::unsequenced_policy> : std::true_type
-{
-};
-
-template <typename _ReturnType>
-struct __all_dangling_in_result : std::false_type
-{
-};
-
-template <>
-struct __all_dangling_in_result<std::ranges::dangling> : std::true_type
-{
-};
-
-template <>
-struct __all_dangling_in_result<std::ranges::in_in_result<std::ranges::dangling, std::ranges::dangling>> : std::true_type
-{
-};
-
-template <>
-struct __all_dangling_in_result<std::ranges::in_out_result<std::ranges::dangling, std::ranges::dangling>> : std::true_type
-{
-};
-
-template <>
-struct __all_dangling_in_result<std::ranges::in_in_out_result<std::ranges::dangling, std::ranges::dangling, std::ranges::dangling>> : std::true_type
-{
-};
-
-template <>
-struct __all_dangling_in_result<std::ranges::in_out_out_result<std::ranges::dangling, std::ranges::dangling, std::ranges::dangling>> : std::true_type
+struct is_host_execution_policy<oneapi::dpl::execution::unsequenced_policy> : std::true_type
 {
 };
 
 template <typename _ReturnType>
-constexpr bool __all_dangling_in_result_v = __all_dangling_in_result<_ReturnType>::value;
+struct all_dangling_in_result : std::false_type
+{
+};
+
+template <>
+struct all_dangling_in_result<std::ranges::dangling> : std::true_type
+{
+};
+
+template <>
+struct all_dangling_in_result<std::ranges::in_in_result<std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <>
+struct all_dangling_in_result<std::ranges::in_out_result<std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <>
+struct all_dangling_in_result<std::ranges::in_in_out_result<std::ranges::dangling, std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <>
+struct all_dangling_in_result<std::ranges::in_out_out_result<std::ranges::dangling, std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <typename _ReturnType>
+constexpr bool __all_dangling_in_result_v = all_dangling_in_result<_ReturnType>::value;
 
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
@@ -258,7 +258,7 @@ private:
   template <typename Policy, typename T>
   using TmpContainerType =
 #if TEST_DPCPP_BACKEND_PRESENT
-      std::conditional_t<__is_host_execution_policy<Policy>::value, std::vector<T>,
+      std::conditional_t<is_host_execution_policy<Policy>::value, std::vector<T>,
                          std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
 #else
       std::vector<T>;
@@ -272,7 +272,7 @@ private:
         // Check dangling iterators in return types for call with temporary data
         if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
-            using T = typename Container::__value_type;
+            using T = typename Container::value_type;
 
             // Check dangling with temporary containers in implementation
             using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
@@ -295,7 +295,7 @@ private:
         // Check dangling iterators in return types for call with temporary data
         if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
-            using T = typename Container::__value_type;
+            using T = typename Container::value_type;
 
             // Check dangling with temporary containers in implementation
             using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
@@ -319,7 +319,7 @@ private:
         // Check dangling iterators in return types for call with temporary data
         if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
-            using T = typename Container::__value_type;
+            using T = typename Container::value_type;
 
             // Check dangling with temporary containers in implementation
             using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
@@ -635,7 +635,7 @@ private:
 template<typename T, typename ViewType>
 struct host_subrange_impl
 {
-    using __value_type = T;
+    using value_type = T;
 
     static_assert(std::is_trivially_copyable_v<T>,
         "Memory initialization within the class relies on trivially copyability of the type T");
@@ -679,7 +679,7 @@ using  host_span = host_subrange_impl<T, std::span<T>>;
 template<typename T>
 struct host_vector
 {
-    using __value_type = T;
+    using value_type = T;
 
     using type = std::vector<T>;
     type vec;
@@ -709,7 +709,7 @@ struct host_vector
 template<typename T>
 struct usm_vector
 {
-    using __value_type = T;
+    using value_type = T;
 
     using shared_allocator = sycl::usm_allocator<T, sycl::usm::alloc::shared>;
     using type = std::vector<T, shared_allocator>;
@@ -742,7 +742,7 @@ struct usm_vector
 template<typename T, typename ViewType>
 struct usm_subrange_impl
 {
-    using __value_type = T;
+    using value_type = T;
 
     static_assert(std::is_trivially_copyable_v<T>,
         "Memory initialization within the class relies on trivially copyability of the type T");
