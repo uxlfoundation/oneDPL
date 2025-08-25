@@ -255,10 +255,14 @@ struct test
 
 private:
 
-    template <typename Policy, typename T>
-    using TmpContainerType =
-        std::conditional_t<__is_host_execution_policy<Policy>::value, std::vector<T>,
-                            std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
+  template <typename Policy, typename T>
+  using TmpContainerType =
+#if TEST_DPCPP_BACKEND_PRESENT
+      std::conditional_t<__is_host_execution_policy<Policy>::value, std::vector<T>,
+                         std::vector<T, sycl::usm_allocator<T, sycl::usm::alloc::shared>>>;
+#else
+      std::vector<T>;
+#endif
 
     void
     process_data_in(int max_n, auto&& exec, auto algo, auto& checker, auto tr_in, auto... args)
