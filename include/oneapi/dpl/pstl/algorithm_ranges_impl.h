@@ -710,8 +710,8 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     if (__first1 == __last1 || __last2 - __first2 > __last1 - __first1 ||
         // {1}:     [**********]     or   [**********]
         // {2}: [***********]                   [***********]
-        __comp(__proj2_deref(__first2), __proj1_deref(__first1)) ||
-        __comp(__proj1_deref(__last1 - 1), __proj2_deref(__last2 - 1)))
+        std::invoke(__comp, __proj2_deref(__first2), __proj1_deref(__first1)) ||
+        std::invoke(__comp, __proj1_deref(__last1 - 1), __proj2_deref(__last2 - 1)))
         return false;
 
     __first1 = oneapi::dpl::__internal::__pstl_lower_bound(oneapi::dpl::__internal::_SubscriptAdapter{}, __first1,
@@ -720,8 +720,8 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         return false;
 
     if (__last2 - __first2 == 1)
-        return !__comp(__proj1_deref(__first1), __proj2_deref(__first2)) &&
-               !__comp(__proj2_deref(__first2), __proj1_deref(__first1));
+        return !std::invoke(__comp, __proj1_deref(__first1), __proj2_deref(__first2)) &&
+               !std::invoke(__comp, __proj2_deref(__first2), __proj1_deref(__first1));
 
     return !__internal::__parallel_or(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
@@ -734,7 +734,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
             auto __is_equal_sorted = [&__comp, &__proj2_deref](_RandomAccessIterator2 __a,
                                                                _RandomAccessIterator2 __b) -> bool {
                 //enough one call of __comp due to compared couple belongs to one sorted sequence
-                return !__comp(__proj2_deref(__a), __proj2_deref(__b));
+                return !std::invoke(__comp, __proj2_deref(__a), __proj2_deref(__b));
             };
 
             //1.1 left bound, case "aaa[aaaxyz...]" - searching "x"
