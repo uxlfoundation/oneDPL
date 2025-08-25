@@ -267,7 +267,7 @@ __pattern_adjacent_find_ranges(__serial_tag</*IsVector*/std::false_type>, _Execu
 
 template<typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
          typename _Proj2>
-auto
+std::ranges::borrowed_subrange_t<_R1>
 __pattern_search(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
                  _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -287,7 +287,7 @@ __pattern_search(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, 
 
 template<typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
          typename _Proj2>
-auto
+std::ranges::borrowed_subrange_t<_R1>
 __pattern_search(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
 {
     return std::ranges::search(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
