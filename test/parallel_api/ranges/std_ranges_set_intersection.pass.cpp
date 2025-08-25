@@ -15,7 +15,7 @@
 
 #include "std_ranges_test.h"
 
-#if _ENABLE_STD_RANGES_TESTING
+#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
 struct A
 {
     int a;
@@ -88,12 +88,12 @@ void test_mixed_types_device()
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
-#endif // _ENABLE_STD_RANGES_TESTING
+#endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
 
 std::int32_t
 main()
 {
-#if _ENABLE_STD_RANGES_TESTING
+#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
@@ -136,7 +136,7 @@ main()
     test_mixed_types_device();
 #endif
 
-#endif //_ENABLE_STD_RANGES_TESTING
+#endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
 
-    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN);
 }
