@@ -444,7 +444,7 @@ __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__predicate<_Comp, _Proj, > __comp_2{__comp, __proj};
+    oneapi::dpl::__internal::__predicate<_Comp, _Proj> __comp_2{__comp, __proj};
 
     return oneapi::dpl::__internal::__pattern_min_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
