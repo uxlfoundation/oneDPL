@@ -204,6 +204,11 @@ struct all_dangling_in_result<std::ranges::in_out_out_result<std::ranges::dangli
 {
 };
 
+template <>
+struct all_dangling_in_result<std::ranges::min_max_result<std::ranges::dangling>> : std::true_type
+{
+};
+
 template <typename _ReturnType>
 constexpr bool all_dangling_in_result_v = all_dangling_in_result<_ReturnType>::value;
 
