@@ -296,6 +296,7 @@
 // There is a bug in the libc++ at the time of writing this comment with 21 being the latest major release
 // 23 is set to avoid frequent bump-ups.
 // See: https://github.com/llvm/llvm-project/blob/6096d35ea93c75f648a253a00775b4d74915c819/libcxx/include/__algorithm/ranges_set_union.h#L94
+// This line does not take into account that the iterator-based implementation may arbitrary call comp(a, b) or comp(b, a)
 // TODO: report it or contribute.
 #if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION <= 230000
 #    define _PSTL_LIBCPP_RANGE_SET_BROKEN 1
