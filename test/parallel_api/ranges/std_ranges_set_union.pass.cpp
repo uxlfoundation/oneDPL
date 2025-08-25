@@ -106,6 +106,8 @@ void test_mixed_types_device()
 std::int32_t
 main()
 {
+    bool bProcessed = false;
+
 #if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
@@ -136,7 +138,10 @@ main()
 #if TEST_DPCPP_BACKEND_PRESENT
     test_mixed_types_device();
 #endif // TEST_DPCPP_BACKEND_PRESENT
+
+    bProcessed = true;
+
 #endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
 
-    return TestUtils::done(_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN);
+    return TestUtils::done(bProcessed);
 }
