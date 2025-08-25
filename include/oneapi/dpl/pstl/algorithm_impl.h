@@ -2959,7 +2959,7 @@ std::pair<_Iterator1, _Iterator2>
 __serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterator2 __y_e, _Iterator3 __out_b,
                        _Iterator3 __out_e, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __comp_2_rev{__comp, __proj2, __proj1};
+    oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj1> __comp_2_rev{__comp, __proj2, __proj1};
 
     for (_Iterator3 __k = __out_b; __k != __out_e; ++__k)
     {
@@ -3066,7 +3066,7 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
                     };
 
                     oneapi::dpl::counting_iterator<_Index3> __it_d(0);
-                    oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __comp_2_rev{__comp, __proj2, __proj1};
+                    oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj1> __comp_2_rev{__comp, __proj2, __proj1};
 
                     auto __res_d = *std::lower_bound(__it_d, __it_d + __d_size, 1, [&](auto __d, auto __val) {
                         auto __r = __get_row(__d);
