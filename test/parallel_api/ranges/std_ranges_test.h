@@ -336,6 +336,24 @@ private:
         }        
     }
 
+    // Test dangling iterators in return types for call with temporary data
+    template <std::size_t ArgsSize, int idx, typename Policy, typename Algo, typename ...Args>
+    constexpr void
+    test_dangling_pointers(Policy&& exec, Algo&& algo, Args&& ...args)
+    {
+        if constexpr (ArgsSize == 1)
+            test_dangling_pointers_arg_1<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
+
+        else if constexpr (ArgsSize == 2)
+            test_dangling_pointers_args_2<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
+
+        else if constexpr (ArgsSize == 3)
+            test_dangling_pointers_args_3<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
+
+        else
+            static_assert(false, "Test for amount of args not implemented");
+    }
+
     void
     process_data_in(int max_n, auto&& exec, auto algo, auto& checker, auto tr_in, auto... args)
     {
@@ -366,7 +384,7 @@ private:
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
 
         // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers_arg_1<100>(exec, algo, std::forward<decltype(args)>(args)...);
+        test_dangling_pointers<1, 100>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
@@ -406,7 +424,7 @@ private:
         EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
 
         // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers_args_2<200>(exec, algo, std::forward<decltype(args)>(args)...);
+        test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
 public:
@@ -487,7 +505,7 @@ private:
         }
 
         // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers_args_2<300>(exec, algo, std::forward<decltype(args)>(args)...);
+        test_dangling_pointers<2, 300>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
     struct TransformOp
@@ -544,7 +562,7 @@ private:
             + typeid(Algo).name()).c_str());
 
         // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers_args_3<400>(exec, algo, std::forward<decltype(args)>(args)...);
+        test_dangling_pointers<3, 400>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
 public:
