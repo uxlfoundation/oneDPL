@@ -362,14 +362,14 @@ inline void unsupported_types_notifier(const sycl::device& device)
 
 
 // Invoke test::operator()(policy,rest...) for each possible policy.
-template <::std::size_t CallNumber = 0>
+template <std::size_t CallNumber, typename _CustomName>
 struct invoke_on_all_hetero_policies
 {
     template <typename Op, typename... Args>
     void
     operator()(Op op, Args&&... rest)
     {
-        auto my_policy = get_dpcpp_test_policy<CallNumber, Op>();
+        auto my_policy = get_dpcpp_test_policy<CallNumber, _CustomName>();
 
         auto cloned_policy0 = CLONE_TEST_POLICY_IDX(my_policy, 0);
         auto cloned_policy1 = CLONE_TEST_POLICY_IDX(my_policy, 1);
@@ -457,7 +457,7 @@ struct invoke_on_all_policies
 #if __SYCL_PSTL_OFFLOAD__
         invoke_on_all_pstl_offload_policies()(op, rest...);
 #endif
-        invoke_on_all_hetero_policies<CallNumber>()(op, ::std::forward<T>(rest)...);
+        invoke_on_all_hetero_policies<CallNumber, decltype(op)>()(op, std::forward<T>(rest)...);
 #else
         invoke_on_all_host_policies()(op, ::std::forward<T>(rest)...);
 #endif // TEST_DPCPP_BACKEND_PRESENT

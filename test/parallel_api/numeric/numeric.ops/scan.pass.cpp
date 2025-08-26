@@ -141,14 +141,16 @@ test_with_plus(Init init, Out trash, Convert convert)
     Sequence<Out> expected(n);
     Sequence<Out> out(n, [&](std::int32_t) { return trash; });
 #ifdef _PSTL_TEST_INCLUSIVE_SCAN
-    invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
-                                       out.begin(), out.end(), expected.begin(), expected.end(), in.size(), init,
-                                       trash);
+    test_inclusive_scan_with_plus<In, Init, Out> test_inclusive_scan_with_plus_obj;
+    invoke_on_all_hetero_policies<4, decltype(test_inclusive_scan_with_plus_obj)>()(
+        test_inclusive_scan_with_plus_obj, in.begin(), in.end(), out.begin(), out.end(), expected.begin(),
+        expected.end(), in.size(), init, trash);
 #endif
 #ifdef _PSTL_TEST_EXCLUSIVE_SCAN
-    invoke_on_all_hetero_policies<5>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
-                                       out.begin(), out.end(), expected.begin(), expected.end(), in.size(), init,
-                                       trash);
+    test_exclusive_scan_with_plus<In, Init, Out> test_exclusive_scan_with_plus_obj;
+    invoke_on_all_hetero_policies<5, decltype(test_exclusive_scan_with_plus_obj)>()(
+        test_exclusive_scan_with_plus_obj, in.begin(), in.end(), out.begin(), out.end(), expected.begin(),
+        expected.end(), in.size(), init, trash);
 #endif
 #endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
@@ -296,14 +298,16 @@ test_with_multiplies()
         std::shuffle(in.begin(), in.end(), gen);
 
 #ifdef _PSTL_TEST_INCLUSIVE_SCAN
-        invoke_on_all_hetero_policies<20>()(test_inclusive_scan_with_binary_op<T>(), in.begin(), in.end(),
-                                            out.begin(), out.end(), expected.begin(), expected.end(), in.size(),
-                                            init, std::multiplies{}, trash);
+        test_inclusive_scan_with_binary_op<T> test_inclusive_scan_with_binary_op_obj;
+        invoke_on_all_hetero_policies<20, decltype(test_inclusive_scan_with_binary_op_obj)>()(
+            test_inclusive_scan_with_binary_op_obj, in.begin(), in.end(), out.begin(), out.end(), expected.begin(),
+            expected.end(), in.size(), init, std::multiplies{}, trash);
 #endif
 #ifdef _PSTL_TEST_EXCLUSIVE_SCAN
-        invoke_on_all_hetero_policies<21>()(test_exclusive_scan_with_binary_op<T>(), in.begin(), in.end(), out.begin(),
-                                            out.end(), expected.begin(), expected.end(), in.size(),
-                                            init, std::multiplies{}, trash);
+        test_exclusive_scan_with_binary_op<T> test_exclusive_scan_with_binary_op_obj;
+        invoke_on_all_hetero_policies<21, decltype(test_exclusive_scan_with_binary_op_obj)>()(
+            test_exclusive_scan_with_binary_op_obj, in.begin(), in.end(), out.begin(), out.end(), expected.begin(),
+            expected.end(), in.size(), init, std::multiplies{}, trash);
 #endif
     }
 #endif // TEST_DPCPP_BACKEND_PRESENT

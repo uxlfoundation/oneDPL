@@ -47,14 +47,14 @@ int main()
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    test_sort<TestUtils::float32_t>(SortTestConfig{cfg, "float, device, custom greater"}, sizes, Device<0>{},
+    test_sort<TestUtils::float32_t>(SortTestConfig{cfg, "float, device, custom greater"}, sizes, Device<0, SortTestConfig>{},
                                     Converter<TestUtils::float32_t>{}, ConstGreater{});
-    test_sort<std::uint16_t>(SortTestConfig{cfg, "uint16_t, device, non-const custom less"}, sizes, Device<1>{},
+    test_sort<std::uint16_t>(SortTestConfig{cfg, "uint16_t, device, non-const custom less"}, sizes, Device<1, SortTestConfig>{},
                              Converter<std::uint16_t>{}, NonConstLess{});
 
     // Check radix-sort with to have a higher chance to hit synchronization issues if any
     sizes.push_back(8'000'000);
-    test_sort<std::int32_t>(SortTestConfig{cfg, "int32_t, device, std::less"}, sizes, Device<2>{},
+    test_sort<std::int32_t>(SortTestConfig{cfg, "int32_t, device, std::less"}, sizes, Device<2, SortTestConfig>{},
                             Converter<std::int32_t>{}, std::less{});
 #if __SYCL_UNNAMED_LAMBDA__
     // Test potentially clashing naming for radix sort descending / ascending with minimal timing impact

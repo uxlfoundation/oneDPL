@@ -31,7 +31,7 @@ int main()
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    test_sort<TestUtils::float32_t>(SortTestConfig{cfg, "float, device"}, sizes, Device<0>{},
+    test_sort<TestUtils::float32_t>(SortTestConfig{cfg, "float, device"}, sizes, Device<0, SortTestConfig>{},
                                     Converter<TestUtils::float32_t>{});
 
     auto sycl_half_convert = [](size_t /*index*/, size_t val) {
@@ -50,17 +50,17 @@ int main()
     };
 
     // Test radix-sort bit conversions
-    test_sort<std::uint8_t>(SortTestConfig{cfg, "uint8_t, device"}, small_sizes, Device<1>{},
+    test_sort<std::uint8_t>(SortTestConfig{cfg, "uint8_t, device"}, small_sizes, Device<1, SortTestConfig>{},
                             Converter<std::uint8_t>{});
-    test_sort<std::int16_t>(SortTestConfig{cfg, "int16_t, device"}, small_sizes, Device<2>{},
+    test_sort<std::int16_t>(SortTestConfig{cfg, "int16_t, device"}, small_sizes, Device<2, SortTestConfig>{},
                             Converter<std::int16_t>{});
-    test_sort<std::uint32_t>(SortTestConfig{cfg, "uint32_t, device"}, small_sizes, Device<3>{},
+    test_sort<std::uint32_t>(SortTestConfig{cfg, "uint32_t, device"}, small_sizes, Device<3, SortTestConfig>{},
                              Converter<std::uint32_t>{});
-    test_sort<std::int64_t>(SortTestConfig{cfg, "int64_t, device"}, small_sizes, Device<4>{},
+    test_sort<std::int64_t>(SortTestConfig{cfg, "int64_t, device"}, small_sizes, Device<4, SortTestConfig>{},
                             Converter<std::int64_t>{});
-    test_sort<TestUtils::float64_t>(SortTestConfig{cfg, "float64_t, device"}, small_sizes, Device<5>{},
+    test_sort<TestUtils::float64_t>(SortTestConfig{cfg, "float64_t, device"}, small_sizes, Device<5, SortTestConfig>{},
                                     Converter<TestUtils::float64_t>{});
-    test_sort<sycl::half>(SortTestConfig{cfg, "sycl::half, device"}, small_sizes, Device<6>{}, sycl_half_convert);
+    test_sort<sycl::half>(SortTestConfig{cfg, "sycl::half, device"}, small_sizes, Device<6, SortTestConfig>{}, sycl_half_convert);
     // TODO: add a test for a MoveConstructible only type
 #endif
 

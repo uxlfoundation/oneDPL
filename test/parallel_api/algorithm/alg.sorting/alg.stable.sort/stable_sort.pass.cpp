@@ -30,9 +30,9 @@ int main()
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    test_sort<TestUtils::float32_t>(SortTestConfig{cfg, "float, device"}, sizes, Device<0>{},
+    test_sort<TestUtils::float32_t>(SortTestConfig{cfg, "float, device"}, sizes, Device<0, SortTestConfig>{},
                                     Converter<TestUtils::float32_t>{});
-    test_sort<std::int64_t>(SortTestConfig{cfg, "int64_t, device"}, sizes, Device<1>{}, Converter<std::int64_t>{});
+    test_sort<std::int64_t>(SortTestConfig{cfg, "int64_t, device"}, sizes, Device<1, SortTestConfig>{}, Converter<std::int64_t>{});
     // TODO: add a test for stability
 #endif
 

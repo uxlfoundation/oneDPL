@@ -72,7 +72,7 @@ void test_simple_copy(size_t buffer_size)
     ::std::fill_n(host_source_begin, buffer_size, identity);
 
     test_copy<int> test(test_base_data);
-    invoke_on_all_hetero_policies<0>()(test, tr_sycl_source_begin, tr_sycl_source_end, sycl_result_begin, buffer_size, identity + 1);
+    invoke_on_all_hetero_policies<0, decltype(test)>()(test, tr_sycl_source_begin, tr_sycl_source_end, sycl_result_begin, buffer_size, identity + 1);
 }
 
 void test_ignore_copy(size_t buffer_size)
@@ -104,7 +104,7 @@ void test_ignore_copy(size_t buffer_size)
     ::std::fill_n(host_result_begin, buffer_size, ignored);
 
     test_copy<int> test(test_base_data);
-    invoke_on_all_hetero_policies<1>()(test, sycl_source_begin, sycl_source_end, tr_sycl_result_begin, buffer_size, ignored);
+    invoke_on_all_hetero_policies<1, decltype(test)>()(test, sycl_source_begin, sycl_source_end, tr_sycl_result_begin, buffer_size, ignored);
 }
 
 void test_multi_transform_copy(size_t buffer_size)
@@ -137,7 +137,7 @@ void test_multi_transform_copy(size_t buffer_size)
     ::std::fill_n(host_source_begin, buffer_size, identity);
 
     test_copy<int> test(test_base_data);
-    invoke_on_all_hetero_policies<2>()(test, tr3_sycl_source_begin, tr3_sycl_source_end, sycl_result_begin, buffer_size, identity + 3);
+    invoke_on_all_hetero_policies<2, decltype(test)>()(test, tr3_sycl_source_begin, tr3_sycl_source_end, sycl_result_begin, buffer_size, identity + 3);
 }
 
 void
