@@ -81,7 +81,7 @@ struct test_shift
         TestUtils::usm_data_transfer<alloc_type, _ValueType> dt_helper(exec, first, m);
 
         auto ptr = dt_helper.get_data();
-        using _NewKernelName = USMKernelName<Algo, _ValueType>;
+        using _NewKernelName = USMKernelName<alloc_type, Algo, _ValueType>;
         auto het_res = algo(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), ptr, ptr + m, n);
         _DiffType res_idx = het_res - ptr;
 
