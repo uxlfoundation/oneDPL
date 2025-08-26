@@ -20,6 +20,7 @@
 #include _PSTL_TEST_HEADER(numeric)
 
 #include "support/utils.h"
+#include "support/scan_serial_impl.h"
 
 #include <iostream>
 #include <vector>
@@ -116,7 +117,7 @@ test_diff_iterators(Policy&& exec)
     // Calculate expected result using serial exclusive_scan
     std::vector<int> result_expected(N);
     auto result_rbegin_expected = result_expected.rbegin();
-    std::exclusive_scan(
+    exclusive_scan_serial(
         input_rbegin,                       // Start of reversed input range
         input_rend,                         // End of reversed input range
         result_rbegin_expected,             // Start of reversed output range

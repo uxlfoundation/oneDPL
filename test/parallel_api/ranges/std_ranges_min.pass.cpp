@@ -22,6 +22,9 @@ namespace test_std_ranges
 {
 template<>
 constexpr int trivial_size<std::remove_cvref_t<decltype(oneapi::dpl::ranges::min)>> = 1;
+
+template<>
+constexpr bool supress_dangling_iterators_check<std::remove_cvref_t<decltype(oneapi::dpl::ranges::min)>> = true;
 }
 #endif
 
