@@ -96,6 +96,30 @@ test(T trash, const T& value, Convert convert, bool check_weakness = true)
     }
 }
 
+struct not_implicitly_convertible
+{
+    explicit not_implicitly_convertible(int v) {}
+};
+
+template <typename It, typename DestIt, typename Void = void>
+struct is_remove_copy_well_formed : std::false_type {};
+
+template <typename It, typename DestIt>
+struct is_remove_copy_well_formed<It, DestIt,
+                                  std::void_t<decltype(oneapi::dpl::remove_copy(oneapi::dpl::execution::seq,
+                                                                                std::declval<It>(),
+                                                                                std::declval<It>(),
+                                                                                std::declval<DestIt>(),
+                                                                                {3}))>> : std::true_type {};
+
+constexpr void test_default_template_argument_from_output_iterator()
+{
+    static_assert(is_remove_copy_well_formed<std::vector<int>::iterator, std::vector<not_implicitly_convertible>::iterator>::value,
+                  "Positive: The default argument of remove_copy shall be taken from input iterator");
+    static_assert(!is_remove_copy_well_formed<std::vector<not_implicitly_convertible>::iterator, std::vector<int>::iterator>::value,
+                  "Negative: The default argument of remove_copy shall be taken from input iterator");
+}
+
 void test_empty_list_initialization()
 {
     {
@@ -164,6 +188,7 @@ main()
                  [](std::int32_t j) { return ((j + 1) % 3 & 2) != 0 ? Number(2001, OddTag()) : Number(j, OddTag()); });
 #endif
 
+    test_default_template_argument_from_output_iterator();
     test_empty_list_initialization();
 
     return done();
