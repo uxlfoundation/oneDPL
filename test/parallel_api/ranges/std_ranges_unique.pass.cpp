@@ -33,9 +33,7 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    auto unique_checker = [](auto&&... args) {
-        return std::ranges::unique(std::forward<decltype(args)>(args)...);
-    };
+    auto unique_checker = TEST_PREPARE_CALLABLE(std::ranges::unique);
 
     test_range_algo<0>{big_sz}(dpl_ranges::unique, unique_checker);
     test_range_algo<1>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{});
