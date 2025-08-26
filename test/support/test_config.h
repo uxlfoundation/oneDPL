@@ -293,7 +293,7 @@
 #    error "TEST_ONLY_HETERO_POLICIES is passed but device backend is not available"
 #endif
 
-//for libc++ there are issues with sort and comma operator, disable no_comma compile only tests
+// libc++ has issues with std::stable_sort and deleted comma operators, disable no_comma compile only tests
 #define _PSTL_LIBCPP_NO_COMMA_TESTS_BROKEN (defined(_LIBCPP_VERSION))
 
 
