@@ -546,7 +546,7 @@ auto
 __pattern_adjacent_find_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
                         _Proj __proj)
 {
-    oneapi::dpl::__internal::__compare __pred_2{__pred, __proj};
+    oneapi::dpl::__internal::__compare<_Pred, _Proj> __pred_2{__pred, __proj};
 
     auto __idx =
         oneapi::dpl::__internal::__ranges::__pattern_adjacent_find(__tag, std::forward<_ExecutionPolicy>(__exec),
