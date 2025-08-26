@@ -722,9 +722,10 @@ __pattern_swap_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& _
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __end = std::ranges::begin(__r1) + std::ranges::size(__r1);
-    oneapi::dpl::__internal::__pattern_swap(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
-                                            __end, std::ranges::begin(__r2));
+    auto __beg1 = std::ranges::begin(__r1);
+    auto __end1 = __beg1 + std::ranges::size(__r1);
+    auto __beg2 = std::ranges::begin(__r2);
+    oneapi::dpl::__internal::__pattern_swap(__tag, std::forward<_ExecutionPolicy>(__exec), __beg1, __end1, __beg2);
 }
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2>

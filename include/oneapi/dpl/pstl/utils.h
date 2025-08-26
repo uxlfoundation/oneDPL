@@ -135,9 +135,9 @@ struct __predicate
 
     template <typename... _Xp>
     bool
-    operator()(const _Xp&... __x) const
+    operator()(_Xp&&... __x) const
     {
-        return std::invoke(__pred, std::invoke(__proj, __x)...);
+        return std::invoke(__pred, std::invoke(__proj, std::forward<_Xp>(__x))...);
     }
 };
 
