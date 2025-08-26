@@ -21,7 +21,7 @@
 #include "support/utils.h"
 
 #if ONEDPL_HAS_RANGE_ALGORITHMS > 202505L
-#include <ranges>
+#    include <ranges>
 #endif
 
 int
