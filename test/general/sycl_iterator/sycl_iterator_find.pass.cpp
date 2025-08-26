@@ -50,7 +50,7 @@ DEFINE_TEST(test_adjacent_find)
             *(host_keys.get() + n - 1) = *(host_keys.get() + n - 2);
             host_keys.update_data();
         }
-        result = std::adjacent_find(CLONE_TEST_POLICY(exec), first, last, comp);
+        result = std::adjacent_find(CLONE_TEST_POLICY_IDX(exec, 0), first, last, comp);
         expected = max_dis > 1 ? last - 2 : last;
         wait_and_throw(exec);
 
@@ -65,14 +65,14 @@ DEFINE_TEST(test_adjacent_find)
             *(host_keys.get() + max_dis / 2) = *(host_keys.get() + max_dis / 2 - 1);
             host_keys.update_data();
         }
-        result = std::adjacent_find(CLONE_TEST_POLICY(exec), first, last, comp);
+        result = std::adjacent_find(CLONE_TEST_POLICY_IDX(exec, 0), first, last, comp);
         expected = max_dis > 1 ? it - 1 : last;
         wait_and_throw(exec);
 
         EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #3 middle element)");
 
         // check with an adjacent element (no predicate)
-        result = std::adjacent_find(CLONE_TEST_POLICY(exec), first, last);
+        result = std::adjacent_find(CLONE_TEST_POLICY_IDX(exec, 0), first, last);
         wait_and_throw(exec);
 
         EXPECT_EQ(expected, result, "wrong effect from adjacent_find (Test #4 middle element (no predicate))");
@@ -84,7 +84,7 @@ DEFINE_TEST(test_adjacent_find)
             *(host_keys.get() + 1) = *host_keys.get();
             host_keys.update_data();
         }
-        result = std::adjacent_find(CLONE_TEST_POLICY(exec), first, last, comp);
+        result = std::adjacent_find(CLONE_TEST_POLICY_IDX(exec, 0), first, last, comp);
         expected = max_dis > 1 ? first : last;
         wait_and_throw(exec);
 
