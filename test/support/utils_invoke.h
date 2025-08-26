@@ -371,6 +371,9 @@ struct invoke_on_all_hetero_policies
     {
         auto my_policy = get_dpcpp_test_policy<CallNumber, Op>();
 
+        auto cloned_policy0 = CLONE_TEST_POLICY_IDX(my_policy, 0);
+        auto cloned_policy1 = CLONE_TEST_POLICY_IDX(my_policy, 1);
+
         sycl::queue queue = my_policy.queue();
 
         // Device may not support some types, e.g. double or sycl::half; test if they are supported or skip otherwise
@@ -383,22 +386,21 @@ struct invoke_on_all_hetero_policies
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
             iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
-                my_policy, op, std::forward<Args>(rest)...);
-
-
-#if TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
-            // Check compilation of the kernel with comma operator deleted iterators. Use policy wrapped with unique
-            // identifier to differentiate from other calls, but, preserve the policy for other two calls.
-            TestUtils::check_compilation_no_comma(CLONE_TEST_POLICY_IDX(my_policy, 0), op, rest...);
-#endif
+                cloned_policy0, op, std::forward<Args>(rest)...);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
             // Check compilation of the kernel with different policy type qualifiers
-            check_compilation(my_policy, [&](auto&& __policy) {
+            check_compilation(cloned_policy0, [&](auto&& __policy) {
                 iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
                     std::forward<decltype(__policy)>(__policy), op, std::forward<Args>(rest)...);
             });
 #endif // TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+
+#if TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
+            // Check compilation of the kernel with comma operator deleted iterators.
+            TestUtils::check_compilation_no_comma(cloned_policy1, op, rest...);
+#endif
+
         }
         else
         {
