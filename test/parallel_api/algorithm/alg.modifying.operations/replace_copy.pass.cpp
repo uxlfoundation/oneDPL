@@ -109,20 +109,61 @@ struct test_non_const
     }
 };
 
+struct not_implicitly_convertible
+{
+    explicit not_implicitly_convertible(int v) {}
+};
+
+template <typename It, typename DestIt, typename Void = void>
+struct is_replace_copy_well_formed : std::false_type {};
+
+template <typename It, typename DestIt>
+struct is_replace_copy_well_formed<It, DestIt,
+                                   std::void_t<decltype(oneapi::dpl::replace_copy(oneapi::dpl::execution::seq,
+                                                                                  std::declval<It>(),
+                                                                                  std::declval<It>(),
+                                                                                  std::declval<DestIt>(),
+                                                                                  {2},
+                                                                                  {3}))>> : std::true_type {};
+
+template <typename It, typename DestIt, typename Void = void>
+struct is_replace_copy_if_well_formed : std::false_type {};
+
+template <typename It, typename DestIt>
+struct is_replace_copy_if_well_formed<It, DestIt,
+                                      std::void_t<decltype(oneapi::dpl::replace_copy_if(oneapi::dpl::execution::seq,
+                                                                                        std::declval<It>(),
+                                                                                        std::declval<It>(),
+                                                                                        std::declval<DestIt>(),
+                                                                                        int{}, // actually, some callable should be here but since the function does not have any constraints any type will work
+                                                                                        {3}))>> : std::true_type {};
+
+constexpr void test_default_template_argument_from_output_iterator()
+{
+    static_assert(is_replace_copy_well_formed<std::vector<not_implicitly_convertible>::iterator, std::vector<int>::iterator>::value,
+                  "Positive: The default argument of replace_copy shall be taken from output iterator");
+    static_assert(!is_replace_copy_well_formed<std::vector<int>::iterator, std::vector<not_implicitly_convertible>::iterator>::value,
+                  "Negative: The default argument of replace_copy shall be taken from output iterator");
+    static_assert(is_replace_copy_if_well_formed<std::vector<not_implicitly_convertible>::iterator, std::vector<int>::iterator>::value,
+                  "Positive: The default argument of replace_copy_if shall be taken from output iterator");
+    static_assert(!is_replace_copy_if_well_formed<std::vector<int>::iterator, std::vector<not_implicitly_convertible>::iterator>::value,
+                  "Positive: The default argument of replace_copy_if shall be taken from output iterator");
+}
+
 void test_empty_list_initialization_for_replace_copy()
 {
     {
         std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
         std::vector<int> dest(v.size());
         std::vector<int> expected{0,6,0,4,0,7,8,0,0,4};
-        oneapi::dpl::replace_copy(oneapi::dpl::execution::seq, v.begin(), v.end(), dest.begin(), 3, {});
+        oneapi::dpl::replace_copy(oneapi::dpl::execution::seq, v.begin(), v.end(), dest.begin(), {3}, {});
         EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::replace_copy with empty list-initialized value and with `seq` policy");
     }
     {
         std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
         std::vector<int> dest(v.size());
         std::vector<int> expected{0,6,0,4,0,7,8,0,0,4};
-        oneapi::dpl::replace_copy(oneapi::dpl::execution::unseq, v.begin(), v.end(), dest.begin(), 3, {});
+        oneapi::dpl::replace_copy(oneapi::dpl::execution::unseq, v.begin(), v.end(), dest.begin(), {3}, {});
         EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::replace_copy with empty list-initialized value and with `unseq` policy");
     }
 
@@ -148,7 +189,7 @@ void test_empty_list_initialization_for_replace_copy()
     std::vector<int> expected{0,6,0,4,0,7,8,0,0,4};
     sycl::buffer<int> buf(v);
     sycl::buffer<int> dest_buf(v);
-    oneapi::dpl::replace_copy(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), oneapi::dpl::begin(dest_buf), 3, {});
+    oneapi::dpl::replace_copy(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), oneapi::dpl::begin(dest_buf), {3}, {});
     EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::replace_copy with empty list-initialized value and with `device_policy` policy");
 #endif
 }
@@ -220,6 +261,7 @@ main()
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 #endif
 
+    test_default_template_argument_from_output_iterator();
     test_empty_list_initialization_for_replace_copy();
     test_empty_list_initialization_for_replace_copy_if();
 
