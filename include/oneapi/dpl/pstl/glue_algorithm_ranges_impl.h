@@ -965,8 +965,7 @@ struct __reverse_copy_fn
         auto __stop_out = std::ranges::begin(__out_r) + __sz;
 
         oneapi::dpl::__internal::__ranges::__pattern_reverse_copy(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::ranges::drop_view(__in_r, __in_r_skipped),
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::drop_view(__in_r, __in_r_skipped),
             std::ranges::take_view(__out_r, __sz));
 
         return {__last_in, __stop_in, __stop_out};

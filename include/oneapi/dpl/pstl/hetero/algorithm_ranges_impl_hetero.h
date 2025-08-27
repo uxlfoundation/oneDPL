@@ -726,9 +726,10 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _In
     if (__n == 0)
         return;
 
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<decltype(__n)>{__n}, __n,
-        std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r)).__checked_deferrable_wait();
+    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                      unseq_backend::__reverse_copy<decltype(__n)>{__n}, __n,
+                                                      std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r))
+        .__checked_deferrable_wait();
 }
 
 //------------------------------------------------------------------------
