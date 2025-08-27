@@ -991,8 +991,8 @@ template <typename _Size1, typename _Size2, typename _Compare, typename _Proj1 =
           typename _Proj2 = oneapi::dpl::identity>
 struct __brick_includes
 {
-    _Size2 __size1;
-    _Size1 __size2;
+    _Size1 __size1;
+    _Size2 __size2;
     _Compare __comp;
     _Proj1 __proj1;
     _Proj2 __proj2;
