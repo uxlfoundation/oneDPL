@@ -1008,8 +1008,8 @@ struct __brick_includes
     {
         using std::get;
 
-        auto __proj_rng_1 = [this](auto&& __val) { return std::invoke(__proj1, std::forward<decltype(__val)>(__val)); };
-        auto __proj_rng_2 = [this](auto&& __val) { return std::invoke(__proj2, std::forward<decltype(__val)>(__val)); };
+        oneapi::dpl::__internal::__projection<_Proj1> __proj_rng_1{__proj1};
+        oneapi::dpl::__internal::__projection<_Proj2> __proj_rng_2{__proj2};
 
         // testing __comp(*__first2, *__first1) or __comp(*(__last1 - 1), *(__last2 - 1))
         if ((__idx == 0 && std::invoke(__comp, __proj_rng_1(__rng1[0]), __proj_rng_2(__rng2[0]))) ||
