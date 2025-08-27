@@ -683,7 +683,6 @@ bool
 __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp,
                    _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
 
     const auto __n1 = std::ranges::size(__r1);
