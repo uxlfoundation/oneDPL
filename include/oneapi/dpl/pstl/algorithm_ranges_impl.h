@@ -743,8 +743,9 @@ __pattern_unique(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, 
 
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + std::ranges::size(__r);
-    auto __it = oneapi::dpl::__internal::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end,
-                                                          oneapi::dpl::__internal::__compare<_Comp, _Proj>{__comp, __proj});
+    auto __it =
+        oneapi::dpl::__internal::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end,
+                                                  oneapi::dpl::__internal::__compare<_Comp, _Proj>{__comp, __proj});
 
     return {__it, __end};
 }
@@ -764,9 +765,9 @@ __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange
 
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + std::ranges::size(__r);
-    auto __it = oneapi::dpl::__internal::__pattern_unique_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __beg,
-                                                               __end, std::ranges::begin(__out_r),
-                                                               oneapi::dpl::__internal::__compare<_Comp, _Proj>{__comp, __proj});
+    auto __it = oneapi::dpl::__internal::__pattern_unique_copy(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end, std::ranges::begin(__out_r),
+        oneapi::dpl::__internal::__compare<_Comp, _Proj>{__comp, __proj});
     return {__end, __it};
 }
 
