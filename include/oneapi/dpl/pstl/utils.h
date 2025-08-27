@@ -142,6 +142,20 @@ struct __projection
     }
 };
 
+template <typename _Proj>
+struct __projection_deref
+{
+    //'mutable' is to relax the requirements for a user comparator or/and projection type operator() may be non-const
+    mutable _Proj __proj;
+
+    template <typename _Iterator>
+    auto
+    operator()(_Iterator __it) const
+    {
+        return std::invoke(__proj, *__it);
+    }
+};
+
 template <typename _Pred, typename _Proj>
 struct __predicate
 {
