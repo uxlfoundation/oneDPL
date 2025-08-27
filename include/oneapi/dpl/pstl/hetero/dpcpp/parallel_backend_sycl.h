@@ -1120,8 +1120,8 @@ __parallel_set_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range
     _DataAcc __get_data_op;
     unseq_backend::__copy_by_mask<_ReduceOp, oneapi::dpl::__internal::__pstl_assign, /*inclusive*/ std::true_type, 2>
         __copy_by_mask_op;
-    unseq_backend::__brick_set_op<_Compare, _Size1, _Size2, _IsOpDifference, _Proj1, _Proj2> __create_mask_op{
-        __comp, __n1, __n2, __proj1, __proj2};
+    unseq_backend::__brick_set_op<_Size1, _Size2, _IsOpDifference, _Compare, _Proj1, _Proj2> __create_mask_op{
+        __n1, __n2, __comp, __proj1, __proj2};
 
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);

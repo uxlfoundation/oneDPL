@@ -1252,19 +1252,19 @@ struct _SymmetricDifferenceTag : public std::true_type
     static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
 };
 
-template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference,
+template <typename _Size1, typename _Size2, typename _IsOpDifference, typename _Compare,
           typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 class __brick_set_op
 {
-    _Compare __comp;
     _Size1 __na;
     _Size2 __nb;
+    _Compare __comp;
     _Proj1 __proj1;
     _Proj2 __proj2;
 
   public:
-    __brick_set_op(_Compare __c, _Size1 __n1, _Size2 __n2, _Proj1 __p1 = _Proj1{}, _Proj2 __p2 = _Proj2{})
-        : __comp(__c), __na(__n1), __nb(__n2), __proj1(__p1), __proj2(__p2)
+    __brick_set_op(_Size1 __n1, _Size2 __n2, _Compare __c, _Proj1 __p1 = _Proj1{}, _Proj2 __p2 = _Proj2{})
+        : __na(__n1), __nb(__n2), __comp(__c), __proj1(__p1), __proj2(__p2)
     {
     }
 

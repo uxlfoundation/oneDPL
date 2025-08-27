@@ -733,7 +733,7 @@ struct __scan;
 template <typename _Size1, typename _Size2, typename _Compare, typename _Proj1, typename _Proj2>
 struct __brick_includes;
 
-template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference, typename _Proj1,
+template <typename _Size1, typename _Size2, typename _IsOpDifference, typename _Compare, typename _Proj1,
           typename _Proj2>
 class __brick_set_op;
 
@@ -855,11 +855,11 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference, typename _Proj1,
+template <typename _Size1, typename _Size2, typename _IsOpDifference, typename _Compare, typename _Proj1,
           typename _Proj2>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_set_op, _Compare, _Size1,
-                                                       _Size2, _IsOpDifference, _Proj1, _Proj2)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _Size1, _Size2, _Proj1, _Proj2>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_set_op, _Size1, _Size2,
+                                                       _IsOpDifference, _Compare, _Proj1, _Proj2)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Size1, _Size2, _Compare, _Proj1, _Proj2>
 {
 };
 
