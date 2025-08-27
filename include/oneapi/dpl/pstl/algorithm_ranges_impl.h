@@ -741,12 +741,10 @@ __pattern_unique(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__compare<_Comp, _Proj> __pred_2{__comp, __proj};
-
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + std::ranges::size(__r);
     auto __it = oneapi::dpl::__internal::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end,
-                                                          __pred_2);
+                                                          oneapi::dpl::__internal::__compare<_Comp, _Proj>{__comp, __proj});
 
     return {__it, __end};
 }
@@ -764,12 +762,11 @@ __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__compare<_Comp, _Proj> __pred_2{__comp, __proj};
-
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + std::ranges::size(__r);
     auto __it = oneapi::dpl::__internal::__pattern_unique_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __beg,
-                                                               __end, std::ranges::begin(__out_r), __pred_2);
+                                                               __end, std::ranges::begin(__out_r),
+                                                               oneapi::dpl::__internal::__compare<_Comp, _Proj>{__comp, __proj});
     return {__end, __it};
 }
 
