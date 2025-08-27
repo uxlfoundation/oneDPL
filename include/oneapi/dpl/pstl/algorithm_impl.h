@@ -3300,7 +3300,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
     __par_backend::__buffer<_T> __buf(__size_func(__n1, __n2));
 
-    auto __proj1_deref = [__proj1](_RandomAccessIterator1 __it) { return std::invoke(__proj1, *__it); };
+    oneapi::dpl::__internal::__projection_deref<_Proj1> __proj1_deref(__proj1);
 
     return __internal::__except_handler([&__exec, __n1, __first1, __last1, __first2, __last2, __result, __comp,
                                          __size_func, __set_op, &__buf, __proj1, __proj2, __proj1_deref]() {
@@ -3390,8 +3390,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
 
-    auto __proj1_deref = [__proj1](_RandomAccessIterator1 __it) { return std::invoke(__proj1, *__it); };
-    auto __proj2_deref = [__proj2](_RandomAccessIterator2 __it) { return std::invoke(__proj2, *__it); };
+    oneapi::dpl::__internal::__projection_deref<_Proj1> __proj1_deref{__proj1};
+    oneapi::dpl::__internal::__projection_deref<_Proj2> __proj2_deref{__proj2};
 
     __brick_copy<__parallel_tag<_IsVector>> __copy_range{};
 

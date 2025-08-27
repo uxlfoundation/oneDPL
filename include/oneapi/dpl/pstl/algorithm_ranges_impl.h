@@ -702,8 +702,8 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     if (__first2 == __last2)
         return true;
 
-    auto __proj1_deref = [__proj1](_RandomAccessIterator1 __it) { return std::invoke(__proj1, *__it); };
-    auto __proj2_deref = [__proj2](_RandomAccessIterator2 __it) { return std::invoke(__proj2, *__it); };
+    oneapi::dpl::__internal::__projection_deref<_Proj1> __proj1_deref{__proj1};
+    oneapi::dpl::__internal::__projection_deref<_Proj2> __proj2_deref{__proj2};
 
     //optimization; {1} - the first sequence, {2} - the second sequence
     //{1} is empty or size_of{2} > size_of{1}
@@ -900,8 +900,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     auto __last2 = __first2 + __n2;
     auto __result = std::ranges::begin(__out_r);
 
-    auto __proj1_deref = [__proj1](_RandomAccessIterator1 __it) { return std::invoke(__proj1, *__it); };
-    auto __proj2_deref = [__proj2](_RandomAccessIterator2 __it) { return std::invoke(__proj2, *__it); };
+    oneapi::dpl::__internal::__projection_deref<_Proj1> __proj1_deref{__proj1};
+    oneapi::dpl::__internal::__projection_deref<_Proj2> __proj2_deref{__proj2};
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
@@ -1021,8 +1021,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     auto __last2 = __first2 + __n2;
     auto __result = std::ranges::begin(__out_r);
 
-    auto __proj1_deref = [__proj1](_RandomAccessIterator1 __it) { return std::invoke(__proj1, *__it); };
-    auto __proj2_deref = [__proj2](_RandomAccessIterator2 __it) { return std::invoke(__proj2, *__it); };
+    oneapi::dpl::__internal::__projection_deref<_Proj1> __proj1_deref{__proj1};
+    oneapi::dpl::__internal::__projection_deref<_Proj2> __proj2_deref{__proj2};
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
