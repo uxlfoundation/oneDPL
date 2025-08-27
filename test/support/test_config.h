@@ -293,6 +293,13 @@
 #    error "TEST_ONLY_HETERO_POLICIES is passed but device backend is not available"
 #endif
 
+// There are issues with stable_sort for libcpp with iterators with a deleted comma operator, disable those tests
+#if (defined(_LIBCPP_VERSION))
+#   define _PSTL_LIBCPP_NO_COMMA_TESTS_BROKEN 1
+#else
+#   define _PSTL_LIBCPP_NO_COMMA_TESTS_BROKEN 0
+#endif
+
 // There is a bug in the libc++ at the time of writing this comment with 21 being the latest major release
 // 23 is set to avoid frequent bump-ups.
 // See: https://github.com/llvm/llvm-project/blob/6096d35ea93c75f648a253a00775b4d74915c819/libcxx/include/__algorithm/ranges_set_union.h#L94
