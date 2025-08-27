@@ -245,6 +245,8 @@ template <typename Policy, typename Op, typename... Args>
 void
 check_compilation_no_comma(Policy&& policy, Op&& op, Args&&... rest)
 {
+    //for libc++, we disable these checks because their sort implementation is broken for deleted comma operator iter
+#if !_PSTL_LIBCPP_NO_COMMA_TESTS_BROKEN
     volatile bool always_false = false;
     if (always_false)
     {
@@ -252,6 +254,7 @@ check_compilation_no_comma(Policy&& policy, Op&& op, Args&&... rest)
         iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
             std::forward<Policy>(policy), wrapped_iter_op, std::forward<Args>(rest)...);
     }
+#endif
 }
 
 template <typename _ExecutionPolicy>
