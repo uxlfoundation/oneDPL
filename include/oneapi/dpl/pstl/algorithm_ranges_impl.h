@@ -714,7 +714,7 @@ __pattern_reverse(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __first = std::ranges::begin(__r);
-    auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
+    auto __last = __first + std::ranges::size(__r);
     oneapi::dpl::__internal::__pattern_reverse(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last);
 }
 

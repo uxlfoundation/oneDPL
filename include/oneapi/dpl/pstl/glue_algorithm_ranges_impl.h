@@ -960,8 +960,9 @@ struct __reverse_copy_fn
 
         const auto __in_r_skipped = __in_r_size - __sz;
 
-        auto __last_in = std::ranges::begin(__in_r) + __in_r_size;
-        auto __stop_in = std::ranges::begin(__in_r) + __in_r_skipped;
+        auto __first_in = std::ranges::begin(__in_r);
+        auto __last_in = __first_in + __in_r_size;
+        auto __stop_in = __first_in + __in_r_skipped;
         auto __stop_out = std::ranges::begin(__out_r) + __sz;
 
         oneapi::dpl::__internal::__ranges::__pattern_reverse_copy(
