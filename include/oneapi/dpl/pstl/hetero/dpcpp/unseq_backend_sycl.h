@@ -1263,8 +1263,8 @@ class __brick_set_op
     _Proj2 __proj2;
 
   public:
-    __brick_set_op(_Size1 __n1, _Size2 __n2, _Compare __c, _Proj1 __p1 = _Proj1{}, _Proj2 __p2 = _Proj2{})
-        : __na(__n1), __nb(__n2), __comp(__c), __proj1(__p1), __proj2(__p2)
+    __brick_set_op(_Size1 __na, _Size2 __nb, _Compare __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+        : __na(__na), __nb(__nb), __comp(__comp), __proj1(__proj1), __proj2(__proj2)
     {
     }
 
