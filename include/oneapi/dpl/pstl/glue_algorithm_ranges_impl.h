@@ -952,15 +952,21 @@ struct __reverse_copy_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
-        using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
-        const _Size __sz = std::ranges::min((_Size)std::ranges::size(__in_r), (_Size)std::ranges::size(__out_r));
+        const auto __in_r_size = std::ranges::size(__in_r);
+        const auto __out_r_size = std::ranges::size(__out_r);
 
-        auto __last_in = std::ranges::begin(__in_r) + std::ranges::size(__in_r);
-        auto __stop_in = std::ranges::begin(__in_r) + (std::ranges::size(__in_r) - __sz);
+        using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
+        const _Size __sz = std::ranges::min((_Size)__in_r_size, (_Size)__out_r_size);
+
+        const auto __in_r_skipped = __in_r_size - __sz;
+
+        auto __last_in = std::ranges::begin(__in_r) + __in_r_size;
+        auto __stop_in = std::ranges::begin(__in_r) + __in_r_skipped;
         auto __stop_out = std::ranges::begin(__out_r) + __sz;
 
         oneapi::dpl::__internal::__ranges::__pattern_reverse_copy(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::take_view(__in_r, __sz),
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+            std::ranges::drop_view(__in_r, __in_r_skipped),
             std::ranges::take_view(__out_r, __sz));
 
         return {__last_in, __stop_in, __stop_out};
