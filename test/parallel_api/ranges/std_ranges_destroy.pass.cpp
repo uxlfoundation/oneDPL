@@ -30,7 +30,7 @@
 struct Elem_0
 {
     int val1;
-    int val2;
+    volatile int val2; // volatile prevents optimization of the destructor observed with g++
 
     Elem_0(): val1() {} //val1 has a zero-initialization here
     Elem_0(Elem_0&& elem) { val2 = elem.val2; }
