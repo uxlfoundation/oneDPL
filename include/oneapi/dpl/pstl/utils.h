@@ -128,6 +128,20 @@ class __pstl_assign
     }
 };
 
+template <typename _Proj>
+struct __projection
+{
+    //'mutable' is to relax the requirements for a user comparator or/and projection type operator() may be non-const
+    mutable _Proj __proj;
+
+    template <typename _TValue>
+    auto
+    operator()(_TValue&& __val) const
+    {
+        return std::invoke(__proj, std::forward<_TValue>(__val));
+    }
+};
+
 template <typename _Pred, typename _Proj>
 struct __predicate
 {
