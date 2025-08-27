@@ -710,7 +710,7 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
                                                       unseq_backend::__reverse_functor<decltype(__n)>{__n}, __n / 2,
-                                                      oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)))
+                                                      std::forward<_R>(__r))
         .__checked_deferrable_wait();
 }
 
@@ -728,9 +728,7 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _In
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<decltype(__n)>{__n}, __n,
-        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
-        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)))
-        .__checked_deferrable_wait();
+        std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r)).__checked_deferrable_wait();
 }
 
 //------------------------------------------------------------------------
