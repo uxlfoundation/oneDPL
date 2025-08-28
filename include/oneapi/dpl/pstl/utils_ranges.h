@@ -390,7 +390,7 @@ struct take_view_simple
 
     auto cbegin() const { return std::ranges::begin(__r);       }
     auto cend  () const { return std::ranges::begin(__r) + __n; }
-#end
+#endif
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
