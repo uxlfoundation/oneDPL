@@ -148,6 +148,7 @@ struct __projection_deref
             using __proj_result_decayed_t = std::decay_t<__proj_result_t>;
 
             // create temporary copy of the projection and return it as prvalue
+            // - for that we should create and return temporary object (but not local variable)
             return __proj_result_decayed_t{std::invoke(__proj, *__it)};
         }
     }
