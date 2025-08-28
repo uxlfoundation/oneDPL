@@ -27,6 +27,7 @@
 #    include <ranges> // std::ranges::sized_range, std::ranges::range_size_t
 #endif
 
+#include "execution_defs.h"
 #include "iterator_defs.h"
 #include "iterator_impl.h"
 
