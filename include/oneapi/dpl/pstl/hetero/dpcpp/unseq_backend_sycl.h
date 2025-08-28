@@ -1008,34 +1008,31 @@ struct __brick_includes
     {
         using std::get;
 
-        oneapi::dpl::__internal::__projection<_Proj1> __proj_rng_1{__proj1};
-        oneapi::dpl::__internal::__projection<_Proj2> __proj_rng_2{__proj2};
-
         // testing __comp(*__first2, *__first1) or __comp(*(__last1 - 1), *(__last2 - 1))
-        if ((__idx == 0 && std::invoke(__comp, __proj_rng_1(__rng1[0]), __proj_rng_2(__rng2[0]))) ||
+        if ((__idx == 0 && std::invoke(__comp, std::invoke(__proj1, __rng1[0]), std::invoke(__proj2, __rng2[0]))) ||
             (__idx == __size1 - 1 &&
-             std::invoke(__comp, __proj_rng_2(__rng2[__size2 - 1]), __proj_rng_1(__rng1[__size1 - 1]))))
+             std::invoke(__comp, std::invoke(__proj2, __rng2[__size2 - 1]), std::invoke(__proj1, __rng1[__size1 - 1]))))
             return true; //__rng2 doesn't include __rng1
 
         const auto __idx_b = 0 + __idx;
         const auto __val_b = __rng1[__idx_b];
 
-        auto __res = __internal::__pstl_lower_bound(__rng2, _Size1{0}, __size2, __proj_rng_1(__val_b), __comp, __proj2);
+        auto __res = __internal::__pstl_lower_bound(__rng2, _Size1{0}, __size2, std::invoke(__proj1, __val_b), __comp, __proj2);
 
         // {a} < {b} or __val_b != __rng2[__res]
-        if (__res == __size2 || std::invoke(__comp, __proj_rng_1(__val_b), __proj_rng_2(__rng2[__res])))
+        if (__res == __size2 || std::invoke(__comp, std::invoke(__proj1, __val_b), std::invoke(__proj2, __rng2[__res])))
             return true; //__rng2 doesn't include __rng1
 
         auto __val_a = __rng2[__res];
 
         //searching number of duplication
         const auto __count_a =
-            __internal::__pstl_right_bound(__rng2, __res, __size2, __proj_rng_2(__val_a), __comp, __proj2) -
-            __internal::__pstl_left_bound(__rng2, _Size1{0}, __res, __proj_rng_2(__val_a), __comp, __proj2);
+            __internal::__pstl_right_bound(__rng2, __res, __size2, std::invoke(__proj2, __val_a), __comp, __proj2) -
+            __internal::__pstl_left_bound(__rng2, _Size1{0}, __res, std::invoke(__proj2, __val_a), __comp, __proj2);
 
         const auto __count_b =
-            __internal::__pstl_right_bound(__rng1, _Size2(__idx_b), __size1, __proj_rng_1(__val_b), __comp, __proj1) -
-            __internal::__pstl_left_bound(__rng1, _Size2{0}, _Size2(__idx_b), __proj_rng_1(__val_b), __comp, __proj1);
+            __internal::__pstl_right_bound(__rng1, _Size2(__idx_b), __size1, std::invoke(__proj1, __val_b), __comp, __proj1) -
+            __internal::__pstl_left_bound(__rng1, _Size2{0}, _Size2(__idx_b), std::invoke(__proj1, __val_b), __comp, __proj1);
 
         return __count_b > __count_a; //false means __rng2 includes __rng1
     }

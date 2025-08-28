@@ -129,20 +129,6 @@ class __pstl_assign
 };
 
 template <typename _Proj>
-struct __projection
-{
-    //'mutable' is to relax the requirements for a user comparator or/and projection type operator() may be non-const
-    mutable _Proj __proj;
-
-    template <typename _TValue>
-    decltype(auto)
-    operator()(_TValue&& __val) const
-    {
-        return std::invoke(__proj, std::forward<_TValue>(__val));
-    }
-};
-
-template <typename _Proj>
 struct __projection_deref
 {
     //'mutable' is to relax the requirements for a user comparator or/and projection type operator() may be non-const
@@ -152,19 +138,17 @@ struct __projection_deref
     decltype(auto)
     operator()(_Iterator __it) const
     {
-        __projection<_Proj> __proj_obj{__proj};
-
         if constexpr (std::is_lvalue_reference_v<decltype(*__it)>)
         {
-            return __proj_obj(*__it);
+            return std::invoke(__proj, *__it);
         }
         else
         {
-            using __proj_result_t = decltype(__proj_obj(*__it));
+            using __proj_result_t = decltype(std::invoke(__proj, *__it));
             using __proj_result_decayed_t = std::decay_t<__proj_result_t>;
 
             // create temporary copy of the projection returning value
-            __proj_result_decayed_t __res = __proj_obj(*__it);
+            __proj_result_decayed_t __res = std::invoke(__proj, *__it);
 
             return __res;
         }
