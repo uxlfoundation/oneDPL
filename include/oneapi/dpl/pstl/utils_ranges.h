@@ -445,6 +445,36 @@ struct drop_view_simple
     }
 };
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _ExecutionPolicy, typename _Rng, typename _Size>
+auto
+__make_take_view(_Rng&& __rng, _Size __size)
+{
+    if constexpr (oneapi::dpl::__internal::__is_host_execution_policy<std::remove_cvref_t<_ExecutionPolicy>>::value)
+    {
+        return std::ranges::take_view(std::forward<_Rng>(__rng), __size);
+    }
+    else
+    {
+        return oneapi::dpl::__ranges::take_view_simple(std::forward<_Rng>(__rng), __size);
+    }
+}
+
+template <typename _ExecutionPolicy, typename _Rng, typename _Size>
+auto
+__make_drop_view(_Rng&& __rng, _Size __size)
+{
+    if constexpr (oneapi::dpl::__internal::__is_host_execution_policy<std::remove_cvref_t<_ExecutionPolicy>>::value)
+    {
+        return std::ranges::drop_view(std::forward<_Rng>(__rng), __size);
+    }
+    else
+    {
+        return oneapi::dpl::__ranges::drop_view_simple(std::forward<_Rng>(__rng), __size);
+    }
+}
+#endif
+
 //replicate_start_view_simple inserts replicates of the first element m times, then continues with the range as normal.
 // For counting iterator range {0,1,2,3,4,5,...}, and __replicate_count = 3, the result is {0,0,0,0,1,2,3,4,5,...}
 template <typename _R, typename _Size>
