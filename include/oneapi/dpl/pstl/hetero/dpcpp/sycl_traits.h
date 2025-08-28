@@ -69,9 +69,6 @@ template <typename _Tp>
 class __set_value;
 
 template <typename _Proj>
-struct __projection;
-
-template <typename _Proj>
 struct __projection_deref;
 
 template <typename _Comp, typename _Proj>
@@ -195,12 +192,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 template <typename _Tp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__set_value, _Tp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Tp>
-{
-};
-
-template <typename _Proj>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__projection, _Proj)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Proj>
 {
 };
 
