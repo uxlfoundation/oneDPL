@@ -154,14 +154,13 @@ struct __projection_deref
     {
         __projection<_Proj> __proj_obj{__proj};
 
-        using __proj_result_t = decltype(__proj_obj(*__it));
-
-        if constexpr (std::is_lvalue_reference_v<__proj_result_t>)
+        if constexpr (std::is_lvalue_reference_v<decltype(*__it)>)
         {
             return __proj_obj(*__it);
         }
         else
         {
+            using __proj_result_t = decltype(__proj_obj(*__it));
             using __proj_result_decayed_t = std::decay_t<__proj_result_t>;
 
             // create temporary copy of the projection returning value
