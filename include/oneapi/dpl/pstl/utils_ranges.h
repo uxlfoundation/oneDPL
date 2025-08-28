@@ -22,6 +22,7 @@
 #include <utility>     // std::declval
 #include <iterator>    // std::iterator_traits
 #include <type_traits> // std::decay_t, std::remove_cv_t, std::remove_reference_t, std::invoke_result_t, ...
+#include <ranges>      // std::ranges::view_base
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #    include <ranges> // std::ranges::sized_range, std::ranges::range_size_t
