@@ -94,8 +94,10 @@ struct __transform_fn
         using _Size = std::common_type_t<std::ranges::range_size_t<_R>, std::ranges::range_size_t<_OutRange>>;
         const _Size __size = std::ranges::min((_Size)std::ranges::size(__r), (_Size)std::ranges::size(__out_r));
 
-        oneapi::dpl::__internal::__ranges::__pattern_transform(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::ranges::take_view(__r, __size), std::ranges::take_view(__out_r, __size), __op, __proj);
+        oneapi::dpl::__internal::__ranges::__pattern_transform(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::create_take_view(__exec, __r, __size),
+            oneapi::dpl::__ranges::create_take_view(__exec, __out_r, __size), __op, __proj);
 
         return {std::ranges::begin(__r) + __size, std::ranges::begin(__out_r) +  __size};
     }
@@ -125,10 +127,11 @@ struct __transform_fn
             __size = std::ranges::min(__size, (_Size)std::ranges::size(__r2));
 
         //take_view doesn't make unsized range sized, so subrange is used below
-        oneapi::dpl::__internal::__ranges::__pattern_transform(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__internal::__ranges::__pattern_transform(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
             std::ranges::subrange(std::ranges::begin(__r1), std::ranges::begin(__r1) + __size),
             std::ranges::subrange(std::ranges::begin(__r2), std::ranges::begin(__r2) + __size),
-            std::ranges::take_view(__out_r, __size), __binary_op, __proj1, __proj2);
+            oneapi::dpl::__ranges::create_take_view(__exec, __out_r, __size), __binary_op, __proj1, __proj2);
 
         return {std::ranges::begin(__r1) + __size, std::ranges::begin(__r2) + __size, std::ranges::begin(__out_r) + __size};
     }
@@ -731,8 +734,10 @@ struct __copy_fn
         using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
         const _Size __size = std::ranges::min((_Size)std::ranges::size(__in_r), (_Size)std::ranges::size(__out_r));
 
-        oneapi::dpl::__internal::__ranges::__pattern_copy(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::ranges::take_view(__in_r, __size), std::ranges::take_view(__out_r, __size));
+        oneapi::dpl::__internal::__ranges::__pattern_copy(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::create_take_view(__exec, __in_r, __size),
+            oneapi::dpl::__ranges::create_take_view(__exec, __out_r, __size));
 
         return {std::ranges::begin(__in_r) + __size, std::ranges::begin(__out_r) +  __size};
     }
@@ -840,8 +845,10 @@ struct __move_fn
         using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
         const _Size __size = std::ranges::min((_Size)std::ranges::size(__r), (_Size)std::ranges::size(__out_r));
 
-        oneapi::dpl::__internal::__ranges::__pattern_move(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::ranges::take_view(__r, __size), std::ranges::take_view(__out_r, __size));
+        oneapi::dpl::__internal::__ranges::__pattern_move(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::create_take_view(__exec, __r, __size),
+            oneapi::dpl::__ranges::create_take_view(__exec, __out_r, __size));
 
         return {std::ranges::begin(__r) + __size, std::ranges::begin(__out_r) + __size};
     }

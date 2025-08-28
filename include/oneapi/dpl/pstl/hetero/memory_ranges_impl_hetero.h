@@ -115,16 +115,20 @@ __pattern_uninitialized_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            oneapi::dpl::__ranges::views::all_read(std::ranges::take_view(std::forward<_InRange>(__in_r), __n_min)),
-            oneapi::dpl::__ranges::views::all_write(std::ranges::take_view(std::forward<_OutRange>(__out_r), __n_min)));
+            oneapi::dpl::__ranges::views::all_read(
+                oneapi::dpl::__ranges::create_take_view(__exec, std::forward<_InRange>(__in_r), __n_min)),
+            oneapi::dpl::__ranges::views::all_write(
+                oneapi::dpl::__ranges::create_take_view(__exec, std::forward<_OutRange>(__out_r), __n_min)));
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_copy<std::decay_t<_ExecutionPolicy>>{},
-            oneapi::dpl::__ranges::views::all_read(std::ranges::take_view(std::forward<_InRange>(__in_r), __n_min)),
-            oneapi::dpl::__ranges::views::all_write(std::ranges::take_view(std::forward<_OutRange>(__out_r), __n_min)));
+            oneapi::dpl::__ranges::views::all_read(
+                oneapi::dpl::__ranges::create_take_view(__exec, std::forward<_InRange>(__in_r), __n_min)),
+            oneapi::dpl::__ranges::views::all_write(
+                oneapi::dpl::__ranges::create_take_view(__exec, std::forward<_OutRange>(__out_r), __n_min)));
     }
 
     return {std::ranges::begin(__in_r) + __n_min, std::ranges::begin(__out_r) + __n_min};
@@ -159,16 +163,20 @@ __pattern_uninitialized_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            oneapi::dpl::__ranges::views::all_read(std::ranges::take_view(std::forward<_InRange>(__in_r), __n_min)),
-            oneapi::dpl::__ranges::views::all_write(std::ranges::take_view(std::forward<_OutRange>(__out_r), __n_min)));
+            oneapi::dpl::__ranges::views::all_read(
+                oneapi::dpl::__ranges::create_take_view(__exec, std::forward<_InRange>(__in_r), __n_min)),
+            oneapi::dpl::__ranges::views::all_write(
+                oneapi::dpl::__ranges::create_take_view(__exec, std::forward<_OutRange>(__out_r), __n_min)));
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_move<std::decay_t<_ExecutionPolicy>>{},
-            oneapi::dpl::__ranges::views::all_read(std::ranges::take_view(std::forward<_InRange>(__in_r), __n_min)),
-            oneapi::dpl::__ranges::views::all_write(std::ranges::take_view(std::forward<_OutRange>(__out_r), __n_min)));
+            oneapi::dpl::__ranges::views::all_read(
+                oneapi::dpl::__ranges::create_take_view(__exec, std::forward<_InRange>(__in_r), __n_min)),
+            oneapi::dpl::__ranges::views::all_write(
+                oneapi::dpl::__ranges::create_take_view(__exec, std::forward<_OutRange>(__out_r), __n_min)));
     }
 
     return {std::ranges::begin(__in_r) + __n_min, std::ranges::begin(__out_r) + __n_min};
