@@ -972,7 +972,7 @@ struct __reverse_copy_fn
         // The internal take_view_simple/drop_view_simple cannot be used either,
         // as they are not fully implemented as views, which is required for the host backends.
         // TODO: Complete take_view_simple/drop_view_simple to satisfy the view requirements
-        // and replace subrange here and elsewhere.
+        // and replace subrange/take_view/drop_view with them
         oneapi::dpl::__internal::__ranges::__pattern_reverse_copy(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
             std::ranges::subrange(__stop_in, __last_in),
