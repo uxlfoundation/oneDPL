@@ -3381,9 +3381,6 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
 
-    oneapi::dpl::__internal::__projection_deref<_Proj1> __proj1_deref{__proj1};
-    oneapi::dpl::__internal::__projection_deref<_Proj2> __proj2_deref{__proj2};
-
     __brick_copy<__parallel_tag<_IsVector>> __copy_range{};
 
     // {1} {}: parallel copying just first sequence
@@ -3398,7 +3395,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     // testing  whether the sequences are intersected
     _RandomAccessIterator1 __left_bound_seq_1 = __internal::__pstl_lower_bound(
-        __first1, __last1, __proj2_deref(__first2), __comp, __proj1);
+        __first1, __last1, std::invoke(__proj2, *__first2), __comp, __proj1);
 
     if (__left_bound_seq_1 == __last1)
     {
