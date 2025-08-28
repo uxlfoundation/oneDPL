@@ -22,10 +22,9 @@
 #include <utility>     // std::declval
 #include <iterator>    // std::iterator_traits
 #include <type_traits> // std::decay_t, std::remove_cv_t, std::remove_reference_t, std::invoke_result_t, ...
-#include <ranges>      // std::ranges::view_base
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-#    include <ranges> // std::ranges::sized_range, std::ranges::range_size_t
+#    include <ranges> // std::ranges::sized_range, std::ranges::range_size_t, std::ranges::view_base
 #endif
 
 #include "iterator_defs.h"
@@ -373,7 +372,10 @@ struct reverse_view_simple
 //It is kind of pseudo-view for take_view support. We assume that the underlying range will not shrink
 //after creation of the view to favor performance.
 template <typename _R, typename _Size>
-struct take_view_simple : std::ranges::view_base
+struct take_view_simple 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    : std::ranges::view_base
+#endif
 {
     using value_type = oneapi::dpl::__internal::__value_t<_R>;
 
@@ -382,11 +384,13 @@ struct take_view_simple : std::ranges::view_base
 
     take_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size) { assert(__n >= 0 && __n <= __r.size()); }
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
     auto begin() { return std::ranges::begin(__r);       }
     auto end  () { return std::ranges::begin(__r) + __n; }
 
     auto cbegin() const { return std::ranges::begin(__r);       }
     auto cend  () const { return std::ranges::begin(__r) + __n; }
+#end
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
