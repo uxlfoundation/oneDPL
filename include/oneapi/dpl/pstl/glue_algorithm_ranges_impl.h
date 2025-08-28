@@ -974,10 +974,8 @@ struct __reverse_copy_fn
         // TODO: Complete take_view_simple/drop_view_simple to satisfy the view requirements
         // and replace subrange/take_view/drop_view with them
         oneapi::dpl::__internal::__ranges::__pattern_reverse_copy(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::ranges::subrange(__stop_in, __last_in),
-            std::ranges::subrange(__first_out, __stop_out)
-        );
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::subrange(__stop_in, __last_in),
+            std::ranges::subrange(__first_out, __stop_out));
 
         return {__last_in, __stop_in, __stop_out};
     }
