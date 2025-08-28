@@ -385,8 +385,8 @@ struct take_view_simple
     take_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size) { assert(__n >= 0 && __n <= __r.size()); }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-    auto begin() { return std::ranges::begin(__r);       }
-    auto end  () { return std::ranges::begin(__r) + __n; }
+    auto begin () const { return std::ranges::begin(__r);       }
+    auto end   () const { return std::ranges::begin(__r) + __n; }
 
     auto cbegin() const { return std::ranges::begin(__r);       }
     auto cend  () const { return std::ranges::begin(__r) + __n; }
