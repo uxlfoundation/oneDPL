@@ -147,10 +147,8 @@ struct __projection_deref
             using __proj_result_t = decltype(std::invoke(__proj, *__it));
             using __proj_result_decayed_t = std::decay_t<__proj_result_t>;
 
-            // create temporary copy of the projection returning value
-            __proj_result_decayed_t __res = std::invoke(__proj, *__it);
-
-            return __res;
+            // create temporary copy of the projection and return it as prvalue
+            return __proj_result_decayed_t{std::invoke(__proj, *__it)};
         }
     }
 };
