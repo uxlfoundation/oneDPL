@@ -128,6 +128,21 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 
 namespace __ranges
 {
+template <typename _ExecutionPolicy, typename _Rng, typename _Size>
+auto
+create_take_view(_ExecutionPolicy&& __exec, _Rng&& __rng, _Size __size)
+{
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    if constexpr (oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<_ExecutionPolicy>>::value)
+    {
+        return std::ranges::take_view(std::forward<_Rng>(__rng), __size);
+    }
+else
+#endif
+    {
+        return oneapi::dpl::__ranges::take_view_simple(std::forward<_Rng>(__rng), __size);
+    }
+}
 
 struct __first_size_calc
 {
