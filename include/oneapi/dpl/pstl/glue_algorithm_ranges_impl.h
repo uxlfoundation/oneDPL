@@ -961,13 +961,23 @@ struct __reverse_copy_fn
         const auto __in_r_skipped = __in_r_size - __sz;
 
         auto __first_in = std::ranges::begin(__in_r);
+        auto __first_out = std::ranges::begin(__out_r);
+
         auto __last_in = __first_in + __in_r_size;
         auto __stop_in = __first_in + __in_r_skipped;
-        auto __stop_out = std::ranges::begin(__out_r) + __sz;
+        auto __stop_out = __first_out + __sz;
 
+        // subrange is used instead of take_view/drop_view because the latter throw exceptions in libstdc++10,
+        // which prevents their use in SYCL kernels.
+        // The internal take_view_simple/drop_view_simple cannot be used either,
+        // as they are not fully implemented as views, which is required for the host backends.
+        // TODO: Complete take_view_simple/drop_view_simple to satisfy the view requirements
+        // and replace subrange here and elsewhere.
         oneapi::dpl::__internal::__ranges::__pattern_reverse_copy(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::drop_view(__in_r, __in_r_skipped),
-            std::ranges::take_view(__out_r, __sz));
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+            std::ranges::subrange(__stop_in, __last_in),
+            std::ranges::subrange(__first_out, __stop_out)
+        );
 
         return {__last_in, __stop_in, __stop_out};
     }
