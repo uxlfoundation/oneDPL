@@ -135,7 +135,7 @@ struct __projection
     mutable _Proj __proj;
 
     template <typename _TValue>
-    auto
+    decltype(auto)
     operator()(_TValue&& __val) const
     {
         return std::invoke(__proj, std::forward<_TValue>(__val));
@@ -149,10 +149,13 @@ struct __projection_deref
     mutable _Proj __proj;
 
     template <typename _Iterator>
-    auto
+    decltype(auto)
     operator()(_Iterator __it) const
     {
-        return std::invoke(__proj, *__it);
+        if constexpr (std::is_rvalue_reference_v<decltype(*__it)>)
+            return std::invoke(__proj, decltype (*__it)(*__it)); // create temporary copy of the dereferenced value
+        else
+            return std::invoke(__proj, *__it);
     }
 };
 
