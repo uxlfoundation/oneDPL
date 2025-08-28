@@ -644,6 +644,26 @@ struct permutation_discard_view
     }
 };
 
+template <typename _T>
+struct __is_take_view_simple : std::false_type
+{
+};
+
+template <typename _R, typename _Size>
+struct __is_take_view_simple<take_view_simple<_R, _Size>> : std::true_type
+{
+};
+
+template <typename _R>
+auto
+__begin(_R&& __rng)
+{
+    if constexpr (__is_take_view_simple<std::decay_t<_R>>::value)
+        return __begin(__rng.base());
+    else
+        return __rng.begin();
+}
+
 } // namespace __ranges
 } // namespace dpl
 } // namespace oneapi
