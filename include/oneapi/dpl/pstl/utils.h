@@ -152,10 +152,23 @@ struct __projection_deref
     decltype(auto)
     operator()(_Iterator __it) const
     {
-        if constexpr (std::is_rvalue_reference_v<decltype(*__it)>)
-            return std::invoke(__proj, decltype (*__it)(*__it)); // create temporary copy of the dereferenced value
+        __projection<_Proj> __proj_obj{__proj};
+
+        using __proj_result_t = decltype(__proj_obj(*__it));
+
+        if constexpr (std::is_lvalue_reference_v<__proj_result_t>)
+        {
+            return __proj_obj(*__it);
+        }
         else
-            return std::invoke(__proj, *__it);
+        {
+            using __proj_result_decayed_t = std::decay_t<__proj_result_t>;
+
+            // create temporary copy of the projection returning value
+            __proj_result_decayed_t __res = __proj_obj(*__it);
+
+            return __res;
+        }
     }
 };
 
