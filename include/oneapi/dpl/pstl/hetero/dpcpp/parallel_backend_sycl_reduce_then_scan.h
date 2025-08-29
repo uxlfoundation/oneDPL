@@ -607,12 +607,14 @@ __decode_balanced_path_temp_data(const _Rng& __rng, const _IdxT __id, const std:
     return __decode_balanced_path_temp_data_impl<true>(__rng, __id, __diagonal_spacing);
 }
 
-//TODO: check on types here
 template <typename _IdxT>
-auto
+std::make_signed_t<_IdxT>
 __encode_balanced_path_temp_data(const _IdxT __rng1_idx, const bool __star)
 {
-    return __rng1_idx * (__star ? -1 : 1);
+    using signed_t = std::make_signed_t<_IdxT>;
+    using unsigned_t = std::make_unsigned_t<_IdxT>;
+    // Set sign bit based on __star boolean
+    return signed_t{__rng1_idx} | (unsigned_t{__star} << (sizeof(_IdxT) * 8 - 1));
 }
 
 struct __get_bounds_partitioned
@@ -674,7 +676,7 @@ struct __gen_set_balanced_path
     // Some diagonals must be "starred" to ensure that matching elements between rng1 and rng2 are processed in pairs
     // starting from the first of repeating value(s) in each range and a matched pair are not split between work-items.
     template <typename _Rng1, typename _Rng2, typename _Index>
-    auto
+    std::tuple<_Index, _Index, bool>
     __find_balanced_path_start_point(const _Rng1& __rng1, const _Rng2& __rng2, const _Index __merge_path_rng1,
                                      const _Index __merge_path_rng2, const _Index __rng1_begin,
                                      const _Index __rng2_begin, const _Index __rng2_end) const
@@ -843,7 +845,7 @@ struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
     template <typename _InRng, typename _IndexT>
-    auto
+    std::tuple<std::uint32_t, std::uint16_t>
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
