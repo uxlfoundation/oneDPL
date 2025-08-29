@@ -23,6 +23,7 @@
 #include <stdexcept>        // for std::logic_error
 
 #include "iterator_utils.h"
+#include "compile_only_checks.h"
 
 #ifdef ONEDPL_USE_PREDEFINED_POLICIES
 #  define TEST_USE_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
@@ -272,6 +273,16 @@ struct test_policy_container
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
+template <typename Policy, typename Op, typename... Args>
+void 
+invoke_on_all_iterator_t_and_check_compilation(Policy&& policy, Op&& op, Args&&... rest)
+{
+#if TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
+    TestUtils::check_compilation_no_comma(policy, op, rest...);
+#endif
+    invoke_on_all_iterator_types()(std::forward<Policy>(policy), std::forward<Op>(op), std::forward<Args>(rest)...);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Invoke op(policy,rest...) for each non-hetero policy.
 struct invoke_on_all_host_policies
@@ -284,9 +295,9 @@ struct invoke_on_all_host_policies
 
 #if !TEST_ONLY_HETERO_POLICIES
         // Try static execution policies
-        invoke_on_all_iterator_types()(seq,       op, rest...);
-        invoke_on_all_iterator_types()(unseq,     op, rest...);
-        invoke_on_all_iterator_types()(par,       op, rest...);
+        invoke_on_all_iterator_t_and_check_compilation(seq,       op, rest...);
+        invoke_on_all_iterator_t_and_check_compilation(unseq,     op, rest...);
+        invoke_on_all_iterator_t_and_check_compilation(par,       op, rest...);
 #if __SYCL_PSTL_OFFLOAD__
         // If standard library does not provide the par_unseq policy, oneDPL would inject
         // oneDPL par_unseq policy into namespace STD and since std::execution::par_unseq
@@ -294,7 +305,7 @@ struct invoke_on_all_host_policies
         if constexpr (!std::is_same_v<oneapi::dpl::execution::parallel_unsequenced_policy,
                                       std::execution::parallel_unsequenced_policy>)
 #endif // __SYCL_PSTL_OFFLOAD__
-            invoke_on_all_iterator_types()(par_unseq, op, ::std::forward<T>(rest)...);
+            invoke_on_all_iterator_t_and_check_compilation(par_unseq, op, ::std::forward<T>(rest)...);
 #endif
     }
 };
@@ -349,52 +360,6 @@ inline void unsupported_types_notifier(const sycl::device& device)
     }
 }
 
-template <typename _ExecutionPolicy>
-struct compile_checker
-{
-    using _ExecutionPolicyDecayed = std::decay_t<_ExecutionPolicy>;
-
-    _ExecutionPolicyDecayed my_policy;
-
-    compile_checker(const _ExecutionPolicy& my_policy)
-        : my_policy(my_policy)
-    {
-    }
-
-    // Check compilation of callable argument with different policy value categories:
-    // - compile for const _ExecutionPolicyDecayed&
-    // - compile for _ExecutionPolicyDecayed&&
-    template <typename _CallableTest>
-    void
-    compile(_CallableTest&& __callable_test)
-    {
-        // The goal of this check is to compile the same Kernel code with different policy type qualifiers.
-        // This gives us ability to check that Kernel names generated inside oneDPL code are unique.
-        volatile bool always_false = false;
-        if (always_false)
-        {
-            // We just need to compile some Kernel code and we don't need to run this code in run-time
-            // so we can move the rest of params again
-
-            // Compile for const ExecutionPolicy&
-            const auto& my_policy_ref = my_policy;
-            __callable_test(my_policy_ref);
-
-            // Compile for ExecutionPolicy&&
-            __callable_test(std::move(my_policy));
-        }
-    }
-};
-
-// Check compilation of callable argument with different policy value categories:
-// - compile for const _ExecutionPolicyDecayed&
-// - compile for _ExecutionPolicyDecayed&&
-template <typename _ExecutionPolicy, typename _CallableTest>
-void
-check_compilation(const _ExecutionPolicy& policy, _CallableTest&& __callable_test)
-{
-    compile_checker<_ExecutionPolicy>(policy).compile(std::forward<_CallableTest>(__callable_test));
-}
 
 // Invoke test::operator()(policy,rest...) for each possible policy.
 template <::std::size_t CallNumber = 0>
@@ -405,6 +370,9 @@ struct invoke_on_all_hetero_policies
     operator()(Op op, Args&&... rest)
     {
         auto my_policy = get_dpcpp_test_policy<CallNumber, Op>();
+
+        auto cloned_policy0 = CLONE_TEST_POLICY_IDX(my_policy, 0);
+        auto cloned_policy1 = CLONE_TEST_POLICY_IDX(my_policy, 1);
 
         sycl::queue queue = my_policy.queue();
 
@@ -418,15 +386,21 @@ struct invoke_on_all_hetero_policies
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
             iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
-                my_policy, op, std::forward<Args>(rest)...);
+                cloned_policy0, op, std::forward<Args>(rest)...);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
             // Check compilation of the kernel with different policy type qualifiers
-            check_compilation(my_policy, [&](auto&& __policy) {
+            check_compilation(cloned_policy0, [&](auto&& __policy) {
                 iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
                     std::forward<decltype(__policy)>(__policy), op, std::forward<Args>(rest)...);
             });
 #endif // TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+
+#if TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
+            // Check compilation of the kernel with comma operator deleted iterators.
+            TestUtils::check_compilation_no_comma(cloned_policy1, op, rest...);
+#endif
+
         }
         else
         {

@@ -20,6 +20,7 @@
 #include _PSTL_TEST_HEADER(numeric)
 
 #include "support/utils.h"
+#include "support/scan_serial_impl.h"
 
 #include <iostream>
 #include <vector>
@@ -74,11 +75,69 @@ test_with_usm(Policy&& exec)
 }
 
 template <typename Policy>
+void
+test_diff_iterators(Policy&& exec)
+{
+    constexpr std::size_t N = 6;
+
+    sycl::queue q = exec.queue();
+    
+    // Allocate USM shared memory for input (bool type) and output (int type)
+    bool* input = sycl::malloc_shared<bool>(N, q);
+    int* result = sycl::malloc_shared<int>(N, q);
+    
+    // Initialize input data
+    input[0] = true;
+    input[1] = false;
+    input[2] = true;
+    input[3] = true;
+    input[4] = false;
+    input[5] = true;
+
+    // Create reverse iterators to test exclusive_scan's behavior when scanning from right to left.
+    // This verifies that exclusive_scan correctly handles reverse iterator ranges and produces expected results.
+    auto input_rbegin = std::reverse_iterator<bool*>(input + N);
+    auto input_rend = std::reverse_iterator<bool*>(input);
+
+    constexpr int initial_value = 0;
+
+    // Use exclusive_scan with reverse iterators to convert bool to int
+    // This will scan from right to left (due to reverse iterators)
+    // The use of reverse iterators causes exclusive_scan to process elements in reverse order,
+    // but the algorithm's semantics remain unchanged. The initial value (0) will appear at the rightmost position.
+    auto result_rbegin = std::reverse_iterator<int*>(result + N);
+    oneapi::dpl::exclusive_scan(
+        std::forward<Policy>(exec),         // Parallel execution policy
+        input_rbegin,                       // Start of reversed input range
+        input_rend,                         // End of reversed input range
+        result_rbegin,                      // Start of reversed output range
+        initial_value                       // Initial value
+    );
+
+    // Calculate expected result using serial exclusive_scan
+    std::vector<int> result_expected(N);
+    auto result_rbegin_expected = result_expected.rbegin();
+    exclusive_scan_serial(
+        input_rbegin,                       // Start of reversed input range
+        input_rend,                         // End of reversed input range
+        result_rbegin_expected,             // Start of reversed output range
+        initial_value                       // Initial value
+    );
+
+    EXPECT_EQ_N(result_expected.data(), result, N, "wrong effect from exclusive_scan with reverse iterators");
+
+    sycl::free(result, q);
+    sycl::free(input, q);
+}
+
+template <typename Policy>
 void test_impl(Policy&& exec)
 {
     // Run tests for USM shared/device memory
     test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
     test_with_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec));
+
+    test_diff_iterators(CLONE_TEST_POLICY(exec));
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 

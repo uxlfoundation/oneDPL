@@ -21,8 +21,6 @@
 #include <cassert>
 #include <type_traits>
 
-#include "utils.h"
-
 namespace oneapi
 {
 namespace dpl
