@@ -3069,10 +3069,8 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
                         auto __r = __get_row(__d);
                         auto __c = __get_column(__d);
 
-                        const auto __res =
-                            std::invoke(__comp, std::invoke(__proj2, __it_2[__c]), std::invoke(__proj1, __it_1[__r]))
-                                ? 0
-                                : 1;
+                        const auto __res = std::invoke(__comp, std::invoke(__proj2, __it_2[__c]),
+                                                       std::invoke(__proj1, __it_1[__r])) ? 0 : 1;
 
                         return __res < __val;
                     });
