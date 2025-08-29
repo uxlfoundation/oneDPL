@@ -146,7 +146,7 @@ reduce_async(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterat
 
     wait_for_all(std::forward<_Events>(__dependencies)...);
     auto ret_val = oneapi::dpl::__internal::__pattern_transform_reduce_async(
-        __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __init, __binary_op,
+        __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, std::move(__init), __binary_op,
         oneapi::dpl::identity{});
     return ret_val;
 }
@@ -167,7 +167,7 @@ template <class _ExecutionPolicy, class _ForwardIt, class _T, class... _Events,
 auto
 reduce_async(_ExecutionPolicy&& __exec, _ForwardIt __first, _ForwardIt __last, _T __init, _Events&&... __dependencies)
 {
-    return reduce_async(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __init, ::std::plus<_T>(),
+    return reduce_async(::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::move(__init), ::std::plus<_T>(),
                         ::std::forward<_Events>(__dependencies)...);
 }
 
@@ -200,7 +200,7 @@ transform_reduce_async(_ExecutionPolicy&& __exec, _ForwardIt1 __first1, _Forward
 
     wait_for_all(::std::forward<_Events>(__dependencies)...);
     return oneapi::dpl::__internal::__pattern_transform_reduce_async(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __init, __binary_op1,
+        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, std::move(__init), __binary_op1,
         __binary_op2);
 }
 
@@ -215,7 +215,7 @@ transform_reduce_async(_ExecutionPolicy&& __exec, _ForwardIt __first, _ForwardIt
 
     wait_for_all(::std::forward<_Events>(__dependencies)...);
     return oneapi::dpl::__internal::__pattern_transform_reduce_async(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __init, __binary_op, __unary_op);
+        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::move(__init), __binary_op, __unary_op);
 }
 
 template <class _ExecutionPolicy, class _ForwardIt1, class _ForwardIt2, class _T, class... _Events,
@@ -225,7 +225,7 @@ transform_reduce_async(_ExecutionPolicy&& __exec, _ForwardIt1 __first1, _Forward
                        _T __init, _Events&&... __dependencies)
 {
     using _ValueType = typename ::std::iterator_traits<_ForwardIt1>::value_type;
-    return transform_reduce_async(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __init,
+    return transform_reduce_async(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, std::move(__init),
                                   ::std::plus<_T>(), ::std::multiplies<_ValueType>(),
                                   ::std::forward<_Events>(__dependencies)...);
 }
