@@ -655,9 +655,9 @@ __dpl_signbit(const _T& __x)
     return (__x & __mask) != 0;
 }
 
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
+template <typename _Size1, typename _CompareOp>
 _Size1
-__pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
+__pstl_lower_bound_impl(_Size1 __first, _Size1 __last, _CompareOp __compareOp)
 {
     auto __n = __last - __first;
     auto __cur = __n;
@@ -667,7 +667,7 @@ __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
         __it = __first;
         __cur = __n / 2;
         __it += __cur;
-        if (std::invoke(__comp, std::invoke(__proj, __acc[__it]), __value))
+        if (__compareOp(__it))
         {
             __n -= __cur + 1;
             __first = ++__it;
@@ -678,27 +678,22 @@ __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
     return __first;
 }
 
+template <typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
+_Size1
+__pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
+{
+    return __pstl_lower_bound_impl(__first, __last, [__acc, &__value, __comp, __proj](_Size1 __it) {
+        return std::invoke(__comp, std::invoke(__proj, __acc[__it]), __value);
+    });
+}
+
 template <typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
 _Size1
 __pstl_lower_bound_proj(_Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
 {
-    auto __n = __last - __first;
-    auto __cur = __n;
-    _Size1 __it;
-    while (__n > 0)
-    {
-        __it = __first;
-        __cur = __n / 2;
-        __it += __cur;
-        if (std::invoke(__comp, std::invoke(__proj, *__it), __value))
-        {
-            __n -= __cur + 1;
-            __first = ++__it;
-        }
-        else
-            __n = __cur;
-    }
-    return __first;
+    return __pstl_lower_bound_impl(__first, __last, [&__value, __comp, __proj](_Size1 __it) {
+        return std::invoke(__comp, std::invoke(__proj, __it), __value);
+    });
 }
 
 template <typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
