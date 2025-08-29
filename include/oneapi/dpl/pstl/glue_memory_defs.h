@@ -45,11 +45,13 @@ uninitialized_move_n(_ExecutionPolicy&& __exec, _InputIterator __first, _Size __
 
 // [uninitialized.fill]
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Tp>
+template <class _ExecutionPolicy, class _ForwardIterator,
+          class _Tp = typename std::iterator_traits<_ForwardIterator>::value_type>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 uninitialized_fill(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, const _Tp& __value);
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Tp>
+template <class _ExecutionPolicy, class _ForwardIterator, class _Size,
+          class _Tp = typename std::iterator_traits<_ForwardIterator>::value_type>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_fill_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n, const _Tp& __value);
 
