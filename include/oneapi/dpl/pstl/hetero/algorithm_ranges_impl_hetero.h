@@ -59,11 +59,11 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
     const _Size __n = std::min({_Size(__rngs.size())...});
     if (__n > 0)
     {
-        oneapi::dpl::__par_backend_hetero::__parallel_for(
+        auto __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
             unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
-            std::forward<_Ranges>(__rngs)...)
-            .__checked_deferrable_wait();
+            std::forward<_Ranges>(__rngs)...);
+        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event);
     }
     return __n;
 }
@@ -159,20 +159,24 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
     if (__rng1.size() <= __rng2.size())
     {
         const std::size_t __n = __rng1.size();
-        oneapi::dpl::__par_backend_hetero::__parallel_for(
+
+        auto __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng1, __rng2)
-            .__checked_deferrable_wait();
+            unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng1, __rng2);
+        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event);
+
         return __n;
     }
     const std::size_t __n = __rng2.size();
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
+
+    auto __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-        unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng2, __rng1)
-        .__checked_deferrable_wait();
+        unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng2, __rng1);
+    oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event);
+
     return __n;
 }
 
@@ -581,12 +585,14 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
     auto __reduce_fn = ::std::plus<_ReduceValueType>{};
     oneapi::dpl::__internal::__pattern_count_transform_fn<_Predicate> __transform_fn{__predicate};
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                          ::std::true_type /*is_commutative*/>(
-               _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-               unseq_backend::__no_init_value{}, // no initial value
-               ::std::forward<_Range>(__rng))
-        .get();
+    const auto [__event, __storage] =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+                                                                       std::true_type /*is_commutative*/>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            unseq_backend::__no_init_value{}, // no initial value
+            std::forward<_Range>(__rng));
+
+    return __storage.__wait_and_get_value(__event);
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -625,11 +631,11 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&
     if (__n == 0)
         return 0;
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+    const auto [__event, __storage] = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
         std::forward<_Range2>(__rng2), __n, __pred, __assign);
 
-    return __res.get(); //is a blocking call
+    return __storage.__wait_and_get_value(__event);
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -728,22 +734,22 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     {
         // For a sequence of size 1, we can just copy the only element to the result.
         using _CopyBrick = oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>;
-        oneapi::dpl::__par_backend_hetero::__parallel_for(
+        auto __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
             unseq_backend::walk_n_vectors_or_scalars<_CopyBrick>{_CopyBrick{}, static_cast<std::size_t>(__n)}, __n,
-            std::forward<_Range1>(__rng), std::forward<_Range2>(__result))
-            .get();
+            std::forward<_Range1>(__rng), std::forward<_Range2>(__result));
+        __event.wait_and_throw();
 
         return 1;
     }
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
+    const auto [__event, __storage] = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
         std::forward<_Range2>(__result), __pred);
 
-    return __res.get(); // is a blocking call
+    return __storage.__wait_and_get_value(__event);
 }
 
 //------------------------------------------------------------------------
@@ -820,12 +826,15 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         return {__res, 0};
     }
 
-    auto __res = __par_backend_hetero::__parallel_merge<std::true_type /*out size limit*/>(
+    auto [__event, __storage_ptr] = __par_backend_hetero::__parallel_merge<std::true_type /*out size limit*/>(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
         ::std::forward<_Range2>(__rng2), ::std::forward<_Range3>(__rng3), __comp, __proj1, __proj2);
 
-    auto __val = __res.get();
-    return {__val.first, __val.second};
+    // TODO required to return __storage with result and and __storage_ptr from __parallel_merge
+    std::size_t __val[2] = {0, 0};
+    __storage_ptr->__get_data(__event, __val);
+
+    return {__val[0], __val[1]};
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -865,9 +874,12 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
                       _Proj __proj)
 {
     if (__rng.size() >= 2)
-        __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-                                                     ::std::forward<_Range>(__rng), __comp, __proj)
-            .__checked_deferrable_wait();
+    {
+        auto [__event, __storage_ptr] = __par_backend_hetero::__parallel_stable_sort(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __comp, __proj);
+        oneapi::dpl::__par_backend_hetero::__checked_deferrable_wait(_BackendTag{}, __event,
+                                                                     __storage_ptr.get() != nullptr);
+    }
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -905,13 +917,14 @@ __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&
     __pattern_min_element_reduce_fn<_ReduceValueType, _Compare> __reduce_fn{__comp};
     oneapi::dpl::__internal::__pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
-    [[maybe_unused]] auto [__idx, __val] =
+    auto [__event, __storage] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                       ::std::false_type /*is_commutative*/>(
-            __tag, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+                                                                       std::false_type /*is_commutative*/>(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
-            ::std::forward<_Range>(__rng))
-            .get();
+            std::forward<_Range>(__rng));
+
+    const auto [__idx, __val] = __storage.__wait_and_get_value(__event);
 
     return {__idx, __val};
 }
@@ -984,13 +997,14 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
     oneapi::dpl::__internal::__pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn;
 
-    const auto& [__idx_min, __idx_max, __min, __max] =
+    auto [__event, __storage] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                       ::std::false_type /*is_commutative*/>(
+                                                                       std::false_type /*is_commutative*/>(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
-            ::std::forward<_Range>(__rng))
-            .get();
+            std::forward<_Range>(__rng));
+
+    const auto& [__idx_min, __idx_max, __min, __max] = __storage.__wait_and_get_value(__event);
 
     return {{__idx_min, __min}, {__idx_max, __max}};
 }

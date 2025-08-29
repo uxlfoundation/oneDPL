@@ -763,7 +763,7 @@ struct __parallel_radix_sort_iteration
 // radix sort: main function
 //-----------------------------------------------------------------------
 template <bool __is_ascending, typename _Range, typename _ExecutionPolicy, typename _Proj>
-__future<sycl::event>
+sycl::event
 __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __in_rng,
                       _Proj __proj)
 {
@@ -869,7 +869,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         }
     }
 
-    return __future{std::move(__event)};
+    return __event;
 }
 
 } // namespace __par_backend_hetero

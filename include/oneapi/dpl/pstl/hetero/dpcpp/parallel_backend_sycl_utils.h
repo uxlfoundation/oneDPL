@@ -515,6 +515,8 @@ struct __result_and_scratch_storage_base
     __get_data(sycl::event, std::size_t* __p_buf) const = 0;
 };
 
+using __result_and_scratch_storage_base_ptr = std::unique_ptr<__result_and_scratch_storage_base>;
+
 template <typename _T, std::size_t _NResults = 1>
 struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
@@ -739,6 +741,37 @@ struct __deferrable_mode
 {
 };
 
+void
+__checked_deferrable_wait(oneapi::dpl::__internal::__device_backend_tag, sycl::event& __event,
+                          bool __need_extend_lifetime = false)
+{
+#if !ONEDPL_ALLOW_DEFERRED_WAITING
+    __event.wait();
+#else
+    if (__need_extend_lifetime)
+    {
+        // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
+        __event.wait();
+    }
+#endif
+}
+
+template <typename _WaitModeTag>
+void
+__wait_impl(oneapi::dpl::__internal::__device_backend_tag, _WaitModeTag, sycl::event& __event,
+            bool __need_extend_lifetime = false)
+{
+    if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
+    {
+        __event.wait_and_throw();
+    }
+    else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
+    {
+        // We should extend life-time if we have any data inside __future instance
+        __checked_deferrable_wait(oneapi::dpl::__internal::__device_backend_tag{}, __event, __need_extend_lifetime);
+    }
+}
+
 //A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
 //Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
 template <typename _Event, typename... _Args>
@@ -759,16 +792,6 @@ class __future : private std::tuple<_Args...>
     __wait_and_get_value(const __result_and_scratch_storage<_T, _NResults>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
-    }
-
-    std::pair<std::size_t, std::size_t>
-    __wait_and_get_value(const std::shared_ptr<__result_and_scratch_storage_base>& __p_storage)
-    {
-        std::size_t __buf[2] = {0, 0};
-        [[maybe_unused]] auto __n = __p_storage->__get_data(__my_event, __buf);
-        assert(__n == 2);
-
-        return {__buf[0], __buf[1]};
     }
 
     template <typename _T>
@@ -798,24 +821,7 @@ class __future : private std::tuple<_Args...>
     void
     wait(_WaitModeTag)
     {
-        if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
-            wait();
-        else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
-            __checked_deferrable_wait();
-    }
-
-    void
-    __checked_deferrable_wait()
-    {
-#if !ONEDPL_ALLOW_DEFERRED_WAITING
-        wait();
-#else
-        if constexpr (sizeof...(_Args) > 0)
-        {
-            // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
-            wait();
-        }
-#endif
+        __wait_impl(oneapi::dpl::__internal::__device_backend_tag{}, _WaitModeTag{}, __my_event, sizeof...(_Args) > 0);
     }
 
     auto
@@ -828,17 +834,6 @@ class __future : private std::tuple<_Args...>
         }
         else
             wait();
-    }
-
-    //The internal API. There are cases where the implementation specifies return value  "higher" than SYCL backend,
-    //where a future is created.
-    template <typename _T>
-    __future<_Event, _T, _Args...>
-    __make_future(_T __t) const
-    {
-        auto new_val = std::tuple<_T>(__t);
-        auto new_tuple = std::tuple_cat(new_val, (std::tuple<_Args...>)*this);
-        return __future<_Event, _T, _Args...>(__my_event, new_tuple);
     }
 };
 
