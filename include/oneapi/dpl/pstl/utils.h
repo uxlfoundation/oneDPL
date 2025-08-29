@@ -702,7 +702,7 @@ _RandomAccessIterator
 __pstl_lower_bound(_RandomAccessIterator __first, _RandomAccessIterator __last, const _Value& __value, _Compare __comp,
                    _Proj __proj = {})
 {
-    return __pstl_lower_bound_impl(__first, __last, [&__value, __comp, __proj](_RandomAccessIterator __it) {
+    return __pstl_lower_bound_impl(__first, __last, [&](_RandomAccessIterator __it) {
         return std::invoke(__comp, std::invoke(__proj, *__it), __value);
     });
 }
