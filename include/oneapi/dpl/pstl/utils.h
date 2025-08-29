@@ -656,9 +656,8 @@ template <typename _Acc, typename _Size1, typename _Value, typename _Compare, ty
 _Size1
 __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
 {
-    return __pstl_lower_bound_impl(__first, __last, [&](_Size1 __idx) {
-        return std::invoke(__comp, std::invoke(__proj, __acc[__idx]), __value);
-    });
+    return __pstl_lower_bound_impl(
+        __first, __last, [&](_Size1 __idx) { return std::invoke(__comp, std::invoke(__proj, __acc[__idx]), __value); });
 }
 
 template <typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>

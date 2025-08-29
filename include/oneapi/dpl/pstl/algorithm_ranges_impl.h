@@ -710,7 +710,8 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         std::invoke(__comp, std::invoke(__proj1, *(__last1 - 1)), std::invoke(__proj2, *(__last2 - 1))))
         return false;
 
-    __first1 = oneapi::dpl::__internal::__pstl_lower_bound(__first1, __last1, std::invoke(__proj2, *__first2), __comp, __proj1);
+    __first1 = oneapi::dpl::__internal::__pstl_lower_bound(__first1, __last1, std::invoke(__proj2, *__first2), __comp,
+                                                           __proj1);
     if (__first1 == __last1)
         return false;
 
@@ -726,7 +727,8 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
             //assert(__j - __i > 1);
 
             //1. moving boundaries to "consume" subsequence of equal elements
-            auto __is_equal_sorted = [&__comp, __proj2](_RandomAccessIterator2 __a, _RandomAccessIterator2 __b) -> bool {
+            auto __is_equal_sorted = [&__comp, __proj2](_RandomAccessIterator2 __a,
+                                                        _RandomAccessIterator2 __b) -> bool {
                 //enough one call of __comp due to compared couple belongs to one sorted sequence
                 return !std::invoke(__comp, std::invoke(__proj2, *__a), std::invoke(__proj2, *__b));
             };
@@ -738,15 +740,18 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                 if (__is_equal_sorted(__i, __j - 1))
                     return false;
 
-                __i = oneapi::dpl::__internal::__pstl_upper_bound(__i, __last2, std::invoke(__proj2, *__i), __comp, __proj2);
+                __i = oneapi::dpl::__internal::__pstl_upper_bound(__i, __last2, std::invoke(__proj2, *__i), __comp,
+                                                                  __proj2);
             }
 
             //1.2 right bound, case "[...aaa]aaaxyz" - searching "x"
             if (__j < __last2 && __is_equal_sorted(__j - 1, __j))
-                __j = oneapi::dpl::__internal::__pstl_upper_bound(__j, __last2, std::invoke(__proj2, *__j), __comp, __proj2);
+                __j = oneapi::dpl::__internal::__pstl_upper_bound(__j, __last2, std::invoke(__proj2, *__j), __comp,
+                                                                  __proj2);
 
             //2. testing is __a subsequence of the second range included into the first range
-            auto __b = oneapi::dpl::__internal::__pstl_lower_bound(__first1, __last1, std::invoke(__proj2, *__i), __comp, __proj1);
+            auto __b = oneapi::dpl::__internal::__pstl_lower_bound(__first1, __last1, std::invoke(__proj2, *__i),
+                                                                   __comp, __proj1);
 
             //assert(!__comp(*(__last1 - 1), *__b));
             //assert(!__comp(*(__j - 1), *__i));
