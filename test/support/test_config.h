@@ -303,5 +303,12 @@
 #   define TEST_NO_COMMA_ITERATORS 0
 #endif
 
+// For icpx versions prior to 2024.1, we encounter compilation issues in device_copyable.pass tests for device copyable
+// specializations of kernel submitters. It is a test only issue.
+#if TEST_DPCPP_BACKEND_PRESENT && defined(__INTEL_LLVM_COMPILER) && __INTEL_LLVM_COMPILER < 20240100
+#   define _PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN 1
+#else
+#   define _PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN 0
+#endif
 
 #endif // _TEST_CONFIG_H
