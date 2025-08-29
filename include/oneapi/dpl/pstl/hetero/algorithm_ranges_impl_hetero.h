@@ -1033,19 +1033,16 @@ struct __set_difference_scan_then_propagate;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
-auto
+std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using __return_t = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                                          std::ranges::borrowed_iterator_t<_OutRange>>;
-
     const auto __first1 = std::ranges::begin(__r1);
     const auto __result = std::ranges::begin(__out_r);
 
     // {} \ {2}: the difference is empty
     if (__r1.empty())
-        return __return_t{__first1, __result};
+        return {__first1, __result};
 
     const auto __sz1 = std::ranges::size(__r1);
 
@@ -1060,7 +1057,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return __return_t{__first1 + __sz1, __result + __idx};
+        return {__first1 + __sz1, __result + __idx};
     }
 
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
@@ -1076,7 +1073,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                 unseq_backend::_DifferenceTag<std::true_type>(), __proj1, __proj2)
                 .get();
 
-        return __return_t{__first1 + __sz1, __result + __idx};
+        return {__first1 + __sz1, __result + __idx};
     }
 
     const auto __idx = __par_backend_hetero::__parallel_set_op(
@@ -1087,7 +1084,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                            unseq_backend::_DifferenceTag<std::false_type>(), __proj1, __proj2)
                            .get();
 
-    return __return_t{__first1 + __sz1, __result + __idx};
+    return {__first1 + __sz1, __result + __idx};
 }
 
 //Dummy names to avoid kernel problems
