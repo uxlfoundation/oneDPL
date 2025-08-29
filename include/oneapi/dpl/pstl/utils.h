@@ -689,7 +689,7 @@ __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
 
 template <typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
 _Size1
-__pstl_lower_bound_proj(_Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
+__pstl_lower_bound(_Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
 {
     return __pstl_lower_bound_impl(__first, __last, [&__value, __comp, __proj](_Size1 __it) {
         return std::invoke(__comp, std::invoke(__proj, __it), __value);
@@ -708,12 +708,12 @@ __pstl_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
 
 template <typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
 _Size1
-__pstl_upper_bound_proj(_Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
+__pstl_upper_bound(_Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
-    return __pstl_lower_bound_proj(__first, __last, __value, __negation_reordered_comp, __proj);
+    return __pstl_lower_bound(__first, __last, __value, __negation_reordered_comp, __proj);
 }
 
 // Searching for the first element strongly greater than a passed value - right bound
