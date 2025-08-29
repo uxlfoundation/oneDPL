@@ -92,8 +92,8 @@ __pattern_transform_reduce(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             std::move(__init),
             __binary_op1, // Combine
             [__first1, __first2, __binary_op1, __binary_op2](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j,
-                                                             _Tp __init) -> _Tp {
-                return __internal::__brick_transform_reduce(__i, __j, __first2 + (__i - __first1), std::move(__init),
+                                                             _Tp __init_) -> _Tp {
+                return __internal::__brick_transform_reduce(__i, __j, __first2 + (__i - __first1), std::move(__init_),
                                                             __binary_op1, __binary_op2, _IsVector{});
             });
     });
@@ -153,8 +153,8 @@ __pattern_transform_reduce(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
             [__unary_op](_RandomAccessIterator __i) mutable { return __unary_op(*__i); }, std::move(__init),
             __binary_op,
-            [__unary_op, __binary_op](_RandomAccessIterator __i, _RandomAccessIterator __j, _Tp __init) {
-                return __internal::__brick_transform_reduce(__i, __j, std::move(__init), __binary_op, __unary_op,
+            [__unary_op, __binary_op](_RandomAccessIterator __i, _RandomAccessIterator __j, _Tp __init_) {
+                return __internal::__brick_transform_reduce(__i, __j, std::move(__init_), __binary_op, __unary_op,
                                                             _IsVector{});
             });
     });
