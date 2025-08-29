@@ -808,7 +808,7 @@ struct __gen_set_balanced_path
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
-        
+        }
         else if (__id % __get_bounds.__tile_size != 0)
         {
             // If partitioned, but not on the boundary, we must calculate intersection with the balanced path, and
