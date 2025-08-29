@@ -682,7 +682,7 @@ template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
 _Size1
 __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
 {
-    return __pstl_lower_bound_impl(__first, __last, [__acc, &__value, __comp](_Size1 __it) {
+    return __pstl_lower_bound_impl(__first, __last, [&](_Size1 __it) {
         return std::invoke(__comp, __acc[__it], __value);
     });
 }
