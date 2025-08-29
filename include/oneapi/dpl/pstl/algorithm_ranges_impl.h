@@ -576,7 +576,7 @@ __pattern_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __valu
     const auto __last = __first + std::ranges::size(__r);
     oneapi::dpl::__internal::__pattern_fill(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __value);
 
-    return {__last};
+    return __last;
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _T>
