@@ -726,7 +726,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
             //assert(__j - __i > 1);
 
             //1. moving boundaries to "consume" subsequence of equal elements
-            auto __is_equal_sorted = [&__comp](_RandomAccessIterator2 __a, _RandomAccessIterator2 __b) -> bool {
+            auto __is_equal_sorted = [&__comp, __proj2](_RandomAccessIterator2 __a, _RandomAccessIterator2 __b) -> bool {
                 //enough one call of __comp due to compared couple belongs to one sorted sequence
                 return !std::invoke(__comp, std::invoke(__proj2, *__a), std::invoke(__proj2, *__b));
             };
