@@ -692,7 +692,7 @@ _ForwardIterator
 __pstl_lower_bound(_ForwardIterator __first, _ForwardIterator __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
 {
     return __pstl_lower_bound_impl(__first, __last, [&__value, __comp, __proj](_ForwardIterator __it) {
-        return std::invoke(__comp, std::invoke(__proj, __it), __value);
+        return std::invoke(__comp, std::invoke(__proj, *__it), __value);
     });
 }
 
