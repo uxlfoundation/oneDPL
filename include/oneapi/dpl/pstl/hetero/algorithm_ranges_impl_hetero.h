@@ -722,6 +722,8 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, ty
 void
 __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
 {
+    assert(__in_r.size() == __out_r.size()); // sizes must be made equal on the caller side
+
     const auto __n = std::ranges::size(__in_r);
     if (__n == 0)
         return;
