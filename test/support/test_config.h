@@ -297,7 +297,7 @@
 // only tests. Also, since this adds significant amount of code compilation to the build, lets be more conservative
 // about when we try to test this. Since debug build mode and unnamed lambda support dont change the code in any way
 // which should interact with what we are testing for here, lets disable it for those cases for time / build space.
-#if !defined(_LIBCPP_VERSION) && !defined(_DEBUG) && defined(__SYCL_UNNAMED_LAMBDA__)
+#if !defined(_LIBCPP_VERSION) && !PSTL_USE_DEBUG && (TEST_UNNAMED_LAMBDAS || !TEST_DPCPP_BACKEND_PRESENT)
 #   define TEST_NO_COMMA_ITERATORS 1
 #else
 #   define TEST_NO_COMMA_ITERATORS 0
