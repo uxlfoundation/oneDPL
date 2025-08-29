@@ -41,7 +41,6 @@ namespace test_std_ranges
 {
 template<>
 constexpr int test_mode_id<std::remove_cvref_t<decltype(oneapi::dpl::ranges::uninitialized_copy)>> = 1;
-
 }
 #endif //_ENABLE_STD_RANGES_TESTING
 
