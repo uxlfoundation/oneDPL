@@ -802,14 +802,17 @@ struct __gen_set_balanced_path
             return 0;
         if (!__is_partitioned)
         {
+            // If not partitioned, just use the bounds of the full range to limit balanced path intersection search
             auto [__idx_rng1, __idx_rng2, __local_star] =
                 calc_and_store_balanced_path(__in_rng, __id, __get_bounds_simple{});
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
-        }
+        
         else if (__id % __get_bounds.__tile_size != 0)
         {
+            // If partitioned, but not on the boundary, we must calculate intersection with the balanced path, and
+            // we can use bounds for our search established in the partitioning phase by __get_bounds.
             auto [__idx_rng1, __idx_rng2, __local_star] = calc_and_store_balanced_path(__in_rng, __id, __get_bounds);
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
