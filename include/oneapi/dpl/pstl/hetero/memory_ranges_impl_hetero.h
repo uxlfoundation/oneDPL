@@ -84,7 +84,7 @@ __pattern_uninitialized_value_construct(__hetero_tag<_BackendTag> __tag, _Execut
             oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
     }
 
-    return std::ranges::end(__r);
+    return std::ranges::begin(__r) + std::ranges::size(__r);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -226,7 +226,7 @@ __pattern_destroy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R
             oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
     }
 
-    return std::ranges::end(__r);
+    return std::ranges::begin(__r) + std::ranges::size(__r);
 }
 
 } // namespace __ranges
