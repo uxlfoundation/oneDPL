@@ -988,7 +988,8 @@ struct __set_intersection_scan_then_propagate;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
-auto
+std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                     std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                            _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1002,7 +1003,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     // intersection is empty
     if (__r1.empty() || __r2.empty())
-        return __return_t{std::ranges::end(__r1), std::ranges::end(__r2), __result};
+        return {__first1 + std::ranges::size(__r1), __first2 + std::ranges::size(__r2), __result};
 
     const auto __sz1 = std::ranges::size(__r1);
     const auto __sz2 = std::ranges::size(__r2);
@@ -1017,7 +1018,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
                                unseq_backend::_IntersectionTag<std::true_type>(), __proj1, __proj2)
                                .get();
 
-        return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
+        return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
     }
 
     const auto __idx =
@@ -1031,7 +1032,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
             unseq_backend::_IntersectionTag<std::false_type>(), __proj1, __proj2)
             .get();
 
-    return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
+    return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
 }
 
 //Dummy names to avoid kernel problems
