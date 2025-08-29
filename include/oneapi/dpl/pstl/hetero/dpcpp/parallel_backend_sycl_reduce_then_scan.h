@@ -612,9 +612,12 @@ std::make_signed_t<_IdxT>
 __encode_balanced_path_temp_data(const _IdxT __rng1_idx, const bool __star)
 {
     using signed_t = std::make_signed_t<_IdxT>;
-    using unsigned_t = std::make_unsigned_t<_IdxT>;
-    // Set sign bit based on __star boolean
-    return signed_t{__rng1_idx} | (unsigned_t{__star} << (sizeof(_IdxT) * 8 - 1));
+
+    // Convert to signed representation
+    signed_t __signed_idx{__rng1_idx};
+
+    // Branchless negation: (1 - 2 * __star) gives 1 if __star is false, -1 if __star is true
+    return __signed_idx * (signed_t{1} - signed_t{2} * signed_t{__star});
 }
 
 struct __get_bounds_partitioned
