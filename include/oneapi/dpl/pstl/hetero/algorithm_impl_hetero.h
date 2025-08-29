@@ -1924,7 +1924,10 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     }
     else
     {
-        using _ValueType = typename std::iterator_traits<_OutputIterator>::value_type;
+        // We should use a temporary buffer here to store the intermediate result,
+        // which is the difference {2} \ {1}. The buffer should have the same data type
+        // as the elements in the second sequence.
+        using _ValueType = typename std::iterator_traits<_ForwardIterator2>::value_type;
 
         // temporary buffer to store intermediate result
         const auto __n2 = __last2 - __first2;
@@ -2013,14 +2016,15 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
     }
     else
     {
-        using _ValueType = typename std::iterator_traits<_OutputIterator>::value_type;
+        using _ValueType1 = typename std::iterator_traits<_ForwardIterator1>::value_type;
+        using _ValueType2 = typename std::iterator_traits<_ForwardIterator2>::value_type;
 
         // temporary buffers to store intermediate result
         const auto __n1 = __last1 - __first1;
-        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_1(__n1);
+        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType1> __diff_1(__n1);
         auto __buf_1 = __diff_1.get();
         const auto __n2 = __last2 - __first2;
-        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_2(__n2);
+        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType2> __diff_2(__n2);
         auto __buf_2 = __diff_2.get();
 
         //1. Calc difference {1} \ {2}
@@ -2181,11 +2185,12 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 }
 
 template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
-          typename _OutputIterator, typename _T, typename _BinaryPredicate, typename _Operator, typename _Inclusive>
+          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive,
+          typename _InitType>
 _OutputIterator
-__pattern_scan_by_segment(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputIterator1 __first1,
-                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result, _T __init,
-                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive)
+__pattern_scan_by_segment_impl(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputIterator1 __first1,
+                               _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
+                               _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive, _InitType __init)
 {
     const auto __n = std::distance(__first1, __last1);
 
@@ -2202,17 +2207,34 @@ __pattern_scan_by_segment(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputI
     auto __keep_value_outputs =
         oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write, _OutputIterator>();
     auto __value_output_buf = __keep_value_outputs(__result, __result + __n);
-    using _IterValueType = typename std::iterator_traits<_InputIterator2>::value_type;
-
-    // Currently, this pattern requires a known identity for the binary operator.
-    static_assert(unseq_backend::__has_known_identity<_Operator, _IterValueType>::value,
-                  "Calls to __pattern_scan_by_segment require a known identity for the provided binary operator");
-    constexpr _IterValueType __identity = unseq_backend::__known_identity<_Operator, _IterValueType>;
 
     __bknd::__parallel_scan_by_segment<_Inclusive::value>(
         _BackendTag{}, std::forward<_Policy>(__policy), __key_buf.all_view(), __value_buf.all_view(),
-        __value_output_buf.all_view(), __binary_pred, __binary_op, __init, __identity);
+        __value_output_buf.all_view(), __binary_pred, __binary_op, __init);
     return __result + __n;
+}
+
+template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
+          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive, typename _T>
+_OutputIterator
+__pattern_scan_by_segment(__hetero_tag<_BackendTag> __tag, _Policy&& __policy, _InputIterator1 __first1,
+                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
+                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive __is_inclusive, _T __init)
+{
+    return __pattern_scan_by_segment_impl(__tag, std::forward<_Policy>(__policy), __first1, __last1, __first2, __result,
+                                          __binary_pred, __binary_op, __is_inclusive,
+                                          unseq_backend::__init_value<_T>{__init});
+}
+
+template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
+          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive>
+_OutputIterator
+__pattern_scan_by_segment(__hetero_tag<_BackendTag> __tag, _Policy&& __policy, _InputIterator1 __first1,
+                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
+                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive __is_inclusive)
+{
+    return __pattern_scan_by_segment_impl(__tag, std::forward<_Policy>(__policy), __first1, __last1, __first2, __result,
+                                          __binary_pred, __binary_op, __is_inclusive, unseq_backend::__no_init_value{});
 }
 
 } // namespace __internal
