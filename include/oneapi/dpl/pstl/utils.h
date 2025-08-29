@@ -678,12 +678,12 @@ __pstl_lower_bound_impl(_Size1 __first, _Size1 __last, _CompareOp __compareOp)
     return __first;
 }
 
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
+template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
 _Size1
-__pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
+__pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
 {
-    return __pstl_lower_bound_impl(__first, __last, [__acc, &__value, __comp, __proj](_Size1 __it) {
-        return std::invoke(__comp, std::invoke(__proj, __acc[__it]), __value);
+    return __pstl_lower_bound_impl(__first, __last, [__acc, &__value, __comp](_Size1 __it) {
+        return std::invoke(__comp, __acc[__it], __value);
     });
 }
 
