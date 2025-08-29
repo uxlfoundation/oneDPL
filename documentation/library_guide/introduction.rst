@@ -93,6 +93,12 @@ Difference with Standard C++ Parallel Algorithms
   the execution will remain serial for other iterator types.
 * Function objects passed in to algorithms executed with device policies must provide ``const``-qualified ``operator()``.
   The `SYCL specification`_ states that writing to such an object during a SYCL kernel is undefined behavior.
+* For algorithms ``reduce``, ``transform_reduce``, ``inclusive_scan``, ``exclusive_scan``,
+  ``transform_inclusive_scan``, and ``transform_exclusive_scan``, the initial value type must be ``MoveAssignable``
+  in addition to the existing ``MoveConstructible`` requirement. While this is not required by the C++ standard, it is
+  necessary for reasonable (non-recursive) implementations and is consistent with other standard library implementations
+  in practice. Insufficient type requirements for numeric algorithms are discussed in detail in
+  https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0571r2.html.
 * For the following algorithms, ``par_unseq`` and ``unseq`` policies do not result in SIMD execution:
   ``includes``, ``inplace_merge``, ``merge``, ``set_difference``, ``set_intersection``,
   ``set_symmetric_difference``, ``set_union``, ``stable_partition``, ``unique``.
@@ -166,9 +172,12 @@ Known Limitations
 * ``reduce_by_segment``, when used with C++ standard aligned policies, imposes limitations on the value type.
   Firstly, it must satisfy the ``DefaultConstructible`` requirements.
   Secondly, a default-constructed instance of that type should act as the identity element for the binary reduction function.
-* The initial value type for ``exclusive_scan``, ``inclusive_scan``, ``exclusive_scan_by_segment``,
-  ``inclusive_scan_by_segment``, ``reduce``, ``reduce_by_segment``, ``transform_reduce``, ``transform_exclusive_scan``,
-  ``transform_inclusive_scan`` should satisfy the ``MoveAssignable`` and the ``CopyConstructible`` requirements.
+* The initial value type for ``reduce_by_segment``, ``exclusive_scan_by_segment``, and ``inclusive_scan_by_segment``
+  should satisfy the ``MoveAssignable`` and the ``CopyConstructible`` requirements.
+* The initial value type for ``reduce``, ``transform_reduce``, should satisfy the ``CopyConstructible`` and the
+``CopyAssignable`` requirements when used with device execution policies.
+* The initial value type for ``exclusive_scan``, ``inclusive_scan``,  ``transform_exclusive_scan``,
+  ``transform_inclusive_scan`` should satisfy the ``CopyConstructible`` and the ``CopyAssignable`` requirements.
 * For ``max_element``, ``min_element``, ``minmax_element``, ``partial_sort``, ``partial_sort_copy``, ``sort``, ``stable_sort``
   the dereferenced value type of the provided iterators should satisfy the ``DefaultConstructible`` requirements.
 * For ``remove``, ``remove_if``, ``unique`` the dereferenced value type of the provided
