@@ -993,10 +993,6 @@ std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std:
 __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                            _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using __return_t = std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>,
-                                                            std::ranges::borrowed_iterator_t<_R2>,
-                                                            std::ranges::borrowed_iterator_t<_OutRange>>;
-
     const auto __first1 = std::ranges::begin(__r1);
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
