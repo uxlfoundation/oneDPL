@@ -3338,7 +3338,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
                 //try searching for "corresponding" subrange [__bb; __ee) in the second sequence
                 _RandomAccessIterator2 __bb = __first2;
                 if (__b != __first1)
-                    __bb = __internal::__pstl_lower_bound(__first2, __last2, std::invoke(__proj1, *__b), __comp, __proj2);
+                    __bb =
+                        __internal::__pstl_lower_bound(__first2, __last2, std::invoke(__proj1, *__b), __comp, __proj2);
 
                 _RandomAccessIterator2 __ee = __last2;
                 if (__e != __last1)
