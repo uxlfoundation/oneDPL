@@ -1102,20 +1102,18 @@ struct __set_symmetric_difference_phase_2;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
-auto
+std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                             std::ranges::borrowed_iterator_t<_R2>,
+                                             std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using __return_t = std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                                                    std::ranges::borrowed_iterator_t<_R2>,
-                                                                    std::ranges::borrowed_iterator_t<_OutRange>>;
-
     const auto __first1 = std::ranges::begin(__r1);
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
 
     if (__r1.empty() && __r2.empty())
-        return __return_t{__first1, __first2, __result};
+        return {__first1, __first2, __result};
 
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
@@ -1131,7 +1129,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return __return_t{__first1, __first2 + __n2, __result + __idx};
+        return {__first1, __first2 + __n2, __result + __idx};
     }
 
     //{2} is empty
@@ -1145,7 +1143,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return __return_t{__first1 + __n1, __first2, __result + __idx};
+        return {__first1 + __n1, __first2, __result + __idx};
     }
 
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
@@ -1161,7 +1159,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
                 unseq_backend::_SymmetricDifferenceTag<std::true_type>(), __proj1, __proj2)
                 .get();
 
-        return __return_t{__first1 + __n1, __first2 + __n2, __result + __idx};
+        return {__first1 + __n1, __first2 + __n2, __result + __idx};
     }
 
     using _ValueType1 = oneapi::dpl::__internal::__value_t<_R1>;
@@ -1199,7 +1197,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
         oneapi::dpl::__ranges::take_view_simple(__buf_2, __n_diff_2), oneapi::dpl::__ranges::views::all_write(__out_r),
         __comp, __proj1, __proj2);
 
-    return __return_t{__first1 + __n1, __first2 + __n2, __result + __n_diff_1 + __n_diff_2};
+    return {__first1 + __n1, __first2 + __n2, __result + __n_diff_1 + __n_diff_2};
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
