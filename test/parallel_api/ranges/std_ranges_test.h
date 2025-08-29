@@ -317,6 +317,9 @@ private:
     constexpr void
     test_dangling_pointers(Policy&& exec, Algo&& algo, Args&& ...args)
     {
+        static_assert(ArgsSize == 1 || ArgsSize == 2 || ArgsSize == 3,
+                      "The test for dangling pointers is not implemented for this number of algorithm arguments");
+
         if constexpr (ArgsSize == 1)
             test_dangling_pointers_arg_1<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
 
@@ -325,9 +328,6 @@ private:
 
         else if constexpr (ArgsSize == 3)
             test_dangling_pointers_args_3<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
-
-        else
-            static_assert(false, "Test for amount of args not implemented");
     }
 
     void
