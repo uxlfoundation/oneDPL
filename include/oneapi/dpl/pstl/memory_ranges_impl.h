@@ -287,7 +287,6 @@ __pattern_destroy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&
     return std::ranges::destroy(std::forward<_R>(__r));
 }
 
-
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl
