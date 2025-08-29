@@ -952,11 +952,10 @@ struct __reverse_copy_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
-        const auto __in_r_size = std::ranges::size(__in_r);
-        const auto __out_r_size = std::ranges::size(__out_r);
-
         using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
-        const _Size __sz = std::ranges::min((_Size)__in_r_size, (_Size)__out_r_size);
+        const _Size __in_r_size = std::ranges::size(__in_r);
+        const _Size __out_r_size = std::ranges::size(__out_r);
+        const _Size __sz = std::ranges::min(__in_r_size, __out_r_size);
 
         const auto __in_r_skipped = __in_r_size - __sz;
 
