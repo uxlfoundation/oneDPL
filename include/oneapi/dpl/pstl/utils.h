@@ -655,17 +655,6 @@ __dpl_signbit(const _T& __x)
     return (__x & __mask) != 0;
 }
 
-// Adapts __pstl_lower_bound and other related functions to use with host backends
-struct _SubscriptAdapter
-{
-    template <typename _Iterator>
-    decltype(auto)
-    operator[](_Iterator __it) const
-    {
-        return *__it;
-    }
-};
-
 template <typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
 _Size1
 __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
