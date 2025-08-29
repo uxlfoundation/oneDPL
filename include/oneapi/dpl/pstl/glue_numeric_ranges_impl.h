@@ -39,8 +39,8 @@ template <typename _ExecutionPolicy, typename _Range, typename _Tp, typename _Bi
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Tp>
 reduce(_ExecutionPolicy&& __exec, _Range&& __rng, _Tp __init, _BinaryOperation __binary_op)
 {
-    return transform_reduce(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), std::move(__init), __binary_op,
-                            oneapi::dpl::identity{});
+    return transform_reduce(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), std::move(__init),
+                            __binary_op, oneapi::dpl::identity{});
 }
 
 template <typename _ExecutionPolicy, typename _Range, typename _Tp>
