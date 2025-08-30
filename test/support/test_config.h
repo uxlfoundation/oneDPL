@@ -293,12 +293,22 @@
 #    error "TEST_ONLY_HETERO_POLICIES is passed but device backend is not available"
 #endif
 
-// There are issues with stable_sort for libcpp with iterators with a deleted comma operator, disable those tests
-#if (defined(_LIBCPP_VERSION))
-#   define _PSTL_LIBCPP_NO_COMMA_TESTS_BROKEN 1
+//There are issues with stable_sort for libcpp with iterators with a deleted comma operator, disable no_comma compile
+// only tests. Also, since this adds significant amount of code compilation to the build, lets be more conservative
+// about when we try to test this. Since debug build mode and unnamed lambda support dont change the code in any way
+// which should interact with what we are testing for here, lets disable it for those cases for time / build space.
+#if !defined(_LIBCPP_VERSION) && !PSTL_USE_DEBUG && (TEST_UNNAMED_LAMBDAS || !TEST_DPCPP_BACKEND_PRESENT)
+#   define TEST_NO_COMMA_ITERATORS 1
 #else
-#   define _PSTL_LIBCPP_NO_COMMA_TESTS_BROKEN 0
+#   define TEST_NO_COMMA_ITERATORS 0
 #endif
 
+// For icpx versions prior to 2024.1, we encounter compilation issues in device_copyable.pass tests for device copyable
+// specializations of kernel submitters. It is a test only issue.
+#if TEST_DPCPP_BACKEND_PRESENT && defined(__INTEL_LLVM_COMPILER) && __INTEL_LLVM_COMPILER < 20240100
+#   define _PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN 1
+#else
+#   define _PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN 0
+#endif
 
 #endif // _TEST_CONFIG_H
