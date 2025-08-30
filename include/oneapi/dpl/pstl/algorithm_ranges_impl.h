@@ -678,7 +678,7 @@ __pattern_mismatch(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&
 //---------------------------------------------------------------------------------------------------------------------
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
-auto
+std::ranges::borrowed_subrange_t<_R>
 __pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
     auto __pred_1 = [__pred, __proj](auto&& __val) {
@@ -694,7 +694,7 @@ __pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pre
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
-auto
+std::ranges::borrowed_subrange_t<_R>
 __pattern_remove_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
                     _Proj __proj)
 {
