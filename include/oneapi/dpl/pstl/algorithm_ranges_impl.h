@@ -1186,6 +1186,57 @@ __pattern_remove_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy
     return std::ranges::remove_if(std::forward<_R>(__r), __pred, __proj);
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_reverse
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R>
+void
+__pattern_reverse(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __first = std::ranges::begin(__r);
+    auto __last = __first + std::ranges::size(__r);
+    oneapi::dpl::__internal::__pattern_reverse(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last);
+}
+
+template <typename _ExecutionPolicy, typename _R>
+void
+__pattern_reverse(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
+{
+    std::ranges::reverse(std::forward<_R>(__r));
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_reverse_copy
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+void
+__pattern_reverse_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __first_in = std::ranges::begin(__in_r);
+    auto __last_in = __first_in + std::ranges::size(__in_r);
+    auto __first_out = std::ranges::begin(__out_r);
+    oneapi::dpl::__internal::__pattern_reverse_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first_in,
+                                                    __last_in, __first_out);
+}
+
+template <typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+void
+__pattern_reverse_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r,
+                       _OutRange&& __out_r)
+{
+    std::ranges::reverse_copy(std::forward<_InRange>(__in_r), std::ranges::begin(__out_r));
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_move
+//---------------------------------------------------------------------------------------------------------------------
+
 template <typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
 __pattern_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r)
