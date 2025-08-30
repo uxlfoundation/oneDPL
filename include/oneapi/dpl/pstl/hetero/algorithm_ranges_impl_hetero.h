@@ -542,9 +542,9 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
-auto
+std::ranges::borrowed_iterator_t<_R>
 __pattern_adjacent_find_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
-                        _Proj __proj)
+                               _Proj __proj)
 {
     oneapi::dpl::__internal::__compare<_Pred, _Proj> __pred_2{__pred, __proj};
 
