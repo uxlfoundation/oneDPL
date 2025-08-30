@@ -24,8 +24,8 @@
 #    include <functional>
 #    include <type_traits>
 
-#    include "algorithm_fwd.h"
 #    include "execution_impl.h"
+#    include "algorithm_impl.h"
 
 namespace oneapi
 {
@@ -612,14 +612,11 @@ __pattern_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-auto
+std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                          std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                        _Proj1 __proj1, _Proj2 __proj2)
 {
-    using __return_type =
-        std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                                  std::ranges::borrowed_iterator_t<_OutRange>>;
-
     using _Index1 = std::ranges::range_difference_t<_R1>;
     using _Index2 = std::ranges::range_difference_t<_R2>;
     using _Index3 = std::ranges::range_difference_t<_OutRange>;
@@ -633,12 +630,504 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     auto __it_out = std::ranges::begin(__out_r);
 
     if (__n_out == 0)
-        return __return_type{__it_1, __it_2, __it_out};
+        return {__it_1, __it_2, __it_out};
 
     auto [__res1, __res2] = ___merge_path_out_lim(__tag, std::forward<_ExecutionPolicy>(__exec), __it_1, __n_1, __it_2,
                                                   __n_2, __it_out, __n_out, __comp, __proj1, __proj2);
 
-    return __return_type{__res1, __res2, __it_out + __n_out};
+    return {__res1, __res2, __it_out + __n_out};
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// includes
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _R1, typename _R2, typename _Comp, typename _Proj1, typename _Proj2>
+bool
+__brick_includes(_R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                 /*__is_vector=*/std::false_type) noexcept
+{
+    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _Comp, typename _Proj1, typename _Proj2>
+bool
+__brick_includes(_R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                 /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
+          typename _Proj2>
+bool
+__pattern_includes(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1,
+                   _Proj2 __proj2)
+{
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick_includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2,
+                            typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
+          typename _Proj2>
+bool
+__pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp,
+                   _Proj1 __proj1, _Proj2 __proj2)
+{
+    using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
+
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
+
+    // TODO wht this code absent in __pattern_includes + __parallel_tag for iterators?
+    // use serial algorithm
+    //if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+    //    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+
+    auto __first1 = std::ranges::begin(__r1);
+    auto __last1 = __first1 + __n1;
+    auto __first2 = std::ranges::begin(__r2);
+    auto __last2 = __first2 + __n2;
+
+    if (__first2 == __last2)
+        return true;
+
+    //optimization; {1} - the first sequence, {2} - the second sequence
+    //{1} is empty or size_of{2} > size_of{1}
+    if (__first1 == __last1 || __last2 - __first2 > __last1 - __first1 ||
+        // {1}:     [**********]     or   [**********]
+        // {2}: [***********]                   [***********]
+        std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)) ||
+        std::invoke(__comp, std::invoke(__proj1, *(__last1 - 1)), std::invoke(__proj2, *(__last2 - 1))))
+        return false;
+
+    __first1 = oneapi::dpl::__internal::__pstl_lower_bound(__first1, __last1, std::invoke(__proj2, *__first2), __comp,
+                                                           __proj1);
+    if (__first1 == __last1)
+        return false;
+
+    if (__last2 - __first2 == 1)
+        return !std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)) &&
+               !std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
+
+    return !__internal::__parallel_or(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
+        [__first1, __last1, __first2, __last2, __comp, __proj1, __proj2](_RandomAccessIterator2 __i,
+                                                                         _RandomAccessIterator2 __j) {
+            assert(__j > __i);
+            //assert(__j - __i > 1);
+
+            //1. moving boundaries to "consume" subsequence of equal elements
+            auto __is_equal_sorted = [&__comp, __proj2](_RandomAccessIterator2 __a,
+                                                        _RandomAccessIterator2 __b) -> bool {
+                //enough one call of __comp due to compared couple belongs to one sorted sequence
+                return !std::invoke(__comp, std::invoke(__proj2, *__a), std::invoke(__proj2, *__b));
+            };
+
+            //1.1 left bound, case "aaa[aaaxyz...]" - searching "x"
+            if (__i > __first2 && __is_equal_sorted(__i - 1, __i))
+            {
+                //whole subrange continues to have equal elements - return "no op"
+                if (__is_equal_sorted(__i, __j - 1))
+                    return false;
+
+                __i = oneapi::dpl::__internal::__pstl_upper_bound(__i, __last2, std::invoke(__proj2, *__i), __comp,
+                                                                  __proj2);
+            }
+
+            //1.2 right bound, case "[...aaa]aaaxyz" - searching "x"
+            if (__j < __last2 && __is_equal_sorted(__j - 1, __j))
+                __j = oneapi::dpl::__internal::__pstl_upper_bound(__j, __last2, std::invoke(__proj2, *__j), __comp,
+                                                                  __proj2);
+
+            //2. testing is __a subsequence of the second range included into the first range
+            auto __b = oneapi::dpl::__internal::__pstl_lower_bound(__first1, __last1, std::invoke(__proj2, *__i),
+                                                                   __comp, __proj1);
+
+            //assert(!__comp(*(__last1 - 1), *__b));
+            //assert(!__comp(*(__j - 1), *__i));
+            return !std::ranges::includes(__b, __last1, __i, __j, __comp, __proj1, __proj2);
+        });
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// set_union
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                  /*__is_vector=*/std::false_type) noexcept
+{
+    return std::ranges::set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r), __comp,
+                                  __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                  /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::ranges::set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r), __comp,
+                                  __proj1, __proj2);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                              std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+                    _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+{
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp,
+                             __proj1, __proj2, typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                              std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1 = oneapi::dpl::identity{},
+                    _Proj2 __proj2 = oneapi::dpl::identity{})
+{
+    using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
+    using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
+    using _Tp = std::ranges::range_value_t<_OutRange>;
+
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
+
+    auto __first1 = std::ranges::begin(__r1);
+    auto __last1 = __first1 + __n1;
+    auto __first2 = std::ranges::begin(__r2);
+    auto __last2 = __first2 + __n2;
+    auto __result = std::ranges::begin(__out_r);
+
+    // use serial algorithm
+    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+        return std::ranges::set_union(__r1, __r2, std::begin(__out_r), __comp, __proj1, __proj2);
+
+    auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
+        __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+           _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+            return oneapi::dpl::__utils::__set_union_construct(
+                __first1, __last1, __first2, __last2, __result, __comp,
+                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __proj1, __proj2);
+        },
+        __proj1, __proj2);
+
+    return {__first1 + __n1, __first2 + __n2, __result + (__out_last - __result)};
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// set_intersection
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                         /*__is_vector=*/std::false_type) noexcept
+{
+    return std::ranges::set_intersection(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
+                                         __comp, __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                         /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::ranges::set_intersection(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
+                                         __comp, __proj1, __proj2);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                     std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick_set_intersection(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                    __comp, __proj1, __proj2, typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                     std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                           _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
+    using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
+    using _Tp = std::ranges::range_value_t<_OutRange>;
+
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
+
+    auto __first1 = std::ranges::begin(__r1);
+    auto __last1 = __first1 + __n1;
+    auto __first2 = std::ranges::begin(__r2);
+    auto __last2 = __first2 + __n2;
+    auto __result = std::ranges::begin(__out_r);
+
+    // intersection is empty
+    if (__n1 == 0 || __n2 == 0)
+        return {__last1, __last2, __result};
+
+    // testing  whether the sequences are intersected
+    auto __left_bound_seq_1 = oneapi::dpl::__internal::__pstl_lower_bound(
+        __first1, __last1, std::invoke(__proj2, *__first2), __comp, __proj1);
+    //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
+    if (__left_bound_seq_1 == __last1)
+        return {__last1, __last2, __result};
+
+    // testing  whether the sequences are intersected
+    auto __left_bound_seq_2 = oneapi::dpl::__internal::__pstl_lower_bound(
+        __first2, __last2, std::invoke(__proj1, *__first1), __comp, __proj2);
+    //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
+    if (__left_bound_seq_2 == __last2)
+        return {__last1, __last2, __result};
+
+    const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
+    if (__m1 > oneapi::dpl::__internal::__set_algo_cut_off)
+    {
+        //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
+        auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result,
+            __comp,
+            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+               _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+                return oneapi::dpl::__utils::__set_intersection_construct(
+                    __first1, __last1, __first2, __last2, __result, __comp,
+                    oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
+                    /*CopyFromFirstSet = */ std::true_type{}, __proj1, __proj2);
+            },
+            __proj1, __proj2);
+        return {__last1, __last2, __out_last};
+    }
+
+    const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
+    if (__m2 > oneapi::dpl::__internal::__set_algo_cut_off)
+    {
+        //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
+        auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result,
+            __comp,
+            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+               _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+                return oneapi::dpl::__utils::__set_intersection_construct(
+                    __first1, __last1, __first2, __last2, __result, __comp,
+                    oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
+                    /*CopyFromFirstSet = */ std::false_type{}, __proj1, __proj2);
+            },
+            __proj1, __proj2);
+        return {__last1, __last2, __out_last};
+    }
+
+    // [left_bound_seq_1; last1) and [left_bound_seq_2; last2) - use serial algorithm
+    return std::ranges::set_intersection(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2,
+                                         std::ranges::begin(__out_r), __comp, __proj1, __proj2);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// set_difference
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                       /*__is_vector=*/std::false_type) noexcept
+{
+    return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
+                                       __comp, __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                       /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
+                                       __comp, __proj1, __proj2);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                         _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                  __comp, __proj1, __proj2, typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                         _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
+    using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
+    using _Tp = std::ranges::range_value_t<_OutRange>;
+
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
+
+    auto __first1 = std::ranges::begin(__r1);
+    auto __last1 = __first1 + __n1;
+    auto __first2 = std::ranges::begin(__r2);
+    auto __last2 = __first2 + __n2;
+    auto __result = std::ranges::begin(__out_r);
+
+    // {} \ {2}: the difference is empty
+    if (__n1 == 0)
+        return {__first1, __result};
+
+    // {1} \ {}: parallel copying just first sequence
+    if (__n2 == 0)
+    {
+        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+                                                __result, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
+        return {__last1, __out_last};
+    }
+
+    // testing  whether the sequences are intersected
+    auto __left_bound_seq_1 = oneapi::dpl::__internal::__pstl_lower_bound(
+        __first1, __last1, std::invoke(__proj2, *__first2), __comp, __proj1);
+    //{1} < {2}: seq 2 is wholly greater than seq 1, so, parallel copying just first sequence
+    if (__left_bound_seq_1 == __last1)
+    {
+        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+                                                __result, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
+        return {__last1, __out_last};
+    }
+
+    // testing  whether the sequences are intersected
+    auto __left_bound_seq_2 = oneapi::dpl::__internal::__pstl_lower_bound(
+        __first2, __last2, std::invoke(__proj1, *__first1), __comp, __proj2);
+    //{2} < {1}: seq 1 is wholly greater than seq 2, so, parallel copying just first sequence
+    if (__left_bound_seq_2 == __last2)
+    {
+        auto __out_last =
+            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+                                              __result, __brick_copy<__parallel_tag<_IsVector>>{});
+        return {__last1, __out_last};
+    }
+
+    if (__n1 + __n2 > oneapi::dpl::__internal::__set_algo_cut_off)
+    {
+        auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+               _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+                return oneapi::dpl::__utils::__set_difference_construct(
+                    __first1, __last1, __first2, __last2, __result, __comp,
+                    oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __proj1, __proj2);
+            },
+            __proj1, __proj2);
+
+        return {__last1, __result + (__out_last - __result)};
+    }
+
+    // use serial algorithm
+    return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
+                                       __comp, __proj1, __proj2);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// set_symmetric_difference
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
+                                 _Proj2 __proj2,
+                                 /*__is_vector=*/std::false_type) noexcept
+{
+    return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                 std::ranges::begin(__out_r), __comp, __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+auto
+__brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
+                                 _Proj2 __proj2,
+                                 /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                 std::ranges::begin(__out_r), __comp, __proj1, __proj2);
+}
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                             std::ranges::borrowed_iterator_t<_R2>,
+                                             std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_symmetric_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick_set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                            std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2,
+                                            typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                             std::ranges::borrowed_iterator_t<_R2>,
+                                             std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                                   _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
+    using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
+    using _Tp = std::ranges::range_value_t<_OutRange>;
+
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
+
+    auto __first1 = std::ranges::begin(__r1);
+    auto __last1 = __first1 + __n1;
+    auto __first2 = std::ranges::begin(__r2);
+    auto __last2 = __first2 + __n2;
+    auto __result = std::ranges::begin(__out_r);
+
+    // use serial algorithm
+    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+        return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                     std::ranges::begin(__out_r), __comp, __proj1, __proj2);
+
+    auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+           _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+            return oneapi::dpl::__utils::__set_symmetric_difference_construct(
+                __first1, __last1, __first2, __last2, __result, __comp,
+                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __proj1, __proj2);
+        },
+        __proj1, __proj2);
+
+    return {__last1, __last2, __out_last};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
