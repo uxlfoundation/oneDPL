@@ -1254,6 +1254,46 @@ struct Pow2
 };
 
 template <typename _T>
+struct MoveOnlyWrapper {
+    _T value;
+
+    // Default constructor
+    MoveOnlyWrapper() = delete;
+
+    MoveOnlyWrapper(_T v) : value(v) {}
+
+    operator _T() const { return value; }
+
+    // Move constructor
+    MoveOnlyWrapper(MoveOnlyWrapper&&) = default;
+
+    // Move assignment operator
+    MoveOnlyWrapper& operator=(MoveOnlyWrapper&&) = default;
+
+    // Deleted copy constructor and copy assignment operator
+    MoveOnlyWrapper(const MoveOnlyWrapper&) = delete;
+    MoveOnlyWrapper& operator=(const MoveOnlyWrapper&) = delete;
+
+    MoveOnlyWrapper operator-() const
+    {
+        return MoveOnlyWrapper{-value};
+    }
+    friend bool operator==(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return a.value == b.value;
+    }
+    friend MoveOnlyWrapper operator+(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value + b.value};
+    }
+
+    friend MoveOnlyWrapper operator*(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value * b.value};
+    }
+};
+
+template <typename _T>
 struct NoDefaultCtorWrapper {
     _T value;
 
