@@ -697,10 +697,8 @@ struct __minmax_fn
         assert(std::ranges::size(__r) > 0);
 
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        const auto& [__min, __max] = oneapi::dpl::__internal::__ranges::__pattern_minmax(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
-
-        return {__min, __max};
+        return oneapi::dpl::__internal::__ranges::__pattern_minmax(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
     }
 
 }; //__minmax_fn

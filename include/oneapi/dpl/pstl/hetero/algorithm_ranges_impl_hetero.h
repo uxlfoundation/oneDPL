@@ -1028,7 +1028,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
-std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>
+std::ranges::minmax_result<std::ranges::range_value_t<_R>>
 __pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     oneapi::dpl::__internal::__compare<_Comp, _Proj> __comp_2{__comp, __proj};

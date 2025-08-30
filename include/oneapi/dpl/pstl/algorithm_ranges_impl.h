@@ -524,13 +524,13 @@ __pattern_minmax_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionP
 //---------------------------------------------------------------------------------------------------------------------
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
-std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>
+std::ranges::minmax_result<std::ranges::range_value_t<_R>>
 __pattern_minmax(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    auto [__it_min, __it_max] =
+    auto __res =
         __pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
 
-    return {*__it_min, *__it_max};
+    return {*__res.min, *__res.max};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
