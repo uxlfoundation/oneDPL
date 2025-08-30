@@ -618,11 +618,8 @@ struct __minmax_element_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        const auto& [__min, __max] =
-            oneapi::dpl::__internal::__ranges::__pattern_minmax_element(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::forward<_R>(__r), __comp, __proj);
-
-        return {__min, __max};
+        return oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
     }
 }; //__minmax_element_fn
 } //__internal
@@ -1734,7 +1731,7 @@ max_element(_ExecutionPolicy&& __exec, _Range&& __rng)
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
 oneapi::dpl::__internal::__enable_if_execution_policy<
     _ExecutionPolicy,
-    ::std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__difference_t<_Range>>>
+    std::ranges::minmax_element_result<std::ranges::borrowed_iterator_t<_Range>>>
 minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng);
