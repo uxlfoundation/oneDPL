@@ -560,8 +560,9 @@ __pattern_copy(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _I
 
 template <typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred,
           typename _Proj>
-auto
-__pattern_copy_if_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r, _Pred __pred, _Proj __proj)
+std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_copy_if_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r, _Pred __pred,
+                         _Proj __proj)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
@@ -572,14 +573,11 @@ __pattern_copy_if_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_
         std::ranges::begin(__in_r), std::ranges::begin(__in_r) + std::ranges::size(__in_r),
         std::ranges::begin(__out_r), __pred_1) - std::ranges::begin(__out_r);
 
-    using __return_type = std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>,
-        std::ranges::borrowed_iterator_t<_OutRange>>;
-
-    return __return_type{std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r) + __res_idx};
+    return {std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r) + __res_idx};
 }
 
 template<typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _Proj>
-auto
+std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_copy_if_ranges(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r, _OutRange&& __out_r,
                          _Pred __pred, _Proj __proj)
 {
