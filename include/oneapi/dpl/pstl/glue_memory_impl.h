@@ -18,6 +18,7 @@
 
 #include "execution_defs.h"
 #include "utils.h"
+#include "utils_execution.h"
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_impl_hetero.h"
@@ -193,42 +194,6 @@ uninitialized_fill_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size 
     }
 }
 
-#if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-
-inline const oneapi::dpl::execution::parallel_policy&
-get_unvectorized_policy(const oneapi::dpl::execution::parallel_unsequenced_policy&)
-{
-    return oneapi::dpl::execution::par;
-}
-
-inline const oneapi::dpl::execution::sequenced_policy&
-get_unvectorized_policy(const oneapi::dpl::execution::unsequenced_policy&)
-{
-    return oneapi::dpl::execution::seq;
-}
-
-template <typename _ExecutionPolicy>
-const _ExecutionPolicy&
-get_unvectorized_policy(const _ExecutionPolicy& __exec)
-{
-    return __exec;
-}
-
-#endif // (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-
-namespace __internal
-{
-template <typename _ValueType, typename _ReferenceType>
-struct __destroy_fn
-{
-    void
-    operator()(_ReferenceType __val) const
-    {
-        __val.~_ValueType();
-    }
-};
-}; // namespace __internal
-
 // [specialized.destroy]
 
 template <class _ExecutionPolicy, class _ForwardIterator>
@@ -236,19 +201,20 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
     typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference _ReferenceType;
 
     if constexpr (!std::is_trivially_destructible_v<_ValueType>)
     {
         const auto __dispatch_tag =
 #if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-            oneapi::dpl::__internal::__select_backend(get_unvectorized_policy(__exec), __first);
+            oneapi::dpl::__internal::__select_backend(oneapi::dpl::__internal::get_unvectorized_policy(__exec),
+                                                      __first);
 #else
             oneapi::dpl::__internal::__select_backend(__exec, __first);
 #endif
 
-        oneapi::dpl::__internal::__pattern_walk1(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first,
-                                                 __last, __internal::__destroy_fn<_ValueType, _ReferenceType>{});
+        oneapi::dpl::__internal::__pattern_walk1(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{});
     }
 }
 
@@ -257,7 +223,6 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 {
     typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference _ReferenceType;
 
     if constexpr (std::is_trivially_destructible_v<_ValueType>)
     {
@@ -267,14 +232,15 @@ destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
     {
         const auto __dispatch_tag =
 #if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-            oneapi::dpl::__internal::__select_backend(get_unvectorized_policy(__exec), __first);
+            oneapi::dpl::__internal::__select_backend(oneapi::dpl::__internal::get_unvectorized_policy(__exec),
+                                                      __first);
 #else
             oneapi::dpl::__internal::__select_backend(__exec, __first);
 #endif
 
-        return oneapi::dpl::__internal::__pattern_walk1_n(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-                                                          __first, __n,
-                                                          __internal::__destroy_fn<_ValueType, _ReferenceType>{});
+        return oneapi::dpl::__internal::__pattern_walk1_n(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n,
+            oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{});
     }
 }
 
