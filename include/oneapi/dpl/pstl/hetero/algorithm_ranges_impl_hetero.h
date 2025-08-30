@@ -1033,14 +1033,11 @@ __pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r,
 {
     oneapi::dpl::__internal::__compare<_Comp, _Proj> __comp_2{__comp, __proj};
 
-    [[maybe_unused]] const auto& [__res_min, __res_max] =
+    const auto& [__res_min, __res_max] =
         __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         std::forward<_R>(__r), __comp_2);
 
-    [[maybe_unused]] const auto& [__idx_min, __min] = __res_min;
-    [[maybe_unused]] const auto& [__idx_max, __max] = __res_max;
-
-    return {__min, __max};
+    return {__res_min.second, __res_max.second};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
