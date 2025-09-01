@@ -62,7 +62,7 @@ template <class _RandomAccessIterator, class _Function>
 void __brick_walk1(_RandomAccessIterator, _RandomAccessIterator, _Function,
                    /*vector=*/::std::true_type);
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function, class _IsVector>
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
 void
 __pattern_walk1(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator, _Function);
 
