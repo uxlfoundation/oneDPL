@@ -139,7 +139,7 @@ struct __first_size_calc
         return std::ranges::size(__rng);
 #else
         return __rng.size();
-#endif
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
     }
 };
 
@@ -154,7 +154,7 @@ struct __min_size_calc
         return std::min({_Size(std::ranges::size(__rngs))...});
 #else
         return std::min({_Size(__rngs.size())...});
-#endif
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
     }
 };
 

@@ -710,6 +710,6 @@ __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _Ranges&&.
 //A specialization for enable_view to true because oneapi::dpl::__ranges::all_view models a view (see C++ standard)
 template <typename _T, sycl::access::mode _AccMode, sycl::target _Target, sycl::access::placeholder _Placeholder>
 inline constexpr bool std::ranges::enable_view<oneapi::dpl::__ranges::all_view<_T, _AccMode, _Target, _Placeholder>> = true;
-#endif
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 #endif // _ONEDPL_UTILS_RANGES_SYCL_H
