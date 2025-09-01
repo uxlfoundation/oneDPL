@@ -656,12 +656,12 @@ __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
                            std::invoke(__proj2, std::forward<decltype(__val2)>(__val2)));
     };
 
-    auto __res = oneapi::dpl::__internal::__pattern_mismatch(
+    const auto& [first, second] = oneapi::dpl::__internal::__pattern_mismatch(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
         std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
         std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred);
 
-    return {__res.first, __res.second};
+    return {first, second};
 }
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
