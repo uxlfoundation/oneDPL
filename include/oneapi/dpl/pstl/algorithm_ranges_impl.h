@@ -763,13 +763,66 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 // set_union
 //---------------------------------------------------------------------------------------------------------------------
 
+// Bounded set union: performs set_union with output range capacity checking.
+// Truncates result if output range is too small.
+template<std::ranges::random_access_range _R1,
+            std::ranges::random_access_range _R2,
+            std::ranges::random_access_range _OutR,
+            typename _Comp = std::ranges::less, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>,
+                              std::ranges::borrowed_iterator_t<_R2>,
+                              std::ranges::borrowed_iterator_t<_OutR>>
+__serial_set_union(_R1&& __r1, _R2&& __r2, _OutR&& __r_out, _Comp __comp = {},
+                   _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+{
+    auto __it1 = std::ranges::begin(__r1);
+    auto __end1 = std::ranges::begin(__r1) + std::ranges::size(__r1);
+    auto __it2 = std::ranges::begin(__r2);
+    auto __end2 = std::ranges::begin(__r2) + std::ranges::size(__r2);
+    auto __out_it = std::ranges::begin(__r_out);
+    auto __out_end = std::ranges::begin(__r_out) + std::ranges::size(__r_out);
+
+    // Do the main set_union operation until either range is exhausted
+    while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+        {
+            *__out_it = *__it1;
+            ++__it1;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            *__out_it = *__it2;
+            ++__it2;
+        }
+        else
+        {
+            *__out_it = *__it1;
+            ++__it1;
+            ++__it2;
+        }
+        ++__out_it;
+    }
+    // Copy the residual elements if one of the input ranges is exhausted
+    using _size1_t = std::common_type_t<std::ranges::range_size_t<_R1>, std::ranges::range_size_t<_OutR>>;
+    const _size1_t __copy_n1 = std::min<_size1_t>(std::ranges::distance(__it1, __end1),
+                                                  std::ranges::distance(__out_it, __out_end));
+    auto __copy1 = std::ranges::copy_n(__it1, __copy_n1, __out_it);
+    using _size2_t = std::common_type_t<std::ranges::range_size_t<_R2>, std::ranges::range_size_t<_OutR>>;
+    const _size2_t __copy_n2 = std::min<_size2_t>(std::ranges::distance(__it2, __end2),
+                                                  std::ranges::distance(__copy1.out, __out_end));
+    auto __copy2 = std::ranges::copy_n(__it2, __copy_n2, __copy1.out);
+
+    return {__copy1.in, __copy2.in, __copy2.out};
+}
+
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 auto
 __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                   /*__is_vector=*/std::false_type) noexcept
 {
-    return std::ranges::set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r), __comp,
-                                  __proj1, __proj2);
+    return __serial_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                              __comp, __proj1, __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -778,8 +831,8 @@ __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Pr
                   /*__is_vector=*/std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return std::ranges::set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r), __comp,
-                                  __proj1, __proj2);
+    return __serial_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                              __comp, __proj1, __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange>

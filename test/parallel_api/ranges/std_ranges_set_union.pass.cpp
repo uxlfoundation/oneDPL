@@ -15,7 +15,7 @@
 
 #include "std_ranges_test.h"
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING && !_PSTL_TEST_LIBCPP_RANGE_SET_BROKEN
 namespace test_std_ranges
 {
 template<>
@@ -101,29 +101,72 @@ void test_mixed_types_device()
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
-#endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+
+// Equivalent to std::ranges::set_union, but accepting the output as a range
+// and properly handling the case when the output range does not have enough space to store all the elements
+struct set_union_checker_fn
+{
+    template<std::ranges::random_access_range R1,
+             std::ranges::random_access_range R2,
+             std::ranges::random_access_range OutR,
+             typename Comp = std::ranges::less, typename Proj1 = std::identity, typename Proj2 = std::identity>
+    std::ranges::set_union_result<std::ranges::borrowed_iterator_t<R1>,
+                                  std::ranges::borrowed_iterator_t<R2>,
+                                  std::ranges::borrowed_iterator_t<OutR>>
+    operator()(R1&& r1, R2&& r2, OutR&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {}) const
+    {
+#if _PSTL_TEST_LIBCPP_RANGE_SET_BROKEN
+        auto it1 = std::ranges::begin(r1);
+        auto end1 = std::ranges::end(r1);
+        auto it2 = std::ranges::begin(r2);
+        auto end2 = std::ranges::end(r2);
+        auto out_it = std::ranges::begin(r_out);
+        auto out_end = std::ranges::end(r_out);
+
+        // Do the main set_union operation until either range is exhausted
+        while (it1 != end1 && it2 != end2 && out_it != out_end)
+        {
+            if (std::invoke(comp, std::invoke(proj1, *it1), std::invoke(proj2, *it2)))
+            {
+                *out_it = *it1;
+                ++it1;
+            }
+            else if (std::invoke(comp, std::invoke(proj2, *it2), std::invoke(proj1, *it1)))
+            {
+                *out_it = *it2;
+                ++it2;
+            }
+            else
+            {
+                *out_it = *it1;
+                ++it1;
+                ++it2;
+            }
+            ++out_it;
+        }
+        // Copy the residual elements if one of the input ranges is exhausted
+        using size1_t = std::common_type_t<std::ranges::range_size_t<R1>, std::ranges::range_size_t<OutR>>;
+        const size1_t copy_n1 = std::min<size1_t>(end1 - it1, out_end - out_it);
+        auto copy1 = std::ranges::copy_n(it1, copy_n1, out_it);
+        using size2_t = std::common_type_t<std::ranges::range_size_t<R2>, std::ranges::range_size_t<OutR>>;
+        const size2_t copy_n2 = std::min<size2_t>(end2 - it2, out_end - copy1.out);
+        auto copy2 = std::ranges::copy_n(it2, copy_n2, copy1.out);
+
+        return {copy1.in, copy2.in, copy2.out};
+    }
+};
+
+inline constexpr set_union_checker_fn set_union_checker{};
+#endif // _ENABLE_STD_RANGES_TESTING
 
 std::int32_t
 main()
 {
     bool bProcessed = false;
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
-
-    auto set_union_checker = [](std::ranges::random_access_range auto&& r1,
-                                std::ranges::random_access_range auto&& r2,
-                                std::ranges::random_access_range auto&& r_out, auto&&... args)
-    {
-        auto res = std::ranges::set_union(std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2),
-                                          std::ranges::begin(r_out), std::forward<decltype(args)>(args)...);
-
-        using ret_type = std::ranges::set_union_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
-                                                       std::ranges::borrowed_iterator_t<decltype(r2)>,
-                                                       std::ranges::borrowed_iterator_t<decltype(r_out)>>;
-        return ret_type{res.in1, res.in2, res.out};
-    };
 
     test_range_algo<0, int, data_in_in_out, mul1_t, div3_t>{big_sz}(dpl_ranges::set_union, set_union_checker);
     test_range_algo<1, int, data_in_in_out, mul1_t, div3_t>{big_sz}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj);
@@ -141,7 +184,7 @@ main()
 
     bProcessed = true;
 
-#endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(bProcessed);
 }

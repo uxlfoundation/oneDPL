@@ -15,7 +15,7 @@
 
 #include "std_ranges_test.h"
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING && !_PSTL_TEST_LIBCPP_RANGE_SET_BROKEN
 namespace test_std_ranges
 {
 template<>
@@ -97,14 +97,14 @@ void test_mixed_types_device()
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
-#endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_TEST_LIBCPP_RANGE_SET_BROKEN
 
 std::int32_t
 main()
 {
     bool bProcessed = false;
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING && !_PSTL_TEST_LIBCPP_RANGE_SET_BROKEN
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
@@ -147,7 +147,7 @@ main()
 
     bProcessed = true;
 
-#endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_TEST_LIBCPP_RANGE_SET_BROKEN
 
     return TestUtils::done(bProcessed);
 }
