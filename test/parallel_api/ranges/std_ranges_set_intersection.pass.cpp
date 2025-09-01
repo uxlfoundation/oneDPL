@@ -103,8 +103,9 @@ main()
                                        std::ranges::random_access_range auto&& r2,
                                        std::ranges::random_access_range auto&& r_out, auto&&... args)
     {
-        auto res = std::ranges::set_intersection(std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2),
-                                                 std::ranges::begin(r_out), std::forward<decltype(args)>(args)...);
+        auto res = oneapi::dpl::__internal::__ranges::__serial_set_intersection(
+            std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2), std::forward<decltype(r_out)>(r_out),
+            std::forward<decltype(args)>(args)...);
 
         using ret_type = std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
                                                               std::ranges::borrowed_iterator_t<decltype(r2)>,
