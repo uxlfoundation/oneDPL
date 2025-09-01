@@ -152,10 +152,16 @@ struct __swap1_wrapper;
 template <typename _Name>
 struct __swap2_wrapper;
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Function>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2>
 oneapi::dpl::__internal::__difference_t<_Range1>
-__pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Function __f)
+__pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
+    //a trivial pre-check
+    if (__rng1.empty() || __rng2.empty())
+        return 0;
+
+    using _Function = oneapi::dpl::__internal::__swap_fn;
+
     if (__rng1.size() <= __rng2.size())
     {
         const std::size_t __n = __rng1.size();
@@ -163,7 +169,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng1, __rng2)
+            unseq_backend::__brick_swap<_Function>{_Function{}, __n}, __n, __rng1, __rng2)
             .__checked_deferrable_wait();
         return __n;
     }
@@ -171,10 +177,21 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-        unseq_backend::__brick_swap<_Function>{__f, __n}, __n, __rng2, __rng1)
+        unseq_backend::__brick_swap<_Function>{_Function{}, __n}, __n, __rng2, __rng1)
         .__checked_deferrable_wait();
     return __n;
 }
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2>
+void
+__pattern_swap_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2)
+{
+    oneapi::dpl::__internal::__ranges::__pattern_swap(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                      oneapi::dpl::__ranges::views::all(std::forward<_R1>(__r1)),
+                                                      oneapi::dpl::__ranges::views::all(std::forward<_R2>(__r2)));
+}
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
 // equal
@@ -635,9 +652,9 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred,
           typename _Proj>
-auto
-__pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r,
-    _Pred __pred, _Proj __proj)
+std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
+                         _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
@@ -646,10 +663,7 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         oneapi::dpl::__ranges::views::all_write(__out_r), __pred_1,
         oneapi::dpl::__internal::__pstl_assign());
 
-    using __return_t = std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>,
-        std::ranges::borrowed_iterator_t<_OutRange>>;
-
-    return __return_t{std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r) + __res_idx};
+    return {std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r) + __res_idx};
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
@@ -695,6 +709,48 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     return {std::ranges::begin(__r) + __idx, std::ranges::begin(__r) + __n};
 }
+
+//------------------------------------------------------------------------
+// reverse
+//------------------------------------------------------------------------
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R>
+void
+__pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r)
+{
+    const auto __n = std::ranges::size(__r);
+    if (__n <= 1)
+        return;
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                      unseq_backend::__reverse_functor<decltype(__n)>{__n}, __n / 2,
+                                                      std::forward<_R>(__r))
+        .__checked_deferrable_wait();
+}
+
+//------------------------------------------------------------------------
+// reverse_copy
+//------------------------------------------------------------------------
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+void
+__pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
+{
+    assert(__in_r.size() == __out_r.size()); // sizes must be made equal on the caller side
+
+    const auto __n = std::ranges::size(__in_r);
+    if (__n == 0)
+        return;
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                      unseq_backend::__reverse_copy<decltype(__n)>{__n}, __n,
+                                                      std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r))
+        .__checked_deferrable_wait();
+}
+
+//------------------------------------------------------------------------
+// move
+//------------------------------------------------------------------------
 
 template<typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
 void
@@ -746,6 +802,28 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     return __res.get(); // is a blocking call
 }
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp,
+          typename _Proj>
+std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_unique_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r,
+                      _Comp __comp, _Proj __proj)
+{
+    oneapi::dpl::__internal::__compare<_Comp, _Proj> __pred_2{__comp, __proj};
+
+    auto __beg = std::ranges::begin(__r);
+    auto __end = __beg + std::ranges::size(__r);
+    auto __beg_out = std::ranges::begin(__out_r);
+
+    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique_copy(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __pred_2);
+
+    return {__end, __beg_out + __idx};
+}
+
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 //------------------------------------------------------------------------
 // unique
 //------------------------------------------------------------------------
@@ -774,6 +852,23 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
         __brick_copy<__hetero_tag<_BackendTag>>{}, res_rng, std::forward<_Range>(__rng));
     return res;
 }
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    oneapi::dpl::__internal::__compare<_Comp, _Proj> __pred_2{__comp, __proj};
+
+    auto __beg = std::ranges::begin(__r);
+    auto __end = __beg + std::ranges::size(__r);
+    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)),
+        __pred_2);
+
+    return std::ranges::borrowed_subrange_t<_R>(__beg + __idx, __end);
+}
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
 // merge
@@ -831,7 +926,8 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
-auto
+std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                          std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                        _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -847,12 +943,361 @@ __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exe
         __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r1),
         oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_write(__out_r), __comp, __proj1,
         __proj2);
-    using __return_t = std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-        std::ranges::borrowed_iterator_t<_OutRange>>;
 
-    return __return_t{std::ranges::begin(__r1) + __res.first, std::ranges::begin(__r2) + __res.second,
-                      std::ranges::begin(__out_r) + __n_out};
+    return {std::ranges::begin(__r1) + __res.first, std::ranges::begin(__r2) + __res.second,
+            std::ranges::begin(__out_r) + __n_out};
 }
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
+          typename _Proj2>
+bool
+__pattern_includes(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp,
+                   _Proj1 __proj1, _Proj2 __proj2)
+{
+    //according to the spec
+    if (std::ranges::empty(__r2))
+        return true;
+
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
+
+    //optimization; {1} - the first sequence, {2} - the second sequence
+    //{1} is empty or size_of{2} > size_of{1}
+    if (std::ranges::empty(__r1) || __n2 > __n1)
+        return false;
+
+    using __brick_includes_t = unseq_backend::__brick_includes<decltype(__n2), decltype(__n1), _Comp, _Proj2, _Proj1>;
+    using _TagType = __par_backend_hetero::__parallel_or_tag;
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
+
+    return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __brick_includes_t{__n2, __n1, __comp, __proj2, __proj1},
+        _TagType{}, __size_calc{}, oneapi::dpl::__ranges::views::all_read(__r2),
+        oneapi::dpl::__ranges::views::all_read(__r1));
+}
+
+//Dummy names to avoid kernel problems
+template <typename Name>
+struct __set_union_copy_case_1;
+
+template <typename Name>
+struct __set_union_copy_case_2;
+
+template <typename Name>
+struct __set_union_scan_then_propagate;
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
+          typename _Comp, typename _Proj1, typename _Proj2>
+std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                              std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    const auto __first1 = std::ranges::begin(__r1);
+    const auto __first2 = std::ranges::begin(__r2);
+    const auto __result = std::ranges::begin(__out_r);
+
+    if (__r1.empty() && __r2.empty())
+        return {__first1, __first2, __result};
+
+    const auto __sz1 = std::ranges::size(__r1);
+    const auto __sz2 = std::ranges::size(__r2);
+
+    //{1} is empty
+    if (__r1.empty())
+    {
+        const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+            __tag,
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_1>(
+                std::forward<_ExecutionPolicy>(__exec)),
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+
+        return {__first1, __first2 + __sz2, __result + __idx};
+    }
+
+    //{2} is empty
+    if (__r2.empty())
+    {
+        const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+            __tag,
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_2>(
+                std::forward<_ExecutionPolicy>(__exec)),
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+
+        return {__first1 + __sz1, __first2, __result + __idx};
+    }
+
+    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
+    {
+        const auto __idx = oneapi::dpl::__par_backend_hetero::__parallel_set_op(
+                               _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                               oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+                               oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+                               oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp,
+                               unseq_backend::_UnionTag<std::true_type>(), __proj1, __proj2)
+                               .get();
+
+        return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
+    }
+
+    using _ValueType = oneapi::dpl::__internal::__value_t<_R2>;
+
+    // temporary buffer to store intermediate result
+    const auto __n2 = __r2.size();
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
+    auto __buf = oneapi::dpl::__ranges::views::all(__diff.get_buffer());
+
+    //1. Calc difference {2} \ {1}
+    const auto __n_diff =
+        oneapi::dpl::__par_backend_hetero::__parallel_set_op(
+            _BackendTag{},
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_scan_then_propagate>(__exec),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)), __buf, __comp,
+            unseq_backend::_DifferenceTag<std::false_type>(), __proj2, __proj1)
+            .get();
+
+    //2. Merge {1} and the difference
+    const auto __res = oneapi::dpl::__internal::__ranges::__pattern_merge(
+        __tag,
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_2>(
+            std::forward<_ExecutionPolicy>(__exec)),
+        oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+        oneapi::dpl::__ranges::take_view_simple(__buf, __n_diff),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp, __proj1, __proj2);
+
+    const auto __idx = __res.first + __res.second;
+    return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
+}
+
+template <typename Name>
+struct __set_intersection_scan_then_propagate;
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
+          typename _Comp, typename _Proj1, typename _Proj2>
+std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                     std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                           _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    const auto __first1 = std::ranges::begin(__r1);
+    const auto __first2 = std::ranges::begin(__r2);
+    const auto __result = std::ranges::begin(__out_r);
+
+    // intersection is empty
+    if (__r1.empty() || __r2.empty())
+        return {__first1 + std::ranges::size(__r1), __first2 + std::ranges::size(__r2), __result};
+
+    const auto __sz1 = std::ranges::size(__r1);
+    const auto __sz2 = std::ranges::size(__r2);
+
+    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
+    {
+        const auto __idx = oneapi::dpl::__par_backend_hetero::__parallel_set_op(
+                               _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                               oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+                               oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+                               oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp,
+                               unseq_backend::_IntersectionTag<std::true_type>(), __proj1, __proj2)
+                               .get();
+
+        return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
+    }
+
+    const auto __idx =
+        oneapi::dpl::__par_backend_hetero::__parallel_set_op(
+            _BackendTag{},
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_intersection_scan_then_propagate>(
+                std::forward<_ExecutionPolicy>(__exec)),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp,
+            unseq_backend::_IntersectionTag<std::false_type>(), __proj1, __proj2)
+            .get();
+
+    return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
+}
+
+//Dummy names to avoid kernel problems
+template <typename Name>
+struct __set_difference_copy_case_1;
+
+template <typename Name>
+struct __set_difference_scan_then_propagate;
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
+          typename _Comp, typename _Proj1, typename _Proj2>
+std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                         _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    const auto __first1 = std::ranges::begin(__r1);
+    const auto __result = std::ranges::begin(__out_r);
+
+    // {} \ {2}: the difference is empty
+    if (__r1.empty())
+        return {__first1, __result};
+
+    const auto __sz1 = std::ranges::size(__r1);
+
+    // {1} \ {}: the difference is {1}
+    if (__r2.empty())
+    {
+        const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+            __tag,
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_difference_copy_case_1>(
+                std::forward<_ExecutionPolicy>(__exec)),
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+
+        return {__first1 + __sz1, __result + __idx};
+    }
+
+    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
+    {
+        const auto __idx =
+            oneapi::dpl::__par_backend_hetero::__parallel_set_op(
+                _BackendTag{},
+                oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_difference_scan_then_propagate>(
+                    std::forward<_ExecutionPolicy>(__exec)),
+                oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+                oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+                oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp,
+                unseq_backend::_DifferenceTag<std::true_type>(), __proj1, __proj2)
+                .get();
+
+        return {__first1 + __sz1, __result + __idx};
+    }
+
+    const auto __idx = __par_backend_hetero::__parallel_set_op(
+                           _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                           oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+                           oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+                           oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp,
+                           unseq_backend::_DifferenceTag<std::false_type>(), __proj1, __proj2)
+                           .get();
+
+    return {__first1 + __sz1, __result + __idx};
+}
+
+//Dummy names to avoid kernel problems
+template <typename Name>
+struct __set_symmetric_difference_copy_case_1;
+
+template <typename Name>
+struct __set_symmetric_difference_copy_case_2;
+
+template <typename Name>
+struct __set_symmetric_difference_phase_1;
+
+template <typename Name>
+struct __set_symmetric_difference_phase_2;
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
+          typename _Comp, typename _Proj1, typename _Proj2>
+std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                             std::ranges::borrowed_iterator_t<_R2>,
+                                             std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                                   _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    const auto __first1 = std::ranges::begin(__r1);
+    const auto __first2 = std::ranges::begin(__r2);
+    const auto __result = std::ranges::begin(__out_r);
+
+    if (__r1.empty() && __r2.empty())
+        return {__first1, __first2, __result};
+
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
+
+    //{1} is empty
+    if (__r1.empty())
+    {
+        const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+            __tag,
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_copy_case_1>(
+                std::forward<_ExecutionPolicy>(__exec)),
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+
+        return {__first1, __first2 + __n2, __result + __idx};
+    }
+
+    //{2} is empty
+    if (__r2.empty())
+    {
+        const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+            __tag,
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_copy_case_2>(
+                std::forward<_ExecutionPolicy>(__exec)),
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+
+        return {__first1 + __n1, __first2, __result + __idx};
+    }
+
+    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
+    {
+        const auto __idx =
+            oneapi::dpl::__par_backend_hetero::__parallel_set_op(
+                _BackendTag{},
+                oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_difference_scan_then_propagate>(
+                    std::forward<_ExecutionPolicy>(__exec)),
+                oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+                oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+                oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp,
+                unseq_backend::_SymmetricDifferenceTag<std::true_type>(), __proj1, __proj2)
+                .get();
+
+        return {__first1 + __n1, __first2 + __n2, __result + __idx};
+    }
+
+    using _ValueType1 = oneapi::dpl::__internal::__value_t<_R1>;
+    using _ValueType2 = oneapi::dpl::__internal::__value_t<_R2>;
+
+    // temporary buffers to store intermediate result
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType1> __diff_1(__n1);
+    auto __buf_1 = oneapi::dpl::__ranges::views::all(__diff_1.get_buffer());
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType2> __diff_2(__n2);
+    auto __buf_2 = oneapi::dpl::__ranges::views::all(__diff_2.get_buffer());
+
+    //1. Calc difference {1} \ {2}
+    const auto __n_diff_1 =
+        oneapi::dpl::__par_backend_hetero::__parallel_set_op(
+            _BackendTag{},
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_phase_1>(__exec),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)), __buf_1, __comp,
+            unseq_backend::_DifferenceTag<std::false_type>(), __proj1, __proj2)
+            .get();
+
+    //2. Calc difference {2} \ {1}
+    const auto __n_diff_2 =
+        oneapi::dpl::__par_backend_hetero::__parallel_set_op(
+            _BackendTag{},
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_phase_2>(__exec),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)), __buf_2, __comp,
+            unseq_backend::_DifferenceTag<std::false_type>(), __proj2, __proj1)
+            .get();
+
+    //3. Merge the differences
+    oneapi::dpl::__internal::__ranges::__pattern_merge(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::take_view_simple(__buf_1, __n_diff_1),
+        oneapi::dpl::__ranges::take_view_simple(__buf_2, __n_diff_2), oneapi::dpl::__ranges::views::all_write(__out_r),
+        __comp, __proj1, __proj2);
+
+    return {__first1 + __n1, __first2 + __n2, __result + __n_diff_1 + __n_diff_2};
+}
+
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
