@@ -41,6 +41,31 @@ struct __op_uninitialized_default_construct;
 template <typename... _ExecutionPolicy>
 struct __op_uninitialized_value_construct;
 
+template <typename _Tag, typename _ExecutionPolicy, typename _InputIterator, typename _ForwardIterator>
+_ForwardIterator
+__pattern_uninitialized_copy(_Tag, _ExecutionPolicy&&, _InputIterator, _InputIterator, _ForwardIterator);
+
+template <typename _Tag, typename _ExecutionPolicy, typename _InputIterator, typename _ForwardIterator>
+_ForwardIterator
+__pattern_uninitialized_move(_Tag, _ExecutionPolicy&&, _InputIterator, _InputIterator, _ForwardIterator);
+
+template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Tp>
+void
+__pattern_uninitialized_fill(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator,
+                             const _Tp&);
+
+template <typename _Tag, class _ExecutionPolicy, class _ForwardIterator>
+void
+__pattern_destroy(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator);
+
+template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator>
+void
+__pattern_uninitialized_default_construct(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator);
+
+template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator>
+void
+__pattern_uninitialized_value_construct(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator);
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi

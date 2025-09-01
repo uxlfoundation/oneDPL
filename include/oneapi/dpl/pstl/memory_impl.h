@@ -22,6 +22,10 @@
 #include "memory_fwd.h"
 #include "unseq_backend_simd.h"
 
+#if _ONEDPL_HETERO_BACKEND
+#    include "hetero/algorithm_impl_hetero.h"
+#endif
+
 namespace oneapi
 {
 namespace dpl
@@ -80,6 +84,32 @@ __brick_destroy(_RandomAccessIterator __first, _RandomAccessIterator __last, /*v
     __unseq_backend::__simd_walk_n(__last - __first, [](_ReferenceType __x) { __x.~_ValueType(); }, __first);
 }
 
+
+template <typename _Tag, typename _ExecutionPolicy, typename _InputIterator, typename _ForwardIterator>
+_ForwardIterator
+__pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InputIterator __first, _InputIterator __last,
+                             _ForwardIterator __result)
+{
+    using _OutValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _OutRefType = typename std::iterator_traits<_ForwardIterator>::reference;
+    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
+
+    if constexpr (std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> &&
+                  std::is_trivially_default_constructible_v<_OutValueType> &&
+                  std::is_trivially_assignable_v<_OutRefType, _InRefType>)
+    {
+        return oneapi::dpl::__internal::__pattern_walk2_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+            oneapi::dpl::__internal::__brick_copy<_Tag>{});
+    }
+    else
+    {
+        return oneapi::dpl::__internal::__pattern_walk2(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+            oneapi::dpl::__internal::__op_uninitialized_move<std::decay_t<_ExecutionPolicy>>{});
+    }
+}
+
 //------------------------------------------------------------------------
 // uninitialized copy
 //------------------------------------------------------------------------
@@ -124,6 +154,30 @@ struct __op_uninitialized_copy<_ExecutionPolicy>
     }
 };
 
+template <typename _Tag, typename _ExecutionPolicy, typename _InputIterator, typename _ForwardIterator>
+_ForwardIterator
+__pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InputIterator __first, _InputIterator __last,
+                             _ForwardIterator __result)
+{
+    using _OutValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _OutRefType = typename std::iterator_traits<_ForwardIterator>::reference;
+    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
+
+    if constexpr (std::is_trivially_constructible_v<_OutValueType, _InRefType> && // required operation is trivial
+                  std::is_trivially_default_constructible_v<_OutValueType> &&     // actual operations are trivial
+                  std::is_trivially_assignable_v<_OutRefType, _InRefType>)
+    {
+        return oneapi::dpl::__internal::__pattern_walk2_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+            oneapi::dpl::__internal::__brick_copy<_Tag>{});
+    }
+    else
+    {
+        return oneapi::dpl::__internal::__pattern_walk2(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+            oneapi::dpl::__internal::__op_uninitialized_copy<std::decay_t<_ExecutionPolicy>>{});
+    }
+}
 //------------------------------------------------------------------------
 // uninitialized move
 //------------------------------------------------------------------------
@@ -160,6 +214,29 @@ struct __op_uninitialized_fill<_SourceT, _ExecutionPolicy>
     }
 };
 
+template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Tp>
+void
+__pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
+                             const _Tp& __value)
+{
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+
+    if constexpr (std::is_trivially_constructible_v<_ValueType, _Tp> &&    // required operation is trivial
+                  std::is_trivially_default_constructible_v<_ValueType> && // actual operations are trivial
+                  std::is_trivially_copy_assignable_v<_ValueType>)
+    {
+        oneapi::dpl::__internal::__pattern_walk_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__brick_fill<_Tag, _ValueType>{_ValueType(__value)});
+    }
+    else
+    {
+        oneapi::dpl::__internal::__pattern_walk1(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__op_uninitialized_fill<_Tp, std::decay_t<_ExecutionPolicy>>{__value});
+    }
+}
+
 //------------------------------------------------------------------------
 // destroy
 //------------------------------------------------------------------------
@@ -176,6 +253,19 @@ struct __op_destroy<_ExecutionPolicy>
     }
 };
 
+template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator>
+void
+__pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
+{
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+
+    if constexpr (!std::is_trivially_destructible_v<_ValueType>)
+    {
+        oneapi::dpl::__internal::__pattern_walk1(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{});
+    }
+}
 //------------------------------------------------------------------------
 // uninitialized default_construct
 //------------------------------------------------------------------------
@@ -193,6 +283,20 @@ struct __op_uninitialized_default_construct<_ExecutionPolicy>
     }
 };
 
+template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator>
+void
+__pattern_uninitialized_default_construct(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
+{
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+
+    if constexpr (!std::is_trivially_default_constructible_v<_ValueType>)
+    {
+        oneapi::dpl::__internal::__pattern_walk1(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__op_uninitialized_default_construct<std::decay_t<_ExecutionPolicy>>{});
+    }
+}
+
 //------------------------------------------------------------------------
 // uninitialized value_construct
 //------------------------------------------------------------------------
@@ -209,6 +313,28 @@ struct __op_uninitialized_value_construct<_ExecutionPolicy>
         ::new (::std::addressof(__target)) _TargetValueType();
     }
 };
+
+template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator>
+void
+__pattern_uninitialized_value_construct(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
+                                        _ForwardIterator __last)
+{
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+
+    if constexpr (std::is_trivially_default_constructible_v<_ValueType> &&
+                  std::is_trivially_copy_assignable_v<_ValueType>)
+    {
+        oneapi::dpl::__internal::__pattern_walk_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__brick_fill<_Tag, _ValueType>{_ValueType()});
+    }
+    else
+    {
+        oneapi::dpl::__internal::__pattern_walk1(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__op_uninitialized_value_construct<std::decay_t<_ExecutionPolicy>>{});
+    }
+}
 
 } // namespace __internal
 } // namespace dpl
