@@ -1073,13 +1073,62 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 // set_difference
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp = std::ranges::less,
+          typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>
+__serial_set_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterator_t<_R1> __end1,
+                        std::ranges::iterator_t<_R2> __it2, std::ranges::iterator_t<_R2> __end2,
+                        std::ranges::iterator_t<_OutRange> __out_it, std::ranges::iterator_t<_OutRange> __out_end,
+                        _Comp __comp = {}, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+{
+    while (__it1 != __end1 && __it2 != __end2 /*&& __out_it != __out_end*/)     // TODO commented till other implementations will be improved to check limited output range size
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+        {
+            *__out_it = *__it1;
+            ++__it1;
+            ++__out_it;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            ++__it2;
+        }
+        else
+        {
+            ++__it1;
+            ++__it2;
+        }
+    }
+
+    // TODO required to implement support of limmited output range
+    return std::ranges::copy(__it1, __end1, __out_it);
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp = std::ranges::less,
+          typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>
+__serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {}, _Proj1 __proj1 = {},
+                        _Proj2 __proj2 = {})
+{
+    auto __it1 = std::ranges::begin(__r1);
+    auto __end1 = __it1 + std::ranges::size(__r1);
+
+    auto __it2 = std::ranges::begin(__r2);
+    auto __end2 = __it2 + std::ranges::size(__r2);
+
+    auto __out_it = std::ranges::begin(__out_r);
+    auto __out_end = __out_it + std::ranges::size(__out_r);
+
+    return __serial_set_difference<_R1, _R2, _OutRange>(__it1, __end1, __it2, __end2, __out_it, __out_end, __comp, __proj1, __proj2);
+}
+
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 auto
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::false_type) noexcept
 {
-    return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
-                                       __comp, __proj1, __proj2);
+    return __serial_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                   __comp, __proj1, __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1088,8 +1137,8 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
                        /*__is_vector=*/std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
-                                       __comp, __proj1, __proj2);
+    return __serial_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                   __comp, __proj1, __proj2);
 }
 
 template <typename _R1, typename _OutRange>
@@ -1179,8 +1228,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     }
 
     // use serial algorithm
-    return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
-                                       __comp, __proj1, __proj2);
+    return __serial_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                   __comp, __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
