@@ -1085,8 +1085,8 @@ inline constexpr bool __can_avoid_placement_new_in_fill =
 
 template <typename _ValueType>
 inline constexpr bool __can_avoid_placement_new_in_value_construct =
-    std::is_trivially_default_constructible_v<_ValueType> &&  // required operation
-    std::is_trivially_copy_assignable_v<_ValueType>;          // actual operation
+    std::is_trivially_default_constructible_v<_ValueType> && // required operation
+    std::is_trivially_copy_assignable_v<_ValueType>;         // actual operation
 
 } // namespace __internal
 } // namespace dpl

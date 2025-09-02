@@ -123,16 +123,14 @@ __pattern_uninitialized_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            std::ranges::subrange(__first1, __last1),
-            std::ranges::subrange(__first2, __last2));
+            std::ranges::subrange(__first1, __last1), std::ranges::subrange(__first2, __last2));
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_copy<std::decay_t<_ExecutionPolicy>>{},
-            std::ranges::subrange(__first1, __last1),
-            std::ranges::subrange(__first2, __last2));
+            std::ranges::subrange(__first1, __last1), std::ranges::subrange(__first2, __last2));
     }
 
     return {__last1, __last2};
@@ -171,16 +169,14 @@ __pattern_uninitialized_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            std::ranges::subrange(__first1, __last1),
-            std::ranges::subrange(__first2, __last2));
+            std::ranges::subrange(__first1, __last1), std::ranges::subrange(__first2, __last2));
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_move<std::decay_t<_ExecutionPolicy>>{},
-            std::ranges::subrange(__first1, __last1),
-            std::ranges::subrange(__first2, __last2));
+            std::ranges::subrange(__first1, __last1), std::ranges::subrange(__first2, __last2));
     }
 
     return {__last1, __last2};
