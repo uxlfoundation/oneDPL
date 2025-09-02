@@ -1064,6 +1064,30 @@ struct __replace_if_fun
     const _T __new_value;
 };
 
+template <typename _OutValueType, typename _InRefType, typename _OutRefType>
+inline constexpr bool __can_avoid_placement_new_in_copy =
+    std::is_trivially_constructible_v<_OutValueType, _InRefType> && // required operation is trivial
+    std::is_trivially_default_constructible_v<_OutValueType> &&     // actual operations are trivial
+    std::is_trivially_assignable_v<_OutRefType, _InRefType>;
+
+template <typename _OutValueType, typename _InRefType, typename _OutRefType>
+inline constexpr bool __can_avoid_placement_new_in_move =
+    std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> && // required operation
+    std::is_trivially_default_constructible_v<_OutValueType> &&                                // actual operations
+    std::is_trivially_assignable_v<_OutRefType, _InRefType>;
+
+template <typename _ValueType, typename _T>
+inline constexpr bool __can_avoid_placement_new_in_fill =
+    std::is_trivially_constructible_v<_ValueType, _T> &&     // required operation
+    std::is_trivially_default_constructible_v<_ValueType> && // actual operations
+    // the value is expected to be converted to the element type by the caller in the actual operation
+    std::is_trivially_copy_assignable_v<_ValueType>;
+
+template <typename _ValueType>
+inline constexpr bool __can_avoid_placement_new_in_value_construct =
+    std::is_trivially_default_constructible_v<_ValueType> &&  // required operation
+    std::is_trivially_copy_assignable_v<_ValueType>;          // actual operation
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi

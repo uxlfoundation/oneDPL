@@ -72,8 +72,7 @@ __pattern_uninitialized_value_construct(__hetero_tag<_BackendTag> __tag, _Execut
 
     auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
 
-    if constexpr (std::is_trivially_default_constructible_v<_ValueType> &&
-                  std::is_trivially_copy_assignable_v<_ValueType>)
+    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_value_construct<_ValueType>)
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
@@ -118,9 +117,7 @@ __pattern_uninitialized_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     if (__n == 0)
         return {__last1, __last2};
 
-    if constexpr (std::is_trivially_constructible_v<_OutValueType, _InRefType> && // required operation is trivial
-                  std::is_trivially_default_constructible_v<_OutValueType> &&     // actual operations are trivial
-                  std::is_trivially_assignable_v<_OutRefType, _InRefType>)
+    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_copy<_OutValueType, _InRefType, _OutRefType>)
     {
         // subrange is used instead of take_view/drop_view because the latter throw exceptions in libstdc++10
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
@@ -168,9 +165,7 @@ __pattern_uninitialized_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     if (__n == 0)
         return {__last1, __last2};
 
-    if constexpr (std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> &&
-                  std::is_trivially_default_constructible_v<_OutValueType> &&
-                  std::is_trivially_assignable_v<_OutRefType, _InRefType>)
+    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_move<_OutValueType, _InRefType, _OutRefType>)
     {
         // subrange is used instead of take_view/drop_view because the latter throw exceptions in libstdc++10
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
@@ -204,9 +199,7 @@ __pattern_uninitialized_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    if constexpr (std::is_trivially_constructible_v<_ValueType, _T> &&     // required operation is trivial
-                  std::is_trivially_default_constructible_v<_ValueType> && // actual operations are trivial
-                  std::is_trivially_copy_assignable_v<_ValueType>)
+    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_fill<_ValueType, _T>)
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
