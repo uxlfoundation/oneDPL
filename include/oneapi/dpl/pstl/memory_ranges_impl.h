@@ -123,15 +123,15 @@ __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     const auto __first1 = std::ranges::begin(__in_r);
     const auto __first2 = std::ranges::begin(__out_r);
 
-    using _SizeCommon = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
-    const _SizeCommon __n_in_r = std::ranges::size(__in_r);
-    const _SizeCommon __n_out_r = std::ranges::size(__out_r);
-    const _SizeCommon __n_min = std::min(__n_in_r, __n_out_r);
+    using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
+    const _Size __n1 = std::ranges::size(__in_r);
+    const _Size __n2 = std::ranges::size(__out_r);
+    const _Size __n = std::min(__n1, __n2);
 
-    const auto __last1 = __first1 + __n_min;
-    const auto __last2 = __first2 + __n_min;
+    const auto __last1 = __first1 + __n;
+    const auto __last2 = __first2 + __n;
 
-    if (__n_min == 0)
+    if (__n == 0)
         return {__last1, __last2};
 
     if constexpr (std::is_trivially_constructible_v<_OutValueType, _InRefType> && // required operation is trivial
@@ -178,15 +178,15 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     const auto __first1 = std::ranges::begin(__in_r);
     const auto __first2 = std::ranges::begin(__out_r);
 
-    using _SizeCommon = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
-    const _SizeCommon __n_in_r = std::ranges::size(__in_r);
-    const _SizeCommon __n_out_r = std::ranges::size(__out_r);
-    const _SizeCommon __n_min = std::min(__n_in_r, __n_out_r);
+    using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
+    const _Size __n1 = std::ranges::size(__in_r);
+    const _Size __n2 = std::ranges::size(__out_r);
+    const _Size __n = std::min(__n1, __n2);
 
-    const auto __last1 = __first1 + __n_min;
-    const auto __last2 = __first2 + __n_min;
+    const auto __last1 = __first1 + __n;
+    const auto __last2 = __first2 + __n;
 
-    if (__n_min == 0)
+    if (__n == 0)
         return {__last1, __last2};
 
     if constexpr (std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> &&
@@ -245,7 +245,7 @@ __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, co
             oneapi::dpl::__internal::__op_uninitialized_fill<_T, std::decay_t<_ExecutionPolicy>>{__value});
     }
 
-    return std::ranges::borrowed_iterator_t<_R>{__last};
+    return __last;
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _T>
@@ -277,7 +277,7 @@ __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
             __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
             oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{});
     }
-    return std::ranges::borrowed_iterator_t<_R>{__last};
+    return __last;
 }
 
 template <typename _ExecutionPolicy, typename _R>
