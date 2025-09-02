@@ -635,9 +635,9 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred,
           typename _Proj>
-auto
-__pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r,
-    _Pred __pred, _Proj __proj)
+std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
+                         _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
@@ -646,10 +646,7 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         oneapi::dpl::__ranges::views::all_write(__out_r), __pred_1,
         oneapi::dpl::__internal::__pstl_assign());
 
-    using __return_t = std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>,
-        std::ranges::borrowed_iterator_t<_OutRange>>;
-
-    return __return_t{std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r) + __res_idx};
+    return {std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r) + __res_idx};
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
@@ -831,7 +828,8 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
-auto
+std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                          std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                        _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -847,11 +845,9 @@ __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exe
         __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r1),
         oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_write(__out_r), __comp, __proj1,
         __proj2);
-    using __return_t = std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-        std::ranges::borrowed_iterator_t<_OutRange>>;
 
-    return __return_t{std::ranges::begin(__r1) + __res.first, std::ranges::begin(__r2) + __res.second,
-                      std::ranges::begin(__out_r) + __n_out};
+    return {std::ranges::begin(__r1) + __res.first, std::ranges::begin(__r2) + __res.second,
+            std::ranges::begin(__out_r) + __n_out};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
@@ -894,20 +890,17 @@ struct __set_union_scan_then_propagate;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
-auto
+std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                              std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                     _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using __return_t =
-        std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                                      std::ranges::borrowed_iterator_t<_OutRange>>;
-
     const auto __first1 = std::ranges::begin(__r1);
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
 
     if (__r1.empty() && __r2.empty())
-        return __return_t{__first1, __first2, __result};
+        return {__first1, __first2, __result};
 
     const auto __sz1 = std::ranges::size(__r1);
     const auto __sz2 = std::ranges::size(__r2);
@@ -923,7 +916,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return __return_t{__first1, __first2 + __sz2, __result + __idx};
+        return {__first1, __first2 + __sz2, __result + __idx};
     }
 
     //{2} is empty
@@ -937,7 +930,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return __return_t{__first1 + __sz1, __first2, __result + __idx};
+        return {__first1 + __sz1, __first2, __result + __idx};
     }
 
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
@@ -950,7 +943,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
                                unseq_backend::_UnionTag<std::true_type>(), __proj1, __proj2)
                                .get();
 
-        return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
+        return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
     }
 
     using _ValueType = oneapi::dpl::__internal::__value_t<_R2>;
@@ -980,7 +973,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp, __proj1, __proj2);
 
     const auto __idx = __res.first + __res.second;
-    return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
+    return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
 }
 
 template <typename Name>
@@ -988,21 +981,18 @@ struct __set_intersection_scan_then_propagate;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
-auto
+std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                     std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                            _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using __return_t = std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>,
-                                                            std::ranges::borrowed_iterator_t<_R2>,
-                                                            std::ranges::borrowed_iterator_t<_OutRange>>;
-
     const auto __first1 = std::ranges::begin(__r1);
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
 
     // intersection is empty
     if (__r1.empty() || __r2.empty())
-        return __return_t{std::ranges::end(__r1), std::ranges::end(__r2), __result};
+        return {__first1 + std::ranges::size(__r1), __first2 + std::ranges::size(__r2), __result};
 
     const auto __sz1 = std::ranges::size(__r1);
     const auto __sz2 = std::ranges::size(__r2);
@@ -1017,7 +1007,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
                                unseq_backend::_IntersectionTag<std::true_type>(), __proj1, __proj2)
                                .get();
 
-        return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
+        return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
     }
 
     const auto __idx =
@@ -1031,7 +1021,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
             unseq_backend::_IntersectionTag<std::false_type>(), __proj1, __proj2)
             .get();
 
-    return __return_t{__first1 + __sz1, __first2 + __sz2, __result + __idx};
+    return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
 }
 
 //Dummy names to avoid kernel problems
@@ -1043,19 +1033,16 @@ struct __set_difference_scan_then_propagate;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
-auto
+std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using __return_t = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                                          std::ranges::borrowed_iterator_t<_OutRange>>;
-
     const auto __first1 = std::ranges::begin(__r1);
     const auto __result = std::ranges::begin(__out_r);
 
     // {} \ {2}: the difference is empty
     if (__r1.empty())
-        return __return_t{__first1, __result};
+        return {__first1, __result};
 
     const auto __sz1 = std::ranges::size(__r1);
 
@@ -1070,7 +1057,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return __return_t{__first1 + __sz1, __result + __idx};
+        return {__first1 + __sz1, __result + __idx};
     }
 
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
@@ -1086,7 +1073,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                 unseq_backend::_DifferenceTag<std::true_type>(), __proj1, __proj2)
                 .get();
 
-        return __return_t{__first1 + __sz1, __result + __idx};
+        return {__first1 + __sz1, __result + __idx};
     }
 
     const auto __idx = __par_backend_hetero::__parallel_set_op(
@@ -1097,7 +1084,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                            unseq_backend::_DifferenceTag<std::false_type>(), __proj1, __proj2)
                            .get();
 
-    return __return_t{__first1 + __sz1, __result + __idx};
+    return {__first1 + __sz1, __result + __idx};
 }
 
 //Dummy names to avoid kernel problems
@@ -1115,20 +1102,18 @@ struct __set_symmetric_difference_phase_2;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
-auto
+std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                             std::ranges::borrowed_iterator_t<_R2>,
+                                             std::ranges::borrowed_iterator_t<_OutRange>>
 __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using __return_t = std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                                                    std::ranges::borrowed_iterator_t<_R2>,
-                                                                    std::ranges::borrowed_iterator_t<_OutRange>>;
-
     const auto __first1 = std::ranges::begin(__r1);
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
 
     if (__r1.empty() && __r2.empty())
-        return __return_t{__first1, __first2, __result};
+        return {__first1, __first2, __result};
 
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
@@ -1144,7 +1129,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return __return_t{__first1, __first2 + __n2, __result + __idx};
+        return {__first1, __first2 + __n2, __result + __idx};
     }
 
     //{2} is empty
@@ -1158,7 +1143,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return __return_t{__first1 + __n1, __first2, __result + __idx};
+        return {__first1 + __n1, __first2, __result + __idx};
     }
 
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
@@ -1174,7 +1159,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
                 unseq_backend::_SymmetricDifferenceTag<std::true_type>(), __proj1, __proj2)
                 .get();
 
-        return __return_t{__first1 + __n1, __first2 + __n2, __result + __idx};
+        return {__first1 + __n1, __first2 + __n2, __result + __idx};
     }
 
     using _ValueType1 = oneapi::dpl::__internal::__value_t<_R1>;
@@ -1212,7 +1197,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
         oneapi::dpl::__ranges::take_view_simple(__buf_2, __n_diff_2), oneapi::dpl::__ranges::views::all_write(__out_r),
         __comp, __proj1, __proj2);
 
-    return __return_t{__first1 + __n1, __first2 + __n2, __result + __n_diff_1 + __n_diff_2};
+    return {__first1 + __n1, __first2 + __n2, __result + __n_diff_1 + __n_diff_2};
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
