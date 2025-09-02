@@ -579,10 +579,11 @@ auto
 __decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
 {
     using SizeT = decltype(__rng.size());
-    const auto __tmp = __rng[__id];
+    using SignedSizeT = std::make_signed_t<decltype(__rng.size())>;
+    const SignedSizeT __tmp = __rng[__id];
     const SizeT __star_offset = oneapi::dpl::__internal::__dpl_signbit(__tmp) ? 1 : 0;
-    const auto __rng1_idx = std::abs(__tmp);
-    const auto __rng2_idx = __id * __diagonal_spacing - __rng1_idx + __star_offset;
+    const SizeT __rng1_idx = std::abs(__tmp);
+    const SizeT __rng2_idx = __id * __diagonal_spacing - __rng1_idx + __star_offset;
     if constexpr (__return_star)
     {
         return std::make_tuple(__rng1_idx, __rng2_idx, __star_offset);
