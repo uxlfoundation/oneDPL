@@ -15,7 +15,7 @@
 
 #include "std_ranges_test.h"
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_TEST_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
 namespace test_std_ranges
 {
 template<>
@@ -115,7 +115,6 @@ struct set_union_checker_fn
                                   std::ranges::borrowed_iterator_t<OutR>>
     operator()(R1&& r1, R2&& r2, OutR&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {}) const
     {
-#if _PSTL_TEST_LIBCPP_RANGE_SET_BROKEN
         auto it1 = std::ranges::begin(r1);
         auto end1 = std::ranges::end(r1);
         auto it2 = std::ranges::begin(r2);
