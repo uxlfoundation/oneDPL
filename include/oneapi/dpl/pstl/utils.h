@@ -1066,8 +1066,13 @@ struct __replace_if_fun
 
 template <typename _OutValueType, typename _InRefType, typename _OutRefType>
 inline constexpr bool __can_avoid_placement_new_in_copy =
-    std::is_trivially_constructible_v<_OutValueType, _InRefType> && // required operation is trivial
-    std::is_trivially_default_constructible_v<_OutValueType> &&     // actual operations are trivial
+    // Required operation is trivial
+    // If the required operation is trivial, we can skip it.
+    std::is_trivially_constructible_v<_OutValueType, _InRefType> &&
+    // Actual operations are trivial
+    // If the element type is trivially default constructible,
+    // we can assume that its "life" has begun even in the uninitialized memory, and we can assign to it
+    std::is_trivially_default_constructible_v<_OutValueType> &&
     std::is_trivially_assignable_v<_OutRefType, _InRefType>;
 
 template <typename _OutValueType, typename _InRefType, typename _OutRefType>
