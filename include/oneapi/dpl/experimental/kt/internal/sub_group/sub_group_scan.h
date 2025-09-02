@@ -50,6 +50,7 @@ __sub_group_scan(const _SubGroup& __sub_group,
 {
     const bool __is_full = __items_in_scan == __sub_group_size * __iters_per_item;
     oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __carry;
+    oneapi::dpl::__internal::__scoped_destroyer<_InputType> __destroy_when_leaving_scope{__carry};
     if (__is_full)
     {
         oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
@@ -90,9 +91,7 @@ __sub_group_scan(const _SubGroup& __sub_group,
                 __sub_group, __input[__i].__v, __binary_op, __carry, __items_in_scan - __i * __sub_group_size);
         }
     }
-    const _InputType __return_carry = __carry.__v;
-    __carry.__destroy();
-    return __return_carry;
+    return __carry.__v;
 }
 
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _SubGroup,

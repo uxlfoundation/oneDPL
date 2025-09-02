@@ -117,10 +117,8 @@ struct __single_pass_scan_kernel_func
                 {
                     __out_rng[__sub_group_current_offset + __sub_group_local_id + __sub_group_size * __i] =
                         __grf_partials[__i].__v;
-                    __grf_partials[__i].__destroy();
                 }
-                else
-                    __grf_partials[__i].__destroy();
+                __grf_partials[__i].__destroy();
             }
         }
     }
