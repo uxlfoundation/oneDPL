@@ -22,21 +22,7 @@
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
-
-#include "std_ranges_memory_test.h"
-
-// A type for testing: default initialization, initialization by custom value, initialization via copy constructor
-// It is sufficient to initialize only one field, the other can be used to verify that the raw memory is correctly set
-struct Elem
-{
-    int val1;
-    int val2;
-
-    Elem() { val1 = 1; }
-    Elem(int v) { val2 = v; }
-    Elem(const Elem& elem) { val2 = elem.val2; }
-};
-
+#    include "std_ranges_memory_test.h"
 #endif //_ENABLE_STD_RANGES_TESTING
 
 std::int32_t

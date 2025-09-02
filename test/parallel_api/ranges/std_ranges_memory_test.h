@@ -23,6 +23,31 @@
 namespace test_std_ranges
 {
 
+// A type for testing: default initialization, initialization by custom value, initialization via copy constructor
+// It is sufficient to initialize only one field, the other can be used to verify that the raw memory is correctly set
+struct Elem
+{
+    int val1;
+    int val2;
+
+    Elem() { val1 = 1; }
+    Elem(int v) { val2 = v; }
+    Elem(const Elem& elem) { val2 = elem.val2; }
+};
+
+// A type for testing: value initialization, initialization via move constructor, destroy
+// It is sufficient to initialize only one field, the other can be used to verify that the raw memory is correctly set
+struct Elem_0
+{
+    int val1;
+    volatile int val2; // volatile prevents optimization of the destructor observed with g++
+
+    Elem_0(): val1() {} //val1 has a zero-initialization here
+    Elem_0(Elem_0&& elem) { val2 = elem.val2; }
+    Elem_0(int v) { val2 = v; }
+    ~Elem_0() { val2 = 3;}
+};
+
 template<typename>
 constexpr int test_mode_id = 0;
 
