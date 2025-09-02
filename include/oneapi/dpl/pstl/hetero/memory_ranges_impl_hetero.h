@@ -47,6 +47,8 @@ __pattern_uninitialized_default_construct(__hetero_tag<_BackendTag> __tag, _Exec
 {
     using _ValueType = typename std::ranges::range_value_t<_R>;
 
+    auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
+
     if constexpr (!std::is_trivially_default_constructible_v<_ValueType>)
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
@@ -55,7 +57,7 @@ __pattern_uninitialized_default_construct(__hetero_tag<_BackendTag> __tag, _Exec
             oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
     }
 
-    return std::ranges::begin(__r) + std::ranges::size(__r);
+    return __last;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -68,23 +70,25 @@ __pattern_uninitialized_value_construct(__hetero_tag<_BackendTag> __tag, _Execut
 {
     using _ValueType = typename std::ranges::range_value_t<_R>;
 
+    auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
+
     if constexpr (std::is_trivially_default_constructible_v<_ValueType> &&
                   std::is_trivially_copy_assignable_v<_ValueType>)
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__brick_fill<__hetero_tag<_BackendTag>, _ValueType>{_ValueType()},
-            oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+            std::forward<_R>(__r));
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_value_construct<std::decay_t<_ExecutionPolicy>>{},
-            oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+            std::forward<_R>(__r));
     }
 
-    return std::ranges::begin(__r) + std::ranges::size(__r);
+    return __last;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -106,29 +110,35 @@ __pattern_uninitialized_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     const _SizeCommon __n_out_r = std::ranges::size(__out_r);
     const _SizeCommon __n_min = std::min(__n_in_r, __n_out_r);
 
+    auto __first_in = std::ranges::begin(__in_r);
+    auto __first_out = std::ranges::begin(__out_r);
+    auto __last_in = __first_in + __n_min;
+    auto __last_out = __first_out + __n_min;
+
     if (__n_min == 0)
-        return {std::ranges::begin(__in_r) + __n_min, std::ranges::begin(__out_r) + __n_min};
+        return {__last_in, __last_out};
 
     if constexpr (std::is_trivially_constructible_v<_OutValueType, _InRefType> && // required operation is trivial
                   std::is_trivially_default_constructible_v<_OutValueType> &&     // actual operations are trivial
                   std::is_trivially_assignable_v<_OutRefType, _InRefType>)
     {
+        // subrange is used instead of take_view/drop_view because the latter throw exceptions in libstdc++10
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            oneapi::dpl::__ranges::views::all_read(std::ranges::take_view(std::forward<_InRange>(__in_r), __n_min)),
-            oneapi::dpl::__ranges::views::all_write(std::ranges::take_view(std::forward<_OutRange>(__out_r), __n_min)));
+            std::ranges::subrange(__first_in, __last_in),
+            std::ranges::subrange(__first_out, __last_out));
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_copy<std::decay_t<_ExecutionPolicy>>{},
-            oneapi::dpl::__ranges::views::all_read(std::ranges::take_view(std::forward<_InRange>(__in_r), __n_min)),
-            oneapi::dpl::__ranges::views::all_write(std::ranges::take_view(std::forward<_OutRange>(__out_r), __n_min)));
+            std::ranges::subrange(__first_in, __last_in),
+            std::ranges::subrange(__first_out, __last_out));
     }
 
-    return {std::ranges::begin(__in_r) + __n_min, std::ranges::begin(__out_r) + __n_min};
+    return {__last_in, __last_out};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -150,29 +160,35 @@ __pattern_uninitialized_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     const _SizeCommon __n_out_r = std::ranges::size(__out_r);
     const _SizeCommon __n_min = std::min(__n_in_r, __n_out_r);
 
+    auto __first_in = std::ranges::begin(__in_r);
+    auto __first_out = std::ranges::begin(__out_r);
+    auto __last_in = __first_in + __n_min;
+    auto __last_out = __first_out + __n_min;
+
     if (__n_min == 0)
-        return {std::ranges::begin(__in_r) + __n_min, std::ranges::begin(__out_r) + __n_min};
+        return {__last_in, __last_out};
 
     if constexpr (std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> &&
                   std::is_trivially_default_constructible_v<_OutValueType> &&
                   std::is_trivially_assignable_v<_OutRefType, _InRefType>)
     {
+        // subrange is used instead of take_view/drop_view because the latter throw exceptions in libstdc++10
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            oneapi::dpl::__ranges::views::all_read(std::ranges::take_view(std::forward<_InRange>(__in_r), __n_min)),
-            oneapi::dpl::__ranges::views::all_write(std::ranges::take_view(std::forward<_OutRange>(__out_r), __n_min)));
+            std::ranges::subrange(__first_in, __last_in),
+            std::ranges::subrange(__first_out, __last_out));
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_move<std::decay_t<_ExecutionPolicy>>{},
-            oneapi::dpl::__ranges::views::all_read(std::ranges::take_view(std::forward<_InRange>(__in_r), __n_min)),
-            oneapi::dpl::__ranges::views::all_write(std::ranges::take_view(std::forward<_OutRange>(__out_r), __n_min)));
+            std::ranges::subrange(__first_in, __last_in),
+            std::ranges::subrange(__first_out, __last_out));
     }
 
-    return {std::ranges::begin(__in_r) + __n_min, std::ranges::begin(__out_r) + __n_min};
+    return {__last_in, __last_out};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -195,14 +211,14 @@ __pattern_uninitialized_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__brick_fill<__hetero_tag<_BackendTag>, _ValueType>{_ValueType(__value)},
-            oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
+            std::forward<_R>(__r));
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_fill<_T, std::decay_t<_ExecutionPolicy>>{__value},
-            oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
+            std::forward<_R>(__r));
     }
 
     return std::ranges::borrowed_iterator_t<_R>{__last};
@@ -218,15 +234,16 @@ __pattern_destroy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R
 {
     using _ValueType = typename std::ranges::range_value_t<_R>;
 
+    auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
+
     if constexpr (!std::is_trivially_destructible_v<_ValueType>)
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{},
-            oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));
+            oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{}, std::forward<_R>(__r));
     }
 
-    return std::ranges::begin(__r) + std::ranges::size(__r);
+    return __last;
 }
 
 } // namespace __ranges
