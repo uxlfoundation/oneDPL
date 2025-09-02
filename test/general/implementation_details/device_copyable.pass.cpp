@@ -209,6 +209,7 @@ test_device_copyable()
                       binary_op_device_copyable>>,
                   "__gen_set_balanced_path is not device copyable with device copyable types");
 
+#if !_PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN
     //__partition_set_balanced_path_submitter
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter<
                       oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
@@ -216,6 +217,7 @@ test_device_copyable()
                           oneapi::dpl::__par_backend_hetero::__get_bounds_simple, binary_op_device_copyable>,
                       oneapi::dpl::execution::DefaultKernelName>>,
                   "__partition_set_balanced_path_submitter is not device copyable with device copyable types");
+#endif
 
     //__gen_set_op_from_known_balanced_path
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
@@ -545,6 +547,7 @@ test_non_device_copyable()
                       binary_op_non_device_copyable>>,
                   "__gen_set_balanced_path is device copyable with non device copyable types");
 
+#if !_PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN
     // __partition_set_balanced_path_submitter
     static_assert(
         !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter<
@@ -553,6 +556,7 @@ test_non_device_copyable()
                 oneapi::dpl::__par_backend_hetero::__get_bounds_simple, binary_op_non_device_copyable>,
             oneapi::dpl::execution::DefaultKernelName>>,
         "__partition_set_balanced_path_submitter is device copyable with non device copyable types");
+#endif
 
     //__gen_set_op_from_known_balanced_path
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
