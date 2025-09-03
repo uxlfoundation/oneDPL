@@ -25,7 +25,7 @@
 #    include "std_ranges_memory_test.h"
 #endif //_ENABLE_STD_RANGES_TESTING
 
-std::int32_t
+int
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING

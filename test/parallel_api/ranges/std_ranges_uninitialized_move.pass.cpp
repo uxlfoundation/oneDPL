@@ -31,7 +31,7 @@ constexpr int test_mode_id<std::remove_cvref_t<decltype(oneapi::dpl::ranges::uni
 }
 #endif //_ENABLE_STD_RANGES_TESTING
 
-std::int32_t
+int
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
