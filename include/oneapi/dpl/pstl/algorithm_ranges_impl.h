@@ -1070,7 +1070,7 @@ __serial_set_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterato
                         std::ranges::iterator_t<_OutRange> __out_it, std::ranges::iterator_t<_OutRange> __out_end,
                         _Comp __comp = {}, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
-    while (__it1 != __end1 && __it2 != __end2 /*&& __out_it != __out_end*/)     // TODO commented till other implementations will be improved to check limited output range size
+    while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
@@ -1089,8 +1089,10 @@ __serial_set_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterato
         }
     }
 
-    // TODO required to implement support of limmited output range
-    return std::ranges::copy(__it1, __end1, __out_it);
+    if (__out_it != __out_end)
+        return std::ranges::copy(__it1, __end1, __out_it);
+
+    return {__it1, __out_it};
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp = std::ranges::less,
