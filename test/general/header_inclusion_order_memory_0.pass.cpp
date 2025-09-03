@@ -22,6 +22,7 @@
 
 #if ONEDPL_HAS_RANGE_ALGORITHMS > 202505L
 #    include <ranges>
+#    include <algorithm> // std::ranges::count
 #endif
 
 int
@@ -34,7 +35,8 @@ main()
     auto deleter = [&](int* p){ alloc.deallocate(p, n); };
     std::unique_ptr<int, decltype(deleter)> ptr(raw_ptr, deleter);
     std::ranges::subrange subrange(ptr.get(), ptr.get() + n);
-    oneapi::dpl::ranges::uninitialized_fill(oneapi::dpl::execution::seq, subrange, 0);
+    oneapi::dpl::ranges::uninitialized_fill(oneapi::dpl::execution::seq, subrange, 42);
+    EXPECT_TRUE(std::ranges::count(subrange, 42) == n, "wrong results in uninitialized_fill");
     oneapi::dpl::ranges::destroy(oneapi::dpl::execution::seq, subrange);
 #endif
     return TestUtils::done();
