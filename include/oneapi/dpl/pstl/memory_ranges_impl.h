@@ -47,7 +47,7 @@ __pattern_uninitialized_default_construct(_Tag __tag, _ExecutionPolicy&& __exec,
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    using _ValueType = typename std::ranges::range_value_t<_R>;
+    using _ValueType = std::ranges::range_value_t<_R>;
 
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
@@ -78,7 +78,7 @@ __pattern_uninitialized_value_construct(_Tag __tag, _ExecutionPolicy&& __exec, _
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    using _ValueType = typename std::ranges::range_value_t<_R>;
+    using _ValueType = std::ranges::range_value_t<_R>;
 
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);

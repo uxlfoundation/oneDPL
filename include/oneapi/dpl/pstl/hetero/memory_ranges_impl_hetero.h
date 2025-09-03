@@ -45,7 +45,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_default_construct(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
-    using _ValueType = typename std::ranges::range_value_t<_R>;
+    using _ValueType = std::ranges::range_value_t<_R>;
 
     auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
 
@@ -68,7 +68,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_uninitialized_value_construct(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
-    using _ValueType = typename std::ranges::range_value_t<_R>;
+    using _ValueType = std::ranges::range_value_t<_R>;
 
     auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
 
@@ -221,7 +221,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_destroy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
-    using _ValueType = typename std::ranges::range_value_t<_R>;
+    using _ValueType = std::ranges::range_value_t<_R>;
 
     auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
 
