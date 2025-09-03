@@ -807,7 +807,7 @@ struct __gen_set_balanced_path
         {
             // If not partitioned, just use the bounds of the full range to limit balanced path intersection search
             auto [__idx_rng1, __idx_rng2, __local_star] =
-                calc_and_store_balanced_path(__in_rng, __id, __get_bounds_simple{});
+                calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple{});
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
