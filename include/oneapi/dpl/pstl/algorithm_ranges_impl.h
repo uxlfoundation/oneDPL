@@ -693,7 +693,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     auto __first2 = std::ranges::begin(__r2);
     auto __last2 = __first2 + __n2;
 
-    typedef typename ::std::iterator_traits<decltype(__first1)>::difference_type _DifferenceType;
+    typedef typename ::std::iterator_traits<decltype(__first1)>::difference_type _DifferenceType1;
     typedef typename ::std::iterator_traits<decltype(__first2)>::difference_type _DifferenceType2;
 
     if (__first2 == __last2)
@@ -708,7 +708,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         std::invoke(__comp, std::invoke(__proj1, *(__last1 - 1)), std::invoke(__proj2, *(__last2 - 1))))
         return false;
 
-    __first1 = __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType{0},
+    __first1 = __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0},
                                                                       std::distance(__first1, __last1),
                                                                       std::invoke(__proj2, *__first2), __comp, __proj1);
     if (__first1 == __last1)
@@ -752,7 +752,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 
             //2. testing is __a subsequence of the second range included into the first range
             auto __b = __first1 + oneapi::dpl::__internal::__pstl_lower_bound(
-                                      __first1, _DifferenceType{0}, std::distance(__first1, __last1),
+                                      __first1, _DifferenceType1{0}, std::distance(__first1, __last1),
                                       std::invoke(__proj2, *__i), __comp, __proj1);
 
             //assert(!__comp(*(__last1 - 1), *__b));
@@ -882,7 +882,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
     using _Tp = std::ranges::range_value_t<_OutRange>;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
+    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
     typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
 
     const auto __n1 = std::ranges::size(__r1);
@@ -900,7 +900,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 = __first1 + oneapi::dpl::__internal::__pstl_lower_bound(
-                                             __first1, _DifferenceType{0}, std::distance(__first1, __last1),
+                                             __first1, _DifferenceType1{0}, std::distance(__first1, __last1),
                                              std::invoke(__proj2, *__first2), __comp, __proj1);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
     if (__left_bound_seq_1 == __last1)
@@ -1000,7 +1000,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
     using _Tp = std::ranges::range_value_t<_OutRange>;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
+    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
     typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
 
     const auto __n1 = std::ranges::size(__r1);
@@ -1026,7 +1026,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 = __first1 + oneapi::dpl::__internal::__pstl_lower_bound(
-                                             __first1, _DifferenceType{0}, std::distance(__first1, __last1),
+                                             __first1, _DifferenceType1{0}, std::distance(__first1, __last1),
                                              std::invoke(__proj2, *__first2), __comp, __proj1);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, parallel copying just first sequence
     if (__left_bound_seq_1 == __last1)
