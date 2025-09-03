@@ -629,9 +629,9 @@ __dpl_signbit(const _T& __x)
     return (__x & __mask) != 0;
 }
 
-template <typename _Size1, typename _CompareOp>
+template <typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
 _Size1
-__pstl_lower_bound_impl(_Size1 __first, _Size1 __last, _CompareOp __compareOp)
+__pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
 {
     auto __n = __last - __first;
     auto __cur = __n;
@@ -641,7 +641,7 @@ __pstl_lower_bound_impl(_Size1 __first, _Size1 __last, _CompareOp __compareOp)
         __it = __first;
         __cur = __n / 2;
         __it += __cur;
-        if (__compareOp(__it))
+        if (std::invoke(__comp, std::invoke(__proj, __acc[__idx]), __value))
         {
             __n -= __cur + 1;
             __first = ++__it;
@@ -650,34 +650,6 @@ __pstl_lower_bound_impl(_Size1 __first, _Size1 __last, _CompareOp __compareOp)
             __n = __cur;
     }
     return __first;
-}
-
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
-_Size1
-__pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
-{
-    return __pstl_lower_bound_impl(
-        __first, __last, [&](_Size1 __idx) { return std::invoke(__comp, std::invoke(__proj, __acc[__idx]), __value); });
-}
-
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
-_Size1
-__pstl_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
-{
-    __reorder_pred<_Compare> __reordered_comp{__comp};
-    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
-
-    return __pstl_lower_bound(__acc, __first, __last, __value, __negation_reordered_comp, __proj);
-}
-
-template <typename _RandomAccessIterator, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
-_RandomAccessIterator
-__pstl_lower_bound(_RandomAccessIterator __first, _RandomAccessIterator __last, const _Value& __value, _Compare __comp,
-                   _Proj __proj = {})
-{
-    return __pstl_lower_bound_impl(__first, __last, [&](_RandomAccessIterator __it) {
-        return std::invoke(__comp, std::invoke(__proj, *__it), __value);
-    });
 }
 
 template <typename _RandomAccessIterator, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
