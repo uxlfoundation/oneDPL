@@ -631,7 +631,6 @@ struct __get_bounds_partitioned
 
         using _SizeType = decltype(std::get<0>(__in_rng.tuple()).size());
 
-        //TODO: see if it is beneficial to calculate this within the reduce kernel using a barrier
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
         // diagonal index of the tile begin
