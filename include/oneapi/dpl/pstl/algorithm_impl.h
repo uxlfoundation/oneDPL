@@ -3317,11 +3317,13 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
                 //try searching for the first element which not equal to *__b
                 if (__b != __first1)
-                    __b = __internal::__pstl_upper_bound(__b, __last1, std::invoke(__proj1, *__b), __comp, __proj1);
+                    __b = __internal::__pstl_upper_bound(__b, 0, std::distance(__b, __last1),
+                                                         std::invoke(__proj1, *__b), __comp, __proj1);
 
                 //try searching for the first element which not equal to *__e
                 if (__e != __last1)
-                    __e = __internal::__pstl_upper_bound(__e, __last1, std::invoke(__proj1, *__e), __comp, __proj1);
+                    __e = __internal::__pstl_upper_bound(__e, 0, std::distance(__e, __last1),
+                                                         std::invoke(__proj1, *__e), __comp, __proj1);
 
                 //check is [__b; __e) empty
                 if (__e - __b < 1)

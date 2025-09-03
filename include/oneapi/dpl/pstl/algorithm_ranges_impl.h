@@ -735,14 +735,14 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                 if (__is_equal_sorted(__i, __j - 1))
                     return false;
 
-                __i = oneapi::dpl::__internal::__pstl_upper_bound(__i, __last2, std::invoke(__proj2, *__i), __comp,
-                                                                  __proj2);
+                __i = oneapi::dpl::__internal::__pstl_upper_bound(__i, 0, std::distance(__i, __last2),
+                                                                  std::invoke(__proj2, *__i), __comp, __proj2);
             }
 
             //1.2 right bound, case "[...aaa]aaaxyz" - searching "x"
             if (__j < __last2 && __is_equal_sorted(__j - 1, __j))
-                __j = oneapi::dpl::__internal::__pstl_upper_bound(__j, __last2, std::invoke(__proj2, *__j), __comp,
-                                                                  __proj2);
+                __j = oneapi::dpl::__internal::__pstl_upper_bound(__j, 0, std::distance(__j, __last2),
+                                                                  std::invoke(__proj2, *__j), __comp, __proj2);
 
             //2. testing is __a subsequence of the second range included into the first range
             auto __b = oneapi::dpl::__internal::__pstl_lower_bound(__first1, 0, std::distance(__first1, __last1),
