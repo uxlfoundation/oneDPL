@@ -1098,7 +1098,7 @@ __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __
         std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
         oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
             __temp_diags.get_buffer()));
-    sycl::event __partition_event{};
+    sycl::event __partition_event;
 
     if (__total_size >= __partition_threshold)
     {
