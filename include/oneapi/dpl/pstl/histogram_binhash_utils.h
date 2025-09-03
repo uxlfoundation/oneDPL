@@ -87,12 +87,10 @@ template <typename _Acc, typename _T2, typename _T3>
 ::std::int32_t
 __custom_boundary_get_bin_helper(_Acc __acc, ::std::int32_t __size, _T2 __value, _T3 __min, _T3 __max)
 {
-    ::std::int32_t ret = -1;
+    std::int32_t ret = -1;
     if (__value >= __min && __value < __max)
     {
-        ret =
-            oneapi::dpl::__internal::__pstl_upper_bound(__acc, ::std::int32_t{0}, __size, __value, ::std::less<_T2>{}) -
-            1;
+        ret = oneapi::dpl::__internal::__pstl_upper_bound(__acc, std::int32_t{0}, __size, __value, std::less<_T2>{}) - 1;
     }
     return ret;
 }
