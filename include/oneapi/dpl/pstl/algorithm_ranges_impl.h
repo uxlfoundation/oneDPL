@@ -1219,25 +1219,82 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 // set_symmetric_difference
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp = std::ranges::less,
+          typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                             std::ranges::borrowed_iterator_t<_R2>,
+                                             std::ranges::borrowed_iterator_t<_OutRange>>
+__serial_set_symmetric_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterator_t<_R1> __end1,
+                                  std::ranges::iterator_t<_R2> __it2, std::ranges::iterator_t<_R2> __end2,
+                                  std::ranges::iterator_t<_OutRange> __out_it,
+                                  std::ranges::iterator_t<_OutRange> __out_end, _Comp __comp = {}, _Proj1 __proj1 = {},
+                                  _Proj2 __proj2 = {})
+{
+    while (__it1 != __end1 && __it2 != __end2 /*&& __out_it != __out_end*/)     // TODO commented till other implementations will be improved to check limited output range size
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+        {
+            *__out_it = *__it1;
+            ++__it1;
+            ++__out_it;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            *__out_it = *__it2;
+            ++__it2;
+            ++__out_it;
+        }
+        else
+        {
+            ++__it1;
+            ++__it2;
+        }
+    }
+
+    // TODO required to implement support of limmited output range
+    auto __copy1 = std::ranges::copy(__it1, __end1, __out_it);
+    auto __copy2 = std::ranges::copy(__it2, __end2, __copy1.out);
+
+    return {__copy1.in, __copy2.in, __copy2.out};
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp = std::ranges::less,
+          typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                             std::ranges::borrowed_iterator_t<_R2>,
+                                             std::ranges::borrowed_iterator_t<_OutRange>>
+__serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {}, _Proj1 __proj1 = {},
+                                  _Proj2 __proj2 = {})
+{
+    return __serial_set_symmetric_difference<_R1, _R2, _OutRange>(
+        std::ranges::begin(__r1), std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
+        std::ranges::begin(__r2) + std::ranges::size(__r2), std::ranges::begin(__out_r),
+        std::ranges::begin(__out_r) + std::ranges::size(__out_r), __comp, __proj1, __proj2);
+}
+
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                             std::ranges::borrowed_iterator_t<_R2>,
+                                             std::ranges::borrowed_iterator_t<_OutRange>>
 __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
                                  _Proj2 __proj2,
                                  /*__is_vector=*/std::false_type) noexcept
 {
-    return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-                                                 std::ranges::begin(__out_r), __comp, __proj1, __proj2);
+    return __serial_set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                             std::ranges::borrowed_iterator_t<_R2>,
+                                             std::ranges::borrowed_iterator_t<_OutRange>>
 __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
                                  _Proj2 __proj2,
                                  /*__is_vector=*/std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-                                                 std::ranges::begin(__out_r), __comp, __proj1, __proj2);
+    return __serial_set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 }
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
@@ -1278,8 +1335,8 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
 
     // use serial algorithm
     if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
-        return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-                                                     std::ranges::begin(__out_r), __comp, __proj1, __proj2);
+        return __serial_set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                 std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 
     auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
