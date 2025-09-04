@@ -100,6 +100,41 @@ void test_mixed_types_device()
         EXPECT_EQ_RANGES(out_expected, out, "wrong result with device policy");
     }
 }
+
+void test_serial_set_union()
+{
+    std::vector<int> v1 = {1, 2, 3, 3, 3, 4, 5};
+    std::vector<int> v2 = {0, 2, 2, 3, 3, 7};
+    std::vector<int> out(10, 0xCD);
+    std::vector<int> out_expected = {0, 1, 2, 2, 3, 3, 3, 4, 5, 7};
+
+    {
+        auto res = oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq, v1, v2, out);
+        EXPECT_EQ_RANGES(out_expected, out, "wrong result with serial policy");
+        EXPECT_EQ(std::ranges::size(v1), std::ranges::distance(std::ranges::begin(v1), res.in1), "wrong res.in1");
+        EXPECT_EQ(std::ranges::size(v2), std::ranges::distance(std::ranges::begin(v2), res.in2), "wrong res.in2");
+        EXPECT_EQ(std::ranges::size(out), std::ranges::distance(std::ranges::begin(out), res.out), "wrong res.out");
+    }
+    {
+        std::ranges::fill(out, 0xCD);
+        const int out_n = 5;
+        auto out_subrange = std::ranges::subrange(out.data(), out.data() + out_n);
+        auto out_expected_subrange = std::ranges::subrange(out_expected.data(), out_expected.data() + out_n);
+        auto res = oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq, v1, v2, out_subrange);
+        EXPECT_EQ_RANGES(out_expected_subrange, out_subrange,
+                         "wrong result with serial policy, insufficient out range capacity case");
+        EXPECT_EQ(3, std::ranges::distance(std::ranges::begin(v1), res.in1),
+                        "wrong res.in1, insufficient out range capacity case");
+        EXPECT_EQ(4, std::ranges::distance(std::ranges::begin(v2), res.in2),
+                         "wrong res.in2, insufficient out range capacity case");
+        EXPECT_EQ(out_n, std::ranges::distance(std::ranges::begin(out_subrange), res.out),
+                         "wrong res.out, insufficient out range capacity case");
+    }
+    // TODO: add more checks:
+    //  - different predicates
+    //  - different projections
+    //  - make sure that the equivalent elements are copied from the first range
+}
 #endif // TEST_DPCPP_BACKEND_PRESENT
 #endif // _ENABLE_STD_RANGES_TESTING
 
@@ -112,15 +147,15 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    // TODO: use data_in_in_out_lim when set_union supports
-    // output range not-sufficiently large to hold all the processed elements
-
-    // TODO: implement individual tests solely for seq policy
+    test_serial_set_union();
     auto set_union_checker = [](auto&&... args)
     {
         return oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq,
                                               std::forward<decltype(args)>(args)...);
     };
+
+    // TODO: use data_in_in_out_lim when set_union supports
+    // output range not-sufficiently large to hold all the processed elements
 
     test_range_algo<0, int, data_in_in_out, mul1_t, div3_t>{big_sz}(dpl_ranges::set_union, set_union_checker);
     test_range_algo<1, int, data_in_in_out, mul1_t, div3_t>{big_sz}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj);
