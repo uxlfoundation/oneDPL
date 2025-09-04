@@ -110,19 +110,12 @@ main()
 
     // TODO: use data_in_in_out_lim when set_difference supports
     // output range not-sufficiently large to hold all the processed elements
-    // this will also require adding a custom serial implementation of the algorithm into the checker
 
-    auto checker = [](std::ranges::random_access_range auto&& r1,
-                      std::ranges::random_access_range auto&& r2,
-                      std::ranges::random_access_range auto&& r_out, auto&&... args)
+    // TODO: implement individual tests solely for seq policy
+    auto checker = [](auto&&... args)
     {
-        auto res = oneapi::dpl::__internal::__ranges::__serial_set_difference(
-            std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2), std::forward<decltype(r_out)>(r_out),
-            std::forward<decltype(args)>(args)...);
-
-        using ret_type = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
-                                                            std::ranges::borrowed_iterator_t<decltype(r_out)>>;
-        return ret_type{res.in, res.out};
+        return oneapi::dpl::ranges::set_difference(oneapi::dpl::execution::seq,
+                                                   std::forward<decltype(args)>(args)...);
     };
 
     test_range_algo<0, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, checker);
