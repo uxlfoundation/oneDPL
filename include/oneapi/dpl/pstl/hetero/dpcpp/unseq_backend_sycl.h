@@ -998,9 +998,7 @@ struct __brick_includes
     _Proj2 __proj2;
 
     __brick_includes(_Size1 __size1, _Size2 __size2, _Compare __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
-        : __size1(__size1), __size2(__size2), __comp(__comp), __proj1(__proj1), __proj2(__proj2)
-    {
-    }
+        : __size1(__size1), __size2(__size2), __comp(__comp), __proj1(__proj1), __proj2(__proj2) {}
 
     template <typename _ItemId, typename __Rng1, typename __Rng2>
     bool
@@ -1263,9 +1261,7 @@ class __brick_set_op
 
   public:
     __brick_set_op(_Size1 __na, _Size2 __nb, _Compare __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
-        : __na(__na), __nb(__nb), __comp(__comp), __proj1(__proj1), __proj2(__proj2)
-    {
-    }
+        : __na(__na), __nb(__nb), __comp(__comp), __proj1(__proj1), __proj2(__proj2) {}
 
     template <typename _ItemId, typename _Acc>
     bool
@@ -1302,11 +1298,8 @@ class __brick_set_op
             //Intersection operation logic: if number of duplication in __a on left side from __idx <= total number of
             //duplication in __b than a mask is 1
 
-            const _Size1 __count_a_left =
-                __idx_a -
-                __internal::__pstl_left_bound(__a, _Size1(0), _Size1(__idx_a), std::invoke(__proj1, __val_a), __comp,
-                                              __proj1) +
-                1;
+            const _Size1 __count_a_left = __idx_a - __internal::__pstl_left_bound(__a,
+                _Size1(0), _Size1(__idx_a), std::invoke(__proj1, __val_a), __comp, __proj1) + 1;
 
             const _Size2 __count_b = __internal::__pstl_right_bound(__b, _Size2(__res), __nb,
                                                                     std::invoke(__proj2, __val_b), __comp, __proj2) -
