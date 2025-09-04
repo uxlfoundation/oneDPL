@@ -620,7 +620,7 @@ __encode_balanced_path_temp_data(const _IdxT __rng1_idx, const bool __star)
 {
     using signed_t = std::make_signed_t<_IdxT>;
 
-    // Convert to signed representation
+    // Convert to signed representation - we know that __rng1_idx is non-negative and safely representable in signed_t
     signed_t __signed_idx{static_cast<signed_t>(__rng1_idx)};
 
     // Branchless negation: (1 - 2 * __star) gives 1 if __star is false, -1 if __star is true
@@ -635,8 +635,8 @@ struct __get_bounds_partitioned
     {
         const auto& __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
 
-        using _SizeType = decltype(std::get<0>(__in_rng.tuple()).size());
-
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(std::get<0>(__in_rng.tuple()).size())>,
+                                             std::make_unsigned_t<decltype(__rng_tmp_diag.size())>>;
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
         // diagonal index of the tile begin
@@ -871,7 +871,9 @@ struct __gen_set_op_from_known_balanced_path
 
         const auto& __rng1_temp_diag =
             std::get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
-        using _SizeType = decltype(__rng1.size());
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
+                                             std::make_unsigned_t<decltype(__rng2.size())>,
+                                             std::make_unsigned_t<decltype(__rng1_temp_diag.size())>>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
