@@ -621,7 +621,7 @@ __encode_balanced_path_temp_data(const _IdxT __rng1_idx, const bool __star)
     using signed_t = std::make_signed_t<_IdxT>;
 
     // Convert to signed representation
-    signed_t __signed_idx{__rng1_idx};
+    signed_t __signed_idx{static_cast<signed_t>(__rng1_idx)};
 
     // Branchless negation: (1 - 2 * __star) gives 1 if __star is false, -1 if __star is true
     return __signed_idx * (signed_t{1} - signed_t{2} * signed_t{__star});
