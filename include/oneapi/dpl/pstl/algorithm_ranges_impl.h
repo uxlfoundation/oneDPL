@@ -693,8 +693,8 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     auto __first2 = std::ranges::begin(__r2);
     auto __last2 = __first2 + __n2;
 
-    typedef typename std::iterator_traits<decltype(__first1)>::difference_type _DifferenceType1;
-    typedef typename std::iterator_traits<decltype(__first2)>::difference_type _DifferenceType2;
+    using _DifferenceType1 = typename std::iterator_traits<decltype(__first1)>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<decltype(__first2)>::difference_type;
 
     if (__first2 == __last2)
         return true;
@@ -879,8 +879,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
     using _Tp = std::ranges::range_value_t<_OutRange>;
 
-    typedef typename std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type ;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type ;
 
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
@@ -997,8 +997,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
     using _Tp = std::ranges::range_value_t<_OutRange>;
 
-    typedef typename std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
 
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
