@@ -119,8 +119,8 @@ main()
     // TODO: implement individual tests solely for seq policy
     auto checker = [](auto&&... args)
     {
-        return oneapi::dpl::ranges::set_difference(oneapi::dpl::execution::seq,
-                                                   std::forward<decltype(args)>(args)...);
+        return oneapi::dpl::ranges::set_symmetric_difference(oneapi::dpl::execution::seq,
+                                                             std::forward<decltype(args)>(args)...);
     };
 
     test_range_algo<0, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_symmetric_difference, checker);
