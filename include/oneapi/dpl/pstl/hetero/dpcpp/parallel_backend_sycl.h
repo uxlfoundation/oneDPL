@@ -1394,9 +1394,9 @@ __set_op_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __
         if (__use_write_a_alg(__set_tag, __rng1, __rng2))
         {
             // use reduce then scan with set_a write
-            return __set_write_a_only_op<set_a_write_wrapper<_CustomName>>(__q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                                                      std::forward<_Range3>(__result), __comp, __set_tag,
-                                                      std::true_type{});
+            return __set_write_a_only_op<set_a_write_wrapper<_CustomName>>(
+                __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
+                __comp, __set_tag, std::true_type{});
         }
         return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(
                    __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
