@@ -258,7 +258,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
             ++__first1;
-        if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+        else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             ++__first2;
         else
         {
