@@ -693,6 +693,9 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     auto __first2 = std::ranges::begin(__r2);
     auto __last2 = __first2 + __n2;
 
+    using _DifferenceType1 = typename std::iterator_traits<decltype(__first1)>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<decltype(__first2)>::difference_type;
+
     if (__first2 == __last2)
         return true;
 
@@ -705,8 +708,8 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         std::invoke(__comp, std::invoke(__proj1, *(__last1 - 1)), std::invoke(__proj2, *(__last2 - 1))))
         return false;
 
-    __first1 = oneapi::dpl::__internal::__pstl_lower_bound(__first1, __last1, std::invoke(__proj2, *__first2), __comp,
-                                                           __proj1);
+    __first1 += oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
+                                                            std::invoke(__proj2, *__first2), __comp, __proj1);
     if (__first1 == __last1)
         return false;
 
@@ -735,18 +738,19 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                 if (__is_equal_sorted(__i, __j - 1))
                     return false;
 
-                __i = oneapi::dpl::__internal::__pstl_upper_bound(__i, __last2, std::invoke(__proj2, *__i), __comp,
-                                                                  __proj2);
+                __i += oneapi::dpl::__internal::__pstl_upper_bound(__i, _DifferenceType2{0}, __last2 - __i,
+                                                                   std::invoke(__proj2, *__i), __comp, __proj2);
             }
 
             //1.2 right bound, case "[...aaa]aaaxyz" - searching "x"
             if (__j < __last2 && __is_equal_sorted(__j - 1, __j))
-                __j = oneapi::dpl::__internal::__pstl_upper_bound(__j, __last2, std::invoke(__proj2, *__j), __comp,
-                                                                  __proj2);
+                __j += oneapi::dpl::__internal::__pstl_upper_bound(__j, _DifferenceType2{0}, __last2 - __j,
+                                                                   std::invoke(__proj2, *__j), __comp, __proj2);
 
             //2. testing is __a subsequence of the second range included into the first range
-            auto __b = oneapi::dpl::__internal::__pstl_lower_bound(__first1, __last1, std::invoke(__proj2, *__i),
-                                                                   __comp, __proj1);
+            auto __b = __first1 +
+                       oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
+                                                                   std::invoke(__proj2, *__i), __comp, __proj1);
 
             //assert(!__comp(*(__last1 - 1), *__b));
             //assert(!__comp(*(__j - 1), *__i));
@@ -895,7 +899,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                                   __comp, __proj1, __proj2);
 
     auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
            _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
             return oneapi::dpl::__utils::__set_union_construct(
@@ -1012,6 +1016,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
     using _Tp = std::ranges::range_value_t<_OutRange>;
 
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
 
@@ -1026,15 +1033,17 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return {__last1, __last2, __result};
 
     // testing  whether the sequences are intersected
-    auto __left_bound_seq_1 = oneapi::dpl::__internal::__pstl_lower_bound(
-        __first1, __last1, std::invoke(__proj2, *__first2), __comp, __proj1);
+    auto __left_bound_seq_1 =
+        __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
+                                                               std::invoke(__proj2, *__first2), __comp, __proj1);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
     if (__left_bound_seq_1 == __last1)
         return {__last1, __last2, __result};
 
     // testing  whether the sequences are intersected
-    auto __left_bound_seq_2 = oneapi::dpl::__internal::__pstl_lower_bound(
-        __first2, __last2, std::invoke(__proj1, *__first1), __comp, __proj2);
+    auto __left_bound_seq_2 =
+        __first2 + oneapi::dpl::__internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
+                                                               std::invoke(__proj1, *__first1), __comp, __proj2);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
     if (__left_bound_seq_2 == __last2)
         return {__last1, __last2, __result};
@@ -1177,6 +1186,9 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
     using _Tp = std::ranges::range_value_t<_OutRange>;
 
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
 
@@ -1199,8 +1211,9 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     }
 
     // testing  whether the sequences are intersected
-    auto __left_bound_seq_1 = oneapi::dpl::__internal::__pstl_lower_bound(
-        __first1, __last1, std::invoke(__proj2, *__first2), __comp, __proj1);
+    auto __left_bound_seq_1 =
+        __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
+                                                               std::invoke(__proj2, *__first2), __comp, __proj1);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, parallel copying just first sequence
     if (__left_bound_seq_1 == __last1)
     {
@@ -1210,8 +1223,9 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     }
 
     // testing  whether the sequences are intersected
-    auto __left_bound_seq_2 = oneapi::dpl::__internal::__pstl_lower_bound(
-        __first2, __last2, std::invoke(__proj1, *__first1), __comp, __proj2);
+    auto __left_bound_seq_2 =
+        __first2 + oneapi::dpl::__internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
+                                                               std::invoke(__proj1, *__first1), __comp, __proj2);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, parallel copying just first sequence
     if (__left_bound_seq_2 == __last2)
     {
