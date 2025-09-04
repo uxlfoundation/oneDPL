@@ -436,8 +436,8 @@ template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBo
 void
 __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
                                   std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                  _SizeType& __idx, std::uint16_t& __count, const _Compare __comp,
-                                  _Proj1 __proj1 = _Proj1{}, _Proj2 __proj2 = _Proj2{})
+                                  _SizeType& __idx, std::uint16_t& __count, const _Compare __comp, _Proj1 __proj1 = {},
+                                  _Proj2 __proj2 = {})
 {
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
@@ -518,8 +518,8 @@ struct __set_generic_operation
               typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
     std::uint16_t
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp,
-               _Proj1 __proj1 = _Proj1{}, _Proj2 __proj2 = _Proj2{}) const
+               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1 = {},
+               _Proj2 __proj2 = {}) const
     {
 
         std::uint16_t __count = 0;

@@ -1050,7 +1050,7 @@ template <typename _CustomName, typename _Range1, typename _Range2, typename _Ra
           typename _SetTag, typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
 __parallel_set_reduce_then_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
-                                _Compare __comp, _SetTag, _Proj1 __proj1 = _Proj1{}, _Proj2 __proj2 = _Proj2{})
+                                _Compare __comp, _SetTag, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
     constexpr std::uint16_t __diagonal_spacing = 32;
 
@@ -1118,7 +1118,7 @@ template <typename _CustomName, typename _Range1, typename _Range2, typename _Ra
           typename _IsOpDifference, typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range1>>>
 __parallel_set_scan(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
-                    _IsOpDifference, _Proj1 __proj1 = _Proj1{}, _Proj2 __proj2 = _Proj2{})
+                    _IsOpDifference, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
@@ -1167,8 +1167,8 @@ template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typenam
           typename _SetTag, typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
 __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
-                  _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag __set_tag, _Proj1 __proj1 = _Proj1{},
-                  _Proj2 __proj2 = _Proj2{})
+                  _Range2&& __rng2, _Range3&& __result, _Compare __comp, _SetTag __set_tag, _Proj1 __proj1 = {},
+                  _Proj2 __proj2 = {})
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
