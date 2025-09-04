@@ -71,19 +71,50 @@ class Weird
     Weird(std::int32_t val, OddTag) : value(val, OddTag()) {}
 };
 
+void test_empty_list_initialization()
+{
+    std::vector<int> v{3,6,5,4,3,7,8,0,2,4};
+    {
+        auto it = oneapi::dpl::find(oneapi::dpl::execution::seq, v.begin(), v.end(), {});
+        EXPECT_TRUE(it == (v.begin() + 7), "an empty list-initialized value is not found by oneapi::dpl::find with `seq` policy");
+    }
+    {
+        auto it = oneapi::dpl::find(oneapi::dpl::execution::unseq, v.begin(), v.end(), {});
+        EXPECT_TRUE(it == (v.begin() + 7), "an empty list-initialized value is not found by oneapi::dpl::find with `unseq` policy");
+    }
+
+    {
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{6},{5},{4},{3},{7},{8},{2},{1},{4}};
+        {
+            auto it = oneapi::dpl::find(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), {});
+            EXPECT_TRUE(it == (v_custom.begin() + 8), "an empty list-initialized value is not found by oneapi::dpl::find with `par` policy");
+        }
+        {
+            auto it = oneapi::dpl::find(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), {});
+            EXPECT_TRUE(it == (v_custom.begin() + 8), "an empty list-initialized value is not found by oneapi::dpl::find with `par_unseq` policy");
+        }
+    }
+#if TEST_DPCPP_BACKEND_PRESENT
+    sycl::buffer<int> buf(v);
+    auto it = oneapi::dpl::find(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
+    EXPECT_TRUE(it.get_idx() == 7, "an empty list-initialized value is not found by oneapi::dpl::find with `device_policy` policy");
+#endif
+}
+
 int
 main()
 {
     // Note that the "hit" and "miss" functions here avoid overflow issues.
-#if !TEST_DPCPP_BACKEND_PRESENT
+    #if !TEST_DPCPP_BACKEND_PRESENT
     test<Number>(Weird(42, OddTag()), [](std::int32_t) { return Number(42, OddTag()); }, // hit
-                 [](std::int32_t j) { return Number(j == 42 ? 0 : j, OddTag()); });      // miss
-#endif
+    [](std::int32_t j) { return Number(j == 42 ? 0 : j, OddTag()); });      // miss
+    #endif
 
     // Test with value that is equal to two different bit patterns (-0.0 and 0.0)
     test<float32_t>(-0.0, [](std::int32_t j) { return j & 1 ? 0.0 : -0.0; }, // hit
-                    [](std::int32_t j) { return j == 0 ? ~j : j; });         // miss
+    [](std::int32_t j) { return j == 0 ? ~j : j; });         // miss
 
+    test_empty_list_initialization();
 
     return done();
 }
