@@ -1293,7 +1293,7 @@ __set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
     {
         // If the second difference is empty, just copy the first range to the result
         auto __tmp_rng3 = __keep_tmp3(__buf_1, __buf_1 + __n_diff_1);
-        oneapi::dpl::__par_backend_hetero::__parallel_copy_impl<__set_symmetric_difference_copy1_wrapper<_CustomName>>(
+        oneapi::dpl::__par_backend_hetero::__parallel_copy_impl<__set_symmetric_difference_copy2_wrapper<_CustomName>>(
             __q, __n_diff_1, __tmp_rng3.all_view(), std::forward<_Range3>(__result))
             .wait();
         return __n_diff_1;
@@ -1346,14 +1346,13 @@ __set_write_a_only_op(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
 }
 
 template <typename _CustomName>
-struct reduce_then_scan_wrapper
-{
-};
+struct reduce_then_scan_wrapper;
 
 template <typename _CustomName>
-struct scan_then_propagate_wrapper
-{
-};
+struct scan_then_propagate_wrapper;
+
+template <typename _CustomName>
+struct set_a_write_wrapper;
 
 template <typename _SetTag, typename _Rng1, typename _Rng2>
 bool
@@ -1395,7 +1394,7 @@ __set_op_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __
         if (__use_write_a_alg(__set_tag, __rng1, __rng2))
         {
             // use reduce then scan with set_a write
-            return __set_write_a_only_op<_CustomName>(__q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+            return __set_write_a_only_op<set_a_write_wrapper<_CustomName>>(__q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
                                                       std::forward<_Range3>(__result), __comp, __set_tag,
                                                       std::true_type{});
         }
