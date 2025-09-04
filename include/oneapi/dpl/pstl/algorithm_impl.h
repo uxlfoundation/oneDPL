@@ -3280,8 +3280,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
+    typedef typename std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
+    typedef typename std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
     typedef typename ::std::iterator_traits<_OutputIterator>::value_type _T;
 
     struct _SetRange
@@ -3382,8 +3382,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
+    typedef typename std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
+    typedef typename std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
 
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
