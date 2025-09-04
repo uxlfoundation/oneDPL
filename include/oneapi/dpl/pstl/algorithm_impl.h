@@ -3494,7 +3494,7 @@ __brick_set_union(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Forwar
                   _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
                   /*__is_vector=*/::std::false_type) noexcept
 {
-    return ::std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <typename _IsVector>
@@ -3515,7 +3515,7 @@ __brick_set_union(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last
                   /*__is_vector=*/::std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return ::std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
@@ -3543,7 +3543,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 
     // use serial algorithm
     if (__n1 + __n2 <= __set_algo_cut_off)
-        return ::std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
+        return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
     typedef typename ::std::iterator_traits<_OutputIterator>::value_type _Tp;
     return __parallel_set_union_op(
@@ -3566,7 +3566,7 @@ __brick_set_intersection(_ForwardIterator1 __first1, _ForwardIterator1 __last1, 
                          _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
                          /*__is_vector=*/::std::false_type) noexcept
 {
-    return ::std::set_intersection(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_intersection(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Compare>
@@ -3577,7 +3577,7 @@ __brick_set_intersection(_RandomAccessIterator1 __first1, _RandomAccessIterator1
                          /*__is_vector=*/::std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return ::std::set_intersection(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_intersection(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
@@ -3662,7 +3662,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     }
 
     // [left_bound_seq_1; last1) and [left_bound_seq_2; last2) - use serial algorithm
-    return ::std::set_intersection(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2, __result, __comp);
+    return std::set_intersection(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2, __result, __comp);
 }
 
 //------------------------------------------------------------------------
@@ -3675,7 +3675,7 @@ __brick_set_difference(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _F
                        _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
                        /*__is_vector=*/::std::false_type) noexcept
 {
-    return ::std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Compare>
@@ -3685,7 +3685,7 @@ __brick_set_difference(_RandomAccessIterator1 __first1, _RandomAccessIterator1 _
                        /*__is_vector=*/::std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return ::std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
@@ -3749,7 +3749,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
             });
 
     // use serial algorithm
-    return ::std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 //------------------------------------------------------------------------
@@ -3762,7 +3762,7 @@ __brick_set_symmetric_difference(_ForwardIterator1 __first1, _ForwardIterator1 _
                                  _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
                                  /*__is_vector=*/::std::false_type) noexcept
 {
-    return ::std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Compare>
@@ -3773,7 +3773,7 @@ __brick_set_symmetric_difference(_RandomAccessIterator1 __first1, _RandomAccessI
                                  /*__is_vector=*/::std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return ::std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
@@ -3802,7 +3802,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
 
     // use serial algorithm
     if (__n1 + __n2 <= __set_algo_cut_off)
-        return ::std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
+        return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
     typedef typename ::std::iterator_traits<_RandomAccessIterator3>::value_type _T;
     return __internal::__except_handler([&]() {
