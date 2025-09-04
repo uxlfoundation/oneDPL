@@ -708,9 +708,9 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         std::invoke(__comp, std::invoke(__proj1, *(__last1 - 1)), std::invoke(__proj2, *(__last2 - 1))))
         return false;
 
-    __first1 = __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0},
-                                                                      std::distance(__first1, __last1),
-                                                                      std::invoke(__proj2, *__first2), __comp, __proj1);
+    __first1 +=
+        oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, std::distance(__first1, __last1),
+                                                    std::invoke(__proj2, *__first2), __comp, __proj1);
     if (__first1 == __last1)
         return false;
 
@@ -739,16 +739,14 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                 if (__is_equal_sorted(__i, __j - 1))
                     return false;
 
-                __i = __i + oneapi::dpl::__internal::__pstl_upper_bound(__i, _DifferenceType2{0},
-                                                                        std::distance(__i, __last2),
-                                                                        std::invoke(__proj2, *__i), __comp, __proj2);
+                __i += oneapi::dpl::__internal::__pstl_upper_bound(
+                    __i, _DifferenceType2{0}, std::distance(__i, __last2), std::invoke(__proj2, *__i), __comp, __proj2);
             }
 
             //1.2 right bound, case "[...aaa]aaaxyz" - searching "x"
             if (__j < __last2 && __is_equal_sorted(__j - 1, __j))
-                __j = __j + oneapi::dpl::__internal::__pstl_upper_bound(__j, _DifferenceType2{0},
-                                                                        std::distance(__j, __last2),
-                                                                        std::invoke(__proj2, *__j), __comp, __proj2);
+                __j += oneapi::dpl::__internal::__pstl_upper_bound(
+                    __j, _DifferenceType2{0}, std::distance(__j, __last2), std::invoke(__proj2, *__j), __comp, __proj2);
 
             //2. testing is __a subsequence of the second range included into the first range
             auto __b = __first1 + oneapi::dpl::__internal::__pstl_lower_bound(
