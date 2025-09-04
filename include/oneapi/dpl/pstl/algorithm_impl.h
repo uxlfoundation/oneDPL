@@ -3282,7 +3282,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using _T = typename ::std::iterator_traits<_OutputIterator>::value_type;
+    using _T = typename std::iterator_traits<_OutputIterator>::value_type;
 
     struct _SetRange
     {
