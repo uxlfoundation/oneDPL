@@ -665,8 +665,9 @@ struct __get_bounds_simple
         const auto& __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
         const auto& __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
 
-        using _SizeType = decltype(__rng1.size());
-        return std::make_tuple(_SizeType{0}, __rng1.size(), _SizeType{0}, __rng2.size());
+        using _SizeType = std::common_type_t<std::ranges::range_size_t<decltype(__rng1)>, std::ranges::range_size_t<decltype(__rng2)>>;
+
+        return std::make_tuple(_SizeType{0}, _SizeType{__rng1.size()}, _SizeType{0}, _SizeType{__rng2.size()});
     }
 };
 
