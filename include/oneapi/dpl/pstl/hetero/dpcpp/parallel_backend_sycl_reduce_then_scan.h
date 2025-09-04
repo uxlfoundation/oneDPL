@@ -636,14 +636,14 @@ struct __get_bounds_partitioned
         // diagonal index of the tile begin
         const _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
         const _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
-        const _SizeType __wg_end_idx = std::min(
-            ((static_cast<_SizeType>(__id) / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
+        const _SizeType __wg_end_idx =
+            std::min<_SizeType>(((__id / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
 
         const auto [begin_rng1, begin_rng2] =
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
         const auto [end_rng1, end_rng2] =
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
-        return std::make_tuple(begin_rng1, end_rng1, begin_rng2, end_rng2);
+        return std::make_tuple(_SizeType{begin_rng1}, _SizeType{end_rng1}, _SizeType{begin_rng2}, _SizeType{end_rng2});
     }
     std::uint16_t __diagonal_spacing;
     std::size_t __tile_size;
@@ -659,8 +659,11 @@ struct __get_bounds_simple
         const auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
         const auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
 
-        using _SizeType = decltype(__rng1.size());
-        return std::make_tuple(_SizeType{0}, __rng1.size(), _SizeType{0}, __rng2.size());
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
+                                             std::make_unsigned_t<decltype(__rng2.size())>>;
+
+        return std::make_tuple(_SizeType{0}, _SizeType{static_cast<_SizeType>(__rng1.size())}, _SizeType{0},
+                               _SizeType{static_cast<_SizeType>(__rng2.size())});
     }
 };
 
@@ -753,7 +756,8 @@ struct __gen_set_balanced_path
 
         auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
 
-        using _SizeType = decltype(__rng1.size());
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
+                                             std::make_unsigned_t<decltype(__rng2.size())>>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             __i_elem = __rng1.size() + __rng2.size() - 1; // ensure we do not go out of bounds
