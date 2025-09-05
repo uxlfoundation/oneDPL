@@ -953,16 +953,16 @@ struct __reverse_copy_fn
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
         using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
-        const _Size __in_r_size = std::ranges::size(__in_r);
-        const _Size __out_r_size = std::ranges::size(__out_r);
-        const _Size __sz = std::ranges::min(__in_r_size, __out_r_size);
+        const _Size __in_size = std::ranges::size(__in_r);
+        const _Size __out_size = std::ranges::size(__out_r);
+        const _Size __min_size = std::ranges::min(__in_size, __out_size);
 
         auto __first_in = std::ranges::begin(__in_r);
         auto __first_out = std::ranges::begin(__out_r);
 
-        auto __last_in = __first_in + __in_r_size;
-        auto __stop_in = __first_in + (__in_r_size - __sz);
-        auto __stop_out = __first_out + __sz;
+        auto __last_in = __first_in + __in_size;
+        auto __stop_in = __first_in + (__in_size - __min_size);
+        auto __stop_out = __first_out + __min_size;
 
         oneapi::dpl::__internal::__ranges::__pattern_reverse_copy(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::subrange(__stop_in, __last_in),

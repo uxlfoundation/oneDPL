@@ -25,18 +25,17 @@ main()
     auto reverse_copy_checker = [](std::ranges::random_access_range auto&& r_in,
                                    std::ranges::random_access_range auto&& r_out)
     {
-        const auto in_r_size = std::ranges::size(r_in);
-        const auto out_r_size = std::ranges::size(r_out);
-        const auto size = std::ranges::min(in_r_size, out_r_size);
-        const auto in_r_skipped = in_r_size - size;
+        const auto in_size = std::ranges::size(r_in);
+        const auto out_size = std::ranges::size(r_out);
+        const auto skipped = in_size - std::ranges::min(in_size, out_size);
 
-        auto res = std::ranges::reverse_copy(std::ranges::drop_view(r_in, in_r_skipped), std::ranges::begin(r_out));
+        auto res = std::ranges::reverse_copy(std::ranges::drop_view(r_in, skipped), std::ranges::begin(r_out));
 
         using ret_type = std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<decltype(r_in)>,
                                                        std::ranges::borrowed_iterator_t<decltype(r_in)>,
                                                        std::ranges::borrowed_iterator_t<decltype(r_out)>>;
 
-        return ret_type{res.in, std::ranges::begin(r_in) + in_r_skipped, res.out};
+        return ret_type{res.in, std::ranges::begin(r_in) + skipped, res.out};
     };
 
     test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::reverse_copy, reverse_copy_checker);
