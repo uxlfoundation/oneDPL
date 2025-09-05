@@ -436,8 +436,8 @@ template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBo
 void
 __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
                                   std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                  _SizeType& __idx, std::uint16_t& __count, const _Compare __comp,
-                                  _Proj1 __proj1 = _Proj1{}, _Proj2 __proj2 = _Proj2{})
+                                  _SizeType& __idx, std::uint16_t& __count, const _Compare __comp, _Proj1 __proj1 = {},
+                                  _Proj2 __proj2 = {})
 {
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
@@ -518,8 +518,8 @@ struct __set_generic_operation
               typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
     std::uint16_t
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp,
-               _Proj1 __proj1 = _Proj1{}, _Proj2 __proj2 = _Proj2{}) const
+               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1 = {},
+               _Proj2 __proj2 = {}) const
     {
 
         std::uint16_t __count = 0;
@@ -620,8 +620,8 @@ __encode_balanced_path_temp_data(const _IdxT __rng1_idx, const bool __star)
 {
     using signed_t = std::make_signed_t<_IdxT>;
 
-    // Convert to signed representation
-    signed_t __signed_idx{__rng1_idx};
+    // Convert to signed representation - we know that __rng1_idx is non-negative and safely representable in signed_t
+    signed_t __signed_idx{static_cast<signed_t>(__rng1_idx)};
 
     // Branchless negation: (1 - 2 * __star) gives 1 if __star is false, -1 if __star is true
     return __signed_idx * (signed_t{1} - signed_t{2} * signed_t{__star});
@@ -635,16 +635,15 @@ struct __get_bounds_partitioned
     {
         const auto& __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
 
-        using _SizeType = decltype(std::get<0>(__in_rng.tuple()).size());
-
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(std::get<0>(__in_rng.tuple()).size())>,
+                                             std::make_unsigned_t<decltype(__rng_tmp_diag.size())>>;
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
         // diagonal index of the tile begin
         const _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
         const _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
-        // TODO: fix properly
         const _SizeType __wg_end_idx = std::min<_SizeType>(
-            ((static_cast<_SizeType>(__id) / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
+            ((__id / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
 
         const auto [begin_rng1, begin_rng2] =
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
@@ -666,8 +665,9 @@ struct __get_bounds_simple
         const auto& __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
         const auto& __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
 
-        using _SizeType = decltype(__rng1.size());
-        return std::make_tuple(_SizeType{0}, __rng1.size(), _SizeType{0}, __rng2.size());
+        using _SizeType = std::common_type_t<std::ranges::range_size_t<decltype(__rng1)>, std::ranges::range_size_t<decltype(__rng2)>>;
+
+        return std::make_tuple(_SizeType{0}, _SizeType{__rng1.size()}, _SizeType{0}, _SizeType{__rng2.size()});
     }
 };
 
@@ -699,9 +699,9 @@ struct __gen_set_balanced_path
             return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
         }
 
-        const auto __ele_val = __rng1[__merge_path_rng1 - 1];
+        const auto __ele_val_proj = std::invoke(__proj1, __rng1[__merge_path_rng1 - 1]);
 
-        if (__comp(__ele_val, __rng2[__merge_path_rng2]))
+        if (std::invoke(__comp, __ele_val_proj, std::invoke(__proj2, __rng2[__merge_path_rng2])))
         {
             // There is no chance that the balanced path differs from the merge path here, because the previous element of
             // rng1 does not match the next element of rng2. We can just return the merge path.
@@ -710,10 +710,10 @@ struct __gen_set_balanced_path
 
         // find first element of repeating sequence in the first set of the previous element
         _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
-            __rng1, __rng1_begin, __merge_path_rng1, __ele_val, __comp);
+            __rng1, __rng1_begin, __merge_path_rng1, __ele_val_proj, __comp, __proj1);
         // find first element of repeating sequence in the second set of the next element
         _Index __rng2_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
-            __rng2, __rng2_begin, __merge_path_rng2, __ele_val, __comp);
+            __rng2, __rng2_begin, __merge_path_rng2, __ele_val_proj, __comp, __proj2);
 
         _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
         _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
@@ -732,7 +732,7 @@ struct __gen_set_balanced_path
         _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2_end);
 
         _Index __balanced_path_intersection_rng2 = oneapi::dpl::__internal::__pstl_upper_bound(
-            __rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
+            __rng2, __merge_path_rng2, __fwd_search_bound, __ele_val_proj, __comp, __proj2);
 
         // Calculate the number of matchable "future" repeats in the second set
         _Index __matchable_forward_ele_rng2 = __balanced_path_intersection_rng2 - __merge_path_rng2;
@@ -872,7 +872,9 @@ struct __gen_set_op_from_known_balanced_path
 
         const auto& __rng1_temp_diag =
             std::get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
-        using _SizeType = decltype(__rng1.size());
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
+                                             std::make_unsigned_t<decltype(__rng2.size())>,
+                                             std::make_unsigned_t<decltype(__rng1_temp_diag.size())>>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
@@ -881,7 +883,7 @@ struct __gen_set_op_from_known_balanced_path
                                                                                 __diagonal_spacing);
 
         _SizeType __eles_to_process =
-            std::min(_SizeType{__diagonal_spacing - __star_offset}, __rng1.size() + __rng2.size() - __i_elem + 1);
+            std::min<_SizeType>(__diagonal_spacing - __star_offset, __rng1.size() + __rng2.size() - __i_elem + 1);
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
                                                __comp, __proj1, __proj2);
