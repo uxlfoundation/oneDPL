@@ -3545,7 +3545,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     if (__n1 + __n2 <= __set_algo_cut_off)
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
-    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
+    using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
     return __parallel_set_union_op(
         __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
