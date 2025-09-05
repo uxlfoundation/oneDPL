@@ -27,22 +27,16 @@ main()
     {
         const auto in_r_size = std::ranges::size(r_in);
         const auto out_r_size = std::ranges::size(r_out);
-        const auto sz = std::ranges::min(in_r_size, out_r_size);
+        const auto size = std::ranges::min(in_r_size, out_r_size);
+        const auto in_r_skipped = in_r_size - size;
 
-        const auto in_r_skipped = in_r_size - sz;
-
-        std::ranges::reverse_copy(
-            std::ranges::drop_view(r_in, in_r_skipped),
-            std::ranges::take_view(r_out, sz).begin());
+        auto res = std::ranges::reverse_copy(std::ranges::drop_view(r_in, in_r_skipped), std::ranges::begin(r_out));
 
         using ret_type = std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<decltype(r_in)>,
                                                        std::ranges::borrowed_iterator_t<decltype(r_in)>,
                                                        std::ranges::borrowed_iterator_t<decltype(r_out)>>;
 
-        auto last_in = std::ranges::begin(r_in) + in_r_size;
-        auto stop_in = std::ranges::begin(r_in) + in_r_skipped;
-        auto stop_out = std::ranges::begin(r_out) + sz;
-        return ret_type{last_in, stop_in, stop_out};
+        return ret_type{res.in, std::ranges::begin(r_in) + in_r_skipped, res.out};
     };
 
     test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::reverse_copy, reverse_copy_checker);
