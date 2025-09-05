@@ -1769,11 +1769,12 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
                         _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator2 __last2,
                         _OutputIterator __result, _Compare __comp, _SetTag __set_tag)
 {
-    typedef typename std::iterator_traits<_ForwardIterator1>::difference_type _Size1;
+    using _SizeType = std::common_type_t<typename std::iterator_traits<_ForwardIterator1>::difference_type,
+                                         typename std::iterator_traits<_ForwardIterator2>::difference_type>;
 
-    const _Size1 __n1 = std::distance(__first1, __last1);
-    const _Size1 __n2 = std::distance(__first2, __last2);
-    const _Size1 __output_size = __n1 + __n2;
+    const _SizeType __n1 = std::distance(__first1, __last1);
+    const _SizeType __n2 = std::distance(__first2, __last2);
+    const _SizeType __output_size = __n1 + __n2;
 
     auto __keep1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();
@@ -1785,7 +1786,7 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
     auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _OutputIterator>();
     auto __buf3 = __keep3(__result, __result + __output_size);
 
-    auto __result_size = __par_backend_hetero::__parallel_set_op(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+    _SizeType __result_size = __par_backend_hetero::__parallel_set_op(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
                                                                  __buf1.all_view(), __buf2.all_view(),
                                                                  __buf3.all_view(), __comp, __set_tag);
 
