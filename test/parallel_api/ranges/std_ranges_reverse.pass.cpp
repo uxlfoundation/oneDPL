@@ -15,7 +15,7 @@
 
 #include "std_ranges_test.h"
 
-std::int32_t
+int
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
