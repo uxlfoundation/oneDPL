@@ -91,8 +91,8 @@ struct __transform_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
-        using _Size = std::common_type_t<std::ranges::range_size_t<_R>, std::ranges::range_size_t<_OutRange>>;
-        const _Size __size = std::ranges::min((_Size)std::ranges::size(__r), (_Size)std::ranges::size(__out_r));
+        using _Size = oneapi::dpl::__internal::__common_range_size_t<_R, _OutRange>;
+        const _Size __size = std::ranges::min(_Size{std::ranges::size(__r)}, _Size{std::ranges::size(__out_r)});
 
         oneapi::dpl::__internal::__ranges::__pattern_transform(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
             std::ranges::take_view(__r, __size), std::ranges::take_view(__out_r, __size), __op, __proj);
@@ -116,8 +116,7 @@ struct __transform_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
-        using _Size = std::common_type_t<oneapi::dpl::__internal::__range_size_t<_R1>,
-            oneapi::dpl::__internal::__range_size_t<_R2>, std::ranges::range_size_t<_OutRange>>;
+        using _Size = oneapi::dpl::__internal::__common_range_size_t<_R1, _R2, _OutRange>;
         _Size __size = std::ranges::size(__out_r);
         if constexpr(std::ranges::sized_range<_R1>)
             __size = std::ranges::min(__size, (_Size)std::ranges::size(__r1));
@@ -728,8 +727,8 @@ struct __copy_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
-        using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
-        const _Size __size = std::ranges::min((_Size)std::ranges::size(__in_r), (_Size)std::ranges::size(__out_r));
+        using _Size = oneapi::dpl::__internal::__common_range_size_t<_InRange, _OutRange>;
+        const _Size __size = std::ranges::min(_Size{std::ranges::size(__in_r)}, _Size{std::ranges::size(__out_r)});
 
         oneapi::dpl::__internal::__ranges::__pattern_copy(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
             std::ranges::take_view(__in_r, __size), std::ranges::take_view(__out_r, __size));
@@ -837,8 +836,8 @@ struct __move_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
-        using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
-        const _Size __size = std::ranges::min((_Size)std::ranges::size(__r), (_Size)std::ranges::size(__out_r));
+        using _Size = oneapi::dpl::__internal::__common_range_size_t<_InRange, _OutRange>;
+        const _Size __size = std::ranges::min(_Size{std::ranges::size(__r)}, _Size{std::ranges::size(__out_r)});
 
         oneapi::dpl::__internal::__ranges::__pattern_move(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
             std::ranges::take_view(__r, __size), std::ranges::take_view(__out_r, __size));
