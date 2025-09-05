@@ -42,6 +42,115 @@ struct B
     operator int() const { return b; }
 };
 
+void test_serial_set_union()
+{
+    std::vector<int> v1 = {1, 2, 3, 3, 3, 4, 5};
+    std::vector<int> v2 = {0, 2, 2, 3, 3, 7};
+    std::vector<int> out(10, 0xCD);
+    std::vector<int> out_expected = {0, 1, 2, 2, 3, 3, 3, 4, 5, 7};
+    {
+        // Smaller r2
+        auto res = oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq, v1, v2, out);
+        EXPECT_EQ_RANGES(out_expected, out, "wrong result with seq policy");
+        EXPECT_EQ(std::ranges::size(v1), res.in1 - std::ranges::begin(v1), "wrong res.in1");
+        EXPECT_EQ(std::ranges::size(v2), res.in2 - std::ranges::begin(v2), "wrong res.in2");
+        EXPECT_EQ(std::ranges::size(out), res.out - std::ranges::begin(out), "wrong res.out");
+    }
+    {
+        // Insufficient output range capacity, predicate
+        std::ranges::fill(out, 0xCD);
+        const int out_n = 5;
+        auto out_subrange = std::ranges::subrange(out.data(), out.data() + out_n);
+        auto out_expected_subrange = std::ranges::subrange(out_expected.data(), out_expected.data() + out_n);
+        auto res = oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq, v1, v2, out_subrange, std::ranges::less{});
+        EXPECT_EQ_RANGES(out_expected_subrange, out_subrange,
+                         "wrong result with seq policy, case with insufficient out range capacity");
+        EXPECT_EQ(3, res.in1 - std::ranges::begin(v1), "wrong res.in1");
+        EXPECT_EQ(4, res.in2 - std::ranges::begin(v2), "wrong res.in2");
+        EXPECT_EQ(out_n, res.out - std::ranges::begin(out_subrange), "wrong res.out");
+    }
+    {
+        // Smaller r1, predicate + first projection
+        std::ranges::fill(out, 0xCD);
+        const int in1_n = 2;
+        const int in2_n = 4;
+        auto res = oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq,
+                                                  std::ranges::take_view(v1, in1_n),
+                                                  std::ranges::take_view(v2, in2_n), out,
+                                                  std::ranges::less{}, [](auto x) { return x; });
+        const int exp_out_n = 5;
+        auto out_expected_subrange = std::ranges::subrange(out_expected.data(), out_expected.data() + exp_out_n);
+        auto out_subrange = std::ranges::subrange(std::ranges::begin(out), res.out);
+        EXPECT_EQ_RANGES(out_expected_subrange, out_subrange, "wrong result with seq policy, smaller r1");
+    }
+    {
+        // Empty sequences
+        std::vector<int> v1_empty;
+        std::vector<int> v2_empty;
+        auto res = oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq, v1_empty, v2_empty, out);
+        EXPECT_EQ(0, res.in1 - std::ranges::begin(v1_empty), "wrong res.in1");
+        EXPECT_EQ(0, res.in2 - std::ranges::begin(v2_empty), "wrong res.in2");
+        EXPECT_EQ(0, res.out - std::ranges::begin(out), "wrong res.out");
+    }
+    {
+        // Empty r1
+        std::ranges::fill(out, 0xCD);
+        std::vector<int> v1_empty;
+        auto res = oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq, v1_empty, v2, out);
+        auto out_subrange_expected = std::views::all(v2);
+        auto out_subrange = std::ranges::subrange(std::ranges::begin(out), res.out);
+        EXPECT_EQ_RANGES(out_subrange_expected, out_subrange, "wrong result with seq policy, empty r1");
+        EXPECT_EQ(0, res.in1 - std::ranges::begin(v1_empty), "wrong res.in1");
+        EXPECT_EQ(std::ranges::size(v2), res.in2 - std::ranges::begin(v2), "wrong res.in2");
+        EXPECT_EQ(std::ranges::size(v2), res.out - std::ranges::begin(out), "wrong res.out");
+    }
+    {
+        // Empty r2
+        std::ranges::fill(out, 0xCD);
+        std::vector<int> v2_empty;
+        auto res = oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq, v1, v2_empty, out);
+        auto out_subrange_expected = std::views::all(v1);
+        auto out_subrange = std::ranges::subrange(std::ranges::begin(out), res.out);
+        EXPECT_EQ_RANGES(out_subrange_expected, out_subrange, "wrong result with seq policy, empty r2");
+        EXPECT_EQ(std::ranges::size(v1), res.in1 - std::ranges::begin(v1), "wrong res.in1");
+        EXPECT_EQ(0, res.in2 - std::ranges::begin(v2_empty), "wrong res.in2");
+        EXPECT_EQ(std::ranges::size(v1), res.out - std::ranges::begin(out), "wrong res.out");
+    }
+    {
+        // - When a pair matches, an element from the first sequence is copied
+        // - Order is preserved
+        // - Predicate + two projections
+        // TODO: use zip_view with c++23 onwards
+        std::vector<std::pair<int, int>> kv1 = {{1, 1}, {3, 11}, {3, 12}, {4, 1}};
+        std::vector<std::pair<int, int>> kv2 = {{0, 2}, {3, 2}, {3, 2}, {3, 21}};
+        std::vector<std::pair<int, int>> kv_out(6, {0xCD, 0xCD});
+        std::vector<int> k_out_expected = {0, 1, 3, 3, 3, 4};
+        std::vector<int> v_out_expected = {2, 1, 11, 12, 21, 1};
+        std::vector<int> k_out(std::ranges::size(kv_out));
+        std::vector<int> v_out(std::ranges::size(kv_out));
+
+        auto proj = [](const std::pair<int, int>& p) { return p.first; };
+        oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq, kv1, kv2, kv_out, std::ranges::less{}, proj, proj);
+
+        std::ranges::transform(kv_out, k_out.begin(), [](const auto& p) { return p.first; });
+        std::ranges::transform(kv_out, v_out.begin(), [](const auto& p) { return p.second; });
+        EXPECT_EQ_RANGES(k_out_expected, k_out, "wrong result with seq policy, wrong keys");
+        EXPECT_EQ_RANGES(v_out_expected, v_out, "wrong result with seq policy, wrong values");
+    }
+    {
+        // Reverse order
+        std::vector<int> v3 = {3, 2, 1};
+        std::vector<int> v4 = {2, 1, 0};
+        std::vector<int> out2(4, 0xCD);
+        std::vector<int> out2_expected = {3, 2, 1, 0};
+        oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq, v3, v4, out2, std::ranges::greater{});
+        EXPECT_EQ_RANGES(out2_expected, out2, "wrong result with seq policy");
+    }
+    // Different projections/types are tested in test_mixed_types_host
+
+    // TODO: test type requirements
+}
+
 void test_mixed_types_host()
 {
     std::vector<A> r1 = {{1}, {2}, {3}};
@@ -99,41 +208,6 @@ void test_mixed_types_device()
         oneapi::dpl::ranges::set_union(policy, r1, r2, r_out, std::ranges::less{}, proj_a, proj_b);
         EXPECT_EQ_RANGES(out_expected, out, "wrong result with device policy");
     }
-}
-
-void test_serial_set_union()
-{
-    std::vector<int> v1 = {1, 2, 3, 3, 3, 4, 5};
-    std::vector<int> v2 = {0, 2, 2, 3, 3, 7};
-    std::vector<int> out(10, 0xCD);
-    std::vector<int> out_expected = {0, 1, 2, 2, 3, 3, 3, 4, 5, 7};
-
-    {
-        auto res = oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq, v1, v2, out);
-        EXPECT_EQ_RANGES(out_expected, out, "wrong result with serial policy");
-        EXPECT_EQ(std::ranges::size(v1), std::ranges::distance(std::ranges::begin(v1), res.in1), "wrong res.in1");
-        EXPECT_EQ(std::ranges::size(v2), std::ranges::distance(std::ranges::begin(v2), res.in2), "wrong res.in2");
-        EXPECT_EQ(std::ranges::size(out), std::ranges::distance(std::ranges::begin(out), res.out), "wrong res.out");
-    }
-    {
-        std::ranges::fill(out, 0xCD);
-        const int out_n = 5;
-        auto out_subrange = std::ranges::subrange(out.data(), out.data() + out_n);
-        auto out_expected_subrange = std::ranges::subrange(out_expected.data(), out_expected.data() + out_n);
-        auto res = oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq, v1, v2, out_subrange);
-        EXPECT_EQ_RANGES(out_expected_subrange, out_subrange,
-                         "wrong result with serial policy, insufficient out range capacity case");
-        EXPECT_EQ(3, std::ranges::distance(std::ranges::begin(v1), res.in1),
-                        "wrong res.in1, insufficient out range capacity case");
-        EXPECT_EQ(4, std::ranges::distance(std::ranges::begin(v2), res.in2),
-                         "wrong res.in2, insufficient out range capacity case");
-        EXPECT_EQ(out_n, std::ranges::distance(std::ranges::begin(out_subrange), res.out),
-                         "wrong res.out, insufficient out range capacity case");
-    }
-    // TODO: add more checks:
-    //  - different predicates
-    //  - different projections
-    //  - make sure that the equivalent elements are copied from the first range
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 #endif // _ENABLE_STD_RANGES_TESTING
