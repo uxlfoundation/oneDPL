@@ -794,12 +794,9 @@ __pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __v
     auto __beg = _ReverseCounter<_Index, _Buffer>{__last - 1};
     auto __end = _ReverseCounter<_Index, _Buffer>{__first - 1};
 
-    __reorder_pred<_Compare> __reordered_comp{__comp};
-    // __proj must be applied to the second argument after the argument reordering
-    __binary_op<decltype(__reordered_comp), oneapi::dpl::identity, _Proj> __reordered_proj_comp{
-        __reordered_comp, oneapi::dpl::identity{}, __proj};
+    __not_pred<decltype(__comp)> __negation_comp{__comp};
 
-    return __pstl_upper_bound(__a, __beg, __end, __val, __reordered_proj_comp);
+    return __pstl_lower_bound(__a, __beg, __end, __val, __negation_comp, __proj);
 }
 
 // Lower bound implementation based on Shar's algorithm for binary search.
