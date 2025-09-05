@@ -891,9 +891,8 @@ struct __gen_set_op_from_known_balanced_path
             static_cast<std::uint16_t>(std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
                                                 static_cast<_SizeType>(__rng1.size() + __rng2.size() - __i_elem + 1)));
 
-        std::uint16_t __count =
-            __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data, __comp,
-                           __proj1, __proj2);
+        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
+                                               __comp, __proj1, __proj2);
 
         return std::make_tuple(std::uint32_t{__count}, __count);
     }
