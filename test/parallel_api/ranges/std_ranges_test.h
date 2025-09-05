@@ -176,11 +176,13 @@ constexpr int trivial_size{0};
 template<typename>
 constexpr int calc_res_size(int n, int) { return n; }
 
-// If in1 range is empty, then out range is empty
+// If in1 range is empty, then the out range is always empty
+// Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union.
 template<typename>
 int out_size_with_empty_in1(int) { return 0; };
 
-// If in2 range is empty, then out range is empty
+// If in2 range is empty, then the out range is always empty
+// Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union.
 template<typename>
 int out_size_with_empty_in2(int) { return 0; };
 
@@ -297,7 +299,7 @@ private:
                 if constexpr (!all_dangling_in_result_v<res_ret_t>)
                     static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
             }
-        }        
+        }
     }
 
     // Test dangling iterators in return types for call with temporary data
@@ -322,7 +324,7 @@ private:
                 if constexpr (!all_dangling_in_result_v<res_ret_t>)
                     static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
             }
-        }        
+        }
     }
 
     // Test dangling iterators in return types for call with temporary data
