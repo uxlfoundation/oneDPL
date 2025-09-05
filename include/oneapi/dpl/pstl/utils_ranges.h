@@ -97,6 +97,9 @@ struct __range_size<R> {
 template <typename _R>
 using __range_size_t = typename __range_size<_R>::type;
 
+template <typename... _Rng>
+using __common_range_size_t = std::common_type_t<__range_size_t<_Rng>...>;
+
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 template <typename _R>
