@@ -790,8 +790,8 @@ struct __gen_set_balanced_path
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        const auto __rng1 = std::get<0>(__in_rng.tuple());  // first sequence
-        const auto __rng2 = std::get<1>(__in_rng.tuple());  // second sequence
+        const auto __rng1 = std::get<0>(__in_rng.tuple());   // first sequence
+        const auto __rng2 = std::get<1>(__in_rng.tuple());   // second sequence
         auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // temp diag sequence
 
         _IndexT __rng1_balanced_pos = 0;
