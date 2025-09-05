@@ -867,7 +867,9 @@ struct __gen_set_op_from_known_balanced_path
 
         const auto __rng1_temp_diag =
             std::get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
-        using _SizeType = decltype(__rng1.size());
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
+                                             std::make_unsigned_t<decltype(__rng2.size())>,
+                                             std::make_unsigned_t<decltype(__rng1_temp_diag.size())>>
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
