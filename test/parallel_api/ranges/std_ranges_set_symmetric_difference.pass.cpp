@@ -15,7 +15,7 @@
 
 #include "std_ranges_test.h"
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
 namespace test_std_ranges
 {
 template<>
@@ -102,32 +102,25 @@ void test_mixed_types_device()
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
-#endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#endif // _ENABLE_STD_RANGES_TESTING
 
 std::int32_t
 main()
 {
     bool bProcessed = false;
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
     // TODO: use data_in_in_out_lim when set_symmetric_difference supports
     // output range not-sufficiently large to hold all the processed elements
-    // this will also require adding a custom serial implementation of the algorithm into the checker
 
-    auto checker = [](std::ranges::random_access_range auto&& r1,
-                      std::ranges::random_access_range auto&& r2,
-                      std::ranges::random_access_range auto&& r_out, auto&&... args)
+    // TODO: implement individual tests solely for seq policy
+    auto checker = [](auto&&... args)
     {
-        auto res = std::ranges::set_symmetric_difference(std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2),
-                                                         std::ranges::begin(r_out), std::forward<decltype(args)>(args)...);
-
-        using ret_type = std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
-                                                                      std::ranges::borrowed_iterator_t<decltype(r2)>,
-                                                                      std::ranges::borrowed_iterator_t<decltype(r_out)>>;
-        return ret_type{res.in1, res.in2, res.out};
+        return oneapi::dpl::ranges::set_symmetric_difference(oneapi::dpl::execution::seq,
+                                                             std::forward<decltype(args)>(args)...);
     };
 
     test_range_algo<0, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_symmetric_difference, checker);
@@ -147,7 +140,7 @@ main()
 
     bProcessed = true;
 
-#endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(bProcessed);
 }
