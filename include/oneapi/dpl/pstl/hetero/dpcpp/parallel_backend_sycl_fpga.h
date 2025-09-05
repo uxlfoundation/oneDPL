@@ -60,7 +60,7 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
     __future<sycl::event>
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
-        assert(oneapi::dpl::__internal::__eval_min_range_size(__rngs...) > 0);
+        assert(oneapi::dpl::__internal::__min_range_size(__rngs...) > 0);
         assert(__count > 0);
 
         _PRINT_INFO_IN_DEBUG_MODE(__q);
