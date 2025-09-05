@@ -97,7 +97,30 @@ struct __range_size<R> {
 template <typename _R>
 using __range_size_t = typename __range_size<_R>::type;
 
+template <typename... _Rng>
+using __common_range_size_t = std::common_type_t<__range_size_t<_Rng>...>;
+
+#else
+
+template <typename _R>
+using __range_size_t = decltype(std::declval<_R>().size());
+
+template <typename... _Rng>
+using __common_range_size_t = std::common_type_t<__range_size_t<_Rng>...>;
+
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _R, typename... _Rng>
+__common_range_size_t<_R, _Rng...>
+__min_range_size(const _R& __r, const _Rng&... __rngs)
+{
+    using __return_t = __common_range_size_t<_R, _Rng...>;
+
+    if constexpr (sizeof...(__rngs) == 0)
+        return __r.size();
+    else
+        return std::min(static_cast<__return_t>(__r.size()), static_cast<__return_t>(__min_range_size(__rngs...)));
+}
 
 template <typename _R>
 auto
