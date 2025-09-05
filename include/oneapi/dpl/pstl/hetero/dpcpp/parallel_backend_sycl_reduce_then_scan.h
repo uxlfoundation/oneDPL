@@ -665,8 +665,7 @@ struct __get_bounds_simple
         const auto& __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
         const auto& __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
-                                             std::make_unsigned_t<decltype(__rng2.size())>>;
+        using _SizeType = oneapi::dpl::__internal::__common_range_size_t<decltype(__rng1), decltype(__rng2)>;
 
         return std::make_tuple(_SizeType{0}, _SizeType{static_cast<std::size_t>(__rng1.size())}, _SizeType{0},
                                _SizeType{static_cast<std::size_t>(__rng2.size())});
