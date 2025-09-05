@@ -614,8 +614,8 @@ __encode_balanced_path_temp_data(const _IdxT __rng1_idx, const bool __star)
 {
     using signed_t = std::make_signed_t<_IdxT>;
 
-    // Convert to signed representation
-    signed_t __signed_idx{__rng1_idx};
+    // Convert to signed representation - we know this is positive and can be represented in the signed portion
+    signed_t __signed_idx{static_cast<signed_t>(__rng1_idx)};
 
     // Branchless negation: (1 - 2 * __star) gives 1 if __star is false, -1 if __star is true
     return __signed_idx * (signed_t{1} - signed_t{2} * signed_t{__star});
@@ -664,8 +664,8 @@ struct __get_bounds_simple
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>>;
 
-        return std::make_tuple(_SizeType{0}, _SizeType{static_cast<_SizeType>(__rng1.size())}, _SizeType{0},
-                               _SizeType{static_cast<_SizeType>(__rng2.size())});
+        return std::make_tuple(_SizeType{0}, static_cast<_SizeType>(__rng1.size()), _SizeType{0},
+                               static_cast<_SizeType>(__rng2.size()));
     }
 };
 
