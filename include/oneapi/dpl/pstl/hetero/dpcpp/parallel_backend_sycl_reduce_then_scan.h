@@ -635,8 +635,9 @@ struct __get_bounds_partitioned
     {
         const auto& __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(std::get<0>(__in_rng.tuple()).size())>,
-                                             std::make_unsigned_t<decltype(__rng_tmp_diag.size())>>;
+        using _SizeType = oneapi::dpl::__internal::__common_range_size_t<std::decay_t<decltype(std::get<0>(__in_rng.tuple()))>,
+                                                                         std::decay_t<decltype(__rng_tmp_diag)>>;
+
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
         // diagonal index of the tile begin
@@ -762,8 +763,8 @@ struct __gen_set_balanced_path
 
         auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
-                                             std::make_unsigned_t<decltype(__rng2.size())>>;
+        using _SizeType = oneapi::dpl::__internal::__common_range_size_t<decltype(__rng1), decltype(__rng2)>;
+
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             __i_elem = __rng1.size() + __rng2.size() - 1; // ensure we do not go out of bounds
@@ -872,11 +873,8 @@ struct __gen_set_op_from_known_balanced_path
         const auto& __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
         const auto& __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
 
-        const auto& __rng1_temp_diag =
-            std::get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
-                                             std::make_unsigned_t<decltype(__rng2.size())>,
-                                             std::make_unsigned_t<decltype(__rng1_temp_diag.size())>>;
+        const auto& __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
+        using _SizeType = oneapi::dpl::__internal::__common_range_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
