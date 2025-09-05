@@ -100,6 +100,15 @@ using __range_size_t = typename __range_size<_R>::type;
 template <typename... _Rng>
 using __common_range_size_t = std::common_type_t<__range_size_t<_Rng>...>;
 
+template <typename... _Rng>
+__common_range_size_t<_Rng...>
+__eval_min_range_size(const _Rng&... __rngs)
+{
+    using __return_t = __common_range_size_t<_Rng...>;
+
+    return std::min<__return_t>(std::ranges::size(__rngs))...);
+}
+
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 template <typename _R>
