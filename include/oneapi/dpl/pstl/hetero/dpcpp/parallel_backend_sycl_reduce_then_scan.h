@@ -668,8 +668,8 @@ struct __get_bounds_simple
 
         using _SizeType = oneapi::dpl::__internal::__common_range_size_t<decltype(__rng1), decltype(__rng2)>;
 
-        return std::make_tuple(_SizeType{0}, _SizeType{static_cast<std::size_t>(__rng1.size())}, _SizeType{0},
-                               _SizeType{static_cast<std::size_t>(__rng2.size())});
+        return std::make_tuple(_SizeType{0}, static_cast<_SizeType>(__rng1.size()), _SizeType{0},
+                               static_cast<_SizeType>(__rng2.size()));
     }
 };
 
