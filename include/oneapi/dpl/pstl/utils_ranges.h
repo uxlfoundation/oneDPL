@@ -117,20 +117,16 @@ using __range_size_t = decltype(std::declval<_R>().size());
 template <typename... _Rng>
 using __common_range_size_t = std::common_type_t<__range_size_t<_Rng>...>;
 
-template <typename _R>
-__common_range_size_t<_R>
-__eval_min_range_size(const _R& __r)
-{
-    return __r.size();
-}
-
 template <typename _R, typename... _Rng>
 __common_range_size_t<_R, _Rng...>
 __eval_min_range_size(const _R& __r, const _Rng&... __rngs)
 {
     using __return_t = __common_range_size_t<_R, _Rng...>;
 
-    return std::min(__return_t{__eval_min_range_size(__r)}, __return_t{__eval_min_range_size(__rngs...)});
+    if constexpr (sizeof...(__rngs) == 0)
+        return __r.size();
+    else
+        return std::min(__return_t{__r.size()}, __return_t{__eval_min_range_size(__rngs...)});
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
