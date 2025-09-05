@@ -106,7 +106,7 @@ __eval_min_range_size(const _Rng&... __rngs)
 {
     using __return_t = __common_range_size_t<_Rng...>;
 
-    return std::min<__return_t>(std::ranges::size(__rngs))...);
+    return std::ranges::min(__return_t{std::ranges::size(__rngs)}...);
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
