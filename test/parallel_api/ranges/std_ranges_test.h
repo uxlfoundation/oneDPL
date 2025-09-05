@@ -177,12 +177,12 @@ template<typename>
 constexpr int calc_res_size(int n, int) { return n; }
 
 // If in1 range is empty, then the out range is always empty
-// Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union.
+// Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union test.
 template<typename>
 int out_size_with_empty_in1(int) { return 0; };
 
 // If in2 range is empty, then the out range is always empty
-// Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union.
+// Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union test.
 template<typename>
 int out_size_with_empty_in2(int) { return 0; };
 
