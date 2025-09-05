@@ -55,7 +55,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Function, t
 auto /* see _Size inside the function */
 __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function __f, _Ranges&&... __rngs)
 {
-    using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+    using _Size = oneapi::dpl::__internal::__common_range_size_t<_Ranges...>;
     const _Size __n = std::min({_Size(__rngs.size())...});
     if (__n > 0)
     {
