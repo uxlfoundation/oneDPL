@@ -119,7 +119,7 @@ __min_range_size(const _R& __r, const _Rng&... __rngs)
     if constexpr (sizeof...(__rngs) == 0)
         return __r.size();
     else
-        return std::min(__return_t{__r.size()}, __return_t{__min_range_size(__rngs...)});
+        return std::min(static_cast<__return_t>(__r.size()), static_cast<__return_t>(__min_range_size(__rngs...)));
 }
 
 template <typename _R>
