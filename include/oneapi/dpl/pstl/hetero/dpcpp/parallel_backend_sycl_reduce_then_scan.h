@@ -635,11 +635,8 @@ struct __get_bounds_partitioned
     {
         auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
 
-        // This is a temporary change to avoid type issues
-        // TODO: find a proper solution with a root cause
-        using _SizeType = std::common_type_t<decltype(std::get<0>(__in_rng.tuple()).size()),
-                                             decltype(__rng_tmp_diag.size())>;
-
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(std::get<0>(__in_rng.tuple()).size())>,
+                                             std::make_unsigned_t<decltype(__rng_tmp_diag.size())>>;
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
         // diagonal index of the tile begin
