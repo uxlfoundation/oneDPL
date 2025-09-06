@@ -3295,7 +3295,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
     };
 
     const _DifferenceType1 __n1 = __last1 - __first1;
-    const _DifferenceType1 __n2 = __last2 - __first2;
+    const _DifferenceType2 __n2 = __last2 - __first2;
 
     __par_backend::__buffer<_T> __buf(__size_func(__n1, __n2));
 
