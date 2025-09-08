@@ -952,11 +952,11 @@ struct __reverse_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
-        auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
+        auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
 
         oneapi::dpl::__internal::__ranges::__pattern_reverse(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
                                                              std::forward<_R>(__r));
-        return std::ranges::borrowed_iterator_t<_R>{__end};
+        return std::ranges::borrowed_iterator_t<_R>{__last};
     }
 
 }; //__reverse_fn
