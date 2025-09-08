@@ -614,8 +614,8 @@ __encode_balanced_path_temp_data(const _IdxT __rng1_idx, const bool __star)
 {
     using signed_t = std::make_signed_t<_IdxT>;
 
-    // Convert to signed representation
-    signed_t __signed_idx{__rng1_idx};
+    // Convert to signed representation - we know this is positive and can be represented in the signed portion
+    signed_t __signed_idx{static_cast<signed_t>(__rng1_idx)};
 
     // Branchless negation: (1 - 2 * __star) gives 1 if __star is false, -1 if __star is true
     return __signed_idx * (signed_t{1} - signed_t{2} * signed_t{__star});
@@ -629,21 +629,23 @@ struct __get_bounds_partitioned
     {
         auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
 
-        using _SizeType = decltype(std::get<0>(__in_rng.tuple()).size());
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(std::get<0>(__in_rng.tuple()).size())>,
+                                             std::make_unsigned_t<decltype(std::get<1>(__in_rng.tuple()).size())>,
+                                             std::make_unsigned_t<decltype(__rng_tmp_diag.size())>>;
 
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
         // diagonal index of the tile begin
         const _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
         const _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
-        const _SizeType __wg_end_idx = std::min(
-            ((static_cast<_SizeType>(__id) / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
+        const _SizeType __wg_end_idx =
+            std::min<_SizeType>(((__id / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
 
         const auto [begin_rng1, begin_rng2] =
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
         const auto [end_rng1, end_rng2] =
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
-        return std::make_tuple(begin_rng1, end_rng1, begin_rng2, end_rng2);
+        return std::make_tuple(_SizeType{begin_rng1}, _SizeType{end_rng1}, _SizeType{begin_rng2}, _SizeType{end_rng2});
     }
     std::uint16_t __diagonal_spacing;
     std::size_t __tile_size;
@@ -659,8 +661,11 @@ struct __get_bounds_simple
         const auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
         const auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
 
-        using _SizeType = decltype(__rng1.size());
-        return std::make_tuple(_SizeType{0}, __rng1.size(), _SizeType{0}, __rng2.size());
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
+                                             std::make_unsigned_t<decltype(__rng2.size())>>;
+
+        return std::make_tuple(_SizeType{0}, static_cast<_SizeType>(__rng1.size()), _SizeType{0},
+                               static_cast<_SizeType>(__rng2.size()));
     }
 };
 
@@ -753,7 +758,8 @@ struct __gen_set_balanced_path
 
         auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
 
-        using _SizeType = decltype(__rng1.size());
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
+                                             std::make_unsigned_t<decltype(__rng2.size())>>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             __i_elem = __rng1.size() + __rng2.size() - 1; // ensure we do not go out of bounds
@@ -861,7 +867,9 @@ struct __gen_set_op_from_known_balanced_path
 
         const auto __rng1_temp_diag =
             std::get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
-        using _SizeType = decltype(__rng1.size());
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
+                                             std::make_unsigned_t<decltype(__rng2.size())>,
+                                             std::make_unsigned_t<decltype(__rng1_temp_diag.size())>>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= __rng1.size() + __rng2.size())
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
@@ -869,8 +877,9 @@ struct __gen_set_op_from_known_balanced_path
             oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id,
                                                                                 __diagonal_spacing);
 
-        _SizeType __eles_to_process =
-            std::min(_SizeType{__diagonal_spacing - __star_offset}, __rng1.size() + __rng2.size() - __i_elem + 1);
+        std::uint16_t __eles_to_process =
+            static_cast<std::uint16_t>(std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
+                                                static_cast<_SizeType>(__rng1.size() + __rng2.size() - __i_elem + 1)));
 
         std::uint16_t __count =
             __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data, __comp);
