@@ -724,7 +724,7 @@ struct __scan;
 template <typename _Compare, typename _Size1, typename _Size2>
 struct __brick_includes;
 
-template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
+template <typename _SetTag, typename _Compare, typename _Size1, typename _Size2>
 class __brick_set_op;
 
 template <typename _BinaryOperator, typename _Size>
