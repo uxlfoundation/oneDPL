@@ -22,20 +22,9 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    auto swap_ranges_checker = [](std::ranges::random_access_range auto&& r1,
-                           std::ranges::random_access_range auto&& r2)
-    {
-        const auto size = std::ranges::min(std::ranges::size(r1), std::ranges::size(r2));
+    auto swap_ranges_checker = TEST_PREPARE_CALLABLE(std::ranges::swap_ranges);
 
-        std::ranges::swap_ranges(std::ranges::take_view(r1, size), std::ranges::take_view(r2, size));
-
-        using ret_type = std::ranges::swap_ranges_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
-            std::ranges::borrowed_iterator_t<decltype(r2)>>;
-
-        return ret_type{std::ranges::begin(r1) + size, std::ranges::begin(r2) + size};
-    };
-
-    test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::swap_ranges,  swap_ranges_checker);
+    test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::swap_ranges, swap_ranges_checker);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
