@@ -156,6 +156,12 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typ
 oneapi::dpl::__internal::__difference_t<_Range1>
 __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
+    using _ForwardIterator1 = decltype(__rng1.begin());
+    using _ForwardIterator2 = decltype(__rng2.begin());
+
+    using _ReferenceType1 = typename std::iterator_traits<_ForwardIterator1>::reference;
+    using _ReferenceType2 = typename std::iterator_traits<_ForwardIterator2>::reference;
+
     const std::size_t __n1 = __rng1.size();
     const std::size_t __n2 = __rng2.size();
 
@@ -163,7 +169,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
     if (__n1 == 0 || __n2 == 0)
         return 0;
 
-    using _Function = oneapi::dpl::__internal::__swap_fn;
+    using _Function = oneapi::dpl::__internal::__swap_fn<_ReferenceType1, _ReferenceType2>;
 
     if (__n1 <= __n2)
     {

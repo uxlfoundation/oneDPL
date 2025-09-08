@@ -139,6 +139,9 @@ _ForwardIterator2
 __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                _ForwardIterator1 __last1, _ForwardIterator2 __first2)
 {
+    using _ReferenceType1 = typename std::iterator_traits<_ForwardIterator1>::reference;
+    using _ReferenceType2 = typename std::iterator_traits<_ForwardIterator2>::reference;
+
     const auto __n = __last1 - __first1;
     if (__n == 0)
         return __first2;
@@ -151,7 +154,8 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator2>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    using _Function = oneapi::dpl::__internal::__swap_fn;
+    using _Function = oneapi::dpl::__internal::__swap_fn<_ReferenceType1, _ReferenceType2>;
+
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::__brick_swap<_Function>{_Function{}, static_cast<std::size_t>(__n)}, __n, __buf1.all_view(),

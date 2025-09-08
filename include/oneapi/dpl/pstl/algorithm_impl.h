@@ -4258,8 +4258,12 @@ __pattern_swap(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1
 {
     static_assert(__is_host_dispatch_tag_v<_Tag>);
 
-    return __pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                           oneapi::dpl::__internal::__swap_fn{});
+    using _ReferenceType1 = typename std::iterator_traits<_ForwardIterator1>::reference;
+    using _ReferenceType2 = typename std::iterator_traits<_ForwardIterator2>::reference;
+
+    using _Function = oneapi::dpl::__internal::__swap_fn<_ReferenceType1, _ReferenceType2>;
+
+    return __pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, _Function{});
 }
 
 //------------------------------------------------------------------------
