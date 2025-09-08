@@ -12,6 +12,19 @@ oneDPL only supports random access ranges, because they allow simultaneous const
 at any position in the range. This enables efficient workload distribution among multiple threads or processing units,
 which is essential for achieving high performance in parallel execution.
 
+Their interfaces are described in the
+`oneDPL Specification <https://github.com/uxlfoundation/oneAPI-spec/blob/main/source/elements/oneDPL/source/parallel_api/parallel_range_api.rst#parallel-range-algorithms>_.
+
+The following algorithms are not yet fully conformant with the specification
+because they require the output range to have sufficient size to hold all resulting elements:
+
+* ``copy_if``
+* ``set_intersection``
+* ``set_union``
+* ``set_difference``
+* ``set_symmetric_difference``
+* ``unique_copy``
+
 .. Note::
 
   The use of parallel range algorithms requires C++20 and the C++ standard libraries coming with GCC 10 (or higher),
@@ -51,19 +64,6 @@ Supported Algorithms
 
 The ``<oneapi/dpl/algorithm>`` header defines the parallel range algorithms in the ``namespace oneapi::dpl::ranges``.
 All algorithms work with both standard-aligned (host) and device execution policies.
-
-Their interfaces are described in the
-`oneDPL Specification <https://github.com/uxlfoundation/oneAPI-spec/blob/main/source/elements/oneDPL/source/parallel_api/parallel_range_api.rst#parallel-range-algorithms>_.
-
-The following algorithms are not yet fully conformant with the specification
-because they require the output range to have sufficient size to hold all resulting elements:
-
-* ``copy_if``
-* ``set_intersection``
-* ``set_union``
-* ``set_difference``
-* ``set_symmetric_difference``
-* ``unique_copy``
 
 The ``ONEDPL_HAS_RANGE_ALGORITHMS`` :ref:`feature macro <feature-macros>` may be used to test for the presence of
 parallel range algorithms.
