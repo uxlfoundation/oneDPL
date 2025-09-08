@@ -229,11 +229,10 @@ template <typename _CustomName, typename _Index, typename _Range1, typename _Ran
 __future<sycl::event>
 __parallel_copy_impl(sycl::queue& __q, _Index __count, _Range1&& __rng1, _Range2&& __rng2)
 {
-    auto __brick = oneapi::dpl::__internal::__pstl_assign{};
     return oneapi::dpl::__par_backend_hetero::__parallel_for_impl<_CustomName>(
         __q,
-        unseq_backend::walk_n_vectors_or_scalars<decltype(__brick)>{std::move(__brick),
-                                                                    static_cast<std::size_t>(__count)},
+        unseq_backend::walk_n_vectors_or_scalars<oneapi::dpl::__internal::__pstl_assign>{
+            oneapi::dpl::__internal::__pstl_assign{}, static_cast<std::size_t>(__count)},
         __count, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2));
 }
 
