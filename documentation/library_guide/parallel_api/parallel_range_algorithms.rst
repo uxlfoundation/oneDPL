@@ -59,11 +59,11 @@ The following algorithms are not yet fully conformant with the specification
 because they require the output range to have sufficient size to hold all resulting elements:
 
 * ``copy_if``
-* ``unique_copy``
 * ``set_intersection``
 * ``set_union``
 * ``set_difference``
 * ``set_symmetric_difference``
+* ``unique_copy``
 
 The ``ONEDPL_HAS_RANGE_ALGORITHMS`` :ref:`feature macro <feature-macros>` may be used to test for the presence of
 parallel range algorithms.
