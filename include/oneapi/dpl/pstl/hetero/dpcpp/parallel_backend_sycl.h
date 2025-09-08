@@ -1371,7 +1371,7 @@ struct __check_use_write_a_alg
     operator()(oneapi::dpl::unseq_backend::_UnionTag, const _Rng1&, const _Rng2& __rng2) const
     {
         // For union operations, we must are using __n2 as the set a in a difference operation prior to a merge, so the
-        // threshold should be on __n2. The sets must kepts in this order because semantically elements must be copied 
+        // threshold should be on __n2. The sets must kepts in this order because semantically elements must be copied
         // from __rng1 when they are shared (important for algorithms where the key being compared is not the full
         // element).
         using __value_t = oneapi::dpl::__internal::__value_t<_Rng2>;
