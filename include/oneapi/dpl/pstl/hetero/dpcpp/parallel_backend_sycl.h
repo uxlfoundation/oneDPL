@@ -1670,8 +1670,8 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
                     const std::size_t __k = oneapi::dpl::__internal::__dpl_bit_ceil(
                         (std::size_t)std::ceil(__desired_iters_per_work_item / __iters_per_work_item));
                     // Proportionally reduce the number of work groups.
-                    __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size *
-                                                                                         __iters_per_work_item * __k);
+                    __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
+                        __rng_n, __wgroup_size * __iters_per_work_item * __k);
                 }
             }
         }
@@ -2119,8 +2119,8 @@ struct __is_radix_sort_usable_for_type
     static constexpr bool value =
 #if _ONEDPL_USE_RADIX_SORT
         (::std::is_arithmetic_v<_T> || ::std::is_same_v<sycl::half, _T>) &&
-        (__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value ||
-         __internal::__is_comp_descending<::std::decay_t<_Compare>>::value);
+            (__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value ||
+            __internal::__is_comp_descending<::std::decay_t<_Compare>>::value);
 #else
         false;
 #endif // _ONEDPL_USE_RADIX_SORT
