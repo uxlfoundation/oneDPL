@@ -156,30 +156,32 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typ
 oneapi::dpl::__internal::__difference_t<_Range1>
 __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
+    const std::size_t __n1 = __rng1.size();
+    const std::size_t __n2 = __rng2.size();
+
     //a trivial pre-check
-    if (__rng1.empty() || __rng2.empty())
+    if (__n1 == 0 || __n2 == 0)
         return 0;
 
     using _Function = oneapi::dpl::__internal::__swap_fn;
 
-    if (__rng1.size() <= __rng2.size())
+    if (__n1 <= __n2)
     {
-        const std::size_t __n = __rng1.size();
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            unseq_backend::__brick_swap<_Function>{_Function{}, __n}, __n, __rng1, __rng2)
+            unseq_backend::__brick_swap<_Function>{_Function{}, __n1}, __n1, __rng1, __rng2)
             .__checked_deferrable_wait();
-        return __n;
+        return __n1;
     }
-    const std::size_t __n = __rng2.size();
+
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-        unseq_backend::__brick_swap<_Function>{_Function{}, __n}, __n, __rng2, __rng1)
+        unseq_backend::__brick_swap<_Function>{_Function{}, __n2}, __n2, __rng2, __rng1)
         .__checked_deferrable_wait();
-    return __n;
+    return __n2;
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
