@@ -908,6 +908,74 @@ struct __replace_fn
 
 inline constexpr __internal::__replace_fn replace;
 
+// [alg.reverse]
+
+namespace __internal
+{
+struct __reverse_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+
+        oneapi::dpl::__internal::__ranges::__pattern_reverse(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+                                                             __r);
+        return std::ranges::borrowed_iterator_t<_R>{std::ranges::begin(__r) + std::ranges::size(__r)};
+    }
+
+}; //__reverse_fn
+} // namespace __internal
+
+inline constexpr __internal::__reverse_fn reverse;
+
+// [alg.reverse_copy]
+
+namespace __internal
+{
+struct __reverse_copy_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+              std::ranges::random_access_range _OutRange>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
+
+    std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                  std::ranges::borrowed_iterator_t<_InRange>,
+                                  std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+
+        using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
+        const _Size __in_size = std::ranges::size(__in_r);
+        const _Size __out_size = std::ranges::size(__out_r);
+        const _Size __min_size = std::ranges::min(__in_size, __out_size);
+
+        auto __first_in = std::ranges::begin(__in_r);
+        auto __first_out = std::ranges::begin(__out_r);
+
+        auto __last_in = __first_in + __in_size;
+        auto __stop_in = __first_in + (__in_size - __min_size);
+        auto __stop_out = __first_out + __min_size;
+
+        oneapi::dpl::__internal::__ranges::__pattern_reverse_copy(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::subrange(__stop_in, __last_in),
+            std::ranges::subrange(__first_out, __stop_out));
+
+        return {__last_in, __stop_in, __stop_out};
+    }
+
+}; //__reverse_copy_fn
+} // namespace __internal
+
+inline constexpr __internal::__reverse_copy_fn reverse_copy;
+
 // [alg.is_sorted_until]
 
 namespace __internal
