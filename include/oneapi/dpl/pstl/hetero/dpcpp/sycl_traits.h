@@ -845,9 +845,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _Compare, typename _Size1, typename _Size2, typename _IsOpDifference>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_set_op, _Compare, _Size1,
-                                                       _Size2, _IsOpDifference)>
+template <typename _SetTag, typename _Compare, typename _Size1, typename _Size2>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_set_op, _SetTag, _Compare,
+                                                       _Size1, _Size2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _Size1, _Size2>
 {
 };
