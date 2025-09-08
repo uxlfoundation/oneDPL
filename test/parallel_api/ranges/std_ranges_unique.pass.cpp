@@ -26,7 +26,7 @@ constexpr int calc_res_size<std::remove_cvref_t<decltype(oneapi::dpl::ranges::un
 } //test_std_ranges
 #endif
 
-std::int32_t
+int
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
