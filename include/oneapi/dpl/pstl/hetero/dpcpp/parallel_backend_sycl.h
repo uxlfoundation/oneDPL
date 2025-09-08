@@ -1361,6 +1361,8 @@ struct __check_use_write_a_alg
     bool
     operator()(_SetTag, const _Rng1& __rng1, const _Rng2&) const
     {
+        // For intersection and difference operations, we check if set A is under an empirically obtained threshold
+        // and if so, we use the set A write only algorithm, as that is most performant when set A is small.
         using __value_t = oneapi::dpl::__internal::__value_t<_Rng1>;
         return __rng1.size() < __threshold_elements * sizeof(__value_t);
     }
@@ -1369,8 +1371,8 @@ struct __check_use_write_a_alg
     bool
     operator()(oneapi::dpl::unseq_backend::_UnionTag, const _Rng1&, const _Rng2& __rng2) const
     {
-        // For union operations, we must are using __n2 as the set a in a difference operation prior to a merge, so the
-        // threshold should be on __n2. The sets must kepts in this order because semantically elements must be copied
+        // For union operations, we must use __rng2 as set A in a difference operation prior to a merge, so the
+        // threshold should be on __n2. The sets must be kept in this order because semantically elements must be copied
         // from __rng1 when they are shared (important for algorithms where the key being compared is not the full
         // element).
         using __value_t = oneapi::dpl::__internal::__value_t<_Rng2>;
