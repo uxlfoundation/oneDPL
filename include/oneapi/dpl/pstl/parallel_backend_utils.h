@@ -27,6 +27,7 @@
 #include "utils.h"
 #include "memory_fwd.h"
 #include "functional_impl.h" // for oneapi::dpl::identity
+
 namespace oneapi
 {
 namespace dpl
