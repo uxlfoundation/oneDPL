@@ -99,7 +99,7 @@ void test_mixed_types_device()
 #endif // TEST_DPCPP_BACKEND_PRESENT
 #endif // _ENABLE_STD_RANGES_TESTING
 
-std::int32_t
+int
 main()
 {
     bool bProcessed = false;

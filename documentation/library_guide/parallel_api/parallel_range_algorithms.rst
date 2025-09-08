@@ -33,7 +33,7 @@ parallel range algorithms:
 * ``std::ranges::views::all``: A range adaptor that returns a view that includes all elements of a range
   (only with standard-aligned execution policies).
 * ``std::ranges::subrange``: A utility that produces a view from an iterator and a sentinel or from a range.
-* ``std::span``: A view to a contiguous data sequence. 
+* ``std::span``: A view to a contiguous data sequence.
 * ``std::ranges::iota_view``: A range factory that generates a sequence of elements by repeatedly incrementing
   an initial value.
 * ``std::ranges::single_view``: A view that contains exactly one element of a specified value.
@@ -101,12 +101,27 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202505L`` or a greater value,
 * ``find_end``
 * ``is_sorted_until``
 
+.. _range-algorithms-202509L:
+
+If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202509L`` or a greater value, the following algorithms are provided:
+
+* ``includes``
+* ``reverse``
+* ``reverse_copy``
+* ``set_difference``
+* ``set_intersection``
+* ``set_symmetric_difference``
+* ``set_union``
+* ``unique``
+* ``unique_copy``
+* ``swap_ranges``
+
 Usage Example for Parallel Range Algorithms
 -------------------------------------------
 
 .. code:: cpp
 
-    {        
+    {
         std::vector<int> vec_in = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         std::vector<int> vec_out{vec_in.size()};
 

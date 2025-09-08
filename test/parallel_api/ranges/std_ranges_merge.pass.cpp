@@ -65,7 +65,7 @@ struct merge_checker_fn
 } merge_checker;
 #endif //_ENABLE_STD_RANGES_TESTING
 
-std::int32_t
+int
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
