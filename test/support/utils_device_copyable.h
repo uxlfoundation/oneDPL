@@ -17,6 +17,7 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "utils_sycl_defs.h"
+#include "utils.h"
 #include <iostream>
 #include <type_traits>
 #include <cstddef>

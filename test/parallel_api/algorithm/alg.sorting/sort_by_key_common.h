@@ -38,9 +38,6 @@
 struct StableSortTag{};
 struct UnstableSortTag{};
 
-class TagUSM;
-class TagBuffer;
-
 struct Particle
 {
     float mass = 0;
