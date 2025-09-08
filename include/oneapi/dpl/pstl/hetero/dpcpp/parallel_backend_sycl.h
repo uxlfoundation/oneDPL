@@ -1368,6 +1368,8 @@ struct __check_use_write_a_alg
     bool
     operator()(_SetTag, const _Rng1& __rng1, const _Rng2&) const
     {
+        // For intersection and difference operations, we check if set A is under an empirically obtained threshold
+        // and if so, we use the set A write only algorithm, as that is most performant when set A is small.
         using __value_t = oneapi::dpl::__internal::__value_t<_Rng1>;
         return __rng1.size() < __threshold_elements * sizeof(__value_t);
     }
@@ -1376,8 +1378,8 @@ struct __check_use_write_a_alg
     bool
     operator()(oneapi::dpl::unseq_backend::_UnionTag, const _Rng1&, const _Rng2& __rng2) const
     {
-        // For union operations, we must are using __n2 as the set a in a difference operation prior to a merge, so the
-        // threshold should be on __n2. The sets must kepts in this order because semantically elements must be copied
+        // For union operations, we must use __rng2 as set A in a difference operation prior to a merge, so the
+        // threshold should be on __n2. The sets must be kept in this order because semantically elements must be copied
         // from __rng1 when they are shared (important for algorithms where the key being compared is not the full
         // element).
         using __value_t = oneapi::dpl::__internal::__value_t<_Rng2>;
@@ -1677,8 +1679,8 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
                     const std::size_t __k = oneapi::dpl::__internal::__dpl_bit_ceil(
                         (std::size_t)std::ceil(__desired_iters_per_work_item / __iters_per_work_item));
                     // Proportionally reduce the number of work groups.
-                    __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size *
-                                                                                         __iters_per_work_item * __k);
+                    __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
+                        __rng_n, __wgroup_size * __iters_per_work_item * __k);
                 }
             }
         }
@@ -2126,8 +2128,8 @@ struct __is_radix_sort_usable_for_type
     static constexpr bool value =
 #if _ONEDPL_USE_RADIX_SORT
         (::std::is_arithmetic_v<_T> || ::std::is_same_v<sycl::half, _T>) &&
-        (__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value ||
-         __internal::__is_comp_descending<::std::decay_t<_Compare>>::value);
+            (__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value ||
+            __internal::__is_comp_descending<::std::decay_t<_Compare>>::value);
 #else
         false;
 #endif // _ONEDPL_USE_RADIX_SORT
