@@ -1228,28 +1228,23 @@ struct __rotate_copy
 // brick_set_op for difference and intersection operations
 //------------------------------------------------------------------------
 
-template <typename _IsOneShot>
-struct _IntersectionTag : public ::std::false_type
+struct _IntersectionTag
 {
-    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
-};
-template <typename _IsOneShot>
-struct _DifferenceTag : public ::std::true_type
-{
-    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
-};
-template <typename _IsOneShot>
-struct _UnionTag : public std::true_type
-{
-    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
-};
-template <typename _IsOneShot>
-struct _SymmetricDifferenceTag : public std::true_type
-{
-    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
 };
 
-template <typename _Size1, typename _Size2, typename _IsOpDifference, typename _Compare,
+struct _DifferenceTag
+{
+};
+
+struct _UnionTag
+{
+};
+
+struct _SymmetricDifferenceTag
+{
+};
+
+template <typename _SetTag, typename _Size1, typename _Size2, typename _Compare,
           typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 class __brick_set_op
 {
@@ -1282,7 +1277,8 @@ class __brick_set_op
         auto __res =
             __internal::__pstl_lower_bound(__b, _Size2(0), __nb, std::invoke(__proj1, __val_a), __comp, __proj2);
 
-        bool bres = _IsOpDifference(); //initialization in true in case of difference operation; false - intersection.
+        constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
+        bool bres = __is_difference; //initialization is true in case of difference operation; false - intersection.
         if (__res == __nb ||
             std::invoke(__comp, std::invoke(__proj1, __val_a), std::invoke(__proj2, __b[__b_beg + __res])))
         {
@@ -1306,7 +1302,7 @@ class __brick_set_op
                                      __internal::__pstl_left_bound(__b, _Size2(0), _Size2(__res),
                                                                    std::invoke(__proj2, __val_b), __comp, __proj2);
 
-            if constexpr (_IsOpDifference::value)
+            if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
             else
                 bres = __count_a_left <= __count_b; /*intersection*/
