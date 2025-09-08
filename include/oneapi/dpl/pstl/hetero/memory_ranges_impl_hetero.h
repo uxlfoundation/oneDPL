@@ -111,11 +111,12 @@ __pattern_uninitialized_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
 
     auto __first1 = std::ranges::begin(__in_r);
     auto __first2 = std::ranges::begin(__out_r);
-    auto __last1 = __first1 + __n;
-    auto __last2 = __first2 + __n;
 
     if (__n == 0)
-        return {__last1, __last2};
+        return {__first1, __first2};
+
+    auto __last1 = __first1 + __n;
+    auto __last2 = __first2 + __n;
 
     if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_copy<_OutValueType, _InRefType, _OutRefType>)
     {
@@ -157,11 +158,12 @@ __pattern_uninitialized_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
 
     auto __first1 = std::ranges::begin(__in_r);
     auto __first2 = std::ranges::begin(__out_r);
-    auto __last1 = __first1 + __n;
-    auto __last2 = __first2 + __n;
 
     if (__n == 0)
-        return {__last1, __last2};
+        return {__first1, __first2};
+
+    auto __last1 = __first1 + __n;
+    auto __last2 = __first2 + __n;
 
     if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_move<_OutValueType, _InRefType, _OutRefType>)
     {

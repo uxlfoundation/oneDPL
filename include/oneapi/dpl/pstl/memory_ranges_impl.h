@@ -127,11 +127,11 @@ __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     const _Size __n2 = std::ranges::size(__out_r);
     const _Size __n = std::min(__n1, __n2);
 
+    if (__n == 0)
+        return {__first1, __first2};
+
     const auto __last1 = __first1 + __n;
     const auto __last2 = __first2 + __n;
-
-    if (__n == 0)
-        return {__last1, __last2};
 
     if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_copy<_OutValueType, _InRefType, _OutRefType>)
     {
@@ -180,11 +180,11 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     const _Size __n2 = std::ranges::size(__out_r);
     const _Size __n = std::min(__n1, __n2);
 
+    if (__n == 0)
+        return {__first1, __first2};
+
     const auto __last1 = __first1 + __n;
     const auto __last2 = __first2 + __n;
-
-    if (__n == 0)
-        return {__last1, __last2};
 
     if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_move<_OutValueType, _InRefType, _OutRefType>)
     {
