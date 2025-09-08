@@ -1012,25 +1012,25 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     //{1} is empty
     if (__first1 == __last1)
     {
-        auto __idx = oneapi::dpl::__internal::__pattern_walk2_brick(
+        auto __result_end = oneapi::dpl::__internal::__pattern_walk2_brick(
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_1>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first2, __last2, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
 
-        return {__first1, __last2, __result + __idx};
+        return {__first1, __last2, __result_end};
     }
 
     //{2} is empty
     if (__first2 == __last2)
     {
-        auto __idx = oneapi::dpl::__internal::__pattern_walk2_brick(
+        auto __result_end = oneapi::dpl::__internal::__pattern_walk2_brick(
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_2>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
 
-        return {__last1, __first2, __result + __idx};
+        return {__last1, __first2, __result_end};
     }
 
     auto __result_end = __pattern_hetero_set_op(
@@ -1095,13 +1095,13 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     // {1} \ {}: the difference is {1}
     if (__first2 == __last2)
     {
-        auto __idx = oneapi::dpl::__internal::__pattern_walk2_brick(
+        auto __result_end = oneapi::dpl::__internal::__pattern_walk2_brick(
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_difference_copy_case_1>(
                 std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
 
-        return {__last1, __result + __idx};
+        return {__last1, __result_end};
     }
 
     auto __result_end = __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_DifferenceTag{},
@@ -1145,25 +1145,25 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
     //{1} is empty
     if (__first1 == __last1)
     {
-        auto __idx = oneapi::dpl::__internal::__pattern_walk2_brick(
+        auto __result_end = oneapi::dpl::__internal::__pattern_walk2_brick(
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_copy_case_1>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first2, __last2, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
 
-        return {__first1, __last2, __result + __idx};
+        return {__first1, __last2, __result_end};
     }
 
     //{2} is empty
     if (__first2 == __last2)
     {
-        auto __idx = oneapi::dpl::__internal::__pattern_walk2_brick(
+        auto __result_end = oneapi::dpl::__internal::__pattern_walk2_brick(
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_copy_case_2>(
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
 
-        return {__last1, __first2, __result + __idx};
+        return {__last1, __first2, __result_end};
     }
 
     auto __result_end = __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{},

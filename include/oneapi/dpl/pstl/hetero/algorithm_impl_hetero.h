@@ -1763,11 +1763,13 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bid
 }
 
 template <typename _BackendTag, typename _SetTag, typename _ExecutionPolicy, typename _ForwardIterator1,
-          typename _ForwardIterator2, typename _OutputIterator, typename _Compare>
+          typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
+          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
 _OutputIterator
 __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _ExecutionPolicy&& __exec,
                         _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                        _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp)
+                        _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1 = {},
+                        _Proj2 __proj2 = {})
 {
     using _SizeType = std::common_type_t<typename std::iterator_traits<_ForwardIterator1>::difference_type,
                                          typename std::iterator_traits<_ForwardIterator2>::difference_type>;
@@ -1788,7 +1790,7 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
 
     _SizeType __result_size = __par_backend_hetero::__parallel_set_op<_SetTag>(
         _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
-        __buf3.all_view(), __comp);
+        __buf3.all_view(), __comp, __proj1, __proj2);
 
     return __result + __result_size;
 }
