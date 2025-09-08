@@ -101,6 +101,8 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202505L`` or a greater value,
 * ``find_end``
 * ``is_sorted_until``
 
+.. _range-algorithms-202509L:
+
 If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202509L`` or a greater value, the following algorithms are provided:
 
 * ``reverse``
