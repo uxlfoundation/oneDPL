@@ -557,21 +557,21 @@ template <typename _SetTag>
 struct __get_set_operation;
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag> : public __set_intersection
+struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag> : __set_intersection
 {
 };
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag> : public __set_difference
+struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag> : __set_difference
 {
 };
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag> : public __set_union
+struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag> : __set_union
 {
 };
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag> : public __set_symmetric_difference
+struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag> : __set_symmetric_difference
 {
 };
 
