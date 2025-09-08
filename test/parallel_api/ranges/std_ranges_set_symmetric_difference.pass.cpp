@@ -104,7 +104,7 @@ void test_mixed_types_device()
 #endif // TEST_DPCPP_BACKEND_PRESENT
 #endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
 
-std::int32_t
+int
 main()
 {
     bool bProcessed = false;
