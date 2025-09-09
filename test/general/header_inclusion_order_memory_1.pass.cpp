@@ -20,15 +20,15 @@
 
 #include "support/utils.h"
 
-#if ONEDPL_HAS_RANGE_ALGORITHMS > 202505L
-#    include <ranges>
+#if ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L
+#    include <ranges>    // std::ranges::subrange
 #    include <algorithm> // std::ranges::count
 #endif
 
 int
 main()
 {
-#if ONEDPL_HAS_RANGE_ALGORITHMS > 202505L
+#if ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L
     constexpr int n = 10;
     std::allocator<int> alloc;
     int* raw_ptr = alloc.allocate(n);
