@@ -1058,10 +1058,10 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
 
 // balanced path
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+          typename _Compare, typename _Proj1, typename _Proj2>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
 __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
-                            _Compare __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+                            _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     constexpr std::uint16_t __diagonal_spacing = 32;
 
