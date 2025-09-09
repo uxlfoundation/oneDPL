@@ -1242,8 +1242,7 @@ struct _SymmetricDifferenceTag
 {
 };
 
-template <typename _SetTag, typename _Size1, typename _Size2, typename _Compare,
-          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+template <typename _SetTag, typename _Size1, typename _Size2, typename _Compare, typename _Proj1, typename _Proj2>
 class __brick_set_op
 {
     _Size1 __na;
