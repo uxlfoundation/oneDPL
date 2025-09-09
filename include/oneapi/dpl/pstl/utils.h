@@ -663,9 +663,9 @@ __pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __valu
 }
 
 // Searching for the first element strongly greater than a passed value - right bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
+template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
 _Index
-__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj = {})
+__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj)
 {
     return __pstl_upper_bound(__a, __first, __last, __val, __comp, __proj);
 }
