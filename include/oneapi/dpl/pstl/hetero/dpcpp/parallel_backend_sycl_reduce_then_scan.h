@@ -519,11 +519,11 @@ template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
 struct __set_generic_operation
 {
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
-              typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+              typename _Proj1, typename _Proj2>
     std::uint16_t
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1 = {},
-               _Proj2 __proj2 = {}) const
+               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
+               _Proj2 __proj2) const
     {
 
         std::uint16_t __count = 0;
