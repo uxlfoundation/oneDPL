@@ -629,9 +629,9 @@ __dpl_signbit(const _T& __x)
     return (__x & __mask) != 0;
 }
 
-template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
+template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
 _Size
-__pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
+__pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
     auto __n = __last - __first;
     auto __cur = __n;

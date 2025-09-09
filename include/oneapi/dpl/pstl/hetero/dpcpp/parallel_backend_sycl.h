@@ -1992,7 +1992,7 @@ struct __partial_merge_kernel
                 /* index inside p1 */ __global_idx - __start_1 +
                 /* relative position in p3 */
                 oneapi::dpl::__internal::__pstl_lower_bound(__in_acc2, __start_2, __part_end_2, __in_acc1[__global_idx],
-                                                            __comp) -
+                                                            __comp, oneapi::dpl::identity{}) -
                 __start_2;
             __out_acc[__out_shift + __shift] = __in_acc1[__global_idx];
         }
