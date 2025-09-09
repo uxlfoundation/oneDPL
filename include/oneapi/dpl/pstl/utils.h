@@ -652,9 +652,9 @@ __pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __valu
     return __first;
 }
 
-template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
+template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
 _Size
-__pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
+__pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};

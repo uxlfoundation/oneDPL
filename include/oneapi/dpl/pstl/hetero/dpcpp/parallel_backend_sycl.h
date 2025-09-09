@@ -2011,7 +2011,7 @@ struct __partial_merge_kernel
                 /* index inside p3 */ __global_idx - __start_2 +
                 /* relative position in p1 */
                 oneapi::dpl::__internal::__pstl_upper_bound(__in_acc1, __start_1, __part_end_1, __in_acc2[__global_idx],
-                                                            __comp) -
+                                                            __comp, oneapi::dpl::identity{}) -
                 __start_1;
             __out_acc[__out_shift + __shift] = __in_acc2[__global_idx];
         }
