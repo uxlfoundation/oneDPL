@@ -863,8 +863,7 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
-          typename _Proj2 = oneapi::dpl::identity>
+template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
