@@ -996,7 +996,7 @@ struct __brick_includes
     _Proj1 __proj1;
     _Proj2 __proj2;
 
-    __brick_includes(_Size1 __size1, _Size2 __size2, _Compare __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+    __brick_includes(_Size1 __size1, _Size2 __size2, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
         : __size1(__size1), __size2(__size2), __comp(__comp), __proj1(__proj1), __proj2(__proj2) {}
 
     template <typename _ItemId, typename __Rng1, typename __Rng2>
