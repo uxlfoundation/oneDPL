@@ -246,13 +246,12 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
     return __cc_range(__first2, __last2, __result);
 }
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
-          typename _CopyFunc, typename _CopyFromFirstSet, typename _Proj1 = oneapi::dpl::identity,
-          typename _Proj2 = oneapi::dpl::identity>
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
+          typename _CopyFromFirstSet, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
 __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                             _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _CopyFunc _copy,
-                             _CopyFromFirstSet, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+                             _ForwardIterator2 __last2, _OutputIterator __result, _CopyFunc _copy, _CopyFromFirstSet,
+                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     while (__first1 != __last1 && __first2 != __last2)
     {

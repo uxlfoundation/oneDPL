@@ -3635,9 +3635,10 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
                    oneapi::dpl::identity) {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1, __first2, __last2, __result, __comp,
+                        __first1, __last1, __first2, __last2, __result,
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                        /*CopyFromFirstSet = */ std::true_type{});
+                        /*CopyFromFirstSet = */ std::true_type{}, __comp, oneapi::dpl::identity{},
+                        oneapi::dpl::identity{});
                 },
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         });
@@ -3655,9 +3656,10 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
                    oneapi::dpl::identity) {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first2, __last2, __first1, __last1, __result, __comp,
+                        __first2, __last2, __first1, __last1, __result,
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                        /*CopyFromFirstSet = */ std::false_type{});
+                        /*CopyFromFirstSet = */ std::false_type{}, __comp, oneapi::dpl::identity{},
+                        oneapi::dpl::identity{});
                 },
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             return __result;

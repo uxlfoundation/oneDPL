@@ -932,9 +932,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
             [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                 return oneapi::dpl::__utils::__set_intersection_construct(
-                    __first1, __last1, __first2, __last2, __result, __comp,
+                    __first1, __last1, __first2, __last2, __result,
                     oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                    /*CopyFromFirstSet = */ std::true_type{}, __proj1, __proj2);
+                    /*CopyFromFirstSet = */ std::true_type{}, __comp, __proj1, __proj2);
             },
             __proj1, __proj2);
         return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
@@ -950,9 +950,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
             [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                 return oneapi::dpl::__utils::__set_intersection_construct(
-                    __first1, __last1, __first2, __last2, __result, __comp,
+                    __first1, __last1, __first2, __last2, __result,
                     oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                    /*CopyFromFirstSet = */ std::false_type{}, __proj1, __proj2);
+                    /*CopyFromFirstSet = */ std::false_type{}, __comp, __proj1, __proj2);
             },
             __proj1, __proj2);
         return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
