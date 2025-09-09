@@ -359,24 +359,25 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         return {__base_diag_count, __steps_between_two_base_diags, __chunk, __steps};
     }
 
-    template <typename DropViews, typename _Compare>
+    template <typename DropViews, typename _Compare, typename _Proj1, typename _Proj2>
     inline static _merge_split_point_t
-    __find_start_point(const WorkDataArea& __data_area, const DropViews& __views, _Compare __comp)
+    __find_start_point(const WorkDataArea& __data_area, const DropViews& __views, _Compare __comp, _Proj1 __proj1,
+                       _Proj2 __proj2)
     {
         return oneapi::dpl::__par_backend_hetero::__find_start_point(
             __views.rng1, _IndexT{0}, __data_area.n1, __views.rng2, _IndexT{0}, __data_area.n2,
-            __data_area.i_elem_local, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            __data_area.i_elem_local, __comp, __proj1, __proj2);
     }
 
-    template <typename DropViews, typename _Rng, typename _Compare>
+    template <typename DropViews, typename _Rng, typename _Compare, typename _Proj1, typename _Proj2>
     inline static void
     __serial_merge(const nd_range_params& __nd_range_params, const WorkDataArea& __data_area, const DropViews& __views,
-                   _Rng& __rng, const _merge_split_point_t& __sp, _Compare __comp)
+                   _Rng& __rng, const _merge_split_point_t& __sp, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
     {
         oneapi::dpl::__par_backend_hetero::__serial_merge(
             __views.rng1, __views.rng2, __rng /* rng3 */, __sp.first /* start1 */, __sp.second /* start2 */,
             __data_area.i_elem /* start3 */, __nd_range_params.chunk, __data_area.n1, __data_area.n2, __comp,
-            oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            __proj1, __proj2);
     }
 
     // Calculation of split points on each base diagonal
@@ -413,8 +414,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
                     const auto __sp =
                         __data_area.is_i_elem_local_inside_merge_matrix()
-                            ? (__data_in_temp ? __find_start_point(__data_area, DropViews(__dst, __data_area), __comp)
-                                              : __find_start_point(__data_area, DropViews(__rng, __data_area), __comp))
+                            ? (__data_in_temp ? __find_start_point(__data_area, DropViews(__dst, __data_area), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+                                              : __find_start_point(__data_area, DropViews(__rng, __data_area), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{}))
                             : _merge_split_point_t{__data_area.n1, __data_area.n2};
                     __base_diagonals_sp_global_ptr[__linear_id] = __sp;
                 });
