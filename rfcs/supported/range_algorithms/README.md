@@ -27,7 +27,7 @@ should be implemented in the future releases.
 ### Key Requirements
 - The range-based signatures for the mentioned API corresponds to
   [Parallel Range Algorithms Specification](https://github.com/uxlfoundation/oneAPI-spec/blob/main/source/elements/oneDPL/source/parallel_api/parallel_range_api.rst).
-- The signature of `reverse_copy` alligns with [P3709](https://wg21.link/p3709),
+- The signature of `reverse_copy` aligns with [P3709](https://wg21.link/p3709),
   which updates the signature defined in [P3179](https://wg21.link/p3179).
 - The implementation supports all oneDPL execution policies:
   `seq`, `unseq`, `par`, `par_unseq`, and `device_policy`.
