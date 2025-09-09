@@ -1168,7 +1168,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
 
     auto __result_end = __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{},
                                                 std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                                __last2, __result, __comp);
+                                                __last2, __result, __comp, __proj1, __proj2);
 
     return {__last1, __last2, __result_end};
 }
