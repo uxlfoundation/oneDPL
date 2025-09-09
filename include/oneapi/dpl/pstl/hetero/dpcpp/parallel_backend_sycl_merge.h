@@ -151,12 +151,12 @@ constexpr static bool __can_use_ternary_op_v = __can_use_ternary_op<_Rng1DataTyp
 
 // Do serial merge of the data from rng1 (starting from start1) and rng2 (starting from start2) and writing
 // to rng3 (starting from start3) in 'chunk' steps, but do not exceed the total size of the sequences (n1 and n2)
-template <typename _Rng1, typename _Rng2, typename _Rng3, typename _Index, typename _Compare,
-          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+template <typename _Rng1, typename _Rng2, typename _Rng3, typename _Index, typename _Compare, typename _Proj1,
+          typename _Proj2>
 std::pair<_Index, _Index>
 __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _Index __start1, const _Index __start2,
                const _Index __start3, const _Index __chunk, const _Index __n1, const _Index __n2, _Compare __comp,
-               const _Index __n3 = 0, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+               const _Index __n3 = 0, _Proj1 __proj1, _Proj2 __proj2)
 {
     const _Index __rng1_size = std::min<_Index>(__n1 > __start1 ? __n1 - __start1 : _Index{0}, __chunk);
     const _Index __rng2_size = std::min<_Index>(__n2 > __start2 ? __n2 - __start2 : _Index{0}, __chunk);
