@@ -156,7 +156,7 @@ template <typename _Rng1, typename _Rng2, typename _Rng3, typename _Index, typen
 std::pair<_Index, _Index>
 __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _Index __start1, const _Index __start2,
                const _Index __start3, const _Index __chunk, const _Index __n1, const _Index __n2, _Compare __comp,
-               const _Index __n3 = 0, _Proj1 __proj1, _Proj2 __proj2)
+               _Proj1 __proj1, _Proj2 __proj2, const _Index __n3 = 0)
 {
     const _Index __rng1_size = std::min<_Index>(__n1 > __start1 ? __n1 - __start1 : _Index{0}, __chunk);
     const _Index __rng2_size = std::min<_Index>(__n2 > __start2 ? __n2 - __start2 : _Index{0}, __chunk);
@@ -258,7 +258,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
 
                 [[maybe_unused]] const std::pair __ends =
                     __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem, __n_merge, __n1,
-                                   __n2, __comp, __n, __proj1, __proj2);
+                                   __n2, __comp, __proj1, __proj2, __n);
 
                 if constexpr (_OutSizeLimit{})
                     if (__id == __steps - 1) //the last WI does additional work
@@ -411,7 +411,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
                     [[maybe_unused]] const std::pair __ends =
                         __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem,
-                                       __nd_range_params.chunk, __n1, __n2, __comp, __n, __proj1, __proj2);
+                                       __nd_range_params.chunk, __n1, __n2, __comp, __proj1, __proj2, __n);
 
                     if constexpr (_OutSizeLimit{})
                         if (__global_idx == __nd_range_params.steps - 1)
