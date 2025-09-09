@@ -374,8 +374,7 @@ struct __gen_unique_mask
 
 // A mask generator for set operations (difference or intersection) to determine if an element from Set A should be
 // written to the output sequence based on its presence in Set B and the operation type (difference or intersection).
-template <typename _SetTag, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
-          typename _Proj2 = oneapi::dpl::identity>
+template <typename _SetTag, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_mask
 {
     template <typename _InRng>
