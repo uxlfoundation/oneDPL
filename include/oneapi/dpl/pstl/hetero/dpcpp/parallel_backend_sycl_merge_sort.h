@@ -414,8 +414,10 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
                     const auto __sp =
                         __data_area.is_i_elem_local_inside_merge_matrix()
-                            ? (__data_in_temp ? __find_start_point(__data_area, DropViews(__dst, __data_area), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
-                                              : __find_start_point(__data_area, DropViews(__rng, __data_area), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{}))
+                            ? (__data_in_temp ? __find_start_point(__data_area, DropViews(__dst, __data_area), __comp,
+                                                                   oneapi::dpl::identity{}, oneapi::dpl::identity{})
+                                              : __find_start_point(__data_area, DropViews(__rng, __data_area), __comp,
+                                                                   oneapi::dpl::identity{}, oneapi::dpl::identity{}))
                             : _merge_split_point_t{__data_area.n1, __data_area.n2};
                     __base_diagonals_sp_global_ptr[__linear_id] = __sp;
                 });
