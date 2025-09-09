@@ -987,8 +987,7 @@ struct __scan
 // __brick_includes
 //------------------------------------------------------------------------
 
-template <typename _Size1, typename _Size2, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
-          typename _Proj2 = oneapi::dpl::identity>
+template <typename _Size1, typename _Size2, typename _Compare, typename _Proj1, typename _Proj2>
 struct __brick_includes
 {
     _Size1 __size1;
