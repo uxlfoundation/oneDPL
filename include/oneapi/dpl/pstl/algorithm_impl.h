@@ -3819,7 +3819,8 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
                oneapi::dpl::identity) {
                 return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                    __first1, __last1, __first2, __last2, __result, __comp, __BrickCopyConstruct<_IsVector>());
+                    __first1, __last1, __first2, __last2, __result, __BrickCopyConstruct<_IsVector>(), __comp,
+                    oneapi::dpl::identity{}, oneapi::dpl::identity{});
             });
     });
 }
