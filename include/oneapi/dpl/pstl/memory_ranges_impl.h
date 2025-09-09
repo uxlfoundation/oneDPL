@@ -82,7 +82,7 @@ __pattern_uninitialized_value_construct(_Tag __tag, _ExecutionPolicy&& __exec, _
 
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_value_construct<_ValueType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_value_construct<_ValueType>)
     {
         oneapi::dpl::__internal::__pattern_walk_brick(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -133,7 +133,7 @@ __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     const auto __last1 = __first1 + __n;
     const auto __last2 = __first2 + __n;
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_copy<_OutValueType, _InRefType, _OutRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_copy<_OutValueType, _OutRefType, _InRefType>)
     {
         oneapi::dpl::__internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                        __first2, oneapi::dpl::__internal::__brick_copy<_Tag>{});
@@ -186,7 +186,7 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     const auto __last1 = __first1 + __n;
     const auto __last2 = __first2 + __n;
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_move<_OutValueType, _InRefType, _OutRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_move<_OutValueType, _OutRefType, _InRefType>)
     {
         oneapi::dpl::__internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                        __first2, oneapi::dpl::__internal::__brick_copy<_Tag>{});
@@ -225,7 +225,7 @@ __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, co
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_fill<_ValueType, _T>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_fill<_ValueType, _T>)
     {
         oneapi::dpl::__internal::__pattern_walk_brick(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,

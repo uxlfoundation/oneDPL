@@ -72,7 +72,7 @@ __pattern_uninitialized_value_construct(__hetero_tag<_BackendTag> __tag, _Execut
 
     auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_value_construct<_ValueType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_value_construct<_ValueType>)
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
@@ -118,7 +118,7 @@ __pattern_uninitialized_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     auto __last1 = __first1 + __n;
     auto __last2 = __first2 + __n;
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_copy<_OutValueType, _InRefType, _OutRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_copy<_OutValueType, _OutRefType, _InRefType>)
     {
         // subrange is used instead of take_view/drop_view because the latter throw exceptions in libstdc++10
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
@@ -165,7 +165,7 @@ __pattern_uninitialized_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     auto __last1 = __first1 + __n;
     auto __last2 = __first2 + __n;
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_move<_OutValueType, _InRefType, _OutRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_move<_OutValueType, _OutRefType, _InRefType>)
     {
         // subrange is used instead of take_view/drop_view because the latter throw exceptions in libstdc++10
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
@@ -197,7 +197,7 @@ __pattern_uninitialized_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     const auto __first = std::ranges::begin(__r);
     const auto __last = __first + std::ranges::size(__r);
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_fill<_ValueType, _T>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_fill<_ValueType, _T>)
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),

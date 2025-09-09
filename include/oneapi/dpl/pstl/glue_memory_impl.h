@@ -48,7 +48,7 @@ uninitialized_copy(_ExecutionPolicy&& __exec, _InputIterator __first, _InputIter
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_copy<_OutValueType, _InRefType, _OutRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_copy<_OutValueType, _OutRefType, _InRefType>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
@@ -72,7 +72,7 @@ uninitialized_copy_n(_ExecutionPolicy&& __exec, _InputIterator __first, _Size __
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_copy<_OutValueType, _InRefType, _OutRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_copy<_OutValueType, _OutRefType, _InRefType>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick_n(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
@@ -98,7 +98,7 @@ uninitialized_move(_ExecutionPolicy&& __exec, _InputIterator __first, _InputIter
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_move<_OutValueType, _InRefType, _OutRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_move<_OutValueType, _OutRefType, _InRefType>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
@@ -122,7 +122,7 @@ uninitialized_move_n(_ExecutionPolicy&& __exec, _InputIterator __first, _Size __
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_move<_OutValueType, _InRefType, _OutRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_move<_OutValueType, _OutRefType, _InRefType>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick_n(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
@@ -146,7 +146,7 @@ uninitialized_fill(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Forward
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_fill<_ValueType, _Tp>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_fill<_ValueType, _Tp>)
     {
         oneapi::dpl::__internal::__pattern_walk_brick(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -168,7 +168,7 @@ uninitialized_fill_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size 
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_fill<_ValueType, _Tp>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_fill<_ValueType, _Tp>)
     {
         return oneapi::dpl::__internal::__pattern_walk_brick_n(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n,
@@ -280,7 +280,7 @@ uninitialized_value_construct(_ExecutionPolicy&& __exec, _ForwardIterator __firs
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_value_construct<_ValueType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_value_construct<_ValueType>)
     {
         oneapi::dpl::__internal::__pattern_walk_brick(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -302,7 +302,7 @@ uninitialized_value_construct_n(_ExecutionPolicy&& __exec, _ForwardIterator __fi
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (oneapi::dpl::__internal::__can_avoid_placement_new_in_value_construct<_ValueType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_value_construct<_ValueType>)
     {
         return oneapi::dpl::__internal::__pattern_walk_brick_n(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n,
