@@ -25,7 +25,7 @@ should be implemented in the future releases.
 - Opportunity to fuse several parallel algorithm invocations into one.
 
 ### Key Requirements
-- The range-based signatures for the mentioned API should correspond to
+- The range-based signatures for the mentioned API corresponds to
   [Parallel Range Algorithms Specification](https://github.com/uxlfoundation/oneAPI-spec/blob/main/source/elements/oneDPL/source/parallel_api/parallel_range_api.rst).
 - The signature of `reverse_copy` alligns with [P3709](https://wg21.link/p3709),
   which updates the signature defined in [P3179](https://wg21.link/p3179).
