@@ -674,11 +674,9 @@ __pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __
 // When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
 // After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
 // resulting in a standard binary search.
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare,
-          typename _Proj = oneapi::dpl::identity>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
 _Size1
-__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp,
-                     _Proj __proj = {})
+__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
     auto __n = __last - __first;
     std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
