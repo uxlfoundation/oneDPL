@@ -1173,9 +1173,9 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
 }
 
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+          typename _Compare, typename _Proj1, typename _Proj2>
 std::size_t
-__set_op_impl(_SetTag __set_tag, sycl::queue&, _Range1&&, _Range2&&, _Range3&&, _Compare, _Proj1 = {}, _Proj2 = {});
+__set_op_impl(_SetTag __set_tag, sycl::queue&, _Range1&&, _Range2&&, _Range3&&, _Compare, _Proj1, _Proj2);
 
 template <typename _CustomName>
 struct __set_union_merge_wrapper;
@@ -1399,10 +1399,10 @@ struct __check_use_write_a_alg
 
 // Selects the right implementation of set based on the size and platform
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1 /*= oneapi::dpl::identity*/, typename _Proj2 /*= oneapi::dpl::identity*/>
+          typename _Compare, typename _Proj1, typename _Proj2>
 std::size_t
 __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
-              _Compare __comp, _Proj1 __proj1 /*= {}*/, _Proj2 __proj2 /*= {}*/)
+              _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     //can we use reduce then scan?
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
