@@ -1969,9 +1969,10 @@ merge(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3&& _
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2, __rng3);
 
     auto __view_res = views::all_write(::std::forward<_Range3>(__rng3));
-    oneapi::dpl::__internal::__ranges::__pattern_merge(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__rng1)),
-        views::all_read(::std::forward<_Range2>(__rng2)), __view_res, __comp);
+    oneapi::dpl::__internal::__ranges::__pattern_merge(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+                                                       views::all_read(::std::forward<_Range1>(__rng1)),
+                                                       views::all_read(::std::forward<_Range2>(__rng2)), __view_res,
+                                                       __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     return __view_res.size();
 }
