@@ -1763,13 +1763,12 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bid
 }
 
 template <typename _BackendTag, typename _SetTag, typename _ExecutionPolicy, typename _ForwardIterator1,
-          typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
-          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+          typename _ForwardIterator2, typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
 __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _ExecutionPolicy&& __exec,
                         _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                        _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1 = {},
-                        _Proj2 __proj2 = {})
+                        _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
+                        _Proj2 __proj2)
 {
     using _SizeType = std::common_type_t<typename std::iterator_traits<_ForwardIterator1>::difference_type,
                                          typename std::iterator_traits<_ForwardIterator2>::difference_type>;
@@ -1806,7 +1805,8 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     if (__first1 == __last1 || __first2 == __last2)
         return __result;
     return __pattern_hetero_set_op(__tag, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                   __first1, __last1, __first2, __last2, __result, __comp);
+                                   __first1, __last1, __first2, __last2, __result, __comp, oneapi::dpl::identity{},
+                                   oneapi::dpl::identity{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1837,7 +1837,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     }
     return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_DifferenceTag{},
                                    std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
-                                   __result, __comp);
+                                   __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1883,7 +1883,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_UnionTag{},
                                    std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
-                                   __result, __comp);
+                                   __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1935,7 +1935,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
     }
     return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{},
                                    std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
-                                   __result, __comp);
+                                   __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 template <typename _Name>
