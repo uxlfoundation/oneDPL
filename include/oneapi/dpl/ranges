@@ -48,7 +48,6 @@ static_assert(_ONEDPL_CXX_STANDARD_LIBRARY_CHECK,
 // If <execution> has already been included, pull in implementations
 #    include "oneapi/dpl/pstl/glue_algorithm_ranges_impl.h"
 #    include "oneapi/dpl/pstl/glue_numeric_ranges_impl.h"
-#    include "oneapi/dpl/pstl/glue_memory_ranges_impl.h"
 #endif // _ONEDPL_EXECUTION_POLICIES_DEFINED
 
 namespace dpl = oneapi::dpl;
