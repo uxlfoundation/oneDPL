@@ -274,13 +274,12 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
     return __result;
 }
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
-          typename _CopyConstructRange, typename _Proj1 = oneapi::dpl::identity,
-          typename _Proj2 = oneapi::dpl::identity>
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
 __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                           _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
-                           _CopyConstructRange __cc_range, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+                           _ForwardIterator2 __last2, _OutputIterator __result, _CopyConstructRange __cc_range,
+                           _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
