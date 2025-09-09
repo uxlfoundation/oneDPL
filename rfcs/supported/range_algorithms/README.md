@@ -1,8 +1,8 @@
 # Parallel Range Algorithms
 
 ## Introduction
-Based on statistics (observing C++ code within github.com) for the usage of popular algorithms,
-the following range-based APIs are suggested to be implemented next in oneDPL:
+The following algorithms have been implemented in oneDPL based on
+their usage frequency on github.com:
 - Whole Sequence Operations: `all_of`, `any_of`, `none_of`, `for_each`, `count`, `count_if`.
 - Element Search Operations: `find`, `find_if`, `find_if_not`, `find_first_of`, `adjacent_find`.
 - Minimum and Maximum: `min`, `max`, `minmax`, `min_element`, `max_element`, `minmax_element`.
@@ -17,26 +17,33 @@ the following range-based APIs are suggested to be implemented next in oneDPL:
 - Uninitialized Memory Algorithms: `uninitialized_copy`, `uninitialized_move`, `uninitialized_fill`,
   `uninitialized_default_construct`, `uninitialized_value_construct`, `destroy`.
 
+The rest algorithms (as defined in [P3179](https://wg21.link/p3179))
+should be implemented in the future releases.
+
 ## Motivations
-The feature is proposed as the next step of range-based API support for oneDPL.
+- Better expressiveness and productivity.
+- Opportunity to fuse several parallel algorithm invocations into one.
 
 ### Key Requirements
-- The range-based signatures for the mentioned API should correspond to the proposed specification,
-  which itself is based on the [P3179](https://wg21.link/p3179) proposal:
-  - [Set algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/630).
-  - [Memory algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/631).
-  - [In-place mutating algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/634).
-  - [Copying mutating algorithms](https://github.com/uxlfoundation/oneAPI-spec/pull/635).
-- The signature of `reverse_copy` should align with [P3709](https://wg21.link/p3709),
+- The range-based signatures for the mentioned API should correspond to
+  [Parallel Range Algorithms Specification](https://github.com/uxlfoundation/oneAPI-spec/blob/main/source/elements/oneDPL/source/parallel_api/parallel_range_api.rst).
+- The signature of `reverse_copy` alligns with [P3709](https://wg21.link/p3709),
   which updates the signature defined in [P3179](https://wg21.link/p3179).
-- The proposed implementation should support all oneDPL execution policies:
+- The implementation supports all oneDPL execution policies:
   `seq`, `unseq`, `par`, `par_unseq`, and `device_policy`.
-- To add a new value for the feature testing macro
-  `ONEDPL_HAS_RANGE_ALGORITHMS` in oneDPL documentation.
+- `ONEDPL_HAS_RANGE_ALGORITHMS` macro is added to detect available algorithms.
 
-### Implementation proposal
-The implementation is supposed to rely on existing range-based or iterator-based algorithm patterns,
-which are already implemented in oneDPL.
+### Implementation
+The implementation relies on the existing
+range-based patterns (the experimental parallel range algorithms with device execution policies) or
+iterator-based patterns (the rest algorithms) for the majority of algorithms.
+
+These algorithms need new patterns or significantly modyfing the existing ones:
+`merge`,  `copy_if`, `unique_copy`,
+`set_union`, `set_difference`, `set_symmetric_difference`, `set_intersection`.
+They must stop execution when the output sequence is exhausted and return the last processed points,
+and these points cannot be calculated in advance, before the main algorithmic routine.
+`merge` already implements it. The rest also must support this case.
 
 ### Implementation limitation
 - In case of a `device_policy` and `std::vector` with `USM` allocator,
