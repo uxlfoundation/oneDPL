@@ -105,17 +105,17 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202505L`` or a greater value,
 
 If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202509L`` or a greater value, the following algorithms are provided:
 
-* ``destroy``
 * ``reverse``
 * ``reverse_copy``
 * ``unique``
 * ``unique_copy``
+* ``swap_ranges``
+* ``destroy``
 * ``uninitialized_default_construct``
 * ``uninitialized_value_construct``
 * ``uninitialized_copy``
 * ``uninitialized_move``
 * ``uninitialized_fill``
-* ``swap_ranges``
 
 Usage Example for Parallel Range Algorithms
 -------------------------------------------
