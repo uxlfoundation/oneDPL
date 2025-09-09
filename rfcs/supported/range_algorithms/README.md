@@ -1,13 +1,21 @@
-# Support the third portion of the oneDPL Range APIs
+# Parallel Range Algorithms
 
 ## Introduction
 Based on statistics (observing C++ code within github.com) for the usage of popular algorithms,
 the following range-based APIs are suggested to be implemented next in oneDPL:
-- Set algorithms: `includes`, `set_intersection`, `set_union`, `set_difference`, `set_symmetric_difference`
-- In-place mutating algorithms: `reverse`, `swap_ranges`, `unique`.
-- Memory algorithms: `uninitialized_copy`, `uninitialized_move`, `uninitialized_fill`,
+- Whole Sequence Operations: `all_of`, `any_of`, `none_of`, `for_each`, `count`, `count_if`.
+- Element Search Operations: `find`, `find_if`, `find_if_not`, `find_first_of`, `adjacent_find`.
+- Minimum and Maximum: `min`, `max`, `minmax`, `min_element`, `max_element`, `minmax_element`.
+- Sequence Search and Comparison: `equal`, `mismatch`, `find_end`, `search`, `search_n`.
+- Sorting and Merge: `sort`, `stable_sort`, `is_sorted`, `is_sorted_until`, `merge`.
+- Set operations: `includes`, `set_intersection`, `set_union`, `set_difference`,
+  `set_symmetric_difference`.
+- Copying mutating algorithms: `copy`, `copy_if`, `move`, `reverse_copy`, `transform`,
+  `unique_copy`.
+- In-place mutating algorithms: `fill`, `replace`, `replace_if`, `remove`, `remove_if`, `reverse`,
+  `swap_ranges`, `unique`.
+- Uninitialized Memory Algorithms: `uninitialized_copy`, `uninitialized_move`, `uninitialized_fill`,
   `uninitialized_default_construct`, `uninitialized_value_construct`, `destroy`.
-- Copying mutating algorithms: `reverse_copy`, `unique_copy`.
 
 ## Motivations
 The feature is proposed as the next step of range-based API support for oneDPL.
