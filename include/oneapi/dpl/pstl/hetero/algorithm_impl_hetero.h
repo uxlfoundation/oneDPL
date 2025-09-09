@@ -1777,7 +1777,15 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
 
     const _SizeType __n1 = std::distance(__first1, __last1);
     const _SizeType __n2 = std::distance(__first2, __last2);
-    const _SizeType __output_size = __n1 + __n2;
+
+    // For Difference and Intersection, the most we can write is the size of set A
+    _SizeType __output_size = __n1;
+    if constexpr (std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_UnionTag> ||
+                  std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag>)
+    {
+        // For Union and Symmetric Difference, the most we can write is all input elements (when fully disjoint).
+        __output_size = __n1 + __n2;
+    }
 
     auto __keep1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();
