@@ -49,8 +49,8 @@ __pattern_uninitialized_default_construct(_Tag __tag, _ExecutionPolicy&& __exec,
 
     using _ValueType = std::ranges::range_value_t<_R>;
 
-    const auto __first = std::ranges::begin(__r);
-    const auto __last = __first + std::ranges::size(__r);
+    auto __first = std::ranges::begin(__r);
+    auto __last = __first + std::ranges::size(__r);
 
     if constexpr (!std::is_trivially_default_constructible_v<_ValueType>)
     {
@@ -80,8 +80,8 @@ __pattern_uninitialized_value_construct(_Tag __tag, _ExecutionPolicy&& __exec, _
 
     using _ValueType = std::ranges::range_value_t<_R>;
 
-    const auto __first = std::ranges::begin(__r);
-    const auto __last = __first + std::ranges::size(__r);
+    auto __first = std::ranges::begin(__r);
+    auto __last = __first + std::ranges::size(__r);
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_value_construct<_ValueType>)
     {
         oneapi::dpl::__internal::__pattern_walk_brick(
@@ -119,8 +119,8 @@ __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     using _OutRefType = std::ranges::range_reference_t<_OutRange>;
     using _InRefType = std::ranges::range_reference_t<_InRange>;
 
-    const auto __first1 = std::ranges::begin(__in_r);
-    const auto __first2 = std::ranges::begin(__out_r);
+    auto __first1 = std::ranges::begin(__in_r);
+    auto __first2 = std::ranges::begin(__out_r);
 
     using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
     const _Size __n = std::min<_Size>(std::ranges::size(__in_r), std::ranges::size(__out_r));
@@ -128,8 +128,8 @@ __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     if (__n == 0)
         return {__first1, __first2};
 
-    const auto __last1 = __first1 + __n;
-    const auto __last2 = __first2 + __n;
+    auto __last1 = __first1 + __n;
+    auto __last2 = __first2 + __n;
 
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_copy<_OutValueType, _OutRefType, _InRefType>)
     {
@@ -170,8 +170,8 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     using _OutRefType = std::ranges::range_reference_t<_OutRange>;
     using _InRefType = std::ranges::range_reference_t<_InRange>;
 
-    const auto __first1 = std::ranges::begin(__in_r);
-    const auto __first2 = std::ranges::begin(__out_r);
+    auto __first1 = std::ranges::begin(__in_r);
+    auto __first2 = std::ranges::begin(__out_r);
 
     using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
     const _Size __n = std::min<_Size>(std::ranges::size(__in_r), std::ranges::size(__out_r));
@@ -179,8 +179,8 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     if (__n == 0)
         return {__first1, __first2};
 
-    const auto __last1 = __first1 + __n;
-    const auto __last2 = __first2 + __n;
+    auto __last1 = __first1 + __n;
+    auto __last2 = __first2 + __n;
 
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_move<_OutValueType, _OutRefType, _InRefType>)
     {
@@ -218,8 +218,8 @@ __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, co
 
     using _ValueType = std::ranges::range_value_t<_R>;
 
-    const auto __first = std::ranges::begin(__r);
-    const auto __last = __first + std::ranges::size(__r);
+    auto __first = std::ranges::begin(__r);
+    auto __last = __first + std::ranges::size(__r);
 
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_fill<_ValueType, _T>)
     {
@@ -257,8 +257,8 @@ __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 
     using _ValueType = std::ranges::range_value_t<_R>;
 
-    const auto __first = std::ranges::begin(__r);
-    const auto __last = __first + std::ranges::size(__r);
+    auto __first = std::ranges::begin(__r);
+    auto __last = __first + std::ranges::size(__r);
 
     if constexpr (!std::is_trivially_destructible_v<_ValueType>)
     {
