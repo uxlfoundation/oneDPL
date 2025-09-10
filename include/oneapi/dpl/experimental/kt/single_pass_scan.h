@@ -60,7 +60,7 @@ struct __single_pass_scan_kernel_func
     _TileIdxT* __atomic_id_ptr;
     typename __scan_status_flag<__sub_group_size, _Type>::storage __lookback_storage;
     std::size_t __status_flags_size;
-    std::size_t __num_tiles;
+    _TileIdxT __num_tiles;
     _LocalAcc __slm;
 
     template <bool __is_full>
@@ -213,7 +213,8 @@ struct __single_pass_scan_submitter<__sub_group_size, __data_per_workitem, __wor
     operator()(sycl::queue __q, sycl::event __prev_event, _InRng&& __in_rng, _OutRng&& __out_rng, _BinaryOp __binary_op,
                std::size_t __n, std::uint32_t* __atomic_id_ptr,
                typename __scan_status_flag<__sub_group_size, _Type>::storage __lookback_storage,
-               std::size_t __status_flags_size, std::size_t __num_wgs) const
+               std::size_t __status_flags_size,
+               typename __scan_status_flag<__sub_group_size, _Type>::_TileIdxT __num_wgs) const
     {
         using _LocalAccessorType = __dpl_sycl::__local_accessor<_Type, 1>;
         using _KernelFunc =
@@ -241,6 +242,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
 
     using _Type = oneapi::dpl::__internal::__value_t<_OutRange>;
     using _FlagType = __scan_status_flag<__sub_group_size, _Type>;
+    using _TileIdxT = typename _FlagType::_TileIdxT;
     using _FlagStorageType = typename _FlagType::storage;
     using _KernelName = typename _KernelParam::kernel_name;
     using _LookbackInitKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -265,7 +267,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
 
     // Avoid non_uniform n by padding up to a multiple of workgroup_size
     std::size_t __elems_in_tile = __workgroup_size * __data_per_workitem;
-    std::size_t __num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
+    _TileIdxT __num_wgs = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __elems_in_tile);
 
     std::size_t __status_flags_size = 0;
     std::size_t __mem_bytes = 0;

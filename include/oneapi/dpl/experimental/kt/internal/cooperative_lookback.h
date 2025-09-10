@@ -116,8 +116,6 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
         __atomic_packed_flag.store(__packed_flag);
     }
 
-    // For initialization routines, we do not need atomicity, so we can write through the
-    // reference directly.
     void
     set_oob(const _T __dummy)
     {
@@ -125,11 +123,11 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
         _PackedStatusPrefixT __integral_bits =
             static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__dummy));
         __packed_flag |= __integral_bits << __half_status_prefix_bits;
+        // For initialization routines, we do not need atomicity, so we can write through the
+        // reference directly.
         __packed_flag_ref = _PackedStatusPrefixT{__packed_flag};
     }
 
-    // For initialization routines, we do not need atomicity, so we can write through the
-    // reference directly.
     void
     set_init(const _T __dummy)
     {
@@ -137,6 +135,8 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
         _PackedStatusPrefixT __integral_bits =
             static_cast<_PackedStatusPrefixT>(sycl::bit_cast<_TIntegralBitsType, _T>(__dummy));
         __packed_flag |= __integral_bits << __half_status_prefix_bits;
+        // For initialization routines, we do not need atomicity, so we can write through the
+        // reference directly.
         __packed_flag_ref = _PackedStatusPrefixT{__packed_flag};
     }
 
