@@ -814,15 +814,15 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
 
+    // use serial algorithm
+    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+        return std::ranges::set_union(__r1, __r2, std::begin(__out_r), __comp, __proj1, __proj2);
+
     auto __first1 = std::ranges::begin(__r1);
     auto __last1 = __first1 + __n1;
     auto __first2 = std::ranges::begin(__r2);
     auto __last2 = __first2 + __n2;
     auto __result = std::ranges::begin(__out_r);
-
-    // use serial algorithm
-    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
-        return std::ranges::set_union(__r1, __r2, std::begin(__out_r), __comp, __proj1, __proj2);
 
     auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
@@ -1135,16 +1135,16 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
 
+    // use serial algorithm
+    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+        return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                     std::ranges::begin(__out_r), __comp, __proj1, __proj2);
+
     auto __first1 = std::ranges::begin(__r1);
     auto __last1 = __first1 + __n1;
     auto __first2 = std::ranges::begin(__r2);
     auto __last2 = __first2 + __n2;
     auto __result = std::ranges::begin(__out_r);
-
-    // use serial algorithm
-    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
-        return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-                                                     std::ranges::begin(__out_r), __comp, __proj1, __proj2);
 
     auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
