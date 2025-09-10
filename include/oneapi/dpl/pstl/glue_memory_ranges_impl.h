@@ -47,7 +47,7 @@ namespace __internal
 {
 
 // C++20 analogue of nothrow-random-access-range proposed for C++26 in P3179R9; exposition only
-// Semantic requirements are listed in the oneDPL documentation
+// Semantic requirements are listed in the oneDPL specification
 template <typename _R>
 concept __nothrow_random_access_range =
     std::ranges::random_access_range<_R> &&
