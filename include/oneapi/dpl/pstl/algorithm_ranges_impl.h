@@ -687,10 +687,9 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
 
-    // TODO wht this code absent in __pattern_includes + __parallel_tag for iterators?
     // use serial algorithm
-    //if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
-    //    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+        return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
 
     auto __first1 = std::ranges::begin(__r1);
     auto __last1 = __first1 + __n1;
