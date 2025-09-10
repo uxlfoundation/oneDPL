@@ -27,13 +27,14 @@
 #include <concepts>
 
 #include "execution_defs.h"
-#include "utils_execution.h"
 #include "oneapi/dpl/pstl/ranges_defs.h"
 
 #include "memory_ranges_impl.h"
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/memory_ranges_impl_hetero.h"
 #endif
+
+#include "execution_impl.h"
 
 namespace oneapi
 {
@@ -193,7 +194,7 @@ struct __destroy_fn
     {
         const auto __tag =
 #    if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-            oneapi::dpl::__internal::__select_backend(oneapi::dpl::__internal::get_unvectorized_policy(__exec));
+            oneapi::dpl::__internal::__select_backend(oneapi::dpl::__internal::__get_unvectorized_policy(__exec));
 #    else
             oneapi::dpl::__internal::__select_backend(__exec);
 #    endif

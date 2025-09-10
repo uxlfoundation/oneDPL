@@ -18,7 +18,6 @@
 
 #include "execution_defs.h"
 #include "utils.h"
-#include "utils_execution.h"
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_impl_hetero.h"
@@ -194,7 +193,7 @@ destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __
     {
         const auto __dispatch_tag =
 #if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-            oneapi::dpl::__internal::__select_backend(oneapi::dpl::__internal::get_unvectorized_policy(__exec),
+            oneapi::dpl::__internal::__select_backend(oneapi::dpl::__internal::__get_unvectorized_policy(__exec),
                                                       __first);
 #else
             oneapi::dpl::__internal::__select_backend(__exec, __first);
@@ -220,7 +219,7 @@ destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
     {
         const auto __dispatch_tag =
 #if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-            oneapi::dpl::__internal::__select_backend(oneapi::dpl::__internal::get_unvectorized_policy(__exec),
+            oneapi::dpl::__internal::__select_backend(oneapi::dpl::__internal::__get_unvectorized_policy(__exec),
                                                       __first);
 #else
             oneapi::dpl::__internal::__select_backend(__exec, __first);
