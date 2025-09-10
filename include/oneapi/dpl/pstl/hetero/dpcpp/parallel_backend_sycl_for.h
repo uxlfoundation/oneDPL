@@ -236,6 +236,7 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
         __has_pfor_brick_members_v<_Fp>,
         "The brick provided to __parallel_for must define const / constexpr static bool members __can_vectorize and "
         "__can_process_multiple_iters which must be evaluated at compile time.");
+    assert(oneapi::dpl::__ranges::__min_size_calc{}(__rngs...) > 0);
     assert(__count > 0);
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
