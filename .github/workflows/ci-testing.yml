@@ -7,6 +7,7 @@ on:
     branches:
       - main
       - 'release/**'
+      - dev/mdvorski/ranges_algo_L2_set-origin_UXL
     paths:
       - '.github/**/*'
       - 'cmake/**/*'

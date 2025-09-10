@@ -308,6 +308,17 @@
 #    define _ONEDPL_STD_BIT_FLOOR_BROKEN 0
 #endif
 
+// There is a bug in the libc++ with 21 being the latest major release at the time of writing this comment.
+// 23 is set to avoid frequent bump-ups.
+// See: https://github.com/llvm/llvm-project/blob/6096d35ea93c75f648a253a00775b4d74915c819/libcxx/include/__algorithm/ranges_set_union.h#L94
+// This line does not take into account that the iterator-based implementation may arbitrary call comp(a, b) or comp(b, a)
+// TODO: report it or contribute.
+#if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION <= 230000
+#    define _ONEDPL_LIBCPP_RANGE_SET_BROKEN 1
+#else
+#    define _ONEDPL_LIBCPP_RANGE_SET_BROKEN 0
+#endif
+
 // The implementation of std::ranges algorithms in MS C++ standard library is done via C++ functions.
 #if defined(_MSC_VER) && (_MSC_VER < 1939)
 #    define _ONEDPL_STD_RANGES_ALGO_CPP_FUN 1
