@@ -45,7 +45,6 @@ namespace ranges
 
 namespace __internal
 {
-
 // C++20 analogue of nothrow-random-access-range proposed for C++26 in P3179R9; exposition only
 // Semantic requirements are listed in the oneDPL specification
 template <typename _R>
@@ -59,7 +58,6 @@ concept __nothrow_random_access_range =
 
 namespace __internal
 {
-
 struct __uninitialized_default_construct_fn
 {
     template <typename _ExecutionPolicy, __nothrow_random_access_range _R>
@@ -104,7 +102,6 @@ inline constexpr __internal::__uninitialized_value_construct_fn uninitialized_va
 
 namespace __internal
 {
-
 struct __uninitialized_copy_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
@@ -131,7 +128,6 @@ inline constexpr __internal::__uninitialized_copy_fn uninitialized_copy;
 
 namespace __internal
 {
-
 struct __uninitialized_move_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
@@ -158,7 +154,6 @@ inline constexpr __internal::__uninitialized_move_fn uninitialized_move;
 
 namespace __internal
 {
-
 struct __uninitialized_fill_fn
 {
     template <typename _ExecutionPolicy, __nothrow_random_access_range _R, typename _T = std::ranges::range_value_t<_R>>
@@ -181,7 +176,6 @@ inline constexpr __internal::__uninitialized_fill_fn uninitialized_fill;
 
 namespace __internal
 {
-
 struct __destroy_fn
 {
     template <typename _ExecutionPolicy, __nothrow_random_access_range _R>

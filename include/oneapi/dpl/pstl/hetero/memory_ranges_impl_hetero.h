@@ -25,7 +25,6 @@
 #include <type_traits>
 
 #include "algorithm_ranges_impl_hetero.h" // for __pattern_walk_n
-#include "dpcpp/utils_ranges_sycl.h"      // for oneapi::dpl::__internal::__ranges::views::all, etc.
 #include "dpcpp/execution_sycl_defs.h"    // for __hetero_tag
 
 namespace oneapi
