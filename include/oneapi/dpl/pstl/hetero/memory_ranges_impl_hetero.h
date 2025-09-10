@@ -55,7 +55,7 @@ __pattern_uninitialized_default_construct(__hetero_tag<_BackendTag> __tag, _Exec
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_default_construct<std::decay_t<_ExecutionPolicy>>{},
             // Wrapping the range into an additional view to allow using size() method in the implementation
-            oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
+            std::forward<_R>(__r));
     }
 
     return __last;
@@ -78,14 +78,14 @@ __pattern_uninitialized_value_construct(__hetero_tag<_BackendTag> __tag, _Execut
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__brick_fill<__hetero_tag<_BackendTag>, _ValueType>{_ValueType()},
-            oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
+            std::forward<_R>(__r));
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_value_construct<std::decay_t<_ExecutionPolicy>>{},
-            oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
+            std::forward<_R>(__r));
     }
 
     return __last;
@@ -199,14 +199,14 @@ __pattern_uninitialized_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__brick_fill<__hetero_tag<_BackendTag>, _ValueType>{_ValueType(__value)},
-            oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
+            std::forward<_R>(__r));
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_fill<_T, std::decay_t<_ExecutionPolicy>>{__value},
-            oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
+            std::forward<_R>(__r));
     }
 
     return __last;
