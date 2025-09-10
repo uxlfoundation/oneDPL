@@ -26,7 +26,7 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202505L);
+static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L);
 
 #if TEST_CPP20_SPAN_PRESENT
 #include <span>
@@ -284,7 +284,7 @@ private:
                 if constexpr (!all_dangling_in_result_v<res_ret_t>)
                     static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
             }
-        }        
+        }
     }
 
     // Test dangling iterators in return types for call with temporary data
@@ -309,7 +309,7 @@ private:
                 if constexpr (!all_dangling_in_result_v<res_ret_t>)
                     static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
             }
-        }        
+        }
     }
 
     // Test dangling iterators in return types for call with temporary data
