@@ -123,7 +123,6 @@ __pattern_uninitialized_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     auto __first2 = std::ranges::begin(__out_r);
 
     const auto __n = oneapi::dpl::__ranges::__min_size_calc{}(__in_r, __out_r);
-
     if (__n == 0)
         return {__first1, __first2};
 
@@ -173,7 +172,6 @@ __pattern_uninitialized_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& _
     auto __first2 = std::ranges::begin(__out_r);
 
     const auto __n = oneapi::dpl::__ranges::__min_size_calc{}(__in_r, __out_r);
-
     if (__n == 0)
         return {__first1, __first2};
 

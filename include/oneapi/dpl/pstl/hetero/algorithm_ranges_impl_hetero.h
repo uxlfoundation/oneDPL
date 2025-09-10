@@ -56,7 +56,6 @@ auto
 __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function __f, _Ranges&&... __rngs)
 {
     const auto __n = oneapi::dpl::__ranges::__min_size_calc{}(__rngs...);
-
     if (__n > 0)
     {
         oneapi::dpl::__par_backend_hetero::__parallel_for(
