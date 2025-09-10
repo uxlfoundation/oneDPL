@@ -42,7 +42,6 @@ namespace dpl
 {
 namespace ranges
 {
-
 namespace __internal
 {
 // C++20 analogue of nothrow-random-access-range proposed for C++26 in P3179R9; exposition only

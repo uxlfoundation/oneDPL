@@ -24,6 +24,7 @@
 #if _ENABLE_STD_RANGES_TESTING
 
 #include "std_ranges_memory_test.h"
+
 namespace test_std_ranges
 {
 template<>

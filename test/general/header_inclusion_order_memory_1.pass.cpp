@@ -21,9 +21,9 @@
 #include "support/utils.h"
 
 #if ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L
-#    include <memory>    // std::make_unique_for_overwrite
-#    include <ranges>    // std::ranges::subrange
-#    include <algorithm> // std::ranges::count
+#include <memory>    // std::make_unique_for_overwrite
+#include <ranges>    // std::ranges::subrange
+#include <algorithm> // std::ranges::count
 #endif
 
 int
