@@ -57,6 +57,7 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
 {
     using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
 #if _ONEDPL_CPP20_RANGES_PRESENT
+    // Standard ranges may not have size() method
     const _Size __n = std::min<_Size>({std::ranges::size(__rngs)...});
 #else
     const _Size __n = std::min<_Size>({__rngs.size()...});

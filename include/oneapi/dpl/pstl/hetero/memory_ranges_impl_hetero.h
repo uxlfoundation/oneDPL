@@ -54,7 +54,6 @@ __pattern_uninitialized_default_construct(__hetero_tag<_BackendTag> __tag, _Exec
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__internal::__op_uninitialized_default_construct<std::decay_t<_ExecutionPolicy>>{},
-            // Wrapping the range into an additional view to allow using size() method in the implementation
             std::forward<_R>(__r));
     }
 
