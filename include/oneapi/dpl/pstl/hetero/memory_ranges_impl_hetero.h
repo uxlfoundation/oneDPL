@@ -104,7 +104,7 @@ __pattern_uninitialized_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     using _InRefType = std::ranges::range_reference_t<_InRange>;
 
     using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
-    const _Size __n = std::min<_Size>(std::ranges::size(__in_r), std::ranges::size(__out_r));
+    const _Size __n = oneapi::dpl::__ranges::__min_size_calc{}(__in_r, __out_r);
 
     auto __first1 = std::ranges::begin(__in_r);
     auto __first2 = std::ranges::begin(__out_r);
@@ -149,7 +149,7 @@ __pattern_uninitialized_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     using _InRefType = std::ranges::range_reference_t<_InRange>;
 
     using _Size = std::common_type_t<std::ranges::range_size_t<_InRange>, std::ranges::range_size_t<_OutRange>>;
-    const _Size __n = std::min<_Size>(std::ranges::size(__in_r), std::ranges::size(__out_r));
+    const _Size __n = oneapi::dpl::__ranges::__min_size_calc{}(__in_r, __out_r);
 
     auto __first1 = std::ranges::begin(__in_r);
     auto __first2 = std::ranges::begin(__out_r);
