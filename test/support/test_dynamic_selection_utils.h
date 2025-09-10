@@ -64,13 +64,13 @@ build_universe(std::vector<sycl::queue>& u)
 }
 
 #endif // TEST_DYNAMIC_SELECTION_AVAILABLE
-template <typename Policy, typename T>
+template <typename Policy, typename T, typename... Args>
 int
-test_initialization(const std::vector<T>& u)
+test_initialization(const std::vector<T>& u, Args... args)
 {
     // initialize
     using my_policy_t = Policy;
-    my_policy_t p{u};
+    my_policy_t p{u, args...};
     auto u2 = oneapi::dpl::experimental::get_resources(p);
     if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
     {
@@ -92,7 +92,7 @@ test_initialization(const std::vector<T>& u)
     catch (...)
     {
     }
-    p2.initialize(u);
+    p2.initialize(u, args...);
     auto u3 = oneapi::dpl::experimental::get_resources(p);
     if (!std::equal(std::begin(u3), std::end(u3), std::begin(u)))
     {
@@ -104,12 +104,12 @@ test_initialization(const std::vector<T>& u)
     return 0;
 }
 
-template <typename Policy, typename UniverseContainer, typename ResourceFunction, bool AutoTune = false>
+template <typename Policy, typename UniverseContainer, typename ResourceFunction, bool AutoTune, typename... Args>
 int
-test_select(UniverseContainer u, ResourceFunction&& f)
+test_select(UniverseContainer u, ResourceFunction&& f, Args... args)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u};
+    my_policy_t p{u, args...};
 
     const int N = 100;
     std::atomic<int> ecount = 0;
@@ -153,12 +153,12 @@ test_select(UniverseContainer u, ResourceFunction&& f)
     return 0;
 }
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
+template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction, typename... Args>
 int
-test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
+test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, Args... args)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u};
+    my_policy_t p{u, args...};
 
     int N = 100;
     std::atomic<int> ecount = 0;
@@ -216,12 +216,12 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
     return 0;
 }
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
+template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction, typename... Args>
 int
-test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f)
+test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, Args... args)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u};
+    my_policy_t p{u, args...};
 
     const int N = 100;
     bool pass = true;
@@ -294,12 +294,12 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f)
     return 0;
 }
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
+template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction, typename... Args>
 int
-test_submit_and_wait(UniverseContainer u, ResourceFunction&& f)
+test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, Args... args)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u};
+    my_policy_t p{u, args...};
 
     const int N = 100;
     std::atomic<int> ecount = 0;

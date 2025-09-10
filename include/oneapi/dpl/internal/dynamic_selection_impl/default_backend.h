@@ -21,6 +21,7 @@
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/backend_traits.h"
+#include "oneapi/dpl/functional"
 
 namespace oneapi
 {
@@ -32,6 +33,11 @@ namespace experimental
 template<typename ResourceType, typename Backend>
 class backend_base
 {
+    static_assert(std::is_same_v<std::decay_t<decltype(std::declval<Backend::resource_adapter_t>()(
+                                     std::declval<Backend::execution_resource_t>()))>,
+                                 Backend::base_resource_t>,
+                  "BaseResourceType does not match ResourceAdapter called with ResourceType");
+
   public:
     using resource_type = ResourceType;
     using execution_resource_t = resource_type;
@@ -163,14 +169,34 @@ class backend_base
 
 };
 
-template< typename ResourceType >
-class default_backend : public backend_base<ResourceType, default_backend<ResourceType>> {
+
+template< typename BaseResourceType, typename ResourceType, typename ResourceAdapter >
+class default_backend_impl : public backend_base<ResourceType, default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>> {
 public:
     using resource_type = ResourceType;
-    using my_base = backend_base<ResourceType, default_backend<ResourceType>>;
-    default_backend() : my_base() {}
-    default_backend(const std::vector<ResourceType>& u) : my_base(u) {}
+    using my_base = backend_base<ResourceType, default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>>;
+
+    default_backend_impl() : my_base() {}
+    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter_) : my_base(u), adapter(adapter_) {}
+  private:
+    ResourceAdapter adapter;
 };
+
+template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity>
+class default_backend : public default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>, ResourceType, ResourceAdapter>
+{
+  public:
+    using base_t = default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>, ResourceType, ResourceAdapter>;
+    using wait_type = typename base_t::wait_type;
+  public:
+    default_backend()
+    {
+    }
+    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {}) : base_t(r, adapt)
+    {
+    }
+};
+
 
 } // namespace experimental
 

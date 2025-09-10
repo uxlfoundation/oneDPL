@@ -11,6 +11,7 @@
 #define _ONEDPL_FIXED_RESOURCE_POLICY_H
 
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
+#include "oneapi/dpl/functional"
 
 #if _DS_BACKEND_SYCL != 0
 #    include "oneapi/dpl/internal/dynamic_selection_impl/sycl_backend.h"
@@ -26,14 +27,14 @@ namespace experimental
 {
 
 #if _DS_BACKEND_SYCL != 0
-template <typename ResourceType = sycl::queue, typename Backend = default_backend<ResourceType>>
+template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #else
-template <typename ResourceType, typename Backend = default_backend<ResourceType>>
+template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
-class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceType, Backend>, ResourceType, Backend> 
+class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend> 
 {
   protected:
-    using base_t = policy_base<fixed_resource_policy<ResourceType, Backend>, ResourceType, Backend>;
+    using base_t = policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
 
     struct selector_t 
@@ -52,13 +53,13 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
     fixed_resource_policy(::std::size_t index = 0) 
     { 
         base_t::initialize(); 
-	selector_->index_ = index;
+    	selector_->index_ = index;
     }
     fixed_resource_policy(deferred_initialization_t) {}
-    fixed_resource_policy(const std::vector<resource_type>& u, ::std::size_t index = 0) 
+    fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}, ::std::size_t index = 0) 
     { 
-        base_t::initialize(u); 
-	selector_->index_ = index;
+        base_t::initialize(u, adapter); 
+        selector_->index_ = index;
     }
 
     void 
