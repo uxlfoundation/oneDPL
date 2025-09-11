@@ -23,25 +23,25 @@
 #if TEST_DPCPP_BACKEND_PRESENT
 template <typename... _Args>
 auto
-std_set(oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>, _Args&&... args)
+std_set(oneapi::dpl::unseq_backend::_IntersectionTag, _Args&&... args)
 {
     return std::set_intersection(std::forward<_Args>(args)...);
 }
 template <typename... _Args>
 auto
-std_set(oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>, _Args&&... args)
+std_set(oneapi::dpl::unseq_backend::_DifferenceTag, _Args&&... args)
 {
     return std::set_difference(std::forward<_Args>(args)...);
 }
 template <typename... _Args>
 auto
-std_set(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>, _Args&&... args)
+std_set(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _Args&&... args)
 {
     return std::set_symmetric_difference(std::forward<_Args>(args)...);
 }
 template <typename... _Args>
 auto
-std_set(oneapi::dpl::unseq_backend::_UnionTag<std::true_type>, _Args&&... args)
+std_set(oneapi::dpl::unseq_backend::_UnionTag, _Args&&... args)
 {
     return std::set_union(std::forward<_Args>(args)...);
 }
@@ -58,7 +58,7 @@ test_serial_set_op_count(SetTag set_tag)
 
     oneapi::dpl::__par_backend_hetero::__noop_temp_data __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -82,7 +82,7 @@ test_serial_set_op_count_and_write(SetTag set_tag)
 
     oneapi::dpl::__par_backend_hetero::__temp_data_array<10, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -114,7 +114,7 @@ test_serial_set_op_count_and_write2(SetTag set_tag)
 
     oneapi::dpl::__par_backend_hetero::__temp_data_array<10, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -146,7 +146,7 @@ test_serial_set_op_count_and_write_limited(SetTag set_tag)
 
     oneapi::dpl::__par_backend_hetero::__temp_data_array<11, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 4, 2, 10, __temp_data, std::less<int>());
+    std::uint16_t count = __set_op(v1, v2, 4, 2, 10, __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin() + 4, v1.begin() + 4 + 5, v2.begin() + 2, v2.begin() + 2 + 5, v3.begin(),
                        std::less<int>());
@@ -180,7 +180,7 @@ test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
 
     oneapi::dpl::__par_backend_hetero::__temp_data_array<15, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -213,7 +213,7 @@ test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
 
     oneapi::dpl::__par_backend_hetero::__temp_data_array<15, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>());
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -240,7 +240,7 @@ test_right_biased_lower_bound_impl(Rng __rng, std::size_t __location, std::less<
 {
     auto expected_res = std::lower_bound(__rng.begin(), __rng.begin() + __location, __rng[__location], __comp);
     auto res = oneapi::dpl::__internal::__biased_lower_bound</*last_biased=*/true>(
-        __rng.begin(), std::size_t{0}, __location, __rng[__location], __comp);
+        __rng.begin(), std::size_t{0}, __location, __rng[__location], __comp, oneapi::dpl::identity{});
 
     if (res != expected_res - __rng.begin())
     {
@@ -357,15 +357,15 @@ template <typename _Rng1, typename _Rng2, typename _Comp>
 bool
 test_find_balanced_path_impl(_Rng1 __rng1, _Rng2 __rng2, _Comp __comp)
 {
-    using _SetOperation = oneapi::dpl::__par_backend_hetero::__get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>>;
+    using _SetOperation = oneapi::dpl::__par_backend_hetero::__get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>;
     using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_simple;
 
     using _GenReduceInput =
-        oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, _Comp>;
+        oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, _Comp, oneapi::dpl::identity, oneapi::dpl::identity>;
 
     std::uint16_t __diagonal_spacing = 16; // arbitrary value, should not matter for the test
 
-    _GenReduceInput _gen_reduce_input{_SetOperation{}, __diagonal_spacing, _BoundsProvider{}, __comp};
+    _GenReduceInput _gen_reduce_input{_SetOperation{}, __diagonal_spacing, _BoundsProvider{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{}};
     for (std::size_t diag_idx = 0; diag_idx < __rng1.size() + __rng2.size(); ++diag_idx)
     {
         auto [merge_path_idx1, merge_path_idx2] = find_merge_path_intersection(__rng1, __rng2, diag_idx, __comp);
@@ -451,13 +451,13 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
     std::cout << "Test intersection" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>{});
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_IntersectionTag{});
     std::cout << "Test difference" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>{});
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_DifferenceTag{});
     std::cout << "Test union" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_UnionTag<std::true_type>{});
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_UnionTag{});
     std::cout << "Test symmetric diff" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>{});
+    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{});
     EXPECT_TRUE(test_right_biased_lower_bound(), "test for right biased lower bound");
     EXPECT_TRUE(test_find_balanced_path(), "test for find balanced path");
 #endif // TEST_DPCPP_BACKEND_PRESENT

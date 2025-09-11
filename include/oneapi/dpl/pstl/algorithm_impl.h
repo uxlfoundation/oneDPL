@@ -3270,13 +3270,13 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 inline constexpr auto __set_algo_cut_off = 1000;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _OutputIterator, class _Compare, class _SizeFunction, class _SetOP,
-          class _Proj1 = oneapi::dpl::identity, class _Proj2 = oneapi::dpl::identity>
+          class _OutputIterator, class _SizeFunction, class _SetOP,
+          class _Compare, class _Proj1, class _Proj2>
 _OutputIterator
 __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                   _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                  _OutputIterator __result, _Compare __comp, _SizeFunction __size_func, _SetOP __set_op,
-                  _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+                  _OutputIterator __result, _SizeFunction __size_func, _SetOP __set_op,
+                  _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -3299,8 +3299,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
     __par_backend::__buffer<_T> __buf(__size_func(__n1, __n2));
 
-    return __internal::__except_handler([&__exec, __n1, __first1, __last1, __first2, __last2, __result, __comp,
-                                         __size_func, __set_op, &__buf, __proj1, __proj2]() {
+    return __internal::__except_handler([&__exec, __n1, __first1, __last1, __first2, __last2, __result, __size_func,
+                                         __set_op, &__buf, __comp, __proj1, __proj2]() {
         auto __tmp_memory = __buf.get();
         _DifferenceType1 __m{};
         auto __scan = [=](_DifferenceType1, _DifferenceType1, const _SetRange& __s) { // Scan
@@ -3372,13 +3372,12 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _OutputIterator, class _Compare, class _SetUnionOp, class _Proj1 = oneapi::dpl::identity,
-          class _Proj2 = oneapi::dpl::identity>
+          class _OutputIterator, class _SetUnionOp, class _Compare, class _Proj1, class _Proj2>
 _OutputIterator
 __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                         _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                        _OutputIterator __result, _Compare __comp, _SetUnionOp __set_union_op, _Proj1 __proj1 = {},
-                        _Proj2 __proj2 = {})
+                        _OutputIterator __result, _SetUnionOp __set_union_op, _Compare __comp, _Proj1 __proj1,
+                        _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -3451,9 +3450,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             },
             [=, &__exec, &__result] {
                 __result = __internal::__parallel_set_op(
-                    __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result, __comp,
-                    [](_DifferenceType1 __n, _DifferenceType1 __m) { return __n + __m; }, __set_union_op, __proj1,
-                    __proj2);
+                    __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result,
+                    [](_DifferenceType1 __n, _DifferenceType1 __m) { return __n + __m; }, __set_union_op, __comp,
+                    __proj1, __proj2);
             });
         return __result;
     }
@@ -3472,16 +3471,16 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             },
             [=, &__exec, &__result] {
                 __result = __internal::__parallel_set_op(
-                    __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result, __comp,
-                    [](_DifferenceType1 __n, _DifferenceType1 __m) { return __n + __m; }, __set_union_op, __proj1,
-                    __proj2);
+                    __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result,
+                    [](_DifferenceType1 __n, _DifferenceType1 __m) { return __n + __m; }, __set_union_op, __comp,
+                    __proj1, __proj2);
             });
         return __result;
     }
 
     return __internal::__parallel_set_op(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
-        [](_DifferenceType1 __n, _DifferenceType1 __m) { return __n + __m; }, __set_union_op, __proj1, __proj2);
+        __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+        [](_DifferenceType1 __n, _DifferenceType1 __m) { return __n + __m; }, __set_union_op, __comp, __proj1, __proj2);
 }
 
 //------------------------------------------------------------------------
@@ -3547,13 +3546,15 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
     return __parallel_set_union_op(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+        __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
            _RandomAccessIterator2 __last2, _Tp* __result, _Compare __comp, oneapi::dpl::identity,
            oneapi::dpl::identity) {
-            return oneapi::dpl::__utils::__set_union_construct(__first1, __last1, __first2, __last2, __result, __comp,
-                                                               __BrickCopyConstruct<_IsVector>());
-        });
+            return oneapi::dpl::__utils::__set_union_construct(__first1, __last1, __first2, __last2, __result,
+                                                               __BrickCopyConstruct<_IsVector>(), __comp,
+                                                               oneapi::dpl::identity{}, oneapi::dpl::identity{});
+        },
+        __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 //------------------------------------------------------------------------
@@ -3629,15 +3630,17 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return __internal::__except_handler([&]() {
             return __internal::__parallel_set_op(
                 __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result,
-                __comp, [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                    _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
                    oneapi::dpl::identity) {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1, __first2, __last2, __result, __comp,
+                        __first1, __last1, __first2, __last2, __result,
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                        /*CopyFromFirstSet = */ std::true_type{});
-                });
+                        /*CopyFromFirstSet = */ std::true_type{}, __comp, oneapi::dpl::identity{},
+                        oneapi::dpl::identity{});
+                },
+                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         });
     }
 
@@ -3648,15 +3651,17 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return __internal::__except_handler([&]() {
             __result = __internal::__parallel_set_op(
                 __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result,
-                __comp, [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                    _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
                    oneapi::dpl::identity) {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first2, __last2, __first1, __last1, __result, __comp,
+                        __first2, __last2, __first1, __last1, __result,
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                        /*CopyFromFirstSet = */ std::false_type{});
-                });
+                        /*CopyFromFirstSet = */ std::false_type{}, __comp, oneapi::dpl::identity{},
+                        oneapi::dpl::identity{});
+                },
+                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             return __result;
         });
     }
@@ -3739,14 +3744,16 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     if (__n1 + __n2 > __set_algo_cut_off)
         return __parallel_set_op(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
             [](_DifferenceType __n, _DifferenceType) { return __n; },
             [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
                oneapi::dpl::identity) {
-                return oneapi::dpl::__utils::__set_difference_construct(__first1, __last1, __first2, __last2, __result,
-                                                                        __comp, __BrickCopyConstruct<_IsVector>());
-            });
+                return oneapi::dpl::__utils::__set_difference_construct(
+                    __first1, __last1, __first2, __last2, __result, __BrickCopyConstruct<_IsVector>(), __comp,
+                    oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            },
+            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     // use serial algorithm
     return std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
@@ -3807,13 +3814,15 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     typedef typename ::std::iterator_traits<_RandomAccessIterator3>::value_type _T;
     return __internal::__except_handler([&]() {
         return __internal::__parallel_set_union_op(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
             [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
                oneapi::dpl::identity) {
                 return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                    __first1, __last1, __first2, __last2, __result, __comp, __BrickCopyConstruct<_IsVector>());
-            });
+                    __first1, __last1, __first2, __last2, __result, __BrickCopyConstruct<_IsVector>(), __comp,
+                    oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            },
+            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
     });
 }
 

@@ -251,7 +251,7 @@ struct __write_scan_by_seg
 // Writes multiple elements from temp data to the output range. The values to write are stored in `__temp_data` from a
 // previous operation, and must be written to the output range in the appropriate location. The zeroth element of `__v`
 // will contain the index of one past the last element to write, and the first element of `__v` will contain the number
-// of elements to write. Used for __parallel_set_reduce_then_scan.
+// of elements to write. Used for __parallel_set_write_a_b_op.
 template <typename _Assign>
 struct __write_multiple_to_id
 {
@@ -374,7 +374,7 @@ struct __gen_unique_mask
 
 // A mask generator for set operations (difference or intersection) to determine if an element from Set A should be
 // written to the output sequence based on its presence in Set B and the operation type (difference or intersection).
-template <typename _IsOpDifference, typename _Compare>
+template <typename _SetTag, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_mask
 {
     template <typename _InRng>
@@ -383,25 +383,27 @@ struct __gen_set_mask
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __set_a = std::get<0>(__in_rng.tuple());    // first sequence
-        auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence
+        auto __set_a = std::get<0>(__in_rng.tuple());    // first sequence, __proj1 applied
+        auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence, __proj2 applied
         auto __set_mask = std::get<2>(__in_rng.tuple()); // mask sequence
 
         std::size_t __nb = __set_b.size();
 
-        auto __val_a = __set_a[__id];
+        const auto __val_a_proj = std::invoke(__proj1, __set_a[__id]);
 
-        auto __res = oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a, __comp);
+        auto __res = oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a_proj, __comp, __proj2);
+        constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
 
-        bool bres =
-            _IsOpDifference::value; //initialization is true in case of difference operation; false - intersection.
-        if (__res == __nb || __comp(__val_a, __set_b[__res]))
+        //initialization is true in case of difference operation; false - intersection.
+        bool bres = __is_difference;
+
+        if (__res == __nb || std::invoke(__comp, __val_a_proj, std::invoke(__proj2, __set_b[__res])))
         {
             // there is no __val_a in __set_b, so __set_b in the difference {__set_a}/{__set_b};
         }
         else
         {
-            auto __val_b = __set_b[__res];
+            const auto __val_b_proj = std::invoke(__proj2, __set_b[__res]);
 
             //Difference operation logic: if number of duplication in __set_a on left side from __id > total number of
             //duplication in __set_b then a mask is 1
@@ -410,13 +412,13 @@ struct __gen_set_mask
             //duplication in __set_b then a mask is 1
 
             const std::size_t __count_a_left =
-                __id - oneapi::dpl::__internal::__pstl_left_bound(__set_a, std::size_t{0}, __id, __val_a, __comp) + 1;
+                __id - oneapi::dpl::__internal::__pstl_left_bound(__set_a, std::size_t{0}, __id, __val_a_proj, __comp, __proj1) + 1;
 
             const std::size_t __count_b =
-                oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __val_b, __comp) -
-                oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __val_b, __comp);
+                oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __val_b_proj, __comp, __proj2) -
+                oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __val_b_proj, __comp, __proj2);
 
-            if constexpr (_IsOpDifference::value)
+            if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
             else
                 bres = __count_a_left <= __count_b; /*intersection*/
@@ -425,19 +427,21 @@ struct __gen_set_mask
         return bres;
     }
     _Compare __comp;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
 };
 
-// __parallel_set_reduce_then_scan
+// __parallel_set_write_a_b_op
 
 // Returns by reference: iterations consumed, and the number of elements copied to temp output.
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds, typename _InRng1,
-          typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
-          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+          typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare, typename _Proj1,
+          typename _Proj2>
 void
 __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
                                   std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                  _SizeType& __idx, std::uint16_t& __count, const _Compare __comp, _Proj1 __proj1 = {},
-                                  _Proj2 __proj2 = {})
+                                  _SizeType& __idx, std::uint16_t& __count, const _Compare __comp, _Proj1 __proj1,
+                                  _Proj2 __proj2)
 {
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
@@ -515,11 +519,11 @@ template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
 struct __set_generic_operation
 {
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
-              typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+              typename _Proj1, typename _Proj2>
     std::uint16_t
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1 = {},
-               _Proj2 __proj2 = {}) const
+               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
+               _Proj2 __proj2) const
     {
 
         std::uint16_t __count = 0;
@@ -561,22 +565,21 @@ template <typename _SetTag>
 struct __get_set_operation;
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>> : public __set_intersection
+struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag> : __set_intersection
 {
 };
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>> : public __set_difference
+struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag> : __set_difference
 {
 };
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag<std::true_type>> : public __set_union
+struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag> : __set_union
 {
 };
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>>
-    : public __set_symmetric_difference
+struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag> : __set_symmetric_difference
 {
 };
 
@@ -678,8 +681,7 @@ struct __get_bounds_simple
 // Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
 // balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
 // to the output for the reduction operation.
-template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
-          typename _Proj2 = oneapi::dpl::identity>
+template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_balanced_path
 {
     using TempData = __noop_temp_data;
@@ -861,8 +863,7 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
-          typename _Proj2 = oneapi::dpl::identity>
+template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
