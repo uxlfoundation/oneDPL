@@ -358,10 +358,11 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         return {__base_diag_count, __steps_between_two_base_diags, __chunk, __steps};
     }
 
-    template <typename DropViews, typename _Compare, typename _Proj1, typename _Proj2>
+    template <typename DropViews, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
+              typename _Proj2 = oneapi::dpl::identity>
     inline static _merge_split_point_t
-    __find_start_point(const WorkDataArea& __data_area, const DropViews& __views, _Compare __comp, _Proj1 __proj1,
-                       _Proj2 __proj2)
+    __find_start_point(const WorkDataArea& __data_area, const DropViews& __views, _Compare __comp, _Proj1 __proj1 = {},
+                       _Proj2 __proj2 = {})
     {
         return oneapi::dpl::__par_backend_hetero::__find_start_point(
             __views.rng1, _IndexT{0}, __data_area.n1, __views.rng2, _IndexT{0}, __data_area.n2,
