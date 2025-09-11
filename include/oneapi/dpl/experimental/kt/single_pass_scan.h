@@ -140,20 +140,17 @@ struct __single_pass_scan_kernel_func
         if (__tile_id == 0)
         {
             load_global_to_grf<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
-            _Type __local_reduction = __work_group_scan<__sub_group_size, __data_per_workitem>(
-                __item, __slm, __grf_partials, __binary_op, __this_tile_elements);
-            if (__item.get_local_id(0) == 0 && __num_tiles > 1)
-            {
-                _FlagType __flag(__lookback_storage, __tile_id);
-                __flag.set_full(__local_reduction);
-            }
+            __cooperative_lookback_first_tile<__sub_group_size, _Type> __first_tile_callback{__lookback_storage,
+                                                                                             __num_tiles, __tile_id};
+            __work_group_scan<__sub_group_size, __data_per_workitem>(__item, __slm, __grf_partials, __binary_op,
+                                                                     __first_tile_callback, __this_tile_elements);
             store_grf_to_global<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
         }
         else
         {
             load_global_to_grf<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);
-            __cooperative_lookback<__sub_group_size, _Type, _TileIdxT, _BinaryOp> __lookback_callback{
-                __lookback_storage, __tile_id, __binary_op};
+            __cooperative_lookback<__sub_group_size, _Type, _BinaryOp> __lookback_callback{__lookback_storage,
+                                                                                           __tile_id, __binary_op};
             __work_group_scan<__sub_group_size, __data_per_workitem>(__item, __slm, __grf_partials, __binary_op,
                                                                      __lookback_callback, __this_tile_elements);
             store_grf_to_global<__is_full>(__grf_partials, __sub_group_current_offset, __sub_group_local_id);

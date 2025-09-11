@@ -311,11 +311,11 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
 };
 
 // Function object intended to be provided to __work_group_scan as an __init_callback
-template <std::uint8_t __sub_group_size, typename _T, typename _IdxType, typename _BinaryOp>
+template <std::uint8_t __sub_group_size, typename _T, typename _BinaryOp>
 struct __cooperative_lookback
 {
-    _T
-    operator()(const __dpl_sycl::__sub_group& __subgroup, _T __local_reduction) const
+    void
+    operator()(_T& __prefix_ref, const __dpl_sycl::__sub_group& __subgroup, _T __local_reduction) const
     {
         __scan_status_flag<__sub_group_size, _T> __local_flag(__lookback_storage, __tile_id);
         if (__subgroup.get_local_id() == 0)
@@ -368,12 +368,32 @@ struct __cooperative_lookback
         {
             __local_flag.set_full(__binary_op(__running.__v, __local_reduction));
         }
-        return __running.__v;
+        __prefix_ref = __running.__v;
     }
-
+    // This callback is used for tiles after the first, so we should apply the tile prefix value.
+    static constexpr bool __apply_prefix = true;
     typename __scan_status_flag<__sub_group_size, _T>::storage __lookback_storage;
-    _IdxType __tile_id;
+    typename __scan_status_flag<__sub_group_size, _T>::_TileIdxT __tile_id;
     _BinaryOp __binary_op;
+};
+
+template <std::uint8_t __sub_group_size, typename _T>
+struct __cooperative_lookback_first_tile
+{
+    void
+    operator()(const _T& /*__dummy_prefix_ref*/, const __dpl_sycl::__sub_group& __subgroup, _T __local_reduction) const
+    {
+        if (__num_tiles > 1 && __subgroup.get_local_id() == 0)
+        {
+            __scan_status_flag<__sub_group_size, _T> __local_flag(__lookback_storage, __tile_id);
+            __local_flag.set_full(__local_reduction);
+        }
+    }
+    // This callback is used for the first tile, so there is no init to apply.
+    static constexpr bool __apply_prefix = false;
+    typename __scan_status_flag<__sub_group_size, _T>::storage __lookback_storage;
+    typename __scan_status_flag<__sub_group_size, _T>::_TileIdxT __num_tiles;
+    typename __scan_status_flag<__sub_group_size, _T>::_TileIdxT __tile_id;
 };
 
 template <typename... _Name>

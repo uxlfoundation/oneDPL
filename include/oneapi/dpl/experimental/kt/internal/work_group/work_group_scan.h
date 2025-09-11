@@ -33,20 +33,13 @@ namespace gpu
 namespace __impl
 {
 
-struct __no_init_callback
-{
-};
-
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _NdItem,
-          typename _SlmAcc, typename _ProcessInitCallback, typename _BinaryOperation>
-_InputType
+          typename _SlmAcc, typename _BinaryOperation, typename _InitCallback>
+void
 __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
                        oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __input[__iters_per_item],
-                       _BinaryOperation __binary_op, _ProcessInitCallback __process_init_callback,
-                       std::uint32_t __items_in_scan)
+                       _BinaryOperation __binary_op, _InitCallback __init_callback, std::uint32_t __items_in_scan)
 {
-    constexpr bool __b_init_callback = !std::is_same_v<__no_init_callback, _ProcessInitCallback>;
-
     sycl::sub_group __sub_group = __item.get_sub_group();
     const std::uint8_t __sub_group_group_id = __sub_group.get_group_linear_id();
     const std::uint8_t __active_sub_groups =
@@ -109,13 +102,12 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
         }
         // Init callback, most common case is expected to be a decoupled lookback to achieve a global scan between
         // work-groups.
-        if constexpr (__b_init_callback)
-            __wg_init = __process_init_callback(__sub_group, __wg_carry.__v);
+        __init_callback(__wg_init, __sub_group, __wg_carry.__v);
         __wg_carry.__destroy();
     }
     __dpl_sycl::__group_barrier(__item);
     // Determine incoming prefix from previous sub-groups and / or work-groups, and update results in __input
-    if constexpr (__b_init_callback)
+    if constexpr (_InitCallback::__apply_prefix)
     {
         __wg_init = __dpl_sycl::__group_broadcast(__item.get_group(), __wg_init);
         if (__sub_group_group_id < __active_sub_groups)
@@ -139,28 +131,14 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
                 __input[__i].__v = __binary_op(__sub_group_carry_in, __input[__i].__v);
         }
     }
-    return __local_acc[__active_sub_groups - 1];
-}
-
-// An overload of __work_group_scan (explained below) which accepts an __init_callback function object that is invoked
-// by the first sub-group in the work-group as a prefix to the scan. __init_callback(__sub_group, __local_reduction)
-// must be callable where __sub_group is a sycl::sub_group and __local_reduction is the current work-group's computed
-// reduction of type _InputType.
-template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _NdItem,
-          typename _SlmAcc, typename _InitCallback, typename _BinaryOperation>
-_InputType
-__work_group_scan(const _NdItem& __item, _SlmAcc __local_acc,
-                  oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __input[__iters_per_item],
-                  _BinaryOperation __binary_op, _InitCallback __init_callback, std::uint32_t __items_in_scan)
-{
-    return __work_group_scan_impl<__sub_group_size, __iters_per_item>(__item, __local_acc, __input, __binary_op,
-                                                                      __init_callback, __items_in_scan);
 }
 
 //
 // An optimized work-group scan that is made up of smaller register based sub-group scans.
 // The SLM requirement for this implementation is sizeof(_InputType) * ceil(work_group_size / sub_group_size) as
 // a single element per sub-group of _InputType is required. The results of the scan are updated in __input.
+// Furthermore, a callback functor, _InitCallback, is accepted that prefixes the result of the work-group scan if its
+// static __apply_prefix member is set to true.
 //
 // Input is accepted in the form of an array in sub-group strided order with sub-groups processing contiguous blocks
 // in an input. Formally, for some index i in __input, __input[i] must correspond to position
@@ -184,14 +162,14 @@ __work_group_scan(const _NdItem& __item, _SlmAcc __local_acc,
 //              work_group_id 7:  19, 23, 27, 31
 //
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _NdItem,
-          typename _SlmAcc, typename _BinaryOperation>
-_InputType
+          typename _SlmAcc, typename _BinaryOperation, typename _InitCallback>
+void
 __work_group_scan(const _NdItem& __item, _SlmAcc __local_acc,
                   oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __input[__iters_per_item],
-                  _BinaryOperation __binary_op, std::uint32_t __items_in_scan)
+                  _BinaryOperation __binary_op, _InitCallback __init_callback, std::uint32_t __items_in_scan)
 {
-    return __work_group_scan_impl<__sub_group_size, __iters_per_item>(__item, __local_acc, __input, __binary_op,
-                                                                      __no_init_callback{}, __items_in_scan);
+    __work_group_scan_impl<__sub_group_size, __iters_per_item>(__item, __local_acc, __input, __binary_op,
+                                                               __init_callback, __items_in_scan);
 }
 
 } // namespace __impl
