@@ -94,7 +94,7 @@ struct __group_merge_path_sorter
                 __in_ptr1, std::uint32_t{0}, __n1, __in_ptr2, std::uint32_t{0}, __n2, __id_local, __comp);
             // TODO: copy the data into registers before the merge to halve the required amount of SLM
             __serial_merge(__in_ptr1, __in_ptr2, __out_ptr, __start.first, __start.second, __id, __data_per_workitem,
-                           __n1, __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                           __n1, __n2, __comp);
             __dpl_sycl::__group_barrier(__item);
 
             __sorted = __next_sorted;
@@ -549,7 +549,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                             __serial_merge(__nd_range_params, __data_area, __views, __rng,
                                            __lookup_sp(__linear_id, __nd_range_params, __data_area, __views, __comp,
                                                        __base_diagonals_sp_global_ptr),
-                                           __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                                           __comp);
                         }
                         else
                         {
@@ -557,7 +557,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                             __serial_merge(__nd_range_params, __data_area, __views, __dst,
                                            __lookup_sp(__linear_id, __nd_range_params, __data_area, __views, __comp,
                                                        __base_diagonals_sp_global_ptr),
-                                           __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                                           __comp);
                         }
                     }
                 });
