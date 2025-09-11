@@ -1006,8 +1006,8 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     if (__r1.empty() && __r2.empty())
         return {__first1, __first2, __result};
 
-    const auto __sz1 = std::ranges::size(__r1);
-    const auto __sz2 = std::ranges::size(__r2);
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
 
     //{1} is empty
     if (__r1.empty())
@@ -1020,7 +1020,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return {__first1, __first2 + __sz2, __result + __idx};
+        return {__first1, __first2 + __n2, __result + __idx};
     }
 
     //{2} is empty
@@ -1034,14 +1034,14 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return {__first1 + __sz1, __first2, __result + __idx};
+        return {__first1 + __n1, __first2, __result + __idx};
     }
 
-    std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_UnionTag>(
+    const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_UnionTag>(
         _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1),
         std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 
-    return {__first1 + __sz1, __first2 + __sz2, __result + __result_size};
+    return {__first1 + __n1, __first2 + __n2, __result + __result_size};
 }
 
 template <typename Name>
@@ -1062,14 +1062,14 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     if (__r1.empty() || __r2.empty())
         return {__first1 + std::ranges::size(__r1), __first2 + std::ranges::size(__r2), __result};
 
-    const auto __sz1 = std::ranges::size(__r1);
-    const auto __sz2 = std::ranges::size(__r2);
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
 
     const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_IntersectionTag>(
         _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
         std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 
-    return {__first1 + __sz1, __first2 + __sz2, __result + __result_size};
+    return {__first1 + __n1, __first2 + __n2, __result + __result_size};
 }
 
 //Dummy names to avoid kernel problems
@@ -1092,7 +1092,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     if (__r1.empty())
         return {__first1, __result};
 
-    const auto __sz1 = std::ranges::size(__r1);
+    const auto __n1 = std::ranges::size(__r1);
 
     // {1} \ {}: the difference is {1}
     if (__r2.empty())
@@ -1105,14 +1105,14 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return {__first1 + __sz1, __result + __idx};
+        return {__first1 + __n1, __result + __idx};
     }
 
     const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_DifferenceTag>(
         _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1),
         std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 
-    return {__first1 + __sz1, __result + __result_size};
+    return {__first1 + __n1, __result + __result_size};
 }
 
 //Dummy names to avoid kernel problems
