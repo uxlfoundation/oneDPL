@@ -369,17 +369,14 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             __data_area.i_elem_local, __comp, __proj1, __proj2);
     }
 
-    template <typename DropViews, typename _Rng, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
-              typename _Proj2 = oneapi::dpl::identity>
+    template <typename DropViews, typename _Rng, typename _Compare>
     inline static void
     __serial_merge(const nd_range_params& __nd_range_params, const WorkDataArea& __data_area, const DropViews& __views,
-                   _Rng& __rng, const _merge_split_point_t& __sp, _Compare __comp, _Proj1 __proj1 = {},
-                   _Proj2 __proj2 = {})
+                   _Rng& __rng, const _merge_split_point_t& __sp, _Compare __comp)
     {
-        oneapi::dpl::__par_backend_hetero::__serial_merge(__views.rng1, __views.rng2, __rng /* rng3 */,
-                                                          __sp.first /* start1 */, __sp.second /* start2 */,
-                                                          __data_area.i_elem /* start3 */, __nd_range_params.chunk,
-                                                          __data_area.n1, __data_area.n2, __comp, __proj1, __proj2);
+        oneapi::dpl::__par_backend_hetero::__serial_merge(
+            __views.rng1, __views.rng2, __rng /* rng3 */, __sp.first /* start1 */, __sp.second /* start2 */,
+            __data_area.i_elem /* start3 */, __nd_range_params.chunk, __data_area.n1, __data_area.n2, __comp);
     }
 
     // Calculation of split points on each base diagonal
