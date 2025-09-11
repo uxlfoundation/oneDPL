@@ -1005,8 +1005,8 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     if (__r1.empty() && __r2.empty())
         return {__first1, __first2, __result};
 
-    const auto __sz1 = std::ranges::size(__r1);
-    const auto __sz2 = std::ranges::size(__r2);
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
 
     //{1} is empty
     if (__r1.empty())
@@ -1019,7 +1019,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::views::all_read(std::forward<_R2>(__r2)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return {__first1, __first2 + __sz2, __result + __idx};
+        return {__first1, __first2 + __n2, __result + __idx};
     }
 
     //{2} is empty
@@ -1033,7 +1033,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return {__first1 + __sz1, __first2, __result + __idx};
+        return {__first1 + __n1, __first2, __result + __idx};
     }
 
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
@@ -1046,7 +1046,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
                                unseq_backend::_UnionTag<std::true_type>(), __proj1, __proj2)
                                .get();
 
-        return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
+        return {__first1 + __n1, __first2 + __n2, __result + __idx};
     }
 
     using _ValueType = oneapi::dpl::__internal::__value_t<_R2>;
@@ -1076,7 +1076,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __comp, __proj1, __proj2);
 
     const auto __idx = __res.first + __res.second;
-    return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
+    return {__first1 + __n1, __first2 + __n2, __result + __idx};
 }
 
 template <typename Name>
@@ -1097,8 +1097,8 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     if (__r1.empty() || __r2.empty())
         return {__first1 + std::ranges::size(__r1), __first2 + std::ranges::size(__r2), __result};
 
-    const auto __sz1 = std::ranges::size(__r1);
-    const auto __sz2 = std::ranges::size(__r2);
+    const auto __n1 = std::ranges::size(__r1);
+    const auto __n2 = std::ranges::size(__r2);
 
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
     {
@@ -1110,7 +1110,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
                                unseq_backend::_IntersectionTag<std::true_type>(), __proj1, __proj2)
                                .get();
 
-        return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
+        return {__first1 + __n1, __first2 + __n2, __result + __idx};
     }
 
     const auto __idx =
@@ -1124,7 +1124,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
             unseq_backend::_IntersectionTag<std::false_type>(), __proj1, __proj2)
             .get();
 
-    return {__first1 + __sz1, __first2 + __sz2, __result + __idx};
+    return {__first1 + __n1, __first2 + __n2, __result + __idx};
 }
 
 //Dummy names to avoid kernel problems
@@ -1147,7 +1147,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     if (__r1.empty())
         return {__first1, __result};
 
-    const auto __sz1 = std::ranges::size(__r1);
+    const auto __n1 = std::ranges::size(__r1);
 
     // {1} \ {}: the difference is {1}
     if (__r2.empty())
@@ -1160,7 +1160,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::views::all_read(std::forward<_R1>(__r1)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 
-        return {__first1 + __sz1, __result + __idx};
+        return {__first1 + __n1, __result + __idx};
     }
 
     if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
@@ -1176,7 +1176,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                 unseq_backend::_DifferenceTag<std::true_type>(), __proj1, __proj2)
                 .get();
 
-        return {__first1 + __sz1, __result + __idx};
+        return {__first1 + __n1, __result + __idx};
     }
 
     const auto __idx = __par_backend_hetero::__parallel_set_op(
@@ -1187,7 +1187,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                            unseq_backend::_DifferenceTag<std::false_type>(), __proj1, __proj2)
                            .get();
 
-    return {__first1 + __sz1, __result + __idx};
+    return {__first1 + __n1, __result + __idx};
 }
 
 //Dummy names to avoid kernel problems
