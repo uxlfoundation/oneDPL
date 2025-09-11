@@ -90,9 +90,8 @@ struct __group_merge_path_sorter
             auto __in_ptr1 = __in_ptr + __start1;
             auto __in_ptr2 = __in_ptr + __start2;
 
-            const std::pair<std::uint32_t, std::uint32_t> __start =
-                __find_start_point(__in_ptr1, std::uint32_t{0}, __n1, __in_ptr2, std::uint32_t{0}, __n2, __id_local,
-                                   __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            const std::pair<std::uint32_t, std::uint32_t> __start = __find_start_point(
+                __in_ptr1, std::uint32_t{0}, __n1, __in_ptr2, std::uint32_t{0}, __n2, __id_local, __comp);
             // TODO: copy the data into registers before the merge to halve the required amount of SLM
             __serial_merge(__in_ptr1, __in_ptr2, __out_ptr, __start.first, __start.second, __id, __data_per_workitem,
                            __n1, __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
@@ -414,10 +413,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
                     const auto __sp =
                         __data_area.is_i_elem_local_inside_merge_matrix()
-                            ? (__data_in_temp ? __find_start_point(__data_area, DropViews(__dst, __data_area), __comp,
-                                                                   oneapi::dpl::identity{}, oneapi::dpl::identity{})
-                                              : __find_start_point(__data_area, DropViews(__rng, __data_area), __comp,
-                                                                   oneapi::dpl::identity{}, oneapi::dpl::identity{}))
+                            ? (__data_in_temp ? __find_start_point(__data_area, DropViews(__dst, __data_area), __comp)
+                                              : __find_start_point(__data_area, DropViews(__rng, __data_area), __comp))
                             : _merge_split_point_t{__data_area.n1, __data_area.n2};
                     __base_diagonals_sp_global_ptr[__linear_id] = __sp;
                 });
@@ -467,7 +464,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
             return oneapi::dpl::__par_backend_hetero::__find_start_point(
                 __views.rng1, __sp_left.first, __sp_right.first, __views.rng2, __sp_left.second, __sp_right.second,
-                __data_area.i_elem_local, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                __data_area.i_elem_local, __comp);
         }
 
         // We are on base diagonal so just simple return split-point from them
@@ -502,17 +499,13 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                         {
                             DropViews __views(__dst, __data_area);
                             __serial_merge(__nd_range_params, __data_area, __views, __rng,
-                                           __find_start_point(__data_area, __views, __comp, oneapi::dpl::identity{},
-                                                              oneapi::dpl::identity{}),
-                                           __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                                           __find_start_point(__data_area, __views, __comp), __comp);
                         }
                         else
                         {
                             DropViews __views(__rng, __data_area);
                             __serial_merge(__nd_range_params, __data_area, __views, __dst,
-                                           __find_start_point(__data_area, __views, __comp, oneapi::dpl::identity{},
-                                                              oneapi::dpl::identity{}),
-                                           __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                                           __find_start_point(__data_area, __views, __comp), __comp);
                         }
                     }
                 });

@@ -48,11 +48,12 @@ using _split_point_t = std::pair<_Index, _Index>;
 // 2 | 0   0  0  0 | 1
 //   |             ---->
 // 3 | 0   0  0  0   0 |
-template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _Rng1, typename _Rng2, typename _Index, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
+          typename _Proj2 = oneapi::dpl::identity>
 _split_point_t<_Index>
 __find_start_point(const _Rng1& __rng1, const _Index __rng1_from, _Index __rng1_to, const _Rng2& __rng2,
-                   const _Index __rng2_from, _Index __rng2_to, const _Index __i_elem, _Compare __comp, _Proj1 __proj1,
-                   _Proj2 __proj2)
+                   const _Index __rng2_from, _Index __rng2_to, const _Index __i_elem, _Compare __comp,
+                   _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
 {
     // ----------------------- EXAMPLE ------------------------
     // Let's consider the following input data:
