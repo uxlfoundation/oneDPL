@@ -832,7 +832,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                 __first1, __last1, __first2, __last2, __result,
                 oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
         },
-         __comp, __proj1, __proj2);
+        __comp, __proj1, __proj2);
 
     return __pattern_set_union_return_t<_R1, _R2, _OutRange>{__first1 + __n1, __first2 + __n2,
                                                              __result + (__out_last - __result)};
