@@ -162,7 +162,7 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<__can_combine_s
         _PackedStatusPrefixT __tile_status_prefix;
         _FlagStorageType __tile_flag = __initialized_status;
         // Load flag from a previous tile based on my local id.
-        // Spin until every work-item in this subgroup reads a valid status
+        // Spin until every work-item in this subgroup reads a valid (non-initial) status
         do
         {
             if (__tile_flag == __initialized_status)
@@ -291,7 +291,7 @@ struct __scan_status_flag<__sub_group_size, _T, std::enable_if_t<!__can_combine_
     {
         _FlagStorageType __tile_flag = __initialized_status;
         // Load flag from a previous tile based on my local id.
-        // Spin until every work-item in this subgroup reads a valid status
+        // Spin until every work-item in this subgroup reads a valid (non-initial) status
         do
         {
             if (__tile_flag == __initialized_status)

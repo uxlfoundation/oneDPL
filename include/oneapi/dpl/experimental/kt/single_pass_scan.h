@@ -191,11 +191,11 @@ struct __single_pass_scan_kernel_func
         // Making full / not full case a bool template parameter and compiling two separate functions significantly improves performance
         // over run-time checks immediately before load / store.
         if (__sub_group_next_offset <= __n)
-            impl<true>(__item, __sub_group, __tile_id, __work_group_offset, __sub_group_current_offset,
-                       __sub_group_next_offset);
+            impl</*__is_full=*/true>(__item, __sub_group, __tile_id, __work_group_offset, __sub_group_current_offset,
+                                     __sub_group_next_offset);
         else
-            impl<false>(__item, __sub_group, __tile_id, __work_group_offset, __sub_group_current_offset,
-                        __sub_group_next_offset);
+            impl</*__is_full=*/false>(__item, __sub_group, __tile_id, __work_group_offset, __sub_group_current_offset,
+                                      __sub_group_next_offset);
     }
 };
 
@@ -289,8 +289,8 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     }
     sycl::event __prev_event = __single_pass_scan_submitter<__sub_group_size, __data_per_workitem, __workgroup_size,
                                                             _Type, _FlagType, _SinglePassScanKernel>{}(
-        __queue, __fill_event, __in_rng, __out_rng, __binary_op, __n, __atomic_id_ptr, __lookback_storage,
-        __status_flags_size, __num_wgs);
+        __queue, __fill_event, std::forward<_InRange>(__in_rng), std::forward<_OutRange>(__out_rng), __binary_op, __n,
+        __atomic_id_ptr, __lookback_storage, __status_flags_size, __num_wgs);
     // In the single tile case, we can return the event asynchronously as we do not need to free temporary storage.
     if (__is_single_tile)
         return __prev_event;

@@ -46,11 +46,11 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
         oneapi::dpl::__internal::__dpl_ceiling_div(__items_in_scan, __sub_group_size * __iters_per_item);
 
     const std::uint32_t __items_in_sub_group_scan = __sub_group_size * __iters_per_item;
-    // Perform scan at sub-group level. For non active sub-groups, default constructed type returned.
-    // Due to observed performance regressions when changing this behavior, non-full sub-groups still perform scans over
-    // their full set of values. The returned result is defined as each array element is initialized by the
-    // default constructor, but not part of the actual scan and is ignored. The __sub_group_carry in this case does
-    // not affect the scan as it only occurs with the last sub-group.
+    // Perform scan at sub-group level. For non active sub-groups, we pad these with the last element and ultimately
+    // discard the scan value. Due to observed performance regressions when changing this behavior, non-full sub-groups
+    // still perform scans over their full set of values. The returned result is defined as each array element is
+    // initialized by the last input, but not part of the actual scan and is ignored. The __sub_group_carry in
+    // this case does not affect the scan as it only occurs with the last sub-group.
     //
     // TODO: we should analyze why limiting the sub-group scan causes performance regressions.
     _InputType __sub_group_carry = __sub_group_scan<__sub_group_size, __iters_per_item>(
