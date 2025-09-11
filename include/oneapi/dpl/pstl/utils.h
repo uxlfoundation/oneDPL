@@ -1074,6 +1074,35 @@ struct __replace_if_fun
     const _T __new_value;
 };
 
+template <typename _OutValueType, typename _OutRefType, typename _InRefType>
+inline constexpr bool __trivial_uninitialized_copy =
+    // Required operation is trivial
+    // If the required operation is trivial, we can skip it.
+    std::is_trivially_constructible_v<_OutValueType, _InRefType> &&
+    // Actual operations are trivial
+    // If the element type is trivially default constructible,
+    // we can assume that its "life" has begun even in the uninitialized memory, and we can assign to it
+    std::is_trivially_default_constructible_v<_OutValueType> &&
+    std::is_trivially_assignable_v<_OutRefType, _InRefType>;
+
+template <typename _OutValueType, typename _OutRefType, typename _InRefType>
+inline constexpr bool __trivial_uninitialized_move =
+    std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> && // required operation
+    std::is_trivially_default_constructible_v<_OutValueType> &&                                // actual operations
+    std::is_trivially_assignable_v<_OutRefType, _InRefType>;
+
+template <typename _ValueType, typename _T>
+inline constexpr bool __trivial_uninitialized_fill =
+    std::is_trivially_constructible_v<_ValueType, _T> &&     // required operation
+    std::is_trivially_default_constructible_v<_ValueType> && // actual operations
+    // the value is expected to be converted to the element type by the caller in the actual operation
+    std::is_trivially_copy_assignable_v<_ValueType>;
+
+template <typename _ValueType>
+inline constexpr bool __trivial_uninitialized_value_construct =
+    std::is_trivially_default_constructible_v<_ValueType> && // required operation
+    std::is_trivially_copy_assignable_v<_ValueType>;         // actual operation
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
