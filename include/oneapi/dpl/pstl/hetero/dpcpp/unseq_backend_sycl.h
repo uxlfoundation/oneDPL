@@ -1269,21 +1269,20 @@ class __brick_set_op
 
         auto __idx_c = __idx;
         const auto __idx_a = __idx;
-        auto __val_a = __a[__a_beg + __idx_a];
+        auto __val_a_proj = std::invoke(__proj1, __a[__a_beg + __idx_a]);
 
         auto __res =
-            __internal::__pstl_lower_bound(__b, _Size2(0), __nb, std::invoke(__proj1, __val_a), __comp, __proj2);
+            __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __val_a_proj, __comp, __proj2);
 
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
         bool bres = __is_difference; //initialization is true in case of difference operation; false - intersection.
-        if (__res == __nb ||
-            std::invoke(__comp, std::invoke(__proj1, __val_a), std::invoke(__proj2, __b[__b_beg + __res])))
+        if (__res == __nb || std::invoke(__comp, __val_a_proj, std::invoke(__proj2, __b[__b_beg + __res])))
         {
             // there is no __val_a in __b, so __b in the difference {__a}/{__b};
         }
         else
         {
-            auto __val_b = __b[__b_beg + __res];
+            auto __val_b_proj = std::invoke(__proj2, __b[__b_beg + __res]);
 
             //Difference operation logic: if number of duplication in __a on left side from __idx > total number of
             //duplication in __b than a mask is 1
@@ -1291,13 +1290,13 @@ class __brick_set_op
             //Intersection operation logic: if number of duplication in __a on left side from __idx <= total number of
             //duplication in __b than a mask is 1
 
-            const _Size1 __count_a_left = __idx_a - __internal::__pstl_left_bound(__a,
-                _Size1(0), _Size1(__idx_a), std::invoke(__proj1, __val_a), __comp, __proj1) + 1;
+            const _Size1 __count_a_left =
+                __idx_a -
+                __internal::__pstl_left_bound(__a, _Size1(0), _Size1(__idx_a), __val_a_proj, __comp, __proj1) + 1;
 
-            const _Size2 __count_b = __internal::__pstl_right_bound(__b, _Size2(__res), __nb,
-                                                                    std::invoke(__proj2, __val_b), __comp, __proj2) -
-                                     __internal::__pstl_left_bound(__b, _Size2(0), _Size2(__res),
-                                                                   std::invoke(__proj2, __val_b), __comp, __proj2);
+            const _Size2 __count_b =
+                __internal::__pstl_right_bound(__b, _Size2(__res), __nb, __val_b_proj, __comp, __proj2) -
+                __internal::__pstl_left_bound(__b, _Size2(0), _Size2(__res), __val_b_proj, __comp, __proj2);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
