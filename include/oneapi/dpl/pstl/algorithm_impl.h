@@ -3478,7 +3478,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     }
 
     return __internal::__parallel_set_op(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
         [](_DifferenceType1 __n, _DifferenceType1 __m) { return __n + __m; }, __set_union_op, __comp, __proj1, __proj2);
 }
 
@@ -3545,7 +3545,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
     return __parallel_set_union_op(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
            _RandomAccessIterator2 __last2, _Tp* __result, _Compare __comp, oneapi::dpl::identity,
            oneapi::dpl::identity) {
