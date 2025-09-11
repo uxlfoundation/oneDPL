@@ -29,7 +29,7 @@ main()
         const auto out_size = std::ranges::size(r_out);
         const auto skipped = in_size - std::ranges::min(in_size, out_size);
 
-        // To avoid compile error in libstdc++10 which mistakenly doesn't treat drop_view(r_in) as a borrowed_range
+        // To avoid compile error in libstdc++10 which mistakenly doesn't treat drop_view(r_in, skipped) as a borrowed_range
         auto tmp_view = std::ranges::drop_view(r_in, skipped);
         auto res = std::ranges::reverse_copy(tmp_view, std::ranges::begin(r_out));
 
