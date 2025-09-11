@@ -1014,8 +1014,7 @@ struct __brick_includes
         const auto __idx_b = 0 + __idx;
         const auto __val_b_proj = std::invoke(__proj1, __rng1[__idx_b]);
 
-        auto __res =
-            __internal::__pstl_lower_bound(__rng2, _Size1{0}, __size2, __val_b_proj, __comp, __proj2);
+        auto __res = __internal::__pstl_lower_bound(__rng2, _Size1{0}, __size2, __val_b_proj, __comp, __proj2);
 
         // {a} < {b} or __val_b != __rng2[__res]
         if (__res == __size2 || std::invoke(__comp, __val_b_proj, std::invoke(__proj2, __rng2[__res])))
@@ -1024,9 +1023,8 @@ struct __brick_includes
         auto __val_a_proj = std::invoke(__proj2, __rng2[__res]);
 
         //searching number of duplication
-        const auto __count_a =
-            __internal::__pstl_right_bound(__rng2, __res, __size2, __val_a_proj, __comp, __proj2) -
-            __internal::__pstl_left_bound(__rng2, _Size1{0}, __res, __val_a_proj, __comp, __proj2);
+        const auto __count_a = __internal::__pstl_right_bound(__rng2, __res, __size2, __val_a_proj, __comp, __proj2) -
+                               __internal::__pstl_left_bound(__rng2, _Size1{0}, __res, __val_a_proj, __comp, __proj2);
 
         const auto __count_b =
             __internal::__pstl_right_bound(__rng1, _Size2(__idx_b), __size1, __val_b_proj, __comp, __proj1) -
@@ -1271,8 +1269,7 @@ class __brick_set_op
         const auto __idx_a = __idx;
         auto __val_a_proj = std::invoke(__proj1, __a[__a_beg + __idx_a]);
 
-        auto __res =
-            __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __val_a_proj, __comp, __proj2);
+        auto __res = __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __val_a_proj, __comp, __proj2);
 
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
         bool bres = __is_difference; //initialization is true in case of difference operation; false - intersection.

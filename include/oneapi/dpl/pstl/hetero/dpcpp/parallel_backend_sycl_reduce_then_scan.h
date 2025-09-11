@@ -391,7 +391,8 @@ struct __gen_set_mask
 
         const auto __val_a_proj = std::invoke(__proj1, __set_a[__id]);
 
-        auto __res = oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a_proj, __comp, __proj2);
+        auto __res =
+            oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a_proj, __comp, __proj2);
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
 
         //initialization is true in case of difference operation; false - intersection.
@@ -416,7 +417,8 @@ struct __gen_set_mask
 
             const std::size_t __count_b =
                 oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __val_b_proj, __comp, __proj2) -
-                oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __val_b_proj, __comp, __proj2);
+                oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __val_b_proj, __comp,
+                                                           __proj2);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
