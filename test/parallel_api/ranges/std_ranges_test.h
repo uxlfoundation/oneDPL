@@ -172,7 +172,7 @@ template<typename>
 constexpr int calc_res_size(int n, int) { return n; }
 
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
-auto data_gen_unproccessed = [](auto) { return -1;};
+auto data_gen_unprocessed = [](auto) { return -1;};
 
 template <typename _ReturnType>
 struct all_dangling_in_result : std::false_type
@@ -373,8 +373,8 @@ private:
         Container cont_in(exec, n_in, DataGen1{});
         Container cont_in_exp(exec, n_in, DataGen1{});
 
-        Container cont_out(exec, n_out, data_gen_unproccessed);
-        Container cont_out_exp(exec, n_out, data_gen_unproccessed);
+        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_out_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in <= max_n);
         assert(n_out <= max_n);
