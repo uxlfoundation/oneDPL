@@ -971,14 +971,14 @@ __pattern_includes(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     if (std::ranges::empty(__r1) || __n2 > __n1)
         return false;
 
-    using __brick_includes_t = unseq_backend::__brick_includes<decltype(__n1), decltype(__n2), _Comp, _Proj1, _Proj2>;
+    using __brick_include_type = unseq_backend::__brick_includes<decltype(__n1), decltype(__n2), _Comp, _Proj1, _Proj2>;
     using _TagType = __par_backend_hetero::__parallel_or_tag;
     using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __brick_includes_t{__n1, __n2, __comp, __proj1, __proj2},
-        _TagType{}, __size_calc{}, oneapi::dpl::__ranges::views::all_read(__r2),
-        oneapi::dpl::__ranges::views::all_read(__r1));
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        __brick_include_type{__n1, __n2, __comp, __proj1, __proj2}, _TagType{}, __size_calc{},
+        oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_read(__r1));
 }
 
 //Dummy names to avoid kernel problems
