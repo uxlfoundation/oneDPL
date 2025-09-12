@@ -1015,8 +1015,8 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_1>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r));
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{}, std::forward<_R2>(__r2),
+            std::forward<_OutRange>(__out_r));
 
         return {__first1, __first2 + __n2, __result + __idx};
     }
@@ -1028,16 +1028,15 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_2>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            std::forward<_R1>(__r1), std::forward<_OutRange>(__out_r));
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{}, std::forward<_R1>(__r1),
+            std::forward<_OutRange>(__out_r));
 
         return {__first1 + __n1, __first2, __result + __idx};
     }
 
     const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_UnionTag>(
-        _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec),
-        std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-        __comp, __proj1, __proj2);
+        _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1),
+        std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 
     return {__first1 + __n1, __first2 + __n2, __result + __result_size};
 }
@@ -1065,8 +1064,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_IntersectionTag>(
         _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
-        std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-        __comp, __proj1, __proj2);
+        std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 
     return {__first1 + __n1, __first2 + __n2, __result + __result_size};
 }
@@ -1100,16 +1098,15 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_difference_copy_case_1>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            std::forward<_R1>(__r1), std::forward<_OutRange>(__out_r));
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{}, std::forward<_R1>(__r1),
+            std::forward<_OutRange>(__out_r));
 
         return {__first1 + __n1, __result + __idx};
     }
 
     const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_DifferenceTag>(
-        _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
-        std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-        __comp, __proj1, __proj2);
+        _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1),
+        std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 
     return {__first1 + __n1, __result + __result_size};
 }
@@ -1152,8 +1149,8 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_copy_case_1>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r));
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{}, std::forward<_R2>(__r2),
+            std::forward<_OutRange>(__out_r));
 
         return {__first1, __first2 + __n2, __result + __idx};
     }
@@ -1165,8 +1162,8 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_copy_case_2>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
-            std::forward<_R1>(__r1), std::forward<_OutRange>(__out_r));
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{}, std::forward<_R1>(__r1),
+            std::forward<_OutRange>(__out_r));
 
         return {__first1 + __n1, __first2, __result + __idx};
     }
