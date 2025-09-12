@@ -987,50 +987,58 @@ struct __scan
 // __brick_includes
 //------------------------------------------------------------------------
 
-template <typename _Size1, typename _Size2, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
 struct __brick_includes
 {
-    _Size1 __size1;
-    _Size2 __size2;
+    _SizeA __na;
+    _SizeB __nb;
     _Compare __comp;
-    _Proj1 __proj1;
-    _Proj2 __proj2;
+    _ProjA __projA;
+    _ProjB __projB;
 
-    __brick_includes(_Size1 __size1, _Size2 __size2, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
-        : __size1(__size1), __size2(__size2), __comp(__comp), __proj1(__proj1), __proj2(__proj2) {}
+    __brick_includes(_SizeA __na, _SizeB __nb, _Compare __comp, _ProjA __projA, _ProjB __projB)
+        : __na(__na), __nb(__nb), __comp(__comp), __projA(__projA), __projB(__projB) {}
 
-    template <typename _ItemId, typename __Rng1, typename __Rng2>
+    template <typename _ItemId, typename __RngB, typename __RngA>
     bool
-    operator()(_ItemId __idx, const __Rng1& __rng1, const __Rng2& __rng2) const
+    operator()(_ItemId __idx, const __RngB& __rngB, const __RngA& __rngA) const
     {
         using std::get;
 
+        auto __a_beg = _SizeA(0);
+        auto __a_end = __na;
+
+        auto __b_beg = _SizeB(0);
+        auto __b_end = __nb;
+
         // testing __comp(*__first2, *__first1) or __comp(*(__last1 - 1), *(__last2 - 1))
-        if ((__idx == 0 && std::invoke(__comp, std::invoke(__proj1, __rng1[0]), std::invoke(__proj2, __rng2[0]))) ||
-            (__idx == __size1 - 1 &&
-             std::invoke(__comp, std::invoke(__proj2, __rng2[__size2 - 1]), std::invoke(__proj1, __rng1[__size1 - 1]))))
-            return true; //__rng2 doesn't include __rng1
+        if ((__idx == 0 && std::invoke(__comp, std::invoke(__projB, __rngB[__b_beg + 0]),
+                                       std::invoke(__projA, __rngA[__a_beg + 0]))) ||
+            (__idx == __nb - 1 &&
+             std::invoke(__comp, std::invoke(__projA, __rngA[__a_end - 1]), std::invoke(__projB, __rngB[[__b_end - 1]))))
+            return true; //__rngA doesn't include __rngB
 
-        const auto __idx_b = 0 + __idx;
-        const auto __val_b_proj = std::invoke(__proj1, __rng1[__idx_b]);
+        const auto __idx_b = __b_beg + __idx;
+        const auto __val_b_proj = std::invoke(__projB, __rngB[__idx_b]);
 
-        auto __res = __internal::__pstl_lower_bound(__rng2, _Size1{0}, __size2, __val_b_proj, __comp, __proj2);
+        auto __res = __internal::__pstl_lower_bound(__rngA, __a_beg, __a_end, __val_b_proj, __comp, __projA);
 
-        // {a} < {b} or __val_b != __rng2[__res]
-        if (__res == __size2 || std::invoke(__comp, __val_b_proj, std::invoke(__proj2, __rng2[__res])))
-            return true; //__rng2 doesn't include __rng1
+        // {a} < {b} or __val_b != __rngA[__res]
+        if (__res == __a_end || std::invoke(__comp, __val_b_proj, std::invoke(__projA, __rngA[__res])))
+            return true; //__rngA doesn't include __rngB
 
-        auto __val_a_proj = std::invoke(__proj2, __rng2[__res]);
+        auto __val_a_proj = std::invoke(__projA, __rngA[__res]);
 
         //searching number of duplication
-        const auto __count_a = __internal::__pstl_right_bound(__rng2, __res, __size2, __val_a_proj, __comp, __proj2) -
-                               __internal::__pstl_left_bound(__rng2, _Size1{0}, __res, __val_a_proj, __comp, __proj2);
+        const auto __count_a = __internal::__pstl_right_bound(__rngA, __res, __a_end, __val_a_proj, __comp, __projA) -
+                               __internal::__pstl_left_bound(__rngA, __a_beg, __res, __val_a_proj, __comp, __projA);
 
         const auto __count_b =
-            __internal::__pstl_right_bound(__rng1, _Size2(__idx_b), __size1, __val_b_proj, __comp, __proj1) -
-            __internal::__pstl_left_bound(__rng1, _Size2{0}, _Size2(__idx_b), __val_b_proj, __comp, __proj1);
+            __internal::__pstl_right_bound(__rngB, _SizeB(__idx_b), __b_end, __val_b_proj, __comp, __projB) -
+            __idx_b + __idx_b -
+            __internal::__pstl_left_bound(__rngB, __b_beg, _SizeB(__idx_b), __val_b_proj, __comp, __projB);
 
-        return __count_b > __count_a; //false means __rng2 includes __rng1
+        return __count_b > __count_a; //false means __rngA includes __rngB
     }
 };
 
