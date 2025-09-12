@@ -537,7 +537,6 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
                         _OrFirstTag __is_or_semantic)
 {
     const auto __n = oneapi::dpl::__ranges::__size(__rng);
-    //trivial pre-checks
     if (__n < 2)
         return __n;
 
@@ -582,7 +581,7 @@ __pattern_adjacent_find_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy
 
     auto __idx =
         oneapi::dpl::__internal::__ranges::__pattern_adjacent_find(__tag, std::forward<_ExecutionPolicy>(__exec),
-        __r, __pred_2,
+        oneapi::dpl::__ranges::views::all_read(__r), __pred_2,
         oneapi::dpl::__internal::__first_semantic());
 
     return std::ranges::borrowed_iterator_t<_R>(std::ranges::begin(__r) + __idx);
@@ -1039,7 +1038,7 @@ oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     //If size == 1, result is the zero-indexed element. If size == 0, result is 0.
-    if (oneapi::dpl::__ranges::__size(__rng) == 0)
+    if (oneapi::dpl::__ranges::__size(__rng) < 0)
         return 0;
 
     [[maybe_unused]] auto [__idx, __val] =
@@ -1085,7 +1084,7 @@ std::pair<std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl
           std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>>
 __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
-    assert(oneapi::dpl::__ranges::__size(__rng) > 1);
+    assert(oneapi::dpl::__ranges::__size(__rng) > 0);
 
     using _IteratorValueType = typename ::std::iterator_traits<decltype(__rng.begin())>::value_type;
     using _IndexValueType = oneapi::dpl::__internal::__difference_t<_Range>;
