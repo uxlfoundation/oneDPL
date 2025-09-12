@@ -988,9 +988,6 @@ struct __set_union_copy_case_1;
 template <typename Name>
 struct __set_union_copy_case_2;
 
-template <typename Name>
-struct __set_union_scan_then_propagate;
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
 std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
@@ -1040,9 +1037,6 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     return {__first1 + __n1, __first2 + __n2, __result + __result_size};
 }
-
-template <typename Name>
-struct __set_intersection_scan_then_propagate;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
@@ -1117,12 +1111,6 @@ struct __set_symmetric_difference_copy_case_1;
 
 template <typename Name>
 struct __set_symmetric_difference_copy_case_2;
-
-template <typename Name>
-struct __set_symmetric_difference_phase_1;
-
-template <typename Name>
-struct __set_symmetric_difference_phase_2;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
