@@ -1295,12 +1295,10 @@ class __brick_set_op
             //duplication in __b than a mask is 1
 
             const _SizeA __count_a_left =
-                __idx_a -
-                __internal::__pstl_left_bound(__a, __a_beg, __idx_a, __val_a_proj, __comp, __projA) + 1;
+                __idx_a - __internal::__pstl_left_bound(__a, __a_beg, __idx_a, __val_a_proj, __comp, __projA) + 1;
 
-            const _SizeB __count_b =
-                __internal::__pstl_right_bound(__b, __res, __nb, __val_b_proj, __comp, __projB) -
-                __internal::__pstl_left_bound(__b, __b_beg, __res, __val_b_proj, __comp, __projB);
+            const _SizeB __count_b = __internal::__pstl_right_bound(__b, __res, __nb, __val_b_proj, __comp, __projB) -
+                                     __internal::__pstl_left_bound(__b, __b_beg, __res, __val_b_proj, __comp, __projB);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
