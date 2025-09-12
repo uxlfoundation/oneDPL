@@ -129,17 +129,24 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 namespace __ranges
 {
 
+template <typename _Range>
+auto
+__size(const _Range& __rng)
+{
+#if _ONEDPL_CPP20_RANGES_PRESENT
+        return std::ranges::size(__rng);
+#else
+        return __rng.size();
+#endif
+}
+
 struct __first_size_calc
 {
     template <typename _Range, typename... _Ranges>
     auto
     operator()(const _Range& __rng, const _Ranges&...) const
     {
-#if _ONEDPL_CPP20_RANGES_PRESENT
-        return std::ranges::size(__rng);
-#else
-        return __rng.size();
-#endif
+        __size(__rng);
     }
 };
 
