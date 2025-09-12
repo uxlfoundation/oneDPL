@@ -1060,7 +1060,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
-        return {__first1, __first2, __result};
+        return {__first1 + __n1, __first2 + __n2, __result};
 
     const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_IntersectionTag>(
         _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
