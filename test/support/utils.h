@@ -86,7 +86,7 @@ issue_error_message(::std::stringstream& outstr)
 {
     outstr << ::std::endl;
     ::std::cerr << outstr.str();
-    ::std::exit(EXIT_FAILURE);
+    //::std::exit(EXIT_FAILURE);
 }
 
 template <typename TStream>
