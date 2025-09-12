@@ -1013,9 +1013,9 @@ struct __brick_includes
 
         // testing __comp(*__first2, *__first1) or __comp(*(__last1 - 1), *(__last2 - 1))
         if ((__idx == 0 && std::invoke(__comp, std::invoke(__projB, __rngB[__b_beg + 0]),
-                                       std::invoke(__projA, __rngA[__a_beg + 0]))) ||
-            (__idx == __nb - 1 &&
-             std::invoke(__comp, std::invoke(__projA, __rngA[__a_end - 1]), std::invoke(__projB, __rngB[__b_end - 1]))))
+                                               std::invoke(__projA, __rngA[__a_beg + 0]))) ||
+            (__idx == __nb - 1 && std::invoke(__comp, std::invoke(__projA, __rngA[__a_end - 1]),
+                                                      std::invoke(__projB, __rngB[__b_end - 1]))))
             return true; //__rngA doesn't include __rngB
 
         const _SizeB __idx_b = __b_beg + __idx;
