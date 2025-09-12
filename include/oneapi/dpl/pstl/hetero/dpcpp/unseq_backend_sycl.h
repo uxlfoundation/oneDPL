@@ -1247,46 +1247,46 @@ struct _SymmetricDifferenceTag
 {
 };
 
-template <typename _SetTag, typename _Size1, typename _Size2, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SetTag, typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
 class __brick_set_op
 {
-    _Size1 __na;
-    _Size2 __nb;
+    _SizeA __na;
+    _SizeB __nb;
     _Compare __comp;
-    _Proj1 __proj1;
-    _Proj2 __proj2;
+    _ProjA __projA;
+    _ProjB __projB;
 
   public:
-    __brick_set_op(_Size1 __na, _Size2 __nb, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
-        : __na(__na), __nb(__nb), __comp(__comp), __proj1(__proj1), __proj2(__proj2) {}
+    __brick_set_op(_SizeA __na, _SizeB __nb, _Compare __comp, _ProjA __projA, _ProjB __projB)
+        : __na(__na), __nb(__nb), __comp(__comp), __projA(__projA), __projB(__projB) {}
 
     template <typename _ItemId, typename _Acc>
     bool
     operator()(_ItemId __idx, const _Acc& __inout_acc) const
     {
         using std::get;
-        auto __a = get<0>(__inout_acc.tuple()); // first sequence: applied __proj1
-        auto __b = get<1>(__inout_acc.tuple()); // second sequence: applied __proj2
+        auto __a = get<0>(__inout_acc.tuple()); // first sequence
+        auto __b = get<1>(__inout_acc.tuple()); // second sequence
         auto __c = get<2>(__inout_acc.tuple()); // mask buffer
 
-        auto __a_beg = _Size1(0);
-        auto __b_beg = _Size2(0);
+        const _SizeA __a_beg = 0;
+        const _SizeB __b_beg = 0;
 
         auto __idx_c = __idx;
-        const auto __idx_a = __idx;
-        const auto& __val_a_proj = std::invoke(__proj1, __a[__a_beg + __idx_a]);
+        const _SizeA __idx_a = _SizeA(__idx);
+        const auto& __val_a_proj = std::invoke(__projA, __a[__a_beg + __idx_a]);
 
-        auto __res = __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __val_a_proj, __comp, __proj2);
+        const _SizeB __res = __internal::__pstl_lower_bound(__b, __b_beg, __nb, __val_a_proj, __comp, __projB);
 
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
         bool bres = __is_difference; //initialization is true in case of difference operation; false - intersection.
-        if (__res == __nb || std::invoke(__comp, __val_a_proj, std::invoke(__proj2, __b[__b_beg + __res])))
+        if (__res == __nb || std::invoke(__comp, __val_a_proj, std::invoke(__projB, __b[__b_beg + __res])))
         {
             // there is no __val_a in __b, so __b in the difference {__a}/{__b};
         }
         else
         {
-            const auto& __val_b_proj = std::invoke(__proj2, __b[__b_beg + __res]);
+            const auto& __val_b_proj = std::invoke(__projB, __b[__b_beg + __res]);
 
             //Difference operation logic: if number of duplication in __a on left side from __idx > total number of
             //duplication in __b than a mask is 1
@@ -1294,13 +1294,13 @@ class __brick_set_op
             //Intersection operation logic: if number of duplication in __a on left side from __idx <= total number of
             //duplication in __b than a mask is 1
 
-            const _Size1 __count_a_left =
+            const _SizeA __count_a_left =
                 __idx_a -
-                __internal::__pstl_left_bound(__a, _Size1(0), _Size1(__idx_a), __val_a_proj, __comp, __proj1) + 1;
+                __internal::__pstl_left_bound(__a, __a_beg, __idx_a, __val_a_proj, __comp, __projA) + 1;
 
-            const _Size2 __count_b =
-                __internal::__pstl_right_bound(__b, _Size2(__res), __nb, __val_b_proj, __comp, __proj2) -
-                __internal::__pstl_left_bound(__b, _Size2(0), _Size2(__res), __val_b_proj, __comp, __proj2);
+            const _SizeB __count_b =
+                __internal::__pstl_right_bound(__b, __res, __nb, __val_b_proj, __comp, __projB) -
+                __internal::__pstl_left_bound(__b, __b_beg, __res, __val_b_proj, __comp, __projB);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
