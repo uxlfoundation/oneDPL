@@ -1082,13 +1082,16 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
 
     const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
     const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    const auto __total_size = __n1 + __n2;
+
     const std::int32_t __num_diagonals =
-        oneapi::dpl::__internal::__dpl_ceiling_div(__n1 + __n2, __diagonal_spacing);
+        oneapi::dpl::__internal::__dpl_ceiling_div(__total_size, __diagonal_spacing);
     const std::size_t __partition_threshold = 2 * 1024 * 1024;
-    const std::size_t __total_size = __n1 + __n2;
     // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
     // portion of the range so star flag can use sign bit.
-    using _TemporaryType = std::make_signed_t<decltype(__n1)>;
+    // Const is removed to make sure the buffer can be written to.
+    using _TemporaryType = std::remove_const_t<std::make_signed_t<decltype(__n1)>>;
+
     //TODO: limit to diagonals per block, and only write to a block based index of temporary data
     oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
 
