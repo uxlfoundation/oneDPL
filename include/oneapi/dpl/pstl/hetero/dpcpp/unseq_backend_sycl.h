@@ -1005,11 +1005,11 @@ struct __brick_includes
     {
         using std::get;
 
-        auto __a_beg = _SizeA(0);
-        auto __a_end = __na;
+        const _SizeA __a_beg = 0;
+        const _SizeA __a_end = __na;
 
-        auto __b_beg = _SizeB(0);
-        auto __b_end = __nb;
+        const _SizeB __b_beg = 0;
+        const _SizeB __b_end = __nb;
 
         // testing __comp(*__first2, *__first1) or __comp(*(__last1 - 1), *(__last2 - 1))
         if ((__idx == 0 && std::invoke(__comp, std::invoke(__projB, __rngB[__b_beg + 0]),
@@ -1018,10 +1018,10 @@ struct __brick_includes
              std::invoke(__comp, std::invoke(__projA, __rngA[__a_end - 1]), std::invoke(__projB, __rngB[__b_end - 1]))))
             return true; //__rngA doesn't include __rngB
 
-        const auto __idx_b = __b_beg + __idx;
+        const _SizeB __idx_b = __b_beg + __idx;
         const auto __val_b_proj = std::invoke(__projB, __rngB[__idx_b]);
 
-        auto __res = __internal::__pstl_lower_bound(__rngA, __a_beg, __a_end, __val_b_proj, __comp, __projA);
+        const _SizeA __res = __internal::__pstl_lower_bound(__rngA, __a_beg, __a_end, __val_b_proj, __comp, __projA);
 
         // {a} < {b} or __val_b != __rngA[__res]
         if (__res == __a_end || std::invoke(__comp, __val_b_proj, std::invoke(__projA, __rngA[__res])))
@@ -1034,9 +1034,9 @@ struct __brick_includes
                                __internal::__pstl_left_bound(__rngA, __a_beg, __res, __val_a_proj, __comp, __projA);
 
         const auto __count_b =
-            __internal::__pstl_right_bound(__rngB, _SizeB(__idx_b), __b_end, __val_b_proj, __comp, __projB) -
+            __internal::__pstl_right_bound(__rngB, __idx_b, __b_end, __val_b_proj, __comp, __projB) -
             __idx_b + __idx_b -
-            __internal::__pstl_left_bound(__rngB, __b_beg, _SizeB(__idx_b), __val_b_proj, __comp, __projB);
+            __internal::__pstl_left_bound(__rngB, __b_beg, __idx_b, __val_b_proj, __comp, __projB);
 
         return __count_b > __count_a; //false means __rngA includes __rngB
     }
