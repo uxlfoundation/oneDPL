@@ -1,23 +1,23 @@
 .. |onedpl_library_guide| replace:: Intel® oneAPI DPC++ Library Guide
-.. _onedpl_library_guide: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-7/overview.html
+.. _onedpl_library_guide: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-9/overview.html
 
 .. |dpcpp_gsg| replace:: Get Started with the Intel® oneAPI DPC++/C++ Compiler
-.. _dpcpp_gsg: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/get-started-guide/2025-0/overview.html
+.. _dpcpp_gsg: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/get-started-guide/2025-2/overview.html
 
 .. |dpcpp_cpp_with_gsg_link| replace:: Intel® oneAPI DPC++/C++ Compiler
-.. _dpcpp_cpp_with_gsg_link: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/get-started-guide/2025-0/overview.html
+.. _dpcpp_cpp_with_gsg_link: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/get-started-guide/2025-2/overview.html
 
 .. |dpcpp_cmake_support| replace:: CMake support documentation for the Intel® oneAPI DPC++/C++ Compiler
-.. _dpcpp_cmake_support: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2025-0/use-cmake-with-the-compiler.html
+.. _dpcpp_cmake_support: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2025-2/use-cmake-with-the-compiler.html
 
 .. |vector_pragma| replace:: pragma vector documentation in the Intel® oneAPI DPC++/C++ Compiler Developer Guide and Reference
-.. _vector_pragma: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2025-0/vector.html
+.. _vector_pragma: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2025-2/vector.html
 
 .. |pstl_offload_option| replace:: ``-fsycl-pstl-offload`` option
-.. _pstl_offload_option: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2025-0/fsycl-pstl-offload.html
+.. _pstl_offload_option: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2025-2/fsycl-pstl-offload.html
 
 .. |esimd_sycl_extension| replace:: Explicit SIMD SYCL extension
-.. _esimd_sycl_extension: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2025-0/explicit-simd-sycl-extension.html
+.. _esimd_sycl_extension: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2025-2/explicit-simd-sycl-extension.html
 
 .. |unroll_pragma| replace:: unroll Pragma
 .. _unroll_pragma: https://www.intel.com/content/www/us/en/docs/oneapi-fpga-add-on/developer-guide/2025-0/unroll-pragma.html
