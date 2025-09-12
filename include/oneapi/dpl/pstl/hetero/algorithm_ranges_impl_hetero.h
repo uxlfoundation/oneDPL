@@ -978,7 +978,7 @@ __pattern_includes(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         __brick_include_type{__n1, __n2, __comp, __proj1, __proj2}, _TagType{}, __size_calc{},
-        std::forward<_R1>(__r2), std::forward<_R1>(__r1));
+        std::forward<_R2>(__r2), std::forward<_R1>(__r1));
 }
 
 //Dummy names to avoid kernel problems
