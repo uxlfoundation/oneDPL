@@ -755,8 +755,6 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                        oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
                                                                    std::invoke(__proj2, *__i), __comp, __proj1);
 
-            //assert(!__comp(*(__last1 - 1), *__b));
-            //assert(!__comp(*(__j - 1), *__i));
             return !std::ranges::includes(__b, __last1, __i, __j, __comp, __proj1, __proj2);
         });
 }
