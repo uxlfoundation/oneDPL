@@ -1027,7 +1027,7 @@ struct __brick_includes
         if (__res == __a_end || std::invoke(__comp, __val_b_proj, std::invoke(__projA, __rngA[__res])))
             return true; //__rngA doesn't include __rngB
 
-        auto __val_a_proj = std::invoke(__projA, __rngA[__res]);
+        const auto __val_a_proj = std::invoke(__projA, __rngA[__res]);
 
         //searching number of duplication
         const auto __count_a = __internal::__pstl_right_bound(__rngA, __res, __a_end, __val_a_proj, __comp, __projA) -
@@ -1275,7 +1275,7 @@ class __brick_set_op
 
         auto __idx_c = __idx;
         const auto __idx_a = __idx;
-        auto __val_a_proj = std::invoke(__proj1, __a[__a_beg + __idx_a]);
+        const auto __val_a_proj = std::invoke(__proj1, __a[__a_beg + __idx_a]);
 
         auto __res = __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __val_a_proj, __comp, __proj2);
 
@@ -1287,7 +1287,7 @@ class __brick_set_op
         }
         else
         {
-            auto __val_b_proj = std::invoke(__proj2, __b[__b_beg + __res]);
+            const auto __val_b_proj = std::invoke(__proj2, __b[__b_beg + __res]);
 
             //Difference operation logic: if number of duplication in __a on left side from __idx > total number of
             //duplication in __b than a mask is 1
