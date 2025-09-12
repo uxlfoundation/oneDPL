@@ -725,7 +725,6 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         [__first1, __last1, __first2, __last2, __comp, __proj1, __proj2](_RandomAccessIterator2 __i,
                                                                          _RandomAccessIterator2 __j) {
             assert(__j > __i);
-            //assert(__j - __i > 1);
 
             //1. moving boundaries to "consume" subsequence of equal elements
             auto __is_equal_sorted = [&__comp, __proj2](_RandomAccessIterator2 __a,
