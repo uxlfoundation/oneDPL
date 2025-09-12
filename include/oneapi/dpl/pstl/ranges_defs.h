@@ -21,7 +21,7 @@
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #include <ranges>
-#endif
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 #include "utils_ranges.h"
 #if _ONEDPL_BACKEND_SYCL

@@ -1029,7 +1029,7 @@ struct __count_fn_pred
         return std::ranges::equal_to{}(std::invoke(__proj, std::forward<_TValue>(__val)), __value);
     }
 };
-#endif
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 template <typename _ValueType, typename _FlagType, typename _BinaryOp>
 struct __segmented_scan_fun
