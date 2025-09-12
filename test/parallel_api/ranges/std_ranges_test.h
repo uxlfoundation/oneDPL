@@ -187,7 +187,7 @@ template<typename>
 int out_size_with_empty_in2(int) { return 0; };
 
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
-auto data_gen_zero = [](auto) { return 0;};
+auto data_gen_unprocessed = [](auto) { return -1;};
 
 template <typename _ReturnType>
 struct all_dangling_in_result : std::false_type
@@ -388,8 +388,8 @@ private:
         Container cont_in(exec, n_in, DataGen1{});
         Container cont_in_exp(exec, n_in, DataGen1{});
 
-        Container cont_out(exec, n_out, data_gen_zero);
-        Container cont_out_exp(exec, n_out, data_gen_zero);
+        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_out_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in <= max_n);
         assert(n_out <= max_n);
@@ -515,8 +515,8 @@ private:
         Container cont_in1(exec, n_in1, DataGen1{});
         Container cont_in2(exec, n_in2, DataGen2{});
 
-        Container cont_out(exec, n_out, data_gen_zero);
-        Container cont_exp(exec, n_out, data_gen_zero);
+        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in1 <= max_n);
         assert(n_in2 <= max_n);
