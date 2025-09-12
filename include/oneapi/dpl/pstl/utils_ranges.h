@@ -146,7 +146,7 @@ struct __first_size_calc
     auto
     operator()(const _Range& __rng, const _Ranges&...) const
     {
-        __size(__rng);
+        return __size(__rng);
     }
 };
 
