@@ -1264,7 +1264,7 @@ class __brick_set_op
     bool
     operator()(_ItemId __idx, const _Acc& __inout_acc) const
     {
-        using ::std::get;
+        using std::get;
         auto __a = get<0>(__inout_acc.tuple()); // first sequence: applied __proj1
         auto __b = get<1>(__inout_acc.tuple()); // second sequence: applied __proj2
         auto __c = get<2>(__inout_acc.tuple()); // mask buffer
