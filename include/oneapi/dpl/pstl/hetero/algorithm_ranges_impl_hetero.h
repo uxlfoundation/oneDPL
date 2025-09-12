@@ -757,7 +757,7 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _In
 {
     const auto __n = std::ranges::size(__in_r);
 
-    assert(__n == oneapi::dpl::__ranges::size(__out_r)); // sizes must be made equal on the caller side
+    assert(__n == std::ranges::size(__out_r)); // sizes must be made equal on the caller side
 
     if (__n == 0)
         return;
