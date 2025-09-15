@@ -195,6 +195,25 @@ template <class _Tag>
 inline constexpr bool __is_host_dispatch_tag_v =
     __is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag> || __is_parallel_tag_v<_Tag>;
 
+inline oneapi::dpl::execution::parallel_policy
+__get_unvectorized_policy(const oneapi::dpl::execution::parallel_unsequenced_policy&)
+{
+    return oneapi::dpl::execution::par;
+}
+
+inline oneapi::dpl::execution::sequenced_policy
+__get_unvectorized_policy(const oneapi::dpl::execution::unsequenced_policy&)
+{
+    return oneapi::dpl::execution::seq;
+}
+
+template <typename _ExecutionPolicy>
+_ExecutionPolicy
+__get_unvectorized_policy(const _ExecutionPolicy& __exec)
+{
+    return __exec;
+}
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi

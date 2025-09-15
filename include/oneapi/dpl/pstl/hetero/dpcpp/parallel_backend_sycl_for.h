@@ -26,6 +26,8 @@
 #include "parallel_backend_sycl_utils.h"
 #include "execution_sycl_defs.h"
 #include "unseq_backend_sycl.h"
+
+#include "../../utils_ranges.h" // __min_size_calc
 #include "utils_ranges_sycl.h"
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
@@ -83,8 +85,7 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
     __future<sycl::event>
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
-        assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
-                   __rngs.size())...}) > 0);
+        assert(oneapi::dpl::__ranges::__min_size_calc{}(__rngs...) > 0);
         assert(__count > 0);
 
         _PRINT_INFO_IN_DEBUG_MODE(__q);
@@ -235,8 +236,7 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
         __has_pfor_brick_members_v<_Fp>,
         "The brick provided to __parallel_for must define const / constexpr static bool members __can_vectorize and "
         "__can_process_multiple_iters which must be evaluated at compile time.");
-    assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
-               __rngs.size())...}) > 0);
+    assert(oneapi::dpl::__ranges::__min_size_calc{}(__rngs...) > 0);
     assert(__count > 0);
 
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
