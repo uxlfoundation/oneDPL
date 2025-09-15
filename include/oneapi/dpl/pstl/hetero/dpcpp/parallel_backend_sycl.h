@@ -1188,8 +1188,10 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
 {
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
 
-    // temporary buffer to store intermediate result
+    const auto __n1 = __rng1.size();
     const auto __n2 = __rng2.size();
+
+    // temporary buffer to store intermediate result
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
     auto __buf = __diff.get();
     auto __keep_tmp1 =
@@ -1199,7 +1201,6 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     const std::size_t __n_diff = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
         oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng2, __rng1, __tmp_rng1.all_view(), __comp);
 
-    const auto __n1 = __rng1.size();
 
     //2. Merge {2} and the difference
     if (__n_diff == 0)
