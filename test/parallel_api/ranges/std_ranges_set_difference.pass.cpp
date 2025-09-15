@@ -59,12 +59,12 @@ void test_mixed_types_device()
     sycl::queue q = policy.queue();
     if (q.get_device().has(sycl::aspect::usm_shared_allocations))
     {
-        using r1_alloc_t = sycl::usm_allocator<A, sycl::usm::alloc::shared>;
-        using r2_alloc_t = sycl::usm_allocator<B, sycl::usm::alloc::shared>;
+        using r1_alloc_t = sycl::usm_allocator<test_std_ranges::A, sycl::usm::alloc::shared>;
+        using r2_alloc_t = sycl::usm_allocator<test_std_ranges::B, sycl::usm::alloc::shared>;
         using r_out_alloc_t = sycl::usm_allocator<int, sycl::usm::alloc::shared>;
 
-        std::vector<A, r1_alloc_t> v1({{1}, {2}, {5}}, r1_alloc_t(q));
-        std::vector<B, r2_alloc_t> v2({{0}, {2}, {2}, {3}}, r2_alloc_t(q));
+        std::vector<test_std_ranges::A, r1_alloc_t> v1({{1}, {2}, {5}}, r1_alloc_t(q));
+        std::vector<test_std_ranges::B, r2_alloc_t> v2({{0}, {2}, {2}, {3}}, r2_alloc_t(q));
         std::vector<int> out_expected = {1, 5};
 
         std::vector<int, r_out_alloc_t> out(out_expected.size(), 0xCD, r_out_alloc_t(q));
