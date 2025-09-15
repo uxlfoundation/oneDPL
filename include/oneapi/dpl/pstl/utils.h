@@ -50,6 +50,8 @@
 #    include <concepts> // for std::equality_comparable_with
 #endif
 
+#include "functional_impl.h"
+
 namespace oneapi
 {
 namespace dpl
@@ -92,7 +94,7 @@ class __not_pred
     bool
     operator()(_Args&&... __args) const
     {
-        return !_M_pred(::std::forward<_Args>(__args)...);
+        return !std::invoke(_M_pred, std::forward<_Args>(__args)...);
     }
 };
 
@@ -108,7 +110,7 @@ class __reorder_pred
     bool
     operator()(_FTp&& __a, _STp&& __b) const
     {
-        return _M_pred(::std::forward<_STp>(__b), ::std::forward<_FTp>(__a));
+        return std::invoke(_M_pred, std::forward<_STp>(__b), std::forward<_FTp>(__a));
     }
 };
 
@@ -627,22 +629,22 @@ __dpl_signbit(const _T& __x)
     return (__x & __mask) != 0;
 }
 
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
-_Size1
-__pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
+_Size
+__pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
     auto __n = __last - __first;
     auto __cur = __n;
-    _Size1 __it;
+    _Size __idx;
     while (__n > 0)
     {
-        __it = __first;
+        __idx = __first;
         __cur = __n / 2;
-        __it += __cur;
-        if (__comp(__acc[__it], __value))
+        __idx += __cur;
+        if (std::invoke(__comp, std::invoke(__proj, __acc[__idx]), __value))
         {
             __n -= __cur + 1;
-            __first = ++__it;
+            __first = ++__idx;
         }
         else
             __n = __cur;
@@ -650,30 +652,31 @@ __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
     return __first;
 }
 
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
-_Size1
-__pstl_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
+_Size
+__pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
-    return __pstl_lower_bound(__acc, __first, __last, __value,
-                              oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__reorder_pred<_Compare>>{
-                                  oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    return __pstl_lower_bound(__acc, __first, __last, __value, __negation_reordered_comp, __proj);
 }
 
 // Searching for the first element strongly greater than a passed value - right bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare>
+template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
 _Index
-__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp)
+__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj)
 {
-    return __pstl_upper_bound(__a, __first, __last, __val, __comp);
+    return __pstl_upper_bound(__a, __first, __last, __val, __comp, __proj);
 }
 
 // Performs a "biased" binary search targets the split point close to one edge of the range.
 // When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
 // After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
 // resulting in a standard binary search.
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
 _Size1
-__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
     auto __n = __last - __first;
     std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
@@ -689,7 +692,7 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
             __cur_idx = __biased_step;
         __it = __first + __cur_idx;
 
-        if (__comp(__acc[__it], __value))
+        if (std::invoke(__comp, std::invoke(__proj, __acc[__it]), __value))
         {
             __first = __it + 1;
         }
@@ -704,18 +707,19 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
     if (__n > 0)
     {
         //end up fully at binary search
-        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, __value, __comp);
+        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, __value, __comp, __proj);
     }
     return __first;
 }
 
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
 _Size1
-__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
-    return __biased_lower_bound<__bias_last>(
-        __acc, __first, __last, __value,
-        oneapi::dpl::__internal::__not_pred{oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    return __biased_lower_bound<__bias_last>(__acc, __first, __last, __value, __negation_reordered_comp, __proj);
 }
 
 template <typename _IntType, typename _Acc>
@@ -779,14 +783,16 @@ struct _ReverseCounter
 };
 
 // Reverse searching for the first element strongly less than a passed value - left bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare>
+template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
 _Index
-__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp)
+__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj)
 {
     auto __beg = _ReverseCounter<_Index, _Buffer>{__last - 1};
     auto __end = _ReverseCounter<_Index, _Buffer>{__first - 1};
 
-    return __pstl_upper_bound(__a, __beg, __end, __val, __reorder_pred<_Compare>{__comp});
+    __not_pred<decltype(__comp)> __negation_comp{__comp};
+
+    return __pstl_lower_bound(__a, __beg, __end, __val, __negation_comp, __proj);
 }
 
 // Lower bound implementation based on Shar's algorithm for binary search.

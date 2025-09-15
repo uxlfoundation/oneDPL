@@ -105,8 +105,13 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202505L`` or a greater value,
 
 If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202509L`` or a greater value, the following algorithms are provided:
 
+* ``includes``
 * ``reverse``
 * ``reverse_copy``
+* ``set_difference``
+* ``set_intersection``
+* ``set_symmetric_difference``
+* ``set_union``
 * ``unique``
 * ``unique_copy``
 * ``swap_ranges``
