@@ -834,7 +834,7 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
 
     _Assigner __assign_op;
     _ReduceOp __reduce_op;
-    _DataAcc __get_data_op;
+    _DataAcc __get_data_op{oneapi::dpl::identity{}};
     _MaskAssigner __add_mask_op;
 
     // temporary buffer to store boolean mask
