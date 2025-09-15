@@ -25,10 +25,8 @@ should be implemented in the future releases.
 - Opportunity to fuse several parallel algorithm invocations into one.
 
 ### Key Requirements
-- The range-based signatures for the mentioned API corresponds to
+- The range-based signatures for the mentioned API correspond to
   [Parallel Range Algorithms Specification](https://github.com/uxlfoundation/oneAPI-spec/blob/main/source/elements/oneDPL/source/parallel_api/parallel_range_api.rst).
-- The signature of `reverse_copy` aligns with [P3709](https://wg21.link/p3709),
-  which updates the signature defined in [P3179](https://wg21.link/p3179).
 - The implementation supports all oneDPL execution policies:
   `seq`, `unseq`, `par`, `par_unseq`, and `device_policy`.
 - `ONEDPL_HAS_RANGE_ALGORITHMS` macro is added to detect available algorithms.
@@ -38,7 +36,7 @@ The implementation relies on the existing
 range-based patterns (the experimental parallel range algorithms with device execution policies) or
 iterator-based patterns (the rest algorithms) for the majority of algorithms.
 
-These algorithms need new patterns or significantly modyfing the existing ones:
+These algorithms need new patterns or significantly modifying the existing ones:
 `merge`,  `copy_if`, `unique_copy`,
 `set_union`, `set_difference`, `set_symmetric_difference`, `set_intersection`.
 They must stop execution when the output sequence is exhausted and return the last processed points,
