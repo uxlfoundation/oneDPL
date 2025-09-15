@@ -105,6 +105,20 @@ struct P2
     friend bool operator==(const P2& a, const P2& b) { return a.x == b.x && a.y == b.y; }
 };
 
+struct A
+{
+    int a;
+    operator int() const { return a; }
+};
+
+struct B
+{
+    int b;
+    operator int() const { return b; }
+};
+
+auto proj_a = [](const A& a) { return a.a; };
+auto proj_b = [](const B& b) { return b.b; };
 
 // These are copies of __range_size and __range_size_t utilities from oneDPL
 // to get a size type of a range be it sized or not

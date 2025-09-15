@@ -16,22 +16,11 @@
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
-struct A
-{
-    int a;
-    operator int() const { return a; }
-};
-
-struct B
-{
-    int b;
-    operator int() const { return b; }
-};
 
 void test_mixed_types_host()
 {
-    std::vector<A> r1 = {{1}, {2}, {3}};
-    std::vector<B> r2 = {{0}, {2}, {2}, {3}};
+    std::vector<test_std_ranges::A> r1 = {{1}, {2}, {3}};
+    std::vector<test_std_ranges::B> r2 = {{0}, {2}, {2}, {3}};
 
     std::vector<int> out_expected = {2, 3};
 
@@ -40,17 +29,14 @@ void test_mixed_types_host()
     std::vector<int> out_unseq(out_expected.size(), 0xCD);
     std::vector<int> out_par_unseq(out_expected.size(), 0xCD);
 
-    auto proj_a = [](const A& a) { return a.a; };
-    auto proj_b = [](const B& b) { return b.b; };
-
     oneapi::dpl::ranges::set_intersection(
-        oneapi::dpl::execution::seq, r1, r2, out_seq, std::ranges::less{}, proj_a, proj_b);
+        oneapi::dpl::execution::seq, r1, r2, out_seq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     oneapi::dpl::ranges::set_intersection(
-        oneapi::dpl::execution::par, r1, r2, out_par, std::ranges::less{}, proj_a, proj_b);
+        oneapi::dpl::execution::par, r1, r2, out_par, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     oneapi::dpl::ranges::set_intersection(
-        oneapi::dpl::execution::unseq, r1, r2, out_unseq, std::ranges::less{}, proj_a, proj_b);
+        oneapi::dpl::execution::unseq, r1, r2, out_unseq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     oneapi::dpl::ranges::set_intersection(
-        oneapi::dpl::execution::par_unseq, r1, r2, out_par_unseq, std::ranges::less{}, proj_a, proj_b);
+        oneapi::dpl::execution::par_unseq, r1, r2, out_par_unseq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
 
     EXPECT_EQ_RANGES(out_expected, out_seq, "wrong result with seq policy");
     EXPECT_EQ_RANGES(out_expected, out_par, "wrong result with par policy");
@@ -80,10 +66,7 @@ void test_mixed_types_device()
         std::ranges::subrange r2(v2.data(), v2.data() + v2.size());
         std::ranges::subrange r_out(out.data(), out.data() + out.size());
 
-        auto proj_a = [](const A& a) { return a.a; };
-        auto proj_b = [](const B& b) { return b.b; };
-
-        oneapi::dpl::ranges::set_intersection(policy, r1, r2, r_out, std::ranges::less{}, proj_a, proj_b);
+        oneapi::dpl::ranges::set_intersection(policy, r1, r2, r_out, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
         EXPECT_EQ_RANGES(out_expected, out, "wrong result with device policy");
     }
 }
