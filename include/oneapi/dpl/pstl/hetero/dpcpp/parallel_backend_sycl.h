@@ -1199,12 +1199,14 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     const std::size_t __n_diff = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
         oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng2, __rng1, __tmp_rng1.all_view(), __comp);
 
+    const auto __n1 = __rng1.size();
+
     //2. Merge {2} and the difference
     if (__n_diff == 0)
     {
         // merely copy if no elements are in diff
         oneapi::dpl::__par_backend_hetero::__parallel_copy_impl<__set_union_copy_wrapper<_CustomName>>(
-            __q, __rng1.size(), std::forward<_Range1>(__rng1), std::forward<_Range3>(__result))
+            __q, __n1, std::forward<_Range1>(__rng1), std::forward<_Range3>(__result))
             .wait();
     }
     else
@@ -1217,7 +1219,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
             __q, std::forward<_Range1>(__rng1), __tmp_rng2.all_view(), std::forward<_Range3>(__result), __comp)
             .wait();
     }
-    return __n_diff + __rng1.size();
+    return __n_diff + __n1;
 }
 
 template <typename _CustomName>
