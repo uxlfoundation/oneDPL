@@ -711,7 +711,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         std::invoke(__comp, std::invoke(__proj1, *(__last1 - 1)), std::invoke(__proj2, *(__last2 - 1))))
         return false;
 
-    __first1 += oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, _DifferenceType1{__n1},
+    __first1 += oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
                                                             std::invoke(__proj2, *__first2), __comp, __proj1);
     if (__first1 == __last1)
         return false;
@@ -751,7 +751,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 
             //2. testing is __a subsequence of the second range included into the first range
             auto __b = __first1 +
-                       oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, _DifferenceType1{__n1},
+                       oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
                                                                    std::invoke(__proj2, *__i), __comp, __proj1);
 
             return !std::ranges::includes(__b, __last1, __i, __j, __comp, __proj1, __proj2);
@@ -903,7 +903,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 =
-        __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, _DifferenceType1{__n1},
+        __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
                                                                std::invoke(__proj2, *__first2), __comp, __proj1);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
     if (__left_bound_seq_1 == __last1)
@@ -911,7 +911,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_2 =
-        __first2 + oneapi::dpl::__internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, _DifferenceType2{__n2},
+        __first2 + oneapi::dpl::__internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
                                                                std::invoke(__proj1, *__first1), __comp, __proj2);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
     if (__left_bound_seq_2 == __last2)
@@ -1038,7 +1038,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 =
-        __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, _DifferenceType1{__n1},
+        __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
                                                                std::invoke(__proj2, *__first2), __comp, __proj1);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, parallel copying just first sequence
     if (__left_bound_seq_1 == __last1)
@@ -1050,7 +1050,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_2 =
-        __first2 + oneapi::dpl::__internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, _DifferenceType2{__n2},
+        __first2 + oneapi::dpl::__internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
                                                                std::invoke(__proj1, *__first1), __comp, __proj2);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, parallel copying just first sequence
     if (__left_bound_seq_2 == __last2)
