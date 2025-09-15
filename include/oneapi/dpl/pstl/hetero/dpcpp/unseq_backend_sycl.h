@@ -121,8 +121,6 @@ struct walk_n
 template <>
 struct walk_n<oneapi::dpl::identity>
 {
-    oneapi::dpl::identity __f;
-
     template <typename _ItemId, typename _Range>
     auto
     operator()(const _ItemId __idx, _Range&& __rng) const -> decltype(__rng[__idx])
