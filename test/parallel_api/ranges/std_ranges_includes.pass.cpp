@@ -16,36 +16,24 @@
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
-struct A1
-{
-    int a1;
-};
-
-struct A2
-{
-    int a2;
-};
 
 void test_mixed_types_host()
 {
-    std::vector<A1> vec_a1 = {{1}, {2}, {3}};
-    std::vector<A2> vec_a2 = {{2}, {3}};
+    std::vector<test_std_ranges::A> vec_a = {{1}, {2}, {3}};
+    std::vector<test_std_ranges::B> vec_b = {{2}, {3}};
 
-    auto proj_a1 = [](const A1& a) { return a.a1; };
-    auto proj_a2 = [](const A2& a) { return a.a2; };
+    bool exp_res = std::ranges::includes(vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
 
-    bool exp_res = std::ranges::includes(vec_a1, vec_a2, std::ranges::less{}, proj_a1, proj_a2);
-
-    bool seq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::seq, vec_a1, vec_a2, std::ranges::less{}, proj_a1, proj_a2);
+    bool seq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::seq, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     EXPECT_EQ(seq_res, exp_res, "wrong result with seq policy");
 
-    bool unseq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::unseq, vec_a1, vec_a2, std::ranges::less{}, proj_a1, proj_a2);
+    bool unseq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::unseq, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     EXPECT_EQ(unseq_res, exp_res, "wrong result with unseq policy");
 
-    bool par_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par, vec_a1, vec_a2, std::ranges::less{}, proj_a1, proj_a2);
+    bool par_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     EXPECT_EQ(par_res, exp_res, "wrong result with par policy");
 
-    bool par_unseq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par_unseq, vec_a1, vec_a2, std::ranges::less{}, proj_a1, proj_a2);
+    bool par_unseq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par_unseq, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     EXPECT_EQ(par_unseq_res, exp_res, "wrong result with par_unseq policy");
 }
 
@@ -56,30 +44,27 @@ void test_mixed_types_device()
     sycl::queue q = policy.queue();
     if (q.get_device().has(sycl::aspect::usm_shared_allocations))
     {
-        A1* d_a1 = sycl::malloc_shared<A1>(3, q);
-        A2* d_a2 = sycl::malloc_shared<A2>(2, q);
+        test_std_ranges::A* d_a = sycl::malloc_shared<test_std_ranges::A>(3, q);
+        test_std_ranges::B* d_b = sycl::malloc_shared<test_std_ranges::B>(2, q);
 
-        d_a1[0] = {1};
-        d_a1[1] = {2};
-        d_a1[2] = {3};
+        d_a[0] = {1};
+        d_a[1] = {2};
+        d_a[2] = {3};
 
-        d_a2[0] = {2};
-        d_a2[1] = {3};
+        d_b[0] = {2};
+        d_b[1] = {3};
 
-        std::ranges::subrange a1_range(d_a1, d_a1 + 3);
-        std::ranges::subrange a2_range(d_a2, d_a2 + 2);
+        std::ranges::subrange rng_a(d_a, d_a + 3);
+        std::ranges::subrange rng_b(d_b, d_b + 2);
 
-        auto proj_a1 = [](const A1& a) { return a.a1; };
-        auto proj_a2 = [](const A2& a) { return a.a2; };
-
-        bool exp_res = std::ranges::includes(a1_range, a2_range, std::ranges::less{}, proj_a1, proj_a2);
+        bool exp_res = std::ranges::includes(rng_a, rng_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
 
         bool dev_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::make_device_policy(q),
-                                                     a1_range, a2_range, std::ranges::less{}, proj_a1, proj_a2);
+                                                     rng_a, rng_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
         EXPECT_EQ(dev_res, exp_res, "wrong result with device policy");
 
-        sycl::free(d_a1, q);
-        sycl::free(d_a2, q);
+        sycl::free(d_a, q);
+        sycl::free(d_b, q);
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
