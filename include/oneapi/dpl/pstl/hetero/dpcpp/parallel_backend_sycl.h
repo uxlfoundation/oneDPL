@@ -1145,7 +1145,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
     _Assigner __assign_op{};
     _DataAcc __get_data_op{};
     unseq_backend::__copy_by_mask<_ReduceOp, oneapi::dpl::__internal::__pstl_assign, /*inclusive*/ std::true_type, 2>
-        __copy_by_mask_op;
+        __copy_by_mask_op{};
     unseq_backend::__brick_set_op<_SetTag, _Compare, _Size1, _Size2> __create_mask_op{__comp, __n1, __n2};
 
     // temporary buffer to store boolean mask
