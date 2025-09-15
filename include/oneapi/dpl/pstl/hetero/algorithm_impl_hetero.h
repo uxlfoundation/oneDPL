@@ -1485,6 +1485,8 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
     auto __buf1 = __keep(__first1, __last1);
     auto __buf2 = __keep(__first2, __last2);
 
+    // We should pass __buf2, __buf1 (not __buf1, __buf2) into this call of __parallel_find_or
+    // because we using __first_size_calc as _SizeCalc inside
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         __brick_include_type{__n1, __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{}}, _TagType{},
