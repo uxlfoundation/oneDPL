@@ -999,7 +999,7 @@ struct __brick_includes
     __brick_includes(_SizeA __na, _SizeB __nb, _Compare __comp, _ProjA __projA, _ProjB __projB)
         : __na(__na), __nb(__nb), __comp(__comp), __projA(__projA), __projB(__projB) {}
 
-    template <typename _ItemId, typename __RngB, typename __RngA>
+    template <typename _ItemId, typename __RngA, typename __RngB>
     bool
     operator()(_ItemId __idx, const __RngA& __rngA, const __RngB& __rngB) const
     {
