@@ -374,7 +374,7 @@ struct __gen_unique_mask
 
 // A mask generator for set operations (difference or intersection) to determine if an element from Set A should be
 // written to the output sequence based on its presence in Set B and the operation type (difference or intersection).
-template <typename _SetTag, typename _Compare>
+template <typename _SetTag, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_mask
 {
     template <typename _InRng>
@@ -383,27 +383,28 @@ struct __gen_set_mask
     {
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __set_a = std::get<0>(__in_rng.tuple());    // first sequence
-        auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence
+        auto __set_a = std::get<0>(__in_rng.tuple());    // first sequence, use with __proj1
+        auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence, use with __proj2
         auto __set_mask = std::get<2>(__in_rng.tuple()); // mask sequence
 
         std::size_t __nb = __set_b.size();
 
-        auto __val_a = __set_a[__id];
+        const auto& __val_a_proj = std::invoke(__proj1, __set_a[__id]);
 
-        auto __res = oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a, __comp);
+        auto __res =
+            oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a_proj, __comp, __proj2);
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
 
         //initialization is true in case of difference operation; false - intersection.
         bool bres = __is_difference;
 
-        if (__res == __nb || __comp(__val_a, __set_b[__res]))
+        if (__res == __nb || std::invoke(__comp, __val_a_proj, std::invoke(__proj2, __set_b[__res])))
         {
             // there is no __val_a in __set_b, so __set_b in the difference {__set_a}/{__set_b};
         }
         else
         {
-            auto __val_b = __set_b[__res];
+            const auto& __val_b_proj = std::invoke(__proj2, __set_b[__res]);
 
             //Difference operation logic: if number of duplication in __set_a on left side from __id > total number of
             //duplication in __set_b then a mask is 1
@@ -412,11 +413,12 @@ struct __gen_set_mask
             //duplication in __set_b then a mask is 1
 
             const std::size_t __count_a_left =
-                __id - oneapi::dpl::__internal::__pstl_left_bound(__set_a, std::size_t{0}, __id, __val_a, __comp) + 1;
+                __id - oneapi::dpl::__internal::__pstl_left_bound(__set_a, std::size_t{0}, __id, __val_a_proj, __comp, __proj1) + 1;
 
             const std::size_t __count_b =
-                oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __val_b, __comp) -
-                oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __val_b, __comp);
+                oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __val_b_proj, __comp, __proj2) -
+                oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __val_b_proj, __comp,
+                                                           __proj2);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
@@ -427,17 +429,21 @@ struct __gen_set_mask
         return bres;
     }
     _Compare __comp;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
 };
 
 // __parallel_set_write_a_b_op
 
 // Returns by reference: iterations consumed, and the number of elements copied to temp output.
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds, typename _InRng1,
-          typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
+          typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare, typename _Proj1,
+          typename _Proj2>
 void
 __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
                                   std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                  _SizeType& __idx, std::uint16_t& __count, const _Compare __comp)
+                                  _SizeType& __idx, std::uint16_t& __count, const _Compare __comp, _Proj1 __proj1,
+                                  _Proj2 __proj2)
 {
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
@@ -476,7 +482,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 
     const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
     const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
-    if (__comp(__ele_rng1, __ele_rng2))
+    if (std::invoke(__comp, std::invoke(__proj1, __ele_rng1), std::invoke(__proj2, __ele_rng2)))
     {
         if constexpr (_CopyDiffSetA)
         {
@@ -486,7 +492,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
         ++__idx1;
         ++__idx;
     }
-    else if (__comp(__ele_rng2, __ele_rng1))
+    else if (std::invoke(__comp, std::invoke(__proj2, __ele_rng2), std::invoke(__proj1, __ele_rng1)))
     {
         if constexpr (_CopyDiffSetB)
         {
@@ -514,10 +520,12 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
 struct __set_generic_operation
 {
-    template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare>
+    template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
+              typename _Proj1, typename _Proj2>
     std::uint16_t
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp) const
+               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
+               _Proj2 __proj2) const
     {
 
         std::uint16_t __count = 0;
@@ -531,7 +539,8 @@ struct __set_generic_operation
             {
                 // no bounds checking
                 __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false>(
-                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
+                    __proj2);
             }
         }
         else
@@ -540,7 +549,8 @@ struct __set_generic_operation
             {
                 //bounds check all
                 __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true>(
-                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp);
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
+                    __proj2);
             }
         }
         return __count;
@@ -673,7 +683,7 @@ struct __get_bounds_simple
 // Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
 // balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
 // to the output for the reduction operation.
-template <typename _SetOpCount, typename _BoundsProvider, typename _Compare>
+template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_balanced_path
 {
     using TempData = __noop_temp_data;
@@ -697,9 +707,9 @@ struct __gen_set_balanced_path
             return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
         }
 
-        const auto __ele_val = __rng1[__merge_path_rng1 - 1];
+        const auto& __ele_val_proj = std::invoke(__proj1, __rng1[__merge_path_rng1 - 1]);
 
-        if (__comp(__ele_val, __rng2[__merge_path_rng2]))
+        if (std::invoke(__comp, __ele_val_proj, std::invoke(__proj2, __rng2[__merge_path_rng2])))
         {
             // There is no chance that the balanced path differs from the merge path here, because the previous element of
             // rng1 does not match the next element of rng2. We can just return the merge path.
@@ -708,10 +718,10 @@ struct __gen_set_balanced_path
 
         // find first element of repeating sequence in the first set of the previous element
         _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
-            __rng1, __rng1_begin, __merge_path_rng1, __ele_val, __comp);
+            __rng1, __rng1_begin, __merge_path_rng1, __ele_val_proj, __comp, __proj1);
         // find first element of repeating sequence in the second set of the next element
         _Index __rng2_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
-            __rng2, __rng2_begin, __merge_path_rng2, __ele_val, __comp);
+            __rng2, __rng2_begin, __merge_path_rng2, __ele_val_proj, __comp, __proj2);
 
         _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
         _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
@@ -730,7 +740,7 @@ struct __gen_set_balanced_path
         _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2_end);
 
         _Index __balanced_path_intersection_rng2 = oneapi::dpl::__internal::__pstl_upper_bound(
-            __rng2, __merge_path_rng2, __fwd_search_bound, __ele_val, __comp);
+            __rng2, __merge_path_rng2, __fwd_search_bound, __ele_val_proj, __comp, __proj2);
 
         // Calculate the number of matchable "future" repeats in the second set
         _Index __matchable_forward_ele_rng2 = __balanced_path_intersection_rng2 - __merge_path_rng2;
@@ -767,7 +777,7 @@ struct __gen_set_balanced_path
         auto [__rng1_lower, __rng1_upper, __rng2_lower, __rng2_upper] = __get_bounds_local(__in_rng, __id);
         //find merge path intersection
         auto [__rng1_pos, __rng2_pos] = oneapi::dpl::__par_backend_hetero::__find_start_point(
-            __rng1, __rng1_lower, __rng1_upper, __rng2, __rng2_lower, __rng2_upper, __i_elem, __comp);
+            __rng1, __rng1_lower, __rng1_upper, __rng2, __rng2_lower, __rng2_upper, __i_elem, __comp, __proj1, __proj2);
 
         //Find balanced path for diagonal start
         auto [__rng1_balanced_pos, __rng2_balanced_pos, __star] = __find_balanced_path_start_point(
@@ -841,19 +851,21 @@ struct __gen_set_balanced_path
                                              __rng1.size() + __rng2.size() - _IndexT{__id * __diagonal_spacing - 1});
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
-                                               __eles_to_process, __temp_data, __comp);
+                                               __eles_to_process, __temp_data, __comp, __proj1, __proj2);
         return __count;
     }
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
     _BoundsProvider __get_bounds;
     _Compare __comp;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
 };
 
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <typename _SetOpCount, typename _TempData, typename _Compare>
+template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
@@ -882,13 +894,16 @@ struct __gen_set_op_from_known_balanced_path
             static_cast<std::uint16_t>(std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
                                                 static_cast<_SizeType>(__rng1.size() + __rng2.size() - __i_elem + 1)));
 
-        std::uint16_t __count =
-            __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data, __comp);
+        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
+                                               __comp, __proj1, __proj2);
+
         return std::make_tuple(std::uint32_t{__count}, __count);
     }
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
     _Compare __comp;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
 };
 
 // kernel for balanced path to partition the input into tiles by calculating balanced path on diagonals of tile bounds

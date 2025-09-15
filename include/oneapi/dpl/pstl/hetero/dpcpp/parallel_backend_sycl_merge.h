@@ -157,7 +157,7 @@ template <typename _Rng1, typename _Rng2, typename _Rng3, typename _Index, typen
 std::pair<_Index, _Index>
 __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _Index __start1, const _Index __start2,
                const _Index __start3, const _Index __chunk, const _Index __n1, const _Index __n2, _Compare __comp,
-               const _Index __n3 = 0, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+               _Proj1 __proj1 = {}, _Proj2 __proj2 = {}, const _Index __n3 = 0)
 {
     const _Index __rng1_size = std::min<_Index>(__n1 > __start1 ? __n1 - __start1 : _Index{0}, __chunk);
     const _Index __rng2_size = std::min<_Index>(__n2 > __start2 ? __n2 - __start2 : _Index{0}, __chunk);
@@ -194,7 +194,8 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
         {
             // TODO required to understand why the usual if-else is slower then ternary operator
             if (!__rng1_idx_less_n1 || (__rng1_idx_less_n1 && __rng2_idx_less_n2 &&
-                                        __comp(__proj2(__rng2[__rng2_idx]), __proj1(__rng1[__rng1_idx]))))
+                                        std::invoke(__comp, std::invoke(__proj2, __rng2[__rng2_idx]),
+                                                    std::invoke(__proj1, __rng1[__rng1_idx]))))
                 __rng3[__rng3_idx] = __rng2[__rng2_idx++];
             else
                 __rng3[__rng3_idx] = __rng1[__rng1_idx++];
@@ -258,7 +259,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
 
                 [[maybe_unused]] const std::pair __ends =
                     __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem, __n_merge, __n1,
-                                   __n2, __comp, __n, __proj1, __proj2);
+                                   __n2, __comp, __proj1, __proj2, __n);
 
                 if constexpr (_OutSizeLimit{})
                     if (__id == __steps - 1) //the last WI does additional work
@@ -411,7 +412,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
                     [[maybe_unused]] const std::pair __ends =
                         __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem,
-                                       __nd_range_params.chunk, __n1, __n2, __comp, __n, __proj1, __proj2);
+                                       __nd_range_params.chunk, __n1, __n2, __comp, __proj1, __proj2, __n);
 
                     if constexpr (_OutSizeLimit{})
                         if (__global_idx == __nd_range_params.steps - 1)
@@ -500,11 +501,10 @@ __get_starting_size_limit_for_large_submitter<int>()
 }
 
 template <typename _CustomName, typename _OutSizeLimit = std::false_type, typename _Range1, typename _Range2,
-          typename _Range3, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
-          typename _Proj2 = oneapi::dpl::identity>
+          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
-                      _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+                      _Proj1 __proj1, _Proj2 __proj2)
 {
     using __value_type = oneapi::dpl::__internal::__value_t<_Range3>;
     const std::size_t __n = std::min<std::size_t>(__rng1.size() + __rng2.size(), __rng3.size());
@@ -549,11 +549,10 @@ __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
 }
 
 template <typename _OutSizeLimit = std::false_type, typename _ExecutionPolicy, typename _Range1, typename _Range2,
-          typename _Range3, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
-          typename _Proj2 = oneapi::dpl::identity>
+          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
-                 _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+                 _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
