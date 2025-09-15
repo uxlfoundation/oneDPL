@@ -832,10 +832,10 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
     using _DataAcc = unseq_backend::walk_n<oneapi::dpl::identity>;
     using _InitType = unseq_backend::__no_init_value<_Size>;
 
-    _Assigner __assign_op;
-    _ReduceOp __reduce_op;
+    _Assigner __assign_op{};
+    _ReduceOp __reduce_op{};
     _DataAcc __get_data_op{};
-    _MaskAssigner __add_mask_op;
+    _MaskAssigner __add_mask_op{};
 
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n);
@@ -1141,8 +1141,8 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
     using _InitType = unseq_backend::__no_init_value<_Size1>;
     using _DataAcc = unseq_backend::walk_n<oneapi::dpl::identity>;
 
-    _ReduceOp __reduce_op;
-    _Assigner __assign_op;
+    _ReduceOp __reduce_op{};
+    _Assigner __assign_op{};
     _DataAcc __get_data_op{};
     unseq_backend::__copy_by_mask<_ReduceOp, oneapi::dpl::__internal::__pstl_assign, /*inclusive*/ std::true_type, 2>
         __copy_by_mask_op;
