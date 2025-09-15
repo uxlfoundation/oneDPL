@@ -1010,7 +1010,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
-    using _Tp = std::ranges::range_value_t<_OutRange>;
+    using _T = std::ranges::range_value_t<_OutRange>;
 
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
@@ -1061,18 +1061,18 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return __pattern_set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
     }
 
-    if (__n1 + __n2 > oneapi::dpl::__internal::__set_algo_cut_off)
+    if (__n1 + __n2 > __set_algo_cut_off)
     {
-        auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
+        auto __out_last = __parallel_set_op(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+            [](_DifferenceType1 __n, _DifferenceType2) { return __n; },
             [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-                return oneapi::dpl::__utils::__set_difference_construct(
-                    __first1, __last1, __first2, __last2, __result,
-                    oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
+               _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+                return oneapi::dpl::__utils::__set_difference_construct(__first1, __last1, __first2, __last2, __result,
+                                                                        __BrickCopyConstruct<_IsVector>(), __comp,
+                                                                        __proj1, __proj2);
             },
             __comp, __proj1, __proj2);
-
         return __pattern_set_difference_return_t<_R1, _OutRange>{__last1, __result + (__out_last - __result)};
     }
 
