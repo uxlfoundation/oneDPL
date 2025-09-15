@@ -1001,7 +1001,7 @@ struct __brick_includes
 
     template <typename _ItemId, typename __RngB, typename __RngA>
     bool
-    operator()(_ItemId __idx, const __RngA& __rngA, const __RngB& __rngB) const
+    operator()(_ItemId __idx, const __RngB& __rngB, const __RngA& __rngA) const
     {
         using std::get;
 

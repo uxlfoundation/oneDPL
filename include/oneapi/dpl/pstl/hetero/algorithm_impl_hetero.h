@@ -1488,7 +1488,7 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         __brick_include_type{__n1, __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{}}, _TagType{},
-        __size_calc{}, __buf1.all_view(), __buf2.all_view());
+        __size_calc{}, __buf2.all_view(), __buf1.all_view());
 }
 
 //------------------------------------------------------------------------
