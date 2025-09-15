@@ -1233,7 +1233,8 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
         auto __buf3 = __keep3(__d_first, __d_first + __n);
 
         __par_backend_hetero::__parallel_merge(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-                                               __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp)
+                                               __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp,
+                                               oneapi::dpl::identity{}, oneapi::dpl::identity{})
             .__checked_deferrable_wait();
     }
     return __d_first + __n;
@@ -1475,7 +1476,8 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
     if (__n1 == 0 || __n2 > __n1)
         return false;
 
-    using __brick_include_type = unseq_backend::__brick_includes<_Compare, decltype(__n1), decltype(__n2)>;
+    using __brick_include_type = unseq_backend::__brick_includes<decltype(__n1), decltype(__n2), _Compare,
+                                                                 oneapi::dpl::identity, oneapi::dpl::identity>;
     using _TagType = __par_backend_hetero::__parallel_or_tag;
     using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
@@ -1483,9 +1485,12 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
     auto __buf1 = __keep(__first1, __last1);
     auto __buf2 = __keep(__first2, __last2);
 
-    return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                                  __brick_include_type{__comp, __n1, __n2}, _TagType{},
-                                                                  __size_calc{}, __buf2.all_view(), __buf1.all_view());
+    // We should pass __buf2, __buf1 (not __buf1, __buf2) into this call of __parallel_find_or
+    // because we using __first_size_calc as _SizeCalc inside
+    return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        __brick_include_type{__n1, __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{}}, _TagType{},
+        __size_calc{}, __buf2.all_view(), __buf1.all_view());
 }
 
 //------------------------------------------------------------------------
@@ -1763,11 +1768,12 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bid
 }
 
 template <typename _BackendTag, typename _SetTag, typename _ExecutionPolicy, typename _ForwardIterator1,
-          typename _ForwardIterator2, typename _OutputIterator, typename _Compare>
+          typename _ForwardIterator2, typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
 __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _ExecutionPolicy&& __exec,
                         _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                        _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp)
+                        _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
+                        _Proj2 __proj2)
 {
     using _SizeType = std::common_type_t<typename std::iterator_traits<_ForwardIterator1>::difference_type,
                                          typename std::iterator_traits<_ForwardIterator2>::difference_type>;
@@ -1796,7 +1802,7 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
 
     _SizeType __result_size = __par_backend_hetero::__parallel_set_op<_SetTag>(
         _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
-        __buf3.all_view(), __comp);
+        __buf3.all_view(), __comp, __proj1, __proj2);
 
     return __result + __result_size;
 }
@@ -1812,7 +1818,8 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     if (__first1 == __last1 || __first2 == __last2)
         return __result;
     return __pattern_hetero_set_op(__tag, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                   __first1, __last1, __first2, __last2, __result, __comp);
+                                   __first1, __last1, __first2, __last2, __result, __comp, oneapi::dpl::identity{},
+                                   oneapi::dpl::identity{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1843,7 +1850,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     }
     return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_DifferenceTag{},
                                    std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
-                                   __result, __comp);
+                                   __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1889,7 +1896,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_UnionTag{},
                                    std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
-                                   __result, __comp);
+                                   __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1941,7 +1948,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
     }
     return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{},
                                    std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
-                                   __result, __comp);
+                                   __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 template <typename _Name>

@@ -486,10 +486,10 @@ struct __red_by_seg_op;
 template <typename _BinaryOp>
 struct __scan_by_seg_op;
 
-template <typename _SetOpCount, typename _BoundsProvider, typename _Compare>
+template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_balanced_path;
 
-template <typename _SetOpCount, typename _TempData, typename _Compare>
+template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path;
 
 template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
@@ -627,17 +627,18 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _SetOpCount, typename _BoundsProvider, typename _Compare>
+template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path,
-                                                       _SetOpCount, _BoundsProvider, _Compare)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _BoundsProvider, _Compare>
+                                                       _SetOpCount, _BoundsProvider, _Compare, _Proj1, _Proj2)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _BoundsProvider, _Compare, _Proj1, _Proj2>
 {
 };
 
-template <typename _SetOpCount, typename _TempData, typename _Compare>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path, _SetOpCount, _TempData, _Compare)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _Compare>
+template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
+struct sycl::is_device_copyable<
+    _ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path,
+                           _SetOpCount, _TempData, _Compare, _Proj1, _Proj2)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _Compare, _Proj1, _Proj2>
 {
 };
 
@@ -721,10 +722,10 @@ template <typename _Inclusive, typename _BinaryOperation, typename _UnaryOp, typ
           typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
 struct __scan;
 
-template <typename _Compare, typename _Size1, typename _Size2>
+template <typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
 struct __brick_includes;
 
-template <typename _SetTag, typename _Compare, typename _Size1, typename _Size2>
+template <typename _SetTag, typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
 class __brick_set_op;
 
 template <typename _BinaryOperator, typename _Size>
@@ -838,17 +839,17 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _Compare, typename _Size1, typename _Size2>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_includes, _Compare, _Size1,
-                                                       _Size2)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _Size1, _Size2>
+template <typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_includes, _SizeA, _SizeB,
+                                                       _Compare, _ProjA, _ProjB)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_SizeA, _SizeB, _Compare, _ProjA, _ProjB>
 {
 };
 
-template <typename _SetTag, typename _Compare, typename _Size1, typename _Size2>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_set_op, _SetTag, _Compare,
-                                                       _Size1, _Size2)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Compare, _Size1, _Size2>
+template <typename _SetTag, typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_set_op, _SetTag, _SizeA,
+                                                       _SizeB, _Compare, _ProjA, _ProjB)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_SizeA, _SizeB, _Compare, _ProjA, _ProjB>
 {
 };
 
