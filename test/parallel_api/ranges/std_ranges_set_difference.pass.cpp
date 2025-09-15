@@ -107,7 +107,7 @@ main()
     };
 
     test_range_algo<0, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, checker);
-    test_range_algo<1, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, checker,std::ranges::less{}, proj);
+    test_range_algo<1, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, checker, std::ranges::less{}, proj);
 
     // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
     test_range_algo<2, int, data_in_in_out, div3_t, mul1_t>{100}(dpl_ranges::set_difference, checker, std::ranges::less{}, proj, proj);
