@@ -260,7 +260,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __scan_local_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
         using _GroupScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             __scan_group_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
-        auto __n = __rng1.size();
+        auto __n = oneapi::dpl::__ranges::__size(__rng1);
         assert(__n > 0);
 
         auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__q);
@@ -722,7 +722,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
             _GenInput __gen_transform{__unary_op};
 
-            const std::size_t __n = __in_rng.size();
+            const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
             return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
                 __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
                 __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
@@ -811,7 +811,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    const std::size_t __n = __in_rng.size();
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
     return __parallel_transform_reduce_then_scan<sizeof(_Size), _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
         _ReduceOp{}, _GenScanInput{__generate_mask, {}}, _ScanInputTransform{}, __write_op,
@@ -865,7 +865,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     using _Assign = oneapi::dpl::__internal::__pstl_assign;
-    oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng.size();
+    oneapi::dpl::__internal::__difference_t<_Range1> __n = oneapi::dpl::__ranges::__size(__rng);
 
     // We expect at least two elements to perform unique_copy.  With fewer we
     // can simply copy the input range to the output.
@@ -916,7 +916,7 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
     // Writes current segment's output reduction and the next segment's output key
     using _WriteOp = __write_red_by_seg<_BinaryPredicate>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
-    std::size_t __n = __keys.size();
+    std::size_t __n = oneapi::dpl::__ranges::__size(__keys);
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
     return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>),
@@ -938,7 +938,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
     sycl::queue __q_local = __exec.queue();
 
-    oneapi::dpl::__internal::__difference_t<_Range1> __n = __rng.size();
+    oneapi::dpl::__internal::__difference_t<_Range1> __n = oneapi::dpl::__ranges::__size(__rng);
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
@@ -1041,8 +1041,8 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _ScanRangeTransform>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__rng1.size());
-    const std::size_t __n = __rng1.size();
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__rng1);
+    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__n);
     return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::__value_t<_Range1>), _CustomName>(
         __q, __n,
         oneapi::dpl::__ranges::make_zip_view(
@@ -1081,13 +1081,18 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign>;
 
+    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    const auto __total_size = __n1 + __n2;
+
     const std::int32_t __num_diagonals =
-        oneapi::dpl::__internal::__dpl_ceiling_div(__rng1.size() + __rng2.size(), __diagonal_spacing);
+        oneapi::dpl::__internal::__dpl_ceiling_div(__total_size, __diagonal_spacing);
     const std::size_t __partition_threshold = 2 * 1024 * 1024;
-    const std::size_t __total_size = __rng1.size() + __rng2.size();
     // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
     // portion of the range so star flag can use sign bit.
-    using _TemporaryType = std::make_signed_t<decltype(__rng1.size())>;
+    // Const is removed to make sure the buffer can be written to.
+    using _TemporaryType = std::remove_const_t<std::make_signed_t<decltype(__n1)>>;
+
     //TODO: limit to diagonals per block, and only write to a block based index of temporary data
     oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
 
@@ -1135,8 +1140,8 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
 
-    _Size1 __n1 = __rng1.size();
-    _Size2 __n2 = __rng2.size();
+    _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    _Size2 __n2 = oneapi::dpl::__ranges::__size(__rng2);
 
     //Algo is based on the recommended approach of set_intersection algo for GPU: binary search + scan (copying by mask).
     using _ReduceOp = std::plus<_Size1>;
@@ -1194,8 +1199,8 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
 {
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
 
-    const auto __n1 = __rng1.size();
-    const auto __n2 = __rng2.size();
+    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
 
     // temporary buffer to store intermediate result
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
@@ -1203,6 +1208,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     auto __keep_tmp1 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf)>();
     auto __tmp_rng1 = __keep_tmp1(__buf, __buf + __n2);
+
     //1. Calc difference {2} \ {1}
     const std::size_t __n_diff = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
         oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng2, __rng1, __tmp_rng1.all_view(), __comp, __proj2,
@@ -1253,10 +1259,10 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseR
     using _ValueType2 = oneapi::dpl::__internal::__value_t<_Range2>;
 
     // temporary buffers to store intermediate result
-    const auto __n1 = __rng1.size();
+    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType1> __diff_1(__n1);
     auto __buf_1 = __diff_1.get();
-    const auto __n2 = __rng2.size();
+    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType2> __diff_2(__n2);
     auto __buf_2 = __diff_2.get();
 
@@ -1378,7 +1384,7 @@ struct __check_use_write_a_alg
         // For intersection and difference operations, we check if set A is under an empirically obtained threshold
         // and if so, we use the set A write only algorithm, as that is most performant when set A is small.
         using __value_t = oneapi::dpl::__internal::__value_t<_Rng1>;
-        return __rng1.size() < __threshold_elements * sizeof(__value_t);
+        return oneapi::dpl::__ranges::__size(__rng1) < __threshold_elements * sizeof(__value_t);
     }
 
     template <typename _Rng1, typename _Rng2>
@@ -1390,7 +1396,7 @@ struct __check_use_write_a_alg
         // from __rng1 when they are shared (important for algorithms where the key being compared is not the full
         // element).
         using __value_t = oneapi::dpl::__internal::__value_t<_Rng2>;
-        return __rng2.size() < __threshold_elements * sizeof(__value_t);
+        return oneapi::dpl::__ranges::__size(__rng2) < __threshold_elements * sizeof(__value_t);
     }
 
     template <typename _Rng1, typename _Rng2>
@@ -2048,7 +2054,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
         using _Size = oneapi::dpl::__internal::__difference_t<_Range>;
 
-        _Size __n = __rng.size();
+        _Size __n = oneapi::dpl::__ranges::__size(__rng);
         assert(__n > 1);
 
         oneapi::dpl::__par_backend_hetero::__buffer<_Tp> __temp_buf(__n);
@@ -2262,7 +2268,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       _BinaryOperator __binary_op,
                                       /*known_identity=*/std::false_type)
 {
-    const auto __n = __keys.size();
+    const auto __n = oneapi::dpl::__ranges::__size(__keys);
     assert(__n > 0);
 
     using __diff_type = oneapi::dpl::__internal::__difference_t<_Range1>;
@@ -2417,7 +2423,7 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
     using _GenScanInput = __gen_scan_by_seg_scan_input<_BinaryPredicate>;
     using _ScanInputTransform = __get_zeroth_element;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
-    const std::size_t __n = __keys.size();
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__keys);
     // TODO: A bool type may be used here for a smaller footprint in registers / temp storage but results in IGC crashes
     // during JIT time. The same occurs for uint8_t and uint16_t. uint32_t is used as a workaround until the underlying
     // issue is resolved.
@@ -2454,7 +2460,7 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
 {
     using _FlagType = unsigned int;
 
-    const std::size_t __n = __keys.size();
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__keys);
 
     assert(__n > 0);
 
@@ -2553,7 +2559,7 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
-    assert(__keys.size() > 0);
+    assert(oneapi::dpl::__ranges::__size(__keys) > 0);
 
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {

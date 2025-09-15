@@ -155,8 +155,8 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typ
 oneapi::dpl::__internal::__difference_t<_Range1>
 __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
-    const std::size_t __n1 = __rng1.size();
-    const std::size_t __n2 = __rng2.size();
+    const std::size_t __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const std::size_t __n2 = oneapi::dpl::__ranges::__size(__rng2);
 
     //a trivial pre-check
     if (__n1 == 0 || __n2 == 0)
@@ -202,17 +202,19 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typ
 bool
 __pattern_equal(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Pred __pred)
 {
-    if (__rng1.size() != __rng2.size())
+    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    if (__n1 != __n2)
         return false;
 
-    if (__rng1.empty())
+    if (__n1 == 0)
         return true; //both sequences are empty
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<oneapi::dpl::__internal::__not_pred<_Pred>>;
     using __or_tag = oneapi::dpl::__par_backend_hetero::__parallel_or_tag;
     using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
-    assert(__rng1.size() == __rng2.size());
+    assert(__n1 == __n2);
 
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
@@ -243,9 +245,10 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, type
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Pred __pred)
 {
+    const auto __n = oneapi::dpl::__ranges::__size(__rng);
     //trivial pre-checks
-    if (__rng.empty())
-        return __rng.size();
+    if (__n == 0)
+        return __n;
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_Pred>;
     using _IndexType = std::make_unsigned_t<oneapi::dpl::__internal::__difference_t<_Range>>;
@@ -283,18 +286,20 @@ oneapi::dpl::__internal::__difference_t<_Range1>
 __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                    _Pred __pred)
 {
+    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
     //trivial pre-checks
-    if (__rng1.empty() || __rng2.empty() || __rng1.size() < __rng2.size())
-        return __rng1.size();
+    if (__n1 == 0 || __n2 == 0 || __n1 < __n2)
+        return __n1;
 
-    if (__rng1.size() == __rng2.size())
+    if (__n1 == __n2)
     {
         const bool __res =
             __ranges::__pattern_equal(__tag,
                                       oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__equal_wrapper>(
                                           std::forward<_ExecutionPolicy>(__exec)),
                                       __rng1, std::forward<_Range2>(__rng2), __pred);
-        return __res ? 0 : __rng1.size();
+        return __res ? 0 : __n1;
     }
 
     using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
@@ -338,16 +343,18 @@ oneapi::dpl::__internal::__difference_t<_Range1>
 __pattern_find_first_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                         _Pred __pred)
 {
+    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
     //trivial pre-checks
-    if (__rng1.empty() || __rng2.empty())
-        return __rng1.size();
+    if (__n1 == 0 || __n2 == 0)
+        return __n1;
 
     using _Predicate = unseq_backend::first_match_pred<_Pred>;
     using _IndexType = std::make_unsigned_t<oneapi::dpl::__internal::__difference_t<_Range1>>;
     using _TagType = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
     using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
-    //TODO: To check whether it makes sense to iterate over the second sequence in case of __rng1.size() < __rng2.size()
+    //TODO: To check whether it makes sense to iterate over the second sequence in case of __n1 < __n2
     return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, _TagType{}, __size_calc{},
         std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2));
@@ -377,7 +384,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, type
 bool
 __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Pred __pred)
 {
-    if (__rng.empty())
+    if (oneapi::dpl::__ranges::__size(__rng) == 0)
         return false;
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_Pred>;
@@ -410,18 +417,21 @@ oneapi::dpl::__internal::__difference_t<_Range1>
 __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                  _Pred __pred)
 {
-    //trivial pre-checks
-    if (__rng2.empty())
-        return 0;
-    if (__rng1.size() < __rng2.size())
-        return __rng1.size();
+    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
 
-    if (__rng1.size() == __rng2.size())
+    //trivial pre-checks
+    if (__n2 == 0)
+        return 0;
+    if (__n1 < __n2)
+        return __n1;
+
+    if (__n1 == __n2)
     {
         const bool __res = __ranges::__pattern_equal(
             __tag, __par_backend_hetero::make_wrapped_policy<__equal_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
             __rng1, std::forward<_Range2>(__rng2), __pred);
-        return __res ? 0 : __rng1.size();
+        return __res ? 0 : __n1;
     }
 
     using _Predicate = unseq_backend::multiple_match_pred<_Pred>;
@@ -498,7 +508,7 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
         oneapi::dpl::__ranges::views::all_read(__r), __count, __value, __pred_2);
 
     auto __found_first = std::ranges::begin(__r) + __idx;
-    auto __found_last = (__idx == __r.size() ? __found_first : __found_first + __count);
+    auto __found_last = (__idx == oneapi::dpl::__ranges::__size(__r) ? __found_first : __found_first + __count);
 
     return {__found_first, __found_last};
 }
@@ -514,8 +524,9 @@ oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _BinaryPredicate __pred,
                         _OrFirstTag __is_or_semantic)
 {
-    if (__rng.size() < 2)
-        return __rng.size();
+    const auto __n = oneapi::dpl::__ranges::__size(__rng);
+    if (__n < 2)
+        return __n;
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_BinaryPredicate>;
     using _IndexType = std::make_unsigned_t<oneapi::dpl::__internal::__difference_t<_Range>>;
@@ -529,12 +540,12 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     //C++ standard libraries (f.e libstdc++ 10), where the implementation might throw C++ exceptions, that is an issue,
     //because "SYCL kernel cannot use exceptions".
 
-    auto __rng1 = oneapi::dpl::__ranges::take_view_simple(__rng, __rng.size() - 1);
+    auto __rng1 = oneapi::dpl::__ranges::take_view_simple(__rng, __n - 1);
     auto __rng2 = oneapi::dpl::__ranges::drop_view_simple(__rng, 1);
 
     using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
-    assert(__rng1.size() == __rng2.size());
+    assert(oneapi::dpl::__ranges::__size(__rng1) == oneapi::dpl::__ranges::__size(__rng2));
 
     auto result = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, _TagType{}, __size_calc{}, __rng1,
@@ -543,9 +554,9 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     // inverted conditional because of
     // reorder_predicate in glue_algorithm_impl.h
     if constexpr (__is_or_semantic())
-        return result ? 0 : __rng.size();
+        return result ? 0 : __n;
     else
-        return result == __rng.size() - 1 ? __rng.size() : result;
+        return result == __n - 1 ? __n : result;
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -581,7 +592,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, type
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Predicate __predicate)
 {
-    if (__rng.size() == 0)
+    if (oneapi::dpl::__ranges::__size(__rng) == 0)
         return 0;
 
     using _ReduceValueType = oneapi::dpl::__internal::__difference_t<_Range>;
@@ -629,7 +640,7 @@ oneapi::dpl::__internal::__difference_t<_Range2>
 __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                   _Predicate __pred, _Assign __assign)
 {
-    oneapi::dpl::__internal::__difference_t<_Range2> __n = __rng1.size();
+    oneapi::dpl::__internal::__difference_t<_Range2> __n = oneapi::dpl::__ranges::__size(__rng1);
     if (__n == 0)
         return 0;
 
@@ -666,12 +677,13 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, type
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range&& __rng, _Predicate __pred)
 {
-    if (__rng.size() == 0)
-        return __rng.size();
+    const auto __n = oneapi::dpl::__ranges::__size(__rng);
+    if (__n == 0)
+        return __n;
 
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__rng.size());
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__n);
     auto __copy_rng = oneapi::dpl::__ranges::views::all(__buf.get_buffer());
 
     auto __copy_last_id = __ranges::__pattern_copy_if(__tag, __exec, __rng, __copy_rng, __not_pred<_Predicate>{__pred},
@@ -727,9 +739,10 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, ty
 void
 __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r)
 {
-    assert(__in_r.size() == __out_r.size()); // sizes must be made equal on the caller side
-
     const auto __n = std::ranges::size(__in_r);
+
+    assert(__n == std::ranges::size(__out_r)); // sizes must be made equal on the caller side
+
     if (__n == 0)
         return;
 
@@ -768,7 +781,7 @@ oneapi::dpl::__internal::__difference_t<_Range2>
 __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result,
                       _BinaryPredicate __pred)
 {
-    oneapi::dpl::__internal::__difference_t<_Range2> __n = __rng.size();
+    oneapi::dpl::__internal::__difference_t<_Range2> __n = oneapi::dpl::__ranges::__size(__rng);
     if (__n == 0)
         return 0;
     if (__n == 1)
@@ -826,12 +839,13 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, type
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range&& __rng, _BinaryPredicate __pred)
 {
-    if (__rng.size() == 0)
-        return __rng.size();
+    const auto __n = oneapi::dpl::__ranges::__size(__rng);
+    if (__n == 0)
+        return __n;
 
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__rng.size());
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__n);
     auto res_rng = oneapi::dpl::__ranges::views::all(__buf.get_buffer());
     oneapi::dpl::__internal::__difference_t<_Range> res = __ranges::__pattern_unique_copy(
         __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__unique_wrapper>(__exec), __rng, res_rng,
@@ -877,11 +891,11 @@ std::pair<oneapi::dpl::__internal::__difference_t<_Range1>, oneapi::dpl::__inter
 __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                 _Range3&& __rng3, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    if (__rng3.empty())
+    if (oneapi::dpl::__ranges::__size(__rng3) == 0)
         return {0, 0};
 
-    const auto __n1 = __rng1.size();
-    const auto __n2 = __rng2.size();
+    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
 
     //To consider the direct copying pattern call in case just one of sequences is empty.
     if (__n1 == 0)
@@ -1152,7 +1166,7 @@ void
 __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp,
                       _Proj __proj)
 {
-    if (__rng.size() >= 2)
+    if (oneapi::dpl::__ranges::__size(__rng) >= 2)
         __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                      ::std::forward<_Range>(__rng), __comp, __proj)
             .__checked_deferrable_wait();
@@ -1182,7 +1196,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, type
 std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>
 __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
-    assert(__rng.size() > 0);
+    assert(oneapi::dpl::__ranges::__size(__rng) > 0);
 
     using _IteratorValueType = typename ::std::iterator_traits<decltype(__rng.begin())>::value_type;
     using _IndexValueType = oneapi::dpl::__internal::__difference_t<_Range>;
@@ -1210,7 +1224,7 @@ oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     //If size == 1, result is the zero-indexed element. If size == 0, result is 0.
-    if (__rng.size() < 2)
+    if (oneapi::dpl::__ranges::__size(__rng) < 2)
         return 0;
 
     [[maybe_unused]] auto [__idx, __val] =
@@ -1256,7 +1270,7 @@ std::pair<std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl
           std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>>
 __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
-    assert(__rng.size() > 0);
+    assert(oneapi::dpl::__ranges::__size(__rng) > 0);
 
     using _IteratorValueType = typename ::std::iterator_traits<decltype(__rng.begin())>::value_type;
     using _IndexValueType = oneapi::dpl::__internal::__difference_t<_Range>;
@@ -1288,7 +1302,7 @@ std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__intern
 __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     //If size == 1, result is the zero-indexed element. If size == 0, result is 0.
-    if (__rng.size() < 2)
+    if (oneapi::dpl::__ranges::__size(__rng) < 2)
         return {0, 0};
 
     [[maybe_unused]] const auto& [__res_min, __res_max] =
@@ -1383,7 +1397,7 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     //          __out_keys   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 }
     //          __out_values = { 1, 2, 3, 4, 2, 6, 2, 6, 0 }
 
-    const auto __n = __keys.size();
+    const auto __n = oneapi::dpl::__ranges::__size(__keys);
 
     if (__n == 0)
         return 0;
