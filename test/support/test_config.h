@@ -284,7 +284,7 @@
     (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250100)
 
 // Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
-#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250300)
+#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250400)
 
 // To prevent the assertion from Microsoft STL implementation about the comparison of iterators from different containers
 #define _PSTL_TEST_ITERATORS_POSSIBLY_EQUAL_BROKEN (_DEBUG && _MSC_VER)
