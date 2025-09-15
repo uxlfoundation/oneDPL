@@ -1188,8 +1188,10 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
 {
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
 
-    // temporary buffer to store intermediate result
+    const auto __n1 = __rng1.size();
     const auto __n2 = __rng2.size();
+
+    // temporary buffer to store intermediate result
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
     auto __buf = __diff.get();
     auto __keep_tmp1 =
@@ -1204,7 +1206,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     {
         // merely copy if no elements are in diff
         oneapi::dpl::__par_backend_hetero::__parallel_copy_impl<__set_union_copy_wrapper<_CustomName>>(
-            __q, __rng1.size(), std::forward<_Range1>(__rng1), std::forward<_Range3>(__result))
+            __q, __n1, std::forward<_Range1>(__rng1), std::forward<_Range3>(__result))
             .wait();
     }
     else
@@ -1217,7 +1219,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
             __q, std::forward<_Range1>(__rng1), __tmp_rng2.all_view(), std::forward<_Range3>(__result), __comp)
             .wait();
     }
-    return __n_diff + __rng1.size();
+    return __n_diff + __n1;
 }
 
 template <typename _CustomName>
