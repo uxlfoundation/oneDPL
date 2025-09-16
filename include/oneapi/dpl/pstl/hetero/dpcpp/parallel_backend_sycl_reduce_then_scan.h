@@ -390,7 +390,7 @@ struct __gen_set_mask
         std::size_t __nb = __set_b.size();
 
         auto&& __val_a = __set_a[__id];
-        auto&& __val_a_proj = std::invoke(__proj1, __val_a);
+        auto&& __val_a_proj = std::invoke(__proj1, std::forward<decltype(__val_a)>(__val_a));
 
         auto __res =
             oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a_proj, __comp, __proj2);
@@ -406,7 +406,7 @@ struct __gen_set_mask
         else
         {
             auto&& __val_b = __set_b[__res];
-            auto&& __val_b_proj = std::invoke(__proj2, __val_b);
+            auto&& __val_b_proj = std::invoke(__proj2, std::forward<decltype(__val_b)>(__val_b));
 
             //Difference operation logic: if number of duplication in __set_a on left side from __id > total number of
             //duplication in __set_b then a mask is 1
@@ -710,7 +710,7 @@ struct __gen_set_balanced_path
         }
 
         auto&& __ele_val = __rng1[__merge_path_rng1 - 1];
-        auto&& __ele_val_proj = std::invoke(__proj1, __ele_val);
+        auto&& __ele_val_proj = std::invoke(__proj1, std::forward<decltype(__ele_val)>(__ele_val));
 
         if (std::invoke(__comp, __ele_val_proj, std::invoke(__proj2, __rng2[__merge_path_rng2])))
         {
