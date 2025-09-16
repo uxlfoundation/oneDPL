@@ -389,6 +389,7 @@ struct __gen_set_mask
 
         std::size_t __nb = __set_b.size();
 
+        // This local variable extends the lifetime of operator[] return in case of temporary object
         auto&& __val_a = __set_a[__id];
         auto&& __val_a_proj = std::invoke(__proj1, std::forward<decltype(__val_a)>(__val_a));
 
@@ -405,6 +406,7 @@ struct __gen_set_mask
         }
         else
         {
+            // This local variable extends the lifetime of operator[] return in case of temporary object
             auto&& __val_b = __set_b[__res];
             auto&& __val_b_proj = std::invoke(__proj2, std::forward<decltype(__val_b)>(__val_b));
 
@@ -709,6 +711,7 @@ struct __gen_set_balanced_path
             return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
         }
 
+        // This local variable extends the lifetime of operator[] return in case of temporary object
         auto&& __ele_val = __rng1[__merge_path_rng1 - 1];
         auto&& __ele_val_proj = std::invoke(__proj1, std::forward<decltype(__ele_val)>(__ele_val));
 

@@ -1020,6 +1020,7 @@ struct __brick_includes
 
         const _SizeB __idx_b = __b_beg + __idx;
 
+        // This local variable extends the lifetime of operator[] return in case of temporary object
         auto&& __val_b = __rngB[__idx_b];
         auto&& __val_b_proj = std::invoke(__projB, std::forward<decltype(__val_b)>(__val_b));
 
@@ -1029,6 +1030,7 @@ struct __brick_includes
         if (__res == __a_end || std::invoke(__comp, __val_b_proj, std::invoke(__projA, __rngA[__res])))
             return true; //__rngA doesn't include __rngB
 
+        // This local variable extends the lifetime of operator[] return in case of temporary object
         auto&& __val_a = __rngA[__res];
         auto&& __val_a_proj = std::invoke(__projA, std::forward<decltype(__val_a)>(__val_a));
 
@@ -1277,6 +1279,7 @@ class __brick_set_op
         auto __idx_c = __idx;
         const _SizeA __idx_a = _SizeA(__idx);
 
+        // This local variable extends the lifetime of operator[] return in case of temporary object
         auto&& __val_a = __a[__a_beg + __idx_a];
         auto&& __val_a_proj = std::invoke(__projA, std::forward<decltype(__val_a)>(__val_a));
 
@@ -1290,6 +1293,7 @@ class __brick_set_op
         }
         else
         {
+            // This local variable extends the lifetime of operator[] return in case of temporary object
             auto&& __val_b = __b[__b_beg + __res];
             auto&& __val_b_proj = std::invoke(__projB, std::forward<decltype(__val_b)>(__val_b));
 
