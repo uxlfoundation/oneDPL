@@ -1276,7 +1276,9 @@ class __brick_set_op
 
         auto __idx_c = __idx;
         const _SizeA __idx_a = _SizeA(__idx);
-        const auto& __val_a_proj = std::invoke(__projA, __a[__a_beg + __idx_a]);
+
+        auto&& __val_a = __a[__a_beg + __idx_a];
+        auto&& __val_a_proj = std::invoke(__projA, __val_a);
 
         const _SizeB __res = __internal::__pstl_lower_bound(__b, __b_beg, __nb, __val_a_proj, __comp, __projB);
 
@@ -1288,7 +1290,8 @@ class __brick_set_op
         }
         else
         {
-            const auto& __val_b_proj = std::invoke(__projB, __b[__b_beg + __res]);
+            auto&& __val_b = __b[__b_beg + __res];
+            auto&& __val_b_proj = std::invoke(__projB, __val_b);
 
             //Difference operation logic: if number of duplication in __a on left side from __idx > total number of
             //duplication in __b than a mask is 1
