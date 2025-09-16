@@ -1019,22 +1019,19 @@ struct __brick_includes
             return true; //__rngA doesn't include __rngB
 
         const _SizeB __idx_b = __b_beg + __idx;
-        const auto& __val_b_proj = std::invoke(__projB, __rngB[__idx_b]);
 
-        const _SizeA __res = __internal::__pstl_lower_bound(__rngA, __a_beg, __a_end, __val_b_proj, __comp, __projA);
+        const _SizeA __res = __internal::__pstl_lower_bound(__rngA, __a_beg, __a_end, std::invoke(__projB, __rngB[__idx_b]), __comp, __projA);
 
         // {a} < {b} or __val_b != __rngA[__res]
-        if (__res == __a_end || std::invoke(__comp, __val_b_proj, std::invoke(__projA, __rngA[__res])))
+        if (__res == __a_end || std::invoke(__comp, std::invoke(__projB, __rngB[__idx_b]), std::invoke(__projA, __rngA[__res])))
             return true; //__rngA doesn't include __rngB
 
-        const auto& __val_a_proj = std::invoke(__projA, __rngA[__res]);
-
         //searching number of duplication
-        const auto __count_a = __internal::__pstl_right_bound(__rngA, __res, __a_end, __val_a_proj, __comp, __projA) -
-                               __internal::__pstl_left_bound(__rngA, __a_beg, __res, __val_a_proj, __comp, __projA);
+        const auto __count_a = __internal::__pstl_right_bound(__rngA, __res, __a_end, std::invoke(__projA, __rngA[__res]), __comp, __projA) -
+                               __internal::__pstl_left_bound(__rngA, __a_beg, __res, std::invoke(__projA, __rngA[__res]), __comp, __projA);
 
-        const auto __count_b = __internal::__pstl_right_bound(__rngB, __idx_b, __b_end, __val_b_proj, __comp, __projB) -
-                               __internal::__pstl_left_bound(__rngB, __b_beg, __idx_b, __val_b_proj, __comp, __projB);
+        const auto __count_b = __internal::__pstl_right_bound(__rngB, __idx_b, __b_end, std::invoke(__projB, __rngB[__idx_b]), __comp, __projB) -
+                               __internal::__pstl_left_bound(__rngB, __b_beg, __idx_b, std::invoke(__projB, __rngB[__idx_b]), __comp, __projB);
 
         return __count_b > __count_a; //false means __rngA includes __rngB
     }
