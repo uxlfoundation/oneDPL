@@ -1019,7 +1019,9 @@ struct __brick_includes
             return true; //__rngA doesn't include __rngB
 
         const _SizeB __idx_b = __b_beg + __idx;
-        const auto& __val_b_proj = std::invoke(__projB, __rngB[__idx_b]);
+
+        auto&& __val_b = __rngB[__idx_b];
+        auto&& __val_b_proj = std::invoke(__projB, __val_b);
 
         const _SizeA __res = __internal::__pstl_lower_bound(__rngA, __a_beg, __a_end, __val_b_proj, __comp, __projA);
 
@@ -1027,7 +1029,8 @@ struct __brick_includes
         if (__res == __a_end || std::invoke(__comp, __val_b_proj, std::invoke(__projA, __rngA[__res])))
             return true; //__rngA doesn't include __rngB
 
-        const auto& __val_a_proj = std::invoke(__projA, __rngA[__res]);
+        auto&& __val_a = __rngA[__res];
+        auto&& __val_a_proj = std::invoke(__projA, __val_a);
 
         //searching number of duplication
         const auto __count_a = __internal::__pstl_right_bound(__rngA, __res, __a_end, __val_a_proj, __comp, __projA) -
