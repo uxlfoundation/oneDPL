@@ -3669,6 +3669,10 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                     _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _OutputIterator __result, _Compare __comp)
 {
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
+
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
 
@@ -3676,17 +3680,25 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     if (__n1 + __n2 <= __set_algo_cut_off)
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
-    using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
-    return __parallel_set_union_op(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
-        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-           _RandomAccessIterator2 __last2, _Tp* __result, _Compare __comp, oneapi::dpl::identity,
-           oneapi::dpl::identity) {
-            return oneapi::dpl::__utils::__set_union_construct(__first1, __last1, __first2, __last2, __result,
-                                                               __BrickCopyConstruct<_IsVector>(), __comp,
-                                                               oneapi::dpl::identity{}, oneapi::dpl::identity{});
-        },
-        __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    auto __set_op = [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+                       _RandomAccessIterator2 __last2, _Tp* __result, _Compare __comp, oneapi::dpl::identity,
+                       oneapi::dpl::identity) {
+        return oneapi::dpl::__utils::__set_union_construct(__first1, __last1, __first2, __last2, __result,
+                                                           __BrickCopyConstruct<_IsVector>(), __comp,
+                                                           oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    };
+
+    auto [__result_last, __copied] =
+        __copy_union_when_disjointed(__tag, __exec, __first1, __last1, __first2, __last2, __result, __set_op, __comp,
+                                     oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    if (__copied)
+        return __result_last;
+
+    _SumSize<_DifferenceType1, _DifferenceType2> __sum_size;
+
+    return __internal::__parallel_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+                                         __last2, __result, __sum_size, __set_op, __comp, oneapi::dpl::identity{},
+                                         oneapi::dpl::identity{});
 }
 
 //------------------------------------------------------------------------
