@@ -34,7 +34,7 @@
 // When such an issue is fixed, we must replace the usage of these "Latest" macros with the appropriate version number
 // before updating to the newest version in this section.
 
-#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250200
+#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250300
 
 #define _PSTL_TEST_LATEST_MSVC_STL_VERSION 143
 
@@ -284,7 +284,8 @@
     (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250100)
 
 // Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
-#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250400)
+#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN                                                                      \
+    (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
 
 // To prevent the assertion from Microsoft STL implementation about the comparison of iterators from different containers
 #define _PSTL_TEST_ITERATORS_POSSIBLY_EQUAL_BROKEN (_DEBUG && _MSC_VER)
