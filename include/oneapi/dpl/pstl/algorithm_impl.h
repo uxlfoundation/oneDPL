@@ -3382,6 +3382,125 @@ struct _SumSize
     }
 };
 
+template <class _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
+          typename _OutputIterator, typename _SetOP, typename _Compare, typename _Proj1, typename _Proj2>
+std::pair<_OutputIterator, bool>
+__copy_union_when_disjointed(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                             _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+                             _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _OutputIterator __result,
+                             _SetOP __set_op, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+
+    const auto __n1 = __last1 - __first1;
+    const auto __n2 = __last2 - __first2;
+
+    __brick_copy<__parallel_tag<_IsVector>> __copy_range{};
+
+    // {1} {}: parallel copying just first sequence
+    if (__n2 == 0)
+    {
+        _OutputIterator __result_last = __internal::__pattern_walk2_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result, __copy_range);
+        return {__result_last, true};
+    }
+
+    // {} {2}: parallel copying just second sequence
+    if (__n1 == 0)
+    {
+        _OutputIterator __result_last = __internal::__pattern_walk2_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2, __result, __copy_range);
+        return {__result_last, true};
+    }
+
+    // testing  whether the sequences are intersected
+    _RandomAccessIterator1 __left_bound_seq_1 =
+        __first1 + __internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
+                                                  std::invoke(__proj2, *__first2), __comp, __proj1);
+
+    if (__left_bound_seq_1 == __last1)
+    {
+        //{1} < {2}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
+        __par_backend::__parallel_invoke(
+            __backend_tag{}, __exec,
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1, __result, __copy_range);
+            },
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2, __result + __n1, __copy_range);
+            });
+
+        _OutputIterator __result_last = __result + __n1 + __n2;
+        return {__result_last, true};
+    }
+
+    // testing  whether the sequences are intersected
+    _RandomAccessIterator2 __left_bound_seq_2 =
+        __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
+                                                  std::invoke(__proj1, *__first1), __comp, __proj2);
+
+    if (__left_bound_seq_2 == __last2)
+    {
+        //{2} < {1}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
+        __par_backend::__parallel_invoke(
+            __backend_tag{}, __exec,
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2, __result, __copy_range);
+            },
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1, __result + __n2, __copy_range);
+            });
+
+        _OutputIterator __result_last = __result + __n1 + __n2;
+        return {__result_last, true};
+    }
+
+    _SumSize<_DifferenceType1, _DifferenceType2> __sum_size;
+
+    const auto __m1 = __left_bound_seq_1 - __first1;
+    if (__m1 > __set_algo_cut_off)
+    {
+        auto __res_or = __result;
+        __result += __m1; //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
+        __par_backend::__parallel_invoke(
+            __backend_tag{}, __exec,
+            //do parallel copying of [first1; left_bound_seq_1)
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __left_bound_seq_1, __res_or, __copy_range);
+            },
+            [=, &__exec, &__result] {
+                __result =
+                    __internal::__parallel_set_op(__tag, __exec, __left_bound_seq_1, __last1, __first2, __last2,
+                                                  __result, __sum_size, __set_op, __comp, __proj1, __proj2);
+            });
+        return {__result, true};
+    }
+
+    const auto __m2 = __left_bound_seq_2 - __first2;
+    assert(__m1 == 0 || __m2 == 0);
+    if (__m2 > __set_algo_cut_off)
+    {
+        auto __res_or = __result;
+        __result += __m2; //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
+        __par_backend::__parallel_invoke(
+            __backend_tag{}, __exec,
+            //do parallel copying of [first2; left_bound_seq_2)
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __left_bound_seq_2, __res_or, __copy_range);
+            },
+            [=, &__exec, &__result] {
+                __result = __internal::__parallel_set_op(__tag, __exec, __first1, __last1, __left_bound_seq_2, __last2,
+                                                         __result, __sum_size, __set_op, __comp, __proj1, __proj2);
+            });
+        return {__result, true};
+    }
+
+    return {__result, false};
+}
+
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SetUnionOp, class _Compare, class _Proj1, class _Proj2>
