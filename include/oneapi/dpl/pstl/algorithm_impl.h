@@ -3370,6 +3370,18 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
     });
 }
 
+template <typename _DifferenceType1, typename _DifferenceType2>
+struct _SumSize
+{
+    using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
+
+    _DifferenceType
+    operator()(_DifferenceType __n, _DifferenceType __m) const
+    {
+        return __n + __m;
+    }
+};
+
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SetUnionOp, class _Compare, class _Proj1, class _Proj2>
