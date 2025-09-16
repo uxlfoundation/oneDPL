@@ -3951,6 +3951,11 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                                    _RandomAccessIterator3 __result, _Compare __comp)
 {
+    using _T = typename ::std::iterator_traits<_RandomAccessIterator3>::value_type;
+
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
 
@@ -3958,18 +3963,26 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     if (__n1 + __n2 <= __set_algo_cut_off)
         return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator3>::value_type _T;
+    _SumSize<_DifferenceType1, _DifferenceType2> __sum_size;
+
+    auto __set_op = [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+                       _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
+                       oneapi::dpl::identity) {
+        return oneapi::dpl::__utils::__set_symmetric_difference_construct(
+            __first1, __last1, __first2, __last2, __result, __BrickCopyConstruct<_IsVector>(), __comp,
+            oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    };
+
     return __internal::__except_handler([&]() {
-        return __internal::__parallel_set_union_op(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
-            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
-               oneapi::dpl::identity) {
-                return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                    __first1, __last1, __first2, __last2, __result, __BrickCopyConstruct<_IsVector>(), __comp,
-                    oneapi::dpl::identity{}, oneapi::dpl::identity{});
-            },
-            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+        auto [__result_last, __copied] =
+            __copy_union_when_disjointed(__tag, __exec, __first1, __last1, __first2, __last2, __result, __set_op,
+                                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+        if (__copied)
+            return __result_last;
+
+        return __internal::__parallel_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+                                             __last2, __result, __sum_size, __set_op, __comp, oneapi::dpl::identity{},
+                                             oneapi::dpl::identity{});
     });
 }
 
