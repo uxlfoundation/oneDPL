@@ -389,7 +389,8 @@ struct __gen_set_mask
 
         std::size_t __nb = __set_b.size();
 
-        const auto& __val_a_proj = std::invoke(__proj1, __set_a[__id]);
+        auto&& __val_a = __set_a[__id];
+        auto&& __val_a_proj = std::invoke(__proj1, __val_a);
 
         auto __res =
             oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a_proj, __comp, __proj2);
@@ -404,7 +405,8 @@ struct __gen_set_mask
         }
         else
         {
-            const auto& __val_b_proj = std::invoke(__proj2, __set_b[__res]);
+            auto&& __val_b = __set_b[__res];
+            auto&& __val_b_proj = std::invoke(__proj2, __val_b);
 
             //Difference operation logic: if number of duplication in __set_a on left side from __id > total number of
             //duplication in __set_b then a mask is 1
