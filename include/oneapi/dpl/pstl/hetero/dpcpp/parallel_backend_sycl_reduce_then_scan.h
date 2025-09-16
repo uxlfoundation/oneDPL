@@ -709,7 +709,8 @@ struct __gen_set_balanced_path
             return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
         }
 
-        const auto& __ele_val_proj = std::invoke(__proj1, __rng1[__merge_path_rng1 - 1]);
+        auto&& __ele_val = __rng1[__merge_path_rng1 - 1];
+        auto&& __ele_val_proj = std::invoke(__proj1, __ele_val);
 
         if (std::invoke(__comp, __ele_val_proj, std::invoke(__proj2, __rng2[__merge_path_rng2])))
         {
