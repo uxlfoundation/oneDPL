@@ -75,3 +75,9 @@ and these points cannot be calculated in advance, before the main algorithmic ro
   comparators and projections.
 - In case of a `device_policy` and `std::vector` with USM allocator,
   the algorithms accept the vector wrapped into `std::ranges::subrange` or `std::span`.
+
+### Performance
+- No performance regression compared to the equivalent iterator-based algorithms.
+  If a range-based algorithm implements some additional logic,
+  for example supporting a limited output sequence,
+  then the acceptable overhead is to be determined on per-algorithm basis.
