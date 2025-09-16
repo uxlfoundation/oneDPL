@@ -3450,7 +3450,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             [=, &__exec, &__result] {
                 __result = __internal::__parallel_set_op(
                     __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result,
-                    [](_DifferenceType1 __n, _DifferenceType1 __m) { return __n + __m; }, __set_union_op, __comp,
+                    [](_DifferenceType1 __n, _DifferenceType2 __m) { return __n + __m; }, __set_union_op, __comp,
                     __proj1, __proj2);
             });
         return __result;
@@ -3471,7 +3471,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             [=, &__exec, &__result] {
                 __result = __internal::__parallel_set_op(
                     __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result,
-                    [](_DifferenceType1 __n, _DifferenceType1 __m) { return __n + __m; }, __set_union_op, __comp,
+                    [](_DifferenceType1 __n, _DifferenceType2 __m) { return __n + __m; }, __set_union_op, __comp,
                     __proj1, __proj2);
             });
         return __result;
@@ -3479,7 +3479,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     return __internal::__parallel_set_op(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
-        [](_DifferenceType1 __n, _DifferenceType1 __m) { return __n + __m; }, __set_union_op, __comp, __proj1, __proj2);
+        [](_DifferenceType1 __n, _DifferenceType2 __m) { return __n + __m; }, __set_union_op, __comp, __proj1, __proj2);
 }
 
 //------------------------------------------------------------------------
