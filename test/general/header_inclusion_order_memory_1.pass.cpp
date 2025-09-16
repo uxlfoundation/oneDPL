@@ -21,6 +21,7 @@
 #include "support/utils.h"
 
 #if ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L
+#include <memory>    // std::unique_ptr
 #include <ranges>    // std::ranges::subrange
 #include <algorithm> // std::ranges::count
 #endif
