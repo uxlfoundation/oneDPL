@@ -3311,7 +3311,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
         };
         __par_backend::__parallel_strict_scan(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n1, _SetRange{0, 0, 0},
-            [=](_DifferenceType1 __i, _DifferenceType1 __len) {                                // Reduce
+            [=](_DifferenceType1 __i, _DifferenceType1 __len) { // Reduce
                 //[__b; __e) - a subrange of the first sequence, to reduce
                 _RandomAccessIterator1 __b = __first1 + __i;
                 _RandomAccessIterator1 __e = __first1 + (__i + __len);
