@@ -17,7 +17,7 @@ their usage frequency on github.com:
 - Uninitialized Memory Algorithms: `uninitialized_copy`, `uninitialized_move`, `uninitialized_fill`,
   `uninitialized_default_construct`, `uninitialized_value_construct`, `destroy`.
 
-The rest algorithms (as defined in [P3179](https://wg21.link/p3179))
+The remaining algorithms (as defined in [P3179](https://wg21.link/p3179))
 should be implemented in the future releases.
 
 ## Motivations
@@ -34,14 +34,14 @@ should be implemented in the future releases.
 ### Implementation
 The implementation relies on the existing
 range-based patterns (the experimental parallel range algorithms with device execution policies) or
-iterator-based patterns (the rest algorithms) for the majority of algorithms.
+iterator-based patterns (the remaining algorithms) for the majority of algorithms.
 
 These algorithms need new patterns or significantly modifying the existing ones:
 `merge`,  `copy_if`, `unique_copy`,
 `set_union`, `set_difference`, `set_symmetric_difference`, `set_intersection`.
 They must stop execution when the output sequence is exhausted and return the last processed points,
 and these points cannot be calculated in advance, before the main algorithmic routine.
-`merge` already implements it. The rest also must support this case.
+`merge` already implements it. The remaining algorithms also must support this case.
 
 ### Implementation limitation
 - In case of a `device_policy` and `std::vector` with `USM` allocator,
