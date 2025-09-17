@@ -706,12 +706,13 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, _Value&& __value
 
 template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
 _Size1
-__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj)
+__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
-    return __biased_lower_bound<__bias_last>(__acc, __first, __last, __value, __negation_reordered_comp, __proj);
+    // We should forward __value_proj to preserve their value category
+    return __biased_lower_bound<__bias_last>(__acc, __first, __last, std::forward<_Value>(__value_proj), __negation_reordered_comp, __proj);
 }
 
 template <typename _IntType, typename _Acc>
