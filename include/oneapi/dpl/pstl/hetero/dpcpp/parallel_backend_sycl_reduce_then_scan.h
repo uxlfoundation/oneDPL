@@ -673,8 +673,12 @@ struct __get_bounds_simple
     auto // Returns a tuple of the form (start1, end1, start2, end2)
     operator()(const _Rng& __in_rng, const _IndexT) const
     {
-        const auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
-        const auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+        using _tuple_t = decltype(__tuple);
+
+        const auto __rng1 = std::get<0>(std::forward<_tuple_t>(__tuple)); // first sequence
+        const auto __rng2 = std::get<1>(std::forward<_tuple_t>(__tuple)); // second sequence
 
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>>;
