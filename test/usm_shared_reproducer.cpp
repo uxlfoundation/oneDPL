@@ -5,14 +5,10 @@
 #include <vector>
 #include <cassert>
 
-#if _ONEDPL_BACKEND_SYCL
 #include <sycl/sycl.hpp>
-#include <oneapi/dpl/execution>
-#include <oneapi/dpl/algorithm>
 #endif
 
 int main() {
-#if _ONEDPL_BACKEND_SYCL
     try {
         // Get the default SYCL queue
         sycl::queue q{sycl::default_selector_v};
@@ -84,8 +80,4 @@ int main() {
         std::cerr << "Standard exception: " << e.what() << std::endl;
         return 1;
     }
-#else
-    std::cout << "SYCL backend not available - test skipped" << std::endl;
-    return 0;
-#endif
 }
