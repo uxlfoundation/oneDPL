@@ -1019,11 +1019,7 @@ struct __brick_includes
             return true; //__rngA doesn't include __rngB
 
         const _SizeB __idx_b = __b_beg + __idx;
-
-        // This reference extends the lifetime of a temporary object returned by operator[]
-        // so that it can be safely used with identity projections
-        auto&& __val_b = __rngB[__idx_b];
-        auto&& __val_b_proj = std::invoke(__projB, std::forward<decltype(__val_b)>(__val_b));
+        const auto& __val_b_proj = std::invoke(__projB, __rngB[__idx_b]);
 
         const _SizeA __res = __internal::__pstl_lower_bound(__rngA, __a_beg, __a_end, __val_b_proj, __comp, __projA);
 
@@ -1031,10 +1027,7 @@ struct __brick_includes
         if (__res == __a_end || std::invoke(__comp, __val_b_proj, std::invoke(__projA, __rngA[__res])))
             return true; //__rngA doesn't include __rngB
 
-        // This reference extends the lifetime of a temporary object returned by operator[]
-        // so that it can be safely used with identity projections
-        auto&& __val_a = __rngA[__res];
-        auto&& __val_a_proj = std::invoke(__projA, std::forward<decltype(__val_a)>(__val_a));
+        const auto& __val_a_proj = std::invoke(__projA, __rngA[__res]);
 
         //searching number of duplication
         const auto __count_a = __internal::__pstl_right_bound(__rngA, __res, __a_end, __val_a_proj, __comp, __projA) -
@@ -1280,11 +1273,7 @@ class __brick_set_op
 
         auto __idx_c = __idx;
         const _SizeA __idx_a = _SizeA(__idx);
-
-        // This reference extends the lifetime of a temporary object returned by operator[]
-        // so that it can be safely used with identity projections
-        auto&& __val_a = __a[__a_beg + __idx_a];
-        auto&& __val_a_proj = std::invoke(__projA, std::forward<decltype(__val_a)>(__val_a));
+        const auto& __val_a_proj = std::invoke(__projA, __a[__a_beg + __idx_a]);
 
         const _SizeB __res = __internal::__pstl_lower_bound(__b, __b_beg, __nb, __val_a_proj, __comp, __projB);
 
@@ -1296,10 +1285,7 @@ class __brick_set_op
         }
         else
         {
-            // This reference extends the lifetime of a temporary object returned by operator[]
-            // so that it can be safely used with identity projections
-            auto&& __val_b = __b[__b_beg + __res];
-            auto&& __val_b_proj = std::invoke(__projB, std::forward<decltype(__val_b)>(__val_b));
+            const auto& __val_b_proj = std::invoke(__projB, __b[__b_beg + __res]);
 
             //Difference operation logic: if number of duplication in __a on left side from __idx > total number of
             //duplication in __b than a mask is 1
