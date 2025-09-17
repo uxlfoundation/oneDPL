@@ -1083,8 +1083,13 @@ struct __gen_scan_by_seg_scan_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
-        const auto __in_keys = std::get<0>(__in_rng.tuple());
-        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+        using _tuple_t = decltype(__tuple);
+
+        const auto __in_keys = std::get<0>(std::forward<_tuple_t>(__tuple));
+        const auto __in_vals = std::get<1>(std::forward<_tuple_t>(__tuple));
+
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         // Mark the first index as a new segment as well as an indexing corresponding to any key
         // that does not satisfy the binary predicate with the previous key. The first tuple mask element
