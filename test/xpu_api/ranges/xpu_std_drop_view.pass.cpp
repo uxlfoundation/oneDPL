@@ -25,7 +25,9 @@
 int
 main()
 {
-#if _ENABLE_STD_RANGES_TESTING
+    bool bProcessed = false;
+
+#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_DROP_VIEW_BROKEN
     auto test = [](){
         auto res = std::ranges::views::iota(0, 4) | std::ranges::views::drop(2);
         return res.size() == 2 && res[0] == 2 && res[1] == 3 && *res.begin() == 2
@@ -33,7 +35,8 @@ main()
     };
     const bool res = kernel_test<class std_drop_test>(test);
     EXPECT_TRUE(res, "Wrong result of drop_view check within a kernel");
-#endif //_ENABLE_STD_RANGES_TESTING
+    bProcessed = true;
+#endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_DROP_VIEW_BROKEN
 
-    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
+    return TestUtils::done(bProcessed);
 }
