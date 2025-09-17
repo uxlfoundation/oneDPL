@@ -999,8 +999,13 @@ struct __gen_scan_by_seg_reduce_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
-        const auto __in_keys = std::get<0>(__in_rng.tuple());
-        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+        using _tuple_t = decltype(__tuple);
+
+        const auto __in_keys = std::get<0>(std::forward<_tuple_t>(__tuple));
+        const auto __in_vals = std::get<1>(std::forward<_tuple_t>(__tuple));
+
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         const std::uint32_t __new_seg_mask = __id == 0 || !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
         return oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]});
