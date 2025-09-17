@@ -624,7 +624,7 @@ __pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_pro
         __cur = __n / 2;
         __idx += __cur;
 
-        // We able to forward __value_proj multiple times because comparator shouldn't change it
+        // We are able to forward __value_proj multiple times because comparator shouldn't change it
         // We should forward __value_proj to preserve their value category
         if (std::invoke(__comp, std::invoke(__proj, __acc[__idx]), std::forward<_Value>(__value_proj)))
         {
@@ -680,7 +680,7 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, _Value&& __value
             __cur_idx = __biased_step;
         __it = __first + __cur_idx;
 
-        // We able to forward __value_proj multiple times because comparator shouldn't change it
+        // We are able to forward __value_proj multiple times because comparator shouldn't change it
         // We should forward __value_proj to preserve their value category
         if (std::invoke(__comp, std::invoke(__proj, __acc[__it]), std::forward<_Value>(__value_proj)))
         {
