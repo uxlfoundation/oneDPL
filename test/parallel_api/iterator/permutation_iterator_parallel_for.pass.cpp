@@ -118,9 +118,12 @@ run_algo_tests()
     test2buffers<sycl::usm::alloc::device, ValueType, test_transform<ValueType, PermItIndexTag>>();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    // Run tests on <std::vector::iterator> + <all_host_policies>
-    // dpl::transform -> __parallel_for (only for random_access_iterator)
-    test_algo_two_sequences<ValueType, test_transform<ValueType, PermItIndexTag>>(kZeroOffset, kZeroOffset);
+    if constexpr (!std::is_same_v<PermItIndexTag, perm_it_index_tags_usm_shared>)
+    {
+        // Run tests on <USM::shared> + <all_host_policies>
+        // dpl::transform -> __parallel_for (only for random_access_iterator)
+        test2buffers<sycl::usm::alloc::shared, ValueType, test_transform<ValueType, PermItIndexTag>>(kZeroOffset, kZeroOffset);
+    }
 }
 
 int

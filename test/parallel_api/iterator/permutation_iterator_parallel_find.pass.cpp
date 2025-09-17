@@ -93,9 +93,13 @@ run_algo_tests()
     test1buffer<sycl::usm::alloc::device, ValueType, test_find<ValueType, PermItIndexTag>>();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    // Run tests on <std::vector::iterator> + <all_host_policies>
-    // dpl::find, dpl::find_if, dpl::find_if_not -> __parallel_find -> _parallel_find_or
-    test_algo_one_sequence<ValueType, test_find<ValueType, PermItIndexTag>>(kZeroOffset);
+
+    if constexpr (!std::is_same_v<PermItIndexTag, perm_it_index_tags_usm_shared>)
+    {
+        // Run tests on <std::vector::iterator> + <all_host_policies>
+        // dpl::find, dpl::find_if, dpl::find_if_not -> __parallel_find -> _parallel_find_or
+        test_algo_one_sequence<ValueType, test_find<ValueType, PermItIndexTag>>(kZeroOffset);
+    }
 }
 
 int

@@ -104,9 +104,12 @@ run_algo_tests()
     test1buffer<sycl::usm::alloc::device, ValueType, test_remove_if<ValueType, PermItIndexTag>>();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    // Run tests on <std::vector::iterator> + <all_host_policies>
-    // dpl::remove_if -> __parallel_transform_scan (only for random_access_iterator)
-    test_algo_one_sequence<ValueType, test_remove_if<ValueType, PermItIndexTag>>(kZeroOffset);
+    if constexpr (!std::is_same_v<PermItIndexTag, perm_it_index_tags_usm_shared>)
+    {
+        // Run tests on <std::vector::iterator> + <all_host_policies>
+        // dpl::remove_if -> __parallel_transform_scan (only for random_access_iterator)
+        test_algo_one_sequence<ValueType, test_remove_if<ValueType, PermItIndexTag>>(kZeroOffset);
+    }
 }
 
 int

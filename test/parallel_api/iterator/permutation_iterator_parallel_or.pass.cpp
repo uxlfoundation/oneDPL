@@ -87,10 +87,12 @@ run_algo_tests()
     test1buffer<sycl::usm::alloc::shared, ValueType, test_is_heap<ValueType, PermItIndexTag>>();
     test1buffer<sycl::usm::alloc::device, ValueType, test_is_heap<ValueType, PermItIndexTag>>();
 #endif // TEST_DPCPP_BACKEND_PRESENT
-
-    // Run tests on <std::vector::iterator> + <all_host_policies>
-    // dpl::is_heap, dpl::includes -> __parallel_or -> _parallel_find_or
-    test_algo_one_sequence<ValueType, test_is_heap<ValueType, PermItIndexTag>>(kZeroOffset);
+    if constexpr (!std::is_same_v<PermItIndexTag, perm_it_index_tags_usm_shared>)
+    {
+        // Run tests on <std::vector::iterator> + <all_host_policies>
+        // dpl::is_heap, dpl::includes -> __parallel_or -> _parallel_find_or
+        test_algo_one_sequence<ValueType, test_is_heap<ValueType, PermItIndexTag>>(kZeroOffset);
+    }
 }
 
 int

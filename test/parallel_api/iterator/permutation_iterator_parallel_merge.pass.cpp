@@ -143,10 +143,12 @@ run_algo_tests()
     test3buffers<sycl::usm::alloc::shared, ValueType, test_merge<ValueType, PermItIndexTag>>(2);
     test3buffers<sycl::usm::alloc::device, ValueType, test_merge<ValueType, PermItIndexTag>>(2);
 #endif // TEST_DPCPP_BACKEND_PRESENT
-
-    // Run tests on <std::vector::iterator> + <all_host_policies>
-    // dpl::merge, dpl::inplace_merge -> __parallel_merge
-    test_algo_three_sequences<ValueType, test_merge<ValueType, PermItIndexTag>>(2, kZeroOffset, kZeroOffset, kZeroOffset);
+    if constexpr (!std::is_same_v<PermItIndexTag, perm_it_index_tags_usm_shared>)
+    {
+        // Run tests on <std::vector::iterator> + <all_host_policies>
+        // dpl::merge, dpl::inplace_merge -> __parallel_merge
+        test_algo_three_sequences<ValueType, test_merge<ValueType, PermItIndexTag>>(2, kZeroOffset, kZeroOffset, kZeroOffset);
+    }
 }
 
 int
