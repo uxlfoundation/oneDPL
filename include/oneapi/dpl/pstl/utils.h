@@ -613,7 +613,7 @@ __dpl_signbit(const _T& __x)
 
 template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
 _Size
-__pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
+__pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
 {
     auto __n = __last - __first;
     auto __cur = __n;
@@ -623,7 +623,10 @@ __pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __valu
         __idx = __first;
         __cur = __n / 2;
         __idx += __cur;
-        if (std::invoke(__comp, std::invoke(__proj, __acc[__idx]), __value))
+
+        // We able to forward __value_proj multiple times because comparator shouldn't change it
+        // We should forward __value_proj to preserve their value category
+        if (std::invoke(__comp, std::invoke(__proj, __acc[__idx]), std::forward<_Value>(__value_proj)))
         {
             __n -= __cur + 1;
             __first = ++__idx;
