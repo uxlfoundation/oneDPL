@@ -184,8 +184,12 @@ struct __write_red_by_seg
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
     {
         using std::get;
-        auto __out_keys = get<0>(__out_rng.tuple());
-        auto __out_values = get<1>(__out_rng.tuple());
+
+        // Get source tuple
+        auto&& __tuple = __out_rng.tuple();
+
+        auto __out_keys = get<0>(__tuple);
+        auto __out_values = get<1>(__tuple);
 
         const auto& __next_key = get<2>(__tup);
         const auto& __current_key = get<3>(__tup);
