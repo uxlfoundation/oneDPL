@@ -800,11 +800,11 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     auto __last2 = __first2 + __n2;
     auto __result = std::ranges::begin(__out_r);
 
-    oneapi::dpl::__internal::_SumSize<_DifferenceType1, _DifferenceType2> __sum_size;
+    oneapi::dpl::__internal::_SumSize<_DifferenceType1, _DifferenceType2> __size_func;
 
     auto __set_op = [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                        _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-        return oneapi::dpl::__utils::__set_union_construct(__first1, __last1, __first2, __last2, __result,
+        return oneapi::dpl::__utils::__set_union_construct(__first1, __last1, __first2, __last2, __result, __size_func,
                                                            oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),
                                                            __comp, __proj1, __proj2);
     };
@@ -816,7 +816,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 
     auto __out_last = oneapi::dpl::__internal::__parallel_set_op(__tag, std::forward<_ExecutionPolicy>(__exec),
                                                                  __first1, __last1, __first2, __last2, __result,
-                                                                 __sum_size, __set_op, __comp, __proj1, __proj2);
+                                                                 __size_func, __set_op, __comp, __proj1, __proj2);
 
     return __pattern_set_union_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
 }
@@ -1141,7 +1141,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     auto __last2 = __first2 + __n2;
     auto __result = std::ranges::begin(__out_r);
 
-    oneapi::dpl::__internal::_SumSize<_DifferenceType1, _DifferenceType2> __sum_size;
+    oneapi::dpl::__internal::_SumSize<_DifferenceType1, _DifferenceType2> __size_func;
 
     auto __set_op = [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                        _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
@@ -1150,14 +1150,14 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
             __comp, __proj1, __proj2);
     };
 
-    auto [__result_last, __copied] = __copy_union_when_disjointed(__tag, __exec, __first1, __last1, __first2, __last2,
-                                                                  __result, __set_op, __comp, __proj1, __proj2);
+    auto [__result_last, __copied] = __copy_union_when_disjointed(
+        __tag, __exec, __first1, __last1, __first2, __last2, __result, __size_func, __set_op, __comp, __proj1, __proj2);
     if (__copied)
         return __pattern_set_symmetric_difference_return_t<_R1, _R2, _OutRange>{__last1, __last2, __result_last};
 
     auto __out_last = oneapi::dpl::__internal::__parallel_set_op(__tag, std::forward<_ExecutionPolicy>(__exec),
                                                                  __first1, __last1, __first2, __last2, __result,
-                                                                 __sum_size, __set_op, __comp, __proj1, __proj2);
+                                                                 __size_func, __set_op, __comp, __proj1, __proj2);
 
     return __pattern_set_symmetric_difference_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
 }
