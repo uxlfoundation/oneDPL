@@ -769,12 +769,16 @@ struct __gen_set_balanced_path
     std::tuple<_IndexT, _IndexT, bool>
     calc_and_store_balanced_path(_InRng& __in_rng, _IndexT __id, _BoundsProviderLocal __get_bounds_local) const
     {
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+        using _tuple_t = decltype(__tuple);
+
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        const auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
-        const auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+        const auto __rng1 = std::get<0>(std::forward<_tuple_t>(__tuple)); // first sequence
+        const auto __rng2 = std::get<1>(std::forward<_tuple_t>(__tuple)); // second sequence
 
-        auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
+        auto __rng1_temp_diag = std::get<2>(std::forward<_tuple_t>(__tuple)); // set a temp storage sequence
 
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>>;
