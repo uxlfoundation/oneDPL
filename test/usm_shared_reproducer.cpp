@@ -9,6 +9,8 @@
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/algorithm>
 #include <oneapi/dpl/iterator>
+#include <tbb/parallel_for.h>
+#include <tbb/blocked_range.h>
 
 int main() {
     try {
@@ -44,11 +46,15 @@ int main() {
         }
         std::cout << "..." << std::endl;
         
-        // Increment each value by 1 on the host using permutation iterator
-        std::cout << "Incrementing values via permutation iterator..." << std::endl;
-        for (size_t i = 0; i < N; ++i) {
-            *(perm_iter + i) += 1;
-        }
+        // Increment each value by 1 on the host using permutation iterator with TBB parallel_for
+        std::cout << "Incrementing values via permutation iterator (parallel with TBB)..." << std::endl;
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, N), 
+            [&perm_iter](const tbb::blocked_range<size_t>& range) {
+                for (size_t i = range.begin(); i != range.end(); ++i) {
+                    *(perm_iter + i) += 1;
+                }
+            });
+        
         
         // Print first few modified values via permutation iterator
         std::cout << "After increment (via permutation iterator): ";
@@ -69,7 +75,7 @@ int main() {
         }
         
         if (success) {
-            std::cout << "SUCCESS: All " << N << " values incremented correctly via permutation iterator!" << std::endl;
+            std::cout << "SUCCESS: All " << N << " values incremented correctly via permutation iterator with TBB!" << std::endl;
         } else {
             std::cout << "FAILED: Value mismatch detected" << std::endl;
         }
