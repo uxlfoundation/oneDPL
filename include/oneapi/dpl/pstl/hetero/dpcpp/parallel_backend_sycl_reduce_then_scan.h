@@ -387,9 +387,9 @@ struct __gen_set_mask
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __set_a = std::get<0>(std::forward<_tuple_t>(__tuple));    // first sequence, use with __proj1
-        auto __set_b = std::get<1>(std::forward<_tuple_t>(__tuple));    // second sequence, use with __proj2
-        auto __set_mask = std::get<2>(std::forward<_tuple_t>(__tuple)); // mask sequence
+        auto __set_a = std::get<0>(__tuple);    // first sequence, use with __proj1
+        auto __set_b = std::get<1>(__tuple);    // second sequence, use with __proj2
+        auto __set_mask = std::get<2>(__tuple); // mask sequence
 
         std::size_t __nb = __set_b.size();
 
@@ -642,7 +642,7 @@ struct __get_bounds_partitioned
         auto&& __tuple = __in_rng.tuple();
         using _tuple_t = decltype(__tuple);
 
-        auto __rng_tmp_diag = std::get<2>(std::forward<_tuple_t>(__tuple)); // set a temp storage sequence
+        auto __rng_tmp_diag = std::get<2>(__tuple); // set a temp storage sequence
 
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(std::get<0>(__tuple).size())>,
                                              std::make_unsigned_t<decltype(std::get<1>(__tuple).size())>,
@@ -677,8 +677,8 @@ struct __get_bounds_simple
         auto&& __tuple = __in_rng.tuple();
         using _tuple_t = decltype(__tuple);
 
-        const auto __rng1 = std::get<0>(std::forward<_tuple_t>(__tuple)); // first sequence
-        const auto __rng2 = std::get<1>(std::forward<_tuple_t>(__tuple)); // second sequence
+        const auto __rng1 = std::get<0>(__tuple); // first sequence
+        const auto __rng2 = std::get<1>(__tuple); // second sequence
 
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>>;
@@ -775,10 +775,10 @@ struct __gen_set_balanced_path
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        const auto __rng1 = std::get<0>(std::forward<_tuple_t>(__tuple)); // first sequence
-        const auto __rng2 = std::get<1>(std::forward<_tuple_t>(__tuple)); // second sequence
+        const auto __rng1 = std::get<0>(__tuple); // first sequence
+        const auto __rng2 = std::get<1>(__tuple); // second sequence
 
-        auto __rng1_temp_diag = std::get<2>(std::forward<_tuple_t>(__tuple)); // set a temp storage sequence
+        auto __rng1_temp_diag = std::get<2>(__tuple); // set a temp storage sequence
 
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>>;
@@ -822,9 +822,9 @@ struct __gen_set_balanced_path
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        const auto __rng1 = std::get<0>(std::forward<_tuple_t>(__tuple));   // first sequence
-        const auto __rng2 = std::get<1>(std::forward<_tuple_t>(__tuple));   // second sequence
-        auto __rng_tmp_diag = std::get<2>(std::forward<_tuple_t>(__tuple)); // temp diag sequence
+        const auto __rng1 = std::get<0>(__tuple);   // first sequence
+        const auto __rng2 = std::get<1>(__tuple);   // second sequence
+        auto __rng_tmp_diag = std::get<2>(__tuple); // temp diag sequence
 
         _IndexT __rng1_balanced_pos = 0;
         _IndexT __rng2_balanced_pos = 0;
@@ -894,11 +894,11 @@ struct __gen_set_op_from_known_balanced_path
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        const auto __rng1 = std::get<0>(std::forward<_tuple_t>(__tuple)); // first sequence
-        const auto __rng2 = std::get<1>(std::forward<_tuple_t>(__tuple)); // second sequence
+        const auto __rng1 = std::get<0>(__tuple); // first sequence
+        const auto __rng2 = std::get<1>(__tuple); // second sequence
 
         // set a temp storage sequence, star value in sign bit
-        const auto __rng1_temp_diag = std::get<2>(std::forward<_tuple_t>(__tuple));
+        const auto __rng1_temp_diag = std::get<2>(__tuple);
 
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>,
@@ -974,8 +974,8 @@ struct __gen_red_by_seg_reduce_input
         auto&& __tuple = __in_rng.tuple();
         using _tuple_t = decltype(__tuple);
 
-        const auto __in_keys = std::get<0>(std::forward<_tuple_t>(__tuple));
-        const auto __in_vals = std::get<1>(std::forward<_tuple_t>(__tuple));
+        const auto __in_keys = std::get<0>(__tuple);
+        const auto __in_vals = std::get<1>(__tuple);
 
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         // The first segment start (index 0) is not marked with a 1. This is because we need the first
@@ -1003,8 +1003,8 @@ struct __gen_scan_by_seg_reduce_input
         auto&& __tuple = __in_rng.tuple();
         using _tuple_t = decltype(__tuple);
 
-        const auto __in_keys = std::get<0>(std::forward<_tuple_t>(__tuple));
-        const auto __in_vals = std::get<1>(std::forward<_tuple_t>(__tuple));
+        const auto __in_keys = std::get<0>(__tuple);
+        const auto __in_vals = std::get<1>(__tuple);
 
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         const std::uint32_t __new_seg_mask = __id == 0 || !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
@@ -1033,8 +1033,8 @@ struct __gen_red_by_seg_scan_input
         auto&& __tuple = __in_rng.tuple();
         using _tuple_t = decltype(__tuple);
 
-        const auto __in_keys = std::get<0>(std::forward<_tuple_t>(__tuple));
-        const auto __in_vals = std::get<1>(std::forward<_tuple_t>(__tuple));
+        const auto __in_keys = std::get<0>(__tuple);
+        const auto __in_vals = std::get<1>(__tuple);
 
         using _KeyType = oneapi::dpl::__internal::__value_t<decltype(__in_keys)>;
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
@@ -1087,8 +1087,8 @@ struct __gen_scan_by_seg_scan_input
         auto&& __tuple = __in_rng.tuple();
         using _tuple_t = decltype(__tuple);
 
-        const auto __in_keys = std::get<0>(std::forward<_tuple_t>(__tuple));
-        const auto __in_vals = std::get<1>(std::forward<_tuple_t>(__tuple));
+        const auto __in_keys = std::get<0>(__tuple);
+        const auto __in_vals = std::get<1>(__tuple);
 
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         // Mark the first index as a new segment as well as an indexing corresponding to any key
