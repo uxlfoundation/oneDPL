@@ -639,12 +639,14 @@ __pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_pro
 
 template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
 _Size
-__pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
+__pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
-    return __pstl_lower_bound(__acc, __first, __last, __value, __negation_reordered_comp, __proj);
+    // We should forward __value_proj to preserve their value category
+    return __pstl_lower_bound(__acc, __first, __last, std::forward<_Value>(__value_proj), __negation_reordered_comp,
+                              __proj);
 }
 
 // Searching for the first element strongly greater than a passed value - right bound
