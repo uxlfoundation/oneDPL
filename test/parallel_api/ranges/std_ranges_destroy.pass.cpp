@@ -21,8 +21,6 @@
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
-#include <ranges>
-
 #include "std_ranges_memory_test.h"
 #endif //_ENABLE_STD_RANGES_TESTING
 
