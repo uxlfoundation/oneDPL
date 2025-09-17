@@ -383,7 +383,6 @@ struct __gen_set_mask
     {
         // Get tuple from source range
         auto&& __tuple = __in_rng.tuple();
-        using _tuple_t = decltype(__tuple);
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -650,7 +649,6 @@ struct __get_bounds_partitioned
     {
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
-        using _tuple_t = decltype(__tuple);
 
         auto __rng_tmp_diag = std::get<2>(__tuple); // set a temp storage sequence
 
@@ -685,7 +683,6 @@ struct __get_bounds_simple
     {
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
-        using _tuple_t = decltype(__tuple);
 
         const auto __rng1 = std::get<0>(__tuple); // first sequence
         const auto __rng2 = std::get<1>(__tuple); // second sequence
@@ -785,7 +782,6 @@ struct __gen_set_balanced_path
     {
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
-        using _tuple_t = decltype(__tuple);
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -832,7 +828,6 @@ struct __gen_set_balanced_path
     {
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
-        using _tuple_t = decltype(__tuple);
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -904,7 +899,6 @@ struct __gen_set_op_from_known_balanced_path
     {
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
-        using _tuple_t = decltype(__tuple);
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -986,7 +980,6 @@ struct __gen_red_by_seg_reduce_input
     {
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
-        using _tuple_t = decltype(__tuple);
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
@@ -1015,7 +1008,6 @@ struct __gen_scan_by_seg_reduce_input
     {
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
-        using _tuple_t = decltype(__tuple);
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
@@ -1045,7 +1037,6 @@ struct __gen_red_by_seg_scan_input
     {
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
-        using _tuple_t = decltype(__tuple);
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
@@ -1099,7 +1090,6 @@ struct __gen_scan_by_seg_scan_input
     {
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
-        using _tuple_t = decltype(__tuple);
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
