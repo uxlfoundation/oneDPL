@@ -6,7 +6,6 @@
 #include <cassert>
 
 #include <sycl/sycl.hpp>
-#endif
 
 int main() {
     try {
