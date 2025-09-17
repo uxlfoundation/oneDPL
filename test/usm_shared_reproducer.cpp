@@ -1,11 +1,14 @@
-// Simple USM shared memory reproducer
-// Allocates USM shared data and increments each value by 1 on the host
+// Simple USM shared memory reproducer with oneDPL permutation iterator
+// Allocates USM shared data and uses permutation iterator with counting iterator as map
 
 #include <iostream>
 #include <vector>
 #include <cassert>
 
 #include <sycl/sycl.hpp>
+#include <oneapi/dpl/execution>
+#include <oneapi/dpl/algorithm>
+#include <oneapi/dpl/iterator>
 
 int main() {
     try {
@@ -30,23 +33,27 @@ int main() {
             data[i] = static_cast<int>(i);
         }
         
-        // Print first few initial values
-        std::cout << "Initial values: ";
+        // Create a permutation iterator using counting iterator as map
+        auto counting_iter = oneapi::dpl::counting_iterator<size_t>(0);
+        auto perm_iter = oneapi::dpl::make_permutation_iterator(data, counting_iter);
+        
+        // Print first few initial values via permutation iterator
+        std::cout << "Initial values (via permutation iterator): ";
         for (size_t i = 0; i < 5; ++i) {
-            std::cout << data[i] << " ";
+            std::cout << *(perm_iter + i) << " ";
         }
         std::cout << "..." << std::endl;
         
-        // Increment each value by 1 on the host
-        std::cout << "Incrementing values on host..." << std::endl;
+        // Increment each value by 1 on the host using permutation iterator
+        std::cout << "Incrementing values via permutation iterator..." << std::endl;
         for (size_t i = 0; i < N; ++i) {
-            data[i] += 1;
+            *(perm_iter + i) += 1;
         }
         
-        // Print first few modified values
-        std::cout << "After increment: ";
+        // Print first few modified values via permutation iterator
+        std::cout << "After increment (via permutation iterator): ";
         for (size_t i = 0; i < 5; ++i) {
-            std::cout << data[i] << " ";
+            std::cout << *(perm_iter + i) << " ";
         }
         std::cout << "..." << std::endl;
         
@@ -62,7 +69,7 @@ int main() {
         }
         
         if (success) {
-            std::cout << "SUCCESS: All " << N << " values incremented correctly!" << std::endl;
+            std::cout << "SUCCESS: All " << N << " values incremented correctly via permutation iterator!" << std::endl;
         } else {
             std::cout << "FAILED: Value mismatch detected" << std::endl;
         }
