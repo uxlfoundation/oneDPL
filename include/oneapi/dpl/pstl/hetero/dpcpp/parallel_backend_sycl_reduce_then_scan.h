@@ -816,11 +816,15 @@ struct __gen_set_balanced_path
     std::uint16_t
     operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data) const
     {
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+        using _tuple_t = decltype(__tuple);
+
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        const auto __rng1 = std::get<0>(__in_rng.tuple());   // first sequence
-        const auto __rng2 = std::get<1>(__in_rng.tuple());   // second sequence
-        auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // temp diag sequence
+        const auto __rng1 = std::get<0>(std::forward<_tuple_t>(__tuple));   // first sequence
+        const auto __rng2 = std::get<1>(std::forward<_tuple_t>(__tuple));   // second sequence
+        auto __rng_tmp_diag = std::get<2>(std::forward<_tuple_t>(__tuple)); // temp diag sequence
 
         _IndexT __rng1_balanced_pos = 0;
         _IndexT __rng2_balanced_pos = 0;
