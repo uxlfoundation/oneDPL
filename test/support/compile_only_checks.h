@@ -246,7 +246,7 @@ void
 check_compilation_no_comma(Policy&& policy, Op&& op, Args&&... rest)
 {
     //for libc++, we disable these checks because their sort implementation is broken for deleted comma operator iter
-#if !_PSTL_LIBCPP_NO_COMMA_TESTS_BROKEN
+#if TEST_NO_COMMA_ITERATORS
     volatile bool always_false = false;
     if (always_false)
     {

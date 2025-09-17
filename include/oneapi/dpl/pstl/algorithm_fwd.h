@@ -62,7 +62,7 @@ template <class _RandomAccessIterator, class _Function>
 void __brick_walk1(_RandomAccessIterator, _RandomAccessIterator, _Function,
                    /*vector=*/::std::true_type);
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function, class _IsVector>
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
 void
 __pattern_walk1(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator, _Function);
 
@@ -1221,9 +1221,9 @@ __pattern_lexicographical_compare(__parallel_tag<_IsVector>, _ExecutionPolicy&&,
                                   _RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator2,
                                   _Compare) noexcept;
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function>
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2>
 _ForwardIterator2
-__pattern_swap(_Tag, _ExecutionPolicy&&, _ForwardIterator1, _ForwardIterator1, _ForwardIterator2, _Function);
+__pattern_swap(_Tag, _ExecutionPolicy&&, _ForwardIterator1, _ForwardIterator1, _ForwardIterator2);
 
 //------------------------------------------------------------------------
 // shift_left

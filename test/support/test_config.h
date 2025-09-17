@@ -34,7 +34,7 @@
 // When such an issue is fixed, we must replace the usage of these "Latest" macros with the appropriate version number
 // before updating to the newest version in this section.
 
-#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250200
+#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250300
 
 #define _PSTL_TEST_LATEST_MSVC_STL_VERSION 143
 
@@ -284,7 +284,8 @@
     (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250100)
 
 // Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
-#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250300)
+#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN                                                                      \
+    (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
 
 // To prevent the assertion from Microsoft STL implementation about the comparison of iterators from different containers
 #define _PSTL_TEST_ITERATORS_POSSIBLY_EQUAL_BROKEN (_DEBUG && _MSC_VER)
@@ -293,12 +294,33 @@
 #    error "TEST_ONLY_HETERO_POLICIES is passed but device backend is not available"
 #endif
 
-// There are issues with stable_sort for libcpp with iterators with a deleted comma operator, disable those tests
-#if (defined(_LIBCPP_VERSION))
-#   define _PSTL_LIBCPP_NO_COMMA_TESTS_BROKEN 1
+//There are issues with stable_sort for libcpp with iterators with a deleted comma operator, disable no_comma compile
+// only tests. Also, since this adds significant amount of code compilation to the build, lets be more conservative
+// about when we try to test this. Since debug build mode and unnamed lambda support dont change the code in any way
+// which should interact with what we are testing for here, lets disable it for those cases for time / build space.
+#if !defined(_LIBCPP_VERSION) && !PSTL_USE_DEBUG && (TEST_UNNAMED_LAMBDAS || !TEST_DPCPP_BACKEND_PRESENT)
+#   define TEST_NO_COMMA_ITERATORS 1
 #else
-#   define _PSTL_LIBCPP_NO_COMMA_TESTS_BROKEN 0
+#   define TEST_NO_COMMA_ITERATORS 0
 #endif
 
+// For icpx versions prior to 2024.1, we encounter compilation issues in device_copyable.pass tests for device copyable
+// specializations of kernel submitters. It is a test only issue.
+#if TEST_DPCPP_BACKEND_PRESENT && defined(__INTEL_LLVM_COMPILER) && __INTEL_LLVM_COMPILER < 20240100
+#   define _PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN 1
+#else
+#   define _PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN 0
+#endif
+
+// There is a bug in the libc++ at the time of writing this comment with 21 being the latest major release
+// 23 is set to avoid frequent bump-ups.
+// See: https://github.com/llvm/llvm-project/blob/6096d35ea93c75f648a253a00775b4d74915c819/libcxx/include/__algorithm/ranges_set_union.h#L94
+// This line does not take into account that the iterator-based implementation may arbitrary call comp(a, b) or comp(b, a)
+// TODO: report it or contribute.
+#if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION <= 230000
+#    define _PSTL_LIBCPP_RANGE_SET_BROKEN 1
+#else
+#    define _PSTL_LIBCPP_RANGE_SET_BROKEN 0
+#endif
 
 #endif // _TEST_CONFIG_H

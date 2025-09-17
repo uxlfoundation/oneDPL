@@ -31,15 +31,15 @@ _Tp
 reduce(_InputIterator __first, _InputIterator __last, _Tp __init, _BinaryOp __b)
 {
     for (; __first != __last; ++__first)
-        __init = __b(__init, *__first);
-    return __init;
+        __init = __b(std::move(__init), *__first);
+    return std::move(__init);
 }
 
 template <class _InputIterator, class _Tp>
 _Tp
 reduce(_InputIterator __first, _InputIterator __last, _Tp __init)
 {
-    return oneapi::dpl::reduce(__first, __last, __init, ::std::plus<_Tp>());
+    return oneapi::dpl::reduce(__first, __last, std::move(__init), ::std::plus<_Tp>());
 }
 
 template <class _InputIterator>

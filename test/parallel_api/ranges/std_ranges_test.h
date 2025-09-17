@@ -26,7 +26,7 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202505L);
+static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L);
 
 #if TEST_CPP20_SPAN_PRESENT
 #include <span>
@@ -89,6 +89,11 @@ auto pred1 = [](auto&& val) -> bool { return val > 0; };
 auto pred2 = [](auto&& val) -> bool { return val == 4; };
 auto pred3 = [](auto&& val) -> bool { return val < 0; };
 
+auto mul1 = [](auto&& v) { return v; };
+using mul1_t = decltype(mul1);
+auto div3 = [](auto&& v) { return v / 3; };
+using div3_t = decltype(div3);
+
 struct P2
 {
     P2() {}
@@ -100,6 +105,20 @@ struct P2
     friend bool operator==(const P2& a, const P2& b) { return a.x == b.x && a.y == b.y; }
 };
 
+struct A
+{
+    int a;
+    operator int() const { return a; }
+};
+
+struct B
+{
+    int b;
+    operator int() const { return b; }
+};
+
+auto proj_a = [](const A& a) { return a.a; };
+auto proj_b = [](const B& b) { return b.b; };
 
 // These are copies of __range_size and __range_size_t utilities from oneDPL
 // to get a size type of a range be it sized or not
@@ -171,8 +190,18 @@ constexpr int trivial_size{0};
 template<typename>
 constexpr int calc_res_size(int n, int) { return n; }
 
+// If in1 range is empty, then the out range is always empty
+// Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union test.
+template<typename>
+int out_size_with_empty_in1(int) { return 0; };
+
+// If in2 range is empty, then the out range is always empty
+// Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union test.
+template<typename>
+int out_size_with_empty_in2(int) { return 0; };
+
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
-auto data_gen_zero = [](auto) { return 0;};
+auto data_gen_unprocessed = [](auto) { return -1;};
 
 template <typename _ReturnType>
 struct all_dangling_in_result : std::false_type
@@ -284,7 +313,7 @@ private:
                 if constexpr (!all_dangling_in_result_v<res_ret_t>)
                     static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
             }
-        }        
+        }
     }
 
     // Test dangling iterators in return types for call with temporary data
@@ -309,7 +338,7 @@ private:
                 if constexpr (!all_dangling_in_result_v<res_ret_t>)
                     static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
             }
-        }        
+        }
     }
 
     // Test dangling iterators in return types for call with temporary data
@@ -371,15 +400,17 @@ private:
         static_assert(mode == data_in_out || mode == data_in_out_lim);
 
         Container cont_in(exec, n_in, DataGen1{});
-        Container cont_out(exec, n_out, data_gen_zero);
-        Container cont_exp(exec, n_out, data_gen_zero);
+        Container cont_in_exp(exec, n_in, DataGen1{});
+
+        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_out_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in <= max_n);
         assert(n_out <= max_n);
 
-        auto src_view = tr_in(std::views::all(cont_in()));
-        auto exp_view = tr_out(std::views::all(cont_exp()));
-        auto expected_res = checker(src_view, exp_view, args...);
+        auto in_exp_view = tr_in(std::views::all(cont_in_exp()));
+        auto out_exp_view = tr_out(std::views::all(cont_out_exp()));
+        auto expected_res = checker(in_exp_view, out_exp_view, args...);
 
         typename Container::type& A = cont_in();
         typename Container::type& B = cont_out();
@@ -389,15 +420,19 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val(expected_res, src_view.begin()), ret_in_val(res, tr_in(A).begin()),
+        EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
                   (std::string("wrong return value from algo with input range: ") + typeid(Algo).name()).c_str());
 
-        EXPECT_EQ(ret_out_val(expected_res, exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
+        EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
                   (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
 
         //check result
-        auto n = std::ranges::size(exp_view);
-        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        auto n = std::ranges::size(out_exp_view);
+        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+
+        //check result
+        auto n_in_exp = std::ranges::size(in_exp_view);
+        EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
@@ -484,15 +519,6 @@ private:
         test_dangling_pointers<2, 300>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
-    struct TransformOp
-    {
-        template <typename T>
-        auto operator()(T i) const
-        {
-            return i / 3;
-        }
-    };
-
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
     void
     process_data_in_in_out(int max_n, int n_in1, int n_in2, int n_out, Policy&& exec, Algo algo, Checker& checker,
@@ -501,10 +527,10 @@ private:
         static_assert(mode == data_in_in_out || mode == data_in_in_out_lim);
 
         Container cont_in1(exec, n_in1, DataGen1{});
-        Container cont_in2(exec, n_in2, TransformOp{});
+        Container cont_in2(exec, n_in2, DataGen2{});
 
-        Container cont_out(exec, n_out, data_gen_zero);
-        Container cont_exp(exec, n_out, data_gen_zero);
+        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in1 <= max_n);
         assert(n_in2 <= max_n);
@@ -551,6 +577,8 @@ public:
 
         //test cases with empty sequence(s)
         process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, r_size, out_size_with_empty_in1<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, 0, out_size_with_empty_in2<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -601,6 +629,8 @@ private:
             return std::distance(begin, ret.out);
         else if constexpr (is_iterator<Ret>)
             return std::distance(begin, ret);
+        else if constexpr (check_in2<Ret>)
+            return std::distance(begin, ret.in2);
         else if constexpr(is_range<Ret>)
             return std::pair{std::distance(begin, ret.begin()), std::ranges::distance(ret.begin(), ret.end())};
         else
