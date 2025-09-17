@@ -778,14 +778,15 @@ struct _ReverseCounter
 // Reverse searching for the first element strongly less than a passed value - left bound
 template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
 _Index
-__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj)
+__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
 {
     auto __beg = _ReverseCounter<_Index, _Buffer>{__last - 1};
     auto __end = _ReverseCounter<_Index, _Buffer>{__first - 1};
 
     __not_pred<decltype(__comp)> __negation_comp{__comp};
 
-    return __pstl_lower_bound(__a, __beg, __end, __val, __negation_comp, __proj);
+    // We should forward __value_proj to preserve their value category
+    return __pstl_lower_bound(__a, __beg, __end, std::forward<_Value>(__value_proj), __negation_comp, __proj);
 }
 
 // Lower bound implementation based on Shar's algorithm for binary search.
