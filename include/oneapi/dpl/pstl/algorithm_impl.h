@@ -3383,12 +3383,12 @@ struct _SumSize
 };
 
 template <class _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
-          typename _OutputIterator, typename _SetOP, typename _Compare, typename _Proj1, typename _Proj2>
+          typename _OutputIterator, typename _SizeFunction, typename _SetOP, typename _Compare, typename _Proj1, typename _Proj2>
 std::pair<_OutputIterator, bool>
 __copy_union_when_disjointed(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                              _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                              _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _OutputIterator __result,
-                             _SetOP __set_op, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+                             _SizeFunction __size_func, _SetOP __set_op, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -3458,8 +3458,6 @@ __copy_union_when_disjointed(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&&
         return {__result_last, true};
     }
 
-    _SumSize<_DifferenceType1, _DifferenceType2> __sum_size;
-
     const auto __m1 = __left_bound_seq_1 - __first1;
     if (__m1 > __set_algo_cut_off)
     {
@@ -3474,7 +3472,7 @@ __copy_union_when_disjointed(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&&
             [=, &__exec, &__result] {
                 __result =
                     __internal::__parallel_set_op(__tag, __exec, __left_bound_seq_1, __last1, __first2, __last2,
-                                                  __result, __sum_size, __set_op, __comp, __proj1, __proj2);
+                                                  __result, __size_func, __set_op, __comp, __proj1, __proj2);
             });
         return {__result, true};
     }
@@ -3493,7 +3491,7 @@ __copy_union_when_disjointed(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&&
             },
             [=, &__exec, &__result] {
                 __result = __internal::__parallel_set_op(__tag, __exec, __first1, __last1, __left_bound_seq_2, __last2,
-                                                         __result, __sum_size, __set_op, __comp, __proj1, __proj2);
+                                                         __result, __size_func, __set_op, __comp, __proj1, __proj2);
             });
         return {__result, true};
     }
@@ -3574,16 +3572,17 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                                                            oneapi::dpl::identity{}, oneapi::dpl::identity{});
     };
 
+    _SumSize<_DifferenceType1, _DifferenceType2> __size_func;
+
     auto [__result_last, __copied] =
-        __copy_union_when_disjointed(__tag, __exec, __first1, __last1, __first2, __last2, __result, __set_op, __comp,
-                                     oneapi::dpl::identity{}, oneapi::dpl::identity{});
+        __copy_union_when_disjointed(__tag, __exec, __first1, __last1, __first2, __last2, __result, __size_func,
+                                     __set_op, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
     if (__copied)
         return __result_last;
 
-    _SumSize<_DifferenceType1, _DifferenceType2> __sum_size;
 
     return __internal::__parallel_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                         __last2, __result, __sum_size, __set_op, __comp, oneapi::dpl::identity{},
+                                         __last2, __result, __size_func, __set_op, __comp, oneapi::dpl::identity{},
                                          oneapi::dpl::identity{});
 }
 
@@ -3849,7 +3848,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     if (__n1 + __n2 <= __set_algo_cut_off)
         return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
-    _SumSize<_DifferenceType1, _DifferenceType2> __sum_size;
+    _SumSize<_DifferenceType1, _DifferenceType2> __size_func;
 
     auto __set_op = [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                        _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
@@ -3861,13 +3860,13 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
 
     return __internal::__except_handler([&]() {
         auto [__result_last, __copied] =
-            __copy_union_when_disjointed(__tag, __exec, __first1, __last1, __first2, __last2, __result, __set_op,
-                                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            __copy_union_when_disjointed(__tag, __exec, __first1, __last1, __first2, __last2, __result, __size_func,
+                                         __set_op, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         if (__copied)
             return __result_last;
 
         return __internal::__parallel_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                             __last2, __result, __sum_size, __set_op, __comp, oneapi::dpl::identity{},
+                                             __last2, __result, __size_func, __set_op, __comp, oneapi::dpl::identity{},
                                              oneapi::dpl::identity{});
     });
 }
