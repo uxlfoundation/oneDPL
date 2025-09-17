@@ -664,7 +664,7 @@ __pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, _Value&& __value
 // resulting in a standard binary search.
 template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
 _Size1
-__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj)
+__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
 {
     auto __n = __last - __first;
     std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
@@ -680,7 +680,9 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
             __cur_idx = __biased_step;
         __it = __first + __cur_idx;
 
-        if (std::invoke(__comp, std::invoke(__proj, __acc[__it]), __value))
+        // We able to forward __value_proj multiple times because comparator shouldn't change it
+        // We should forward __value_proj to preserve their value category
+        if (std::invoke(__comp, std::invoke(__proj, __acc[__it]), std::forward<_Value>(__value_proj)))
         {
             __first = __it + 1;
         }
@@ -694,8 +696,10 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
     }
     if (__n > 0)
     {
-        //end up fully at binary search
-        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, __value, __comp, __proj);
+        // End up fully at binary search
+        // We should forward __value_proj to preserve their value category
+        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, std::forward<_Value>(__value_proj),
+                                                           __comp, __proj);
     }
     return __first;
 }
