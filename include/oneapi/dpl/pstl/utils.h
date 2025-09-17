@@ -652,9 +652,10 @@ __pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_pro
 // Searching for the first element strongly greater than a passed value - right bound
 template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
 _Index
-__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj)
+__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
 {
-    return __pstl_upper_bound(__a, __first, __last, __val, __comp, __proj);
+    // We should forward __value_proj to preserve their value category
+    return __pstl_upper_bound(__a, __first, __last, std::forward<_Value>(__value_proj), __comp, __proj);
 }
 
 // Performs a "biased" binary search targets the split point close to one edge of the range.
