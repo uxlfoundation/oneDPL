@@ -287,12 +287,7 @@ class zip_view
         return size() == 0;
     }
 
-    _tuple_ranges_t
-    tuple()
-    {
-        return __m_ranges;
-    }
-    _tuple_ranges_t
+   _tuple_ranges_t
     tuple() const
     {
         return __m_ranges;
