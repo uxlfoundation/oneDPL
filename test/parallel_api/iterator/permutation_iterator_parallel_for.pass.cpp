@@ -122,7 +122,7 @@ run_algo_tests()
     {
         // Run tests on <USM::shared> + <all_host_policies>
         // dpl::transform -> __parallel_for (only for random_access_iterator)
-        test2buffers<sycl::usm::alloc::shared, ValueType, test_transform<ValueType, PermItIndexTag>>(kZeroOffset, kZeroOffset);
+        test_algo_two_sequences<ValueType, test_transform<ValueType, PermItIndexTag>>(kZeroOffset, kZeroOffset);
     }
 }
 
