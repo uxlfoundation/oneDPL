@@ -888,13 +888,18 @@ struct __gen_set_op_from_known_balanced_path
     std::tuple<std::uint32_t, std::uint16_t>
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
     {
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+        using _tuple_t = decltype(__tuple);
+
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        const auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
-        const auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+        const auto __rng1 = std::get<0>(std::forward<_tuple_t>(__tuple)); // first sequence
+        const auto __rng2 = std::get<1>(std::forward<_tuple_t>(__tuple)); // second sequence
 
-        const auto __rng1_temp_diag =
-            std::get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
+        // set a temp storage sequence, star value in sign bit
+        const auto __rng1_temp_diag = std::get<2>(std::forward<_tuple_t>(__tuple));
+
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>,
                                              std::make_unsigned_t<decltype(__rng1_temp_diag.size())>>;
