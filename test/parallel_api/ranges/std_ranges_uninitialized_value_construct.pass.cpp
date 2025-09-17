@@ -15,7 +15,6 @@
 
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/memory>
-#include <oneapi/dpl/ranges>
 
 #include "support/test_config.h"
 #include "support/test_macros.h"
