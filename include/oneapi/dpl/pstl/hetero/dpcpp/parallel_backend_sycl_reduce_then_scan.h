@@ -389,14 +389,15 @@ struct __gen_set_mask
 
         std::size_t __nb = __set_b.size();
 
-        auto __res =
-            oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __set_a, __id, __comp, __proj2, __proj1); 
+        auto __res = oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __set_a, __id, __comp,
+                                                                 __proj2, __proj1);
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
 
         //initialization is true in case of difference operation; false - intersection.
         bool bres = __is_difference;
 
-        if (__res == __nb || std::invoke(__comp, std::invoke(__proj1, __set_a[__id]), std::invoke(__proj2, __set_b[__res])))
+        if (__res == __nb ||
+            std::invoke(__comp, std::invoke(__proj1, __set_a[__id]), std::invoke(__proj2, __set_b[__res])))
         {
             // there is no __set_a[__id] in __set_b, so __set_b in the difference {__set_a}/{__set_b};
         }
@@ -409,11 +410,15 @@ struct __gen_set_mask
             //duplication in __set_b then a mask is 1
 
             const std::size_t __count_a_left =
-                __id - oneapi::dpl::__internal::__pstl_left_bound(__set_a, std::size_t{0}, __id, __set_a, __id, __comp, __proj1, __proj1) + 1; 
+                __id -
+                oneapi::dpl::__internal::__pstl_left_bound(__set_a, std::size_t{0}, __id, __set_a, __id, __comp,
+                                                           __proj1, __proj1) +
+                1;
 
-            const std::size_t __count_b =
-                oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __set_b, __res, __comp, __proj2, __proj2) -
-                oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __set_b, __res, __comp, __proj2, __proj2);
+            const std::size_t __count_b = oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __set_b,
+                                                                                      __res, __comp, __proj2, __proj2) -
+                                          oneapi::dpl::__internal::__pstl_left_bound(
+                                              __set_b, std::size_t{0}, __res, __set_b, __res, __comp, __proj2, __proj2);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
@@ -702,7 +707,8 @@ struct __gen_set_balanced_path
             return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
         }
 
-        if (std::invoke(__comp, std::invoke(__proj1, __rng1[__merge_path_rng1 - 1]), std::invoke(__proj2, __rng2[__merge_path_rng2])))
+        if (std::invoke(__comp, std::invoke(__proj1, __rng1[__merge_path_rng1 - 1]),
+                        std::invoke(__proj2, __rng2[__merge_path_rng2])))
         {
             // There is no chance that the balanced path differs from the merge path here, because the previous element of
             // rng1 does not match the next element of rng2. We can just return the merge path.
