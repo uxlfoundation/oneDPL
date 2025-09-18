@@ -204,7 +204,7 @@ private:
     void copy_data_impl(_ValueType* __src, _ValueType* __ptr, __difference_type __count)
     {
         std::cout<<"copy "<<std::addressof(*__src)<<" -> "<<std::addressof(*__ptr)<<", count = "<<__count<<"\n";
-#if TEST_LIBSYCL_VERSION >= 50300
+#if 0//`TEST_LIBSYCL_VERSION >= 50300
         std::cout<<"queue copy\n";
         __queue.copy(__src, __ptr, __count);
 #else
