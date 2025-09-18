@@ -1996,7 +1996,7 @@ struct __partial_merge_kernel
             const auto __shift =
                 /* index inside p1 */ __global_idx - __start_1 +
                 /* relative position in p3 */
-                oneapi::dpl::__internal::__pstl_lower_bound(__in_acc2, __start_2, __part_end_2, __in_acc1[__global_idx],
+                oneapi::dpl::__internal::__pstl_lower_bound(__in_acc2, __start_2, __part_end_2, __in_acc1[__global_idx], // TODO __pstl_lower_bound - operator[]
                                                             __comp, oneapi::dpl::identity{}) -
                 __start_2;
             __out_acc[__out_shift + __shift] = __in_acc1[__global_idx];
@@ -2015,7 +2015,7 @@ struct __partial_merge_kernel
             const auto __shift =
                 /* index inside p3 */ __global_idx - __start_2 +
                 /* relative position in p1 */
-                oneapi::dpl::__internal::__pstl_upper_bound(__in_acc1, __start_1, __part_end_1, __in_acc2[__global_idx],
+                oneapi::dpl::__internal::__pstl_upper_bound(__in_acc1, __start_1, __part_end_1, __in_acc2[__global_idx], // TODO __pstl_upper_bound - operator[]
                                                             __comp, oneapi::dpl::identity{}) -
                 __start_1;
             __out_acc[__out_shift + __shift] = __in_acc2[__global_idx];

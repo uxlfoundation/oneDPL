@@ -645,7 +645,7 @@ __pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_pro
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
     // We should forward __value_proj to preserve their value category
-    return __pstl_lower_bound(__acc, __first, __last, std::forward<_Value>(__value_proj), __negation_reordered_comp,
+    return __pstl_lower_bound(__acc, __first, __last, std::forward<_Value>(__value_proj), __negation_reordered_comp, // TODO __pstl_lower_bound - ?
                               __proj);
 }
 
@@ -655,7 +655,7 @@ _Index
 __pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
 {
     // We should forward __value_proj to preserve their value category
-    return __pstl_upper_bound(__a, __first, __last, std::forward<_Value>(__value_proj), __comp, __proj);
+    return __pstl_upper_bound(__a, __first, __last, std::forward<_Value>(__value_proj), __comp, __proj); // TODO __pstl_upper_bound - operator[]
 }
 
 // Performs a "biased" binary search targets the split point close to one edge of the range.
@@ -698,7 +698,7 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, _Value&& __value
     {
         // End up fully at binary search
         // We should forward __value_proj to preserve their value category
-        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, std::forward<_Value>(__value_proj),
+        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, std::forward<_Value>(__value_proj), // TODO __pstl_lower_bound - ?
                                                            __comp, __proj);
     }
     return __first;
@@ -712,7 +712,7 @@ __biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, _Value&& __value
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
     // We should forward __value_proj to preserve their value category
-    return __biased_lower_bound<__bias_last>(__acc, __first, __last, std::forward<_Value>(__value_proj), __negation_reordered_comp, __proj);
+    return __biased_lower_bound<__bias_last>(__acc, __first, __last, std::forward<_Value>(__value_proj), __negation_reordered_comp, __proj); // TODO __biased_lower_bound - ?
 }
 
 template <typename _IntType, typename _Acc>
@@ -786,7 +786,7 @@ __pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, _Value&& __value_
     __not_pred<decltype(__comp)> __negation_comp{__comp};
 
     // We should forward __value_proj to preserve their value category
-    return __pstl_lower_bound(__a, __beg, __end, std::forward<_Value>(__value_proj), __negation_comp, __proj);
+    return __pstl_lower_bound(__a, __beg, __end, std::forward<_Value>(__value_proj), __negation_comp, __proj); // TODO __pstl_lower_bound - ?
 }
 
 // Lower bound implementation based on Shar's algorithm for binary search.
