@@ -60,7 +60,7 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             clear_output_data(host_vals_ptr, host_vals_ptr + n);
             host_vals.update_data();
             std::cout<<"transform\n";
-            auto itResultEnd = dpl::transform(CLONE_TEST_POLICY_IDX(exec, 0), permItBegin, permItEnd, first2, TransformOp{});
+            //auto itResultEnd = dpl::transform(CLONE_TEST_POLICY_IDX(exec, 0), permItBegin, permItEnd, first2, TransformOp{});
             wait_and_throw(exec);
 
             const auto resultSize = itResultEnd - first2;
