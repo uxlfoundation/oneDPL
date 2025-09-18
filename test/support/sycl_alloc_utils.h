@@ -75,8 +75,15 @@ public:
     {
         if (__count > 0)
         {
-            __ptr = allocate(__count, __alloc_type<_alloc_type>{});
+            __ptr = allocate(__count + 3, __alloc_type<_alloc_type>{});
             assert(__ptr != nullptr);
+        }
+
+        if constexpr (_alloc_type == sycl::usm::alloc::shared)
+        {
+            __ptr[__count + 0] = 0xAA;
+            __ptr[__count + 1] = 0xBB;
+            __ptr[__count + 2] = 0xCC;
         }
     }
 
@@ -123,6 +130,16 @@ public:
 
     void reset()
     {
+        if constexpr (_alloc_type == sycl::usm::alloc::shared)
+        {
+            if (__ptr != nullptr)
+            {
+                assert(__ptr[__count + 0] == 0xAA);
+                assert(__ptr[__count + 1] == 0xBB);
+                assert(__ptr[__count + 2] == 0xCC);
+            }
+        }
+
         if (__count > 0)
         {
             assert(__ptr != nullptr);
