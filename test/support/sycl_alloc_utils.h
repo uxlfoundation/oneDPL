@@ -203,10 +203,12 @@ private:
 
     void copy_data_impl(_ValueType* __src, _ValueType* __ptr, __difference_type __count)
     {
-//#if TEST_LIBSYCL_VERSION >= 50300
         std::cout<<"copy "<<std::addressof(*__src)<<" -> "<<std::addressof(*__ptr)<<", count = "<<__count<<"\n";
-//        __queue.copy(__src, __ptr, __count);
-//#else
+#if TEST_LIBSYCL_VERSION >= 50300
+        std::cout<<"queue copy\n";
+        __queue.copy(__src, __ptr, __count);
+#else
+        std::cout<<"queue submit\n";
         auto __p = __ptr;
         auto __c = __count;
         __queue.submit([__src, __c, __p](sycl::handler& __cgh) {
@@ -215,7 +217,7 @@ private:
                 *(__p + __id) = *(__src + __id);
                 });
             });
-//#endif // TEST_LIBSYCL_VERSION >= 50300
+#endif // TEST_LIBSYCL_VERSION >= 50300
         __queue.wait();
     }
 
