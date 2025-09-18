@@ -714,7 +714,7 @@ template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, type
 _Size1
 __pstl_right_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    return __pstl_upper_bound(__rng1, __first, __last, __rng2, __rng2_idx, __comp, __proj1, __proj2); // TODO __pstl_upper_bound - operator[]
+    return __pstl_upper_bound(__rng1, __first, __last, __rng2, __rng2_idx, __comp, __proj1, __proj2);
 }
 
 // Searching for the first element strongly greater than a passed value - right bound
@@ -764,8 +764,7 @@ __biased_lower_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2 __rng2, 
     if (__n > 0)
     {
         // End up fully at binary search
-        return oneapi::dpl::__internal::__pstl_lower_bound(__rng1, __first, __last, // TODO __pstl_lower_bound - operator[]
-                                                           __rng2, __rng2_idx, __comp, __proj1, __proj2);
+        return oneapi::dpl::__internal::__pstl_lower_bound(__rng1, __first, __last, __rng2, __rng2_idx, __comp, __proj1, __proj2);
     }
     return __first;
 }
@@ -825,7 +824,7 @@ __biased_upper_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2 __rng2, 
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
-    return __biased_lower_bound<__bias_last>(__rng1, __first, __last, __rng2, __rng2_idx, __negation_reordered_comp, __proj1, __proj2); // TODO __biased_lower_bound - operator[]
+    return __biased_lower_bound<__bias_last>(__rng1, __first, __last, __rng2, __rng2_idx, __negation_reordered_comp, __proj1, __proj2);
 }
 
 template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
@@ -910,7 +909,7 @@ __pstl_left_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2 __rng2, _Si
 
     __not_pred<decltype(__comp)> __negation_comp{__comp};
 
-    return __pstl_lower_bound(__rng1, __beg, __end, __rng2, __rng2_idx, __negation_comp, __proj1, __proj2); // TODO __pstl_lower_bound - operator[]
+    return __pstl_lower_bound(__rng1, __beg, __end, __rng2, __rng2_idx, __negation_comp, __proj1, __proj2);
 }
 
 // Reverse searching for the first element strongly less than a passed value - left bound

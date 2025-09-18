@@ -3318,13 +3318,11 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
                 //try searching for the first element which not equal to *__b
                 if (__b != __first1)
-                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, // TODO __pstl_upper_bound - iterator dereference
-                                                          __b, __comp, __proj1, __proj1);
+                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
 
                 //try searching for the first element which not equal to *__e
                 if (__e != __last1)
-                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, // TODO __pstl_upper_bound - iterator dereference
-                                                          __e, __comp, __proj1, __proj1);
+                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
 
                 //check is [__b; __e) empty
                 if (__e - __b < 1)
@@ -3332,8 +3330,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
                     _RandomAccessIterator2 __bb = __last2;
                     if (__b != __last1)
                         __bb =
-                            __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, // TODO __pstl_lower_bound - iterator dereference
-                                                                      __b, __comp, __proj2, __proj1);
+                            __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b, __comp, __proj2, __proj1);
 
                     const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
                     return _SetRange{0, 0, __buf_pos};
@@ -3342,13 +3339,11 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
                 //try searching for "corresponding" subrange [__bb; __ee) in the second sequence
                 _RandomAccessIterator2 __bb = __first2;
                 if (__b != __first1)
-                    __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, // TODO __pstl_lower_bound - iterator dereference
-                                                                     __b, __comp, __proj2, __proj1);
+                    __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b, __comp, __proj2, __proj1);
 
                 _RandomAccessIterator2 __ee = __last2;
                 if (__e != __last1)
-                    __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, // TODO __pstl_lower_bound - iterator dereference
-                                                                 __e, __comp, __proj2, __proj1);
+                    __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, __e, __comp, __proj2, __proj1);
 
                 const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
                 auto __buffer_b = __tmp_memory + __buf_pos;
@@ -3403,8 +3398,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     // testing  whether the sequences are intersected
     _RandomAccessIterator1 __left_bound_seq_1 =
-        __first1 + __internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1, // TODO __pstl_lower_bound - iterator dereference
-                                                  __first2, __comp, __proj1, __proj2);
+        __first1 + __internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1, __first2, __comp, __proj1, __proj2);
                                                   
     if (__left_bound_seq_1 == __last1)
     {
@@ -3422,8 +3416,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     // testing  whether the sequences are intersected
     _RandomAccessIterator2 __left_bound_seq_2 =
-        __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, // TODO __pstl_lower_bound - iterator dereference
-                                                  __first1, __comp, __proj2, __proj1);
+        __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __first1, __comp, __proj2, __proj1);
 
     if (__left_bound_seq_2 == __last2)
     {
