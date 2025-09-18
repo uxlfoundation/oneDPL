@@ -1,8 +1,7 @@
 # Parallel Range Algorithms
 
 ## Introduction
-The following algorithms have been implemented in oneDPL based on
-their usage frequency on github.com:
+The following range algorithms have been implemented in oneDPL:
 - Whole Sequence Operations: `all_of`, `any_of`, `none_of`, `for_each`, `count`, `count_if`.
 - Element Search Operations: `find`, `find_if`, `find_if_not`, `find_first_of`, `adjacent_find`.
 - Minimum and Maximum: `min`, `max`, `minmax`, `min_element`, `max_element`, `minmax_element`.
@@ -18,7 +17,7 @@ their usage frequency on github.com:
   `uninitialized_default_construct`, `uninitialized_value_construct`, `destroy`.
 
 The remaining algorithms (as defined in [P3179](https://wg21.link/p3179))
-should be implemented in the future releases.
+will be implemented in the future releases.
 
 ## Motivations
 - Better expressiveness and productivity.
