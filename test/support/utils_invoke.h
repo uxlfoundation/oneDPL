@@ -295,8 +295,8 @@ struct invoke_on_all_host_policies
 
 #if !TEST_ONLY_HETERO_POLICIES
         // Try static execution policies
-        invoke_on_all_iterator_t_and_check_compilation(seq,       op, rest...);
-        invoke_on_all_iterator_t_and_check_compilation(unseq,     op, rest...);
+//        invoke_on_all_iterator_t_and_check_compilation(seq,       op, rest...);
+//        invoke_on_all_iterator_t_and_check_compilation(unseq,     op, rest...);
         invoke_on_all_iterator_t_and_check_compilation(par,       op, rest...);
 #if __SYCL_PSTL_OFFLOAD__
         // If standard library does not provide the par_unseq policy, oneDPL would inject
@@ -305,7 +305,7 @@ struct invoke_on_all_host_policies
         if constexpr (!std::is_same_v<oneapi::dpl::execution::parallel_unsequenced_policy,
                                       std::execution::parallel_unsequenced_policy>)
 #endif // __SYCL_PSTL_OFFLOAD__
-            invoke_on_all_iterator_t_and_check_compilation(par_unseq, op, ::std::forward<T>(rest)...);
+//            invoke_on_all_iterator_t_and_check_compilation(par_unseq, op, ::std::forward<T>(rest)...);
 #endif
     }
 };

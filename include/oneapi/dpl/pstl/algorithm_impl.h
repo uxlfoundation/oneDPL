@@ -273,8 +273,12 @@ _ForwardIterator2
 __brick_walk2(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __f,
               /*vector=*/::std::false_type) noexcept
 {
+    std::cout<<"brick_walk2 fwd\n";
     for (; __first1 != __last1; ++__first1, (void)++__first2)
-        __f(*__first1, *__first2);
+    {
+	    std::cout<<".";
+    	    __f(*__first1, *__first2);
+    }
     return __first2;
 }
 
@@ -284,7 +288,8 @@ __brick_walk2(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _
               _Function __f,
               /*vector=*/::std::true_type) noexcept
 {
-    return __unseq_backend::__simd_walk_n(__last1 - __first1, __f, __first1, __first2);
+	std::cout<<"brick_walk2 rndaccess\n";
+	return __unseq_backend::__simd_walk_n(__last1 - __first1, __f, __first1, __first2);
 }
 
 template <class _ForwardIterator1, class _Size, class _ForwardIterator2, class _Function>
@@ -322,11 +327,12 @@ __pattern_walk2(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
                 _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _Function __f)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-
+    std::cout<<"__host pattern_walk2\n";
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
             [__f, __first1, __first2](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+	    	std::cout<<"lambda\n";
                 __internal::__brick_walk2(__i, __j, __first2 + (__i - __first1), __f, _IsVector{});
             });
         return __first2 + (__last1 - __first1);

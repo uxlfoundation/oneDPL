@@ -103,7 +103,7 @@ __pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     auto __n = __last1 - __first1;
     if (__n <= 0)
         return __first2;
-
+    std::cout<<"pattern walk "<<__n<<std::endl;
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode1, _ForwardIterator1>();
     auto __buf1 = __keep1(__first1, __last1);
 

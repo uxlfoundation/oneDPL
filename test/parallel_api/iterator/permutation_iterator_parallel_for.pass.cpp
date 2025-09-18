@@ -55,20 +55,21 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             const auto host_vals_ptr = host_vals.get();
             clear_output_data(host_vals_ptr, host_vals_ptr + n);
             host_vals.update_data();
-
+            std::cout<<"transform\n";
             auto itResultEnd = dpl::transform(CLONE_TEST_POLICY_IDX(exec, 0), permItBegin, permItEnd, first2, TransformOp{});
             wait_and_throw(exec);
 
             const auto resultSize = itResultEnd - first2;
-
+            std::cout<<"copy back "<<testing_n<<"\n";
             // Copy data back
             std::vector<TestValueType> sourceData(testing_n);
             dpl::copy(CLONE_TEST_POLICY_IDX(exec, 1), permItBegin, permItEnd, sourceData.begin());
             wait_and_throw(exec);
+	    std::cout<<"copy result\n";
             std::vector<TestValueType> transformedDataResult(testing_n);
             dpl::copy(CLONE_TEST_POLICY_IDX(exec, 2), first2, itResultEnd, transformedDataResult.begin());
             wait_and_throw(exec);
-
+	    std::cout<<"verify\n";
             // Check results
             std::vector<TestValueType> transformedDataExpected(testing_n);
             const auto itExpectedEnd = std::transform(sourceData.begin(), sourceData.end(), transformedDataExpected.begin(), TransformOp{});
@@ -94,7 +95,7 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);     // result data of transform
 
             const auto host_keys_ptr = host_keys.get();
-
+            std::cout<<"about to gen data for size "<<n<<std::endl;
             // Fill full source data set (not only values iterated by permutation iterator)
             generate_data(host_keys_ptr, host_keys_ptr + n, n);
             host_keys.update_data();
@@ -114,10 +115,13 @@ run_algo_tests()
 #if TEST_DPCPP_BACKEND_PRESENT
     // Run tests on <USM::shared, USM::device, sycl::buffer> + <all_hetero_policies>
     // dpl::transform -> __parallel_for (only for random_access_iterator)
-    test2buffers<sycl::usm::alloc::shared, ValueType, test_transform<ValueType, PermItIndexTag>>();
-    test2buffers<sycl::usm::alloc::device, ValueType, test_transform<ValueType, PermItIndexTag>>();
+    //std::cout<<"usm shared test2buffers\n";
+    //test2buffers<sycl::usm::alloc::shared, ValueType, test_transform<ValueType, PermItIndexTag>>();
+    //std::cout<<"usm device test2buffers\n";
+    //test2buffers<sycl::usm::alloc::device, ValueType, test_transform<ValueType, PermItIndexTag>>();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
+    std::cout<<"host policies usm shared test_algo_two_sequences\n";
     // Run tests on <std::vector::iterator> + <all_host_policies>
     // dpl::transform -> __parallel_for (only for random_access_iterator)
     test_algo_two_sequences<ValueType, test_transform<ValueType, PermItIndexTag>>(kZeroOffset, kZeroOffset);

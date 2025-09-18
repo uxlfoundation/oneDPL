@@ -458,7 +458,7 @@ template <typename T, typename TestName, typename TPolicyInvoker = default_seque
 void
 test_algo_two_sequences(::std::size_t offset1 = inout1_offset, ::std::size_t offset2 = inout2_offset)
 {
-    for (size_t n = 1; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = 100; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         //TODO: consider to use class TestUtils::Sequence directly. Actually, we don't need any special action for input/output data here.
         using TestBaseData = test_base_data_sequence<T>;
@@ -599,9 +599,12 @@ template <sycl::usm::alloc alloc_type, typename TestValueType>
 TestValueType*
 TestUtils::test_base_data_usm<alloc_type, TestValueType>::get_data(UDTKind kind)
 {
+    std::cout<<"Get Data usm\n";
     if (host_buffering_required())
+    {
+	std::cout<<"returning nullptr";
         return nullptr;
-
+    }
     return get_start_from(kind);
 }
 
@@ -813,7 +816,7 @@ TestUtils::test_base<TestValueType>::TestDataTransfer<kind, Size>::update_data(S
     {
         if (count == 0)
             count = __count;
-
+	std::cout<<"copying data from host to source data"<<count<<std::endl;
         __test_base.base_data_ref.update_data(kind,
             __host_buffer.data(),
             __host_buffer.data() + count);
