@@ -198,7 +198,7 @@ private:
     void copy_data_impl(_ValueType* __src, _ValueType* __ptr, __difference_type __count)
     {
 //#if TEST_LIBSYCL_VERSION >= 50300
-//        std::cout<<"copy "<<(void*)__src<<" -> "<<(void*)__ptr<<", count = "<<__count<<"\n";
+        std::cout<<"copy "<<(void*)__src<<" -> "<<(void*)__ptr<<", count = "<<__count<<"\n";
 //        __queue.copy(__src, __ptr, __count);
 //#else
         auto __p = __ptr;
