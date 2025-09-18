@@ -727,7 +727,7 @@ class permutation_iterator
     operator*() const
         _ONEDPL_CPP20_REQUIRES(std::indirectly_readable<SourceIterator> && std::indirectly_readable<IndexMap>)
     {
-        std::cout<<"indexed access:"<< *my_index <<"\n";
+        std::cout<<"indexed access: ("<< my_source_it<<", "<< *my_index <<")\n";
         return my_source_it[*my_index];
     }
 
