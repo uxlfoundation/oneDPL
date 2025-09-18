@@ -114,12 +114,12 @@ public:
     usm_data_transfer& operator=(usm_data_transfer&) = delete;
     usm_data_transfer& operator=(usm_data_transfer&& other)
     {
-        reset();
-
+        
         ::std::swap(__queue, other.__queue);
         ::std::swap(__ptr,   other.__ptr);
         ::std::swap(__count, other.__count);
-
+        reset();
+        
         return *this;
     }
 
