@@ -57,7 +57,8 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             const auto testing_n = permItEnd - permItBegin;
 
             const auto host_vals_ptr = host_vals.get();
-            clear_output_data(host_vals_ptr, host_vals_ptr + host_vals.size());
+            std::cout<<"clearing "<<n<<" elements\n";
+            clear_output_data(host_vals_ptr, host_vals_ptr + n);
             host_vals.update_data();
             std::cout<<"transform\n";
             auto itResultEnd = dpl::transform(CLONE_TEST_POLICY_IDX(exec, 0), permItBegin, permItEnd, first2, TransformOp{});
