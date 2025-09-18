@@ -173,9 +173,6 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
         {
 
             const TSourceDataSize idx_size = data.src_data_size / perm_idx_step;
-            std::cout<<"resizing indices from "<<indexes.size()<<" to "<<idx_size<<"\n";
-            indexes.resize(idx_size);
-
 
             auto indexes = test_base_data.get_start_from(TestUtils::UDTKind::eKeys)[i]
             for (TSourceDataSize idx = 0, val = 0; idx < idx_size; ++idx, val += perm_idx_step)
