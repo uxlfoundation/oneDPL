@@ -182,7 +182,7 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
                 std::cout<<val<<" ";
             }
             std::cout<<std::endl<<data.src_data_size<<std::endl;
-            test_base_data.update_data(TestUtils::UDTKind::eKeys, indexes.data(), indexes.data() + indexes.size());
+//            test_base_data.update_data(TestUtils::UDTKind::eKeys, indexes.data(), indexes.data() + indexes.size());
 
             auto permItBegin = dpl::make_permutation_iterator(data.itSource, itIndexStart);
             auto permItEnd = permItBegin + indexes.size();
