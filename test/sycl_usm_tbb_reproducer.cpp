@@ -50,6 +50,12 @@ int main() {
             }
             std::cout << "..." << std::endl;
 #endif
+#if 0 // turning this section on also makes it work... I dont know why, 
+      // but perhaps the copy operation is still doing something past wait() on its event
+            // sleep for 50 ms
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+#endif
+
             // Immediately increment each element using TBB parallel_for
             std::cout << "Incrementing USM data with TBB parallel_for..." << std::endl;
             tbb::parallel_for(tbb::blocked_range<size_t>(0, N), 
