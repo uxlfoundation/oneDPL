@@ -169,7 +169,7 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
 
         std::vector<TSourceDataSize> indexes;
 
-        for (TSourceDataSize perm_idx_step = 1; perm_idx_step < data.src_data_size;
+        for (TSourceDataSize perm_idx_step = 1; perm_idx_step <= data.src_data_size;
              perm_idx_step = kDefaultIndexStepOp(perm_idx_step))
         {
 
