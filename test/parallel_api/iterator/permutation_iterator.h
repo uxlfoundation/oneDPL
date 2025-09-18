@@ -180,7 +180,7 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
                 std::cout<<val<<" ";
             }
             auto permItBegin = dpl::make_permutation_iterator(data.itSource, itIndexStart);
-            auto permItEnd = permItBegin + indexes.size();
+            auto permItEnd = permItBegin + idx_size;
 
             op(CLONE_TEST_POLICY(exec), permItBegin, permItEnd);
         }
