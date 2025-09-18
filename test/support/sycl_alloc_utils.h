@@ -127,16 +127,16 @@ public:
 
     void reset()
     {
-        std::cout<<"reset usm data\n";
-        if (__count > 0)
-        {
-            std::cout<<"freeing usm data: "<<__ptr<<"\n";
-            assert(__ptr != nullptr);
-            sycl::free(__ptr, __queue);
+        // std::cout<<"reset usm data\n";
+        // if (__count > 0)
+        // {
+        //     std::cout<<"freeing usm data: "<<__ptr<<"\n";
+        //     assert(__ptr != nullptr);
+        //     sycl::free(__ptr, __queue);
 
-            __ptr = nullptr;
-            __count = 0;
-        }
+        //     __ptr = nullptr;
+        //     __count = 0;
+        // }
     }
 
     _ValueType* get_data() const
