@@ -151,6 +151,7 @@ public:
         assert(0 <= __objects_count);
         assert(__offset + __objects_count <= __count);
 
+        std::cout<<"update data usm_data_transfer"<<__objects_count<<", "<<__offset<<"\n";
         if (__count > 0 && __objects_count > 0)
         {
             assert(__ptr != nullptr);
@@ -176,6 +177,8 @@ public:
         assert(0 <= __offset);
         assert(0 <= __objects_count);
         assert(__offset + __objects_count <= __count);
+
+        std::cout<<"retrieve data usm_data_transfer"<<__objects_count<<", "<<__offset<<"\n";
 
         if (__count > 0 && __objects_count > 0)
         {

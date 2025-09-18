@@ -69,11 +69,11 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             std::vector<TestValueType> sourceData(testing_n);
             //dpl::copy(CLONE_TEST_POLICY_IDX(exec, 1), permItBegin, permItEnd, sourceData.begin());
             //wait_and_throw(exec);
-	    std::cout<<"copy result\n";
+            std::cout<<"copy result\n";
             std::vector<TestValueType> transformedDataResult(testing_n);
             //dpl::copy(CLONE_TEST_POLICY_IDX(exec, 2), first2, itResultEnd, transformedDataResult.begin());
             //wait_and_throw(exec);
-	    std::cout<<"verify\n";
+            std::cout<<"verify\n";
             // Check results
             std::vector<TestValueType> transformedDataExpected(testing_n);
             //const auto itExpectedEnd = std::transform(sourceData.begin(), sourceData.end(), transformedDataExpected.begin(), TransformOp{});

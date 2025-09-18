@@ -130,6 +130,7 @@ struct test_base_data_usm : test_base_data<TestValueType>
         template<typename _Iterator, typename TDiff>
         void retrieve_data(_Iterator __it, TDiff __objects_count)
         {
+            std::cout<<"retrieve data test_base_data_usm"<<__objects_count<<", "<<offset<<"\n";
             src_data_usm.retrieve_data(__it, offset, __objects_count);
         }
 
@@ -141,6 +142,7 @@ struct test_base_data_usm : test_base_data<TestValueType>
         template<typename _Iterator, typename TDiff>
         void update_data(_Iterator __it, TDiff __objects_count)
         {
+            std::cout<<"update data test_base_data_usm"<<__objects_count<<", "<<offset<<"\n";
             src_data_usm.update_data(__it, offset, __objects_count);
         }
     };
@@ -458,7 +460,7 @@ template <typename T, typename TestName, typename TPolicyInvoker = default_seque
 void
 test_algo_two_sequences(::std::size_t offset1 = inout1_offset, ::std::size_t offset2 = inout2_offset)
 {
-    for (size_t n = 100; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = 1; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         //TODO: consider to use class TestUtils::Sequence directly. Actually, we don't need any special action for input/output data here.
         using TestBaseData = test_base_data_sequence<T>;
