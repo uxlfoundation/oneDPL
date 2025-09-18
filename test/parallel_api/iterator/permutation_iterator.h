@@ -178,11 +178,11 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
             indexes.resize(idx_size);
             for (TSourceDataSize idx = 0, val = 0; idx < idx_size; ++idx, val += perm_idx_step)
             {
-                indexes[idx] = val;
+                indexes[idx] = 0;
                 std::cout<<val<<" ";
             }
             std::cout<<std::endl<<data.src_data_size<<std::endl;
-//            test_base_data.update_data(TestUtils::UDTKind::eKeys, indexes.data(), indexes.data() + indexes.size());
+            test_base_data.update_data(TestUtils::UDTKind::eKeys, indexes.data(), indexes.data() + indexes.size());
 
             auto permItBegin = dpl::make_permutation_iterator(data.itSource, itIndexStart);
             auto permItEnd = permItBegin + indexes.size();
