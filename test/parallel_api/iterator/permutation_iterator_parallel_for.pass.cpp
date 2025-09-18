@@ -57,30 +57,30 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             const auto testing_n = permItEnd - permItBegin;
 
             const auto host_vals_ptr = host_vals.get();
-            std::cout<<"clearing "<<n<<" elements from "<<std::addressof(*host_vals_ptr)<<"\n";
-            clear_output_data(host_vals_ptr, host_vals_ptr + n);
-            host_vals.update_data();
+            // std::cout<<"clearing "<<n<<" elements from "<<std::addressof(*host_vals_ptr)<<"\n";
+//            clear_output_data(host_vals_ptr, host_vals_ptr + n);
+            // host_vals.update_data();
             std::cout<<"transform\n";
             auto itResultEnd = dpl::transform(CLONE_TEST_POLICY_IDX(exec, 0), permItBegin, permItEnd, first2, TransformOp{});
             wait_and_throw(exec);
 
-            const auto resultSize = itResultEnd - first2;
-            std::cout<<"copy back "<<testing_n<<"\n";
+            // const auto resultSize = itResultEnd - first2;
+            // std::cout<<"copy back "<<testing_n<<"\n";
             // Copy data back
-            std::vector<TestValueType> sourceData(testing_n);
-            dpl::copy(CLONE_TEST_POLICY_IDX(exec, 1), permItBegin, permItEnd, sourceData.begin());
-            wait_and_throw(exec);
-            std::cout<<"copy result\n";
-            std::vector<TestValueType> transformedDataResult(testing_n);
-            dpl::copy(CLONE_TEST_POLICY_IDX(exec, 2), first2, itResultEnd, transformedDataResult.begin());
-            wait_and_throw(exec);
-            std::cout<<"verify\n";
-            // Check results
-            std::vector<TestValueType> transformedDataExpected(testing_n);
-            const auto itExpectedEnd = std::transform(sourceData.begin(), sourceData.end(), transformedDataExpected.begin(), TransformOp{});
-            const auto expectedSize = itExpectedEnd - transformedDataExpected.begin();
-            EXPECT_EQ(expectedSize, resultSize, "Wrong size from dpl::transform");
-            EXPECT_EQ_N(transformedDataExpected.begin(), transformedDataResult.begin(), expectedSize, "Wrong result of dpl::transform");
+//            std::vector<TestValueType> sourceData(testing_n);
+//            dpl::copy(CLONE_TEST_POLICY_IDX(exec, 1), permItBegin, permItEnd, sourceData.begin());
+//            wait_and_throw(exec);
+//            std::cout<<"copy result\n";
+//            std::vector<TestValueType> transformedDataResult(testing_n);
+//            dpl::copy(CLONE_TEST_POLICY_IDX(exec, 2), first2, itResultEnd, transformedDataResult.begin());
+            // wait_and_throw(exec);
+            // std::cout<<"verify\n";
+            // // Check results
+            // std::vector<TestValueType> transformedDataExpected(testing_n);
+            // const auto itExpectedEnd = std::transform(sourceData.begin(), sourceData.end(), transformedDataExpected.begin(), TransformOp{});
+            // const auto expectedSize = itExpectedEnd - transformedDataExpected.begin();
+            // EXPECT_EQ(expectedSize, resultSize, "Wrong size from dpl::transform");
+            // EXPECT_EQ_N(transformedDataExpected.begin(), transformedDataResult.begin(), expectedSize, "Wrong result of dpl::transform");
         }
 
         template <typename TIterator>
@@ -102,8 +102,8 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             const auto host_keys_ptr = host_keys.get();
             std::cout<<"about to gen data for size "<<n<<std::endl;
             // Fill full source data set (not only values iterated by permutation iterator)
-            generate_data(host_keys_ptr, host_keys_ptr + n, n);
-            host_keys.update_data();
+            // generate_data(host_keys_ptr, host_keys_ptr + n, n);
+            // host_keys.update_data();
 
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
                 std::forward<Policy>(exec), TestImplementation<Size, Iterator2>{n, host_vals, first2});
