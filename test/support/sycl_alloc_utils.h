@@ -108,12 +108,14 @@ public:
 
     ~usm_data_transfer()
     {
+        std::cout<<"destructor\n";
         reset();
     }
 
     usm_data_transfer& operator=(usm_data_transfer&) = delete;
     usm_data_transfer& operator=(usm_data_transfer&& other)
     {
+        std::cout<<"move assignment operator\n";
         reset();
 
         ::std::swap(__queue, other.__queue);
