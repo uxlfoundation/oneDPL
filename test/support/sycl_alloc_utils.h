@@ -214,7 +214,7 @@ private:
         __queue.submit([__src, __c, __p](sycl::handler& __cgh) {
             __cgh.parallel_for(sycl::range<1>(__c), [__src, __c, __p](sycl::item<1>__item) {
                 ::std::size_t __id = __item.get_linear_id();
-                *(__p + __id) = *(__src + __id);
+                *(__p + __id) = 0;//*(__src + __id);
                 });
             });
 #endif // TEST_LIBSYCL_VERSION >= 50300
