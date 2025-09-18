@@ -206,7 +206,7 @@ private:
         std::cout<<"copy "<<std::addressof(*__src)<<" -> "<<std::addressof(*__ptr)<<", count = "<<__count<<"\n";
 #if TEST_LIBSYCL_VERSION >= 50300
         std::cout<<"queue copy\n";
-        __queue.fill(__ptr, 0, __count);
+        __queue.copy(__src,__ptr, __count);
 #else
         std::cout<<"queue submit\n";
         auto __p = __ptr;
