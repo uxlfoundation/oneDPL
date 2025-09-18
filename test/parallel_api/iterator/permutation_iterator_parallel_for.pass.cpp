@@ -57,7 +57,7 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             const auto testing_n = permItEnd - permItBegin;
 
             const auto host_vals_ptr = host_vals.get();
-            std::cout<<"clearing "<<n<<" elements\n";
+            std::cout<<"clearing "<<n<<" elements from "<<std::addressof(*host_vals_ptr)<<"\n";
             clear_output_data(host_vals_ptr, host_vals_ptr + n);
             host_vals.update_data();
             std::cout<<"transform\n";
