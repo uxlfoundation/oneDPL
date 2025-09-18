@@ -167,14 +167,13 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
         TestBaseData test_base_data(TestUtils::get_test_queue(), {{TestUtils::max_n, TestUtils::inout1_offset}});
         TSourceDataSize* itIndexStart = test_base_data.get_start_from(TestUtils::UDTKind::eKeys);
 
-        // for (TSourceDataSize perm_idx_step = 1; perm_idx_step <= data.src_data_size;
-        //      perm_idx_step = kDefaultIndexStepOp(perm_idx_step))
-        TSourceDataSize perm_idx_step = 1;
+        for (TSourceDataSize perm_idx_step = 1; perm_idx_step <= data.src_data_size;
+             perm_idx_step = kDefaultIndexStepOp(perm_idx_step))
         {
 
             const TSourceDataSize idx_size = data.src_data_size / perm_idx_step;
 
-            auto indexes = test_base_data.get_start_from(TestUtils::UDTKind::eKeys)[i]
+            auto indexes = test_base_data.get_start_from(TestUtils::UDTKind::eKeys)[i];
             for (TSourceDataSize idx = 0, val = 0; idx < idx_size; ++idx, val += perm_idx_step)
             {
                 indexes[idx] = val;
