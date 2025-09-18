@@ -63,7 +63,7 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
             //auto itResultEnd = dpl::transform(CLONE_TEST_POLICY_IDX(exec, 0), permItBegin, permItEnd, first2, TransformOp{});
             wait_and_throw(exec);
 
-            const auto resultSize = itResultEnd - first2;
+            //const auto resultSize = itResultEnd - first2;
             std::cout<<"copy back "<<testing_n<<"\n";
             // Copy data back
             std::vector<TestValueType> sourceData(testing_n);
