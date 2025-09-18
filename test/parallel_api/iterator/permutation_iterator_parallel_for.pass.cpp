@@ -37,7 +37,11 @@ DEFINE_TEST_PERM_IT(test_transform, PermItIndexTag)
     {
         Size index = 0;
         for (auto it = itBegin; it != itEnd; ++it, (void) ++index)
+        {
+            std::cout<<index<<".";
             *it = n - index;
+        }
+        std::cout<<std::endl;
     }
 
     template <typename Size, typename Iterator2>
