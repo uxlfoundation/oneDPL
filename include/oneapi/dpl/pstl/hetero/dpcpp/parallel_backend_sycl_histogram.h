@@ -504,12 +504,10 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     std::uint16_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::uint16_t(1024));
 
     auto __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
-    constexpr ::std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
 
-// DPC++ 2025.3 fails with a segfault when compiling __histogram_general_registers_local_reduction kernel
-#if !defined(__INTEL_LLVM_COMPILER) || (__INTEL_LLVM_COMPILER < 20250300 || __INTEL_LLVM_COMPILER >= 20250400)
+#if _ONEDPL_ENABLE_HISTOGRAM_REGISTER_REDUCTION
+    constexpr std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
     // if bins fit into registers, use register private accumulation
-
     if (__num_bins <= __max_work_item_private_bins)
     {
         return __future(__histogram_general_registers_local_reduction<_CustomName, __iters_per_work_item,

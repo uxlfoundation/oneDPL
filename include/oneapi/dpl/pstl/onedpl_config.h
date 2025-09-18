@@ -348,4 +348,14 @@
 #    define _ONEDPL_BUILT_IN_STABLE_NAME_PRESENT __has_builtin(__builtin_sycl_unique_stable_name)
 #endif // _ONEDPL_BACKEND_SYCL
 
+// DPC++ 2025.3 fails with a segfault when compiling __histogram_general_registers_local_reduction kernel
+// for CPU devices
+// Allow manually enabling this kernel for more performant execution on GPU devices.
+#if !defined(__INTEL_LLVM_COMPILER) || (__INTEL_LLVM_COMPILER < 20250300 || __INTEL_LLVM_COMPILER >= 20250400) || \
+    defined(ONEDPL_ENABLE_HISTOGRAM_REGISTER_REDUCTION)
+#    define _ONEDPL_ENABLE_HISTOGRAM_REGISTER_REDUCTION 1
+#else
+#    define _ONEDPL_ENABLE_HISTOGRAM_REGISTER_REDUCTION 0
+#endif
+
 #endif // _ONEDPL_CONFIG_H
