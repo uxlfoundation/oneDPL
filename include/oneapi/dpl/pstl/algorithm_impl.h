@@ -276,8 +276,9 @@ __brick_walk2(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIte
     std::cout<<"brick_walk2 fwd\n";
     for (; __first1 != __last1; ++__first1, (void)++__first2)
     {
-	    std::cout<<".";
+            std::cout<<"-";
     	    __f(*__first1, *__first2);
+            std::cout<<"+";
     }
     return __first2;
 }
