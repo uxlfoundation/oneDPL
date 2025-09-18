@@ -42,7 +42,7 @@ int main() {
             std::cout << "Copying data from vector to USM shared memory..." << std::endl;
             q.copy(source_data.data(), usm_data, N).wait();
             
-#if 0
+#if 0 // turning this section on would make it work by loading the data to host before parallel section
             // Print first few values before increment
             std::cout << "Before increment: ";
             for (size_t i = 0; i < 5; ++i) {
