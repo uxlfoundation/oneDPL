@@ -587,12 +587,12 @@ struct reverse_invoker
 	std::cout<<"Random access iterator\n";
         // Random-access iterator
         iterator_invoker<::std::random_access_iterator_tag, IsReverse>()(rest...);
-	std::cout<<"forward iterator\n";
-        // Forward iterator
-        iterator_invoker<::std::forward_iterator_tag, IsReverse>()(rest...);
-	std::cout<<"bidirectional iterator\n";
-        // Bidirectional iterator
-        iterator_invoker<::std::bidirectional_iterator_tag, IsReverse>()(::std::forward<Rest>(rest)...);
+	// std::cout<<"forward iterator\n";
+    //     // Forward iterator
+    //     iterator_invoker<::std::forward_iterator_tag, IsReverse>()(rest...);
+	// std::cout<<"bidirectional iterator\n";
+    //     // Bidirectional iterator
+    //     iterator_invoker<::std::bidirectional_iterator_tag, IsReverse>()(::std::forward<Rest>(rest)...);
     }
 };
 
