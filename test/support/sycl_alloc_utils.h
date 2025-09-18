@@ -75,7 +75,9 @@ public:
     {
         if (__count > 0)
         {
+            std::cout<<"allocating usm data: "<<__count<<"\n";
             __ptr = allocate(__count, __alloc_type<_alloc_type>{});
+            std::cout<<"allocated usm data: "<<__ptr<<"\n";
             assert(__ptr != nullptr);
         }
     }
