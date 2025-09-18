@@ -471,8 +471,8 @@ test_algo_two_sequences(::std::size_t offset1 = inout1_offset, ::std::size_t off
         // create iterators
         auto inout1_offset_first = test_base_data.get_start_from(UDTKind::eKeys);
         auto inout2_offset_first = test_base_data.get_start_from(UDTKind::eVals);
-        std::cout<<"input iterator data: "<<inout1_offset_first<<std::endl;
-        std::cout<<"output iterator data: "<<inout2_offset_first<<std::endl;
+        std::cout<<"input iterator data: "<<std::addressof(*inout1_offset_first)<<std::endl;
+        std::cout<<"output iterator data: "<<std::addressof(*inout2_offset_first)<<std::endl;
         TPolicyInvoker()(create_test_obj<T, TestName>(test_base_data),
                          inout1_offset_first, inout1_offset_first + n,
                          inout2_offset_first, inout2_offset_first + n,
