@@ -151,7 +151,7 @@ public:
         assert(0 <= __objects_count);
         assert(__offset + __objects_count <= __count);
 
-        std::cout<<"update data usm_data_transfer"<<__objects_count<<", "<<__offset<<"\n";
+        std::cout<<"update data usm_data_transfer "<<__objects_count<<", "<<__offset<<"\n";
         if (__count > 0 && __objects_count > 0)
         {
             assert(__ptr != nullptr);
@@ -198,6 +198,7 @@ private:
     void copy_data_impl(_ValueType* __src, _ValueType* __ptr, __difference_type __count)
     {
 #if TEST_LIBSYCL_VERSION >= 50300
+        std::cout<<"copy "<<(void*)__src<<" -> "<<(void*)__ptr<<", count = "<<__count<<"\n";
         __queue.copy(__src, __ptr, __count);
 #else
         auto __p = __ptr;

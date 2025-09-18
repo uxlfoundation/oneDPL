@@ -142,7 +142,7 @@ struct test_base_data_usm : test_base_data<TestValueType>
         template<typename _Iterator, typename TDiff>
         void update_data(_Iterator __it, TDiff __objects_count)
         {
-            std::cout<<"update data test_base_data_usm"<<__objects_count<<", "<<offset<<"\n";
+            std::cout<<"update data test_base_data_usm "<<__objects_count<<", "<<offset<<"\n";
             src_data_usm.update_data(__it, offset, __objects_count);
         }
     };
@@ -627,6 +627,7 @@ template <sycl::usm::alloc alloc_type, typename TestValueType>
 void
 TestUtils::test_base_data_usm<alloc_type, TestValueType>::update_data(UDTKind kind, TestValueType* __it_from, TestValueType* __it_to)
 {
+    std::cout<<"updating usm data: "<<__it_to - __it_from<<std::endl;
     auto& data_item = data.at(enum_val_to_index(kind));
     data_item.update_data(__it_from, __it_to - __it_from);
 }
