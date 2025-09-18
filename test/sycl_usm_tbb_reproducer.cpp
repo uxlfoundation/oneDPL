@@ -79,16 +79,16 @@ int main() {
             }
             
             if (success) {
-                std::cout << "✓ Iteration " << (iteration + 1) << " successful!" << std::endl;
+                std::cout << "Iteration " << (iteration + 1) << " successful!" << std::endl;
             } else {
-                std::cout << "✗ Iteration " << (iteration + 1) << " failed!" << std::endl;
+                std::cout << "Iteration " << (iteration + 1) << " failed!" << std::endl;
                 // Clean up and exit on failure
                 sycl::free(usm_data, q);
                 return 1;
             }
         }
         
-        std::cout << "\n🎉 SUCCESS: All 5 iterations completed successfully!" << std::endl;
+        std::cout << "\n SUCCESS: All 5 iterations completed successfully!" << std::endl;
         std::cout << "USM shared memory, queue.copy, and TBB parallel_for all working correctly." << std::endl;
         
         // Clean up
