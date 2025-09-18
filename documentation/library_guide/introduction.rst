@@ -195,7 +195,7 @@ Known Limitations
 * ``std::ranges::drop_view`` from libstdc++ version 10 may throw exceptions.
   This can lead to a "SYCL kernel cannot use exceptions" compilation error
   when it is used to pass data to a range-based algorithm with a device policy.
-* Range-based ``sort`` and ``stable_sort`` called with device execution policies
+* Range-based ``sort`` and ``stable_sort`` algorithms called with device execution policies
   use ``std::swap`` instead of ``std::ranges::iter_swap``.
   As a result, customizations targeting ``std::ranges::iter_swap`` will not be respected.
 
