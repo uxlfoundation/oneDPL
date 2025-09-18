@@ -1020,28 +1020,24 @@ struct __brick_includes
 
         const _SizeB __idx_b = __b_beg + __idx;
 
-        // This reference extends the lifetime of a temporary object returned by operator[]
-        // so that it can be safely used with identity projections
-        auto&& __val_b = __rngB[__idx_b];
-        auto&& __val_b_proj = std::invoke(__projB, std::forward<decltype(__val_b)>(__val_b));
+        const _SizeA __res = __internal::__pstl_lower_bound(__rngA, __a_beg, __a_end, // TODO __pstl_lower_bound - operator[]
+                                                            __rngB, __idx_b, __comp, __projA, __projB); 
 
-        const _SizeA __res = __internal::__pstl_lower_bound(__rngA, __a_beg, __a_end, __val_b_proj, __comp, __projA); // TODO __pstl_lower_bound - operator[]
-
-        // {a} < {b} or __val_b != __rngA[__res]
-        if (__res == __a_end || std::invoke(__comp, __val_b_proj, std::invoke(__projA, __rngA[__res])))
+        // {a} < {b} or __rngB[__idx_b] != __rngA[__res]
+        if (__res == __a_end || std::invoke(__comp, std::invoke(__projB, __rngB[__idx_b]),
+                                                    std::invoke(__projA, __rngA[__res])))
             return true; //__rngA doesn't include __rngB
 
-        // This reference extends the lifetime of a temporary object returned by operator[]
-        // so that it can be safely used with identity projections
-        auto&& __val_a = __rngA[__res];
-        auto&& __val_a_proj = std::invoke(__projA, std::forward<decltype(__val_a)>(__val_a));
-
         //searching number of duplication
-        const auto __count_a = __internal::__pstl_right_bound(__rngA, __res, __a_end, __val_a_proj, __comp, __projA) - // TODO __pstl_right_bound - operator[]
-                               __internal::__pstl_left_bound(__rngA, __a_beg, __res, __val_a_proj, __comp, __projA);
+        const auto __count_a = __internal::__pstl_right_bound(__rngA, __res, __a_end, // TODO __pstl_right_bound - operator[]
+                                                              __rngA, __res, __comp, __projA, __projA) - 
+                               __internal::__pstl_left_bound(__rngA, __a_beg, __res, // TODO __pstl_left_bound - operator[]
+                                                             __rngA, __res, __comp, __projA, __projA); 
 
-        const auto __count_b = __internal::__pstl_right_bound(__rngB, __idx_b, __b_end, __val_b_proj, __comp, __projB) - // TODO __pstl_right_bound - operator[]
-                               __internal::__pstl_left_bound(__rngB, __b_beg, __idx_b, __val_b_proj, __comp, __projB);
+        const auto __count_b = __internal::__pstl_right_bound(__rngB, __idx_b, __b_end, // TODO __pstl_right_bound - operator[]
+                                                              __rngB, __idx_b, __comp, __projB, __projB) - 
+                               __internal::__pstl_left_bound(__rngB, __b_beg, __idx_b, // TODO __pstl_left_bound - operator[]
+                                                             __rngB, __idx_b, __comp, __projB, __projB); 
 
         return __count_b > __count_a; //false means __rngA includes __rngB
     }
@@ -1281,26 +1277,17 @@ class __brick_set_op
         auto __idx_c = __idx;
         const _SizeA __idx_a = _SizeA(__idx);
 
-        // This reference extends the lifetime of a temporary object returned by operator[]
-        // so that it can be safely used with identity projections
-        auto&& __val_a = __a[__a_beg + __idx_a];
-        auto&& __val_a_proj = std::invoke(__projA, std::forward<decltype(__val_a)>(__val_a));
-
-        const _SizeB __res = __internal::__pstl_lower_bound(__b, __b_beg, __nb, __val_a_proj, __comp, __projB); // TODO __pstl_lower_bound - operator[]
+        const _SizeB __res = __internal::__pstl_lower_bound(__b, __b_beg, __nb, // TODO __pstl_lower_bound - operator[]
+                                                            __a, __a_beg + __idx_a, __comp, __projB, __projA); 
 
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
         bool bres = __is_difference; //initialization is true in case of difference operation; false - intersection.
-        if (__res == __nb || std::invoke(__comp, __val_a_proj, std::invoke(__projB, __b[__b_beg + __res])))
+        if (__res == __nb || std::invoke(__comp, std::invoke(__projA, __a[__a_beg + __idx_a]), std::invoke(__projB, __b[__b_beg + __res])))
         {
-            // there is no __val_a in __b, so __b in the difference {__a}/{__b};
+            // there is no __a[__a_beg + __idx_a] in __b, so __b in the difference {__a}/{__b};
         }
         else
         {
-            // This reference extends the lifetime of a temporary object returned by operator[]
-            // so that it can be safely used with identity projections
-            auto&& __val_b = __b[__b_beg + __res];
-            auto&& __val_b_proj = std::invoke(__projB, std::forward<decltype(__val_b)>(__val_b));
-
             //Difference operation logic: if number of duplication in __a on left side from __idx > total number of
             //duplication in __b than a mask is 1
 
@@ -1308,10 +1295,13 @@ class __brick_set_op
             //duplication in __b than a mask is 1
 
             const _SizeA __count_a_left =
-                __idx_a - __internal::__pstl_left_bound(__a, __a_beg, __idx_a, __val_a_proj, __comp, __projA) + 1;
+                __idx_a - __internal::__pstl_left_bound(__a, __a_beg, __idx_a, // TODO __pstl_left_bound - operator[]
+                                                        __a, __a_beg + __idx_a, __comp, __projA, __projA) + 1; 
 
-            const _SizeB __count_b = __internal::__pstl_right_bound(__b, __res, __nb, __val_b_proj, __comp, __projB) - // TODO __pstl_right_bound - operator[]
-                                     __internal::__pstl_left_bound(__b, __b_beg, __res, __val_b_proj, __comp, __projB);
+            const _SizeB __count_b = __internal::__pstl_right_bound(__b, __res, __nb,// TODO __pstl_right_bound - operator[]
+                                                                    __b, __b_beg + __res, __comp, __projB, __projB) - 
+                                     __internal::__pstl_left_bound(__b, __b_beg, __res, // TODO __pstl_left_bound - operator[]
+                                                                   __b, __b_beg + __res, __comp, __projB, __projB); 
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/

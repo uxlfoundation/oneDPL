@@ -389,29 +389,20 @@ struct __gen_set_mask
 
         std::size_t __nb = __set_b.size();
 
-        // This reference extends the lifetime of a temporary object returned by operator[]
-        // so that it can be safely used with identity projections
-        auto&& __val_a = __set_a[__id];
-        auto&& __val_a_proj = std::invoke(__proj1, std::forward<decltype(__val_a)>(__val_a));
-
         auto __res =
-            oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a_proj, __comp, __proj2); // TODO __pstl_lower_bound - operator[]
+            oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, // TODO __pstl_lower_bound - operator[]
+                                                        __set_a, __id, __comp, __proj2, __proj1); 
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
 
         //initialization is true in case of difference operation; false - intersection.
         bool bres = __is_difference;
 
-        if (__res == __nb || std::invoke(__comp, __val_a_proj, std::invoke(__proj2, __set_b[__res])))
+        if (__res == __nb || std::invoke(__comp, std::invoke(__proj1, __set_a[__id]), std::invoke(__proj2, __set_b[__res])))
         {
-            // there is no __val_a in __set_b, so __set_b in the difference {__set_a}/{__set_b};
+            // there is no __set_a[__id] in __set_b, so __set_b in the difference {__set_a}/{__set_b};
         }
         else
         {
-            // This reference extends the lifetime of a temporary object returned by operator[]
-            // so that it can be safely used with identity projections
-            auto&& __val_b = __set_b[__res];
-            auto&& __val_b_proj = std::invoke(__proj2, std::forward<decltype(__val_b)>(__val_b));
-
             //Difference operation logic: if number of duplication in __set_a on left side from __id > total number of
             //duplication in __set_b then a mask is 1
 
@@ -419,12 +410,14 @@ struct __gen_set_mask
             //duplication in __set_b then a mask is 1
 
             const std::size_t __count_a_left =
-                __id - oneapi::dpl::__internal::__pstl_left_bound(__set_a, std::size_t{0}, __id, __val_a_proj, __comp, __proj1) + 1;
+                __id - oneapi::dpl::__internal::__pstl_left_bound(__set_a, std::size_t{0}, __id, // TODO __pstl_left_bound - operator[]
+                                                                  __set_a, __id, __comp, __proj1, __proj1) + 1; 
 
             const std::size_t __count_b =
-                oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __val_b_proj, __comp, __proj2) - // TODO __pstl_right_bound - operator[]
-                oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __val_b_proj, __comp,
-                                                           __proj2);
+                oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, // TODO __pstl_right_bound - operator[]
+                                                            __set_b, __res, __comp, __proj2, __proj2) -
+                oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, // TODO __pstl_left_bound - operator[]
+                                                           __set_b, __res, __comp, __proj2, __proj2);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
@@ -713,12 +706,7 @@ struct __gen_set_balanced_path
             return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
         }
 
-        // This reference extends the lifetime of a temporary object returned by operator[]
-        // so that it can be safely used with identity projections
-        auto&& __ele_val = __rng1[__merge_path_rng1 - 1];
-        auto&& __ele_val_proj = std::invoke(__proj1, std::forward<decltype(__ele_val)>(__ele_val));
-
-        if (std::invoke(__comp, __ele_val_proj, std::invoke(__proj2, __rng2[__merge_path_rng2])))
+        if (std::invoke(__comp, std::invoke(__proj1, __rng1[__merge_path_rng1 - 1]), std::invoke(__proj2, __rng2[__merge_path_rng2])))
         {
             // There is no chance that the balanced path differs from the merge path here, because the previous element of
             // rng1 does not match the next element of rng2. We can just return the merge path.
@@ -727,10 +715,12 @@ struct __gen_set_balanced_path
 
         // find first element of repeating sequence in the first set of the previous element
         _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>( // TODO __biased_lower_bound - operator[]
-            __rng1, __rng1_begin, __merge_path_rng1, __ele_val_proj, __comp, __proj1);
+            __rng1, __rng1_begin, __merge_path_rng1,
+            __rng1, __merge_path_rng1 - 1, __comp, __proj1, __proj1);
         // find first element of repeating sequence in the second set of the next element
         _Index __rng2_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>( // TODO __biased_lower_bound - operator[]
-            __rng2, __rng2_begin, __merge_path_rng2, __ele_val_proj, __comp, __proj2);
+            __rng2, __rng2_begin, __merge_path_rng2,
+            __rng1, __merge_path_rng1 - 1, __comp, __proj2, __proj1);
 
         _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
         _Index __rng2_repeats_bck = __merge_path_rng2 - __rng2_repeat_start;
@@ -748,8 +738,9 @@ struct __gen_set_balanced_path
         // Calculate the max location to search in the second set for future repeats, limiting to the edge of the range
         _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2_end);
 
-        _Index __balanced_path_intersection_rng2 = oneapi::dpl::__internal::__pstl_upper_bound( // TODO __pstl_upper_bound - operator[]
-            __rng2, __merge_path_rng2, __fwd_search_bound, __ele_val_proj, __comp, __proj2);
+        _Index __balanced_path_intersection_rng2 = 
+            oneapi::dpl::__internal::__pstl_upper_bound(__rng2, __merge_path_rng2, __fwd_search_bound,  // TODO __pstl_upper_bound - operator[]
+                                                        __rng1, __merge_path_rng1 - 1, __comp, __proj2, __proj1);
 
         // Calculate the number of matchable "future" repeats in the second set
         _Index __matchable_forward_ele_rng2 = __balanced_path_intersection_rng2 - __merge_path_rng2;
