@@ -611,9 +611,9 @@ __dpl_signbit(const _T& __x)
     return (__x & __mask) != 0;
 }
 
-template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
+template <typename _Size, typename _Comparator>
 _Size
-__pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
+__pstl_lower_bound_impl(_Size __first, _Size __last, _Comparator&& __comp)
 {
     auto __n = __last - __first;
     auto __cur = __n;
@@ -624,22 +624,82 @@ __pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_pro
         __cur = __n / 2;
         __idx += __cur;
 
-        // We are able to forward __value_proj multiple times because comparator shouldn't change it
-        // We should forward __value_proj to preserve their value category
-        if (std::invoke(__comp, std::invoke(__proj, __acc[__idx]), std::forward<_Value>(__value_proj)))
+        if (__comp(__idx))
         {
             __n -= __cur + 1;
             __first = ++__idx;
         }
         else
+        {
             __n = __cur;
+        }
     }
+
     return __first;
+}
+
+// __rng1[__first, __last), __rng2(__rng2_idx), __comp, __proj1, __proj2
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__pstl_lower_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return __pstl_lower_bound_impl(__first, __last,
+                                   [__rng1, __rng2, __rng2_idx, __comp, __proj1, __proj2](_Size1 __idx) mutable {
+                                       return std::invoke(__comp, std::invoke(__proj1, __rng1[__idx]),
+                                                                  std::invoke(__proj2, __rng2[__rng2_idx]));
+                                   });
+}
+
+// __rng1[__first, __last), __iterator, __comp, __proj1, __proj2
+template <typename _Rng1, typename _Size1, typename _Rng2It, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__pstl_lower_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2It __rng2_it, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return __pstl_lower_bound_impl(__first, __last,
+                                   [__rng1, __rng2_it, __comp, __proj1, __proj2](_Size1 __idx) mutable {
+                                       return std::invoke(__comp, std::invoke(__proj1, __rng1[__idx]),
+                                                                  std::invoke(__proj2, *__rng2_it));
+                                   });
 }
 
 template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
 _Size
-__pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
+__pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)  // TODO deprecated form
+{
+    return __pstl_lower_bound_impl(__first, __last,
+                                   [&__acc, &__comp, &__proj, &__value_proj](const _Size& __idx) {
+                                       // We are able to forward __value_proj multiple times because comparator shouldn't change it
+                                       // We should forward __value_proj to preserve their value category
+                                       return std::invoke(__comp, std::invoke(__proj, __acc[__idx]),
+                                                          std::forward<_Value>(__value_proj));
+                                   });
+}
+
+// __rng1[__first, __last), __rng2(__rng2_idx), __comp, __proj1, __proj2
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__pstl_upper_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    return __pstl_lower_bound(__rng1, __first, __last, __rng2, __rng2_idx, __negation_reordered_comp, __proj1, __proj2);
+}
+
+// __rng1[__first, __last), __iterator, __comp, __proj1, __proj2
+template <typename _Rng1, typename _Size1, typename _Iterator, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__pstl_upper_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Iterator __iterator, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    return __pstl_lower_bound(__rng1, __first, __last, __iterator, __negation_reordered_comp, __proj1, __proj2);
+}
+
+template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
+_Size
+__pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)  // TODO deprecated form
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
@@ -649,10 +709,18 @@ __pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, _Value&& __value_pro
                               __proj);
 }
 
+// __rng1[__first, __last), __rng2(__rng2_idx), __comp, __proj1, __proj2
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__pstl_right_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    return __pstl_upper_bound(__rng1, __first, __last, __rng2, __rng2_idx, __comp, __proj1, __proj2); // TODO __pstl_upper_bound - operator[]
+}
+
 // Searching for the first element strongly greater than a passed value - right bound
 template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
 _Index
-__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
+__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, _Value&& __value_proj, _Compare __comp, _Proj __proj) // TODO deprecated form
 {
     // We should forward __value_proj to preserve their value category
     return __pstl_upper_bound(__a, __first, __last, std::forward<_Value>(__value_proj), __comp, __proj); // TODO __pstl_upper_bound - operator[]
@@ -662,9 +730,54 @@ __pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, _Value&& __value
 // When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
 // After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
 // resulting in a standard binary search.
+// __rng1[__first, __last), __rng2(__rng2_idx), __comp, __proj1, __proj2
+template <bool __bias_last = true, typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__biased_lower_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    auto __n = __last - __first;
+    std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
+    _Size1 __it = 0;
+    _Size1 __cur_idx = 0;
+
+    while (__n > 0 && __shift_right_div > 1)
+    {
+        _Size1 __biased_step = (__n >> __shift_right_div);
+        if constexpr (__bias_last)
+            __cur_idx = __n - __biased_step - 1;
+        else
+            __cur_idx = __biased_step;
+        __it = __first + __cur_idx;
+
+        if (std::invoke(__comp, std::invoke(__proj1, __rng1[__it]), std::invoke(__proj2, __rng2[__rng2_idx])))
+        {
+            __first = __it + 1;
+        }
+        else
+        {
+            __last = __it;
+        }
+        __n = __last - __first;
+        // get closer and closer to binary search with more iterations
+        __shift_right_div -= 3;
+    }
+    if (__n > 0)
+    {
+        // End up fully at binary search
+        return oneapi::dpl::__internal::__pstl_lower_bound(__rng1, __first, __last, // TODO __pstl_lower_bound - operator[]
+                                                           __rng2, __rng2_idx, __comp, __proj1, __proj2);
+    }
+    return __first;
+}
+
+// Performs a "biased" binary search targets the split point close to one edge of the range.
+// When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
+// After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
+// resulting in a standard binary search.
+// __rng1[__first, __last), __rng2(__rng2_idx), __comp, __proj1, __proj2
 template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
 _Size1
-__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
+__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, _Value&& __value_proj, _Compare __comp, _Proj __proj) // TODO deprecated form
 {
     auto __n = __last - __first;
     std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
@@ -704,9 +817,20 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, _Value&& __value
     return __first;
 }
 
+// __rng1[__first, __last), __rng2(__rng2_idx), __comp, __proj1, __proj2
+template <bool __bias_last = true, typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__biased_upper_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    return __biased_lower_bound<__bias_last>(__rng1, __first, __last, __rng2, __rng2_idx, __negation_reordered_comp, __proj1, __proj2); // TODO __biased_lower_bound - operator[]
+}
+
 template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
 _Size1
-__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
+__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, _Value&& __value_proj, _Compare __comp, _Proj __proj) // TODO deprecated form
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
@@ -776,9 +900,23 @@ struct _ReverseCounter
 };
 
 // Reverse searching for the first element strongly less than a passed value - left bound
+// __rng1[__first, __last), __rng2(__rng2_idx), __comp, __proj1, __proj2
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__pstl_left_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    auto __beg = _ReverseCounter<_Size1, _Rng1>{__last - 1};
+    auto __end = _ReverseCounter<_Size1, _Rng1>{__first - 1};
+
+    __not_pred<decltype(__comp)> __negation_comp{__comp};
+
+    return __pstl_lower_bound(__rng1, __beg, __end, __rng2, __rng2_idx, __negation_comp, __proj1, __proj2); // TODO __pstl_lower_bound - operator[]
+}
+
+// Reverse searching for the first element strongly less than a passed value - left bound
 template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
 _Index
-__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, _Value&& __value_proj, _Compare __comp, _Proj __proj)
+__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, _Value&& __value_proj, _Compare __comp, _Proj __proj) // TODO deprecated form
 {
     auto __beg = _ReverseCounter<_Index, _Buffer>{__last - 1};
     auto __end = _ReverseCounter<_Index, _Buffer>{__first - 1};
