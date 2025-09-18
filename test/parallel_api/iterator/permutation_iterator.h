@@ -165,20 +165,18 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
         TestBaseData test_base_data(TestUtils::get_test_queue(), {{TestUtils::max_n, TestUtils::inout1_offset}});
         TSourceDataSize* itIndexStart = test_base_data.get_start_from(TestUtils::UDTKind::eKeys);
 
-        std::vector<TSourceDataSize> indexes;
-
-        for (TSourceDataSize perm_idx_step = 1; perm_idx_step < data.src_data_size;
+        for (TSourceDataSize perm_idx_step = 1; perm_idx_step <= data.src_data_size;
              perm_idx_step = kDefaultIndexStepOp(perm_idx_step))
         {
+
             const TSourceDataSize idx_size = data.src_data_size / perm_idx_step;
-            indexes.resize(idx_size);
+
             for (TSourceDataSize idx = 0, val = 0; idx < idx_size; ++idx, val += perm_idx_step)
-                indexes[idx] = val;
-
-            test_base_data.update_data(TestUtils::UDTKind::eKeys, indexes.data(), indexes.data() + indexes.size());
-
+            {
+                itIndexStart[idx] = val;
+            }
             auto permItBegin = dpl::make_permutation_iterator(data.itSource, itIndexStart);
-            auto permItEnd = permItBegin + indexes.size();
+            auto permItEnd = permItBegin + idx_size;
 
             op(CLONE_TEST_POLICY(exec), permItBegin, permItEnd);
         }
