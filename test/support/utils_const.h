@@ -25,10 +25,10 @@ constexpr ::std::size_t max_n = 100000;
 
 // All these offset consts used for indirect testing of calculation an offset parameter
 // (as a result dpl::begin(buf) + offset) for further passing within sycl::accessor constructor.
-constexpr ::std::size_t inout1_offset = 3;
-constexpr ::std::size_t inout2_offset = 5;
-constexpr ::std::size_t inout3_offset = 7;
-constexpr ::std::size_t inout4_offset = 9;
+constexpr ::std::size_t inout1_offset = 0;
+constexpr ::std::size_t inout2_offset = 0;
+constexpr ::std::size_t inout3_offset = 0;
+constexpr ::std::size_t inout4_offset = 0;
 
 } /* namespace TestUtils */
 
