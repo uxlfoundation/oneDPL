@@ -125,6 +125,7 @@ public:
 
     void reset()
     {
+        std::cout<<"reset usm data\n";
         if (__count > 0)
         {
             assert(__ptr != nullptr);
