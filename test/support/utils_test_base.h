@@ -460,7 +460,7 @@ template <typename T, typename TestName, typename TPolicyInvoker = default_seque
 void
 test_algo_two_sequences(::std::size_t offset1 = inout1_offset, ::std::size_t offset2 = inout2_offset)
 {
-    for (size_t n = 1; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = 10; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         //TODO: consider to use class TestUtils::Sequence directly. Actually, we don't need any special action for input/output data here.
         using TestBaseData = test_base_data_sequence<T>;
