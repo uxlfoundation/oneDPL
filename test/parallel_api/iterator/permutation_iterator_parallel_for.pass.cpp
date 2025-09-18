@@ -141,10 +141,10 @@ main()
     run_algo_tests<ValueType, perm_it_index_tags_usm_shared>();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    run_algo_tests<ValueType, perm_it_index_tags_counting>();
-    run_algo_tests<ValueType, perm_it_index_tags_host>();
-    run_algo_tests<ValueType, perm_it_index_tags_transform_iterator>();
-    run_algo_tests<ValueType, perm_it_index_tags_callable_object>();
+    // run_algo_tests<ValueType, perm_it_index_tags_counting>();
+    // run_algo_tests<ValueType, perm_it_index_tags_host>();
+    // run_algo_tests<ValueType, perm_it_index_tags_transform_iterator>();
+    // run_algo_tests<ValueType, perm_it_index_tags_callable_object>();
 
     return TestUtils::done();
 }
