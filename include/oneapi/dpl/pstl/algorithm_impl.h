@@ -277,8 +277,8 @@ __brick_walk2(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIte
     for (; __first1 != __last1; ++__first1, (void)++__first2)
     {
             std::cout<<"-";
-    	    __f(*__first1, *__first2);
             std::cout<<"outputaddr: "<<std::addressof(*__first2)<<"\n";
+    	    __f(*__first1, *__first2);
             std::cout<<"+";
     }
     return __first2;
