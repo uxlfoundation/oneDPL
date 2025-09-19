@@ -348,14 +348,4 @@
 #    define _ONEDPL_BUILT_IN_STABLE_NAME_PRESENT __has_builtin(__builtin_sycl_unique_stable_name)
 #endif // _ONEDPL_BACKEND_SYCL
 
-// DPC++ 2025.3 fails with a segfault when compiling __histogram_general_registers_local_reduction kernel
-// for CPU devices
-// ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION public macro can be used to bypass the issue
-#if !defined(__INTEL_LLVM_COMPILER) || (__INTEL_LLVM_COMPILER < 20250300 || __INTEL_LLVM_COMPILER >= 20250400) || \
-    !defined(ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION)
-#    define _ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION 0
-#else
-#    define _ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION 1
-#endif
-
 #endif // _ONEDPL_CONFIG_H
