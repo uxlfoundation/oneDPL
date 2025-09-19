@@ -505,7 +505,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
 
     auto __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
 
-#if _ONEDPL_ENABLE_HISTOGRAM_REGISTER_REDUCTION
+#if !_ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION
     constexpr std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
     // if bins fit into registers, use register private accumulation
     if (__num_bins <= __max_work_item_private_bins)

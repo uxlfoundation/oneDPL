@@ -350,12 +350,12 @@
 
 // DPC++ 2025.3 fails with a segfault when compiling __histogram_general_registers_local_reduction kernel
 // for CPU devices
-// Allow manually enabling this kernel for more performant execution on GPU devices.
+// ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION public macro can be used to bypass the issue
 #if !defined(__INTEL_LLVM_COMPILER) || (__INTEL_LLVM_COMPILER < 20250300 || __INTEL_LLVM_COMPILER >= 20250400) || \
-    defined(ONEDPL_ENABLE_HISTOGRAM_REGISTER_REDUCTION)
-#    define _ONEDPL_ENABLE_HISTOGRAM_REGISTER_REDUCTION 1
+    !defined(ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION)
+#    define _ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION 0
 #else
-#    define _ONEDPL_ENABLE_HISTOGRAM_REGISTER_REDUCTION 0
+#    define _ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION 1
 #endif
 
 #endif // _ONEDPL_CONFIG_H
