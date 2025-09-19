@@ -181,16 +181,16 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
         // One of __rng1_idx_less_n1 and __rng2_idx_less_n2 should be true here
         // because 1) we should fill output data with elements from one of the input ranges
         // 2) we calculate __rng3_idx_end as std::min<_Index>(__rng1_size + __rng2_size, __chunk).
-        if constexpr (__can_use_ternary_op_v<decltype(__rng1[__rng1_idx]), decltype(__rng2[__rng2_idx])>)
-        {
-            // This implementation is required for performance optimization
-            __rng3[__rng3_idx] = (!__rng1_idx_less_n1 || (__rng1_idx_less_n1 && __rng2_idx_less_n2 &&
-                                                          std::invoke(__comp, std::invoke(__proj2, __rng2[__rng2_idx]),
-                                                                      std::invoke(__proj1, __rng1[__rng1_idx]))))
-                                     ? __rng2[__rng2_idx++]
-                                     : __rng1[__rng1_idx++];
-        }
-        else
+        // if constexpr (__can_use_ternary_op_v<decltype(__rng1[__rng1_idx]), decltype(__rng2[__rng2_idx])>)
+        // {
+        //     // This implementation is required for performance optimization
+        //     __rng3[__rng3_idx] = (!__rng1_idx_less_n1 || (__rng1_idx_less_n1 && __rng2_idx_less_n2 &&
+        //                                                   std::invoke(__comp, std::invoke(__proj2, __rng2[__rng2_idx]),
+        //                                                               std::invoke(__proj1, __rng1[__rng1_idx]))))
+        //                              ? __rng2[__rng2_idx++]
+        //                              : __rng1[__rng1_idx++];
+        // }
+        // else
         {
             // TODO required to understand why the usual if-else is slower then ternary operator
             if (!__rng1_idx_less_n1 || (__rng1_idx_less_n1 && __rng2_idx_less_n2 &&
