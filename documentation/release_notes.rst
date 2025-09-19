@@ -59,8 +59,6 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
 - With libstdc++ version 10, the compilation error *SYCL kernel cannot use exceptions* occurs
   when calling the range-based ``adjacent_find``, ``is_sorted`` or ``is_sorted_until`` algorithms with device policies.
-- The range-based ``count_if`` may produce incorrect results on Intel® Data Center GPU Max Series when the driver version
-  is *Rolling 2507.12* or *Rolling 2507.17*. Other *Rolling* and *LTS* versions are unaffected.
 
 New in 2022.8.0
 ===============
