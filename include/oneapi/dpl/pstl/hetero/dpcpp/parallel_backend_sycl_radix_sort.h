@@ -698,7 +698,6 @@ struct __parallel_radix_sort_iteration
         else if (std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), 8) != __subgroup_sizes.end())
             __reorder_sg_size = 8;
         // else keep __reorder_sg_size = __max_sg_size
-        
 #endif
         // For __count_wg_size, use the maximum of the current value and __reorder_sg_size
         __count_wg_size = sycl::max(__count_wg_size, __reorder_sg_size);
