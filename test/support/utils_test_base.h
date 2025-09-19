@@ -459,9 +459,7 @@ test_algo_one_sequence(::std::size_t offset1 = inout1_offset)
 
         TPolicyInvoker()(create_test_obj<T, TestName>(test_base_data), inout1_offset_first, inout1_offset_first + n, n);
 
-        std::cout << "Test memory corruption...";
         assert(test_base_data.data[0].test_memory_check_data());
-        std::cout << "done" << std::endl;
     }
 }
 
@@ -496,10 +494,8 @@ test_algo_two_sequences(::std::size_t offset1 = inout1_offset, ::std::size_t off
                          inout2_offset_first, inout2_offset_first + n,
                          n);
 
-        std::cout << "Test memory corruption...";
         assert(test_base_data.data[0].test_memory_check_data());
         assert(test_base_data.data[1].test_memory_check_data());
-        std::cout << "done" << std::endl;
     }
 }
 
@@ -540,11 +536,9 @@ test_algo_three_sequences(int mult = kDefaultMultValue,
                          inout3_offset_first, inout3_offset_first + n * mult,
                          n);
 
-        std::cout << "Test memory corruption...";
         assert(test_base_data.data[0].test_memory_check_data());
         assert(test_base_data.data[1].test_memory_check_data());
         assert(test_base_data.data[2].test_memory_check_data());
-        std::cout << "done" << std::endl;
     }
 }
 
@@ -588,12 +582,10 @@ test_algo_four_sequences(int mult = kDefaultMultValue)
                          inout4_offset_first, inout4_offset_first + n * mult,
                          n);
 
-        std::cout << "Test memory corruption...";
         assert(test_base_data.data[0].test_memory_check_data());
         assert(test_base_data.data[1].test_memory_check_data());
         assert(test_base_data.data[2].test_memory_check_data());
         assert(test_base_data.data[3].test_memory_check_data());
-        std::cout << "done" << std::endl;
     }
 }
 

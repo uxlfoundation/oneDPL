@@ -37,7 +37,6 @@
 
 #include _PSTL_TEST_HEADER(execution)
 
-#define _ONEDPL_DEBUG_SYCL 1
 namespace TestUtils
 {
 
@@ -143,8 +142,6 @@ template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName
 void
 test1buffer(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
-    std::cout << "test1buffer(float ScaleStep = 1.0f, float ScaleMax = 1.0f)...";
-
     sycl::queue queue = get_test_queue(); // usm and allocator requires queue
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
@@ -192,12 +189,8 @@ test1buffer(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
                                                n);
         }
 
-        std::cout << "Test memory corruption...";
         assert(test_base_data.data[0].test_memory_check_data());
-        std::cout << "done" << std::endl;
     }
-
-    std::cout << "done" << std::endl;
 }
 
 template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName,
@@ -205,8 +198,6 @@ template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName
 void
 test2buffers(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
-    std::cout << "test2buffers(float ScaleStep = 1.0f, float ScaleMax = 1.0f)...";
-
     sycl::queue queue = get_test_queue(); // usm and allocator requires queue
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
@@ -261,13 +252,9 @@ test2buffers(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
                                                n);
         }
 
-        std::cout << "Test memory corruption...";
         assert(test_base_data.data[0].test_memory_check_data());
         assert(test_base_data.data[1].test_memory_check_data());
-        std::cout << "done" << std::endl;
     }
-
-    std::cout << "done" << std::endl;
 }
 
 template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName,
@@ -275,8 +262,6 @@ template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName
 void
 test3buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
-    std::cout << "test3buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMax = 1.0f)...";
-
     sycl::queue queue = get_test_queue(); // usm requires queue
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
@@ -338,14 +323,10 @@ test3buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
                                                n);
         }
 
-        std::cout << "Test memory corruption...";
         assert(test_base_data.data[0].test_memory_check_data());
         assert(test_base_data.data[1].test_memory_check_data());
         assert(test_base_data.data[2].test_memory_check_data());
-        std::cout << "done" << std::endl;
     }
-
-    std::cout << "done" << std::endl;
 }
 
 template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName,
@@ -353,8 +334,6 @@ template <sycl::usm::alloc alloc_type, typename TestValueType, typename TestName
 void
 test4buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMax = 1.0f)
 {
-    std::cout << "test4buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMax = 1.0f)...";
-
     sycl::queue queue = get_test_queue(); // usm requires queue
     const size_t local_max_n = max_n * ScaleMax;
     const size_t incr_by_one_max = 16 * ScaleMax;
@@ -422,15 +401,11 @@ test4buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
                                                n);
         }
 
-        std::cout << "Test memory corruption...";
         assert(test_base_data.data[0].test_memory_check_data());
         assert(test_base_data.data[1].test_memory_check_data());
         assert(test_base_data.data[2].test_memory_check_data());
         assert(test_base_data.data[3].test_memory_check_data());
-        std::cout << "done" << std::endl;
     }
-
-    std::cout << "done" << std::endl;
 }
 
 template <sycl::usm::alloc alloc_type, typename TestName,

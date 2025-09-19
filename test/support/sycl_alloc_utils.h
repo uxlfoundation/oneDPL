@@ -132,27 +132,24 @@ public:
     {
         if constexpr (_alloc_type == sycl::usm::alloc::shared)
         {
-            if (__ptr != nullptr && __count > 0)
+            if (__ptr != nullptr)
             {
-                std::cout << "Check memory corruption in usm_data_transfer...";
                 if (__ptr[__count + 0] != 0xAA)
                 {
-                    std::cerr << "Memory corruption detected in usm_data_transfer" << std::endl;
+                    std::cerr << "Memory corruption detected in usm_data_transfer";
                     assert(false);
                 }
                 if (__ptr[__count + 1] != 0xBB)
                 {
-                    std::cerr << "Memory corruption detected in usm_data_transfer" << std::endl;
+                    std::cerr << "Memory corruption detected in usm_data_transfer";
                     assert(false);
                 }
 
                 if (__ptr[__count + 2] != 0xCC)
                 {
-                    std::cerr << "Memory corruption detected in usm_data_transfer" << std::endl;
+                    std::cerr << "Memory corruption detected in usm_data_transfer";
                     assert(false);
                 }
-
-                std::cout << "done" << std::endl;
             }
         }
 
