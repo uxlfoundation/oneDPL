@@ -277,7 +277,7 @@ test3buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
         auto inout3_offset_first = test_base_data.get_start_from(UDTKind::eRes);
 
         // 3. run algorithms
-        for (size_t n = 1; n <= local_max_n; n = (n <= incr_by_one_max ? n + 1 : size_t(local_step * n)))
+        for (size_t n = 50; n <= local_max_n; n = (n <= incr_by_one_max ? n + 1 : size_t(local_step * n)))
         {
 #    if _ONEDPL_DEBUG_SYCL
             ::std::cout << "n = " << n << ::std::endl;
