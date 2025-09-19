@@ -187,9 +187,9 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
     template <typename Policy, typename Operand>
     std::enable_if_t<
 #if TEST_DPCPP_BACKEND_PRESENT
-        !oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>
+        !oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>> && 
 #endif
-        && true>
+        true>
     operator()(Policy&& /*exec*/, Operand /*op*/)
     {
         // We work on USM shared memory only with hetero execution policies
