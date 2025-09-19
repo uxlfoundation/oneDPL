@@ -2,21 +2,6 @@
 //===-- permutation_iterator_parallel_merge.pass.cpp -----------------------===//
 //
 // Copyright (C) Intel Corpor            //ensure list is sorted (not necessarily true after permutation)
-            dpl::sort(CLONE_TEST_POLICY(exec), permItBegin2, permItEnd2);
-            wait_and_throw(exec);
-
-            // Copy data back
-            std::vector<TestValueType> srcData2(testing_n2);
-            dpl::copy(CLONE_TEST_POLICY(exec), permItBegin2, permItEnd2, srcData2.begin());
-            wait_and_throw(exec);
-
-            std::cout << "=== AFTER PERMUTATION SORT 2 ===\n";
-            std::cout << "Sorted sequence 2 (size=" << testing_n2 << "): ";
-            for (size_t i = 0; i < srcData2.size(); ++i) {
-                std::cout << srcData2[i] << " ";
-            }
-            std::cout << "\n";
-            std::cout << "===============================\n\n";
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // This file incorporates work covered by the following copyright and permission
