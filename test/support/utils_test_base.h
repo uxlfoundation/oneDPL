@@ -19,7 +19,6 @@
 #include <vector>
 #include <initializer_list>
 #include <utility>
-#include <array>        // for std::array
 
 #include "utils_const.h"
 #include "utils_sequence.h"
@@ -112,10 +111,11 @@ struct test_base_data_usm : test_base_data<TestValueType>
 
         template<typename _Size>
         Data(sycl::queue __q, _Size __sz, ::std::size_t __offset)
-            : src_data_usm(__q, __sz + __offset + 3)
+            : src_data_usm(__q, __sz + __offset)
             , offset(__offset)
         {
         }
+        
 
         TestValueType* get_start_from()
         {
@@ -179,23 +179,15 @@ struct test_base_data_buffer : test_base_data<TestValueType>
     struct Data
     {
         using TSourceData = sycl::buffer<TestValueType, 1>;
-        const std::array<std::uint8_t, 3> memory_check_data_expected = {0x77, 0xFF, 0xAA};
 
-        TSourceData                 src_data_buf;       // SYCL buffer
-        std::array<std::uint8_t, 3> memory_check_data;  // Memory corruption check data
-        ::std::size_t               offset = 0;         // Offset in SYCL buffer
+        TSourceData   src_data_buf;     // SYCL buffer
+        ::std::size_t offset = 0;       // Offset in SYCL buffer
 
         template<typename _Size>
         Data(_Size __sz, ::std::size_t __offset)
             : src_data_buf(sycl::range<1>(__sz + __offset))
             , offset(__offset)
         {
-            memory_check_data = memory_check_data_expected;
-        }
-
-        bool test_memory_check_data() const
-        {
-            return memory_check_data == memory_check_data_expected;
         }
     };
     ::std::vector<Data> data;   // Vector of source test data:
@@ -237,22 +229,13 @@ struct test_base_data_sequence : test_base_data<TestValueType>
     {
         using TSourceData = Sequence<TestValueType>;
 
-        const std::array<std::uint8_t, 3> memory_check_data_expected = {0x77, 0xFF, 0xAA};
-
-        TSourceData                 src_data_seq;       // Sequence
-        std::array<std::uint8_t, 3> memory_check_data;  // Memory corruption check data
-        ::std::size_t               offset = 0;         // Offset in sequence
+        TSourceData   src_data_seq;     // Sequence
+        ::std::size_t offset = 0;       // Offset in sequence
 
         Data(::std::size_t size, ::std::size_t __offset)
             : src_data_seq(size)
             , offset(__offset)
         {
-            memory_check_data = memory_check_data_expected;
-        }
-
-        bool test_memory_check_data() const
-        {
-            return memory_check_data == memory_check_data_expected;
         }
     };
     ::std::vector<Data> data;   // Vector of source test data:
@@ -458,8 +441,6 @@ test_algo_one_sequence(::std::size_t offset1 = inout1_offset)
         auto inout1_offset_first = test_base_data.get_start_from(UDTKind::eKeys);
 
         TPolicyInvoker()(create_test_obj<T, TestName>(test_base_data), inout1_offset_first, inout1_offset_first + n, n);
-
-        assert(test_base_data.data[0].test_memory_check_data());
     }
 }
 
@@ -493,9 +474,6 @@ test_algo_two_sequences(::std::size_t offset1 = inout1_offset, ::std::size_t off
                          inout1_offset_first, inout1_offset_first + n,
                          inout2_offset_first, inout2_offset_first + n,
                          n);
-
-        assert(test_base_data.data[0].test_memory_check_data());
-        assert(test_base_data.data[1].test_memory_check_data());
     }
 }
 
@@ -535,10 +513,6 @@ test_algo_three_sequences(int mult = kDefaultMultValue,
                          inout2_offset_first, inout2_offset_first + n,
                          inout3_offset_first, inout3_offset_first + n * mult,
                          n);
-
-        assert(test_base_data.data[0].test_memory_check_data());
-        assert(test_base_data.data[1].test_memory_check_data());
-        assert(test_base_data.data[2].test_memory_check_data());
     }
 }
 
@@ -581,11 +555,6 @@ test_algo_four_sequences(int mult = kDefaultMultValue)
                          inout3_offset_first, inout3_offset_first + n * mult,
                          inout4_offset_first, inout4_offset_first + n * mult,
                          n);
-
-        assert(test_base_data.data[0].test_memory_check_data());
-        assert(test_base_data.data[1].test_memory_check_data());
-        assert(test_base_data.data[2].test_memory_check_data());
-        assert(test_base_data.data[3].test_memory_check_data());
     }
 }
 

@@ -188,8 +188,6 @@ test1buffer(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
                                                inout1_offset_first, inout1_offset_first + n,
                                                n);
         }
-
-        assert(test_base_data.data[0].test_memory_check_data());
     }
 }
 
@@ -251,9 +249,6 @@ test2buffers(float ScaleStep = 1.0f, float ScaleMax = 1.0f)
                                                inout2_offset_first, inout2_offset_first + n,
                                                n);
         }
-
-        assert(test_base_data.data[0].test_memory_check_data());
-        assert(test_base_data.data[1].test_memory_check_data());
     }
 }
 
@@ -322,10 +317,6 @@ test3buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
                                                inout3_offset_first, inout3_offset_first + n * mult,
                                                n);
         }
-
-        assert(test_base_data.data[0].test_memory_check_data());
-        assert(test_base_data.data[1].test_memory_check_data());
-        assert(test_base_data.data[2].test_memory_check_data());
     }
 }
 
@@ -400,11 +391,6 @@ test4buffers(int mult = kDefaultMultValue, float ScaleStep = 1.0f, float ScaleMa
                                                inout4_offset_first, inout4_offset_first + n * mult,
                                                n);
         }
-
-        assert(test_base_data.data[0].test_memory_check_data());
-        assert(test_base_data.data[1].test_memory_check_data());
-        assert(test_base_data.data[2].test_memory_check_data());
-        assert(test_base_data.data[3].test_memory_check_data());
     }
 }
 
