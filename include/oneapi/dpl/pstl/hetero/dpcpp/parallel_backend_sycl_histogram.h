@@ -495,7 +495,7 @@ __future<sycl::event>
 __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_event, _Range1&& __input,
                                    _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
-    using _local_histogram_type = ::std::uint32_t;
+    using _local_histogram_type = std::uint32_t;
     using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
     const auto __num_bins = __bins.size();
