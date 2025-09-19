@@ -134,22 +134,9 @@ public:
         {
             if (__ptr != nullptr)
             {
-                if (__ptr[__count + 0] != 0xAA)
-                {
-                    std::cerr << "Memory corruption detected in usm_data_transfer";
-                    assert(false);
-                }
-                if (__ptr[__count + 1] != 0xBB)
-                {
-                    std::cerr << "Memory corruption detected in usm_data_transfer";
-                    assert(false);
-                }
-
-                if (__ptr[__count + 2] != 0xCC)
-                {
-                    std::cerr << "Memory corruption detected in usm_data_transfer";
-                    assert(false);
-                }
+                assert(__ptr[__count + 0] == 0xAA);
+                assert(__ptr[__count + 1] == 0xBB);
+                assert(__ptr[__count + 2] == 0xCC);
             }
         }
 
