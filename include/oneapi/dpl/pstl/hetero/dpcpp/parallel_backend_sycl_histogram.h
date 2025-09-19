@@ -495,7 +495,6 @@ __future<sycl::event>
 __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_event, _Range1&& __input,
                                    _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
-    using _private_histogram_type = ::std::uint16_t;
     using _local_histogram_type = ::std::uint32_t;
     using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
@@ -509,6 +508,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
 // for CPU devices
 // defining ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION to a non-zero value bypasses this issue
 #if !ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION
+    using _private_histogram_type = ::std::uint16_t;
     constexpr std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
     // if bins fit into registers, use register private accumulation
     if (__num_bins <= __max_work_item_private_bins)
