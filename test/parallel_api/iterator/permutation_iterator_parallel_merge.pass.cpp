@@ -1,8 +1,22 @@
 // -*- C++ -*-
 //===-- permutation_iterator_parallel_merge.pass.cpp -----------------------===//
 //
-// Copyright (C) Intel Corporation
-//
+// Copyright (C) Intel Corpor            //ensure list is sorted (not necessarily true after permutation)
+            dpl::sort(CLONE_TEST_POLICY(exec), permItBegin2, permItEnd2);
+            wait_and_throw(exec);
+
+            // Copy data back
+            std::vector<TestValueType> srcData2(testing_n2);
+            dpl::copy(CLONE_TEST_POLICY(exec), permItBegin2, permItEnd2, srcData2.begin());
+            wait_and_throw(exec);
+
+            std::cout << "=== AFTER PERMUTATION SORT 2 ===\n";
+            std::cout << "Sorted sequence 2 (size=" << testing_n2 << "): ";
+            for (size_t i = 0; i < srcData2.size(); ++i) {
+                std::cout << srcData2[i] << " ";
+            }
+            std::cout << "\n";
+            std::cout << "===============================\n\n";
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // This file incorporates work covered by the following copyright and permission
@@ -62,10 +76,54 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
             dpl::copy(CLONE_TEST_POLICY_IDX(exec, 3), first3, resultEnd, mergedDataResult.begin());
             wait_and_throw(exec);
 
+            // Print full sequences for debugging
+            std::cout << "\n=== MERGE OPERATION DEBUG ===\n";
+            std::cout << "Input sequence 1 (size=" << testing_n1 << "): ";
+            for (size_t i = 0; i < srcData1.size(); ++i) {
+                std::cout << srcData1[i] << " ";
+            }
+            std::cout << "\n";
+            
+            std::cout << "Input sequence 2 (size=" << testing_n2 << "): ";
+            for (size_t i = 0; i < srcData2.size(); ++i) {
+                std::cout << srcData2[i] << " ";
+            }
+            std::cout << "\n";
+
             // Check results
             std::vector<TestValueType> mergedDataExpected(testing_n1 + testing_n2);
             auto expectedEnd = std::merge(srcData1.begin(), srcData1.end(), srcData2.begin(), srcData2.end(), mergedDataExpected.begin());
             const auto expectedSize = expectedEnd - mergedDataExpected.begin();
+            
+            std::cout << "Expected result (size=" << expectedSize << "): ";
+            for (size_t i = 0; i < expectedSize; ++i) {
+                std::cout << mergedDataExpected[i] << " ";
+            }
+            std::cout << "\n";
+            
+            std::cout << "Actual result (size=" << resultSize << "): ";
+            for (size_t i = 0; i < resultSize; ++i) {
+                std::cout << mergedDataResult[i] << " ";
+            }
+            std::cout << "\n";
+            
+            if (expectedSize != resultSize) {
+                std::cout << "SIZE MISMATCH: Expected " << expectedSize << ", got " << resultSize << "\n";
+            } else {
+                bool sequences_match = true;
+                for (size_t i = 0; i < expectedSize; ++i) {
+                    if (mergedDataExpected[i] != mergedDataResult[i]) {
+                        std::cout << "VALUE MISMATCH at index " << i << ": Expected " 
+                                  << mergedDataExpected[i] << ", got " << mergedDataResult[i] << "\n";
+                        sequences_match = false;
+                    }
+                }
+                if (sequences_match) {
+                    std::cout << "✓ All values match!\n";
+                }
+            }
+            std::cout << "=============================\n\n";
+            
             EXPECT_EQ(expectedSize, resultSize, "Wrong size from dpl::merge");
             EXPECT_EQ_N(mergedDataExpected.begin(), mergedDataResult.begin(), expectedSize, "Wrong result of dpl::merge");
         }
@@ -92,6 +150,14 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
             dpl::copy(CLONE_TEST_POLICY(exec), permItBegin1, permItEnd1, srcData1.begin());
             wait_and_throw(exec);
 
+            std::cout << "=== AFTER PERMUTATION SORT 1 ===\n";
+            std::cout << "Sorted sequence 1 (size=" << testing_n1 << "): ";
+            for (size_t i = 0; i < srcData1.size(); ++i) {
+                std::cout << srcData1[i] << " ";
+            }
+            std::cout << "\n";
+            std::cout << "===============================\n\n";
+
             test_through_permutation_iterator<Iterator1, Size, PermItIndexTag>{first1, n}(
                 std::forward<Policy>(exec), TestImplementationLevel1<Size, Iterator3, TPermutationIterator>{
                                                 n, srcData1, first3, permItBegin1, permItEnd1});
@@ -117,6 +183,23 @@ DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
             generate_data(host_keys_ptr, host_keys_ptr + n, TestValueType{});
             generate_data(host_vals_ptr, host_vals_ptr + n, TestValueType{} + n / 2);
             ::std::fill(host_res_ptr, host_res_ptr + n, TestValueType{});
+
+            // Print initial data generation
+            std::cout << "\n=== INITIAL DATA GENERATION ===\n";
+            std::cout << "Full keys data (size=" << n << "): ";
+            for (size_t i = 0; i < std::min(n, size_t(20)); ++i) {
+                std::cout << host_keys_ptr[i] << " ";
+            }
+            if (n > 20) std::cout << "... (showing first 20)";
+            std::cout << "\n";
+            
+            std::cout << "Full vals data (size=" << n << "): ";
+            for (size_t i = 0; i < std::min(n, size_t(20)); ++i) {
+                std::cout << host_vals_ptr[i] << " ";
+            }
+            if (n > 20) std::cout << "... (showing first 20)";
+            std::cout << "\n";
+            std::cout << "==============================\n\n";
 
             // Update data
             host_keys.update_data();
