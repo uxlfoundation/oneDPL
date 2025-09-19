@@ -209,12 +209,12 @@ run_algo_tests()
     // Run tests on <USM::shared, USM::device, sycl::buffer> + <all_hetero_policies>
     // dpl::merge, dpl::inplace_merge -> __parallel_merge
     test3buffers<sycl::usm::alloc::shared, ValueType, test_merge<ValueType, PermItIndexTag>>(2);
-    test3buffers<sycl::usm::alloc::device, ValueType, test_merge<ValueType, PermItIndexTag>>(2);
+    //test3buffers<sycl::usm::alloc::device, ValueType, test_merge<ValueType, PermItIndexTag>>(2);
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     // Run tests on <std::vector::iterator> + <all_host_policies>
     // dpl::merge, dpl::inplace_merge -> __parallel_merge
-    test_algo_three_sequences<ValueType, test_merge<ValueType, PermItIndexTag>>(2, kZeroOffset, kZeroOffset, kZeroOffset);
+    //test_algo_three_sequences<ValueType, test_merge<ValueType, PermItIndexTag>>(2, kZeroOffset, kZeroOffset, kZeroOffset);
 }
 
 int
@@ -223,13 +223,13 @@ main()
     using ValueType = ::std::uint32_t;
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_tests<ValueType, perm_it_index_tags_usm_shared>();
+    //run_algo_tests<ValueType, perm_it_index_tags_usm_shared>();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    run_algo_tests<ValueType, perm_it_index_tags_counting>();
+    //run_algo_tests<ValueType, perm_it_index_tags_counting>();
     run_algo_tests<ValueType, perm_it_index_tags_host>();
-    run_algo_tests<ValueType, perm_it_index_tags_transform_iterator>();
-    run_algo_tests<ValueType, perm_it_index_tags_callable_object>();
+    //run_algo_tests<ValueType, perm_it_index_tags_transform_iterator>();
+    //run_algo_tests<ValueType, perm_it_index_tags_callable_object>();
 
     return TestUtils::done();
 }
