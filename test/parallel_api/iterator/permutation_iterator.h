@@ -156,13 +156,14 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
     {
     }
 
+#if TEST_DPCPP_BACKEND_PRESENT
     template <typename Policy, typename Operand>
-    void
+    std::enable_if_t<oneapi::dpl::__internal::__is_hetero_execution_policy_v<::std::decay_t<Policy>>>
     operator()(Policy&& exec, Operand op)
     {
         using TestBaseData = TestUtils::test_base_data_usm<sycl::usm::alloc::shared, TSourceDataSize>;
 
-        TestBaseData test_base_data(TestUtils::get_test_queue(), {{TestUtils::max_n, TestUtils::inout1_offset}});
+        TestBaseData test_base_data(exec.queue(), {{TestUtils::max_n, TestUtils::inout1_offset}});
         TSourceDataSize* itIndexStart = test_base_data.get_start_from(TestUtils::UDTKind::eKeys);
 
         std::vector<TSourceDataSize> indexes;
@@ -182,6 +183,19 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
 
             op(CLONE_TEST_POLICY(exec), permItBegin, permItEnd);
         }
+    }
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+    template <typename Policy, typename Operand>
+    std::enable_if_t<
+#if TEST_DPCPP_BACKEND_PRESENT
+        !oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>
+#endif
+        && true>
+    operator()(Policy&& /*exec*/, Operand /*op*/)
+    {
+        // We works on USM shared memory only with hetero execution policies
+        // so we just skip host execution policies
     }
 };
 #endif // TEST_DPCPP_BACKEND_PRESENT
