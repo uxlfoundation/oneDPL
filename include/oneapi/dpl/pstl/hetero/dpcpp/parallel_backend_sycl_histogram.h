@@ -515,11 +515,9 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
             __q, __init_event, __work_group_size, std::forward<_Range1>(__input), std::forward<_Range2>(__bins),
             __binhash_manager));
     }
-    else if
-#else
-    if
+    else
 #endif
-        (__num_bins * sizeof(_local_histogram_type) +
+    if (__num_bins * sizeof(_local_histogram_type) +
 
     // if bins fit into SLM, use local atomics
                  __binhash_manager.get_required_SLM_elements() * sizeof(_extra_memory_type) <
