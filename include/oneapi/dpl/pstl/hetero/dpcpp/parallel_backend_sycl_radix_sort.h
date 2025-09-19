@@ -685,8 +685,23 @@ struct __parallel_radix_sort_iteration
         __reorder_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__q, __reorder_kernel);
         __scan_wg_size =
             sycl::min(__scan_wg_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __local_scan_kernel));
-        __count_wg_size = sycl::max(__count_sg_size, __reorder_sg_size);
+#else
+        // When kernel compilation is disabled, use conservative fallback values
+        // Get device sub-group sizes and pick a suitable one for radix sort
+        const auto __subgroup_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
+        // The radix sort kernels are optimized for sub-group size 16 to avoid register spills
+        // and efficiently handle 4-bit radix (16 buckets). Prefer 16, then 32, then 8.
+        if (std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), 16) != __subgroup_sizes.end())
+            __reorder_sg_size = 16;
+        else if (std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), 32) != __subgroup_sizes.end())
+            __reorder_sg_size = 32;
+        else if (std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), 8) != __subgroup_sizes.end())
+            __reorder_sg_size = 8;
+        // else keep __reorder_sg_size = __max_sg_size
+        
 #endif
+        // For __count_wg_size, use the maximum of the current value and __reorder_sg_size
+        __count_wg_size = sycl::max(__count_wg_size, __reorder_sg_size);
         const ::std::uint32_t __radix_states = 1 << __radix_bits;
 
         // correct __count_wg_size according to local memory limit in count phase
