@@ -194,7 +194,7 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
         && true>
     operator()(Policy&& /*exec*/, Operand /*op*/)
     {
-        // We works on USM shared memory only with hetero execution policies
+        // We work on USM shared memory only with hetero execution policies
         // so we just skip host execution policies
     }
 };
