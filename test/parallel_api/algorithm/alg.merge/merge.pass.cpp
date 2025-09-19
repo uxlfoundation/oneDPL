@@ -225,9 +225,9 @@ main()
     {
         std::vector<int> a = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48};
         std::vector<int> b = {0, 16, 32};
-        std::vector<T> merged(a.size() + b.size());
+        std::vector<int> merged(a.size() + b.size());
 
-        invoke_on_all_policies<150>()(test_merge<T>(),  a.begin(), a.begin() + a.size(),  b.cbegin(),
+        invoke_on_all_policies<150>()(test_merge<int>(),  a.begin(), a.begin() + a.size(),  b.cbegin(),
                                     b.cbegin() + b.size(), merged.begin(), merged.begin() + merged.size());
 
     }
