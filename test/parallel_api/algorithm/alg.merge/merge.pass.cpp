@@ -227,8 +227,8 @@ main()
         std::vector<int> b = {0, 16, 32};
         std::vector<int> merged(a.size() + b.size());
 
-        invoke_on_all_policies<150>()(test_merge<int>(),  a.begin(), a.begin() + a.size(),  b.cbegin(),
-                                    b.cbegin() + b.size(), merged.begin(), merged.begin() + merged.size());
+        invoke_on_all_policies<150>()(test_merge<int>(),  a.begin(), a.begin() + a.size(),  b.begin(),
+                                    b.begin() + b.size(), merged.begin(), merged.begin() + merged.size());
 
     }
     return done();
