@@ -9,7 +9,7 @@ and provides high-productivity APIs aimed to minimize programming efforts of C++
 creating efficient heterogeneous applications.
 
 New in 2022.10.0
-===============
+================
 
 Known Issues and Limitations
 ----------------------------
@@ -17,7 +17,8 @@ New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - Calling ``histogram`` algorithm with a device execution policy may cause a segmentation fault in
   Intel® oneAPI DPC++/C++ Compiler 2025.3 when compiling SYCL kernels for CPU devices.
-  To avoid this, define ``ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION`` macro to a non-zero value.
+  To avoid this, define ``ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION`` macro to a non-zero value
+  prior to including oneDPL header files.
 
 New in 2022.9.0
 ===============
