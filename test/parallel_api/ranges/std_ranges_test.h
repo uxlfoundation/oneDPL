@@ -241,8 +241,17 @@ struct all_dangling_in_result<std::ranges::min_max_result<std::ranges::dangling>
 template <typename _ReturnType>
 constexpr bool all_dangling_in_result_v = all_dangling_in_result<_ReturnType>::value;
 
+void call_with_host_policies(auto algo, auto... args)
+{
+    algo(oneapi::dpl::execution::seq, args...);
+    algo(oneapi::dpl::execution::unseq, args...);
+    algo(oneapi::dpl::execution::par, args...);
+    algo(oneapi::dpl::execution::par_unseq, args...);
+}
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
+
 struct test
 {
     void
