@@ -122,6 +122,19 @@ struct has_report_value : decltype(has_report_value_impl<S, Info, ValueType>(0))
 {
 };
 
+template <typename T>
+auto
+has_wait_impl(...) -> std::false_type;
+
+template <typename T>
+auto
+has_wait_impl(int) -> decltype(std::declval<T>().wait(), std::true_type{});
+
+template <typename T>
+struct has_wait : decltype(has_wait_impl<T>(0))
+{
+};
+
 } //namespace internal
 
 struct deferred_initialization_t

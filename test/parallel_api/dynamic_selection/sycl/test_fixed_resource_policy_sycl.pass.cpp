@@ -19,7 +19,7 @@ main()
     bool bProcessed = false;
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
-    using policy_t = oneapi::dpl::experimental::fixed_resource_policy<oneapi::dpl::experimental::sycl_backend>;
+    using policy_t = oneapi::dpl::experimental::fixed_resource_policy<sycl::queue, oneapi::dpl::experimental::default_backend<sycl::queue>>;
     std::vector<sycl::queue> u;
     build_universe(u);
     if (!u.empty())
