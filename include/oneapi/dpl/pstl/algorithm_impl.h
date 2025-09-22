@@ -188,7 +188,9 @@ __pattern_walk_brick(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Forwar
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    __brick(__first, __last, typename _Tag::__is_vector{});
+    oneapi::dpl::__internal::__except_handler([&]() {
+        __brick(__first, __last, typename _Tag::__is_vector{});
+    });
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Brick>
@@ -877,15 +879,15 @@ __pattern_find_end(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                    _RandomAccessIterator1 __last, _RandomAccessIterator2 __s_first, _RandomAccessIterator2 __s_last,
                    _BinaryPredicate __pred)
 {
-    if (__last - __first == __s_last - __s_first)
-    {
-        const bool __res = __internal::__pattern_equal(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                                       __s_first, __pred);
-        return __res ? __first : __last;
-    }
-    else
-    {
-        return __internal::__except_handler([&]() {
+    return __internal::__except_handler([&]() {
+        if (__last - __first == __s_last - __s_first)
+        {
+            const bool __res = __internal::__pattern_equal(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first,
+                                                           __last, __s_first, __pred);
+            return __res ? __first : __last;
+        }
+        else
+        {
             return __internal::__parallel_find(
                 __tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
                 [__last, __s_first, __s_last, __pred](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
@@ -893,8 +895,8 @@ __pattern_find_end(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                                                        _IsVector{});
                 },
                 ::std::false_type{});
-        });
-    }
+        }
+    });
 }
 
 //------------------------------------------------------------------------
@@ -980,15 +982,15 @@ __pattern_search(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _Ra
                  _RandomAccessIterator1 __last, _RandomAccessIterator2 __s_first, _RandomAccessIterator2 __s_last,
                  _BinaryPredicate __pred)
 {
-    if (__last - __first == __s_last - __s_first)
-    {
-        const bool __res = __internal::__pattern_equal(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                                       __s_first, __pred);
-        return __res ? __first : __last;
-    }
-    else
-    {
-        return __internal::__except_handler([&]() {
+    return __internal::__except_handler([&]() {
+        if (__last - __first == __s_last - __s_first)
+        {
+            const bool __res = __internal::__pattern_equal(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first,
+                                                           __last, __s_first, __pred);
+            return __res ? __first : __last;
+        }
+        else
+        {
             return __internal::__parallel_find(
                 __tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
                 [__last, __s_first, __s_last, __pred](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
@@ -996,8 +998,8 @@ __pattern_search(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _Ra
                                                        _IsVector{});
                 },
                 /*_IsFirst=*/::std::true_type{});
-        });
-    }
+        }
+    });
 }
 
 //------------------------------------------------------------------------
@@ -1415,10 +1417,11 @@ __pattern_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
     using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     const _DifferenceType __n = __last - __first;
-    if (_DifferenceType(1) < __n)
-    {
-        __par_backend::__buffer<bool> __mask_buf(__n);
-        return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf]() {
+
+    return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf]() {
+        if (_DifferenceType(1) < __n)
+        {
+            __par_backend::__buffer<bool> __mask_buf(__n);
             bool* __mask = __mask_buf.get();
             _DifferenceType __m{};
             __par_backend::__parallel_strict_scan(
@@ -1436,10 +1439,10 @@ __pattern_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
                 },
                 [&__m](_DifferenceType __total) { __m = __total; });
             return __result + __m;
-        });
-    }
-    // trivial sequence - use serial algorithm
-    return __internal::__brick_copy_if(__first, __last, __result, __pred, _IsVector{});
+        }
+        // trivial sequence - use serial algorithm
+        return __internal::__brick_copy_if(__first, __last, __result, __pred, _IsVector{});
+    });
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
@@ -1664,18 +1667,22 @@ __pattern_unique(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _Ra
     {
         return __last;
     }
-    if (__first + 1 == __last || __first + 2 == __last)
-    {
-        // Trivial sequence - use serial algorithm
-        return __internal::__brick_unique(__first, __last, __pred, _IsVector{});
-    }
-    return __internal::__remove_elements(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec), ++__first, __last,
-        [&__pred](bool* __b, bool* __e, _RandomAccessIterator __it) {
-            __internal::__brick_walk3(
-                __b, __e, __it - 1, __it,
-                [&__pred](bool& __x, _ReferenceType __y, _ReferenceType __z) { __x = !__pred(__y, __z); }, _IsVector{});
-        });
+
+    return oneapi::dpl::__internal::__except_handler([&]() {
+        if (__first + 1 == __last || __first + 2 == __last)
+        {
+            // Trivial sequence - use serial algorithm
+            return __internal::__brick_unique(__first, __last, __pred, _IsVector{});
+        }
+        return __internal::__remove_elements(
+            __tag, ::std::forward<_ExecutionPolicy>(__exec), ++__first, __last,
+            [&__pred](bool* __b, bool* __e, _RandomAccessIterator __it) {
+                __internal::__brick_walk3(
+                    __b, __e, __it - 1, __it,
+                    [&__pred](bool& __x, _ReferenceType __y, _ReferenceType __z) { __x = !__pred(__y, __z); },
+                    _IsVector{});
+            });
+    });
 }
 
 //------------------------------------------------------------------------
@@ -1744,12 +1751,13 @@ __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
 
     using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     const _DifferenceType __n = __last - __first;
-    if (_DifferenceType(2) < __n)
-    {
-        __par_backend::__buffer<bool> __mask_buf(__n);
+
+    return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf]() {
         if (_DifferenceType(2) < __n)
         {
-            return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf]() {
+            __par_backend::__buffer<bool> __mask_buf(__n);
+            if (_DifferenceType(2) < __n)
+            {
                 bool* __mask = __mask_buf.get();
                 _DifferenceType __m{};
                 __par_backend::__parallel_strict_scan(
@@ -1778,11 +1786,11 @@ __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
                     },
                     [&__m](_DifferenceType __total) { __m = __total; });
                 return __result + __m;
-            });
+            }
         }
-    }
-    // trivial sequence - use serial algorithm
-    return __internal::__brick_unique_copy(__first, __last, __result, __pred, _IsVector{});
+        // trivial sequence - use serial algorithm
+        return __internal::__brick_unique_copy(__first, __last, __result, __pred, _IsVector{});
+    });
 }
 
 //------------------------------------------------------------------------
@@ -2000,10 +2008,12 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
     using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
     auto __n = __last - __first;
     auto __m = __middle - __first;
-    if (__m <= __n / 2)
+
+    return __internal::__except_handler([&__exec, __n, __m, __first, __middle, __last, &__buf]() 
     {
-        __par_backend::__buffer<_Tp> __buf(__n - __m);
-        return __internal::__except_handler([&__exec, __n, __m, __first, __middle, __last, &__buf]() {
+        if (__m <= __n / 2)
+        {
+            __par_backend::__buffer<_Tp> __buf(__n - __m);
             _Tp* __result = __buf.get();
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
                                           [__middle, __result](_RandomAccessIterator __b, _RandomAccessIterator __e) {
@@ -2024,12 +2034,11 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
                                           });
 
             return __first + (__last - __middle);
-        });
-    }
-    else
-    {
-        __par_backend::__buffer<_Tp> __buf(__m);
-        return __internal::__except_handler([&__exec, __n, __m, __first, __middle, __last, &__buf]() {
+        }
+        else
+        {
+            __par_backend::__buffer<_Tp> __buf(__m);
+
             _Tp* __result = __buf.get();
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
                                           [__first, __result](_RandomAccessIterator __b, _RandomAccessIterator __e) {
@@ -2050,8 +2059,8 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
                                           });
 
             return __first + (__last - __middle);
-        });
-    }
+        }
+    });
 }
 
 //------------------------------------------------------------------------
