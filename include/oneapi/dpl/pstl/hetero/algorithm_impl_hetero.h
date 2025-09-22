@@ -56,10 +56,13 @@ __pattern_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator>();
     auto __buf = __keep(__first, __last);
 
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n, __buf.all_view())
-        .__checked_deferrable_wait();
+    return __internal::__except_handler([&]() {
+        oneapi::dpl::__par_backend_hetero::__parallel_for(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+            unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
+            __buf.all_view())
+            .__checked_deferrable_wait();
+    });
 }
 
 //------------------------------------------------------------------------
@@ -631,9 +634,11 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
 
     using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred},
-        __par_backend_hetero::__parallel_or_tag{}, __size_calc{}, __buf.all_view());
+    return __internal::__except_handler([&]() {
+        return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred},
+            __par_backend_hetero::__parallel_or_tag{}, __size_calc{}, __buf.all_view());
+    });
 }
 
 //------------------------------------------------------------------------
