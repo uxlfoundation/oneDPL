@@ -46,9 +46,11 @@ __pattern_for_each(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _P
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
-                                             std::ranges::begin(__r) + std::ranges::size(__r),
-                                             oneapi::dpl::__internal::__unary_op<_Fun, _Proj>{__f, __proj});
+    oneapi::dpl::__internal::__except_handler([&]() {
+        oneapi::dpl::__internal::__pattern_walk1(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+                                                 std::ranges::begin(__r) + std::ranges::size(__r),
+                                                 oneapi::dpl::__internal::__unary_op<_Fun, _Proj>{__f, __proj});
+    });
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Fun, typename _Proj>
