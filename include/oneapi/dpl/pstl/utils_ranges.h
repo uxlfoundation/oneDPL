@@ -129,19 +129,39 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 namespace __ranges
 {
 
-struct __first_size_calc
+template <std::size_t _RngIndex>
+struct __eval_rng_size
 {
-    template <typename _Range, typename... _Ranges>
+  protected:
+    template <std::size_t _RngIndexCurrent, typename _Range, typename... _Ranges>
     auto
-    operator()(const _Range& __rng, const _Ranges&...) const
+    __eval_rng_size_impl(const _Range& __rng, const _Ranges&... __rngs) const
     {
+        if constexpr (_RngIndexCurrent == _RngIndex)
+        {
 #if _ONEDPL_CPP20_RANGES_PRESENT
-        return std::ranges::size(__rng);
+            return std::ranges::size(__rng);
 #else
-        return __rng.size();
+            return __rng.size();
 #endif
+        }
+        else
+        {
+            return __eval_rng_size_impl<_RngIndexCurrent + 1>(__rngs...);
+        }
+    }
+
+  public:
+    template <typename... _Ranges>
+    auto
+    operator()(const _Ranges&... __rngs) const
+    {
+        static_assert(_RngIndex < sizeof...(_Ranges));
+        return __eval_rng_size_impl<0>(__rngs...);
     }
 };
+
+using __first_size_calc = __eval_rng_size<0>;
 
 struct __min_size_calc
 {
