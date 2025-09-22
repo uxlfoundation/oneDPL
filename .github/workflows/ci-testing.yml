@@ -146,6 +146,25 @@ jobs:
             build_type: RelWithAsserts
             backend: omp
             device_type: HOST
+          - os: ubuntu-24.04-arm
+            cxx_compiler: g++
+            std: 17
+            build_type: release
+            backend: omp
+            device_type: HOST
+          - os: ubuntu-24.04-arm
+            cxx_compiler: g++
+            std: 17
+            build_type: release
+            backend: tbb
+            device_type: HOST
+          - os: ubuntu-24.04-arm
+            cxx_compiler: g++
+            std: 17
+            build_type: serial
+            backend: serial
+            device_type: HOST
+
     steps:
       - uses: actions/checkout@v4
       - name: Set up Intel APT repository
