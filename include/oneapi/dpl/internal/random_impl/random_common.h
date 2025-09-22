@@ -57,7 +57,7 @@ typedef union
 template <class _CharT, class _Traits>
 class save_stream_flags
 {
-    typedef ::std::basic_ios<_CharT, _Traits> __stream_type;
+    using __stream_type = std::basic_ios<_CharT, _Traits> __stream_type;
 
   public:
     save_stream_flags(const save_stream_flags&) = delete;
