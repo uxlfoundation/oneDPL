@@ -211,17 +211,21 @@ __pattern_any_of(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    return oneapi::dpl::__internal::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec),
-                                                     std::ranges::begin(__r),
-                                                     std::ranges::begin(__r) + std::ranges::size(__r),
-                                                     oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+    return __internal::__except_handler([&]() {
+        return oneapi::dpl::__internal::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                         std::ranges::begin(__r),
+                                                         std::ranges::begin(__r) + std::ranges::size(__r),
+                                                         oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+    });
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 bool
 __pattern_any_of(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    return std::ranges::any_of(std::forward<_R>(__r), __pred, __proj);
+    return __internal::__except_handler([&]() {
+        return std::ranges::any_of(std::forward<_R>(__r), __pred, __proj);
+    });
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -826,27 +830,29 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
 
-    // use serial algorithm
-    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
-        return std::ranges::set_union(__r1, __r2, std::begin(__out_r), __comp, __proj1, __proj2);
+    return __internal::__except_handler([&]() {
+        // use serial algorithm
+        if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+            return std::ranges::set_union(__r1, __r2, std::begin(__out_r), __comp, __proj1, __proj2);
 
-    auto __first1 = std::ranges::begin(__r1);
-    auto __last1 = __first1 + __n1;
-    auto __first2 = std::ranges::begin(__r2);
-    auto __last2 = __first2 + __n2;
-    auto __result = std::ranges::begin(__out_r);
+        auto __first1 = std::ranges::begin(__r1);
+        auto __last1 = __first1 + __n1;
+        auto __first2 = std::ranges::begin(__r2);
+        auto __last2 = __first2 + __n2;
+        auto __result = std::ranges::begin(__out_r);
 
-    auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
-        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-           _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-            return oneapi::dpl::__utils::__set_union_construct(
-                __first1, __last1, __first2, __last2, __result,
-                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
-        },
-        __comp, __proj1, __proj2);
+        auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+               _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+                return oneapi::dpl::__utils::__set_union_construct(
+                    __first1, __last1, __first2, __last2, __result,
+                    oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
+            },
+            __comp, __proj1, __proj2);
 
-    return {__first1 + __n1, __first2 + __n2, __result + (__out_last - __result)};
+        return {__first1 + __n1, __first2 + __n2, __result + (__out_last - __result)};
+    });
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1043,6 +1049,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     if (__n1 == 0)
         return {__first1, __result};
 
+    return __internal::__except_handler([&]() {        
     // {1} \ {}: parallel copying just first sequence
     if (__n2 == 0)
     {
@@ -1091,9 +1098,10 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return {__last1, __result + (__out_last - __result)};
     }
 
-    // use serial algorithm
+        // use serial algorithm
     return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
                                        __comp, __proj1, __proj2);
+    });
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1153,6 +1161,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
 
+    return __internal::__except_handler([&]() {    
     // use serial algorithm
     if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
         return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
@@ -1174,7 +1183,8 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
         },
         __comp, __proj1, __proj2);
 
-    return {__last1, __last2, __out_last};
+        return __pattern_set_symmetric_difference_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+    });
 }
 
 //---------------------------------------------------------------------------------------------------------------------
