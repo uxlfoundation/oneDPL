@@ -1471,6 +1471,7 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
 
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
+
     //optimization; {1} - the first sequence, {2} - the second sequence
     //{1} is empty or size_of{2} > size_of{1}
     if (__n1 == 0 || __n2 > __n1)
@@ -1479,18 +1480,16 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
     using __brick_include_type = unseq_backend::__brick_includes<decltype(__n1), decltype(__n2), _Compare,
                                                                  oneapi::dpl::identity, oneapi::dpl::identity>;
     using _TagType = __par_backend_hetero::__parallel_or_tag;
-    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__second_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep(__first1, __last1);
     auto __buf2 = __keep(__first2, __last2);
 
-    // We should pass __buf2, __buf1 (not __buf1, __buf2) into this call of __parallel_find_or
-    // because we using __first_size_calc as _SizeCalc inside
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         __brick_include_type{__n1, __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{}}, _TagType{},
-        __size_calc{}, __buf2.all_view(), __buf1.all_view());
+        __size_calc{}, __buf1.all_view(), __buf2.all_view());
 }
 
 //------------------------------------------------------------------------

@@ -973,14 +973,12 @@ __pattern_includes(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 
     using __brick_include_type = unseq_backend::__brick_includes<decltype(__n1), decltype(__n2), _Comp, _Proj1, _Proj2>;
     using _TagType = __par_backend_hetero::__parallel_or_tag;
-    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__second_size_calc;
 
-    // We should pass __r2, __r1 (not __r1, __r2) into this call of __parallel_find_or
-    // because we using __first_size_calc as _SizeCalc inside
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        __brick_include_type{__n1, __n2, __comp, __proj1, __proj2}, _TagType{}, __size_calc{}, std::forward<_R2>(__r2),
-        std::forward<_R1>(__r1));
+        __brick_include_type{__n1, __n2, __comp, __proj1, __proj2}, _TagType{}, __size_calc{}, std::forward<_R1>(__r1),
+        std::forward<_R2>(__r2));
 }
 
 //Dummy names to avoid kernel problems

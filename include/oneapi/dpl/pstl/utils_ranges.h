@@ -162,6 +162,7 @@ struct __eval_rng_size
 };
 
 using __first_size_calc = __eval_rng_size<0>;
+using __second_size_calc = __eval_rng_size<1>;
 
 struct __min_size_calc
 {
