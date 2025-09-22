@@ -400,9 +400,11 @@ __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& 
     using __or_tag = oneapi::dpl::__par_backend_hetero::__parallel_or_tag;
     using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, __or_tag{}, __size_calc{},
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
+    return __internal::__except_handler([&]() {
+        return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, __or_tag{}, __size_calc{},
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
+    });
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -412,8 +414,11 @@ __pattern_any_of(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
 {
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
-    return oneapi::dpl::__internal::__ranges::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec),
-                oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)), __pred_1);
+    return __internal::__except_handler([&]() {
+        return oneapi::dpl::__internal::__ranges::__pattern_any_of(
+            __tag, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_R>(__r)), __pred_1);
+    });
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
