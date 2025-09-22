@@ -54,6 +54,16 @@ main()
         test_submit_and_wait_on_group<call_select_before_submit, policy_t>(u, f, 2);
         test_submit_and_wait_on_group<call_select_before_submit, policy_t>(u, f, 3);
     }
+    catch (const std::exception& exc)
+    {
+        std::stringstream str;
+
+        str << "Exception occurred";
+        if (exc.what())
+            str << " : " << exc.what();
+
+        TestUtils::issue_error_message(str);
+    }
 
     return TestUtils::done();
 }
