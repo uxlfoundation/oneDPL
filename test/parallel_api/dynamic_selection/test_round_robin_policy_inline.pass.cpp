@@ -36,6 +36,16 @@ main()
         EXPECT_EQ(0, (test_submit_and_wait_on_group<just_call_submit, policy_t>(u, f)), "");
         EXPECT_EQ(0, (test_submit_and_wait_on_group<call_select_before_submit, policy_t>(u, f)), "");
     }
+    catch (const std::exception& exc)
+    {
+        std::stringstream str;
+
+        str << "Exception occurred";
+        if (exc.what())
+            str << " : " << exc.what();
+
+        TestUtils::issue_error_message(str);
+    }
 
     return TestUtils::done();
 }
