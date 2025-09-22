@@ -959,16 +959,16 @@ bool
 __pattern_includes(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp,
                    _Proj1 __proj1, _Proj2 __proj2)
 {
-    //according to the spec
-    if (std::ranges::empty(__r2))
-        return true;
-
     const auto __n1 = std::ranges::size(__r1);
     const auto __n2 = std::ranges::size(__r2);
 
+    //according to the spec
+    if (__n2 == 0)
+        return true;
+
     //optimization; {1} - the first sequence, {2} - the second sequence
     //{1} is empty or size_of{2} > size_of{1}
-    if (std::ranges::empty(__r1) || __n2 > __n1)
+    if (__n1 == 0 || __n2 > __n1)
         return false;
 
     using __brick_include_type = unseq_backend::__brick_includes<decltype(__n1), decltype(__n2), _Comp, _Proj1, _Proj2>;
