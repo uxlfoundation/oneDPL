@@ -1155,7 +1155,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
         },
         __comp, __proj1, __proj2);
 
-    return __set_symmetric_difference_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+    return {__last1, __last2, __out_last};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
