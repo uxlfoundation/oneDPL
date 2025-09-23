@@ -173,8 +173,6 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
     bool __rng1_idx_less_n1 = false;
     bool __rng2_idx_less_n2 = false;
 
-    oneapi::dpl::__internal::__binary_op<_Compare, _Proj2, _Proj1> __comp_2_rev{__comp, __proj2, __proj1};
-
     for (_Index __rng3_idx = __start3; __rng3_idx < __rng3_idx_end; ++__rng3_idx)
     {
         __rng1_idx_less_n1 = __rng1_idx < __rng1_idx_end;
@@ -187,7 +185,8 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
         {
             // This implementation is required for performance optimization
             __rng3[__rng3_idx] = (!__rng1_idx_less_n1 || (__rng1_idx_less_n1 && __rng2_idx_less_n2 &&
-                                                          __comp_2_rev(__rng2[__rng2_idx], __rng1[__rng1_idx])))
+                                                          std::invoke(__comp, std::invoke(__proj2, __rng2[__rng2_idx]),
+                                                                      std::invoke(__proj1, __rng1[__rng1_idx]))))
                                      ? __rng2[__rng2_idx++]
                                      : __rng1[__rng1_idx++];
         }
