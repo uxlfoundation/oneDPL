@@ -1154,7 +1154,7 @@ __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__binary_op __bin_pred{__pred, __proj1, __proj2};
+    oneapi::dpl::__internal::__binary_op __comp_2{__pred, __proj1, __proj2};
 
     return oneapi::dpl::__internal::__pattern_mismatch(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
