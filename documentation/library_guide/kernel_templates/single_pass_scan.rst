@@ -73,7 +73,8 @@ Parameters
 
 **Type Requirements**:
 
-- The element type of sequence to scan must be an 8-bit, 16-bit, 32-bit, 64-bit bit C++ integral or floating-point type.
+- The element type of sequence to scan must be an 8-bit, 16-bit, 32-bit, or 64-bit C++ integral or floating-point
+  type.
 - The result is non-deterministic if the binary operator is non-associative (such as in floating-point addition)
   or non-commutative.
 
@@ -185,14 +186,14 @@ Private Memory Requirements
 ---------------------------
 
 The implementation is most performant when all private memory is allocated to registers and does not spill into global memory scratch
-space reserved for the kernel. The amount of private memory used per work-group is approximately:
+space reserved for the kernel. The amount of private memory used per work-group is:
 
-V * W + :math:`\epsilon`
+V * W + ε
 
 where V is the number of bytes needed to store the input value type, W is ``param.workgroup_size``,
-and :math:`\epsilon` is the remaining private memory usage used by local variables and the binary operation which is
+and ε is the remaining private memory used by local variables and the binary operation which is
 expected to carry a small footprint in most common use cases. If the binary operation uses many registers, then the
-impact of :math:`\epsilon` may be more significant.
+impact of ε may be more significant.
 
 -----------------------------------------
 Recommended Settings for Best Performance
@@ -209,10 +210,10 @@ The initial configuration may be selected according to these high-level guidelin
   compute cores is key for better performance. To allow sufficient work to satisfy all
   X\ :sup:`e`-cores [#fnote2]_ on a GPU, use ``param.data_per_workitem * param.workgroup_size ≈ N / xe_core_count``.
 
-- For large inputs, maximizing ``param.workgroup_size`` and ``param.data_per_workitem`` without spilling out of register
-  memory results in best performance for large input sizes. The Intel® oneAPI DPC++/C++ Compiler reports warnings
-  when register spillage occurs when compiling ahead-of-time. This may be used alongside guidance provided in the
-  `oneAPI GPU Optimization Guide<https://www.intel.com/content/www/us/en/docs/oneapi/optimization-guide-gpu/2025-0/registers-and-performance.html>`_
+- For large inputs that fully saturate compute cores, maximizing ``param.workgroup_size`` and ``param.data_per_workitem``
+  without spilling out of register memory results in best performance. The Intel® oneAPI DPC++ Compiler reports warnings
+  when register spillage occurs. This may be used alongside guidance provided in the
+  `oneAPI GPU Optimization Guide <https://www.intel.com/content/www/us/en/docs/oneapi/optimization-guide-gpu/2025-0/registers-and-performance.html>`_
    and benchmarking parameter sweeps to determine performant kernel template parameters for your use case.
 
 - On devices with multiple tiles, it may prove beneficial to experiment with different tile hierarchies as described
