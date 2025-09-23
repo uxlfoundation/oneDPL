@@ -1022,14 +1022,14 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
-        return __set_difference_return_t<_R1, _OutRange>{__first1, __result};
+        return {__first1, __result};
 
     // {1} \ {}: parallel copying just first sequence
     if (__n2 == 0)
     {
         auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                 __result, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
-        return __set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
+        return {__last1, __out_last};
     }
 
     // testing  whether the sequences are intersected
@@ -1041,7 +1041,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     {
         auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                 __result, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
-        return __set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
+        return {__last1, __out_last};
     }
 
     // testing  whether the sequences are intersected
@@ -1054,7 +1054,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         auto __out_last =
             __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                               __result, __brick_copy<__parallel_tag<_IsVector>>{});
-        return __set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
+        return {__last1, __out_last};
     }
 
     if (__n1 + __n2 > __set_algo_cut_off)
