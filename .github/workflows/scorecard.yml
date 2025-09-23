@@ -72,7 +72,6 @@ jobs:
         with:
           results_file: results.sarif
           results_format: sarif
-          # repo_token: ${{ secrets.SCORECARD_TOKEN }}
           publish_results: true
 
       - name: "Wait before final retry"
@@ -88,11 +87,9 @@ jobs:
         with:
           results_file: results.sarif
           results_format: sarif
-          # repo_token: ${{ secrets.SCORECARD_TOKEN }}
           publish_results: true
 
-      - name: "Report success"
-        if: steps.scorecard_attempt_1.outcome == 'success' || steps.scorecard_attempt_2.outcome == 'success' || steps.scorecard_final.outcome == 'success'
+      - name: "Report status"
         run: |
           if [ "${{ steps.scorecard_attempt_1.outcome }}" == "success" ]; then
             echo "Scorecard analysis completed successfully on first attempt"
@@ -100,14 +97,10 @@ jobs:
             echo "Scorecard analysis completed successfully on second attempt"
           elif [ "${{ steps.scorecard_final.outcome }}" == "success" ]; then
             echo "Scorecard analysis completed successfully on final attempt"
+          else
+            echo "::error::All Scorecard attempts failed. Please try running the workflow again later."
+            exit 1
           fi
-          echo "Scorecard results have been generated and published."
-
-      - name: "Check if all attempts failed"
-        if: steps.scorecard_attempt_1.outcome == 'failure' && (steps.scorecard_attempt_2.outcome == 'failure' || steps.scorecard_attempt_2.outcome == 'skipped') && (steps.scorecard_final.outcome == 'failure' || steps.scorecard_final.outcome == 'skipped')
-        run: |
-          echo "::error::All Scorecard attempts failed. This may be due to GitHub API issues (502 Bad Gateway). Please try running the workflow again later."
-          exit 1
 
       # Upload the results as artifacts (optional). Commenting out will disable uploads of run results in SARIF
       # format to the repository Actions tab.
