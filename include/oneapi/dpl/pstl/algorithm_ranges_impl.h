@@ -962,8 +962,13 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 // set_difference
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _R1, typename _OutRange>
+using __set_difference_return_t =
+    std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                       std::ranges::borrowed_iterator_t<_OutRange>>;
+
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_difference_return_t<_R1, _OutRange>
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::false_type) noexcept
 {
@@ -972,7 +977,7 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_difference_return_t<_R1, _OutRange>
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::true_type) noexcept
 {
@@ -981,14 +986,9 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
                                        __comp, __proj1, __proj2);
 }
 
-template <typename _R1, typename _OutRange>
-using __pattern_set_difference_return_t =
-    std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                       std::ranges::borrowed_iterator_t<_OutRange>>;
-
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_difference_return_t<_R1, _OutRange>
+__set_difference_return_t<_R1, _OutRange>
 __pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                          _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1000,7 +1000,7 @@ __pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_difference_return_t<_R1, _OutRange>
+__set_difference_return_t<_R1, _OutRange>
 __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1023,14 +1023,14 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
-        return __pattern_set_difference_return_t<_R1, _OutRange>{__first1, __result};
+        return __set_difference_return_t<_R1, _OutRange>{__first1, __result};
 
     // {1} \ {}: parallel copying just first sequence
     if (__n2 == 0)
     {
         auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                 __result, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
-        return __pattern_set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
+        return __set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
     }
 
     // testing  whether the sequences are intersected
@@ -1042,7 +1042,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     {
         auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                 __result, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
-        return __pattern_set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
+        return __set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
     }
 
     // testing  whether the sequences are intersected
@@ -1055,7 +1055,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         auto __out_last =
             __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                               __result, __brick_copy<__parallel_tag<_IsVector>>{});
-        return __pattern_set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
+        return __set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
     }
 
     if (__n1 + __n2 > __set_algo_cut_off)
@@ -1070,7 +1070,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                                                                         __proj1, __proj2);
             },
             __comp, __proj1, __proj2);
-        return __pattern_set_difference_return_t<_R1, _OutRange>{__last1, __result + (__out_last - __result)};
+        return __set_difference_return_t<_R1, _OutRange>{__last1, __result + (__out_last - __result)};
     }
 
     // use serial algorithm
