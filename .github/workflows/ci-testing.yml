@@ -178,7 +178,12 @@ jobs:
       - name: Install Intel® oneAPI Threading Building Blocks
         if: (matrix.backend == 'tbb' || matrix.backend == 'dpcpp')
         run: |
-          sudo apt-get install intel-oneapi-tbb-devel -y
+          if [[ "${{ matrix.os }}" =~ "-arm" ]]; then
+            # oneAPI TBB package is not available for ARM architecture
+            sudo apt-get install libtbb-dev -y
+          else
+            sudo apt-get install intel-oneapi-tbb-devel -y
+          fi
       - name: Install Intel® oneAPI DPC++/C++ Compiler
         if: (matrix.device_type != 'FPGA_EMU' &&
               (matrix.cxx_compiler == 'icpx'  ||
