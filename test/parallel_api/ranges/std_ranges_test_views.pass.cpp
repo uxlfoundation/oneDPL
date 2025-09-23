@@ -71,8 +71,10 @@ test_impl_hetero(Policy&& exec)
     //take view
     test_range_algo<2>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), std::views::take(n/2), dpl_ranges::count_if, std::ranges::count_if, pred, proj);
 
+#if !_PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN
     //drop view
     test_range_algo<3>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), std::views::drop(n/2), dpl_ranges::count_if, std::ranges::count_if, pred, proj);
+#endif
 
     //NOTICE: std::ranges::views::all, std::ranges::subrange, std::span are tested implicitly within the 'test_range_algo' test engine.
 }
