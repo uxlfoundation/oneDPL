@@ -151,9 +151,9 @@ The algorithm uses global, local, and private device memory (see `SYCL 2020 Spec
 <https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#_sycl_device_memory_model>`__)
 for intermediate data storage. For the algorithm to operate correctly, there must be enough memory on the device.
 If there is not enough global device memory, a ``std::bad_alloc`` exception is thrown.
-The behavior is undefined if there is not enough local memory. If there is insufficient private register memory with
-the provided kernel parameters, then algorithmic performance will degrade. The amount of memory that is required
-depends on input data and configuration parameters, as described below.
+The behavior is undefined if there is not enough local memory. If there is insufficient private register memory, then
+algorithmic performance will degrade. The amount of memory that is required depends on input data and configuration
+parameters, as described below.
 
 Global Memory Requirements
 --------------------------
