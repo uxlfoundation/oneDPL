@@ -186,14 +186,10 @@ Private Memory Requirements
 ---------------------------
 
 The implementation is most performant when all private memory is allocated to registers and does not spill into global memory scratch
-space reserved for the kernel. The amount of private memory used per work-group is:
-
-V * W + ε
-
-where V is the number of bytes needed to store the input value type, W is ``param.workgroup_size``,
-and ε is the remaining private memory used by local variables and the binary operation which is
-expected to carry a small footprint in most common use cases. If the binary operation uses many registers, then the
-impact of ε may be more significant.
+space reserved for the kernel. The amount of private memory used per work-group is ``V * W + ε`` where V is the number
+of bytes needed to store the input value type, W is ``param.workgroup_size``, and ε is the remaining private memory
+used by local variables and the binary operation. ε is expected to carry a small footprint in most common use cases.
+If the binary operation uses many registers, then the impact of ε may be of greater significance.
 
 -----------------------------------------
 Recommended Settings for Best Performance
