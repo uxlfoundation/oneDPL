@@ -2959,8 +2959,6 @@ std::pair<_Iterator1, _Iterator2>
 __serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterator2 __y_e, _Iterator3 __out_b,
                        _Iterator3 __out_e, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj1> __comp_2_rev{__comp, __proj2, __proj1};
-
     for (_Iterator3 __k = __out_b; __k != __out_e; ++__k)
     {
         if (__x == __x_e)
@@ -2975,7 +2973,7 @@ __serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterat
             *__k = *__x;
             ++__x;
         }
-        else if (__comp_2_rev(*__y, *__x))
+        else if (std::invoke(__comp, std::invoke(__proj2, *__y), std::invoke(__proj1, *__x)))
         {
             *__k = *__y;
             ++__y;
