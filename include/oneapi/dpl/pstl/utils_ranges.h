@@ -169,18 +169,14 @@ using __second_size_calc = __nth_range_size<1>;
 struct __min_size_calc
 {
     template <typename... _Ranges>
-    using _ResultType = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
-
-    template <typename... _Ranges>
     auto
     operator()(const _Ranges&... __rngs) const
     {
-        using __result_t = _ResultType<_Ranges...>;
-
+        using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
 #if _ONEDPL_CPP20_RANGES_PRESENT
-        return std::min({__result_t(std::ranges::size(__rngs))...});
+        return std::min({_Size(std::ranges::size(__rngs))...});
 #else
-        return std::min({__result_t(__rngs.size())...});
+        return std::min({_Size(__rngs.size())...});
 #endif
     }
 };
