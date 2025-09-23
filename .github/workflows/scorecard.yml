@@ -36,8 +36,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: "Run analysis"
+      - name: "Scorecard Analysis (Attempt 1/3) - Retries on API errors"
+        id: scorecard_attempt_1
         uses: ossf/scorecard-action@0864cf19026789058feabb7e87baa5f140aac736 # v2.3.1
+        continue-on-error: true
         with:
           results_file: results.sarif
           results_format: sarif
@@ -55,6 +57,57 @@ jobs:
           #   - `publish_results` will always be set to `false`, regardless
           #     of the value entered here.
           publish_results: true
+
+      - name: "Wait before retry"
+        if: steps.scorecard_attempt_1.outcome == 'failure'
+        run: |
+          echo "First attempt failed, waiting 60 seconds before retry..."
+          sleep 60
+
+      - name: "Scorecard Analysis (Attempt 2/3) - Retry after API failure"
+        id: scorecard_attempt_2
+        if: steps.scorecard_attempt_1.outcome == 'failure'
+        uses: ossf/scorecard-action@0864cf19026789058feabb7e87baa5f140aac736 # v2.3.1
+        continue-on-error: true
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # repo_token: ${{ secrets.SCORECARD_TOKEN }}
+          publish_results: true
+
+      - name: "Wait before final retry"
+        if: steps.scorecard_attempt_1.outcome == 'failure' && steps.scorecard_attempt_2.outcome == 'failure'
+        run: |
+          echo "Second attempt failed, waiting 120 seconds before final retry..."
+          sleep 120
+
+      - name: "Scorecard Analysis (Final Attempt 3/3)"
+        id: scorecard_final
+        if: steps.scorecard_attempt_1.outcome == 'failure' && steps.scorecard_attempt_2.outcome == 'failure'
+        uses: ossf/scorecard-action@0864cf19026789058feabb7e87baa5f140aac736 # v2.3.1
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # repo_token: ${{ secrets.SCORECARD_TOKEN }}
+          publish_results: true
+
+      - name: "Report success"
+        if: steps.scorecard_attempt_1.outcome == 'success' || steps.scorecard_attempt_2.outcome == 'success' || steps.scorecard_final.outcome == 'success'
+        run: |
+          if [ "${{ steps.scorecard_attempt_1.outcome }}" == "success" ]; then
+            echo "Scorecard analysis completed successfully on first attempt"
+          elif [ "${{ steps.scorecard_attempt_2.outcome }}" == "success" ]; then
+            echo "Scorecard analysis completed successfully on second attempt"
+          elif [ "${{ steps.scorecard_final.outcome }}" == "success" ]; then
+            echo "Scorecard analysis completed successfully on final attempt"
+          fi
+          echo "Scorecard results have been generated and published."
+
+      - name: "Check if all attempts failed"
+        if: steps.scorecard_attempt_1.outcome == 'failure' && (steps.scorecard_attempt_2.outcome == 'failure' || steps.scorecard_attempt_2.outcome == 'skipped') && (steps.scorecard_final.outcome == 'failure' || steps.scorecard_final.outcome == 'skipped')
+        run: |
+          echo "::error::All Scorecard attempts failed. This may be due to GitHub API issues (502 Bad Gateway). Please try running the workflow again later."
+          exit 1
 
       # Upload the results as artifacts (optional). Commenting out will disable uploads of run results in SARIF
       # format to the repository Actions tab.
