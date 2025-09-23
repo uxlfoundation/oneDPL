@@ -37,7 +37,7 @@ template <typename InputIterator, typename OutputIterator, typename Size>
 bool
 IsCheckValueCorrectness(InputIterator first1, OutputIterator first2, Size n)
 {
-    for (Size i = 0; i < n; ++i, ++first1, ++first2)
+    for (Size i = 0; i < n; ++i, ++first1, (void) ++first2)
     {
         if (*first1 != *first2)
         {

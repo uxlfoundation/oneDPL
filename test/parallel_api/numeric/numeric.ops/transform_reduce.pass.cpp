@@ -19,6 +19,7 @@
 #include _PSTL_TEST_HEADER(numeric)
 
 #include "support/utils.h"
+#include "support/utils_device_copyable.h"
 
 using namespace TestUtils;
 
@@ -70,9 +71,9 @@ class MyClass
 
 template <typename T>
 void
-CheckResults(const T& expected, const T& in, const char* msg)
+CheckResults(T expected, T in, const char* msg)
 {
-    EXPECT_TRUE(Equal(expected, in), msg);
+    EXPECT_TRUE(Equal(std::move(expected), std::move(in)), msg);
 }
 
 // We need to check correctness only for "int" (for example) except cases
@@ -104,11 +105,11 @@ struct test_3_iters_custom_ops
               typename BinaryOperation2>
     void
     operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 /* last2 */,
-               T init, BinaryOperation1 opB1, BinaryOperation2 opB2)
+               T init1, T init2, BinaryOperation1 opB1, BinaryOperation2 opB2)
     {
-        auto expectedB = ::std::inner_product(first1, last1, first2, init, opB1, opB2);
-        T resRA = std::transform_reduce(std::forward<Policy>(exec), first1, last1, first2, init, opB1, opB2);
-        CheckResults(expectedB, resRA, "wrong result with tranform_reduce (3 iterators, custom predicates)");
+        auto expectedB = ::std::inner_product(first1, last1, first2, std::move(init1), opB1, opB2);
+        T resRA = std::transform_reduce(std::forward<Policy>(exec), first1, last1, first2, std::move(init2), opB1, opB2);
+        CheckResults(std::move(expectedB), std::move(resRA), "wrong result with tranform_reduce (3 iterators, custom predicates)");
     }
 };
 
@@ -118,11 +119,11 @@ struct test_2_iters
     template <typename Policy, typename InputIterator1, typename T, typename BinaryOperation,
               typename UnaryOp>
     void
-    operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, T init, BinaryOperation opB, UnaryOp opU)
+    operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, T init1, T init2, BinaryOperation opB, UnaryOp opU)
     {
-        auto expectedU = transform_reduce_serial(first1, last1, init, opB, opU);
-        T resRA = std::transform_reduce(std::forward<Policy>(exec), first1, last1, init, opB, opU);
-        CheckResults(expectedU, resRA, "wrong result with tranform_reduce (2 iterators)");
+        auto expectedU = transform_reduce_serial(first1, last1, std::move(init1), opB, opU);
+        T resRA = std::transform_reduce(std::forward<Policy>(exec), first1, last1, std::move(init2), opB, opU);
+        CheckResults(std::move(expectedU), std::move(resRA), "wrong result with tranform_reduce (2 iterators)");
     }
 };
 
@@ -137,16 +138,43 @@ test_by_type(T init, BinaryOperation1 opB1, BinaryOperation2 opB2, UnaryOp opU, 
     for (::std::size_t n = 0; n < maxSize; n = n < 16 ? n + 1 : size_t(3.1415 * n))
     {
         invoke_on_all_policies<0>()(test_3_iters_custom_ops<T>(), in1.begin(), in1.begin() + n,
-                                    in2.begin(), in2.begin() + n, init, opB1, opB2);
-        invoke_on_all_policies<1>()(test_2_iters<T>(), in1.begin(), in1.begin() + n, init, opB1, opU);
+                                    in2.begin(), in2.begin() + n, init, init, opB1, opB2);
+        invoke_on_all_policies<1>()(test_2_iters<T>(), in1.begin(), in1.begin() + n, init, init, opB1, opU);
 #if !ONEDPL_FPGA_DEVICE
         invoke_on_all_policies<2>()(test_3_iters_default_ops<T>(), in1.begin(), in1.begin() + n,
                                     in2.begin(), in2.begin() + n, init);
 
         invoke_on_all_policies<3>()(test_3_iters_custom_ops<T>(), in1.cbegin(), in1.cbegin() + n,
-                                    in2.cbegin(), in2.cbegin() + n, init, opB1, opB2);
-        invoke_on_all_policies<4>()(test_2_iters<T>(), in1.cbegin(), in1.cbegin() + n, init, opB1, opU);
+                                    in2.cbegin(), in2.cbegin() + n, init, init, opB1, opB2);
+        invoke_on_all_policies<4>()(test_2_iters<T>(), in1.cbegin(), in1.cbegin() + n, init, init, opB1, opU);
 #endif
+        if constexpr (std::is_same_v<BinaryOperation1, std::plus<T>>)
+        {
+            if constexpr (std::is_same_v<BinaryOperation2, std::multiplies<T>>)
+            {
+                invoke_on_all_policies<5>()(
+                    test_3_iters_custom_ops<NoDefaultCtorWrapper<T>>(), in1.begin(), in1.begin() + n, in2.begin(),
+                    in2.begin() + n, NoDefaultCtorWrapper<T>{init}, NoDefaultCtorWrapper<T>{init},
+                    std::plus<NoDefaultCtorWrapper<T>>{}, std::multiplies<NoDefaultCtorWrapper<T>>{});
+
+                iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/std::false_type>()(
+                    oneapi::dpl::execution::par_unseq, test_3_iters_custom_ops<T>(), in1.begin(), in1.begin() + n,
+                    in2.begin(), in2.begin() + n, MoveOnlyWrapper<T>{init}, MoveOnlyWrapper<T>{init},
+                    std::plus<MoveOnlyWrapper<T>>{}, std::multiplies<MoveOnlyWrapper<T>>{});
+            }
+            if constexpr (std::is_same_v<UnaryOp, std::negate<T>>)
+            {
+                invoke_on_all_policies<5>()(test_2_iters<NoDefaultCtorWrapper<T>>(), in1.begin(), in1.begin() + n,
+                                            NoDefaultCtorWrapper<T>{init}, NoDefaultCtorWrapper<T>{init},
+                                            std::plus<NoDefaultCtorWrapper<T>>{},
+                                            std::negate<NoDefaultCtorWrapper<T>>{});
+
+                iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/std::false_type>()(
+                    oneapi::dpl::execution::par_unseq, test_2_iters<T>(), in1.begin(), in1.begin() + n,
+                    MoveOnlyWrapper<T>{init}, MoveOnlyWrapper<T>{init}, std::plus<MoveOnlyWrapper<T>>{},
+                    std::negate<MoveOnlyWrapper<T>>{});
+            }
+        }
     }
 }
 

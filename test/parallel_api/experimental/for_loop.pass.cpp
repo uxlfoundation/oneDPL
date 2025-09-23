@@ -139,7 +139,7 @@ test_body_for_loop_strided_n(Policy&& exec, Iterator first, Iterator /* last */,
     std::experimental::for_loop_n_strided(std::forward<Policy>(exec), first, num_iters, loop_stride, [&flip](Iterator iter) { flip(*iter); });
 
     size_t idx = 0;
-    for (auto iter = expected_first; iter != expected_last; ++iter, ++idx)
+    for (auto iter = expected_first; iter != expected_last; ++iter, (void) ++idx)
     {
         if (idx % loop_stride != 0)
             continue;
@@ -166,7 +166,7 @@ test_body_for_loop_strided_integral(Policy&& exec, Iterator first, Iterator /* l
     });
 
     size_t idx = 0;
-    for (auto iter = expected_first; iter != expected_last; ++iter, ++idx)
+    for (auto iter = expected_first; iter != expected_last; ++iter, (void) ++idx)
     {
         if (idx % loop_stride != 0)
             continue;
@@ -207,7 +207,7 @@ test_body_for_loop_strided_n_integral(Policy&& exec, Iterator first, Iterator /*
     });
 
     size_t idx = 0;
-    for (auto iter = expected_first; iter != expected_last; ++iter, ++idx)
+    for (auto iter = expected_first; iter != expected_last; ++iter, (void) ++idx)
     {
         if (idx % loop_stride_abs != 0)
             continue;

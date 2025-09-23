@@ -134,11 +134,10 @@ __pattern_walk2_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _F
 // swap
 //------------------------------------------------------------------------
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _Function>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2>
 _ForwardIterator2
 __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
-               _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __f)
+               _ForwardIterator1 __last1, _ForwardIterator2 __first2)
 {
     const auto __n = __last1 - __first1;
     if (__n == 0)
@@ -152,9 +151,10 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator2>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
+    using _Function = oneapi::dpl::__internal::__swap_fn;
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::__brick_swap<_Function>{__f, static_cast<std::size_t>(__n)}, __n, __buf1.all_view(),
+        unseq_backend::__brick_swap<_Function>{_Function{}, static_cast<std::size_t>(__n)}, __n, __buf1.all_view(),
         __buf2.all_view());
     __future.wait(__par_backend_hetero::__deferrable_mode{});
     return __first2 + __n;
@@ -1233,7 +1233,8 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
         auto __buf3 = __keep3(__d_first, __d_first + __n);
 
         __par_backend_hetero::__parallel_merge(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-                                               __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp)
+                                               __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp,
+                                               oneapi::dpl::identity{}, oneapi::dpl::identity{})
             .__checked_deferrable_wait();
     }
     return __d_first + __n;
@@ -1470,22 +1471,25 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Forwar
 
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
+
     //optimization; {1} - the first sequence, {2} - the second sequence
     //{1} is empty or size_of{2} > size_of{1}
     if (__n1 == 0 || __n2 > __n1)
         return false;
 
-    using __brick_include_type = unseq_backend::__brick_includes<_Compare, decltype(__n1), decltype(__n2)>;
+    using __brick_include_type = unseq_backend::__brick_includes<decltype(__n1), decltype(__n2), _Compare,
+                                                                 oneapi::dpl::identity, oneapi::dpl::identity>;
     using _TagType = __par_backend_hetero::__parallel_or_tag;
-    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
+    using __size_calc = oneapi::dpl::__ranges::__second_size_calc;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep(__first1, __last1);
     auto __buf2 = __keep(__first2, __last2);
 
-    return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                                  __brick_include_type{__comp, __n1, __n2}, _TagType{},
-                                                                  __size_calc{}, __buf2.all_view(), __buf1.all_view());
+    return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        __brick_include_type{__n1, __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{}}, _TagType{},
+        __size_calc{}, __buf1.all_view(), __buf2.all_view());
 }
 
 //------------------------------------------------------------------------
@@ -1762,21 +1766,26 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bid
     return __result + __n;
 }
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _OutputIterator, typename _Compare, typename _SetTag>
+template <typename _BackendTag, typename _SetTag, typename _ExecutionPolicy, typename _ForwardIterator1,
+          typename _ForwardIterator2, typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
-__pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
-                        _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator2 __last2,
-                        _OutputIterator __result, _Compare __comp, _SetTag __set_tag)
+__pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _ExecutionPolicy&& __exec,
+                        _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+                        _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
+                        _Proj2 __proj2)
 {
-    typedef typename std::iterator_traits<_ForwardIterator1>::difference_type _Size1;
+    using _SizeType = std::common_type_t<typename std::iterator_traits<_ForwardIterator1>::difference_type,
+                                         typename std::iterator_traits<_ForwardIterator2>::difference_type>;
 
-    const _Size1 __n1 = std::distance(__first1, __last1);
-    _Size1 __output_size = __n1;
-    if constexpr (_SetTag::__can_write_from_rng2_v)
+    const _SizeType __n1 = std::distance(__first1, __last1);
+    const _SizeType __n2 = std::distance(__first2, __last2);
+
+    // For Difference and Intersection, the most we can write is the size of set A
+    _SizeType __output_size = __n1;
+    if constexpr (std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_UnionTag> ||
+                  std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag>)
     {
-        const _Size1 __n2 = std::distance(__first2, __last2);
-        // one shot algorithm can write from set 1 or set 2, whereas old algorithm can only write from set 1.
+        // For Union and Symmetric Difference, the most we can write is all input elements (when fully disjoint).
         __output_size = __n1 + __n2;
     }
 
@@ -1790,18 +1799,12 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _F
     auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _OutputIterator>();
     auto __buf3 = __keep3(__result, __result + __output_size);
 
-    auto __result_size = __par_backend_hetero::__parallel_set_op(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                                 __buf1.all_view(), __buf2.all_view(),
-                                                                 __buf3.all_view(), __comp, __set_tag)
-                             .get();
+    _SizeType __result_size = __par_backend_hetero::__parallel_set_op<_SetTag>(
+        _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
+        __buf3.all_view(), __comp, __proj1, __proj2);
 
     return __result + __result_size;
 }
-
-template <typename Name>
-struct __set_intersection_scan_then_propagate
-{
-};
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _OutputIterator, typename _Compare>
@@ -1813,26 +1816,14 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     // intersection is empty
     if (__first1 == __last1 || __first2 == __last2)
         return __result;
-    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
-    {
-        return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                       __last2, __result, __comp, unseq_backend::_IntersectionTag<std::true_type>());
-    }
-    return __pattern_hetero_set_op(
-        __tag,
-        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_intersection_scan_then_propagate>(
-            std::forward<_ExecutionPolicy>(__exec)),
-        __first1, __last1, __first2, __last2, __result, __comp, unseq_backend::_IntersectionTag<std::false_type>());
+    return __pattern_hetero_set_op(__tag, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                   __first1, __last1, __first2, __last2, __result, __comp, oneapi::dpl::identity{},
+                                   oneapi::dpl::identity{});
 }
 
 //Dummy names to avoid kernel problems
 template <typename Name>
 struct __set_difference_copy_case_1
-{
-};
-
-template <typename Name>
-struct __set_difference_scan_then_propagate
 {
 };
 
@@ -1856,19 +1847,9 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
-    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
-    {
-        return __pattern_hetero_set_op(
-            __tag,
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_difference_scan_then_propagate>(
-                std::forward<_ExecutionPolicy>(__exec)),
-            __first1, __last1, __first2, __last2, __result, __comp, unseq_backend::_DifferenceTag<std::true_type>());
-    }
-    else
-    {
-        return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                       __last2, __result, __comp, unseq_backend::_DifferenceTag<std::false_type>());
-    }
+    return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_DifferenceTag{},
+                                   std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+                                   __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1879,11 +1860,6 @@ struct __set_union_copy_case_1
 
 template <typename Name>
 struct __set_union_copy_case_2
-{
-};
-
-template <typename Name>
-struct __set_union_scan_then_propagate
 {
 };
 
@@ -1917,34 +1893,9 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
 
-    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
-    {
-        return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                       __last2, __result, __comp, unseq_backend::_UnionTag<std::true_type>());
-    }
-    else
-    {
-        using _ValueType = typename std::iterator_traits<_OutputIterator>::value_type;
-
-        // temporary buffer to store intermediate result
-        const auto __n2 = __last2 - __first2;
-        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
-        auto __buf = __diff.get();
-
-        //1. Calc difference {2} \ {1}
-        const auto __n_diff =
-            oneapi::dpl::__internal::__pattern_hetero_set_op(
-                __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_scan_then_propagate>(__exec),
-                __first2, __last2, __first1, __last1, __buf, __comp, unseq_backend::_DifferenceTag<std::false_type>()) -
-            __buf;
-
-        //2. Merge {1} and the difference
-        return oneapi::dpl::__internal::__pattern_merge(
-            __tag,
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_union_copy_case_2>(
-                std::forward<_ExecutionPolicy>(__exec)),
-            __first1, __last1, __buf, __buf + __n_diff, __result, __comp);
-    }
+    return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_UnionTag{},
+                                   std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+                                   __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1955,16 +1906,6 @@ struct __set_symmetric_difference_copy_case_1
 
 template <typename Name>
 struct __set_symmetric_difference_copy_case_2
-{
-};
-
-template <typename Name>
-struct __set_symmetric_difference_phase_1
-{
-};
-
-template <typename Name>
-struct __set_symmetric_difference_phase_2
 {
 };
 
@@ -2004,48 +1945,9 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
-
-    if (__par_backend_hetero::__can_set_op_write_from_set_b(_BackendTag{}, __exec))
-    {
-        return __pattern_hetero_set_op(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                       __last2, __result, __comp,
-                                       unseq_backend::_SymmetricDifferenceTag<std::true_type>());
-    }
-    else
-    {
-        typedef typename std::iterator_traits<_OutputIterator>::value_type _ValueType;
-
-        // temporary buffers to store intermediate result
-        const auto __n1 = __last1 - __first1;
-        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_1(__n1);
-        auto __buf_1 = __diff_1.get();
-        const auto __n2 = __last2 - __first2;
-        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_2(__n2);
-        auto __buf_2 = __diff_2.get();
-
-        //1. Calc difference {1} \ {2}
-        const auto __n_diff_1 =
-            oneapi::dpl::__internal::__pattern_hetero_set_op(
-                __tag,
-                oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_phase_1>(__exec),
-                __first1, __last1, __first2, __last2, __buf_1, __comp,
-                unseq_backend::_DifferenceTag<std::false_type>()) -
-            __buf_1;
-
-        //2. Calc difference {2} \ {1}
-        const auto __n_diff_2 =
-            oneapi::dpl::__internal::__pattern_hetero_set_op(
-                __tag,
-                oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__set_symmetric_difference_phase_2>(__exec),
-                __first2, __last2, __first1, __last1, __buf_2, __comp,
-                unseq_backend::_DifferenceTag<std::false_type>()) -
-            __buf_2;
-
-        //3. Merge the differences
-        return oneapi::dpl::__internal::__pattern_merge(__tag, std::forward<_ExecutionPolicy>(__exec), __buf_1,
-                                                        __buf_1 + __n_diff_1, __buf_2, __buf_2 + __n_diff_2, __result,
-                                                        __comp);
-    }
+    return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{},
+                                   std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+                                   __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 template <typename _Name>
@@ -2181,11 +2083,12 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 }
 
 template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
-          typename _OutputIterator, typename _T, typename _BinaryPredicate, typename _Operator, typename _Inclusive>
+          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive,
+          typename _InitType>
 _OutputIterator
-__pattern_scan_by_segment(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputIterator1 __first1,
-                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result, _T __init,
-                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive)
+__pattern_scan_by_segment_impl(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputIterator1 __first1,
+                               _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
+                               _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive, _InitType __init)
 {
     const auto __n = std::distance(__first1, __last1);
 
@@ -2202,17 +2105,34 @@ __pattern_scan_by_segment(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputI
     auto __keep_value_outputs =
         oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write, _OutputIterator>();
     auto __value_output_buf = __keep_value_outputs(__result, __result + __n);
-    using _IterValueType = typename std::iterator_traits<_InputIterator2>::value_type;
-
-    // Currently, this pattern requires a known identity for the binary operator.
-    static_assert(unseq_backend::__has_known_identity<_Operator, _IterValueType>::value,
-                  "Calls to __pattern_scan_by_segment require a known identity for the provided binary operator");
-    constexpr _IterValueType __identity = unseq_backend::__known_identity<_Operator, _IterValueType>;
 
     __bknd::__parallel_scan_by_segment<_Inclusive::value>(
         _BackendTag{}, std::forward<_Policy>(__policy), __key_buf.all_view(), __value_buf.all_view(),
-        __value_output_buf.all_view(), __binary_pred, __binary_op, __init, __identity);
+        __value_output_buf.all_view(), __binary_pred, __binary_op, __init);
     return __result + __n;
+}
+
+template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
+          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive, typename _T>
+_OutputIterator
+__pattern_scan_by_segment(__hetero_tag<_BackendTag> __tag, _Policy&& __policy, _InputIterator1 __first1,
+                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
+                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive __is_inclusive, _T __init)
+{
+    return __pattern_scan_by_segment_impl(__tag, std::forward<_Policy>(__policy), __first1, __last1, __first2, __result,
+                                          __binary_pred, __binary_op, __is_inclusive,
+                                          unseq_backend::__init_value<_T>{__init});
+}
+
+template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
+          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive>
+_OutputIterator
+__pattern_scan_by_segment(__hetero_tag<_BackendTag> __tag, _Policy&& __policy, _InputIterator1 __first1,
+                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
+                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive __is_inclusive)
+{
+    return __pattern_scan_by_segment_impl(__tag, std::forward<_Policy>(__policy), __first1, __last1, __first2, __result,
+                                          __binary_pred, __binary_op, __is_inclusive, unseq_backend::__no_init_value{});
 }
 
 } // namespace __internal

@@ -13,16 +13,20 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef _STD_RANGES_TEST_H
+#define _STD_RANGES_TEST_H
+
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/algorithm>
 
 #include "support/test_config.h"
 #include "support/test_macros.h"
 #include "support/utils.h"
+#include "support/utils_invoke.h"       // for CLONE_TEST_POLICY macro
 
 #if _ENABLE_STD_RANGES_TESTING
 
-static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202505L);
+static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L);
 
 #if TEST_CPP20_SPAN_PRESENT
 #include <span>
@@ -38,6 +42,10 @@ static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202505L);
 
 namespace test_std_ranges
 {
+
+// To suppress dangling iterator checks for some tests
+template <typename>
+constexpr bool supress_dangling_iterators_check = false;
 
 // The largest specializations of algorithms with device policies handle 16M+ elements.
 inline constexpr int big_size = (1<<24) + 10; //16M
@@ -73,12 +81,18 @@ auto f = [](auto&& val) { return val * val; };
 auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
 auto proj = [](auto&& val){ return val * 2; };
 auto pred = [](auto&& val) { return val == 5; };
+
 auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
 auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
 
 auto pred1 = [](auto&& val) -> bool { return val > 0; };
 auto pred2 = [](auto&& val) -> bool { return val == 4; };
 auto pred3 = [](auto&& val) -> bool { return val < 0; };
+
+auto mul1 = [](auto&& v) { return v; };
+using mul1_t = decltype(mul1);
+auto div3 = [](auto&& v) { return v / 3; };
+using div3_t = decltype(div3);
 
 struct P2
 {
@@ -91,6 +105,20 @@ struct P2
     friend bool operator==(const P2& a, const P2& b) { return a.x == b.x && a.y == b.y; }
 };
 
+struct A
+{
+    int a;
+    operator int() const { return a; }
+};
+
+struct B
+{
+    int b;
+    operator int() const { return b; }
+};
+
+auto proj_a = [](const A& a) { return a.a; };
+auto proj_b = [](const B& b) { return b.b; };
 
 // These are copies of __range_size and __range_size_t utilities from oneDPL
 // to get a size type of a range be it sized or not
@@ -162,8 +190,56 @@ constexpr int trivial_size{0};
 template<typename>
 constexpr int calc_res_size(int n, int) { return n; }
 
+// If in1 range is empty, then the out range is always empty
+// Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union test.
+template<typename>
+int out_size_with_empty_in1(int) { return 0; };
+
+// If in2 range is empty, then the out range is always empty
+// Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union test.
+template<typename>
+int out_size_with_empty_in2(int) { return 0; };
+
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
-auto data_gen_zero = [](auto) { return 0;};
+auto data_gen_unprocessed = [](auto) { return -1;};
+
+template <typename _ReturnType>
+struct all_dangling_in_result : std::false_type
+{
+};
+
+template <>
+struct all_dangling_in_result<std::ranges::dangling> : std::true_type
+{
+};
+
+template <>
+struct all_dangling_in_result<std::ranges::in_in_result<std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <>
+struct all_dangling_in_result<std::ranges::in_out_result<std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <>
+struct all_dangling_in_result<std::ranges::in_in_out_result<std::ranges::dangling, std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <>
+struct all_dangling_in_result<std::ranges::in_out_out_result<std::ranges::dangling, std::ranges::dangling, std::ranges::dangling>> : std::true_type
+{
+};
+
+template <>
+struct all_dangling_in_result<std::ranges::min_max_result<std::ranges::dangling>> : std::true_type
+{
+};
+
+template <typename _ReturnType>
+constexpr bool all_dangling_in_result_v = all_dangling_in_result<_ReturnType>::value;
 
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
@@ -172,9 +248,9 @@ struct test
     void
     host_policies(int n_serial, int n_parallel, auto algo, auto& checker, auto... args)
     {
-        operator()(n_serial, oneapi::dpl::execution::seq, algo, checker, args...);
-        operator()(n_serial, oneapi::dpl::execution::unseq, algo, checker, args...);
-        operator()(n_parallel, oneapi::dpl::execution::par, algo, checker,  args...);
+        operator()(n_serial,   oneapi::dpl::execution::seq,       algo, checker, args...);
+        operator()(n_serial,   oneapi::dpl::execution::unseq,     algo, checker, args...);
+        operator()(n_parallel, oneapi::dpl::execution::par,       algo, checker, args...);
         operator()(n_parallel, oneapi::dpl::execution::par_unseq, algo, checker, args...);
     }
 
@@ -182,13 +258,107 @@ struct test
     std::enable_if_t<mode == data_in>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
-        process_data_in(max_n, exec, algo, checker, tr_in, args...);
+        process_data_in(max_n, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test with empty sequence
-        process_data_in(trivial_size<std::remove_cvref_t<Algo>>, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+        process_data_in(trivial_size<std::remove_cvref_t<Algo>>, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
     }
 
 private:
+
+    template <typename T>
+    using TmpContainerType = std::array<T,0>;
+
+    // Test dangling iterators in return types for call with temporary data
+    template <int idx, typename Policy, typename Algo, typename ...Args>
+    constexpr void
+    test_dangling_pointers_arg_1(Policy&& exec, Algo&& algo, Args&& ...args)
+    {
+        // Check dangling iterators in return types for call with temporary data
+        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+            using T = typename Container::value_type;
+
+            // Check dangling with temporary containers in implementation
+            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
+                                            std::declval<TmpContainerType<T>>(),
+                                            args...));
+
+            if constexpr (!std::is_fundamental_v<res_ret_t>)
+            {
+                if constexpr (!all_dangling_in_result_v<res_ret_t>)
+                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
+            }
+        }
+    }
+
+    // Test dangling iterators in return types for call with temporary data
+    template <int idx, typename Policy, typename Algo, typename ...Args>
+    constexpr void
+    test_dangling_pointers_args_2(Policy&& exec, Algo&& algo, Args&& ...args)
+    {
+        // Check dangling iterators in return types for call with temporary data
+        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+            using T = typename Container::value_type;
+
+            // Check dangling with temporary containers in implementation
+            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
+                                            std::declval<TmpContainerType<T>>(),
+                                            std::declval<TmpContainerType<T>>(),
+                                            args...));
+
+            if constexpr (!std::is_fundamental_v<res_ret_t>)
+            {
+                if constexpr (!all_dangling_in_result_v<res_ret_t>)
+                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
+            }
+        }
+    }
+
+    // Test dangling iterators in return types for call with temporary data
+    template <int idx, typename Policy, typename Algo, typename ...Args>
+    constexpr void
+    test_dangling_pointers_args_3(Policy&& exec, Algo&& algo, Args&& ...args)
+    {
+        // Check dangling iterators in return types for call with temporary data
+        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+            using T = typename Container::value_type;
+
+            // Check dangling with temporary containers in implementation
+            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
+                                            std::declval<TmpContainerType<T>>(),
+                                            std::declval<TmpContainerType<T>>(),
+                                            std::declval<TmpContainerType<T>>(),
+                                            args...));
+
+            if constexpr (!std::is_fundamental_v<res_ret_t>)
+            {
+                if constexpr (!all_dangling_in_result_v<res_ret_t>)
+                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
+            }
+        }
+    }
+
+    // Test dangling iterators in return types for call with temporary data
+    template <std::size_t ArgsSize, int idx, typename Policy, typename Algo, typename ...Args>
+    constexpr void
+    test_dangling_pointers(Policy&& exec, Algo&& algo, Args&& ...args)
+    {
+        static_assert(ArgsSize == 1 || ArgsSize == 2 || ArgsSize == 3,
+                      "The test for dangling pointers is not implemented for this number of algorithm arguments");
+
+        if constexpr (ArgsSize == 1)
+            test_dangling_pointers_arg_1<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
+
+        else if constexpr (ArgsSize == 2)
+            test_dangling_pointers_args_2<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
+
+        else if constexpr (ArgsSize == 3)
+            test_dangling_pointers_args_3<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
+    }
+
     void
     process_data_in(int max_n, auto&& exec, auto algo, auto& checker, auto tr_in, auto... args)
     {
@@ -200,15 +370,15 @@ private:
 
         typename Container::type& A = cont_in();
         decltype(auto) r_in = tr_in(A);
-        auto res = algo(std::forward<decltype(exec)>(exec), r_in, args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), r_in, args...);
 
-        //check result
-        static_assert(std::is_same_v<decltype(res), decltype(checker(r_in, args...))>, "Wrong return type");
+        // check result types
+        static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
         using Algo = decltype(algo);
-        auto bres = ret_in_val(expected_res, expected_view.begin()) == ret_in_val(res, r_in.begin());
-        EXPECT_TRUE(bres, (std::string("wrong return value from algo with ranges: ") + typeid(Algo).name() +
-                typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+        EXPECT_EQ(ret_in_val(expected_res, expected_view.begin()), ret_in_val(res, r_in.begin()),
+                  (std::string("wrong return value from algo with ranges: ") + typeid(Algo).name() +
+                   typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
@@ -217,6 +387,9 @@ private:
 
         EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("wrong effect algo with ranges: ")
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+
+        // Test dangling iterators in return types for call with temporary data
+        test_dangling_pointers<1, 100>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
@@ -227,33 +400,42 @@ private:
         static_assert(mode == data_in_out || mode == data_in_out_lim);
 
         Container cont_in(exec, n_in, DataGen1{});
-        Container cont_out(exec, n_out, data_gen_zero);
-        Container cont_exp(exec, n_out, data_gen_zero);
+        Container cont_in_exp(exec, n_in, DataGen1{});
+
+        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_out_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in <= max_n);
         assert(n_out <= max_n);
 
-        auto src_view = tr_in(std::views::all(cont_in()));
-        auto exp_view = tr_out(std::views::all(cont_exp()));
-        auto expected_res = checker(src_view, exp_view, args...);
+        auto in_exp_view = tr_in(std::views::all(cont_in_exp()));
+        auto out_exp_view = tr_out(std::views::all(cont_out_exp()));
+        auto expected_res = checker(in_exp_view, out_exp_view, args...);
 
         typename Container::type& A = cont_in();
         typename Container::type& B = cont_out();
 
-        auto res = algo(std::forward<Policy>(exec), tr_in(A), tr_out(B), args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
+
+        // check result types
+        static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
+
+        EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                  (std::string("wrong return value from algo with input range: ") + typeid(Algo).name()).c_str());
+
+        EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
+                  (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
 
         //check result
-        static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_out(B), args...))>, "Wrong return type");
-
-        auto bres_in = ret_in_val(expected_res, src_view.begin()) == ret_in_val(res, tr_in(A).begin());
-        EXPECT_TRUE(bres_in, (std::string("wrong return value from algo with input range: ") + typeid(Algo).name()).c_str());
-
-        auto bres_out = ret_out_val(expected_res, exp_view.begin()) == ret_out_val(res, tr_out(B).begin());
-        EXPECT_TRUE(bres_out, (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
+        auto n = std::ranges::size(out_exp_view);
+        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
 
         //check result
-        auto n = std::ranges::size(exp_view);
-        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        auto n_in_exp = std::ranges::size(in_exp_view);
+        EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+
+        // Test dangling iterators in return types for call with temporary data
+        test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
 public:
@@ -262,10 +444,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-	    process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+	    process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -273,14 +455,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, exec, algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
-        process_data_in_out(max_n, r_size/2, r_size, exec, algo, checker, args...);
-        process_data_in_out(max_n, r_size, r_size/2, exec, algo, checker, args...);
+        process_data_in_out(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_out(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
@@ -288,14 +470,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in(max_n, r_size, r_size, exec, algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test case the sizes of input ranges are different
-        process_data_in_in(max_n, r_size/2, r_size, exec, algo, checker, tr_in, args...);
-        process_data_in_in(max_n, r_size, r_size/2, exec, algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in(max_n, 0, 0, std::forward<Policy>(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -315,23 +497,27 @@ private:
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
 
-        auto res = algo(std::forward<decltype(exec)>(exec), tr_in(A), tr_in(B), args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), args...);
 
-        static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), args...))>, "Wrong return type");
+        // check result types
+        static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        auto bres_in = ret_in_val(expected_res, src_view1.begin()) == ret_in_val(res, tr_in(A).begin());
-        EXPECT_TRUE(bres_in, (std::string("wrong return value from algo: ") + typeid(decltype(algo)).name() +
-            typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
-    }
-
-    struct TransformOp
-    {
-        template <typename T>
-        auto operator()(T i) const
+        if constexpr (!std::is_same_v<decltype(res), bool>)
         {
-            return i / 3;
+            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong return value from algo: ") + typeid(decltype(algo)).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
         }
-    };
+        else
+        {
+            EXPECT_EQ(expected_res, res,
+                      (std::string("wrong return value from algo: ") + typeid(decltype(algo)).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+        }
+
+        // Test dangling iterators in return types for call with temporary data
+        test_dangling_pointers<2, 300>(exec, algo, std::forward<decltype(args)>(args)...);
+    }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
     void
@@ -341,10 +527,10 @@ private:
         static_assert(mode == data_in_in_out || mode == data_in_in_out_lim);
 
         Container cont_in1(exec, n_in1, DataGen1{});
-        Container cont_in2(exec, n_in2, TransformOp{});
+        Container cont_in2(exec, n_in2, DataGen2{});
 
-        Container cont_out(exec, n_out, data_gen_zero);
-        Container cont_exp(exec, n_out, data_gen_zero);
+        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in1 <= max_n);
         assert(n_in2 <= max_n);
@@ -358,23 +544,27 @@ private:
         typename Container::type& B = cont_in2();
         typename Container::type& C = cont_out();
 
-        auto res = algo(std::forward<Policy>(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
 
-        static_assert(std::is_same_v<decltype(res), decltype(checker(tr_in(A), tr_in(B), tr_out(C), args...))>, "Wrong return type");
+        // check result types
+        static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        auto bres_in1 = ret_in_val(expected_res, src_view1.begin()) == ret_in_val(res, tr_in(A).begin());
-        EXPECT_TRUE(bres_in1, (std::string("wrong return value from algo with input range 1: ") + typeid(Algo).name()).c_str());
+        EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+                  (std::string("wrong return value from algo with input range 1: ") + typeid(Algo).name()).c_str());
 
-        auto bres_in2 = ret_in_val(expected_res, src_view2.begin()) == ret_in_val(res, tr_in(B).begin());
-        EXPECT_TRUE(bres_in2, (std::string("wrong return value from algo with input range 2: ") + typeid(Algo).name()).c_str());
+        EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
+                  (std::string("wrong return value from algo with input range 2: ") + typeid(Algo).name()).c_str());
 
-        auto bres_out = ret_out_val(expected_res, expected_view.begin()) == ret_out_val(res, tr_out(C).begin());
-        EXPECT_TRUE(bres_out, (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
+        EXPECT_EQ(ret_out_val(expected_res, expected_view.begin()), ret_out_val(res, tr_out(C).begin()),
+                  (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
         EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Policy).name()
             + typeid(Algo).name()).c_str());
+
+        // Test dangling iterators in return types for call with temporary data
+        test_dangling_pointers<3, 400>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
 public:
@@ -383,10 +573,12 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, r_size, out_size_with_empty_in1<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, 0, out_size_with_empty_in2<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -394,14 +586,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size/2, r_size, r_size, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size/2, r_size, exec, algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size/2, exec, algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size/2, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
 	    //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, std::forward<Policy>(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 private:
 
@@ -437,6 +629,8 @@ private:
             return std::distance(begin, ret.out);
         else if constexpr (is_iterator<Ret>)
             return std::distance(begin, ret);
+        else if constexpr (check_in2<Ret>)
+            return std::distance(begin, ret.in2);
         else if constexpr(is_range<Ret>)
             return std::pair{std::distance(begin, ret.begin()), std::ranges::distance(ret.begin(), ret.end())};
         else
@@ -447,12 +641,14 @@ private:
 template<typename T, typename ViewType>
 struct host_subrange_impl
 {
+    using value_type = T;
+
     static_assert(std::is_trivially_copyable_v<T>,
         "Memory initialization within the class relies on trivially copyability of the type T");
 
     using type = ViewType;
     ViewType view;
-    T* mem = NULL;
+    T* mem = nullptr;
 
     std::allocator<T> alloc;
 
@@ -489,9 +685,11 @@ using  host_span = host_subrange_impl<T, std::span<T>>;
 template<typename T>
 struct host_vector
 {
+    using value_type = T;
+
     using type = std::vector<T>;
     type vec;
-    T* p = NULL;
+    T* p = nullptr;
 
     template<typename Policy>
     host_vector(Policy&&, T* data, int n): vec(data, data + n), p(data) {}
@@ -517,11 +715,13 @@ struct host_vector
 template<typename T>
 struct usm_vector
 {
+    using value_type = T;
+
     using shared_allocator = sycl::usm_allocator<T, sycl::usm::alloc::shared>;
     using type = std::vector<T, shared_allocator>;
 
     std::vector<T, shared_allocator> vec;
-    T* p = NULL;
+    T* p = nullptr;
 
     template<typename Policy>
     usm_vector(Policy&& exec, T* data, int n): vec(data, data + n, shared_allocator(exec.queue())), p(data)
@@ -548,6 +748,8 @@ struct usm_vector
 template<typename T, typename ViewType>
 struct usm_subrange_impl
 {
+    using value_type = T;
+
     static_assert(std::is_trivially_copyable_v<T>,
         "Memory initialization within the class relies on trivially copyability of the type T");
 
@@ -555,7 +757,7 @@ struct usm_subrange_impl
     using type = ViewType;
 
     shared_allocator alloc;
-    T* p = NULL;
+    T* p = nullptr;
     ViewType view;
 
     template<typename Policy>
@@ -597,6 +799,26 @@ using  usm_span = usm_subrange_impl<T, std::span<T>>;
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
+struct subrange_view_fo
+{
+    template <typename T>
+    auto operator()(T&& v) const
+    {
+        return std::ranges::subrange(v);
+    }
+};
+
+#if TEST_CPP20_SPAN_PRESENT
+struct span_view_fo
+{
+    template <typename T>
+    auto operator()(T&& v) const
+    {
+        return std::span(v);
+    }
+};
+#endif
+
 template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test_range_algo
@@ -625,38 +847,46 @@ struct test_range_algo
     test_range_algo(std::array<int, 2> sizes) : n_serial(sizes[0]), n_parallel(sizes[1]) {}
 #endif
 
-    void test_view(auto view, auto algo, auto& checker, auto... args)
+    void test_view_host(auto view, auto algo, auto& checker, auto... args)
     {
         test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
-#if TEST_DPCPP_BACKEND_PRESENT
-        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, TestUtils::get_dpcpp_test_policy<call_id>(), algo, checker, view, std::identity{}, args...);
-#endif //TEST_DPCPP_BACKEND_PRESENT
     }
 
-    void operator()(auto algo, auto& checker, auto... args)
+#if TEST_DPCPP_BACKEND_PRESENT
+    template <typename Policy>
+    void test_view_hetero(Policy&& exec, auto view, auto algo, auto& checker, auto... args)
     {
+        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id), algo, checker, view, std::identity{}, args...);
+    }
+#endif //TEST_DPCPP_BACKEND_PRESENT
 
-        auto subrange_view = [](auto&& v) { return std::ranges::subrange(v); };
+    void
+    test_range_algo_impl_host(auto algo, auto& checker, auto... args)
+    {
+        auto subrange_view = subrange_view_fo{};
 #if TEST_CPP20_SPAN_PRESENT
-        auto span_view = [](auto&& v) { return std::span(v); };
+        auto span_view = span_view_fo{};
 #endif
 
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::identity{}, std::identity{}, args...);
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, subrange_view, std::identity{}, args...);
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
-        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{},  std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker,  span_view, std::identity{}, args...);
-        test<T, host_span<T>, mode, DataGen1, DataGen2>{}.host_policies(
-            n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
+        test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #endif
+    }
 
 #if TEST_DPCPP_BACKEND_PRESENT
+    template <typename Policy>
+    void test_range_algo_impl_hetero(Policy&& exec, auto algo, auto& checker, auto... args)
+    {
+        auto subrange_view = subrange_view_fo{};
+#if TEST_CPP20_SPAN_PRESENT
+        auto span_view = span_view_fo{};
+#endif
+
         //Skip the cases with pointer-to-function and hetero policy because pointer-to-function is not supported within kernel code.
         if constexpr(!std::disjunction_v<std::is_member_function_pointer<decltype(args)>...>)
         {
@@ -664,22 +894,35 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 10>(), algo, checker, subrange_view, subrange_view, args...);
-                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 30>(), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
+                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 20>(), algo, checker, span_view, subrange_view, args...);
-                test<T, usm_span<T>, mode, DataGen1, DataGen2>{}(
-                    n_device, TestUtils::get_dpcpp_test_policy<call_id + 40>(), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
+                test<T, usm_span<T>,     mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
         }
-#endif //TEST_DPCPP_BACKEND_PRESENT
+    }
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+    void
+    operator()(auto algo, auto& checker, auto... args)
+    {
+        test_range_algo_impl_host(algo, checker, args...);
+
+#if TEST_DPCPP_BACKEND_PRESENT
+        auto policy = TestUtils::get_dpcpp_test_policy();
+        test_range_algo_impl_hetero(policy, algo, checker, args...);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+        TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl_hetero(policy, algo, checker, args...); });
+#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT
     }
 };
 
 }; //namespace test_std_ranges
 
 #endif //_ENABLE_STD_RANGES_TESTING
+
+#endif //_STD_RANGES_TEST_H

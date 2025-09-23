@@ -26,6 +26,8 @@
 #include "parallel_backend_sycl_utils.h"
 #include "execution_sycl_defs.h"
 #include "unseq_backend_sycl.h"
+
+#include "../../utils_ranges.h" // __min_size_calc
 #include "utils_ranges_sycl.h"
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
@@ -83,8 +85,7 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
     __future<sycl::event>
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
-        assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
-                   __rngs.size())...}) > 0);
+        assert(oneapi::dpl::__ranges::__min_size_calc{}(__rngs...) > 0);
         assert(__count > 0);
 
         _PRINT_INFO_IN_DEBUG_MODE(__q);
@@ -93,11 +94,11 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
-            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item_id) {
+            __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item) {
                 // Disable vectorization and multiple iterations per item within the brick to evenly spread work across
                 // compute units.
                 __pfor_params<false /*__enable_tuning*/, _Fp, _Ranges...> __params;
-                const std::size_t __idx = __item_id.get_linear_id();
+                const std::size_t __idx = __item.get_linear_id();
                 __brick(std::true_type{}, __idx, __params, __rngs...);
             });
         });
@@ -226,26 +227,21 @@ inline constexpr bool __has_pfor_brick_members_v = __has_pfor_brick_members<Bric
 
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
 //for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
-template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
+template <typename _CustomName, typename _Fp, typename _Index, typename... _Ranges>
 __future<sycl::event>
-__parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Fp __brick, _Index __count,
-               _Ranges&&... __rngs)
+__parallel_for_impl(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs)
 {
     static_assert(
         __has_pfor_brick_members_v<_Fp>,
         "The brick provided to __parallel_for must define const / constexpr static bool members __can_vectorize and "
         "__can_process_multiple_iters which must be evaluated at compile time.");
-    assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
-               __rngs.size())...}) > 0);
+    assert(oneapi::dpl::__ranges::__min_size_calc{}(__rngs...) > 0);
     assert(__count > 0);
 
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _ForKernelSmall =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__parallel_for_small_kernel<_CustomName>>;
     using _ForKernelLarge =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__parallel_for_large_kernel<_CustomName>>;
-
-    sycl::queue __q_local = __exec.queue();
 
     using __small_submitter = __parallel_for_small_submitter<_ForKernelSmall>;
     using __large_submitter = __parallel_for_large_submitter<_ForKernelLarge>;
@@ -255,12 +251,25 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     // then only compile the basic kernel as the two versions are effectively the same.
     if constexpr (__params_t::__iters_per_item > 1 || __params_t::__vector_size > 1)
     {
-        if (__count >= __large_submitter::template __estimate_best_start_size<_Fp, _Ranges...>(__q_local))
+        if (__count >= __large_submitter::template __estimate_best_start_size<_Fp, _Ranges...>(__q))
         {
-            return __large_submitter{}(__q_local, __brick, __count, std::forward<_Ranges>(__rngs)...);
+            return __large_submitter{}(__q, __brick, __count, std::forward<_Ranges>(__rngs)...);
         }
     }
-    return __small_submitter{}(__q_local, __brick, __count, std::forward<_Ranges>(__rngs)...);
+    return __small_submitter{}(__q, __brick, __count, std::forward<_Ranges>(__rngs)...);
+}
+
+//General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
+//for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
+template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
+__future<sycl::event>
+__parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Fp __brick, _Index __count,
+               _Ranges&&... __rngs)
+{
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    sycl::queue __q_local = __exec.queue();
+    return oneapi::dpl::__par_backend_hetero::__parallel_for_impl<_CustomName>(__q_local, __brick, __count,
+                                                                               std::forward<_Ranges>(__rngs)...);
 }
 
 } // namespace __par_backend_hetero

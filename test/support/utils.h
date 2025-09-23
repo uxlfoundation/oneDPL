@@ -165,7 +165,17 @@ template <typename TStream, typename Tag, typename TValue>
 
     if constexpr (IsOutputStreamable<TValue, decltype(os)>::value)
     {
-        os << value;
+        if constexpr (std::is_same_v<bool, std::decay_t<TValue>>)
+        {
+            if (value)
+                os << "true";
+            else
+                os << "false";
+        }
+        else
+        {
+            os << value;
+        }
     }
     else
     {
@@ -234,7 +244,7 @@ expect_equal(Iterator1 expected_first, Iterator2 actual_first, Size n, const cha
              const char* message)
 {
     size_t error_count = 0;
-    for (size_t k = 0; k < n && error_count < 10; ++k, ++expected_first, ++actual_first)
+    for (size_t k = 0; k < n && error_count < 10; ++k, ++expected_first, (void) ++actual_first)
     {
         if (!is_equal_val(*expected_first, *actual_first))
         {
@@ -1182,6 +1192,15 @@ struct IsEqual
 };
 
 template <typename T>
+struct IsNotEqual
+{
+    bool operator()(T x, T y) const
+    {
+        return x != y;
+    }
+};
+
+template <typename T>
 struct IsEqualTo
 {
     T val;
@@ -1201,6 +1220,123 @@ struct NotPred
     operator()(T x) const
     {
         return !pred(x);
+    }
+};
+
+template <typename T1, typename T2>
+struct SumOp
+{
+    auto operator()(T1 i, T2 j) const
+    {
+        return i + j;
+    }
+};
+
+template <typename T>
+struct SumWithOp
+{
+    T const_val;
+
+    auto operator()(T val) const
+    {
+        return val + const_val;
+    }
+};
+
+template <typename T>
+struct Pow2
+{
+    T
+    operator()(T x) const
+    {
+        return x * x;
+    }
+};
+
+template <typename _T>
+struct MoveOnlyWrapper {
+    _T value;
+
+    // Default constructor
+    MoveOnlyWrapper() = delete;
+
+    MoveOnlyWrapper(_T v) : value(v) {}
+
+    operator _T() const { return value; }
+
+    // Move constructor
+    MoveOnlyWrapper(MoveOnlyWrapper&&) = default;
+
+    // Move assignment operator
+    MoveOnlyWrapper& operator=(MoveOnlyWrapper&&) = default;
+
+    // Deleted copy constructor and copy assignment operator
+    MoveOnlyWrapper(const MoveOnlyWrapper&) = delete;
+    MoveOnlyWrapper& operator=(const MoveOnlyWrapper&) = delete;
+
+    MoveOnlyWrapper operator-() const
+    {
+        return MoveOnlyWrapper{-value};
+    }
+    friend bool operator==(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return a.value == b.value;
+    }
+    friend MoveOnlyWrapper operator+(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value + b.value};
+    }
+
+    friend MoveOnlyWrapper operator*(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value * b.value};
+    }
+};
+
+template <typename _T>
+struct NoDefaultCtorWrapper {
+    _T value;
+
+    // Default constructor
+    NoDefaultCtorWrapper() = delete;
+
+    NoDefaultCtorWrapper(_T v) : value(v) {}
+
+    operator _T() const { return value; }
+
+    // Move constructor
+    NoDefaultCtorWrapper(NoDefaultCtorWrapper&&) = default;
+
+    // Move assignment operator
+    NoDefaultCtorWrapper& operator=(NoDefaultCtorWrapper&&) = default;
+
+    // Deleted copy constructor and copy assignment operator
+    NoDefaultCtorWrapper(const NoDefaultCtorWrapper&) = default;
+    NoDefaultCtorWrapper& operator=(const NoDefaultCtorWrapper&) = default;
+    
+    NoDefaultCtorWrapper operator-() const
+    {
+        return NoDefaultCtorWrapper{-value};
+    }
+
+    friend bool operator==(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return a.value == b.value;
+    } 
+    friend NoDefaultCtorWrapper operator+(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return NoDefaultCtorWrapper{a.value + b.value};
+    } 
+
+    friend NoDefaultCtorWrapper operator*(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return NoDefaultCtorWrapper{a.value * b.value};
+    } 
+
+    // non-trivial destructor for testing
+    ~NoDefaultCtorWrapper()
+    {
+        value.~_T();
     }
 };
 
