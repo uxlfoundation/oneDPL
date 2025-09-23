@@ -8,6 +8,18 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in 2022.10.0
+================
+
+Known Issues and Limitations
+----------------------------
+New in This Release
+^^^^^^^^^^^^^^^^^^^
+- Calling ``histogram`` algorithm with a device execution policy may cause a segmentation fault in
+  Intel® oneAPI DPC++/C++ Compiler 2025.3 when compiling SYCL kernels for CPU devices.
+  To avoid this, define ``ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION`` macro to a non-zero value
+  prior to including oneDPL header files.
+
 New in 2022.9.0
 ===============
 
@@ -59,8 +71,6 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
 - With libstdc++ version 10, the compilation error *SYCL kernel cannot use exceptions* occurs
   when calling the range-based ``adjacent_find``, ``is_sorted`` or ``is_sorted_until`` algorithms with device policies.
-- The range-based ``count_if`` may produce incorrect results on Intel® Data Center GPU Max Series when the driver version
-  is "Rolling 2507.12" and newer.
 
 New in 2022.8.0
 ===============
