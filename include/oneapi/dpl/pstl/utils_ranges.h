@@ -139,7 +139,6 @@ __size(const _Range& __rng)
 #endif
 }
 
-
 template <std::size_t _RngIndex>
 struct __nth_range_size
 {
