@@ -23,7 +23,7 @@
 #    include <type_traits>
 #    include <iterator>
 #    include <algorithm> // std::ranges::sort, std::ranges::stable_sort
-#endif                   // _ONEDPL_CPP20_RANGES_PRESENT
+#endif
 
 #include "utils_ranges.h" // __difference_t
 
@@ -32,7 +32,7 @@
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #    include "algorithm_ranges_impl.h"
-#endif // _ONEDPL_CPP20_RANGES_PRESENT
+#endif
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_ranges_impl_hetero.h"
