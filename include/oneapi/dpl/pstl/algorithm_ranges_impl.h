@@ -1329,8 +1329,12 @@ __pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&,
     return std::ranges::unique(std::forward<_R>(__r), __comp, __proj);
 }
 
+template <typename _R, typename _OutRange>
+using __unique_copy_return_t =
+    std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>;
+
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
-std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
+__unique_copy_return_t<_R, _OutRange>
 __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
@@ -1344,7 +1348,7 @@ __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
-std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
+__unique_copy_return_t<_R, _OutRange>
 __pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r,
                       _Comp __comp, _Proj __proj)
 {
