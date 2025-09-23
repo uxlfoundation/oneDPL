@@ -145,12 +145,12 @@ struct __nth_range_size
   private:
     template <std::size_t _RngIndexCurrent, typename _Range, typename... _Ranges>
     auto
-    __eval_rng_size_impl(const _Range& __rng, const _Ranges&... __rngs) const
+    __nth_range_size_impl(const _Range& __rng, const _Ranges&... __rngs) const
     {
         if constexpr (_RngIndexCurrent == _RngIndex)
             return __size(__rng);
         else
-            return __eval_rng_size_impl<_RngIndexCurrent + 1>(__rngs...);
+            return __nth_range_size_impl<_RngIndexCurrent + 1>(__rngs...);
     }
 
   public:
@@ -159,7 +159,7 @@ struct __nth_range_size
     operator()(const _Ranges&... __rngs) const
     {
         static_assert(_RngIndex < sizeof...(_Ranges));
-        return __eval_rng_size_impl<0>(__rngs...);
+        return __nth_range_size_impl<0>(__rngs...);
     }
 };
 
