@@ -834,8 +834,13 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 // set_intersection
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _R1, typename _R2, typename _OutRange>
+using __set_intersection_return_t =
+    std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                         std::ranges::borrowed_iterator_t<_OutRange>>;
+
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_intersection_return_t<_R1, _R2, _OutRange>
 __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                          /*__is_vector=*/std::false_type) noexcept
 {
@@ -844,7 +849,7 @@ __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __co
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_intersection_return_t<_R1, _R2, _OutRange>
 __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                          /*__is_vector=*/std::true_type) noexcept
 {
@@ -853,14 +858,9 @@ __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __co
                                          __comp, __proj1, __proj2);
 }
 
-template <typename _R1, typename _R2, typename _OutRange>
-using __pattern_set_intersection_return_t =
-    std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                                         std::ranges::borrowed_iterator_t<_OutRange>>;
-
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_intersection_return_t<_R1, _R2, _OutRange>
+__set_intersection_return_t<_R1, _R2, _OutRange>
 __pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -872,7 +872,7 @@ __pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_intersection_return_t<_R1, _R2, _OutRange>
+__set_intersection_return_t<_R1, _R2, _OutRange>
 __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                            _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -895,7 +895,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
-        return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __result};
+        return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __result};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 =
@@ -903,7 +903,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                                                std::invoke(__proj2, *__first2), __comp, __proj1);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
     if (__left_bound_seq_1 == __last1)
-        return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __result};
+        return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __result};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_2 =
@@ -911,7 +911,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                                                std::invoke(__proj1, *__first1), __comp, __proj2);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
     if (__left_bound_seq_2 == __last2)
-        return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __result};
+        return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __result};
 
     const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
     if (__m1 > oneapi::dpl::__internal::__set_algo_cut_off)
@@ -929,7 +929,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         /*CopyFromFirstSet = */ std::true_type{}, __comp, __proj1, __proj2);
                 },
                 __comp, __proj1, __proj2);
-            return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+            return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
         });
     }
 
@@ -949,7 +949,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         /*CopyFromFirstSet = */ std::false_type{}, __comp, __proj2, __proj1);
                 },
                 __comp, __proj1, __proj2);
-            return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+            return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
         });
     }
 
