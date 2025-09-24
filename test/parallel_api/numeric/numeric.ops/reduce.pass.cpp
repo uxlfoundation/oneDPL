@@ -111,6 +111,22 @@ test_short_forms()
     }
 }
 
+void
+test_differing_init_type()
+{
+    using InitType = std::uint64_t;
+    using InputType = std::uint32_t;
+    // Test is designed to check compilation issues, so only a single test run is sufficient.
+    size_t n = 10042;
+    Sequence<InputType> in(n, [](size_t) { return 1; });
+    InitType init = 42;
+    InitType expected = init + n;
+
+    invoke_on_all_policies<0>()(test_long_reduce<InitType>(), in.begin(), in.end(), init, std::plus<>{}, expected);
+    invoke_on_all_policies<1>()(test_long_reduce<InputType>(), in.begin(), in.end(), static_cast<InputType>(init),
+                                std::plus<>{}, static_cast<InputType>(expected));
+}
+
 int
 main()
 {
@@ -127,6 +143,10 @@ main()
 
     // Short forms are just facade for long forms, so just test with a single type.
     test_short_forms();
+
+    // Test designed to capture kernel naming issues with the edge case where the init type differs from the sequence
+    // input type with the same binary operator.
+    test_differing_init_type();
 
     return done();
 }
