@@ -179,7 +179,7 @@ Local Memory Requirements
 -------------------------
 
 Local memory is used for storing partial scan computations per sub-group in a work-group.
-The used amount is denoted as N\ :sub:`sub_group_carries`, which equals to ``sizeof(key_type) * param.workgroup_size / sub_group_size``
+The used amount is denoted as N\ :sub:`sub_group_carries`, which equals ``sizeof(key_type) * param.workgroup_size / sub_group_size``
 where ``sub_group_size`` is the size of the sub-group currently fixed to 32.
 
 Private Memory Requirements
