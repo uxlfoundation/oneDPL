@@ -117,8 +117,8 @@ test_differing_init_type()
     using InitType = std::uint64_t;
     using InputType = std::uint32_t;
     // Test is designed to check compilation issues, so only a single test run is sufficient.
-    size_t n = 10042;
-    Sequence<InputType> in(n, [](size_t) { return 1; });
+    std::size_t n = 10042;
+    Sequence<InputType> in(n, [](std::size_t) { return 1; });
     InitType init = 42;
     InitType expected = init + n;
 
