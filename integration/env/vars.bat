@@ -17,9 +17,8 @@ REM
 
 set "VARSDIR=%~dp0"
 
-REM The vars script is in the integration\env directory. The DPL root directory is up two levels
-if not defined DPL_ROOT for /f "delims=" %%F in ("%VARSDIR%..\..") do set "DPL_ROOT=%%~fF"
-if not defined DPLROOT for /f "delims=" %%F in ("%VARSDIR%..\..") do set "DPLROOT=%%~fF"
+if not defined DPL_ROOT for /f "delims=" %%F in ("%VARSDIR%..") do set "DPL_ROOT=%%~fF"
+if not defined DPLROOT for /f "delims=" %%F in ("%VARSDIR%..") do set "DPLROOT=%%~fF"
 
 set "CPLUS_INCLUDE_PATH=%DPL_ROOT%\include;%CPLUS_INCLUDE_PATH%"
 set "PKG_CONFIG_PATH=%DPL_ROOT%\lib\pkgconfig;%PKG_CONFIG_PATH%"
