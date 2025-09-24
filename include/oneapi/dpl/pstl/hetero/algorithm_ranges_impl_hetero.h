@@ -485,26 +485,12 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Pred, typename _Proj>
-struct __pattern_search_n_pred
-{
-    _Pred __pred;
-    _Proj __proj;
-
-    template <typename _TValue1, typename _TValue2>
-    bool
-    operator()(_TValue1&& __val1, _TValue2&& __val2) const
-    {
-        return std::invoke(__pred, std::invoke(__proj, std::forward<_TValue1>(__val1)), std::forward<_TValue2>(__val2));
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _T, typename _Pred, typename _Proj>
 std::ranges::borrowed_subrange_t<_R>
 __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r,
                    std::ranges::range_difference_t<_R> __count, const _T& __value, _Pred __pred, _Proj __proj)
 {
-    __pattern_search_n_pred<_Pred, _Proj> __pred_2{__pred, __proj};
+    oneapi::dpl::__internal::__binary_op<_Pred, _Proj, std::identity> __pred_2{__pred, __proj, std::identity{}};
 
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_search_n(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r), __count, __value, __pred_2);
