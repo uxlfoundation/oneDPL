@@ -33,10 +33,6 @@ namespace experimental
 template<typename ResourceType, typename Backend>
 class backend_base
 {
-    static_assert(std::is_same_v<std::decay_t<decltype(std::declval<Backend::resource_adapter_t>()(
-                                     std::declval<Backend::execution_resource_t>()))>,
-                                 Backend::base_resource_t>,
-                  "BaseResourceType does not match ResourceAdapter called with ResourceType");
 
   public:
     using resource_type = ResourceType;
