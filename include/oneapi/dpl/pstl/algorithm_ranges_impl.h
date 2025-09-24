@@ -1177,7 +1177,7 @@ __pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pre
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__predicate __pred_1{__pred, __proj};
+    oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
     auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
 

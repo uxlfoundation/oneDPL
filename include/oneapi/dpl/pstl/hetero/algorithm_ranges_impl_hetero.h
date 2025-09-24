@@ -690,7 +690,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 std::ranges::borrowed_subrange_t<_R>
 __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    oneapi::dpl::__internal::__predicate<_Pred, _Proj> __pred_1{__pred, __proj};
+    oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
     auto __n = std::ranges::size(__r);
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_remove_if(
