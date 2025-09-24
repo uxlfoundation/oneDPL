@@ -210,7 +210,7 @@ The initial configuration may be selected according to these high-level guidelin
 - For large inputs that fully saturate compute cores, maximizing ``param.workgroup_size`` and ``param.data_per_workitem``
   without spilling out of register memory results in best performance. The Intel® oneAPI DPC++ Compiler reports warnings
   when register spillage occurs. This may be used alongside guidance provided in the
-  `oneAPI GPU Optimization Guide <https://www.intel.com/content/www/us/en/docs/oneapi/optimization-guide-gpu/2025-0/registers-and-performance.html>`_
+  `oneAPI GPU Optimization Guide <https://www.intel.com/content/www/us/en/docs/oneapi/optimization-guide-gpu/2025-2/registers-and-performance.html>`_
   and benchmarking parameter sweeps to determine performant kernel template parameters for your use case.
 
 - On devices with multiple tiles, it may prove beneficial to experiment with different tile hierarchies as described
