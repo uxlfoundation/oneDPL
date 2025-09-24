@@ -128,21 +128,6 @@ class __pstl_assign
     }
 };
 
-template <typename _Pred, typename _Proj>
-struct __predicate
-{
-    //'mutable' is to relax the requirements for a user comparator or/and projection type operator() may be non-const
-    mutable _Pred __pred;
-    mutable _Proj __proj;
-
-    template <typename... _Xp>
-    bool
-    operator()(_Xp&&... __x) const
-    {
-        return std::invoke(__pred, std::invoke(__proj, std::forward<_Xp>(__x))...);
-    }
-};
-
 template <typename _F, typename _Proj>
 struct __unary_op
 {
