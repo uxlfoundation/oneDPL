@@ -143,9 +143,6 @@ struct __predicate
     }
 };
 
-template <typename _Comp, typename _Proj>
-using __compare = __predicate<_Comp, _Proj>;
-
 template <typename _F, typename _Proj>
 struct __unary_op
 {
