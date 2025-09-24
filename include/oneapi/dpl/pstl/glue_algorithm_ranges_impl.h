@@ -1043,7 +1043,7 @@ struct __replace_if_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, const _T& __new_value, _Proj __proj = {}) const
     {
-        oneapi::dpl::__internal::__predicate<_Pred, _Proj> __pred_prj{__pred, __proj};
+        oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_prj{__pred, __proj};
 
         return oneapi::dpl::ranges::for_each(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             oneapi::dpl::__internal::__replace_functor<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>,
