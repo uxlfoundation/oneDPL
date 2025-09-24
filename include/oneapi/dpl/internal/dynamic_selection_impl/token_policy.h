@@ -31,7 +31,7 @@ template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi
 #else
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
-class token_policy : public policy_base<token_policy<ResourceType, Backend>, ResourceType, Backend>
+class token_policy : public policy_base<token_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>
 {
     int capacity;
   protected:
@@ -97,7 +97,7 @@ class token_policy : public policy_base<token_policy<ResourceType, Backend>, Res
     std::shared_ptr<selector_t> selector_;
 
   public:
-    using selection_type = token_selection_handle_t<token_policy<ResourceType, Backend>>;
+    using selection_type = token_selection_handle_t<token_policy<ResourceType, ResourceAdapter, Backend>>;
     using resource_type = typename base_t::resource_type;
     using wait_type = typename Backend::wait_type; //TODO: Get from policy_base instead?
 
