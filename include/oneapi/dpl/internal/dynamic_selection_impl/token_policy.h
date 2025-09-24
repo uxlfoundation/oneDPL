@@ -27,15 +27,15 @@ namespace experimental
 {
 
 #if _DS_BACKEND_SYCL != 0
-template <typename ResourceType = sycl::queue, typename Backend = default_backend<ResourceType>>
+template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #else
-template <typename ResourceType, typename Backend = default_backend<ResourceType>>
+template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
 class token_policy : public policy_base<token_policy<ResourceType, Backend>, ResourceType, Backend>
 {
     int capacity;
   protected:
-    using base_t = policy_base<token_policy<ResourceType, Backend>, ResourceType, Backend>;
+    using base_t = policy_base<token_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
 
     using execution_resource_t = typename base_t::execution_resource_t;
@@ -103,7 +103,7 @@ class token_policy : public policy_base<token_policy<ResourceType, Backend>, Res
 
     token_policy(const int& c = 1):capacity(c) { base_t::initialize(); }
     token_policy(deferred_initialization_t, const int& c = 1) {}
-    token_policy(const std::vector<resource_type>& u, const int& c = 1):capacity(c) { base_t::initialize(u); }
+    token_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}, const int& c = 1):capacity(c) { base_t::initialize(u, adapter); }
 
     void
     initialize_impl()
@@ -139,7 +139,7 @@ class token_policy : public policy_base<token_policy<ResourceType, Backend>, Res
 		        {
                             available_resource = ::std::move(r);
 			    auto token = std::make_shared<token_t>(available_resource->availability_);
-                            return selection_type{token_policy<ResourceType, Backend>(*this), available_resource, token};  
+                            return selection_type{token_policy<ResourceType, ResourceAdapter, Backend>(*this), available_resource, token};
 		        }
 		    }  
                 }
