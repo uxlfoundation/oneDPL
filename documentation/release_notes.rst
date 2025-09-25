@@ -11,10 +11,50 @@ creating efficient heterogeneous applications.
 New in 2022.10.0
 ================
 
+New Features
+------------
+- Added parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``set_intersection``, ``set_union``,
+  ``set_difference``, ``set_symmetric_difference``, ``includes``, ``unique``, ``unique_copy``, ``destroy``,
+  ``uninitialized_fill``, ``uninitialized_move``, ``uninitialized_copy``, ``uninitialized_value_construct``,
+  ``uninitialized_default_construct``, ``reverse``, ``reverse_copy``, ``swap_ranges``. These algorithms operate with
+  C++20 random access ranges.
+
+Fixed Issues
+------------
+- Fixed an issue with incorrect handling of different projections by range-based ``merge``.
+- Fixed ``equal`` returning a ``false`` for empty input sequences; now it returns ``true``.
+- Fixed a compilation error **SYCL kernel cannot use exceptions** occurring with libstdc++ version 10 when calling
+  range-based ``adjacent_find``, ``is_sorted`` and ``is_sorted_until`` algorithms using  device policies.
+- Fixed an issue with ``PSTL_USE_NONTEMPORAL_STORES`` macro having no effect.
+
 Known Issues and Limitations
 ----------------------------
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
+- The `set_intersection`, `set_difference`, `set_symmetric_difference`, and `set_union` algorithms with a device policy
+require GPUs with double-precision support on Windows, regardless of the value type of the input sequences.
+
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- Range-based ``copy_if``, ``unique_copy``, ``set_union``, ``set_intersection``, ``set_difference``,
+  ``set_symmetric_difference`` algorithms require the output range to have sufficient size to hold all resulting
+  elements.
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with a device policy on hardware that does not support 64-bit atomic operations.
+- ``histogram`` may provide incorrect results with device policies in a program built with ``-O0`` option and the driver
+  version is 2448.13 or older.
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+  ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
+  with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
+  with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
+  To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
 
 New in 2022.9.0
 ===============
