@@ -127,9 +127,9 @@ __pattern_find_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
 
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
-    return std::ranges::borrowed_iterator_t<_R>(oneapi::dpl::__internal::__pattern_find_if(__tag,
-        std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r), std::ranges::begin(__r) +
-        std::ranges::size(__r), __pred_1));
+    return oneapi::dpl::__internal::__pattern_find_if(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                      std::ranges::begin(__r),
+                                                      std::ranges::begin(__r) + std::ranges::size(__r), __pred_1);
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
@@ -153,10 +153,10 @@ __pattern_find_first_of(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&&
 
     oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __bin_pred{__pred, __proj1, __proj2};
 
-    return std::ranges::borrowed_iterator_t<_R1>(oneapi::dpl::__internal::__pattern_find_first_of(
+    return oneapi::dpl::__internal::__pattern_find_first_of(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
         std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
-        std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred));
+        std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred);
 }
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
@@ -181,15 +181,19 @@ __pattern_find_end(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 
     oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __bin_pred{__pred, __proj1, __proj2};
 
-    auto __last1 = std::ranges::begin(__r1) + std::ranges::size(__r1);
+    auto __first1 = std::ranges::begin(__r1);
+    auto __last1 = __first1 + std::ranges::size(__r1);
     if (std::ranges::empty(__r2))
-        return std::ranges::borrowed_subrange_t<_R1>(__last1, __last1);
+        return {__last1, __last1};
 
-    auto __it = oneapi::dpl::__internal::__pattern_find_end(__tag,
-        std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1), __last1, std::ranges::begin(__r2),
-        std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred);
+    const auto __n2 = std::ranges::size(__r2);
+    auto __first2 = std::ranges::begin(__r2);
+    auto __last2 = __first2 + __n2;
 
-    return std::ranges::borrowed_subrange_t<_R1>(__it, __it + (__it == __last1 ? 0 : std::ranges::size(__r2)));
+    auto __it = oneapi::dpl::__internal::__pattern_find_end(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
+                                                            __last1, __first2, __last2, __bin_pred);
+
+    return {__it, __it + (__it == __last1 ? 0 : __n2)};
 }
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
@@ -235,10 +239,9 @@ __pattern_adjacent_find_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, 
 
     oneapi::dpl::__internal::__binary_op<_Pred, _Proj, _Proj> __pred_2{__pred, __proj, __proj};
 
-    auto __res = oneapi::dpl::__internal::__pattern_adjacent_find(__tag, std::forward<_ExecutionPolicy>(__exec),
-        std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r), __pred_2,
-        oneapi::dpl::__internal::__first_semantic());
-    return std::ranges::borrowed_iterator_t<_R>(__res);
+    return oneapi::dpl::__internal::__pattern_adjacent_find(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+        std::ranges::begin(__r) + std::ranges::size(__r), __pred_2, oneapi::dpl::__internal::__first_semantic());
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
@@ -263,12 +266,17 @@ __pattern_search(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, 
 
     oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __pred_2{__pred, __proj1, __proj2};
 
-    auto __res = oneapi::dpl::__internal::__pattern_search(__tag, std::forward<_ExecutionPolicy>(__exec),
-        std::ranges::begin(__r1), std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
-        std::ranges::begin(__r2) + std::ranges::size(__r2), __pred_2);
+    auto __first1 = std::ranges::begin(__r1);
+    auto __last1 = __first1 + std::ranges::size(__r1);
 
-    return std::ranges::borrowed_subrange_t<_R1>(__res, __res == std::ranges::end(__r1)
-        ? __res : __res + std::ranges::size(__r2));
+    const auto __n2 = std::ranges::size(__r2);
+    auto __first2 = std::ranges::begin(__r2);
+    auto __last2 = __first2 + __n2;
+
+    auto __res = oneapi::dpl::__internal::__pattern_search(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
+                                                           __last1, __first2, __last2, __pred_2);
+
+    return {__res, __res == __last1 ? __res : __res + __n2};
 }
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
@@ -296,7 +304,7 @@ __pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges:
     auto __res = oneapi::dpl::__internal::__pattern_search_n(__tag, std::forward<_ExecutionPolicy>(__exec),
         std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r), __count, __value, __pred_2);
 
-    return std::ranges::borrowed_subrange_t<_R>(__res, __res == std::ranges::end(__r) ? __res : __res + __count);
+    return {__res, __res == std::ranges::end(__r) ? __res : __res + __count};
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _T, typename _Pred, typename _Proj>
@@ -417,10 +425,13 @@ __pattern_sort_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
 
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
 
-    oneapi::dpl::__internal::__pattern_sort(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
-                                            std::ranges::begin(__r) + std::ranges::size(__r), __comp_2, __leaf_sort);
+    auto __first = std::ranges::begin(__r);
+    auto __last = __first + std::ranges::size(__r);
 
-    return std::ranges::borrowed_iterator_t<_R>(std::ranges::begin(__r) + std::ranges::size(__r));
+    oneapi::dpl::__internal::__pattern_sort(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __comp_2,
+                                            __leaf_sort);
+
+    return __last;
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp, typename _LeafSort>
@@ -1044,7 +1055,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                                                                         __proj1, __proj2);
             },
             __comp, __proj1, __proj2);
-        return __set_difference_return_t<_R1, _OutRange>{__last1, __result + (__out_last - __result)};
+        return {__last1, __result + (__out_last - __result)};
     }
 
     // use serial algorithm
@@ -1151,10 +1162,13 @@ __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 
     oneapi::dpl::__internal::__binary_op __bin_pred{__pred, __proj1, __proj2};
 
+    auto __first1 = std::ranges::begin(__r1);
+    auto __first2 = std::ranges::begin(__r2);    
+
     const auto& [first, second] = oneapi::dpl::__internal::__pattern_mismatch(
-        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
-        std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
-        std::ranges::begin(__r2) + std::ranges::size(__r2), __bin_pred);
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1,
+        __first1 + std::ranges::size(__r1), __first2,
+        __first2 + std::ranges::size(__r2), __bin_pred);
 
     return {first, second};
 }
@@ -1184,7 +1198,7 @@ __pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pre
     auto __it = oneapi::dpl::__internal::__pattern_remove_if(__tag, std::forward<_ExecutionPolicy>(__exec),
                                                              std::ranges::begin(__r), __end, __pred_1);
 
-    return std::ranges::borrowed_subrange_t<_R>(__it, __end);
+    return {__it, __end};
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
