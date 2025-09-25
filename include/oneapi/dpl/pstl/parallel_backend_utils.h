@@ -26,6 +26,7 @@
 #include <cassert>
 #include "utils.h"
 #include "memory_fwd.h"
+#include "functional_impl.h" // for oneapi::dpl::identity
 
 namespace oneapi
 {
@@ -96,7 +97,7 @@ struct __serial_move_merge
         constexpr bool __same_move_val = ::std::is_same_v<_MoveValueX, _MoveValueY>;
         constexpr bool __same_move_seq = ::std::is_same_v<_MoveSequenceX, _MoveSequenceY>;
 
-        auto __n = _M_nmerge;
+        std::size_t __n = _M_nmerge;
         assert(__n > 0);
 
         auto __nx = __xe - __xs;
@@ -116,7 +117,8 @@ struct __serial_move_merge
                             __move_value_x(__ys, __zs);
                         else
                             __move_value_y(__ys, __zs);
-                        ++__zs, --__n;
+                        ++__zs;
+                        --__n;
                         if (++__ys == __ye)
                         {
                             break;
@@ -153,7 +155,8 @@ struct __serial_move_merge
                                 __move_value_y(__xs, __zs);
                         }
 
-                        ++__zs, --__n;
+                        ++__zs;
+                        --__n;
                         if (++__xs == __xe)
                         {
                             if constexpr (__same_move_seq)
@@ -214,12 +217,12 @@ struct __serial_move_merge
     }
 };
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
-          typename _CopyConstructRange>
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
 __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                      _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
-                      _CopyConstructRange __cc_range)
+                      _ForwardIterator2 __last2, _OutputIterator __result, _CopyConstructRange __cc_range,
+                      _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
@@ -227,7 +230,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
     {
         if (__first2 == __last2)
             return __cc_range(__first1, __last1, __result);
-        if (__comp(*__first2, *__first1))
+        if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
             ::new (::std::addressof(*__result)) _Tp(*__first2);
             ++__first2;
@@ -235,7 +238,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
         else
         {
             ::new (::std::addressof(*__result)) _Tp(*__first1);
-            if (!__comp(*__first1, *__first2))
+            if (!std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
                 ++__first2;
             ++__first1;
         }
@@ -243,45 +246,40 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
     return __cc_range(__first2, __last2, __result);
 }
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
-          typename _CopyFunc, typename _CopyFromFirstSet>
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
+          typename _CopyFromFirstSet, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
 __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                             _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _CopyFunc _copy,
-                             _CopyFromFirstSet)
+                             _ForwardIterator2 __last2, _OutputIterator __result, _CopyFunc _copy, _CopyFromFirstSet,
+                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    for (; __first1 != __last1 && __first2 != __last2;)
+    while (__first1 != __last1 && __first2 != __last2)
     {
-        if (__comp(*__first1, *__first2))
+        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
             ++__first1;
+        else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+            ++__first2;
         else
         {
-            if (!__comp(*__first2, *__first1))
-            {
+            if constexpr (_CopyFromFirstSet::value)
+                _copy(*__first1, *__result);
+            else
+                _copy(*__first2, *__result);
 
-                if constexpr (_CopyFromFirstSet::value)
-                {
-                    _copy(*__first1, *__result);
-                }
-                else
-                {
-                    _copy(*__first2, *__result);
-                }
-                ++__result;
-                ++__first1;
-            }
+            ++__first1;
             ++__first2;
+            ++__result;
         }
     }
     return __result;
 }
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
-          typename _CopyConstructRange>
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
 __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                           _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
-                           _CopyConstructRange __cc_range)
+                           _ForwardIterator2 __last2, _OutputIterator __result, _CopyConstructRange __cc_range,
+                           _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
@@ -290,7 +288,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
         if (__first2 == __last2)
             return __cc_range(__first1, __last1, __result);
 
-        if (__comp(*__first1, *__first2))
+        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
             ::new (::std::addressof(*__result)) _Tp(*__first1);
             ++__result;
@@ -298,19 +296,20 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
         }
         else
         {
-            if (!__comp(*__first2, *__first1))
+            if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
                 ++__first1;
             ++__first2;
         }
     }
     return __result;
 }
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
-          typename _CopyConstructRange>
+
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
 __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                                     _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
-                                     _CopyConstructRange __cc_range)
+                                     _ForwardIterator2 __last2, _OutputIterator __result,
+                                     _CopyConstructRange __cc_range, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
@@ -319,7 +318,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         if (__first2 == __last2)
             return __cc_range(__first1, __last1, __result);
 
-        if (__comp(*__first1, *__first2))
+        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
             ::new (::std::addressof(*__result)) _Tp(*__first1);
             ++__result;
@@ -327,7 +326,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         }
         else
         {
-            if (__comp(*__first2, *__first1))
+            if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             {
                 ::new (::std::addressof(*__result)) _Tp(*__first2);
                 ++__result;

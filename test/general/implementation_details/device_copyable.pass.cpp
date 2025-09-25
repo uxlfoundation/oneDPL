@@ -17,6 +17,7 @@
 
 #include _PSTL_TEST_HEADER(execution)
 #include _PSTL_TEST_HEADER(algorithm)
+#include _PSTL_TEST_HEADER(numeric)
 #include _PSTL_TEST_HEADER(iterator)
 
 #include "support/utils.h"
@@ -49,19 +50,19 @@ test_device_copyable()
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::internal::__custom_brick<
                       noop_device_copyable, int_device_copyable, oneapi::dpl::internal::search_algorithm::lower_bound>>,
                   "__custom_brick is not device copyable with device copyable types");
-    //replace_if_fun
+    //__replace_if_fun
     static_assert(
-        sycl::is_device_copyable_v<oneapi::dpl::internal::replace_if_fun<int_device_copyable, noop_device_copyable>>,
-        "replace_if_fun is not device copyable with device copyable types");
+        sycl::is_device_copyable_v<oneapi::dpl::__internal::__replace_if_fun<int_device_copyable, noop_device_copyable>>,
+        "__replace_if_fun is not device copyable with device copyable types");
     //scan_by_key_fun
     static_assert(
         sycl::is_device_copyable_v<
             oneapi::dpl::internal::scan_by_key_fun<int_device_copyable, int_device_copyable, noop_device_copyable>>,
         "scan_by_key_fun is not device copyable with device copyable types");
-    //segmented_scan_fun
-    static_assert(sycl::is_device_copyable_v<oneapi::dpl::internal::segmented_scan_fun<
+    //__segmented_scan_fun
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__segmented_scan_fun<
                       int_non_device_copyable, int_device_copyable, noop_device_copyable>>,
-                  "segmented_scan_fun is not device copyable with device copyable types");
+                  "__segmented_scan_fun is not device copyable with device copyable types");
     //scatter_and_accumulate_fun
     static_assert(sycl::is_device_copyable_v<
                       oneapi::dpl::internal::scatter_and_accumulate_fun<int_device_copyable, int_device_copyable>>,
@@ -143,14 +144,13 @@ test_device_copyable()
                   "__scan is not device copyable with device copyable types");
     // __brick_includes
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_includes<
-                      noop_device_copyable, int_device_copyable, int_device_copyable>>,
+                      noop_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable>>,
                   "__brick_includes is not device copyable with device copyable types");
     // __brick_set_op
-    static_assert(
-        sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::__brick_set_op<noop_device_copyable,
-                                                       int_device_copyable, int_device_copyable, std::true_type>>,
-        "__brick_set_op is not device copyable with device copyable types");
+    // template <typename _SetTag, typename _Size1, typename _Size2, typename _Compare, typename _Proj1, typename _Proj2>
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_set_op<
+                      std::true_type, noop_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable>>,
+                  "__brick_set_op is not device copyable with device copyable types");
     // __brick_reduce_idx
     static_assert(sycl::is_device_copyable_v<
                       oneapi::dpl::unseq_backend::__brick_reduce_idx<noop_device_copyable, int_device_copyable>>,
@@ -171,6 +171,16 @@ test_device_copyable()
     static_assert(sycl::is_device_copyable_v<
                       oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_scan_input<binary_op_device_copyable>>,
                   "__gen_red_by_seg_scan_input is not device copyable with device copyable types");
+
+    //__gen_scan_by_seg_reduce_input
+    static_assert(sycl::is_device_copyable_v<
+                      oneapi::dpl::__par_backend_hetero::__gen_scan_by_seg_reduce_input<binary_op_device_copyable>>,
+                  "__gen_scan_by_seg_reduce_input is not device copyable with device copyable types");
+
+    //__gen_scan_by_seg_scan_input
+    static_assert(sycl::is_device_copyable_v<
+                      oneapi::dpl::__par_backend_hetero::__gen_scan_by_seg_scan_input<binary_op_device_copyable>>,
+                  "__gen_scan_by_seg_scan_input is not device copyable with device copyable types");
 
     //__gen_mask
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_mask<noop_device_copyable>>,
@@ -194,14 +204,26 @@ test_device_copyable()
     //__gen_set_balanced_path
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
                       oneapi::dpl::__par_backend_hetero::__set_intersection,
-                      binary_op_device_copyable>>,
+                      oneapi::dpl::__par_backend_hetero::__get_bounds_simple, binary_op_device_copyable,
+                      binary_op_device_copyable, binary_op_device_copyable>>,
                   "__gen_set_balanced_path is not device copyable with device copyable types");
+
+#if !_PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN
+    //__partition_set_balanced_path_submitter
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter<
+                      oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
+                          oneapi::dpl::__par_backend_hetero::__set_intersection,
+                          oneapi::dpl::__par_backend_hetero::__get_bounds_simple, binary_op_device_copyable,
+                          binary_op_device_copyable, binary_op_device_copyable>,
+                      oneapi::dpl::execution::DefaultKernelName>>,
+                  "__partition_set_balanced_path_submitter is not device copyable with device copyable types");
+#endif
 
     //__gen_set_op_from_known_balanced_path
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
                       oneapi::dpl::__par_backend_hetero::__set_intersection,
                       oneapi::dpl::__par_backend_hetero::__noop_temp_data,
-                      binary_op_device_copyable>>,
+                      binary_op_device_copyable, binary_op_device_copyable, binary_op_device_copyable>>,
                   "__gen_set_op_from_known_balanced_path is not device copyable with device copyable types");
 
     //__write_to_id_if
@@ -218,6 +240,12 @@ test_device_copyable()
     static_assert(
         sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__write_red_by_seg<binary_op_device_copyable>>,
         "__write_red_by_seg is not device copyable with device copyable types");
+
+    //__write_scan_by_seg
+    static_assert(
+        sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__write_scan_by_seg<true, int_device_copyable,
+                                                                                          binary_op_device_copyable>>,
+        "__write_scan_by_seg is not device copyable with device copyable types");
 
     //__write_multiple_to_id
     static_assert(sycl::is_device_copyable_v<
@@ -243,6 +271,35 @@ test_device_copyable()
     static_assert(
         sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__red_by_seg_op<binary_op_device_copyable>>,
         "__red_by_seg_op is not device copyable with device copyable types");
+
+    //__scan_by_seg_op
+    static_assert(
+        sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__scan_by_seg_op<binary_op_device_copyable>>,
+        "__scan_by_seg_op is not device copyable with device copyable types");
+
+#if !_PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN
+    //__parallel_reduce_then_scan_reduce_submitter
+    static_assert(
+        sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_reduce_submitter<
+            16, true, false,
+            oneapi::dpl::__par_backend_hetero::__gen_scan_by_seg_reduce_input<binary_op_device_copyable>,
+            oneapi::dpl::__par_backend_hetero::__scan_by_seg_op<binary_op_device_copyable>,
+            oneapi::dpl::unseq_backend::__no_init_value<int_device_copyable>,
+            oneapi::dpl::execution::DefaultKernelName>>,
+        "__parallel_reduce_then_scan_reduce_submitter is not device copyable with device copyable types");
+
+    //__parallel_reduce_then_scan_scan_submitter
+    static_assert(
+        sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_scan_submitter<
+            16, true, false, oneapi::dpl::__par_backend_hetero::__scan_by_seg_op<binary_op_device_copyable>,
+            oneapi::dpl::__par_backend_hetero::__gen_scan_by_seg_scan_input<binary_op_device_copyable>,
+            oneapi::dpl::__par_backend_hetero::__get_zeroth_element,
+            oneapi::dpl::__par_backend_hetero::__write_scan_by_seg<
+                true, oneapi::dpl::unseq_backend::__init_value<int_device_copyable>, binary_op_device_copyable>,
+            oneapi::dpl::unseq_backend::__no_init_value<int_device_copyable>,
+            oneapi::dpl::execution::DefaultKernelName>>,
+        "__parallel_reduce_then_scan_scan_submitter is not device copyable with device copyable types");
+#endif
 
     //__not_pred
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__not_pred<noop_device_copyable>>,
@@ -342,20 +399,20 @@ test_non_device_copyable()
         !sycl::is_device_copyable_v<oneapi::dpl::internal::__custom_brick<
             noop_device_copyable, int_non_device_copyable, oneapi::dpl::internal::search_algorithm::lower_bound>>,
         "__custom_brick is device copyable with non device copyable types");
-    //replace_if_fun
+    //__replace_if_fun
     static_assert(!sycl::is_device_copyable_v<
-                      oneapi::dpl::internal::replace_if_fun<int_device_copyable, noop_non_device_copyable>>,
-                  "replace_if_fun is device copyable with non device copyable types");
+                      oneapi::dpl::__internal::__replace_if_fun<int_device_copyable, noop_non_device_copyable>>,
+                  "__replace_if_fun is device copyable with non device copyable types");
     //scan_by_key_fun
     static_assert(
         !sycl::is_device_copyable_v<oneapi::dpl::internal::scan_by_key_fun<int_non_device_copyable, int_device_copyable,
                                                                            noop_non_device_copyable>>,
         "scan_by_key_fun is device copyable with non device copyable types");
-    //segmented_scan_fun
+    //__segmented_scan_fun
     static_assert(
-        !sycl::is_device_copyable_v<oneapi::dpl::internal::segmented_scan_fun<int_device_copyable, int_device_copyable,
-                                                                              noop_non_device_copyable>>,
-        "segmented_scan_fun is device copyable with non device copyable types");
+        !sycl::is_device_copyable_v<oneapi::dpl::__internal::__segmented_scan_fun<int_device_copyable, int_device_copyable,
+                                                                                  noop_non_device_copyable>>,
+        "__segmented_scan_fun is device copyable with non device copyable types");
     //scatter_and_accumulate_fun
     static_assert(!sycl::is_device_copyable_v<
                       oneapi::dpl::internal::scatter_and_accumulate_fun<int_non_device_copyable, int_device_copyable>>,
@@ -427,11 +484,14 @@ test_non_device_copyable()
         "__scan is device copyable with non device copyable types");
     //__brick_includes
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_includes<
-                      noop_non_device_copyable, int_device_copyable, int_device_copyable>>,
+                      noop_non_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable,
+                      int_device_copyable>>,
                   "__brick_includes is device copyable with non device copyable types");
     //__brick_set_op
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_set_op<
-                      noop_non_device_copyable, int_device_copyable, int_device_copyable, std::true_type>>,
+    static_assert(
+        !sycl::is_device_copyable_v<
+            oneapi::dpl::unseq_backend::__brick_set_op<std::true_type, noop_non_device_copyable, int_device_copyable,
+                                                       int_device_copyable, int_device_copyable, int_device_copyable>>,
                   "__brick_set_op is device copyable with non device copyable types");
     //__brick_reduce_idx
     static_assert(!sycl::is_device_copyable_v<
@@ -449,10 +509,20 @@ test_non_device_copyable()
                       oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_reduce_input<binary_op_non_device_copyable>>,
                   "__gen_red_by_seg_reduce_input is device copyable with non device copyable types");
 
-    //__gen_red_by_seg_reduce_input
+    //__gen_red_by_seg_scan_input
     static_assert(!sycl::is_device_copyable_v<
                       oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_scan_input<binary_op_non_device_copyable>>,
                   "__gen_red_by_seg_scan_input is device copyable with non device copyable types");
+
+    //__gen_scan_by_seg_reduce_input
+    static_assert(!sycl::is_device_copyable_v<
+                      oneapi::dpl::__par_backend_hetero::__gen_scan_by_seg_reduce_input<binary_op_non_device_copyable>>,
+                  "__gen_scan_by_seg_reduce_input is device copyable with non device copyable types");
+
+    //__gen_scan_by_seg_scan_input
+    static_assert(!sycl::is_device_copyable_v<
+                      oneapi::dpl::__par_backend_hetero::__gen_scan_by_seg_scan_input<binary_op_non_device_copyable>>,
+                  "__gen_scan_by_seg_scan_input is device copyable with non device copyable types");
 
     //__gen_mask
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_mask<noop_non_device_copyable>>,
@@ -476,14 +546,27 @@ test_non_device_copyable()
     //__gen_set_balanced_path
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
                       oneapi::dpl::__par_backend_hetero::__set_intersection,
-                      binary_op_non_device_copyable>>,
+                      oneapi::dpl::__par_backend_hetero::__get_bounds_simple, binary_op_non_device_copyable,
+                      binary_op_non_device_copyable, binary_op_non_device_copyable>>,
                   "__gen_set_balanced_path is device copyable with non device copyable types");
 
+#if !_PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN
+    // __partition_set_balanced_path_submitter
+    static_assert(
+        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter<
+            oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
+                oneapi::dpl::__par_backend_hetero::__set_intersection,
+                oneapi::dpl::__par_backend_hetero::__get_bounds_simple, binary_op_non_device_copyable,
+                binary_op_non_device_copyable, binary_op_non_device_copyable>,
+            oneapi::dpl::execution::DefaultKernelName>>,
+        "__partition_set_balanced_path_submitter is device copyable with non device copyable types");
+#endif
+
     //__gen_set_op_from_known_balanced_path
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
-                      oneapi::dpl::__par_backend_hetero::__set_intersection,
-                      oneapi::dpl::__par_backend_hetero::__noop_temp_data,
-                      binary_op_non_device_copyable>>,
+    static_assert(
+        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
+            oneapi::dpl::__par_backend_hetero::__set_intersection, oneapi::dpl::__par_backend_hetero::__noop_temp_data,
+            binary_op_non_device_copyable, binary_op_non_device_copyable, binary_op_non_device_copyable>>,
                   "__gen_set_op_from_known_balanced_path is device copyable with non device copyable types");
 
     //__write_to_id_if
@@ -500,6 +583,11 @@ test_non_device_copyable()
     static_assert(!sycl::is_device_copyable_v<
                       oneapi::dpl::__par_backend_hetero::__write_red_by_seg<binary_op_non_device_copyable>>,
                   "__write_red_by_seg is device copyable with non device copyable types");
+
+    //__write_scan_by_seg
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__write_scan_by_seg<
+                      true, int_non_device_copyable, binary_op_non_device_copyable>>,
+                  "__write_scan_by_seg is device copyable with non device copyable types");
 
     //__write_multiple_to_id
     static_assert(!sycl::is_device_copyable_v<
@@ -521,6 +609,35 @@ test_non_device_copyable()
     static_assert(
         !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__red_by_seg_op<binary_op_non_device_copyable>>,
         "__red_by_seg_op is device copyable with non device copyable types");
+
+    //__scan_by_seg_op
+    static_assert(
+        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__scan_by_seg_op<binary_op_non_device_copyable>>,
+        "__scan_by_seg_op is device copyable with non device copyable types");
+
+#if !_PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN
+    //__parallel_reduce_then_scan_reduce_submitter
+    static_assert(
+        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_reduce_submitter<
+            16, true, false,
+            oneapi::dpl::__par_backend_hetero::__gen_scan_by_seg_reduce_input<binary_op_non_device_copyable>,
+            oneapi::dpl::__par_backend_hetero::__scan_by_seg_op<binary_op_non_device_copyable>,
+            oneapi::dpl::unseq_backend::__no_init_value<int_non_device_copyable>,
+            oneapi::dpl::execution::DefaultKernelName>>,
+        "__parallel_reduce_then_scan_reduce_submitter is device copyable with non device copyable types");
+
+    //__parallel_reduce_then_scan_scan_submitter
+    static_assert(
+        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_scan_submitter<
+            16, true, false, oneapi::dpl::__par_backend_hetero::__scan_by_seg_op<binary_op_non_device_copyable>,
+            oneapi::dpl::__par_backend_hetero::__gen_scan_by_seg_scan_input<binary_op_non_device_copyable>,
+            oneapi::dpl::__par_backend_hetero::__get_zeroth_element,
+            oneapi::dpl::__par_backend_hetero::__write_scan_by_seg<
+                true, oneapi::dpl::unseq_backend::__init_value<int_non_device_copyable>, binary_op_non_device_copyable>,
+            oneapi::dpl::unseq_backend::__no_init_value<int_non_device_copyable>,
+            oneapi::dpl::execution::DefaultKernelName>>,
+        "__parallel_reduce_then_scan_scan_submitter is device copyable with non device copyable types");
+#endif
 
     //__not_pred
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__not_pred<noop_non_device_copyable>>,

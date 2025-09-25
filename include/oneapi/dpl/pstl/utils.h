@@ -17,6 +17,7 @@
 #define _ONEDPL_UTILS_H
 
 #include "onedpl_config.h"
+#include "tuple_impl.h" // Internal tuple and get specializations needed by __segmented_scan_fun
 
 #include <new>
 #include <tuple>
@@ -44,6 +45,12 @@
 #    endif
 #    include <cstring> // memcpy
 #endif
+
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+#    include <concepts> // for std::equality_comparable_with
+#endif
+
+#include "functional_impl.h"
 
 namespace oneapi
 {
@@ -87,7 +94,7 @@ class __not_pred
     bool
     operator()(_Args&&... __args) const
     {
-        return !_M_pred(::std::forward<_Args>(__args)...);
+        return !std::invoke(_M_pred, std::forward<_Args>(__args)...);
     }
 };
 
@@ -103,7 +110,7 @@ class __reorder_pred
     bool
     operator()(_FTp&& __a, _STp&& __b) const
     {
-        return _M_pred(::std::forward<_STp>(__b), ::std::forward<_FTp>(__a));
+        return std::invoke(_M_pred, std::forward<_STp>(__b), std::forward<_FTp>(__a));
     }
 };
 
@@ -120,24 +127,6 @@ class __pstl_assign
         ::std::forward<_Yp>(__y) = __x;
     }
 };
-
-template <typename _Pred, typename _Proj>
-struct __predicate
-{
-    //'mutable' is to relax the requirements for a user comparator or/and projection type operator() may be non-const
-    mutable _Pred __pred;
-    mutable _Proj __proj;
-
-    template <typename... _Xp>
-    bool
-    operator()(const _Xp&... __x) const
-    {
-        return std::invoke(__pred, std::invoke(__proj, __x)...);
-    }
-};
-
-template <typename _Comp, typename _Proj>
-using __compare = __predicate<_Comp, _Proj>;
 
 template <typename _F, typename _Proj>
 struct __unary_op
@@ -622,21 +611,22 @@ __dpl_signbit(const _T& __x)
     return (__x & __mask) != 0;
 }
 
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
-_Size1
-__pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
+_Size
+__pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
     auto __n = __last - __first;
     auto __cur = __n;
-    _Size1 __it;
+    _Size __idx;
     while (__n > 0)
     {
-        __it = __first;
+        __idx = __first;
         __cur = __n / 2;
-        __it += __cur;
-        if (__comp(__acc[__it], __value))
+        __idx += __cur;
+        if (std::invoke(__comp, std::invoke(__proj, __acc[__idx]), __value))
         {
-            __n -= __cur + 1, __first = ++__it;
+            __n -= __cur + 1;
+            __first = ++__idx;
         }
         else
             __n = __cur;
@@ -644,30 +634,31 @@ __pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __va
     return __first;
 }
 
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
-_Size1
-__pstl_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
+_Size
+__pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
-    return __pstl_lower_bound(__acc, __first, __last, __value,
-                              oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__reorder_pred<_Compare>>{
-                                  oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    return __pstl_lower_bound(__acc, __first, __last, __value, __negation_reordered_comp, __proj);
 }
 
 // Searching for the first element strongly greater than a passed value - right bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare>
+template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
 _Index
-__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp)
+__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj)
 {
-    return __pstl_upper_bound(__a, __first, __last, __val, __comp);
+    return __pstl_upper_bound(__a, __first, __last, __val, __comp, __proj);
 }
 
 // Performs a "biased" binary search targets the split point close to one edge of the range.
 // When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
 // After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
 // resulting in a standard binary search.
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
 _Size1
-__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
     auto __n = __last - __first;
     std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
@@ -683,7 +674,7 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
             __cur_idx = __biased_step;
         __it = __first + __cur_idx;
 
-        if (__comp(__acc[__it], __value))
+        if (std::invoke(__comp, std::invoke(__proj, __acc[__it]), __value))
         {
             __first = __it + 1;
         }
@@ -698,18 +689,19 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
     if (__n > 0)
     {
         //end up fully at binary search
-        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, __value, __comp);
+        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, __value, __comp, __proj);
     }
     return __first;
 }
 
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
 _Size1
-__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
+__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
-    return __biased_lower_bound<__bias_last>(
-        __acc, __first, __last, __value,
-        oneapi::dpl::__internal::__not_pred{oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    return __biased_lower_bound<__bias_last>(__acc, __first, __last, __value, __negation_reordered_comp, __proj);
 }
 
 template <typename _IntType, typename _Acc>
@@ -773,14 +765,16 @@ struct _ReverseCounter
 };
 
 // Reverse searching for the first element strongly less than a passed value - left bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare>
+template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
 _Index
-__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp)
+__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj)
 {
     auto __beg = _ReverseCounter<_Index, _Buffer>{__last - 1};
     auto __end = _ReverseCounter<_Index, _Buffer>{__first - 1};
 
-    return __pstl_upper_bound(__a, __beg, __end, __val, __reorder_pred<_Compare>{__comp});
+    __not_pred<decltype(__comp)> __negation_comp{__comp};
+
+    return __pstl_lower_bound(__a, __beg, __end, __val, __negation_comp, __proj);
 }
 
 // Lower bound implementation based on Shar's algorithm for binary search.
@@ -818,30 +812,63 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
                                    oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
-// TODO In C++20 we may try to use std::equality_comparable
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+template <typename _Iterator1, typename _Iterator2>
+inline constexpr bool __is_equality_comparable_with_v = std::equality_comparable_with<_Iterator1, _Iterator2>;
+
+#else
+
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_equality_comparable : std::false_type
+struct __has_equality_op : std::false_type
 {
 };
 
-// All with implemented operator ==
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable<
-    _Iterator1, _Iterator2,
-    std::void_t<decltype(::std::declval<::std::decay_t<_Iterator1>>() == ::std::declval<::std::decay_t<_Iterator2>>())>>
+struct __has_equality_op<_Iterator1, _Iterator2,
+                         std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
     : std::true_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl : __has_equality_op<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl<std::reverse_iterator<_Iterator1>, std::reverse_iterator<_Iterator2>>
+    : __is_equality_comparable_with_impl<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl<std::move_iterator<_Iterator1>, std::move_iterator<_Iterator2>>
+    : __is_equality_comparable_with_impl<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with
+    : __is_equality_comparable_with_impl<std::decay_t<_Iterator1>, std::decay_t<_Iterator2>>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+inline constexpr bool __is_equality_comparable_with_v = __is_equality_comparable_with<_Iterator1, _Iterator2>::value;
+
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+// Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
+template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-    if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+    if constexpr (__is_equality_comparable_with_v<_Iterator1, _Iterator2>)
     {
         return __it1 == __it2;
     }
-    else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
+    else if constexpr (__is_equality_comparable_with_v<_Iterator2, _Iterator1>)
     {
         return __it2 == __it1;
     }
@@ -867,17 +894,18 @@ struct __spirv_target_conditional :
 inline constexpr bool __is_spirv_target_v = __spirv_target_conditional<::std::true_type, ::std::false_type>::value;
 
 template <typename _T, typename = void>
-struct __is_iterator_type : std::false_type
+struct __is_type_with_iterator_traits : std::false_type
 {
 };
 
 template <typename _T>
-struct __is_iterator_type<_T, std::void_t<typename std::iterator_traits<_T>::difference_type>> : std::true_type
+struct __is_type_with_iterator_traits<
+    _T, std::void_t<typename std::iterator_traits<std::remove_reference_t<_T>>::difference_type>> : std::true_type
 {
 };
 
 template <typename _T>
-static constexpr bool __is_iterator_type_v = __is_iterator_type<_T>::value;
+static constexpr bool __is_type_with_iterator_traits_v = __is_type_with_iterator_traits<_T>::value;
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>
@@ -887,7 +915,9 @@ union __lazy_ctor_storage
     _Tp __v;
     __lazy_ctor_storage() {}
 
-    // empty destructor since we should be explicitly destroying any constructed data
+    // Empty destructor, we must explicitly manage destruction of data constructed.
+    // A defaulted destructor of a union would not automatically call destructors of the variant __v, but also does not
+    // support non-trivial destructors for _Tp. This allows us to support non-trivial destructors for _Tp.
     ~__lazy_ctor_storage() {}
 
     template <typename _U>
@@ -948,11 +978,11 @@ struct __min_nested_type_size<oneapi::dpl::__internal::tuple<_Ts...>>
     constexpr static std::size_t value = std::min({__min_nested_type_size<_Ts>::value...});
 };
 
-template <typename _ReferenceType1, typename _ReferenceType2>
-struct __swap_ranges_fn
+struct __swap_fn
 {
+    template <typename _Type1, typename _Type2>
     void
-    operator()(_ReferenceType1 __x, _ReferenceType2 __y) const
+    operator()(_Type1&& __x, _Type2&& __y) const
     {
         using ::std::swap;
         swap(__x, __y);
@@ -988,6 +1018,68 @@ struct __count_fn_pred
     }
 };
 #endif
+
+template <typename _ValueType, typename _FlagType, typename _BinaryOp>
+struct __segmented_scan_fun
+{
+    template <typename _T1, typename _T2>
+    _T1
+    operator()(const _T1& __x, const _T2& __y) const
+    {
+        using std::get;
+        using __x_t = std::tuple_element_t<0, _T1>;
+        auto __new_x = get<1>(__y) ? __x_t(get<0>(__y)) : __x_t(__binary_op(get<0>(__x), get<0>(__y)));
+        auto __new_y = get<1>(__x) | get<1>(__y);
+        return _T1(__new_x, __new_y);
+    }
+
+    _BinaryOp __binary_op;
+};
+
+template <typename _T, typename _Predicate>
+struct __replace_if_fun
+{
+    using __result_of = _T;
+
+    template <typename _T1, typename _T2>
+    _T
+    operator()(_T1&& __a, _T2&& __s) const
+    {
+        return __pred(std::forward<_T2>(__s)) ? __new_value : __a;
+    }
+
+    _Predicate __pred;
+    const _T __new_value;
+};
+
+template <typename _OutValueType, typename _OutRefType, typename _InRefType>
+inline constexpr bool __trivial_uninitialized_copy =
+    // Required operation is trivial
+    // If the required operation is trivial, we can skip it.
+    std::is_trivially_constructible_v<_OutValueType, _InRefType> &&
+    // Actual operations are trivial
+    // If the element type is trivially default constructible,
+    // we can assume that its "life" has begun even in the uninitialized memory, and we can assign to it
+    std::is_trivially_default_constructible_v<_OutValueType> &&
+    std::is_trivially_assignable_v<_OutRefType, _InRefType>;
+
+template <typename _OutValueType, typename _OutRefType, typename _InRefType>
+inline constexpr bool __trivial_uninitialized_move =
+    std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> && // required operation
+    std::is_trivially_default_constructible_v<_OutValueType> &&                                // actual operations
+    std::is_trivially_assignable_v<_OutRefType, _InRefType>;
+
+template <typename _ValueType, typename _T>
+inline constexpr bool __trivial_uninitialized_fill =
+    std::is_trivially_constructible_v<_ValueType, _T> &&     // required operation
+    std::is_trivially_default_constructible_v<_ValueType> && // actual operations
+    // the value is expected to be converted to the element type by the caller in the actual operation
+    std::is_trivially_copy_assignable_v<_ValueType>;
+
+template <typename _ValueType>
+inline constexpr bool __trivial_uninitialized_value_construct =
+    std::is_trivially_default_constructible_v<_ValueType> && // required operation
+    std::is_trivially_copy_assignable_v<_ValueType>;         // actual operation
 
 } // namespace __internal
 } // namespace dpl

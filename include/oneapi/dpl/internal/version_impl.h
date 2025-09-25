@@ -12,7 +12,7 @@
 
 // The library version
 #define ONEDPL_VERSION_MAJOR 2022
-#define ONEDPL_VERSION_MINOR 9
+#define ONEDPL_VERSION_MINOR 10
 #define ONEDPL_VERSION_PATCH 0
 
 // The oneAPI Specification version this implementation is compliant with
@@ -38,7 +38,7 @@
 // Feature macros
 #define ONEDPL_HAS_RANDOM_NUMBERS         202409L
 #if _ONEDPL_CPP20_RANGES_PRESENT
-#    define ONEDPL_HAS_RANGE_ALGORITHMS   202505L
+#    define ONEDPL_HAS_RANGE_ALGORITHMS   202509L
 #endif
 
 #endif // _ONEDPL_VERSION_IMPL_H

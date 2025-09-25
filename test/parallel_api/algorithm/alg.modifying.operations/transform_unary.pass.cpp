@@ -42,7 +42,7 @@ private:
     check_and_reset(InputIterator first, InputIterator last, OutputIterator out_first)
     {
         typename ::std::iterator_traits<OutputIterator>::difference_type k = 0;
-        for (; first != last; ++first, ++out_first, ++k)
+        for (; first != last; ++first, (void) ++out_first, ++k)
         {
             // check
             const auto expected = get_expected(*first);

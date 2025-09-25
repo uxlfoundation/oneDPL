@@ -165,7 +165,17 @@ template <typename TStream, typename Tag, typename TValue>
 
     if constexpr (IsOutputStreamable<TValue, decltype(os)>::value)
     {
-        os << value;
+        if constexpr (std::is_same_v<bool, std::decay_t<TValue>>)
+        {
+            if (value)
+                os << "true";
+            else
+                os << "false";
+        }
+        else
+        {
+            os << value;
+        }
     }
     else
     {
@@ -234,7 +244,7 @@ expect_equal(Iterator1 expected_first, Iterator2 actual_first, Size n, const cha
              const char* message)
 {
     size_t error_count = 0;
-    for (size_t k = 0; k < n && error_count < 10; ++k, ++expected_first, ++actual_first)
+    for (size_t k = 0; k < n && error_count < 10; ++k, ++expected_first, (void) ++actual_first)
     {
         if (!is_equal_val(*expected_first, *actual_first))
         {
@@ -1240,6 +1250,46 @@ struct Pow2
     operator()(T x) const
     {
         return x * x;
+    }
+};
+
+template <typename _T>
+struct MoveOnlyWrapper {
+    _T value;
+
+    // Default constructor
+    MoveOnlyWrapper() = delete;
+
+    MoveOnlyWrapper(_T v) : value(v) {}
+
+    operator _T() const { return value; }
+
+    // Move constructor
+    MoveOnlyWrapper(MoveOnlyWrapper&&) = default;
+
+    // Move assignment operator
+    MoveOnlyWrapper& operator=(MoveOnlyWrapper&&) = default;
+
+    // Deleted copy constructor and copy assignment operator
+    MoveOnlyWrapper(const MoveOnlyWrapper&) = delete;
+    MoveOnlyWrapper& operator=(const MoveOnlyWrapper&) = delete;
+
+    MoveOnlyWrapper operator-() const
+    {
+        return MoveOnlyWrapper{-value};
+    }
+    friend bool operator==(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return a.value == b.value;
+    }
+    friend MoveOnlyWrapper operator+(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value + b.value};
+    }
+
+    friend MoveOnlyWrapper operator*(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value * b.value};
     }
 };
 

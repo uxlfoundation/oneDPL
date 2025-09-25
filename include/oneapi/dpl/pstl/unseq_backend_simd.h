@@ -207,7 +207,7 @@ __simd_first(_Index1 __first1, _DifferenceType __n, _Index2 __first2, _Pred __pr
     }
 
     //Keep remainder scalar
-    for (; __last1 != __first1; ++__first1, ++__first2)
+    for (; __last1 != __first1; ++__first1, (void)++__first2)
         if (__pred(*(__first1), *(__first2)))
             return ::std::make_pair(__first1, __first2);
 
@@ -570,7 +570,7 @@ template <typename _Tp, typename _BinaryOperation>
 inline constexpr bool is_arithmetic_plus_v = is_arithmetic_plus<_Tp, _BinaryOperation>::value;
 
 template <typename _DifferenceType, typename _Tp, typename _BinaryOperation, typename _UnaryOperation>
-::std::enable_if_t<is_arithmetic_plus_v<_Tp, _BinaryOperation>, _Tp>
+::std::enable_if_t<is_arithmetic_plus_v<_Tp, _BinaryOperation> && std::is_copy_constructible_v<_Tp>, _Tp>
 __simd_transform_reduce(_DifferenceType __n, _Tp __init, _BinaryOperation, _UnaryOperation __f) noexcept
 {
     _ONEDPL_PRAGMA_SIMD_REDUCTION(+ : __init)
@@ -615,7 +615,7 @@ __simd_transform_reduce(_Size __n, _Tp __init, _BinaryOperation __binary_op, _Un
         // combiner
         for (_Size __i = 0; __i < __block_size; ++__i)
         {
-            __init = __binary_op(__init, __lane[__i]);
+            __init = __binary_op(std::move(__init), __lane[__i]);
         }
         // destroyer
         _ONEDPL_PRAGMA_SIMD
@@ -628,10 +628,10 @@ __simd_transform_reduce(_Size __n, _Tp __init, _BinaryOperation __binary_op, _Un
     {
         for (_Size __i = 0; __i < __n; ++__i)
         {
-            __init = __binary_op(__init, __f(__i));
+            __init = __binary_op(std::move(__init), __f(__i));
         }
     }
-    return __init;
+    return std::move(__init);
 }
 
 // Exclusive scan for "+" and arithmetic types
