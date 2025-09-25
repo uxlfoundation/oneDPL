@@ -29,7 +29,8 @@ New Features
   device execution policies on GPUs.
 - Improved performance of set operation algorithms when using device policies: ``set_union``, ``set_difference``,
   ``set_intersection``, ``set_symmetric_difference``. Removed default constructible requirements from value type of
-  reduce and transform_reduce when used with an execution policy. 
+  reduce and transform_reduce when used with an execution policy.
+- Improved performance of parallel_find_or–based algorithms on Intel® Arc™ B-series GPU devices.
 - Removed requirement of GPU double support to use ``set_union``, ``set_difference``, ``set_intersection``, and
   ``set_symmetric_difference`` on Windows operating systems.
 - Removed copy constructible requirements from value type for reduce and transform_reduce algorithms when used with a
@@ -46,6 +47,9 @@ Fixed Issues
   iterator.
 - Fixed a bug in ``oneapi::dpl::inclusive_scan`` and all prefix sum algorithms when using device policies with differing
   ``InputIterator`` and ``OutputIterator`` types.
+- Fixed error in return value types for oneapi::dpl::ranges::minmax_element and oneapi::dpl::ranges::mismatch algorithms.
+- Fixed compile errors in ``oneapi::dpl::set_union`` and ``oneapi::dpl::set_symmetric_difference`` for hetero execution
+  policies when the types of the second data and results data are different.
 
 Known Issues and Limitations
 ----------------------------
