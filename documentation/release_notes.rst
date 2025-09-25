@@ -28,13 +28,12 @@ New Features
 - Improved performance of ``inclusive_scan_by_segment`` and ``exclusive_scan_by_segment`` with
   device execution policies on GPUs.
 - Improved performance of set operation algorithms when using device policies: ``set_union``, ``set_difference``,
-  ``set_intersection``, ``set_symmetric_difference``. Removed default constructible requirements from value type of
-  reduce and transform_reduce when used with an execution policy.
+  ``set_intersection``, ``set_symmetric_difference``.
 - Improved performance of parallel_find_or–based algorithms on Intel® Arc™ B-series GPU devices.
 - Removed requirement of GPU double support to use ``set_union``, ``set_difference``, ``set_intersection``, and
   ``set_symmetric_difference`` on Windows operating systems.
 - Removed copy constructible requirements from value type for reduce and transform_reduce algorithms when used with a
-  host policy.
+  host policy, and default constructible requirements from value type for reduce and transform_reduce when used with an execution policy.
 
 Fixed Issues
 ------------
