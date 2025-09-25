@@ -936,7 +936,7 @@ __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exe
         std::ranges::borrowed_iterator_t<_OutRange>>;
 
     return __return_t{std::ranges::begin(__r1) + __res.first, std::ranges::begin(__r2) + __res.second,
-            std::ranges::begin(__out_r) + __n_out};
+                      std::ranges::begin(__out_r) + __n_out};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
