@@ -173,11 +173,7 @@ struct __min_size_calc
     operator()(const _Ranges&... __rngs) const
     {
         using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
-#if _ONEDPL_CPP20_RANGES_PRESENT
-        return std::min({_Size(std::ranges::size(__rngs))...});
-#else
-        return std::min({_Size(__rngs.size())...});
-#endif
+        return std::min({_Size(oneapi::dpl::__ranges::__size(__rngs))...});
     }
 };
 
