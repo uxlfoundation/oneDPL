@@ -29,7 +29,9 @@ New Features
   device execution policies on GPUs.
 - Improved performance of set operation algorithms when using device policies: ``set_union``, ``set_difference``,
   ``set_intersection``, ``set_symmetric_difference``.
-- Improved performance of parallel_find_or–based algorithms on Intel® Arc™ B-series GPU devices.
+- Improved performance of ``adjacent_find``, ``all_of``, ``any_of``, ``none_of``, ``equal``, ``find_end``,
+  ``find_first_of``, ``find_if``, ``find_if_not``, ``includes``, ``is_heap``, ``is_heap_until``, ``mismatch``,
+  ``search``, ``search_n``, algorithms on Intel® Arc™ B-series GPU devices.
 - Removed requirement of GPU double support to use ``set_union``, ``set_difference``, ``set_intersection``, and
   ``set_symmetric_difference`` on Windows operating systems.
 - Removed copy constructible requirements from value type for ``reduce`` and ``transform_reduce`` algorithms when used
