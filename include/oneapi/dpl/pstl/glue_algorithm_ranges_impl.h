@@ -1102,7 +1102,7 @@ struct __reverse_fn
         auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
 
         oneapi::dpl::__internal::__ranges::__pattern_reverse(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-                                                             std::forward<_R>(__r));
+                                                             __r);
         return std::ranges::borrowed_iterator_t<_R>{__last};
     }
 
@@ -1171,8 +1171,8 @@ struct __is_sorted_until_fn
     {
         auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
 
-        auto __it = oneapi::dpl::ranges::adjacent_find(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__reorder_pred<_Comp>(__comp), __proj);
+        auto __it = oneapi::dpl::ranges::adjacent_find(std::forward<_ExecutionPolicy>(__exec), __r,
+                                                       oneapi::dpl::__internal::__reorder_pred<_Comp>(__comp), __proj);
         return __it == __last ? __last : ++__it;
     }
 }; //__is_sorted_until_fn
