@@ -1162,11 +1162,11 @@ template <typename _RandomAccessIterator, typename _Compare>
 
 template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare>
 ::std::pair<_ForwardIterator, _ForwardIterator>
-__pattern_minmax_element(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator, _Compare) noexcept;
+__pattern_minmax_element(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator, _Compare) noexcept;              // oneapi::dpl::__internal : std::pair<_ForwardIterator, _ForwardIterator>
 
 template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare>
 ::std::pair<_RandomAccessIterator, _RandomAccessIterator>
-__pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator, _RandomAccessIterator,
+__pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator, _RandomAccessIterator,   // oneapi::dpl::__internal : std::pair<_RandomAccessIterator, _RandomAccessIterator>
                          _Compare);
 
 //------------------------------------------------------------------------
