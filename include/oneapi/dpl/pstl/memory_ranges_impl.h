@@ -58,7 +58,8 @@ __pattern_uninitialized_default_construct(_Tag __tag, _ExecutionPolicy&& __exec,
             __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
             oneapi::dpl::__internal::__op_uninitialized_default_construct<std::decay_t<_ExecutionPolicy>>{});
     }
-    return std::ranges::borrowed_iterator_t<_R>{__last};
+
+    return __last;
 }
 
 template <typename _ExecutionPolicy, typename _R>
@@ -94,7 +95,8 @@ __pattern_uninitialized_value_construct(_Tag __tag, _ExecutionPolicy&& __exec, _
             __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
             oneapi::dpl::__internal::__op_uninitialized_value_construct<std::decay_t<_ExecutionPolicy>>{});
     }
-    return std::ranges::borrowed_iterator_t<_R>{__last};
+
+    return __last;
 }
 
 template <typename _ExecutionPolicy, typename _R>
