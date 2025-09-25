@@ -11,6 +11,11 @@ creating efficient heterogeneous applications.
 New in 2022.10.0
 ================
 
+Deprecation Notices
+-------------------
+The ``ONEDPL_USE_AOT_COMPILATION`` and ``ONEDPL_AOT_ARCH`` CMake options are deprecated and will be removed in a future
+release. Please use the relevant compiler flags to enable this feature.
+
 New Features
 ------------
 - Added parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``set_intersection``, ``set_union``,
@@ -18,6 +23,10 @@ New Features
   ``uninitialized_fill``, ``uninitialized_move``, ``uninitialized_copy``, ``uninitialized_value_construct``,
   ``uninitialized_default_construct``, ``reverse``, ``reverse_copy``, ``swap_ranges``. These algorithms operate with
   C++20 random access ranges.
+- Improved performance of ``oneapi::dpl::experimental::kt::gpu::inclusive_scan`` and added support for binary operator
+  and type combinations which do not have a SYCL known identity.
+- Improved performance of ``oneapi::dpl::inclusive_scan_by_segment ``and ``oneapi::dpl::exclusive_scan_by_segment`` with
+  device execution policies on GPUs.
 
 Fixed Issues
 ------------
@@ -26,6 +35,10 @@ Fixed Issues
 - Fixed a compilation error **SYCL kernel cannot use exceptions** occurring with libstdc++ version 10 when calling
   range-based ``adjacent_find``, ``is_sorted`` and ``is_sorted_until`` algorithms using  device policies.
 - Fixed an issue with ``PSTL_USE_NONTEMPORAL_STORES`` macro having no effect.
+- Fixed a bug where ``oneapi::dpl::unique`` when called with a device execution policy returned an incorrect result
+  iterator.
+- Fixed a bug in ``oneapi::dpl::inclusive_scan`` and all prefix sum algorithms when using device policies with differing
+  ``InputIterator`` and ``OutputIterator`` types.
 
 Known Issues and Limitations
 ----------------------------
