@@ -45,7 +45,8 @@ Fixed Issues
 - Fixed an issue with ``PSTL_USE_NONTEMPORAL_STORES`` macro having no effect.
 - Fixed a bug where ``unique`` when called with a device execution policy returned an incorrect result
   iterator.
-- Fixed a bug in ``inclusive_scan`` and all prefix sum algorithms when using device policies with differing
+- Fixed a bug in ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``, ``transform_inclusive_scan``,
+  ``exlusive_scan_by_segment``, and ``inclusive_scan_by_segment`` algorithms when using device policies with differing
   ``InputIterator`` and ``OutputIterator`` types.
 - Fixed error in return value types for oneapi::dpl::ranges::minmax_element and oneapi::dpl::ranges::mismatch algorithms.
 - Fixed compile errors in ``set_union`` and ``set_symmetric_difference`` for hetero execution policies when the types of
