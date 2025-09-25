@@ -43,13 +43,13 @@ Fixed Issues
 - Fixed a compilation error **SYCL kernel cannot use exceptions** occurring with libstdc++ version 10 when calling
   range-based ``adjacent_find``, ``is_sorted`` and ``is_sorted_until`` algorithms using  device policies.
 - Fixed an issue with ``PSTL_USE_NONTEMPORAL_STORES`` macro having no effect.
-- Fixed a bug where ``oneapi::dpl::unique`` when called with a device execution policy returned an incorrect result
+- Fixed a bug where ``unique`` when called with a device execution policy returned an incorrect result
   iterator.
-- Fixed a bug in ``oneapi::dpl::inclusive_scan`` and all prefix sum algorithms when using device policies with differing
+- Fixed a bug in ``inclusive_scan`` and all prefix sum algorithms when using device policies with differing
   ``InputIterator`` and ``OutputIterator`` types.
 - Fixed error in return value types for oneapi::dpl::ranges::minmax_element and oneapi::dpl::ranges::mismatch algorithms.
-- Fixed compile errors in ``oneapi::dpl::set_union`` and ``oneapi::dpl::set_symmetric_difference`` for hetero execution
-  policies when the types of the second data and results data are different.
+- Fixed compile errors in ``set_union`` and ``set_symmetric_difference`` for hetero execution policies when the types of
+  the second data and results data are different.
 
 Known Issues and Limitations
 ----------------------------
