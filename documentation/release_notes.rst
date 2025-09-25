@@ -25,7 +25,7 @@ New Features
   C++20 random access ranges.
 - Improved performance of ``oneapi::dpl::experimental::kt::gpu::inclusive_scan`` and added support for binary operator
   and type combinations which do not have a SYCL known identity.
-- Improved performance of ``oneapi::dpl::inclusive_scan_by_segment ``and ``oneapi::dpl::exclusive_scan_by_segment`` with
+- Improved performance of ``inclusive_scan_by_segment`` and ``exclusive_scan_by_segment`` with
   device execution policies on GPUs.
 - Improved performance of set operation algorithms when using device policies: ``set_union``, ``set_difference``,
   ``set_intersection``, ``set_symmetric_difference``. Removed default constructible requirements from value type of
