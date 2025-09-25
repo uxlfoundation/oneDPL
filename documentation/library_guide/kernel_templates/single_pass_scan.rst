@@ -171,8 +171,7 @@ It can be approximated by dividing the number of input elements N by the product
 .. note::
 
    If the number of input elements can be efficiently processed by a single work-group,
-   the kernel template is executed by a single work-group and does not use any global memory. Furthermore, optimizations are applied
-   where applicable to reduce the global memory footprint of the algorithm.
+   the kernel template is executed by a single work-group and does not use any global memory.
 
 
 Local Memory Requirements
