@@ -27,6 +27,13 @@ New Features
   and type combinations which do not have a SYCL known identity.
 - Improved performance of ``oneapi::dpl::inclusive_scan_by_segment ``and ``oneapi::dpl::exclusive_scan_by_segment`` with
   device execution policies on GPUs.
+- Improved performance of set operation algorithms when using device policies: ``set_union``, ``set_difference``,
+  ``set_intersection``, ``set_symmetric_difference``. Removed default constructible requirements from value type of
+  reduce and transform_reduce when used with an execution policy. 
+- Removed requirement of GPU double support to use ``set_union``, ``set_difference``, ``set_intersection``, and
+  ``set_symmetric_difference`` on Windows operating systems.
+- Removed copy constructible requirements from value type for reduce and transform_reduce algorithms when used with a
+  host policy.
 
 Fixed Issues
 ------------
