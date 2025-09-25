@@ -617,11 +617,11 @@ struct __minmax_element_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        const auto& [__min, __max] =
-            oneapi::dpl::__internal::__ranges::__pattern_minmax_element(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::forward<_R>(__r), __comp, __proj);
 
-        return {__min, __max};
+        auto [__it_min, __it_max] = oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+
+        return {__it_min, __it_max};
     }
 }; //__minmax_element_fn
 } //__internal
