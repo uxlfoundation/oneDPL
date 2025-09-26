@@ -44,9 +44,9 @@ DEFINE_TEST(test_merge)
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
         TestDataTransfer<UDTKind::eRes,  Size> host_res (*this, n);
 
-        typedef typename std::iterator_traits<Iterator1>::value_type T1;
-        typedef typename std::iterator_traits<Iterator2>::value_type T2;
-        typedef typename std::iterator_traits<Iterator3>::value_type T3;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
+        using T2 = typename std::iterator_traits<Iterator2>::value_type;
+        using T3 = typename std::iterator_traits<Iterator3>::value_type;
 
         T1 odd = T1{1};
         T2 even = T2{0};

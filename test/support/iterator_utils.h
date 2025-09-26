@@ -29,11 +29,11 @@ template <typename Iterator, typename IteratorTag>
 class ForwardIterator
 {
   public:
-    typedef IteratorTag iterator_category;
-    typedef typename ::std::iterator_traits<Iterator>::value_type value_type;
-    typedef typename ::std::iterator_traits<Iterator>::difference_type difference_type;
-    typedef typename ::std::iterator_traits<Iterator>::pointer pointer;
-    typedef typename ::std::iterator_traits<Iterator>::reference reference;
+    using iterator_category = IteratorTag;
+    using value_type = typename std::iterator_traits<Iterator>::value_type;
+    using difference_type = typename std::iterator_traits<Iterator>::difference_type;
+    using pointer = typename std::iterator_traits<Iterator>::pointer;
+    using reference = typename std::iterator_traits<Iterator>::reference;
 
   protected:
     Iterator my_iterator;
@@ -87,7 +87,7 @@ class ForwardIterator
 template <typename Iterator, typename IteratorTag>
 class BidirectionalIterator : public ForwardIterator<Iterator, IteratorTag>
 {
-    typedef ForwardIterator<Iterator, IteratorTag> base_type;
+    using base_type = ForwardIterator<Iterator, IteratorTag>;
 
   public:
     BidirectionalIterator() = default;
@@ -137,7 +137,7 @@ class BidirectionalIterator : public ForwardIterator<Iterator, IteratorTag>
 template <typename Iterator>
 struct BaseAdapter
 {
-    typedef Iterator iterator_type;
+    using iterator_type = Iterator;
     iterator_type
     operator()(Iterator it)
     {
@@ -164,7 +164,7 @@ inline constexpr bool is_reverse_v = is_reverse<Iterator>::value;
 template <typename Iterator, typename IsReverse>
 struct ReverseAdapter
 {
-    typedef ::std::reverse_iterator<Iterator> iterator_type;
+    using iterator_type = std::reverse_iterator<Iterator>;
     iterator_type
     operator()(Iterator it)
     {
@@ -188,7 +188,7 @@ struct IteratorTypeAdapter : BaseAdapter<Iterator>
 template <typename Iterator>
 struct IteratorTypeAdapter<Iterator, ::std::forward_iterator_tag>
 {
-    typedef ForwardIterator<Iterator, ::std::forward_iterator_tag> iterator_type;
+    using iterator_type = ForwardIterator<Iterator, std::forward_iterator_tag>;
     iterator_type
     operator()(Iterator it)
     {
@@ -200,7 +200,7 @@ struct IteratorTypeAdapter<Iterator, ::std::forward_iterator_tag>
 template <typename Iterator>
 struct IteratorTypeAdapter<Iterator, ::std::bidirectional_iterator_tag>
 {
-    typedef BidirectionalIterator<Iterator, ::std::bidirectional_iterator_tag> iterator_type;
+    using iterator_type = BidirectionalIterator<Iterator, std::bidirectional_iterator_tag>;
     iterator_type
     operator()(Iterator it)
     {
@@ -212,8 +212,8 @@ struct IteratorTypeAdapter<Iterator, ::std::bidirectional_iterator_tag>
 template <typename InputIterator, typename IteratorTag, typename IsReverse>
 struct MakeIterator
 {
-    typedef IteratorTypeAdapter<InputIterator, IteratorTag> IterByType;
-    typedef ReverseAdapter<typename IterByType::iterator_type, IsReverse> ReverseIter;
+    using IterByType = IteratorTypeAdapter<InputIterator, IteratorTag>;
+    using ReverseIter = ReverseAdapter<typename IterByType::iterator_type, IsReverse>;
 
     typename ReverseIter::iterator_type
     operator()(InputIterator it)
@@ -236,13 +236,13 @@ struct iterator_traits_
 template <typename Iter> // For iterators
 struct iterator_traits_<Iter, ::std::enable_if_t<!::std::is_void_v<typename Iter::iterator_category>>>
 {
-    typedef typename Iter::iterator_category iterator_category;
+    using iterator_category = typename Iter::iterator_category;
 };
 
 template <typename T> // For pointers
 struct iterator_traits_<T*>
 {
-    typedef ::std::random_access_iterator_tag iterator_category;
+    using iterator_category = std::random_access_iterator_tag;
 };
 
 // is iterator Iter has tag Tag

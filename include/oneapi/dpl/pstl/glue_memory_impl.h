@@ -41,9 +41,9 @@ template <class _ExecutionPolicy, class _InputIterator, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_copy(_ExecutionPolicy&& __exec, _InputIterator __first, _InputIterator __last, _ForwardIterator __result)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _OutValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference  _OutRefType;
-    typedef typename std::iterator_traits<_InputIterator>::reference    _InRefType;
+    using _OutValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _OutRefType = typename std::iterator_traits<_ForwardIterator>::reference;
+    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
@@ -65,9 +65,9 @@ template <class _ExecutionPolicy, class _InputIterator, class _Size, class _Forw
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_copy_n(_ExecutionPolicy&& __exec, _InputIterator __first, _Size __n, _ForwardIterator __result)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _OutValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference  _OutRefType;
-    typedef typename std::iterator_traits<_InputIterator>::reference    _InRefType;
+    using _OutValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _OutRefType = typename std::iterator_traits<_ForwardIterator>::reference;
+    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
@@ -91,9 +91,9 @@ template <class _ExecutionPolicy, class _InputIterator, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_move(_ExecutionPolicy&& __exec, _InputIterator __first, _InputIterator __last, _ForwardIterator __result)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _OutValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference  _OutRefType;
-    typedef typename std::iterator_traits<_InputIterator>::reference    _InRefType;
+    using _OutValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _OutRefType = typename std::iterator_traits<_ForwardIterator>::reference;
+    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
@@ -115,9 +115,9 @@ template <class _ExecutionPolicy, class _InputIterator, class _Size, class _Forw
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_move_n(_ExecutionPolicy&& __exec, _InputIterator __first, _Size __n, _ForwardIterator __result)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _OutValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference  _OutRefType;
-    typedef typename std::iterator_traits<_InputIterator>::reference    _InRefType;
+    using _OutValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _OutRefType = typename std::iterator_traits<_ForwardIterator>::reference;
+    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
@@ -141,7 +141,7 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Tp>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 uninitialized_fill(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, const _Tp& __value)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
@@ -163,7 +163,7 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Tp
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_fill_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n, const _Tp& __value)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
@@ -187,7 +187,7 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     if constexpr (!std::is_trivially_destructible_v<_ValueType>)
     {
@@ -209,7 +209,7 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Size>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     if constexpr (std::is_trivially_destructible_v<_ValueType>)
     {
@@ -237,7 +237,7 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 uninitialized_default_construct(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     if constexpr (!std::is_trivially_default_constructible_v<_ValueType>)
     {
@@ -253,7 +253,7 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Size>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_default_construct_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     if constexpr (std::is_trivially_default_constructible_v<_ValueType>)
     {
@@ -275,7 +275,7 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 uninitialized_value_construct(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
@@ -297,7 +297,7 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Size>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_value_construct_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 

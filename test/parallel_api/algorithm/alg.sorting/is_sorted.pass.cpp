@@ -51,7 +51,7 @@ struct test_is_sorted_predicate
     operator()(Policy&& exec, Iterator first, Iterator last)
     {
         using namespace std;
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
 
         //try random-access iterator with a predicate
         bool exam = is_sorted(first, last, ::std::less<T>());
@@ -84,7 +84,7 @@ struct test_is_sorted_until_predicate
     operator()(Policy&& exec, Iterator first, Iterator last)
     {
         using namespace std;
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
 
         //try random-access iterator with a predicate
         auto iexam = is_sorted_until(first, last, ::std::less<T>());
