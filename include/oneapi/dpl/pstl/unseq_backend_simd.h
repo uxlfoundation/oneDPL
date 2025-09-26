@@ -264,7 +264,7 @@ __simd_assign(_InputIterator __first, _DifferenceType __n, _OutputIterator __res
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _UnaryPredicate>
-_OutputIterator
+_DifferenceType
 __simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _UnaryPredicate __pred) noexcept
 {
     _DifferenceType __cnt = 0;
@@ -279,7 +279,7 @@ __simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __re
             ++__cnt;
         }
     }
-    return __result + __cnt;
+    return __cnt;
 }
 
 template <class _InputIterator, class _DifferenceType, class _BinaryPredicate>
@@ -330,6 +330,60 @@ __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator
             }
         }
     }
+}
+
+template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _Bound, class _Assigner>
+std::pair<_InputIterator, _OutputIterator>
+__simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _Bound __m, bool* __mask,
+                    _Assigner __assigner) noexcept
+{
+    _DifferenceType __cnt = 0;
+    _DifferenceType __i = 0;
+    if(__m >= __n)
+    {
+        _ONEDPL_PRAGMA_SIMD
+        for (__i = 0; __i < __n; ++__i)
+        {
+            if (__mask[__i])
+            {
+                _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(__cnt : 1)
+                {
+                    __assigner(__first + __i, __result + __cnt);
+                    ++__cnt;
+                }
+            }
+        }
+    }
+    else // __m < __n
+    {
+        _ONEDPL_PRAGMA_SIMD
+        for (__i = 0; __i < __m; ++__i)
+        {
+            if (__mask[__i])
+            {
+                _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(__cnt : 1)
+                {
+                    __assigner(__first + __i, __result + __cnt);
+                    ++__cnt;
+                }
+            }
+        }
+
+        //process the remaining (__n - __m) elements
+        for (__i = __m; __i < __n; ++__i)
+        {
+            if (__mask[__i])
+            {
+                if(__cnt < __m)
+                    __assigner(__first + __i, __result + __cnt);
+                else 
+                    break;
+
+                ++__cnt;
+            }
+        }
+    }
+    return {__first + __i, __result + __cnt};
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator1, class _OutputIterator2>
