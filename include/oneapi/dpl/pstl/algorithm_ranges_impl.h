@@ -721,8 +721,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                 if (__is_equal_sorted(__i, __j - 1))
                     return false;
 
-                __i += oneapi::dpl::__internal::__pstl_upper_bound(__i, _DifferenceType2{0}, __last2 - __i, __i, __comp,
-                                                                   __proj2, __proj2);
+                __i += oneapi::dpl::__internal::__pstl_upper_bound(__i, _DifferenceType2{0}, __last2 - __i, __i, __comp, __proj2, __proj2);
             }
 
             //1.2 right bound, case "[...aaa]aaaxyz" - searching "x"
