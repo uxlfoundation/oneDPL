@@ -1161,11 +1161,11 @@ template <typename _RandomAccessIterator, typename _Compare>
                            /* __is_vector = */ ::std::true_type) noexcept;
 
 template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare>
-::std::pair<_ForwardIterator, _ForwardIterator>
+std::pair<_ForwardIterator, _ForwardIterator>
 __pattern_minmax_element(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator, _Compare) noexcept;
 
 template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare>
-::std::pair<_RandomAccessIterator, _RandomAccessIterator>
+std::pair<_RandomAccessIterator, _RandomAccessIterator>
 __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator, _RandomAccessIterator,
                          _Compare);
 

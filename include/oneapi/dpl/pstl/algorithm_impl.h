@@ -4057,7 +4057,7 @@ __brick_minmax_element(_RandomAccessIterator __first, _RandomAccessIterator __la
 }
 
 template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare>
-::std::pair<_ForwardIterator, _ForwardIterator>
+std::pair<_ForwardIterator, _ForwardIterator>
 __pattern_minmax_element(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
                          _Compare __comp) noexcept
 {
@@ -4067,7 +4067,7 @@ __pattern_minmax_element(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Fo
 }
 
 template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare>
-::std::pair<_RandomAccessIterator, _RandomAccessIterator>
+std::pair<_RandomAccessIterator, _RandomAccessIterator>
 __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
                          _RandomAccessIterator __last, _Compare __comp)
 {
