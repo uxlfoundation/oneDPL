@@ -27,7 +27,7 @@ DEFINE_TEST(test_sort)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
 
         auto value = T1(333);
         ::std::iota(host_keys.get(), host_keys.get() + n, value);
@@ -73,7 +73,7 @@ DEFINE_TEST(test_stable_sort)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
 
         auto value = T1(333);
         ::std::iota(host_keys.get(), host_keys.get() + n, value);
@@ -120,7 +120,7 @@ DEFINE_TEST(test_partial_sort)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
 
         if (n <= 1)
             return;
@@ -172,7 +172,7 @@ DEFINE_TEST(test_partial_sort_copy)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
         auto value = T1(333);
 
         if (n <= 1)
@@ -235,7 +235,7 @@ DEFINE_TEST(test_inplace_merge)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
         auto value = T(0);
 
         ::std::iota(host_keys.get(), host_keys.get() + n, value);
@@ -313,9 +313,9 @@ DEFINE_TEST(test_merge)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
-        typedef typename ::std::iterator_traits<Iterator2>::value_type T2;
-        typedef typename ::std::iterator_traits<Iterator3>::value_type T3;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
+        using T2 = typename ::std::iterator_traits<Iterator2>::value_type;
+        using T3 = typename std::iterator_traits<Iterator3>::value_type;
 
         auto value = T1(0);
         auto x = n > 1 ? n / 2 : n;

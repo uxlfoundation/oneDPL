@@ -27,7 +27,7 @@ DEFINE_TEST(test_reduce)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
         auto value = T1(2);
 
         ::std::fill(host_keys.get(), host_keys.get() + n, T1(0));
@@ -59,7 +59,7 @@ DEFINE_TEST(test_transform_reduce_unary)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
         auto value = T1(1);
 
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
@@ -329,7 +329,7 @@ DEFINE_TEST(test_transform_reduce_binary)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
         auto value = T1(1);
 
         ::std::fill(host_keys.get(), host_keys.get() + n, value);

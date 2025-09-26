@@ -259,7 +259,7 @@ DEFINE_TEST(test_any_all_none_of)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
 
         ::std::iota(host_keys.get(), host_keys.get() + n, T1(0));
         host_keys.update_data();
@@ -318,7 +318,7 @@ DEFINE_TEST(test_find_if)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
 
         ::std::iota(host_keys.get(), host_keys.get() + n, T1(0));
         host_keys.update_data();
@@ -369,7 +369,7 @@ DEFINE_TEST(test_search_n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
 
         ::std::iota(host_keys.get(), host_keys.get() + n, T(100));
 
@@ -632,7 +632,7 @@ DEFINE_TEST(test_find_first_of)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
 
         // Reset values after previous execution
         ::std::fill(host_keys.get(), host_keys.get() + n, T1(0));
@@ -706,7 +706,7 @@ DEFINE_TEST(test_search)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
 
         ::std::iota(host_keys.get(), host_keys.get() + n, T1(5));
         ::std::iota(host_vals.get(), host_vals.get() + n, T1(0));
@@ -765,7 +765,7 @@ DEFINE_TEST(test_mismatch)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
 
         ::std::iota(host_keys.get(), host_keys.get() + n, T1(5));
         ::std::iota(host_vals.get(), host_vals.get() + n, T1(0));
@@ -807,8 +807,8 @@ DEFINE_TEST(test_find_end)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
-        typedef typename ::std::iterator_traits<Iterator2>::value_type T2;
+        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
+        using T2 = typename ::std::iterator_traits<Iterator2>::value_type;
 
         // Reset after previous run
         {
