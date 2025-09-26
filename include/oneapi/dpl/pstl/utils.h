@@ -645,10 +645,11 @@ _Size1
 __pstl_lower_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
                    _Proj1 __proj1, _Proj2 __proj2)
 {
-    return __pstl_lower_bound_impl(
-        __first1, __last1, [__rng1, __rng2, __rng2_idx, __comp, __proj1, __proj2](_Size1 __rng1_idx) mutable {
-            return std::invoke(__comp, std::invoke(__proj1, __rng1[__rng1_idx]), std::invoke(__proj2, __rng2[__rng2_idx]));
-        });
+    return __pstl_lower_bound_impl(__first1, __last1,
+                                   [__rng1, __rng2, __rng2_idx, __comp, __proj1, __proj2](_Size1 __rng1_idx) mutable {
+                                       return std::invoke(__comp, std::invoke(__proj1, __rng1[__rng1_idx]),
+                                                          std::invoke(__proj2, __rng2[__rng2_idx]));
+                                   });
 }
 
 // __rng1[__first, __last1), __iterator, __comp, __proj1, __proj2
@@ -673,7 +674,8 @@ __pstl_upper_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, 
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
-    return __pstl_lower_bound(__rng1, __first1, __last1, __rng2, __rng2_idx, __negation_reordered_comp, __proj1, __proj2);
+    return __pstl_lower_bound(__rng1, __first1, __last1, __rng2, __rng2_idx, __negation_reordered_comp, __proj1,
+                              __proj2);
 }
 
 // __rng1[__first, __last1), __rng2_it, __comp, __proj1, __proj2
@@ -738,8 +740,8 @@ __biased_lower_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2
     if (__n > 0)
     {
         // End up fully at binary search
-        return oneapi::dpl::__internal::__pstl_lower_bound(__rng1, __first1, __last1, __rng2, __rng2_idx, __comp, __proj1,
-                                                           __proj2);
+        return oneapi::dpl::__internal::__pstl_lower_bound(__rng1, __first1, __last1, __rng2, __rng2_idx, __comp,
+                                                           __proj1, __proj2);
     }
     return __first1;
 }

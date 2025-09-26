@@ -92,7 +92,8 @@ __custom_boundary_get_bin_helper(_Acc __acc, ::std::int32_t __size, _T2 __value,
     {
         _T2* __value_ptr = &__value;
         ret = oneapi::dpl::__internal::__pstl_upper_bound(__acc, std::int32_t{0}, __size, __value_ptr, std::less<_T2>{},
-                                                          oneapi::dpl::identity{}, oneapi::dpl::identity{}) - 1;
+                                                          oneapi::dpl::identity{}, oneapi::dpl::identity{}) -
+              1;
     }
     return ret;
 }
