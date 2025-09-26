@@ -288,11 +288,6 @@ class zip_view
     }
 
     _tuple_ranges_t
-    tuple()
-    {
-        return __m_ranges;
-    }
-    _tuple_ranges_t
     tuple() const
     {
         return __m_ranges;
