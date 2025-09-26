@@ -49,8 +49,8 @@ Fixed Issues
 - Fixed a bug in ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``, ``transform_inclusive_scan``,
   ``exlusive_scan_by_segment``, and ``inclusive_scan_by_segment`` algorithms when using device policies with differing
   ``InputIterator`` and ``OutputIterator`` value types.
-- Fixed error in return value types for oneapi::dpl::ranges::minmax_element and oneapi::dpl::ranges::mismatch algorithms.
-- Fixed compile errors in ``set_union`` and ``set_symmetric_difference`` for hetero execution policies when the types of
+- Fixed error in return value types of range-based ``minmax_element`` and ``mismatch`` algorithms.
+- Fixed compile errors in ``set_union`` and ``set_symmetric_difference`` with device execution policies when the types of
   the second data and results data are different.
 
 Known Issues and Limitations
