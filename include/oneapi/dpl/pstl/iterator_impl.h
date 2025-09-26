@@ -127,7 +127,7 @@ class zip_forward_iterator
 #endif
 
     static const ::std::size_t __num_types = sizeof...(_Types);
-    using __it_types = __tuple_t<_Types...> ;
+    using __it_types = __tuple_t<_Types...>;
 
   public:
     using difference_type = std::make_signed_t<std::size_t>;
