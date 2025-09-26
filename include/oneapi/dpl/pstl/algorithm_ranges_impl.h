@@ -482,20 +482,20 @@ __pattern_min(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Pr
 //---------------------------------------------------------------------------------------------------------------------
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
-auto
-__pattern_minmax_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+std::pair<oneapi::dpl::__internal::__iterator_t<_R>, oneapi::dpl::__internal::__iterator_t<_R>>
+__pattern_minmax_element(_Tag __tag, _ExecutionPolicy&& __exec, const _R& __r, _Comp __comp, _Proj __proj)
 {
+    static_assert(false, "now range passed by const reference, please fix caller");
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
 
-    return oneapi::dpl::__internal::__pattern_minmax_element(
-        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
-        std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
+    return oneapi::dpl::__internal::__pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), __first,
+                                                             __first + std::ranges::size(__r), __comp_2);
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
-auto
+std::pair<oneapi::dpl::__internal::__iterator_t<_R>, oneapi::dpl::__internal::__iterator_t<_R>>
 __pattern_minmax_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp,
                          _Proj __proj)
 {
@@ -508,12 +508,13 @@ __pattern_minmax_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionP
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>
-__pattern_minmax(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+__pattern_minmax(_Tag __tag, _ExecutionPolicy&& __exec, const _R& __r, _Comp __comp, _Proj __proj)
 {
-    auto [__it_min, __it_max] =
-        __pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+    static_assert(false, "now range passed by const reference, please fix caller");
+    std::ranges::minmax_element_result<ranges::borrowed_iterator_t<_R>> __minmax_element =
+        __pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), __r, __comp, __proj);
 
-    return {*__it_min, *__it_max};
+    return {*__minmax_element.min, *__minmax_element.max};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
