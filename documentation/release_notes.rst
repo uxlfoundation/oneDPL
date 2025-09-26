@@ -25,20 +25,18 @@ New Features
   C++20 random access ranges.
 - Improved performance of ``gpu::inclusive_scan`` kernel template and added support for binary operator and type
   combinations which do not have a SYCL known identity.
-- Improved performance of ``inclusive_scan_by_segment`` and ``exclusive_scan_by_segment`` with
-  device execution policies on GPUs.
-- Improved performance of set operation algorithms when using device policies: ``set_union``, ``set_difference``,
-  ``set_intersection``, ``set_symmetric_difference``.
+- Improved performance of ``inclusive_scan_by_segment``, ``exclusive_scan_by_segment`` and set operation algorithms when
+  using device policies: ``set_union``, ``set_difference``, ``set_intersection``, ``set_symmetric_difference``.
 - Improved performance of search operations (e.g., ``find``, ``all_of``, ``equal``, ``search``, etc.), ``is_heap`` and
   ``is_heap_until`` algorithms on Intel® Arc™ B-series GPU devices.
+
+Fixed Issues
+------------
 - Removed requirement of GPU double support to use ``set_union``, ``set_difference``, ``set_intersection``, and
   ``set_symmetric_difference`` on Windows operating systems.
 - Removed copy constructible requirements from value type for ``reduce`` and ``transform_reduce`` algorithms when used
   with a host policy, and default constructible requirements from value type for ``reduce`` and ``transform_reduce``
   when used with any execution policy.
-
-Fixed Issues
-------------
 - Fixed an issue with incorrect handling of different projections by range-based ``merge``.
 - Fixed ``equal`` returning a ``false`` for empty input sequences; now it returns ``true``.
 - Fixed a compilation error **SYCL kernel cannot use exceptions** occurring with libstdc++ version 10 when calling
