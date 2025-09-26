@@ -638,7 +638,6 @@ __pstl_lower_bound_impl(_Size __first, _Size __last, _Comparator&& __comp)
     return __first;
 }
 
-// __rng1[__first1, __last1), __rng2(__rng2_idx), __comp, __proj1, __proj2
 template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
           typename _Proj2>
 _Size1
@@ -652,7 +651,6 @@ __pstl_lower_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, 
                                    });
 }
 
-// __rng1[__first, __last1), __iterator, __comp, __proj1, __proj2
 template <typename _Rng1, typename _Size1, typename _Rng2It, typename _Compare, typename _Proj1, typename _Proj2>
 _Size1
 __pstl_lower_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2It __rng2_it, _Compare __comp, _Proj1 __proj1,
@@ -664,7 +662,6 @@ __pstl_lower_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2It __rng2
         });
 }
 
-// __rng1[__first, __last1), __rng2(__rng2_idx), __comp, __proj1, __proj2
 template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
           typename _Proj2>
 _Size1
@@ -678,7 +675,6 @@ __pstl_upper_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, 
                               __proj2);
 }
 
-// __rng1[__first, __last1), __rng2_it, __comp, __proj1, __proj2
 template <typename _Rng1, typename _Size1, typename _Rng2It, typename _Compare, typename _Proj1, typename _Proj2>
 _Size1
 __pstl_upper_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2It __rng2_it, _Compare __comp, _Proj1 __proj1,
@@ -690,7 +686,6 @@ __pstl_upper_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2It __rng2
     return __pstl_lower_bound(__rng1, __first1, __last1, __rng2_it, __negation_reordered_comp, __proj1, __proj2);
 }
 
-// __rng1[__first, __last1), __rng2(__rng2_idx), __comp, __proj1, __proj2
 template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
           typename _Proj2>
 _Size1
@@ -704,7 +699,6 @@ __pstl_right_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, 
 // When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
 // After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
 // resulting in a standard binary search.
-// __rng1[__first1, __last1), __rng2(__rng2_idx), __comp, __proj1, __proj2
 template <bool __bias_last = true, typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare,
           typename _Proj1, typename _Proj2>
 _Size1
@@ -746,7 +740,6 @@ __biased_lower_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2
     return __first1;
 }
 
-// __rng1[__first1, __last1), __rng2(__rng2_idx), __comp, __proj1, __proj2
 template <bool __bias_last = true, typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare,
           typename _Proj1, typename _Proj2>
 _Size1
@@ -821,7 +814,6 @@ struct _ReverseCounter
 };
 
 // Reverse searching for the first element strongly less than a passed value - left bound
-// __rng1[__first, __last1), __rng2(__rng2_idx), __comp, __proj1, __proj2
 template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
           typename _Proj2>
 _Size1
