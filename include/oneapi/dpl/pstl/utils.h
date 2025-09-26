@@ -630,11 +630,8 @@ __pstl_lower_bound_impl(_Size __first, _Size __last, _Comparator&& __comp)
             __first = ++__idx;
         }
         else
-        {
             __n = __cur;
-        }
     }
-
     return __first;
 }
 
