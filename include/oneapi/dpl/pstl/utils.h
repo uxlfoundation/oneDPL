@@ -676,16 +676,16 @@ __pstl_upper_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, 
     return __pstl_lower_bound(__rng1, __first1, __last1, __rng2, __rng2_idx, __negation_reordered_comp, __proj1, __proj2);
 }
 
-// __rng1[__first, __last1), __iterator, __comp, __proj1, __proj2
-template <typename _Rng1, typename _Size1, typename _Iterator, typename _Compare, typename _Proj1, typename _Proj2>
+// __rng1[__first, __last1), __rng2_it, __comp, __proj1, __proj2
+template <typename _Rng1, typename _Size1, typename _Rng2It, typename _Compare, typename _Proj1, typename _Proj2>
 _Size1
-__pstl_upper_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Iterator __iterator, _Compare __comp, _Proj1 __proj1,
+__pstl_upper_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2It __rng2_it, _Compare __comp, _Proj1 __proj1,
                    _Proj2 __proj2)
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
-    return __pstl_lower_bound(__rng1, __first1, __last1, __iterator, __negation_reordered_comp, __proj1, __proj2);
+    return __pstl_lower_bound(__rng1, __first1, __last1, __rng2_it, __negation_reordered_comp, __proj1, __proj2);
 }
 
 // __rng1[__first, __last1), __rng2(__rng2_idx), __comp, __proj1, __proj2
