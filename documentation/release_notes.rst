@@ -53,13 +53,16 @@ Fixed Issues
 
 Known Issues and Limitations
 ----------------------------
+New in This Release
+^^^^^^^^^^^^^^^^^^^
+- Range-based ``copy_if``, ``unique_copy``, ``set_union``, ``set_intersection``, ``set_difference``,
+  ``set_symmetric_difference`` algorithms require the output range to have sufficient size to hold all resulting
+  elements.
+
 Existing Issues
 ^^^^^^^^^^^^^^^
 See oneDPL Guide for other `restrictions and known limitations`_.
 
-- Range-based ``copy_if``, ``unique_copy``, ``set_union``, ``set_intersection``, ``set_difference``,
-  ``set_symmetric_difference`` algorithms require the output range to have sufficient size to hold all resulting
-  elements.
 - ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
   when used with a device policy on hardware that does not support 64-bit atomic operations.
 - For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
