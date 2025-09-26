@@ -175,13 +175,18 @@
 #    define _ONEDPL_PRAGMA_SIMD_EARLYEXIT
 #endif
 
-#define _ONEDPL_MONOTONIC_PRESENT (__INTEL_COMPILER >= 1800)
 #if (defined(_PSTL_PRAGMA_SIMD_ORDERED_MONOTONIC) && _PSTL_MONOTONIC_PRESENT)
 #    define _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(PRM) _PSTL_PRAGMA_SIMD_ORDERED_MONOTONIC(PRM)
 #    define _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC_2ARGS(PRM1, PRM2)                                                    \
         _PSTL_PRAGMA_SIMD_ORDERED_MONOTONIC_2ARGS(PRM1, PRM2)
-#elif _ONEDPL_MONOTONIC_PRESENT
+#elif (__INTEL_COMPILER >= 1800)
+#    define _ONEDPL_MONOTONIC_PRESENT 1
 #    define _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(PRM) _ONEDPL_PRAGMA(omp ordered simd monotonic(PRM))
+#    define _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC_2ARGS(PRM1, PRM2)                                                    \
+        _ONEDPL_PRAGMA(omp ordered simd monotonic(PRM1, PRM2))
+#elif (__INTEL_LLVM_COMPILER >= 20230000)
+#    define _ONEDPL_MONOTONIC_PRESENT 1
+#    define _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(PRM) _ONEDPL_PRAGMA(omp ordered simd ompx_monotonic(PRM))
 #    define _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC_2ARGS(PRM1, PRM2)                                                    \
         _ONEDPL_PRAGMA(omp ordered simd monotonic(PRM1, PRM2))
 #else
