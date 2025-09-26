@@ -120,7 +120,7 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
         TestDataTransfer<UDTKind::eRes, Size> host_val_res(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator2>::value_type ValT;
+        using ValT = typename std::iterator_traits<Iterator2>::value_type;
 
         const ValT zero = 0;
         const ValT init = 1;
@@ -186,7 +186,7 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
     operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 /*vals_last*/,
                Iterator3 val_res_first, Iterator3 /*val_res_last*/, Size n)
     {
-        typedef typename ::std::iterator_traits<Iterator2>::value_type ValT;
+        using ValT = typename std::iterator_traits<Iterator2>::value_type;
 
         const ValT zero = 0;
         const ValT init = 1;

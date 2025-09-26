@@ -55,7 +55,7 @@ struct test_uninitialized_copy
     operator()(Policy&& exec, InputIterator first, InputIterator last, OutputIterator out_first, size_t n,
                /*is_trivial<T>=*/::std::false_type)
     {
-        typedef typename ::std::iterator_traits<InputIterator>::value_type T;
+        using T = typename std::iterator_traits<InputIterator>::value_type;
         // it needs for cleaning memory that was filled by default constructors in unique_ptr<T[]> p(new T[n])
         // and for cleaning memory after last calling of uninitialized_value_construct_n.
         // It is important for non-trivial types
@@ -84,7 +84,7 @@ struct test_uninitialized_copy_n
     operator()(Policy&& exec, InputIterator first, InputIterator /* last */, OutputIterator out_first, size_t n,
                /*is_trivial<T>=*/::std::false_type)
     {
-        typedef typename ::std::iterator_traits<InputIterator>::value_type T;
+        using T = typename std::iterator_traits<InputIterator>::value_type;
         // it needs for cleaning memory that was filled by default constructors in unique_ptr<T[]> p(new T[n])
         // and for cleaning memory after last calling of uninitialized_value_construct_n.
         // It is important for non-trivial types
@@ -113,7 +113,7 @@ struct test_uninitialized_move
     operator()(Policy&& exec, InputIterator first, InputIterator last, OutputIterator out_first, size_t n,
                /*is_trivial<T>=*/::std::false_type)
     {
-        typedef typename ::std::iterator_traits<InputIterator>::value_type T;
+        using T = typename std::iterator_traits<InputIterator>::value_type;
         // it needs for cleaning memory that was filled by default constructors in unique_ptr<T[]> p(new T[n])
         // and for cleaning memory after last calling of uninitialized_value_construct_n.
         // It is important for non-trivial types
@@ -142,7 +142,7 @@ struct test_uninitialized_move_n
     operator()(Policy&& exec, InputIterator first, InputIterator /* last */, OutputIterator out_first, size_t n,
                /*is_trivial<T>=*/::std::false_type)
     {
-        typedef typename ::std::iterator_traits<InputIterator>::value_type T;
+        using T = typename std::iterator_traits<InputIterator>::value_type;
         // it needs for cleaning memory that was filled by default constructors in unique_ptr<T[]> p(new T[n])
         // and for cleaning memory after last calling of uninitialized_value_construct_n.
         // It is important for non-trivial types
