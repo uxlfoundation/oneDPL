@@ -55,7 +55,7 @@ struct test_uninit_default_construct
     void
     operator()(Policy&& exec, Iterator begin, Iterator end, size_t n, /*is_trivial<T>=*/::std::false_type)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
         // it needs for cleaning memory that was filled by default constructors in unique_ptr<T[]> p(new T[n])
         // and for cleaning memory after last calling of uninitialized_value_construct_n.
         // It is important for non-trivial types
@@ -82,7 +82,7 @@ struct test_uninit_default_construct_n
     void
     operator()(Policy&& exec, Iterator begin, Iterator /* end */, size_t n, /*is_trivial<T>=*/::std::false_type)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
         // it needs for cleaning memory that was filled by default constructors in unique_ptr<T[]> p(new T[n])
         // and for cleaning memory after last calling of uninitialized_value_construct_n.
         // It is important for non-trivial types
@@ -108,7 +108,7 @@ struct test_uninit_value_construct
     void
     operator()(Policy&& exec, Iterator begin, Iterator end, size_t n, /*is_trivial<T>=*/::std::false_type)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
         // it needs for cleaning memory that was filled by default constructors in unique_ptr<T[]> p(new T[n])
         // and for cleaning memory after last calling of uninitialized_value_construct_n.
         // It is important for non-trivial types
@@ -123,7 +123,7 @@ struct test_uninit_value_construct
     void
     operator()(Policy&& exec, Iterator begin, Iterator end, size_t /* n */, /*is_trivial<T>=*/::std::true_type)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
 
         std::uninitialized_value_construct(std::forward<Policy>(exec), begin, end);
         EXPECT_TRUE(IsCheckValueCorrectness<T>(begin, end), "wrong uninitialized_value_construct");
@@ -137,7 +137,7 @@ struct test_uninit_value_construct_n
     void
     operator()(Policy&& exec, Iterator begin, Iterator /* end */, size_t n, /*is_trivial<T>=*/::std::false_type)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
         // it needs for cleaning memory that was filled by default constructors in unique_ptr<T[]> p(new T[n])
         // and for cleaning memory after last calling of uninitialized_value_construct_n.
         // It is important for non-trivial types
@@ -152,7 +152,7 @@ struct test_uninit_value_construct_n
     void
     operator()(Policy&& exec, Iterator begin, Iterator end, size_t n, /*is_trivial<T>=*/::std::true_type)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
 
         std::uninitialized_value_construct_n(std::forward<Policy>(exec), begin, n);
         EXPECT_TRUE(IsCheckValueCorrectness<T>(begin, end), "wrong uninitialized_value_construct_n");

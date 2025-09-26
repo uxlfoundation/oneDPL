@@ -384,7 +384,7 @@ __simd_adjacent_find(_Index __first, _Index __last, _BinaryPredicate __pred, boo
     if (__last - __first < 2)
         return __last;
 
-    typedef typename ::std::iterator_traits<_Index>::difference_type _DifferenceType;
+    using _DifferenceType = typename std::iterator_traits<_Index>::difference_type;
     _DifferenceType __i = 0;
 
 #if (_PSTL_EARLYEXIT_PRESENT || _ONEDPL_EARLYEXIT_PRESENT)
@@ -566,7 +566,7 @@ template <class _InputIterator, class _Size, class _OutputIterator, class _Unary
 __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryOperation __unary_op, _Tp __init,
             _BinaryOperation __binary_op, /*Inclusive*/ ::std::false_type)
 {
-    typedef _Combiner<_Tp, _BinaryOperation> _CombinerType;
+    using _CombinerType = _Combiner<_Tp, _BinaryOperation>;
     _CombinerType __init_{__init, &__binary_op};
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__bin_op, _CombinerType)
@@ -606,7 +606,7 @@ template <class _InputIterator, class _Size, class _OutputIterator, class _Unary
 __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryOperation __unary_op, _Tp __init,
             _BinaryOperation __binary_op, ::std::true_type)
 {
-    typedef _Combiner<_Tp, _BinaryOperation> _CombinerType;
+    using _CombinerType = _Combiner<_Tp, _BinaryOperation>;
     _CombinerType __init_{__init, &__binary_op};
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__bin_op, _CombinerType)
@@ -633,7 +633,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         return __first;
     }
 
-    typedef typename ::std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
     struct _ComplexType
     {
         _ValueType __min_val;
@@ -690,7 +690,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
     {
         return ::std::make_pair(__first, __first);
     }
-    typedef typename ::std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     struct _ComplexType
     {
@@ -795,7 +795,7 @@ _ForwardIterator1
 __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
                      _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
-    typedef typename ::std::iterator_traits<_ForwardIterator1>::difference_type _DifferencType;
+    using _DifferencType = typename std::iterator_traits<_ForwardIterator1>::difference_type;
 
     const _DifferencType __n1 = __last - __first;
     const _DifferencType __n2 = __s_last - __s_first;
