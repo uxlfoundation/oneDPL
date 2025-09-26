@@ -184,7 +184,8 @@
 #    define _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(PRM) _ONEDPL_PRAGMA(omp ordered simd monotonic(PRM))
 #    define _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC_2ARGS(PRM1, PRM2)                                                    \
         _ONEDPL_PRAGMA(omp ordered simd monotonic(PRM1, PRM2))
-#elif (__INTEL_LLVM_COMPILER >= 20230000)
+#elif (__INTEL_LLVM_COMPILER >= 20230000 && __INTEL_HOST_OPENMP)
+// __INTEL_HOST_OPENMP is set by -qopenmp[-simd]
 #    define _ONEDPL_MONOTONIC_PRESENT 1
 #    define _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(PRM) _ONEDPL_PRAGMA(omp ordered simd ompx_monotonic(PRM))
 #    define _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC_2ARGS(PRM1, PRM2)                                                    \
