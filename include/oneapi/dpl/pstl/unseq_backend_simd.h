@@ -312,25 +312,6 @@ __simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, bool* __mask, _U
     return __count;
 }
 
-template <typename _InputIterator, typename _DifferenceType, typename _Bound, typename _UnaryPredicate>
-std::pair<_DifferenceType, _DifferenceType>
-__simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, _Bound __m, bool* __mask, _UnaryPredicate __pred) noexcept
-{
-    _DifferenceType __count = 0;
-    _DifferenceType __i = 0;
-
-    _ONEDPL_PRAGMA_SIMD_EARLYEXIT_REDUCTION(+ : __count)
-    for (__i = 0; __i < __n; ++__i)
-    {
-        __mask[__i] = __pred(__first[__i]);
-        __count += __mask[__i];
-
-        if(__count > __m)
-            break;
-    }
-    return {__count - 1, __i};
-}
-
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
 void
 __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, bool* __mask,
