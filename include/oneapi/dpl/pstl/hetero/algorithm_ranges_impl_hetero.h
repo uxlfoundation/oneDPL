@@ -1251,10 +1251,18 @@ __pattern_min(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r, _C
 // minmax_element
 //------------------------------------------------------------------------
 
+// Index + value
+template <typename _Range>
+using __element_return_t =
+    std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>;
+
+// min element (Index + value), max element (Index + value)
+template <typename _Range>
+using __minmax_element_impl_return_t = std::pair<__element_return_t<_Range>, __element_return_t<_Range>>;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
-std::pair<std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>,
-          std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>>
-__pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
+__minmax_element_impl_return_t<_Range>
+__pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, const _Range& __rng, _Compare __comp)
 {
     assert(__rng.size() > 0);
 
@@ -1274,10 +1282,10 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
 
     const auto& [__idx_min, __idx_max, __min, __max] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                       ::std::false_type /*is_commutative*/>(
+                                                                       std::false_type /*is_commutative*/>(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
-            ::std::forward<_Range>(__rng))
+            __rng)
             .get();
 
     return {{__idx_min, __min}, {__idx_max, __max}};
@@ -1285,51 +1293,47 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
 std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__difference_t<_Range>>
-__pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
+__pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, const _Range& __rng, _Compare __comp)
 {
     //If size == 1, result is the zero-indexed element. If size == 0, result is 0.
     if (__rng.size() < 2)
         return {0, 0};
 
-    [[maybe_unused]] const auto& [__res_min, __res_max] =
-        __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        std::forward<_Range>(__rng), __comp);
+    const __minmax_element_impl_return_t<_Range> __minmax_element_res =
+        __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __rng, __comp);
 
-    [[maybe_unused]] const auto& [__idx_min, __min] = __res_min;
-    [[maybe_unused]] const auto& [__idx_max, __max] = __res_max;
-
-    return {__idx_min, __idx_max};
+    return {__minmax_element_res.first.first, __minmax_element_res.second.first};
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 std::pair<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_R>>
-__pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp,
+__pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, const _R& __r, _Comp __comp,
                          _Proj __proj)
 {
+    static_assert(false, "now range passed by const reference, please fix caller");
+
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
+
+    auto __first = std::ranges::begin(__r);
 
     const auto [__min_idx, __max_idx] =
         oneapi::dpl::__internal::__ranges::__pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
 
-    return {std::ranges::begin(__r) + __min_idx, std::ranges::begin(__r) + __max_idx};
+    return {__first + __min_idx, __first + __max_idx};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
 std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>
-__pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+__pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, const _R& __r, _Comp __comp, _Proj __proj)
 {
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
 
-    [[maybe_unused]] const auto& [__res_min, __res_max] =
-        __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        std::forward<_R>(__r), __comp_2);
+    const __minmax_element_impl_return_t<_Range> __minmax_element_res =
+        __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __r, __comp_2);
 
-    [[maybe_unused]] const auto& [__idx_min, __min] = __res_min;
-    [[maybe_unused]] const auto& [__idx_max, __max] = __res_max;
-
-    return {__min, __max};
+    return {__minmax_element_res.first.second, __minmax_element_res.second.second};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
