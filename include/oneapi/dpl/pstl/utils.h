@@ -646,8 +646,8 @@ __pstl_lower_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2 __rng2, _S
                    _Proj1 __proj1, _Proj2 __proj2)
 {
     return __pstl_lower_bound_impl(
-        __first, __last, [__rng1, __rng2, __rng2_idx, __comp, __proj1, __proj2](_Size1 __idx) mutable {
-            return std::invoke(__comp, std::invoke(__proj1, __rng1[__idx]), std::invoke(__proj2, __rng2[__rng2_idx]));
+        __first, __last, [__rng1, __rng2, __rng2_idx, __comp, __proj1, __proj2](_Size1 __rng1_idx) mutable {
+            return std::invoke(__comp, std::invoke(__proj1, __rng1[__rng2_idx]), std::invoke(__proj2, __rng2[__rng2_idx]));
         });
 }
 
@@ -658,8 +658,8 @@ __pstl_lower_bound(_Rng1 __rng1, _Size1 __first, _Size1 __last, _Rng2It __rng2_i
                    _Proj2 __proj2)
 {
     return __pstl_lower_bound_impl(
-        __first, __last, [__rng1, __rng2_it, __comp, __proj1, __proj2](_Size1 __idx) mutable {
-            return std::invoke(__comp, std::invoke(__proj1, __rng1[__idx]), std::invoke(__proj2, *__rng2_it));
+        __first, __last, [__rng1, __rng2_it, __comp, __proj1, __proj2](_Size1 __rng1_idx) mutable {
+            return std::invoke(__comp, std::invoke(__proj1, __rng1[__rng1_idx]), std::invoke(__proj2, *__rng2_it));
         });
 }
 
