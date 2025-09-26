@@ -382,16 +382,29 @@ run_tests(std::vector<int> u, int best_resource)
 int
 main()
 {
-    using policy_t = oneapi::dpl::experimental::auto_tune_policy<TestUtils::int_inline_backend_t>;
-    std::vector<int> first_resources = {1, 100, 100, 100};
-    std::vector<int> second_resources = {100, 1, 100, 100};
-    std::vector<int> third_resources = {100, 100, 1, 100};
-    std::vector<int> fourth_resources = {100, 100, 100, 1};
+    try
+    {
+        using policy_t = oneapi::dpl::experimental::auto_tune_policy<TestUtils::int_inline_backend_t>;
+        std::vector<int> first_resources = {1, 100, 100, 100};
+        std::vector<int> second_resources = {100, 1, 100, 100};
+        std::vector<int> third_resources = {100, 100, 1, 100};
+        std::vector<int> fourth_resources = {100, 100, 100, 1};
 
-    run_tests<policy_t>(first_resources, 1);
-    run_tests<policy_t>(second_resources, 1);
-    run_tests<policy_t>(third_resources, 1);
-    run_tests<policy_t>(fourth_resources, 1);
+        run_tests<policy_t>(first_resources, 1);
+        run_tests<policy_t>(second_resources, 1);
+        run_tests<policy_t>(third_resources, 1);
+        run_tests<policy_t>(fourth_resources, 1);
+    }
+    catch (const std::exception& exc)
+    {
+        std::stringstream str;
+
+        str << "Exception occurred";
+        if (exc.what())
+            str << " : " << exc.what();
+
+        TestUtils::issue_error_message(str);
+    }
 
     return TestUtils::done();
 }
