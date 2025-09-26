@@ -647,7 +647,7 @@ __pstl_lower_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, 
 {
     return __pstl_lower_bound_impl(
         __first1, __last1, [__rng1, __rng2, __rng2_idx, __comp, __proj1, __proj2](_Size1 __rng1_idx) mutable {
-            return std::invoke(__comp, std::invoke(__proj1, __rng1[__rng2_idx]), std::invoke(__proj2, __rng2[__rng2_idx]));
+            return std::invoke(__comp, std::invoke(__proj1, __rng1[__rng1_idx]), std::invoke(__proj2, __rng2[__rng2_idx]));
         });
 }
 
