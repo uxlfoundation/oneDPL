@@ -62,8 +62,8 @@ __pattern_exclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1
         return result + 1;
     }
 
-    using OutputType = typename ::std::iterator_traits<OutputIterator>::value_type;
-    using ValueType = typename ::std::iterator_traits<InputIterator2>::value_type;
+    using OutputType = typename std::iterator_traits<OutputIterator>::value_type;
+    using ValueType = typename std::iterator_traits<InputIterator2>::value_type;
     using FlagType = unsigned int FlagType;
 
     InputIterator2 last2 = first2 + n;
@@ -126,7 +126,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIterator>
 exclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                           OutputIterator result, T init, BinaryPredicate binary_pred)
 {
-    using V2 = typename ::std::iterator_traits<InputIterator2>::value_type;
+    using V2 = typename std::iterator_traits<InputIterator2>::value_type;
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, init, binary_pred,
                                      ::std::plus<V2>());
 }
@@ -136,7 +136,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIterator>
 exclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                           OutputIterator result, T init)
 {
-    using V1 = typename ::std::iterator_traits<InputIterator1>::value_type;
+    using V1 = typename std::iterator_traits<InputIterator1>::value_type;
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, init,
                                      ::std::equal_to<V1>());
 }
@@ -146,7 +146,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, OutputIterator>
 exclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                           OutputIterator result)
 {
-    using V2 = typename ::std::iterator_traits<InputIterator2>::value_type;
+    using V2 = typename std::iterator_traits<InputIterator2>::value_type;
     return exclusive_scan_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result, V2(0));
 }
 

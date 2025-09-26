@@ -221,7 +221,7 @@ DEFINE_TEST(test_transform_inclusive_scan)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(333);
 
         ::std::fill(host_keys.get(), host_keys.get() + n, T1(1));
@@ -269,7 +269,7 @@ DEFINE_TEST(test_transform_exclusive_scan)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
 
         ::std::fill(host_keys.get(), host_keys.get() + n, T1(1));
         host_keys.update_data();
@@ -303,7 +303,7 @@ DEFINE_TEST(test_copy_if)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        using T1 = typename ::std::iterator_traits<Iterator1>::value_type;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
 
         ::std::iota(host_keys.get(), host_keys.get() + n, T1(222));
         host_keys.update_data();

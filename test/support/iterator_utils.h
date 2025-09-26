@@ -188,7 +188,7 @@ struct IteratorTypeAdapter : BaseAdapter<Iterator>
 template <typename Iterator>
 struct IteratorTypeAdapter<Iterator, ::std::forward_iterator_tag>
 {
-    using iterator_type = ForwardIterator<Iterator, ::std::forward_iterator_tag>;
+    using iterator_type = ForwardIterator<Iterator, std::forward_iterator_tag>;
     iterator_type
     operator()(Iterator it)
     {
@@ -200,7 +200,7 @@ struct IteratorTypeAdapter<Iterator, ::std::forward_iterator_tag>
 template <typename Iterator>
 struct IteratorTypeAdapter<Iterator, ::std::bidirectional_iterator_tag>
 {
-    using iterator_type = BidirectionalIterator<Iterator, ::std::bidirectional_iterator_tag>;
+    using iterator_type = BidirectionalIterator<Iterator, std::bidirectional_iterator_tag>;
     iterator_type
     operator()(Iterator it)
     {

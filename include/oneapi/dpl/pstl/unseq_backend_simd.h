@@ -384,7 +384,7 @@ __simd_adjacent_find(_Index __first, _Index __last, _BinaryPredicate __pred, boo
     if (__last - __first < 2)
         return __last;
 
-    using _DifferenceType = typename ::std::iterator_traits<_Index>::difference_type;
+    using _DifferenceType = typename std::iterator_traits<_Index>::difference_type;
     _DifferenceType __i = 0;
 
 #if (_PSTL_EARLYEXIT_PRESENT || _ONEDPL_EARLYEXIT_PRESENT)
@@ -633,7 +633,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         return __first;
     }
 
-    using _ValueType = typename ::std::iterator_traits<_ForwardIterator>::value_type;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
     struct _ComplexType
     {
         _ValueType __min_val;
@@ -690,7 +690,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
     {
         return ::std::make_pair(__first, __first);
     }
-    using _ValueType = typename ::std::iterator_traits<_ForwardIterator>::value_type;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     struct _ComplexType
     {
@@ -795,7 +795,7 @@ _ForwardIterator1
 __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
                      _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
-    using _DifferencType = typename ::std::iterator_traits<_ForwardIterator1>::difference_type;
+    using _DifferencType = typename std::iterator_traits<_ForwardIterator1>::difference_type;
 
     const _DifferencType __n1 = __last - __first;
     const _DifferencType __n2 = __s_last - __s_first;

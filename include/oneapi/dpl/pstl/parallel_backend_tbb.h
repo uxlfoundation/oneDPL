@@ -715,10 +715,10 @@ template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, type
           typename _LeafMerge>
 class __merge_func
 {
-    using _DifferenceType1 = typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type;
-    using _DifferenceType2 = typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using _SizeType = typename ::std::common_type_t<_DifferenceType1, _DifferenceType2>;
-    using _ValueType = typename ::std::iterator_traits<_RandomAccessIterator1>::value_type;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
+    using _ValueType = typename std::iterator_traits<_RandomAccessIterator1>::value_type;
 
     _RandomAccessIterator1 _M_x_beg;
     _RandomAccessIterator2 _M_z_beg;
@@ -1093,9 +1093,9 @@ template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, type
 class __stable_sort_func
 {
   public:
-    using _DifferenceType1 = typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type;
-    using _DifferenceType2 = typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using _SizeType = typename ::std::common_type_t<_DifferenceType1, _DifferenceType2>;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
   private:
     _RandomAccessIterator1 _M_xs, _M_xe, _M_x_beg;
@@ -1164,8 +1164,8 @@ __parallel_stable_sort(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
 {
     tbb::this_task_arena::isolate([=, &__nsort]() {
         //sorting based on task tree and parallel merge
-        using _ValueType = typename ::std::iterator_traits<_RandomAccessIterator>::value_type;
-        using _DifferenceType = typename ::std::iterator_traits<_RandomAccessIterator>::difference_type;
+        using _ValueType = typename std::iterator_traits<_RandomAccessIterator>::value_type;
+        using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
         const _DifferenceType __n = __xe - __xs;
 
         const _DifferenceType __sort_cut_off = _ONEDPL_STABLE_SORT_CUT_OFF;
@@ -1214,9 +1214,9 @@ __task*
 __merge_func_static<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3, __M_Compare, _LeafMerge>::
 operator()(__task* __self)
 {
-    using _DifferenceType1 = typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type;
-    using _DifferenceType2 = typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using _SizeType = typename ::std::common_type_t<_DifferenceType1, _DifferenceType2>;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
     const _SizeType __n = (_M_xe - _M_xs) + (_M_ye - _M_ys);
     if (__n <= __merge_cut_off)
     {
@@ -1254,9 +1254,9 @@ __parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&,
                  _RandomAccessIterator1 __xe, _RandomAccessIterator2 __ys, _RandomAccessIterator2 __ye,
                  _RandomAccessIterator3 __zs, _Compare __comp, _LeafMerge __leaf_merge)
 {
-    using _DifferenceType1 = typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type;
-    using _DifferenceType2 = typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using _SizeType = typename ::std::common_type_t<_DifferenceType1, _DifferenceType2>;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
     const _SizeType __n = (__xe - __xs) + (__ye - __ys);
     if (__n <= __merge_cut_off)
     {

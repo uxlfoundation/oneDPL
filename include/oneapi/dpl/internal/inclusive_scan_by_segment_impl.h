@@ -65,7 +65,7 @@ __pattern_inclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1
     }
 
     using FlagType = unsigned int;
-    using ValueType = typename ::std::iterator_traits<InputIterator2>::value_type;
+    using ValueType = typename std::iterator_traits<InputIterator2>::value_type;
 
     oneapi::dpl::__par_backend::__buffer<FlagType> _mask(n);
     auto mask = _mask.get();

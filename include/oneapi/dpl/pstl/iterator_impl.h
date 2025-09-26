@@ -130,11 +130,11 @@ class zip_forward_iterator
     using __it_types = __tuple_t<_Types...> ;
 
   public:
-    using difference_type = ::std::make_signed_t<::std::size_t>;
-    using value_type = __tuple_t<typename ::std::iterator_traits<_Types>::value_type...>;
-    using reference = __tuple_t<typename ::std::iterator_traits<_Types>::reference...>;
-    using pointer = __tuple_t<typename ::std::iterator_traits<_Types>::pointer...>;
-    using iterator_category = ::std::forward_iterator_tag;
+    using difference_type = std::make_signed_t<std::size_t>;
+    using value_type = __tuple_t<typename std::iterator_traits<_Types>::value_type...>;
+    using reference = __tuple_t<typename std::iterator_traits<_Types>::reference...>;
+    using pointer = __tuple_t<typename std::iterator_traits<_Types>::pointer...>;
+    using iterator_category = std::forward_iterator_tag;
 
     zip_forward_iterator() : __my_it_() {}
     explicit zip_forward_iterator(_Types... __args) : __my_it_(__tuple_t<_Types...>{__args...}) {}
@@ -211,12 +211,12 @@ class counting_iterator
     static_assert(::std::is_integral_v<_Ip>, "Cannot instantiate counting_iterator with a non-integer type");
 
   public:
-    using difference_type = ::std::make_signed_t<_Ip>;
+    using difference_type = std::make_signed_t<_Ip>;
     using value_type = _Ip;
     using pointer = const _Ip*;
     // There is no storage behind the iterator, so we return a value instead of reference.
     using reference = _Ip;
-    using iterator_category = ::std::random_access_iterator_tag;
+    using iterator_category = std::random_access_iterator_tag;
 
     counting_iterator() : __my_counter_() {}
     explicit counting_iterator(_Ip __init) : __my_counter_(__init) {}
@@ -332,11 +332,11 @@ class zip_iterator
     using __it_types = oneapi::dpl::__internal::tuple<_Types...>;
 
   public:
-    using difference_type = ::std::make_signed_t<::std::size_t>;
-    using value_type = oneapi::dpl::__internal::tuple<typename ::std::iterator_traits<_Types>::value_type...>;
-    using reference = oneapi::dpl::__internal::tuple<typename ::std::iterator_traits<_Types>::reference...>;
-    using pointer = ::std::tuple<typename ::std::iterator_traits<_Types>::pointer...>;
-    using iterator_category = ::std::random_access_iterator_tag;
+    using difference_type = std::make_signed_t<std::size_t>;
+    using value_type = oneapi::dpl::__internal::tuple<typename std::iterator_traits<_Types>::value_type...>;
+    using reference = oneapi::dpl::__internal::tuple<typename std::iterator_traits<_Types>::reference...>;
+    using pointer = std::tuple<typename std::iterator_traits<_Types>::pointer...>;
+    using iterator_category = std::random_access_iterator_tag;
     using is_zip = ::std::true_type;
 
     zip_iterator() : __my_it_() {}
@@ -489,11 +489,11 @@ class transform_iterator
                   "base iterator as argument.");
 
   public:
-    using difference_type = typename ::std::iterator_traits<_Iter>::difference_type;
-    using reference = decltype(__my_unary_func_(::std::declval<typename ::std::iterator_traits<_Iter>::reference>()));
-    using value_type = ::std::remove_reference_t<reference>;
-    using pointer = typename ::std::iterator_traits<_Iter>::pointer;
-    using iterator_category = typename ::std::iterator_traits<_Iter>::iterator_category;
+    using difference_type = typename std::iterator_traits<_Iter>::difference_type;
+    using reference = decltype(__my_unary_func_(std::declval<typename std::iterator_traits<_Iter>::reference>()));
+    using value_type = std::remove_reference_t<reference>;
+    using pointer = typename std::iterator_traits<_Iter>::pointer;
+    using iterator_category = typename std::iterator_traits<_Iter>::iterator_category;
 
     //default constructor will only be present if both the unary functor and iterator are default constructible
     transform_iterator() = default;
@@ -677,13 +677,13 @@ class permutation_iterator
         !__internal::__is_functor<_Permutation>, _Permutation,
         transform_iterator<counting_iterator<typename ::std::iterator_traits<SourceIterator>::difference_type>,
                            _Permutation>>;
-    using difference_type = typename ::std::iterator_traits<SourceIterator>::difference_type;
-    using value_type = typename ::std::iterator_traits<SourceIterator>::value_type;
-    using pointer = typename ::std::iterator_traits<SourceIterator>::pointer;
-    using reference = typename ::std::iterator_traits<SourceIterator>::reference;
+    using difference_type = typename std::iterator_traits<SourceIterator>::difference_type;
+    using value_type = typename std::iterator_traits<SourceIterator>::value_type;
+    using pointer = typename std::iterator_traits<SourceIterator>::pointer;
+    using reference = typename std::iterator_traits<SourceIterator>::reference;
     using base_type = SourceIterator;
-    using iterator_category = ::std::random_access_iterator_tag;
-    using is_permutation = ::std::true_type;
+    using iterator_category = std::random_access_iterator_tag;
+    using is_permutation = std::true_type;
 
     permutation_iterator() = default;
 
@@ -888,11 +888,11 @@ inline constexpr ignore_copyable ignore{};
 class discard_iterator
 {
   public:
-    using difference_type = ::std::ptrdiff_t;
+    using difference_type = std::ptrdiff_t;
     using value_type = internal::ignore_copyable;
     using pointer = void*;
     using reference = value_type;
-    using iterator_category = ::std::random_access_iterator_tag;
+    using iterator_category = std::random_access_iterator_tag;
     using is_discard = ::std::true_type;
 
     discard_iterator() : __my_position_() {}

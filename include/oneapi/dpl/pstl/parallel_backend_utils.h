@@ -72,7 +72,7 @@ struct __serial_destroy
     void
     operator()(_RandomAccessIterator __zs, _RandomAccessIterator __ze)
     {
-        using _ValueType = typename ::std::iterator_traits<_RandomAccessIterator>::value_type;
+        using _ValueType = typename std::iterator_traits<_RandomAccessIterator>::value_type;
         while (__zs != __ze)
         {
             --__ze;
