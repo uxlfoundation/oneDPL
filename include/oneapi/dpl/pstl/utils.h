@@ -741,7 +741,7 @@ __biased_lower_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2
         return oneapi::dpl::__internal::__pstl_lower_bound(__rng1, __first1, __last1, __rng2, __rng2_idx, __comp, __proj1,
                                                            __proj2);
     }
-    return __first;
+    return __first1;
 }
 
 // __rng1[__first1, __last1), __rng2(__rng2_idx), __comp, __proj1, __proj2
