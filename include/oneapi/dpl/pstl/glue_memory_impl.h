@@ -187,7 +187,7 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    using ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     if constexpr (!std::is_trivially_destructible_v<_ValueType>)
     {
@@ -209,7 +209,7 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Size>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 {
-    using ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     if constexpr (std::is_trivially_destructible_v<_ValueType>)
     {

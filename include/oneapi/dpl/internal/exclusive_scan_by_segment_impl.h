@@ -64,7 +64,7 @@ __pattern_exclusive_scan_by_segment(_Tag, Policy&& policy, InputIterator1 first1
 
     using OutputType = typename std::iterator_traits<OutputIterator>::value_type;
     using ValueType = typename std::iterator_traits<InputIterator2>::value_type;
-    using FlagType = unsigned int FlagType;
+    using FlagType = unsigned int;
 
     InputIterator2 last2 = first2 + n;
 
