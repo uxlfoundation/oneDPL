@@ -25,8 +25,8 @@ New Features
   C++20 random access ranges.
 - Improved performance of ``gpu::inclusive_scan`` kernel template and added support for binary operator and type
   combinations which do not have a SYCL known identity.
-- Improved performance of ``inclusive_scan_by_segment``, ``exclusive_scan_by_segment`` and set operation algorithms when
-  using device policies: ``set_union``, ``set_difference``, ``set_intersection``, ``set_symmetric_difference``.
+- Improved performance of ``inclusive_scan_by_segment``, ``exclusive_scan_by_segment``, ``set_union``,
+  ``set_difference``, ``set_intersection``, and ``set_symmetric_difference`` when using device policies.
 - Improved performance of search operations (e.g., ``find``, ``all_of``, ``equal``, ``search``, etc.), ``is_heap`` and
   ``is_heap_until`` algorithms on Intel® Arc™ B-series GPU devices.
 
