@@ -53,8 +53,8 @@
 namespace TestUtils
 {
 
-typedef double float64_t;
-typedef float float32_t;
+using float64_t = double;
+using float32_t = float;
 
 template <class T, ::std::size_t N>
 constexpr size_t

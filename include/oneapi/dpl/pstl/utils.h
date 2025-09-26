@@ -707,7 +707,7 @@ __biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
 template <typename _IntType, typename _Acc>
 struct _ReverseCounter
 {
-    typedef ::std::make_signed_t<_IntType> difference_type;
+    using difference_type = std::make_signed_t<_IntType>;
 
     _IntType __my_cn;
 

@@ -53,7 +53,7 @@ struct check_minelement_predicate
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
         const Iterator expect = ::std::min_element(begin, end);
         const Iterator result_pred = std::min_element(std::forward<Policy>(exec), begin, end, std::less<T>());
         EXPECT_EQ(expect, result_pred, "wrong return result from min_element with predicate");
@@ -80,7 +80,7 @@ struct check_maxelement_predicate
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
         const Iterator expect = ::std::max_element(begin, end);
         const Iterator result_pred = std::max_element(std::forward<Policy>(exec), begin, end, std::less<T>());
         EXPECT_EQ(expect, result_pred, "wrong return result from max_element with predicate");
@@ -108,7 +108,7 @@ struct check_minmaxelement_predicate
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
         const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
         const std::pair<Iterator, Iterator> got_pred = std::minmax_element(std::forward<Policy>(exec), begin, end, std::less<T>());
         EXPECT_EQ(expect, got_pred, "wrong return result from minmax_element with predicate");

@@ -36,7 +36,7 @@ DEFINE_TEST(test_for_each)
     template <typename Iterator1>
     struct test_for_each_fo
     {
-        typedef typename std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
 
         void
         operator()(T1& val) const
@@ -53,7 +53,7 @@ DEFINE_TEST(test_for_each)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
 
         auto value = T1(6);
         test_for_each_fo<Iterator1> f;
@@ -113,7 +113,7 @@ DEFINE_TEST(test_for_each_structured_binding)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
 
         auto value = T1(6);
         PreIncrement<T1> f;
