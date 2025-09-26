@@ -23,8 +23,8 @@ New Features
   ``uninitialized_fill``, ``uninitialized_move``, ``uninitialized_copy``, ``uninitialized_value_construct``,
   ``uninitialized_default_construct``, ``reverse``, ``reverse_copy``, ``swap_ranges``. These algorithms operate with
   C++20 random access ranges.
-- Improved performance of ``oneapi::dpl::experimental::kt::gpu::inclusive_scan`` and added support for binary operator
-  and type combinations which do not have a SYCL known identity.
+- Improved performance of ``gpu::inclusive_scan`` kernel template and added support for binary operator and type
+  combinations which do not have a SYCL known identity.
 - Improved performance of ``inclusive_scan_by_segment`` and ``exclusive_scan_by_segment`` with
   device execution policies on GPUs.
 - Improved performance of set operation algorithms when using device policies: ``set_union``, ``set_difference``,
@@ -48,18 +48,13 @@ Fixed Issues
   iterator.
 - Fixed a bug in ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``, ``transform_inclusive_scan``,
   ``exlusive_scan_by_segment``, and ``inclusive_scan_by_segment`` algorithms when using device policies with differing
-  ``InputIterator`` and ``OutputIterator`` types.
+  ``InputIterator`` and ``OutputIterator`` value types.
 - Fixed error in return value types for oneapi::dpl::ranges::minmax_element and oneapi::dpl::ranges::mismatch algorithms.
 - Fixed compile errors in ``set_union`` and ``set_symmetric_difference`` for hetero execution policies when the types of
   the second data and results data are different.
 
 Known Issues and Limitations
 ----------------------------
-New in This Release
-^^^^^^^^^^^^^^^^^^^
-- The `set_intersection`, `set_difference`, `set_symmetric_difference`, and `set_union` algorithms with a device policy
-require GPUs with double-precision support on Windows, regardless of the value type of the input sequences.
-
 Existing Issues
 ^^^^^^^^^^^^^^^
 See oneDPL Guide for other `restrictions and known limitations`_.
