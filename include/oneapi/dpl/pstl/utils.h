@@ -668,8 +668,7 @@ __pstl_upper_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, 
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
-    return __pstl_lower_bound(__rng1, __first1, __last1, __rng2, __rng2_idx, __negation_reordered_comp, __proj1,
-                              __proj2);
+    return __pstl_lower_bound(__rng1, __first1, __last1, __rng2, __rng2_idx, __negation_reordered_comp, __proj1, __proj2);
 }
 
 template <typename _Rng1, typename _Size1, typename _Rng2It, typename _Compare, typename _Proj1, typename _Proj2>
@@ -731,8 +730,7 @@ __biased_lower_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2
     if (__n > 0)
     {
         // End up fully at binary search
-        return oneapi::dpl::__internal::__pstl_lower_bound(__rng1, __first1, __last1, __rng2, __rng2_idx, __comp,
-                                                           __proj1, __proj2);
+        return oneapi::dpl::__internal::__pstl_lower_bound(__rng1, __first1, __last1, __rng2, __rng2_idx, __comp, __proj1, __proj2);
     }
     return __first1;
 }
@@ -746,8 +744,7 @@ __biased_upper_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
-    return __biased_lower_bound<__bias_last>(__rng1, __first1, __last1, __rng2, __rng2_idx, __negation_reordered_comp,
-                                             __proj1, __proj2);
+    return __biased_lower_bound<__bias_last>(__rng1, __first1, __last1, __rng2, __rng2_idx, __negation_reordered_comp, __proj1, __proj2);
 }
 
 template <typename _IntType, typename _Acc>
