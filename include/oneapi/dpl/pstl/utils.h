@@ -828,8 +828,8 @@ _Size1
 __pstl_left_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
                   _Proj1 __proj1, _Proj2 __proj2)
 {
-    auto __beg = _ReverseCounter<_Size1, _Rng1>{__last1 - 1};
-    auto __end = _ReverseCounter<_Size1, _Rng1>{__first1 - 1};
+    _ReverseCounter<_Size1, _Rng1> __beg{__last1 - 1};
+    _ReverseCounter<_Size1, _Rng1> __end{__first1 - 1};
 
     __not_pred<decltype(__comp)> __negation_comp{__comp};
 
