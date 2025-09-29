@@ -32,32 +32,30 @@ New Features
 
 Fixed Issues
 ------------
-- Removed requirement of GPU double support to use ``set_union``, ``set_difference``, ``set_intersection``, and
-  ``set_symmetric_difference`` on Windows operating systems.
+- Removed requirement of GPU double precision support to use ``set_union``, ``set_difference``, ``set_intersection``,
+  and ``set_symmetric_difference`` on Windows operating systems.
 - Removed copy constructible requirements from value type for ``reduce`` and ``transform_reduce`` algorithms when used
   with a host policy, and default constructible requirements from value type for ``reduce`` and ``transform_reduce``
   when used with any execution policy.
-- Fixed an issue with incorrect handling of different projections by range-based ``merge``.
+- Fixed an issue with incorrect handling of different projections by ``ranges::merge``.
 - Fixed ``equal`` returning a ``false`` for empty input sequences; now it returns ``true``.
 - Fixed a compilation error **SYCL kernel cannot use exceptions** occurring with libstdc++ version 10 when calling
-  range-based ``adjacent_find``, ``is_sorted`` and ``is_sorted_until`` algorithms using  device policies.
+  ``adjacent_find``, ``is_sorted`` and ``is_sorted_until`` range algorithms with device policies.
 - Fixed an issue with ``PSTL_USE_NONTEMPORAL_STORES`` macro having no effect.
-- Fixed a bug where ``unique`` when called with a device execution policy returned an incorrect result
-  iterator.
+- Fixed a bug where ``unique`` called with a device policy returned an incorrect result iterator.
 - Fixed a bug in ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``, ``transform_inclusive_scan``,
-  ``exlusive_scan_by_segment``, and ``inclusive_scan_by_segment`` algorithms when using device policies with differing
-  ``InputIterator`` and ``OutputIterator`` value types.
-- Fixed error in return value types of range-based ``minmax_element`` and ``mismatch`` algorithms.
-- Fixed compile errors in ``set_union`` and ``set_symmetric_difference`` with device execution policies when the types of
-  the second data and results data are different.
+  ``exlusive_scan_by_segment``, and ``inclusive_scan_by_segment`` algorithms when using device policies with different
+  input and output value types.
+- Fixed a bug in return value types of ``minmax_element`` and ``mismatch`` range algorithms.
+- Fixed compile errors in ``set_union`` and ``set_symmetric_difference`` when using device policies
+  with different second-input and output value types.
 
 Known Issues and Limitations
 ----------------------------
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
-- Range-based ``copy_if``, ``unique_copy``, ``set_union``, ``set_intersection``, ``set_difference``,
-  ``set_symmetric_difference`` algorithms require the output range to have sufficient size to hold all resulting
-  elements.
+- ``copy_if``, ``unique_copy``, ``set_union``, ``set_intersection``, ``set_difference``, ``set_symmetric_difference``
+  range algorithms require the output range to have sufficient size to hold all resulting elements.
 
 Existing Issues
 ^^^^^^^^^^^^^^^
