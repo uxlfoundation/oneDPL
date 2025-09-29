@@ -699,32 +699,37 @@ struct __has_subsctiption_op<_R, std::void_t<decltype(std::declval<_R>().operato
 {
 };
 
-template <typename _Range>
+template <typename _Source>
 struct __subscription_view_simple_impl
 {
-    using _RangeDecay = std::decay_t<_Range>;
-    _RangeDecay __rng;
+    static_assert(!__has_subsctiption_op<_Source>::value, "The usage of __subscription_view_simple_impl prohibited if _Source::operator[] implemented");
+
+    using value_type = oneapi::dpl::__internal::__value_t<_Source>;
+    using _Size = oneapi::dpl::__internal::__difference_t<_Source>;
+
+    using _SourceDecayedT = std::decay_t<_Source>;
+    _SourceDecayedT __src;
 
     auto
     begin()
     {
-        return __rng.begin();
+        return __src.begin();
     }
 
     auto end()
     {
-        return __rng.end();
+        return __src.end();
     }
 
     auto
     begin() const
     {
-        return __rng.begin();
+        return __src.begin();
     }
 
     auto end() const
     {
-        return __rng.end();
+        return __src.end();
     }
 
     decltype(auto)

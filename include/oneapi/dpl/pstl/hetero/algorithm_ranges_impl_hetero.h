@@ -604,7 +604,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
                                                                           ::std::true_type /*is_commutative*/>(
                _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
                unseq_backend::__no_init_value{}, // no initial value
-               ::std::forward<_Range>(__rng))
+               oneapi::dpl::__ranges::__subscription_view_simple<_Range>{std::forward<_Range>(__rng)})
         .get();
 }
 
@@ -945,9 +945,11 @@ __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exe
     const _Index3 __n_out = std::min<_Index3>(__n_1 + __n_2, std::ranges::size(__out_r));
 
     const std::pair __res = oneapi::dpl::__internal::__ranges::__pattern_merge(
-        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r1),
-        oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_write(__out_r), __comp, __proj1,
-        __proj2);
+        __tag, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::views::all_read(oneapi::dpl::__ranges::__subscription_view_simple<_R1>{__r1}),
+        oneapi::dpl::__ranges::views::all_read(oneapi::dpl::__ranges::__subscription_view_simple<_R1>{__r2}),
+        oneapi::dpl::__ranges::views::all_write(oneapi::dpl::__ranges::__subscription_view_simple<_R1>{__out_r}),
+        __comp, __proj1, __proj2);
 
     return {std::ranges::begin(__r1) + __res.first, std::ranges::begin(__r2) + __res.second,
             std::ranges::begin(__out_r) + __n_out};
