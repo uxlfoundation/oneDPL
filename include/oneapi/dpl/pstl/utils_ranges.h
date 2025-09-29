@@ -735,10 +735,19 @@ struct __subscription_impl_view_simple : _Base
     }
 };
 
-// __subscription_view_simple optionally wrap source _Range to provide operator[] if it is not present
 template <typename _Range>
-using __subscription_view_simple =
-    std::conditional_t<__has_subsctiption_op<_Range>::value, _Range, __subscription_impl_view_simple<_Range>>;
+decltype(auto)
+__get_subscription_view(_Range&& __rng)
+{
+    if constexpr (__has_subsctiption_op<_Range>::value)
+    {
+        return std::forward<_Range>(__rng);
+    }
+    else
+    {
+        return __subscription_impl_view_simple<_Range>(std::forward<_Range>(__rng));
+    }
+}
 
 } // namespace __ranges
 } // namespace dpl
