@@ -689,6 +689,62 @@ struct permutation_discard_view
     }
 };
 
+template <typename _R, typename = void>
+struct __has_subsctiption_op : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_subsctiption_op<_R, std::void_t<decltype(std::declval<_R>().operator[](0))>> : std::true_type
+{
+};
+
+template <typename _Range>
+struct __subscription_view_simple_impl
+{
+    using _RangeDecay = std::decay_t<_Range>;
+    _RangeDecay __rng;
+
+    auto
+    begin()
+    {
+        return __rng.begin();
+    }
+
+    auto end()
+    {
+        return __rng.end();
+    }
+
+    auto
+    begin() const
+    {
+        return __rng.begin();
+    }
+
+    auto end() const
+    {
+        return __rng.end();
+    }
+
+    decltype(auto)
+    operator[](std::size_t __i)
+    {
+        return *std::next(begin(), __i);
+    }
+
+    decltype(auto)
+    operator[](std::size_t __i) const
+    {
+        return *std::next(begin(), __i);
+    }
+};
+
+// __subscription_view_simple optionally wrap source _Range to provide operator[] if it is not present
+template <typename _Range>
+using __subscription_view_simple =
+    std::conditional_t<__has_subsctiption_op<_Range>::value, _Range, __subscription_view_simple_impl<_Range>>;
+
 } // namespace __ranges
 } // namespace dpl
 } // namespace oneapi
