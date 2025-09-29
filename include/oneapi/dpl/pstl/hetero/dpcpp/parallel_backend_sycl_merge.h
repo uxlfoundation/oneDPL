@@ -216,9 +216,9 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
     operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
                _Proj1 __proj1, _Proj2 __proj2) const
     {
-        const _IdType __n1 = __rng1.size();
-        const _IdType __n2 = __rng2.size();
-        const _IdType __n = std::min<_IdType>(__n1 + __n2, __rng3.size());
+        const _IdType __n1 = oneapi::dpl::__ranges::__size(__rng1);
+        const _IdType __n2 = oneapi::dpl::__ranges::__size(__rng2);
+        const _IdType __n = std::min<_IdType>(__n1 + __n2, oneapi::dpl::__ranges::__size(__rng3));
 
         assert(__n1 > 0 || __n2 > 0);
 
@@ -238,7 +238,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         if constexpr (_OutSizeLimit{})
             __p_res_storage = new __result_and_scratch_storage_t(__q, 0);
         else
-            assert(__rng3.size() >= __n1 + __n2);
+            assert(oneapi::dpl::__ranges::__size(__rng3) >= __n1 + __n2);
 
         std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base(
             static_cast<__result_and_scratch_storage_base*>(__p_res_storage));
@@ -332,8 +332,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                                  const nd_range_params& __nd_range_params,
                                  _Storage& __base_diagonals_sp_global_storage) const
     {
-        const _IdType __n1 = __rng1.size();
-        const _IdType __n2 = __rng2.size();
+        const _IdType __n1 = oneapi::dpl::__ranges::__size(__rng1);
+        const _IdType __n2 = oneapi::dpl::__ranges::__size(__rng2);
 
         const _IdType __base_diag_chunk = __nd_range_params.steps_between_two_base_diags * __nd_range_params.chunk;
 
@@ -372,9 +372,9 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                        const nd_range_params& __nd_range_params,
                        const _Storage& __base_diagonals_sp_global_storage) const
     {
-        const _IdType __n1 = __rng1.size();
-        const _IdType __n2 = __rng2.size();
-        const _IdType __n = std::min<_IdType>(__n1 + __n2, __rng3.size());
+        const _IdType __n1 = oneapi::dpl::__ranges::__size(__rng1);
+        const _IdType __n2 = oneapi::dpl::__ranges::__size(__rng2);
+        const _IdType __n = std::min<_IdType>(__n1 + __n2, oneapi::dpl::__ranges::__size(__rng3));
 
         return __q.submit([&__event, &__rng1, &__rng2, &__rng3, __n, __comp, __proj1, __proj2, __nd_range_params,
                            __base_diagonals_sp_global_storage, __n1, __n2](sycl::handler& __cgh) {
@@ -441,11 +441,11 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
                _Proj1 __proj1, _Proj2 __proj2) const
     {
-        const _IdType __n1 = __rng1.size();
-        const _IdType __n2 = __rng2.size();
+        const _IdType __n1 = oneapi::dpl::__ranges::__size(__rng1);
+        const _IdType __n2 = oneapi::dpl::__ranges::__size(__rng2);
         assert(__n1 > 0 || __n2 > 0);
 
-        const _IdType __n = std::min<_IdType>(__n1 + __n2, __rng3.size());
+        const _IdType __n = std::min<_IdType>(__n1 + __n2, oneapi::dpl::__ranges::__size(__rng3));
 
         _PRINT_INFO_IN_DEBUG_MODE(__q);
 
@@ -507,7 +507,9 @@ __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
                       _Proj1 __proj1, _Proj2 __proj2)
 {
     using __value_type = oneapi::dpl::__internal::__value_t<_Range3>;
-    const std::size_t __n = std::min<std::size_t>(__rng1.size() + __rng2.size(), __rng3.size());
+    const std::size_t __n =
+        std::min<std::size_t>(oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2),
+                              oneapi::dpl::__ranges::__size(__rng3));
     if (__n < __get_starting_size_limit_for_large_submitter<__value_type>())
     {
         using _WiIndex = std::uint32_t;

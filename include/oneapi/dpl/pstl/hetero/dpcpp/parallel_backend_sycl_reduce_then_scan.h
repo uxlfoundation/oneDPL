@@ -684,8 +684,8 @@ struct __get_bounds_simple
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>>;
 
-        return std::make_tuple(_SizeType{0}, static_cast<_SizeType>(__rng1.size()), _SizeType{0},
-                               static_cast<_SizeType>(__rng2.size()));
+        return std::make_tuple(_SizeType{0}, static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng1)),
+                               _SizeType{0}, static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng2)));
     }
 };
 
@@ -711,7 +711,7 @@ struct __gen_set_balanced_path
     {
         // back up to balanced path divergence with a biased binary search
         bool __star = false;
-        if (__merge_path_rng1 == 0 || __merge_path_rng2 == __rng2.size())
+        if (__merge_path_rng1 == 0 || __merge_path_rng2 == oneapi::dpl::__ranges::__size(__rng2))
         {
             return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
         }
@@ -783,8 +783,8 @@ struct __gen_set_balanced_path
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>>;
         _SizeType __i_elem = __id * __diagonal_spacing;
-        if (__i_elem >= __rng1.size() + __rng2.size())
-            __i_elem = __rng1.size() + __rng2.size() - 1; // ensure we do not go out of bounds
+        if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
+            __i_elem = oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) - 1; // ensure we do not go out of bounds
         auto [__rng1_lower, __rng1_upper, __rng2_lower, __rng2_upper] = __get_bounds_local(__in_rng, __id);
         //find merge path intersection
         auto [__rng1_pos, __rng2_pos] = oneapi::dpl::__par_backend_hetero::__find_start_point(
@@ -829,7 +829,7 @@ struct __gen_set_balanced_path
         _IndexT __rng2_balanced_pos = 0;
         bool __star = false;
 
-        const auto __total_size = __rng1.size() + __rng2.size();
+        const auto __total_size = oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2);
         const bool __is_partitioned = __total_size >= __get_bounds.__partition_threshold;
 
         if (__id * __diagonal_spacing >= __total_size)
@@ -861,8 +861,9 @@ struct __gen_set_balanced_path
             __star = __local_star;
         }
 
-        _IndexT __eles_to_process = std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
-                                             __rng1.size() + __rng2.size() - _IndexT{__id * __diagonal_spacing - 1});
+        _IndexT __eles_to_process = std::min(
+            _IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
+            oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) - _IndexT{__id * __diagonal_spacing - 1});
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
                                                __eles_to_process, __temp_data, __comp, __proj1, __proj2);
@@ -902,15 +903,16 @@ struct __gen_set_op_from_known_balanced_path
                                              std::make_unsigned_t<decltype(__rng2.size())>,
                                              std::make_unsigned_t<decltype(__rng1_temp_diag.size())>>;
         _SizeType __i_elem = __id * __diagonal_spacing;
-        if (__i_elem >= __rng1.size() + __rng2.size())
+        if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
         auto [__rng1_idx, __rng2_idx, __star_offset] =
             oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id,
                                                                                 __diagonal_spacing);
 
-        std::uint16_t __eles_to_process =
-            static_cast<std::uint16_t>(std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
-                                                static_cast<_SizeType>(__rng1.size() + __rng2.size() - __i_elem + 1)));
+        std::uint16_t __eles_to_process = static_cast<std::uint16_t>(
+            std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
+                     static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng1) +
+                                            oneapi::dpl::__ranges::__size(__rng2) - __i_elem + 1)));
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
                                                __comp, __proj1, __proj2);
