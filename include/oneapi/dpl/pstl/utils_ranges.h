@@ -134,16 +134,38 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 
 namespace __ranges
 {
-template <typename _Range>
-auto
-__size(const _Range& __rng)
+template <typename _R, typename = void>
+struct __is_eval_size_through_size : std::false_type
 {
-#if _ONEDPL_CPP20_RANGES_PRESENT
-    return std::ranges::size(__rng);
-#else
+};
+
+template <typename _R>
+struct __is_eval_size_through_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
+{
+};
+
+template <typename _Range>
+std::enable_if_t<__is_eval_size_through_size<_Range>::value, decltype(std::declval<_Range>().size())>
+__size(_Range&& __rng)
+{
     return __rng.size();
-#endif
 }
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+std::enable_if_t<!__is_eval_size_through_size<_Range>::value, decltype(std::ranges::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
+__size(_Range&& __rng)
+{
+    return std::ranges::distance(__rng.begin(), __rng.end());
+}
+#else
+template <typename _Range>
+std::enable_if_t<!__is_eval_size_through_size<_Range>::value, decltype( std::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
+__size(_Range&& __rng)
+{
+    return std::distance(__rng.begin(), __rng.end());
+}
+#endif
 
 template <std::size_t _RngIndex>
 struct __nth_range_size
