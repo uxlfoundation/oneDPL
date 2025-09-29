@@ -167,6 +167,9 @@ __size(_Range&& __rng)
 }
 #endif
 
+template <typename... _Rng>
+using __common_size_t = std::common_type_t<std::make_unsigned_t<decltype(__size(std::declval<_Rng>()))>...>;
+
 template <std::size_t _RngIndex>
 struct __nth_range_size
 {
