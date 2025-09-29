@@ -681,8 +681,7 @@ struct __get_bounds_simple
         const auto __rng1 = std::get<0>(__tuple); // first sequence
         const auto __rng2 = std::get<1>(__tuple); // second sequence
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
-                                             std::make_unsigned_t<decltype(__rng2.size())>>;
+        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2)>;
 
         return std::make_tuple(_SizeType{0}, static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng1)),
                                _SizeType{0}, static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng2)));
@@ -780,8 +779,7 @@ struct __gen_set_balanced_path
 
         auto __rng1_temp_diag = std::get<2>(__tuple); // set a temp storage sequence
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
-                                             std::make_unsigned_t<decltype(__rng2.size())>>;
+        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
             __i_elem = oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) - 1; // ensure we do not go out of bounds
@@ -899,9 +897,7 @@ struct __gen_set_op_from_known_balanced_path
         // set a temp storage sequence, star value in sign bit
         const auto __rng1_temp_diag = std::get<2>(__tuple);
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
-                                             std::make_unsigned_t<decltype(__rng2.size())>,
-                                             std::make_unsigned_t<decltype(__rng1_temp_diag.size())>>;
+        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
