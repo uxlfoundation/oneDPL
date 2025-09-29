@@ -107,6 +107,12 @@ template <typename _R>
 auto
 __check_size(long) -> decltype(std::declval<_R&>().get_count());
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _R>
+auto
+__check_size(long long) -> decltype(std::ranges::size(std::declval<_R&>()));
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
+
 template <typename _It>
 auto
 __check_size(...) -> typename std::iterator_traits<_It>::difference_type;
