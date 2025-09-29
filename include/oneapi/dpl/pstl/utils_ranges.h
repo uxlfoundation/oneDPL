@@ -700,27 +700,27 @@ struct __has_subsctiption_op<_R, std::void_t<decltype(std::declval<_R>().operato
 };
 
 template <typename _Source, typename _Base = std::decay_t<_Source>>
-struct __subscription_view_simple_impl : _Base
+struct __subscription_impl_view_simple : _Base
 {
-    static_assert(!__has_subsctiption_op<_Base>::value, "The usage of __subscription_view_simple_impl prohibited if std::decay_t<_Source>::operator[] implemented");
+    static_assert(!__has_subsctiption_op<_Base>::value, "The usage of __subscription_impl_view_simple prohibited if std::decay_t<_Source>::operator[] implemented");
 
     using value_type = oneapi::dpl::__internal::__value_t<_Base>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Base>;
 
     // Define default constructors
-    __subscription_view_simple_impl() = default;
-    __subscription_view_simple_impl(const __subscription_view_simple_impl&) = default;
-    __subscription_view_simple_impl(__subscription_view_simple_impl&&) = default;
+    __subscription_impl_view_simple() = default;
+    __subscription_impl_view_simple(const __subscription_impl_view_simple&) = default;
+    __subscription_impl_view_simple(__subscription_impl_view_simple&&) = default;
 
     // Define custom constructor to forward arguments to the base class
     template <typename... _Args>
-    __subscription_view_simple_impl(_Args&& ...__args) : _Base(std::forward<_Args>(__args)...)
+    __subscription_impl_view_simple(_Args&& ...__args) : _Base(std::forward<_Args>(__args)...)
     {
     }
 
     // Define default operator=
-    __subscription_view_simple_impl& operator=(const __subscription_view_simple_impl&) = default;
-    __subscription_view_simple_impl& operator=(__subscription_view_simple_impl&&) = default;
+    __subscription_impl_view_simple& operator=(const __subscription_impl_view_simple&) = default;
+    __subscription_impl_view_simple& operator=(__subscription_impl_view_simple&&) = default;
 
     decltype(auto)
     operator[](std::size_t __i)
@@ -738,7 +738,7 @@ struct __subscription_view_simple_impl : _Base
 // __subscription_view_simple optionally wrap source _Range to provide operator[] if it is not present
 template <typename _Range>
 using __subscription_view_simple =
-    std::conditional_t<__has_subsctiption_op<_Range>::value, _Range, __subscription_view_simple_impl<_Range>>;
+    std::conditional_t<__has_subsctiption_op<_Range>::value, _Range, __subscription_impl_view_simple<_Range>>;
 
 } // namespace __ranges
 } // namespace dpl
