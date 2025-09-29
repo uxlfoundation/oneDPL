@@ -699,49 +699,39 @@ struct __has_subsctiption_op<_R, std::void_t<decltype(std::declval<_R>().operato
 {
 };
 
-template <typename _Source>
-struct __subscription_view_simple_impl
+template <typename _Source, typename _Base = std::decay_t<_Source>>
+struct __subscription_view_simple_impl : _Base
 {
-    static_assert(!__has_subsctiption_op<_Source>::value, "The usage of __subscription_view_simple_impl prohibited if _Source::operator[] implemented");
+    static_assert(!__has_subsctiption_op<_Base>::value, "The usage of __subscription_view_simple_impl prohibited if std::decay_t<_Source>::operator[] implemented");
 
-    using value_type = oneapi::dpl::__internal::__value_t<_Source>;
-    using _Size = oneapi::dpl::__internal::__difference_t<_Source>;
+    using value_type = oneapi::dpl::__internal::__value_t<_Base>;
+    using _Size = oneapi::dpl::__internal::__difference_t<_Base>;
 
-    using _SourceDecayedT = std::decay_t<_Source>;
-    _SourceDecayedT __src;
+    // Define default constructors
+    __subscription_view_simple_impl() = default;
+    __subscription_view_simple_impl(const __subscription_view_simple_impl&) = default;
+    __subscription_view_simple_impl(__subscription_view_simple_impl&&) = default;
 
-    auto
-    begin()
+    // Define custom constructor to forward arguments to the base class
+    template <typename... _Args>
+    __subscription_view_simple_impl(_Args&& ...__args) : _Base(std::forward<_Args>(__args)...)
     {
-        return __src.begin();
     }
 
-    auto end()
-    {
-        return __src.end();
-    }
-
-    auto
-    begin() const
-    {
-        return __src.begin();
-    }
-
-    auto end() const
-    {
-        return __src.end();
-    }
+    // Define default operator=
+    __subscription_view_simple_impl& operator=(const __subscription_view_simple_impl&) = default;
+    __subscription_view_simple_impl& operator=(__subscription_view_simple_impl&&) = default;
 
     decltype(auto)
     operator[](std::size_t __i)
     {
-        return *std::next(begin(), __i);
+        return *std::next(_Base::begin(), __i);
     }
 
     decltype(auto)
     operator[](std::size_t __i) const
     {
-        return *std::next(begin(), __i);
+        return *std::next(_Base::begin(), __i);
     }
 };
 
