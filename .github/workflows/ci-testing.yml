@@ -215,7 +215,7 @@ jobs:
           lscpu
 
           # TODO: fix or justify the excluded warnings
-          warning_flags="-Wall -Werror -Wno-error=sign-compare"
+          warning_flags="-Wall -Wextra-semi -Werror -Wno-error=sign-compare"
           if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
             warning_flags="${warning_flags} -Wno-error=pass-failed"
           fi

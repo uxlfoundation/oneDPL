@@ -34,7 +34,7 @@ struct Gen
     operator()(::std::size_t k)
     {
         return Type(k % 5 != 1 ? 3 * k + 7 : 0);
-    };
+    }
 };
 
 template <typename T>

@@ -188,7 +188,7 @@ class discard_block_engine
         }
         ++n_;
         return engine_();
-    };
+    }
 
     template <int N>
     ::std::enable_if_t<(N > 0), scalar_type>
@@ -201,7 +201,7 @@ class discard_block_engine
         }
         ++n_;
         return static_cast<scalar_type>(engine_(1u)[0]);
-    };
+    }
 
     // Generate implementation
     template <int _N>

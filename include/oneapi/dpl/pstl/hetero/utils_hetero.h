@@ -143,7 +143,7 @@ struct __pattern_min_element_transform_fn
     operator()(_TGroupIdx __gidx, _TAcc __acc) const
     {
         return _ReduceValueType{__gidx, __acc[__gidx]};
-    };
+    }
 };
 
 } // namespace __internal

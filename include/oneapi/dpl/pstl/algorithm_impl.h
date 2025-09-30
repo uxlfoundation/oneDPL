@@ -56,7 +56,7 @@ __brick_any_of(const _ForwardIterator __first, const _ForwardIterator __last, _P
                /*__is_vector=*/::std::false_type) noexcept
 {
     return ::std::any_of(__first, __last, __pred);
-};
+}
 
 template <class _RandomAccessIterator, class _Pred>
 bool
@@ -64,7 +64,7 @@ __brick_any_of(const _RandomAccessIterator __first, const _RandomAccessIterator 
                /*__is_vector=*/::std::true_type) noexcept
 {
     return __unseq_backend::__simd_or(__first, __last - __first, __pred);
-};
+}
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Pred>
 bool

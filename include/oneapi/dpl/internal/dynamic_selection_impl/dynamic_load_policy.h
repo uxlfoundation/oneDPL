@@ -75,7 +75,7 @@ struct dynamic_load_policy
         get_policy()
         {
             return policy_;
-        };
+        }
 
         void
         report(const execution_info::task_submission_t&) const

@@ -739,7 +739,7 @@ class Wrapper
     get_my_field() const
     {
         return my_field.get();
-    };
+    }
     static size_t
     Count()
     {

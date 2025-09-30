@@ -65,7 +65,7 @@ class subtract_with_carry_engine
     static constexpr scalar_type default_seed = 19780503u;
 
     // Constructors
-    subtract_with_carry_engine() : subtract_with_carry_engine(default_seed){};
+    subtract_with_carry_engine() : subtract_with_carry_engine(default_seed){}
 
     explicit subtract_with_carry_engine(scalar_type __seed, unsigned long long __offset = 0)
     {
@@ -198,7 +198,7 @@ class subtract_with_carry_engine
         c_ = __new_c;
         i_ = (i_ + 1) % long_lag;
         return __xr;
-    };
+    }
 
     // Generate implementation
     template <int _N>

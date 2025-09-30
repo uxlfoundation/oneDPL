@@ -445,7 +445,7 @@ test_sort(SortTestConfig config, const std::vector<std::size_t>& sizes, Invoker 
         invoker(test_sort_op<T>{config}, tmp.begin(), tmp.end(), expected.begin(), expected.end(),
                 in.begin(), in.end(), in.size(), compare...);
     }
-};
+}
 
 #if TEST_DPCPP_BACKEND_PRESENT && __SYCL_UNNAMED_LAMBDA__
 inline void
