@@ -29,38 +29,11 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-struct MinimalisticRange
-{
-    int* begin() const { return data; };
-    int* end() const { return data + size; };
-
-    MinimalisticRange() = default;
-    MinimalisticRange(const MinimalisticRange&) = default;
-    MinimalisticRange(MinimalisticRange&&) = default;
-    MinimalisticRange(std::vector<int>& vec): data(vec.data()), size(vec.size()) {};
-
-    MinimalisticRange&
-    operator=(const MinimalisticRange&) = default;
-
-    MinimalisticRange&
-    operator=(MinimalisticRange&&) = default;
-
-private:
-    int* data = nullptr;
-    std::size_t size = 0;
-};
-static_assert(std::ranges::range<MinimalisticRange>);
-// All oneDPL algorithms require at least a random access range
-static_assert(std::ranges::random_access_range<MinimalisticRange>);
-
-//template <>
-//inline constexpr bool std::ranges::enable_borrowed_range<MinimalisticRange> = true;
-
 template <typename Policy>
 void test_count(Policy policy)
 {
     std::vector<int> v = {0, 1, 2, 3, 4, 5};
-    MinimalisticRange r{v};
+    TestUtils::MinimalisticRange r{v};
     auto count = oneapi::dpl::ranges::count(policy, r, 3);
     std::string msg = "wrong return value from count, " + std::string(typeid(Policy).name());
     EXPECT_EQ(count, 1, msg.c_str());
@@ -73,9 +46,9 @@ void test_merge(Policy policy)
     std::vector<int> v2 = {1, 3, 5, 7, 9, 11};
     std::vector<int> v3_expected = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
     std::vector<int> v3(12, 42);
-    MinimalisticRange r1{v1};
-    MinimalisticRange r2{v2};
-    MinimalisticRange r3{v3};
+    TestUtils::MinimalisticRange r1{v1};
+    TestUtils::MinimalisticRange r2{v2};
+    TestUtils::MinimalisticRange r3{v3};
 
     oneapi::dpl::ranges::merge(policy, r1, r2, r3);
     std::string msg = "wrong effect from merge, " + std::string(typeid(Policy).name());

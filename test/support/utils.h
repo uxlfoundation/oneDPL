@@ -1340,6 +1340,40 @@ struct NoDefaultCtorWrapper {
     }
 };
 
+////////////////////////////////////////////////////////////////////////////////
+// A minimalistic range that only provides begin() and end() methods.
+struct MinimalisticRange
+{
+    int* begin() const { return data; };
+    int* end() const { return data + size; };
+
+    MinimalisticRange() = default;
+    MinimalisticRange(const MinimalisticRange&) = default;
+    MinimalisticRange(MinimalisticRange&&) = default;
+    MinimalisticRange(std::vector<int>& vec): data(vec.data()), size(vec.size()) {};
+
+    MinimalisticRange&
+    operator=(const MinimalisticRange&) = default;
+
+    MinimalisticRange&
+    operator=(MinimalisticRange&&) = default;
+
+private:
+    int* data = nullptr;
+    std::size_t size = 0;
+};
+
+#if _ENABLE_STD_RANGES_TESTING
+
+static_assert(std::ranges::range<MinimalisticRange>);
+// All oneDPL algorithms require at least a random access range
+static_assert(std::ranges::random_access_range<MinimalisticRange>);
+
+//template <>
+//inline constexpr bool std::ranges::enable_borrowed_range<MinimalisticRange> = true;
+
+#endif // _ENABLE_STD_RANGES_TESTING
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
