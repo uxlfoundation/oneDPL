@@ -389,7 +389,7 @@ struct __gen_set_mask
 
         std::size_t __nb = __set_b.size();
 
-        auto __res = oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __set_a, __id, __comp, __proj2, __proj1);
+        auto __res = oneapi::dpl::__internal::__pstl_lower_bound_idx(__set_b, std::size_t{0}, __nb, __set_a, __id, __comp, __proj2, __proj1);
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
 
         //initialization is true in case of difference operation; false - intersection.
@@ -409,11 +409,11 @@ struct __gen_set_mask
             //duplication in __set_b then a mask is 1
 
             const std::size_t __count_a_left =
-                __id - oneapi::dpl::__internal::__pstl_left_bound(__set_a, std::size_t{0}, __id, __set_a, __id, __comp, __proj1, __proj1) + 1;
+                __id - oneapi::dpl::__internal::__pstl_left_bound_idx(__set_a, std::size_t{0}, __id, __set_a, __id, __comp, __proj1, __proj1) + 1;
 
             const std::size_t __count_b = 
-                oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __set_b, __res, __comp, __proj2, __proj2) -
-                oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __set_b, __res, __comp, __proj2, __proj2);
+                oneapi::dpl::__internal::__pstl_right_bound_idx(__set_b, __res, __nb, __set_b, __res, __comp, __proj2, __proj2) -
+                oneapi::dpl::__internal::__pstl_left_bound_idx(__set_b, std::size_t{0}, __res, __set_b, __res, __comp, __proj2, __proj2);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
@@ -711,10 +711,10 @@ struct __gen_set_balanced_path
         }
 
         // find first element of repeating sequence in the first set of the previous element
-        _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
+        _Index __rng1_repeat_start = oneapi::dpl::__internal::__biased_lower_bound_idx</*__last_bias=*/true>(
             __rng1, __rng1_begin, __merge_path_rng1, __rng1, __merge_path_rng1 - 1, __comp, __proj1, __proj1);
         // find first element of repeating sequence in the second set of the next element
-        _Index __rng2_repeat_start = oneapi::dpl::__internal::__biased_lower_bound</*__last_bias=*/true>(
+        _Index __rng2_repeat_start = oneapi::dpl::__internal::__biased_lower_bound_idx</*__last_bias=*/true>(
             __rng2, __rng2_begin, __merge_path_rng2, __rng1, __merge_path_rng1 - 1, __comp, __proj2, __proj1);
 
         _Index __rng1_repeats = __merge_path_rng1 - __rng1_repeat_start;
@@ -733,7 +733,7 @@ struct __gen_set_balanced_path
         // Calculate the max location to search in the second set for future repeats, limiting to the edge of the range
         _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2_end);
 
-        _Index __balanced_path_intersection_rng2 = oneapi::dpl::__internal::__pstl_upper_bound(
+        _Index __balanced_path_intersection_rng2 = oneapi::dpl::__internal::__pstl_upper_bound_idx(
             __rng2, __merge_path_rng2, __fwd_search_bound, __rng1, __merge_path_rng1 - 1, __comp, __proj2, __proj1);
 
         // Calculate the number of matchable "future" repeats in the second set
