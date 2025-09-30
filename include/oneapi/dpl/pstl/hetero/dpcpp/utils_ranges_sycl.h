@@ -143,10 +143,10 @@ struct all_host_view_fn
 
     // "No operation" overload for another ranges/views
     template <typename _R>
-    auto
-    operator()(_R&& __r) const -> decltype(::std::forward<_R>(__r))
+    decltype(auto)
+    operator()(_R&& __r) const
     {
-        return ::std::forward<_R>(__r);
+        return oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r));
     }
 };
 #endif
