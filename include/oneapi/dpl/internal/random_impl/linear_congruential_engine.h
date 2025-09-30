@@ -71,7 +71,7 @@ class linear_congruential_engine
     static constexpr scalar_type default_seed = static_cast<scalar_type>(1u);
 
     // Constructors
-    linear_congruential_engine() : linear_congruential_engine(default_seed){}
+    linear_congruential_engine() : linear_congruential_engine(default_seed) {}
 
     explicit linear_congruential_engine(scalar_type __seed, unsigned long long __offset = 0)
     {
