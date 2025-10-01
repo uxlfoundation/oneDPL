@@ -1020,20 +1020,22 @@ struct __brick_includes
 
         const _SizeB __idx_b = __b_beg + __idx;
 
-        const _SizeA __res = __internal::__pstl_lower_bound(__rngA, __a_beg, __a_end,
-                                                            std::invoke(__projB, __rngB[__idx_b]), __comp, __projA);
+        const _SizeA __res =
+            __internal::__pstl_lower_bound_idx(__rngA, __a_beg, __a_end, __rngB, __idx_b, __comp, __projA, __projB);
 
-        // {a} < {b} or __val_b != __rngA[__res]
+        // {a} < {b} or __rngB[__idx_b] != __rngA[__res]
         if (__res == __a_end ||
             std::invoke(__comp, std::invoke(__projB, __rngB[__idx_b]), std::invoke(__projA, __rngA[__res])))
             return true; //__rngA doesn't include __rngB
 
         //searching number of duplication
-        const auto __count_a = __internal::__pstl_right_bound(__rngA, __res, __a_end, std::invoke(__projA, __rngA[__res]), __comp, __projA) -
-                               __internal::__pstl_left_bound(__rngA, __a_beg, __res, std::invoke(__projA, __rngA[__res]), __comp, __projA);
+        const auto __count_a =
+            __internal::__pstl_right_bound_idx(__rngA, __res, __a_end, __rngA, __res, __comp, __projA, __projA) -
+            __internal::__pstl_left_bound_idx(__rngA, __a_beg, __res, __rngA, __res, __comp, __projA, __projA);
 
-        const auto __count_b = __internal::__pstl_right_bound(__rngB, __idx_b, __b_end, std::invoke(__projB, __rngB[__idx_b]), __comp, __projB) -
-                               __internal::__pstl_left_bound(__rngB, __b_beg, __idx_b, std::invoke(__projB, __rngB[__idx_b]), __comp, __projB);
+        const auto __count_b =
+            __internal::__pstl_right_bound_idx(__rngB, __idx_b, __b_end, __rngB, __idx_b, __comp, __projB, __projB) -
+            __internal::__pstl_left_bound_idx(__rngB, __b_beg, __idx_b, __rngB, __idx_b, __comp, __projB, __projB);
 
         return __count_b > __count_a; //false means __rngA includes __rngB
     }
@@ -1273,15 +1275,15 @@ class __brick_set_op
         auto __idx_c = __idx;
         const _SizeA __idx_a = _SizeA(__idx);
 
-        const _SizeB __res = __internal::__pstl_lower_bound(
-            __b, __b_beg, __nb, std::invoke(__projA, __a[__a_beg + __idx_a]), __comp, __projB);
+        const _SizeB __res =
+            __internal::__pstl_lower_bound_idx(__b, __b_beg, __nb, __a, __a_beg + __idx_a, __comp, __projB, __projA);
 
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
         bool bres = __is_difference; //initialization is true in case of difference operation; false - intersection.
         if (__res == __nb || std::invoke(__comp, std::invoke(__projA, __a[__a_beg + __idx_a]),
                                          std::invoke(__projB, __b[__b_beg + __res])))
         {
-            // there is no __val_a in __b, so __b in the difference {__a}/{__b};
+            // there is no __a[__a_beg + __idx_a] in __b, so __b in the difference {__a}/{__b};
         }
         else
         {
@@ -1291,13 +1293,12 @@ class __brick_set_op
             //Intersection operation logic: if number of duplication in __a on left side from __idx <= total number of
             //duplication in __b than a mask is 1
 
-            const _SizeA __count_a_left = __idx_a -
-                __internal::__pstl_left_bound(__a, __a_beg, __idx_a, std::invoke(__projA, __a[__a_beg + __idx_a]),
-                                              __comp, __projA) + 1;
+            const _SizeA __count_a_left =
+                __idx_a - __internal::__pstl_left_bound_idx(__a, __a_beg, __idx_a, __a, __a_beg + __idx_a, __comp, __projA, __projA) + 1;
 
             const _SizeB __count_b =
-                __internal::__pstl_right_bound(__b, __res, __nb, std::invoke(__projB, __b[__b_beg + __res]), __comp, __projB) -
-                __internal::__pstl_left_bound(__b, __b_beg, __res, std::invoke(__projB, __b[__b_beg + __res]), __comp, __projB);
+                __internal::__pstl_right_bound_idx(__b, __res, __nb, __b, __b_beg + __res, __comp, __projB, __projB) -
+                __internal::__pstl_left_bound_idx(__b, __b_beg, __res, __b, __b_beg + __res, __comp, __projB, __projB);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
