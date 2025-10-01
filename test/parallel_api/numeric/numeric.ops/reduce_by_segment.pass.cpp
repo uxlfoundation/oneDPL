@@ -106,8 +106,8 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
         if (n < 1)
             return;
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type KeyT;
-        typedef typename ::std::iterator_traits<Iterator2>::value_type ValT;
+        using KeyT = typename std::iterator_traits<Iterator1>::value_type;
+        using ValT = typename std::iterator_traits<Iterator2>::value_type;
 
         ::std::vector<KeyT> expected_key_res(n);
         ::std::vector<ValT> expected_val_res(n);
@@ -147,8 +147,8 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
         TestDataTransfer<UDTKind::eRes, Size> host_res_keys(*this, n);
         TestDataTransfer<UDTKind::eRes2, Size> host_res(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type KeyT;
-        typedef typename ::std::iterator_traits<Iterator2>::value_type ValT;
+        using KeyT = typename std::iterator_traits<Iterator1>::value_type;
+        using ValT = typename std::iterator_traits<Iterator2>::value_type;
 
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res_keys, host_res);
@@ -191,8 +191,8 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
     operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 /*vals_last*/,
                Iterator3 key_res_first, Iterator3 /*key_res_last*/, Iterator4 val_res_first, Iterator4 /*val_res_last*/, Size n)
     {
-        typedef typename ::std::iterator_traits<Iterator1>::value_type KeyT;
-        typedef typename ::std::iterator_traits<Iterator2>::value_type ValT;
+        using KeyT = typename std::iterator_traits<Iterator1>::value_type;
+        using ValT = typename std::iterator_traits<Iterator2>::value_type;
 
         initialize_data(keys_first, vals_first, val_res_first, n);
 
