@@ -644,7 +644,7 @@ __pstl_lower_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rn
     return __pstl_lower_bound_impl(__first1, __last1,
                                    [__rng1, __rng2, __rng2_idx, __comp, __proj1, __proj2](_Size1 __rng1_idx) mutable {
                                        return std::invoke(__comp, std::invoke(__proj1, __rng1[__rng1_idx]),
-                                                                  std::invoke(__proj2, __rng2[__rng2_idx]));
+                                                          std::invoke(__proj2, __rng2[__rng2_idx]));
                                    });
 }
 
@@ -698,8 +698,8 @@ __pstl_right_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rn
 template <bool __bias_last = true, typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare,
           typename _Proj1, typename _Proj2>
 _Size1
-__biased_lower_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
-                         _Proj1 __proj1, _Proj2 __proj2)
+__biased_lower_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx,
+                         _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __n = __last1 - __first1;
     std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
@@ -730,7 +730,8 @@ __biased_lower_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __
     if (__n > 0)
     {
         // End up fully at binary search
-        return oneapi::dpl::__internal::__pstl_lower_bound_idx(__rng1, __first1, __last1, __rng2, __rng2_idx, __comp, __proj1, __proj2);
+        return oneapi::dpl::__internal::__pstl_lower_bound_idx(__rng1, __first1, __last1, __rng2, __rng2_idx, __comp,
+                                                               __proj1, __proj2);
     }
     return __first1;
 }

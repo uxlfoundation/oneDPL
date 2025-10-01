@@ -3330,7 +3330,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
                     _RandomAccessIterator2 __bb = __last2;
                     if (__b != __last1)
                         __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
-                                                                         __b, __comp, __proj2, __proj1);
+                                                                      __b, __comp, __proj2, __proj1);
 
                     const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
                     return _SetRange{0, 0, __buf_pos};
@@ -3344,7 +3344,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
                 _RandomAccessIterator2 __ee = __last2;
                 if (__e != __last1)
-                    __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, __e, __comp, __proj2, __proj1);
+                    __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, __e, __comp,
+                                                                 __proj2, __proj1);
 
                 const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
                 auto __buffer_b = __tmp_memory + __buf_pos;
@@ -3399,7 +3400,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     // testing  whether the sequences are intersected
     _RandomAccessIterator1 __left_bound_seq_1 =
-        __first1 + __internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1, __first2, __comp, __proj1, __proj2);
+        __first1 + __internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1, __first2, __comp,
+                                                  __proj1, __proj2);
 
     if (__left_bound_seq_1 == __last1)
     {
@@ -3417,7 +3419,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     // testing  whether the sequences are intersected
     _RandomAccessIterator2 __left_bound_seq_2 =
-        __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __first1, __comp, __proj2, __proj1);
+        __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __first1, __comp,
+                                                  __proj2, __proj1);
 
     if (__left_bound_seq_2 == __last2)
     {

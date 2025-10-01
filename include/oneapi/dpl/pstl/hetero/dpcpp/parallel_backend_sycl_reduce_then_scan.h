@@ -389,7 +389,8 @@ struct __gen_set_mask
 
         std::size_t __nb = __set_b.size();
 
-        auto __res = oneapi::dpl::__internal::__pstl_lower_bound_idx(__set_b, std::size_t{0}, __nb, __set_a, __id, __comp, __proj2, __proj1);
+        auto __res = oneapi::dpl::__internal::__pstl_lower_bound_idx(__set_b, std::size_t{0}, __nb, __set_a, __id,
+                                                                     __comp, __proj2, __proj1);
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
 
         //initialization is true in case of difference operation; false - intersection.
@@ -703,7 +704,7 @@ struct __gen_set_balanced_path
         }
 
         if (std::invoke(__comp, std::invoke(__proj1, __rng1[__merge_path_rng1 - 1]),
-                                std::invoke(__proj2, __rng2[__merge_path_rng2])))
+                        std::invoke(__proj2, __rng2[__merge_path_rng2])))
         {
             // There is no chance that the balanced path differs from the merge path here, because the previous element of
             // rng1 does not match the next element of rng2. We can just return the merge path.

@@ -1281,7 +1281,7 @@ class __brick_set_op
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
         bool bres = __is_difference; //initialization is true in case of difference operation; false - intersection.
         if (__res == __nb || std::invoke(__comp, std::invoke(__projA, __a[__a_beg + __idx_a]),
-                                                 std::invoke(__projB, __b[__b_beg + __res])))
+                                         std::invoke(__projB, __b[__b_beg + __res])))
         {
             // there is no __a[__a_beg + __idx_a] in __b, so __b in the difference {__a}/{__b};
         }
