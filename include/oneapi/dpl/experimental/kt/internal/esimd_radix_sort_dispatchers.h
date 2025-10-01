@@ -373,7 +373,7 @@ template <bool __is_ascending, ::std::uint8_t __radix_bits, bool __in_place, typ
 sycl::event
 __radix_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, _KernelParam)
 {
-    const auto __n = __pack_in.__keys_rng().size();
+    const auto __n = oneapi::dpl::__ranges::__size(__pack_in.__keys_rng());
     assert(__n > 0);
 
     _PRINT_INFO_IN_DEBUG_MODE(__q);

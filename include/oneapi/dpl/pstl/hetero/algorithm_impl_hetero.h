@@ -1960,7 +1960,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
 {
     //If (n > 0 && n < m), returns first + (m - n). Otherwise, if n  > 0, returns first. Otherwise, returns last.
     using _DiffType = oneapi::dpl::__internal::__difference_t<_Range>;
-    _DiffType __size = __rng.size();
+    _DiffType __size = oneapi::dpl::__ranges::__size(__rng);
 
     assert(__n > 0 && __n < __size);
 
