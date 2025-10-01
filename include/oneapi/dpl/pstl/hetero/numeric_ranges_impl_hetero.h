@@ -45,7 +45,7 @@ _Tp
 __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                            _Tp __init, _BinaryOperation1 __binary_op1, _BinaryOperation2 __binary_op2)
 {
-    if (__rng1.empty())
+    if (oneapi::dpl::__ranges::__empty(__rng1))
         return __init;
 
     using _Functor = unseq_backend::walk_n<_BinaryOperation2>;
@@ -69,7 +69,7 @@ _Tp
 __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Tp __init,
                            _BinaryOperation __binary_op, _UnaryOperation __unary_op)
 {
-    if (__rng.empty())
+    if (oneapi::dpl::__ranges::__empty(__rng))
         return __init;
 
     using _Functor = unseq_backend::walk_n<_UnaryOperation>;
