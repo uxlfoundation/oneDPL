@@ -134,6 +134,13 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 
 namespace __ranges
 {
+template <typename _Range>
+bool
+__empty(_Range&& __rng)
+{
+    return __rng.begin() == __rng.end();
+}
+
 template <typename _R, typename = void>
 struct __is_eval_size_through_size : std::false_type
 {
