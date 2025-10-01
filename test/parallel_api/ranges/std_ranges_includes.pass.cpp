@@ -17,11 +17,10 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-void test_mixed_types_host()
+template <typename DataA, typename DataB>
+void
+test_mixed_types_host(DataA&& vec_a, DataB&& vec_b)
 {
-    std::vector<test_std_ranges::A> vec_a = {{1}, {2}, {3}};
-    std::vector<test_std_ranges::B> vec_b = {{2}, {3}};
-
     bool exp_res = std::ranges::includes(vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
 
     bool seq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::seq, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
@@ -96,7 +95,15 @@ main()
     test_range_algo<6, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
-    test_mixed_types_host();
+
+    std::vector<test_std_ranges::A> vec_a_src = {{1}, {2}, {3}};
+    std::vector<test_std_ranges::B> vec_b_src = {{2}, {3}};
+    test_mixed_types_host(vec_a_src, vec_b_src);
+
+    TestUtils::MinimalisticRange<decltype(vec_a_src.begin())> vec_a(vec_a_src.begin(), vec_a_src.end());
+    TestUtils::MinimalisticRange<decltype(vec_b_src.begin())> vec_b(vec_b_src.begin(), vec_b_src.end());
+    test_mixed_types_host(vec_a, vec_b);
+
 #if TEST_DPCPP_BACKEND_PRESENT
     test_mixed_types_device();
 #endif
