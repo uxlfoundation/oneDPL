@@ -1342,32 +1342,21 @@ struct NoDefaultCtorWrapper {
 
 ////////////////////////////////////////////////////////////////////////////////
 // A minimalistic range that only provides begin() and end() methods.
+template <typename _ForwardIterator>
 struct MinimalisticRange
 {
-    int* begin() const { return data; };
-    int* end() const { return data + size; };
+    _ForwardIterator __begin;
+    _ForwardIterator __end;
 
-    MinimalisticRange() = default;
-    MinimalisticRange(const MinimalisticRange&) = default;
-    MinimalisticRange(MinimalisticRange&&) = default;
-    MinimalisticRange(std::vector<int>& vec): data(vec.data()), size(vec.size()) {};
-
-    MinimalisticRange&
-    operator=(const MinimalisticRange&) = default;
-
-    MinimalisticRange&
-    operator=(MinimalisticRange&&) = default;
-
-private:
-    int* data = nullptr;
-    std::size_t size = 0;
+    _ForwardIterator begin() const { return __begin; };
+    _ForwardIterator end()   const { return __end;   };
 };
 
 #if _ENABLE_STD_RANGES_TESTING
 
-static_assert(std::ranges::range<MinimalisticRange>);
+static_assert(std::ranges::range<MinimalisticRange<std::vector<int>::iterator>>);
 // All oneDPL algorithms require at least a random access range
-static_assert(std::ranges::random_access_range<MinimalisticRange>);
+static_assert(std::ranges::random_access_range<MinimalisticRange<std::vector<int>::iterator>>);
 
 //template <>
 //inline constexpr bool std::ranges::enable_borrowed_range<MinimalisticRange> = true;
