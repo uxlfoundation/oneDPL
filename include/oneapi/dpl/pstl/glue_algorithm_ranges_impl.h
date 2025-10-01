@@ -499,11 +499,11 @@ namespace __internal
 {
 struct __stable_sort_fn_pred
 {
-    template <typename... Args>
-    auto
-    operator()(Args&&... __args) const
+    template <std::ranges::random_access_range _R, typename _Comp, typename _Proj>
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_R&& __rng, _Comp __comp, _Proj __proj) const
     {
-        return std::ranges::stable_sort(std::forward<decltype(__args)>(__args)...);
+        return std::ranges::stable_sort(std::forward<_R>(__rng), __comp, __proj);
     }
 };
 
