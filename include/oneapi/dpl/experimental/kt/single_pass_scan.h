@@ -247,7 +247,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     using _SinglePassScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __single_pass_scan_kernel<_KernelName, _Type, _BinaryOp>>;
 
-    const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
+    const std::size_t __n = __in_rng.size();
 
     if (__n == 0)
         return sycl::event{};
