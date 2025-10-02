@@ -1218,7 +1218,7 @@ template <class _ForwardIterator, class _OutputIterator, class _UnaryPredicate>
 std::pair<_ForwardIterator, _OutputIterator>
 __brick_limited_copy_if(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result,
                 typename std::iterator_traits<_OutputIterator>::difference_type __m, _UnaryPredicate __pred,
-                /*vector=*/::std::false_type) noexcept
+                /*vector=*/std::false_type) noexcept
 {
     for(; __first != __last && __m > 0; ++__first)
     {
@@ -1237,18 +1237,18 @@ template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Una
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __brick_limited_copy_if(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
                 typename std::iterator_traits<_RandomAccessIterator2>::difference_type __m, _UnaryPredicate __pred,
-                /*vector=*/::std::true_type) noexcept
+                /*vector=*/std::true_type) noexcept
 {
 #if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
     std::iterator_traits<_RandomAccessIterator1>::difference_type __n = __last - __first;
     while (__m > 0 && __m < __n)
     {
-        std::iterator_traits<_RandomAccessIterator2>::difference_type __processed = 
+        std::iterator_traits<_RandomAccessIterator2>::difference_type __copied = 
             __unseq_backend::__simd_copy_if(__first, __m, __result, __pred);
         __n -= __m;
         __first += __m;
-        __m -= __processed;
-        __result += __processed;
+        __m -= __copied;
+        __result += __copied;
     }
     if (__m > 0) // enough space left for the rest
     {
@@ -1311,7 +1311,7 @@ __brick_copy_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputI
 template <class _ForwardIterator, class _OutputIterator, class _Bound, class _Assigner>
 std::pair<_ForwardIterator, _OutputIterator>
 __brick_copy_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result, _Bound __m, bool* __mask,
-                     _Assigner __assigner, /*vector=*/::std::false_type) noexcept
+                     _Assigner __assigner, /*vector=*/std::false_type) noexcept
 {
     for (; __first != __last && __m >= 0; ++__first, ++__mask)
     {
@@ -1340,12 +1340,26 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __la
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
-                     _Bound __m, bool* __restrict __mask, _Assigner __assigner, /*vector=*/::std::true_type) noexcept
+                     _Bound __m, bool* __restrict __mask, _Assigner __assigner, /*vector=*/std::true_type) noexcept
 {
 #if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
-    return __unseq_backend::__simd_copy_by_mask(__first, __last - __first, __result, __m, __mask, __assigner);
+    std::iterator_traits<_RandomAccessIterator1>::difference_type __n = __last - __first;
+    while (__m > 0 && __m < __n)
+    {
+        _Bound __copied = __simd_copy_by_mask(__first, __m, __result, __mask, __assigner);
+        __n -= __m;
+        __first += __m;
+        __m -= __copied;
+        __result += __copied;
+    }
+    if (__m > 0) // enough space left for the rest
+    {
+        __result += __simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
+        __first += __n;        
+    }
+    return {__first, __result};    
 #else
-    return __internal::__brick_copy_by_mask(__first, __last, __result, __m, __mask, __assigner, ::std::false_type());
+    return __internal::__brick_copy_by_mask(__first, __last, __result, __m, __mask, __assigner, std::false_type());
 #endif
 }
 
@@ -1451,12 +1465,12 @@ __pattern_limited_copy_if(_Tag, _ExecutionPolicy&& __exec, _RandomAccessIterator
                 bool* __mask = __mask_buf.get();
                 _DifferenceType __res_in{}, __res_out{};
                 __par_backend::__parallel_strict_scan(
-                    __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
+                    __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
                     [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
                         return __internal::__brick_calc_mask_1<_DifferenceType>(
                             __first + __i, __first + (__i + __len), __mask + __i, __pred, __is_vector{}).first;
                     },
-                    ::std::plus<_DifferenceType>(),  // Combine
+                    std::plus<_DifferenceType>(),  // Combine
                     [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial,
                         _DifferenceType __len_out) { // Scan
                         auto res = __internal::__brick_copy_by_mask(
