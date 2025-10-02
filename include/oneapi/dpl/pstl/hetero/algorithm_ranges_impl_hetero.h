@@ -694,7 +694,7 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 {
     const auto __n = oneapi::dpl::__ranges::__size(__rng);
     if (__n == 0)
-        return __n;
+        return 0;
 
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
 
