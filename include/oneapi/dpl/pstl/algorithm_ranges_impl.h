@@ -482,7 +482,7 @@ __pattern_min(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Pr
 //---------------------------------------------------------------------------------------------------------------------
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
-std::ranges::minmax_element_result<std::ranges::borrowed_iterator_t<_R>>
+auto
 __pattern_minmax_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
@@ -510,10 +510,10 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj,
 std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>
 __pattern_minmax(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    std::ranges::minmax_element_result<std::ranges::borrowed_iterator_t<_R>> __res =
+    auto [__it_min, __it_max] =
         __pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
 
-    return (*__res.min, *__res.max);
+    return {*__it_min, *__it_max};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
