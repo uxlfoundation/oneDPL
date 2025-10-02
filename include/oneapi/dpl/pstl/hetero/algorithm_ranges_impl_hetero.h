@@ -250,10 +250,9 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, type
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_find_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Pred __pred)
 {
-    const auto __n = oneapi::dpl::__ranges::__size(__rng);
     //trivial pre-checks
-    if (__n == 0)
-        return __n;
+    if (oneapi::dpl::__ranges::__empty(__rng))
+        return 0;
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_Pred>;
     using _IndexType = std::make_unsigned_t<oneapi::dpl::__internal::__difference_t<_Range>>;
