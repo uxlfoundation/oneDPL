@@ -712,7 +712,7 @@ struct __subscription_impl_view_simple : _Base
     static_assert(!__has_subsctiption_op<_Base>::value, "The usage of __subscription_impl_view_simple prohibited if std::decay_t<_Source>::operator[] implemented");
 
     using value_type = oneapi::dpl::__internal::__value_t<_Base>;
-    using _Size = oneapi::dpl::__internal::__difference_t<_Base>;
+    using index_type = oneapi::dpl::__internal::__difference_t<_Base>;
 
     // Define default constructors
     __subscription_impl_view_simple() = default;
@@ -730,13 +730,13 @@ struct __subscription_impl_view_simple : _Base
     __subscription_impl_view_simple& operator=(__subscription_impl_view_simple&&) = default;
 
     decltype(auto)
-    operator[](std::size_t __i)
+    operator[](index_type __i)
     {
         return *std::next(_Base::begin(), __i);
     }
 
     decltype(auto)
-    operator[](std::size_t __i) const
+    operator[](index_type __i) const
     {
         return *std::next(_Base::begin(), __i);
     }
