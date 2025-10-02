@@ -495,7 +495,7 @@ __pattern_minmax_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp 
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
-std::ranges::minmax_element_result<std::ranges::borrowed_iterator_t<_R>>
+auto
 __pattern_minmax_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp,
                          _Proj __proj)
 {
