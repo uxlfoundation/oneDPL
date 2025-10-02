@@ -23,7 +23,11 @@
 #include <vector>
 #include <ranges>
 
+#endif // _ENABLE_STD_RANGES_TESTING
+
 #include "support/utils.h"
+
+#if _ENABLE_STD_RANGES_TESTING
 
 struct MinimalisticRange
 {
