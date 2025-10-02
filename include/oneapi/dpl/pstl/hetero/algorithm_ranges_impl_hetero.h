@@ -392,7 +392,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, type
 bool
 __pattern_any_of(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Pred __pred)
 {
-    if (oneapi::dpl::__ranges::__size(__rng) == 0)
+    if (oneapi::dpl::__ranges::__empty(__rng))
         return false;
 
     using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_Pred>;
@@ -605,7 +605,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, type
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Predicate __predicate)
 {
-    if (oneapi::dpl::__ranges::__size(__rng) == 0)
+    if (oneapi::dpl::__ranges::__empty(__rng))
         return 0;
 
     using _ReduceValueType = oneapi::dpl::__internal::__difference_t<_Range>;
@@ -919,7 +919,7 @@ std::pair<oneapi::dpl::__internal::__difference_t<_Range1>, oneapi::dpl::__inter
 __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                 _Range3&& __rng3, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    if (oneapi::dpl::__ranges::__size(__rng3) == 0)
+    if (oneapi::dpl::__ranges::__empty(__rng3))
         return {0, 0};
 
     const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
@@ -1126,7 +1126,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         return {__first1, __result};
 
     // {1} \ {}: the difference is {1}
-    if (oneapi::dpl::__ranges::__size(__r2) == 0)
+    if (oneapi::dpl::__ranges::__empty(__r2))
     {
         const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag,
