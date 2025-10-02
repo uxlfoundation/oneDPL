@@ -184,8 +184,12 @@ struct __write_red_by_seg
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
     {
         using std::get;
-        auto __out_keys = get<0>(__out_rng.tuple());
-        auto __out_values = get<1>(__out_rng.tuple());
+
+        // Get source tuple
+        auto&& __tuple = __out_rng.tuple();
+
+        auto __out_keys = get<0>(__tuple);
+        auto __out_values = get<1>(__tuple);
 
         const auto& __next_key = get<2>(__tup);
         const auto& __current_key = get<3>(__tup);
@@ -381,11 +385,14 @@ struct __gen_set_mask
     bool
     operator()(const _InRng& __in_rng, std::size_t __id) const
     {
+        // Get tuple from source range
+        auto&& __tuple = __in_rng.tuple();
+
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __set_a = std::get<0>(__in_rng.tuple());    // first sequence, use with __proj1
-        auto __set_b = std::get<1>(__in_rng.tuple());    // second sequence, use with __proj2
-        auto __set_mask = std::get<2>(__in_rng.tuple()); // mask sequence
+        auto __set_a = std::get<0>(__tuple);    // first sequence, use with __proj1
+        auto __set_b = std::get<1>(__tuple);    // second sequence, use with __proj2
+        auto __set_mask = std::get<2>(__tuple); // mask sequence
 
         std::size_t __nb = __set_b.size();
 
@@ -634,10 +641,13 @@ struct __get_bounds_partitioned
     auto // Returns a tuple of the form (start1, end1, start2, end2)
     operator()(const _Rng& __in_rng, const _IndexT __id) const
     {
-        auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(std::get<0>(__in_rng.tuple()).size())>,
-                                             std::make_unsigned_t<decltype(std::get<1>(__in_rng.tuple()).size())>,
+        auto __rng_tmp_diag = std::get<2>(__tuple); // set a temp storage sequence
+
+        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(std::get<0>(__tuple).size())>,
+                                             std::make_unsigned_t<decltype(std::get<1>(__tuple).size())>,
                                              std::make_unsigned_t<decltype(__rng_tmp_diag.size())>>;
 
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
@@ -665,8 +675,11 @@ struct __get_bounds_simple
     auto // Returns a tuple of the form (start1, end1, start2, end2)
     operator()(const _Rng& __in_rng, const _IndexT) const
     {
-        const auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
-        const auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+
+        const auto __rng1 = std::get<0>(__tuple); // first sequence
+        const auto __rng2 = std::get<1>(__tuple); // second sequence
 
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>>;
@@ -757,12 +770,15 @@ struct __gen_set_balanced_path
     std::tuple<_IndexT, _IndexT, bool>
     calc_and_store_balanced_path(_InRng& __in_rng, _IndexT __id, _BoundsProviderLocal __get_bounds_local) const
     {
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        const auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
-        const auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+        const auto __rng1 = std::get<0>(__tuple); // first sequence
+        const auto __rng2 = std::get<1>(__tuple); // second sequence
 
-        auto __rng1_temp_diag = std::get<2>(__in_rng.tuple()); // set a temp storage sequence
+        auto __rng1_temp_diag = std::get<2>(__tuple); // set a temp storage sequence
 
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>>;
@@ -800,11 +816,14 @@ struct __gen_set_balanced_path
     std::uint16_t
     operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data) const
     {
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        const auto __rng1 = std::get<0>(__in_rng.tuple());   // first sequence
-        const auto __rng2 = std::get<1>(__in_rng.tuple());   // second sequence
-        auto __rng_tmp_diag = std::get<2>(__in_rng.tuple()); // temp diag sequence
+        const auto __rng1 = std::get<0>(__tuple);   // first sequence
+        const auto __rng2 = std::get<1>(__tuple);   // second sequence
+        auto __rng_tmp_diag = std::get<2>(__tuple); // temp diag sequence
 
         _IndexT __rng1_balanced_pos = 0;
         _IndexT __rng2_balanced_pos = 0;
@@ -868,13 +887,17 @@ struct __gen_set_op_from_known_balanced_path
     std::tuple<std::uint32_t, std::uint16_t>
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
     {
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        const auto __rng1 = std::get<0>(__in_rng.tuple()); // first sequence
-        const auto __rng2 = std::get<1>(__in_rng.tuple()); // second sequence
+        const auto __rng1 = std::get<0>(__tuple); // first sequence
+        const auto __rng2 = std::get<1>(__tuple); // second sequence
 
-        const auto __rng1_temp_diag =
-            std::get<2>(__in_rng.tuple()); // set a temp storage sequence, star value in sign bit
+        // set a temp storage sequence, star value in sign bit
+        const auto __rng1_temp_diag = std::get<2>(__tuple);
+
         using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
                                              std::make_unsigned_t<decltype(__rng2.size())>,
                                              std::make_unsigned_t<decltype(__rng1_temp_diag.size())>>;
@@ -945,8 +968,12 @@ struct __gen_red_by_seg_reduce_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
-        const auto __in_keys = std::get<0>(__in_rng.tuple());
-        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+
+        const auto __in_keys = std::get<0>(__tuple);
+        const auto __in_vals = std::get<1>(__tuple);
+
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         // The first segment start (index 0) is not marked with a 1. This is because we need the first
         // segment's key and value output index to be 0. We begin marking new segments only after the
@@ -969,8 +996,12 @@ struct __gen_scan_by_seg_reduce_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
-        const auto __in_keys = std::get<0>(__in_rng.tuple());
-        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+
+        const auto __in_keys = std::get<0>(__tuple);
+        const auto __in_vals = std::get<1>(__tuple);
+
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         const std::uint32_t __new_seg_mask = __id == 0 || !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
         return oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]});
@@ -994,8 +1025,12 @@ struct __gen_red_by_seg_scan_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
-        const auto __in_keys = std::get<0>(__in_rng.tuple());
-        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+
+        const auto __in_keys = std::get<0>(__tuple);
+        const auto __in_vals = std::get<1>(__tuple);
+
         using _KeyType = oneapi::dpl::__internal::__value_t<decltype(__in_keys)>;
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         const _KeyType& __current_key = __in_keys[__id];
@@ -1043,8 +1078,12 @@ struct __gen_scan_by_seg_scan_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
-        const auto __in_keys = std::get<0>(__in_rng.tuple());
-        const auto __in_vals = std::get<1>(__in_rng.tuple());
+        // Get source tuple
+        auto&& __tuple = __in_rng.tuple();
+
+        const auto __in_keys = std::get<0>(__tuple);
+        const auto __in_vals = std::get<1>(__tuple);
+
         using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         // Mark the first index as a new segment as well as an indexing corresponding to any key
         // that does not satisfy the binary predicate with the previous key. The first tuple mask element
