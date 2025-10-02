@@ -26,7 +26,7 @@ struct MoveNoexceptCopy
 {
     MoveNoexceptCopy() = default;
 
-    MoveNoexceptCopy(MoveNoexceptCopy&&) noexcept {};
+    MoveNoexceptCopy(MoveNoexceptCopy&&) noexcept {}
     MoveNoexceptCopy(const MoveNoexceptCopy&) = default;
 };
 
@@ -36,7 +36,7 @@ struct MoveNoexceptNoCopy
 
     MoveNoexceptNoCopy() = default;
 
-    MoveNoexceptNoCopy(MoveNoexceptNoCopy&&) noexcept {};
+    MoveNoexceptNoCopy(MoveNoexceptNoCopy&&) noexcept {}
     MoveNoexceptNoCopy(const MoveNoexceptNoCopy&) = delete;
 };
 
@@ -45,7 +45,7 @@ struct MoveNotNoexceptCopy
 {
     MoveNotNoexceptCopy() = default;
 
-    MoveNotNoexceptCopy(MoveNotNoexceptCopy&&) noexcept(false) {};
+    MoveNotNoexceptCopy(MoveNotNoexceptCopy&&) noexcept(false) {}
     MoveNotNoexceptCopy(const MoveNotNoexceptCopy&) = default;
 };
 
@@ -54,7 +54,7 @@ struct MoveNotNoexceptNoCopy
 {
     MoveNotNoexceptNoCopy() = default;
 
-    MoveNotNoexceptNoCopy(MoveNotNoexceptNoCopy&&) noexcept(false){};
+    MoveNotNoexceptNoCopy(MoveNotNoexceptNoCopy&&) noexcept(false){}
     MoveNotNoexceptNoCopy(const MoveNotNoexceptNoCopy&) = delete;
 };
 

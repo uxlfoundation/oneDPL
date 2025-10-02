@@ -1609,7 +1609,7 @@ struct __transform_fn
         z = __op(x);
     }
 };
-}; // namespace __internal
+} // namespace __internal
 
 // [alg.transform]
 
@@ -1640,7 +1640,7 @@ struct __transform_fn2
         z = __op(x, y);
     }
 };
-}; // namespace __internal
+} // namespace __internal
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _BinaryOperation>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>

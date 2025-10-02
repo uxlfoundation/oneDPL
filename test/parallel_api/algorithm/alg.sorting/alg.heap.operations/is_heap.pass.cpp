@@ -35,8 +35,8 @@ struct WithCmpOp
 {
     std::int32_t _first;
     std::int32_t _second;
-    WithCmpOp() : _first(0), _second(0){};
-    explicit WithCmpOp(std::int32_t x) : _first(x), _second(x){};
+    WithCmpOp() : _first(0), _second(0){}
+    explicit WithCmpOp(std::int32_t x) : _first(x), _second(x){}
     bool
     operator<(const WithCmpOp& rhs) const
     {

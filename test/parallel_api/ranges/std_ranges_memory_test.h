@@ -142,6 +142,6 @@ private:
     }
 };
 
-}; //namespace test_std_ranges
+} //namespace test_std_ranges
 
 #endif //_ENABLE_STD_RANGES_TESTING

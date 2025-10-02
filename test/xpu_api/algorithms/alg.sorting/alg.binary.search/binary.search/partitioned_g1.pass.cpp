@@ -25,7 +25,7 @@
 struct X
 {
     int val;
-    X(int v) : val(v){};
+    X(int v) : val(v){}
     bool
     odd() const
     {

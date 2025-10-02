@@ -58,8 +58,8 @@ Ambiguous fmin(Ambiguous, Ambiguous) { return Ambiguous(); }
 Ambiguous isunordered(Ambiguous, Ambiguous) { return Ambiguous(); }
 Ambiguous round(Ambiguous) { return Ambiguous(); }
 Ambiguous trunc(Ambiguous) { return Ambiguous(); }
-}; // namespace dpl
-}; // namespace oneapi
+} // namespace dpl
+} // namespace oneapi
 
 template <class T, class = decltype(std::abs(std::declval<T>()))>
 std::true_type has_abs_imp(int);

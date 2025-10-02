@@ -193,12 +193,12 @@ constexpr int calc_res_size(int n, int) { return n; }
 // If in1 range is empty, then the out range is always empty
 // Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union test.
 template<typename>
-int out_size_with_empty_in1(int) { return 0; };
+int out_size_with_empty_in1(int) { return 0; }
 
 // If in2 range is empty, then the out range is always empty
 // Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union test.
 template<typename>
-int out_size_with_empty_in2(int) { return 0; };
+int out_size_with_empty_in2(int) { return 0; }
 
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_unprocessed = [](auto) { return -1;};
@@ -921,7 +921,7 @@ struct test_range_algo
     }
 };
 
-}; //namespace test_std_ranges
+} //namespace test_std_ranges
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
