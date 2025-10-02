@@ -947,9 +947,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 //---------------------------------------------------------------------------------------------------------------------
 
 template <typename _R1, typename _OutRange>
-using __set_difference_return_t =
-    std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                       std::ranges::borrowed_iterator_t<_OutRange>>;
+using __set_difference_return_t = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                                                     std::ranges::borrowed_iterator_t<_OutRange>>;
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
@@ -1162,11 +1161,10 @@ __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
     oneapi::dpl::__internal::__binary_op __bin_pred{__pred, __proj1, __proj2};
 
     auto __first1 = std::ranges::begin(__r1);
-    auto __first2 = std::ranges::begin(__r2);    
+    auto __first2 = std::ranges::begin(__r2);
 
     const auto& [first, second] = oneapi::dpl::__internal::__pattern_mismatch(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1,
-        __first1 + std::ranges::size(__r1), __first2,
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + std::ranges::size(__r1), __first2,
         __first2 + std::ranges::size(__r2), __bin_pred);
 
     return {first, second};
