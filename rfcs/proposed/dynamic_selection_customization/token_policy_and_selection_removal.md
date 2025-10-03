@@ -88,7 +88,7 @@ Beyond simplifying the public interface and requirements, these changes may have
 ## Open Questions
 
 - Should we instead require `submit_and_wait` as the required well-formed function and make the asynchronous submission optional?
-    - If we did this, we could decline to implement the asynchonous `submit` call for `TokenPolicy` in favor of merely using `submit_and_wait`. This would allow us to avoid the asynchronous queue management, etc.  However, it would not allow asynchronous submission to this policy.
+    - If we did this, we could decline to implement the asynchronous `submit` call for `TokenPolicy` in favor of merely using `submit_and_wait`. This would allow us to avoid the asynchronous queue management, etc.  However, it would not allow asynchronous submission to this policy.
 
 - Do we lose compelling use cases when removing `select` and related public API?
 	- We lose the ability to submit multiple jobs to the same selection, but those jobs could be joined within a single submission instead.
