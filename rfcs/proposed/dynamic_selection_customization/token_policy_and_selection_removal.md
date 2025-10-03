@@ -51,11 +51,11 @@ The type `T` satisfies *Policy* if given,
 
 | *Optional* | Description |
 | --------------------- | ----------- |
-| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits for the `wait_t<T>` it returns to complete. |
+| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits on the return value of the submission to complete. |
 
 | Policy Traits* | Description |
 | -------------- | ----------- |
-| `policy_traits<T>::resource_type`, `resource_t<T>` | The backend-defined resource type that is passed to the user function object. Calling `unwrap` on an object of type `selection_t<T>` returns an object of type `resource_t<T>`. |
+| `policy_traits<T>::resource_type`, `resource_t<T>` | The backend-defined resource type that is passed to the user function object. |
 
 The default implementation of these traits depends on types defined in the Policy:
 
@@ -66,10 +66,19 @@ The default implementation of these traits depends on types defined in the Polic
       using resource_type = typename std::decay_t<Policy>::resource_type;
   };
 ```
+This would be a breaking change, but dynamic selection is an experimental API, so can modify the API in this way. However, we will want to consider this fully and perhaps investigate if there is any usage which we may break with these changes.
+
 ### TokenPolicy
 The new TokenPolicy provides a way for users to control resources that require exclusive or limited access to individual resources. A capacity is set on initialization, and the policy selects the first available resource with a token slot available.
 
-Calling the `submit` function for all policies so far returns quickly (before the job completes execution) and returns a wait type that matches the wait type for the backend. For TokenPolicy, this is more challenging because tokens from resources may not be available when jobs are submitted. Either we must block until the job can acquire a resource and submit the job to that resource, or we must add infrastructure to queue up jobs waiting for resources and asynchronously submit the job once resources become available. Additionally, we cannot simply return the same wait type that the user's job returns. We must wrap this type with our own wait type, as the job's event may not be available at the time we return from the submit call. When wait is called on this wait type, it must wait for the job to be submitted and then wait on the resulting return from the submission.
+#### Implementation Approach
+Calling the `submit` function for all policies so far returns quickly (before the job completes execution) and returns a wait type that matches the wait type for the backend. For TokenPolicy, this is more challenging because tokens from resources may not be available when jobs are submitted. 
+
+We propose the following implementation Asynchronous Queueing Strategy: 
+
+Add infrastructure to queue up jobs waiting for resources and asynchronously submit the job once resources become available. This queue will be managed by its own thread, and must synchronize with the resources to track when jobs complete and return their resources, so that the queue may then submit work.
+
+The submission type we return must be aware and synchronized with the asynchronous queue. We must wrap this type with our own wait type, as the job's event may not be available at the time we return from the submit call. When wait is called on this wait type, it must wait for the job to be submitted and then wait on the resulting return from the submission.
 
 The removal of the public API for selection greatly simplifies the token policy. Without this, each selection may be used for an arbitrary number of submissions or none at all. Also, when a selection handle still exists in the possession of a user, it may be used for a submission in the future. This means that we would need to track all jobs and selection handles, holding the resource's token until all are completed and/or go out of scope. Without a public selection API, we are guaranteed that each selection is mapped 1-to-1 with a submission and must only hold that resource token until the job completes.
 
@@ -77,7 +86,10 @@ The removal of the public API for selection greatly simplifies the token policy.
 Beyond simplifying the public interface and requirements, these changes may have some inherent benefits for existing policies in that they force users into a specific usage pattern. Selections and submissions must be paired 1-to-1, and selection should occur very close to submission time. For Dynamic Load Policy and Autotune Policy, which dynamically use statistics about resource load and performance of jobs, when selection occurs close to submission, the selection will be more accurate and up-to-date for the upcoming submission.
 
 ## Open Questions
+
 - Should we instead require `submit_and_wait` as the required well-formed function and make the asynchronous submission optional?
+    - If we did this, we could decline to implement the asynchonous `submit` call for `TokenPolicy` in favor of merely using `submit_and_wait`. This would allow us to avoid the asynchronous queue management, etc.  However, it would not allow asynchronous submission to this policy.
+
 - Do we lose compelling use cases when removing `select` and related public API?
 	- We lose the ability to submit multiple jobs to the same selection, but those jobs could be joined within a single submission instead.
 	- We lose the ability to select and do something with the resource before submitting the job function.
