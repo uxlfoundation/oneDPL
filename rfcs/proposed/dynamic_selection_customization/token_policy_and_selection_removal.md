@@ -13,6 +13,7 @@ We propose to remove the following functions and traits from the public contract
 | *Must* be well-formed | Description |
 | `p.select(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
 | `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` with the selected resource `s` and the arguments `args...`. |
+
 | *Optional* | Description |
 | `p.submit_and_wait(s, f, args…)` | Returns `void`. The function invokes `f` with `s` and `args...` and waits for the `wait_t<T>` it returns to complete. |
 
@@ -50,7 +51,7 @@ The type `T` satisfies *Policy* if given,
 
 | Policy Traits* | Description |
 | `policy_traits<T>::resource_type`, `resource_t<T>` | The backend-defined resource type that is passed to the user function object. |
-| `policy_traits<T>::has_async_submit` | Boolean which defines if a policy has an asynchronous submission function. |
+| `policy_traits<T>::has_async_submit` | Boolean that defines if a policy has an asynchronous submission function. |
 
 The default implementation of these traits depends on types defined in the Policy:
 
@@ -62,9 +63,9 @@ The default implementation of these traits depends on types defined in the Polic
   };
 ```
 
-With this contract, we could provide also provide a generic `submit_and_wait` which uses `submit` and waits on the result unless overridden.
+With this contract, we could also provide a generic `submit_and_wait` implementation that uses `submit` and waits on the result unless overridden.
 
-This would be a breaking change, but dynamic selection is an experimental API, so can modify the API in this way. However, we will want to consider this fully and perhaps investigate if there is any usage which we may break with these changes.
+This would be a breaking change, but since dynamic selection is an experimental API, we can modify the API in this way. However, we will want to consider this fully and perhaps investigate if there is any usage that we may break with these changes.
 
 ### TokenPolicy
 The new TokenPolicy provides a way for users to control resources that require exclusive or limited access to individual resources. A capacity is set on initialization, and the policy selects the first available resource with a token slot available.
@@ -74,27 +75,27 @@ The removal of the public API for selection greatly simplifies the token policy.
 In addition to the complexity of `select` within TokenPolicy, another difference between it and all previous policies is that resources are not guaranteed to be available at the time of submission. Below we offer three alternatives for addressing this.
 
 #### Implementation Approach 1: No async submit
-Our proposal for implementation of TokenPolicy is to only provide `submit_and_wait` without an `async_submit` function. This allows a greatly simplified implementation, since resource tokens may not be available at the time of submission. With only a blocking call, we can merely wait for the token to be available and then wait for the job to complete.
+Our proposal for the implementation of TokenPolicy is to only provide `submit_and_wait` without an `async_submit` function. This allows a greatly simplified implementation since resource tokens may not be available at the time of submission. With only a blocking call, we can merely wait for the token to become available and then wait for the job to complete.
 
 
 #### Implementation Approach 2: Async submission management queue
 Calling the `submit` function for all policies so far returns quickly (before the job completes execution) and returns a wait type that matches the wait type for the backend. For TokenPolicy, this is more challenging because tokens from resources may not be available when jobs are submitted.
 
-Asynchronous Queueing Strategy:
+**Asynchronous Queueing Strategy:**
 
-Add infrastructure to queue up jobs waiting for resources and asynchronously submit the job once resources become available. This queue will be managed by its own thread, and must synchronize with the resources to track when jobs complete and return their resources, so that the queue may then submit work.
+Add infrastructure to queue up jobs waiting for resources and asynchronously submit the job once resources become available. This queue will be managed by its own thread and must synchronize with the resources to track when jobs complete and return their resources, so that the queue may then submit work.
 
-The submission type we return must be aware and synchronized with the asynchronous queue. We must wrap this type with our own wait type, as the job's event may not be available at the time we return from the submit call. When wait is called on this wait type, it must wait for the job to be submitted and then wait on the resulting return from the submission.
+The submission type we return must be aware of and synchronized with the asynchronous queue. We must wrap this type with our own wait type, as the job's event may not be available at the time we return from the submit call. When wait is called on this wait type, it must wait for the job to be submitted and then wait on the resulting return from the submission.
 
 #### Implementation Approach 3: Allow submission to fail
-We can provide an asynchronous `submit` call, but allow that call to fail, with some status flag in the submission object returned which would need to be queried. Currently `submit` does not have the option of failing for any other policies, so this is extra complexity we would be adding to the API. However, it would allow us to provide both submit calls for token policy. If we do allow submit to fail, then we would not be able to generically implement `submit_and_wait`, at least without providing a similar fail status for that function as well.
+We can provide an asynchronous `submit` call, but allow that call to fail, with some status flag in the submission object returned that would need to be queried. Currently, `submit` does not have the option of failing for any other policies, so this is extra complexity we would be adding to the API. However, it would allow us to provide both submit calls for TokenPolicy. If we do allow submit to fail, then we would not be able to generically implement `submit_and_wait`, at least without providing a similar fail status for that function as well.
 
 ### Benefits of Removing Select for Other Policies
 Beyond simplifying the public interface and requirements, these changes may have some inherent benefits for existing policies in that they force users into a specific usage pattern. Selections and submissions must be paired 1-to-1, and selection should occur very close to submission time. For Dynamic Load Policy and Autotune Policy, which dynamically use statistics about resource load and performance of jobs, when selection occurs close to submission, the selection will be more accurate and up-to-date for the upcoming submission.
 
 ## Open Questions
 - Which implementation strategy should we pursue?
-	- Currently, we lean toward (1), because (2) introduces complexity which is a large outlier from other policies and (3) warps the public API usage for all policies for features only important for token policy by adding a step of checking for submission failure. (1) also warps the public contract for policies for the purposes of a TokenPolicy, but other policies can still choose to implement asynchronous `submit` be unaffected otherwise.
+	- Currently, we lean toward (1), because (2) introduces complexity that is a large outlier from other policies and (3) warps the public API usage for all policies for features only important for TokenPolicy by adding a step of checking for submission failure. (1) also warps the public contract for policies for the purposes of TokenPolicy, but other policies can still choose to implement asynchronous `submit` and be unaffected otherwise.
 
 - Do we lose compelling use cases when removing `select` and related public API?
 	- We lose the ability to submit multiple jobs to the same selection, but those jobs could be joined within a single submission instead.
