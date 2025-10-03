@@ -11,11 +11,9 @@ We have not found much utility in standalone `select` functionality. Relying on 
 We propose to remove the following functions and traits from the public contract for a policy:
 
 | *Must* be well-formed | Description |
-| --------------------- | ----------- |
 | `p.select(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
 | `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` with the selected resource `s` and the arguments `args...`. |
 | *Optional* | Description |
-| --------------------- | ----------- |
 | `p.submit_and_wait(s, f, args…)` | Returns `void`. The function invokes `f` with `s` and `args...` and waits for the `wait_t<T>` it returns to complete. |
 
 - `p` an arbitrary identifier of type `T`
@@ -24,14 +22,12 @@ We propose to remove the following functions and traits from the public contract
 - `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
 
 | Policy Traits* | Description |
-| -------------- | ----------- |
 | `policy_traits<T>::selection_type`, `selection_t<T>` | The wrapped select type returned by `T`. Must satisfy [Selection](#selection_req_id). |
 | `policy_traits<T>::wait_type`, `wait_type_t<T>` | The backend type that is returned by the user function object. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns an object of type `wait_type_t<T>`. |
 
 We also propose to move the following function from optional to must be well-formed:
 
 | *Must* be well-formed | Description |
-| --------------------- | ----------- |
 | `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
 
 This results in a greatly simplified contract for policies:
@@ -45,16 +41,13 @@ The type `T` satisfies *Policy* if given,
 - `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
 
 | *Must* be well-formed | Description |
-| --------------------- | ----------- |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
 | `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
 
 | *Optional* | Description |
-| --------------------- | ----------- |
 | `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits on the return value of the submission to complete. |
 
 | Policy Traits* | Description |
-| -------------- | ----------- |
 | `policy_traits<T>::resource_type`, `resource_t<T>` | The backend-defined resource type that is passed to the user function object. |
 
 The default implementation of these traits depends on types defined in the Policy:
