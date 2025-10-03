@@ -660,8 +660,10 @@ struct host_subrange_impl
     {
         mem = alloc.allocate(n);
         view = ViewType(mem, mem + n);
+
+        auto subscription_view = oneapi::dpl::__ranges::__get_subscription_view(view);
         for(int i = 0; i < n; ++i)
-            view[i] = gen(i);
+            subscription_view[i] = gen(i);
     }
     ViewType& operator()()
     {
@@ -669,13 +671,16 @@ struct host_subrange_impl
     }
     ~host_subrange_impl()
     {
-        if(mem)
-            alloc.deallocate(mem, view.size());
+        if (mem != nullptr)
+            alloc.deallocate(mem, oneapi::dpl::__ranges::__size(view));
     }
 };
 
 template<typename T>
 using  host_subrange = host_subrange_impl<T, std::ranges::subrange<T*>>;
+
+template<typename T>
+using  host_minimalistic_subrange = host_subrange_impl<T, TestUtils::MinimalisticRange<T*>>;
 
 #if TEST_CPP20_SPAN_PRESENT
 template<typename T>
@@ -772,8 +777,10 @@ struct usm_subrange_impl
     {
         auto mem = alloc.allocate(n);
         view = ViewType(mem, mem + n);
+
+        auto subscription_view = oneapi::dpl::__ranges::__get_subscription_view(view);
         for(int i = 0; i < n; ++i)
-            view[i] = gen(i);
+            subscription_view[i] = gen(i);
     }
 
     ViewType& operator()()
@@ -783,14 +790,21 @@ struct usm_subrange_impl
 
     ~usm_subrange_impl()
     {
-        if(p)
-            std::copy_n(view.data(), view.size(), p);
-        alloc.deallocate(view.data(), view.size());
+        auto __size = oneapi::dpl::__ranges::__size(view);
+        auto __data_ptr = std::addressof(*view.begin());
+
+        if (p != nullptr)
+            std::copy_n(__data_ptr, __size, p);
+
+        alloc.deallocate(__data_ptr, __size);
     }
 };
 
 template<typename T>
 using  usm_subrange = usm_subrange_impl<T, std::ranges::subrange<T*>>;
+
+template<typename T>
+using  usm_minimalistic_subrange = usm_subrange_impl<T, TestUtils::MinimalisticRange<T*>>;
 
 #if TEST_CPP20_SPAN_PRESENT
 template<typename T>
@@ -849,14 +863,16 @@ struct test_range_algo
 
     void test_view_host(auto view, auto algo, auto& checker, auto... args)
     {
-        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
+        test<T, host_subrange<T>,              mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
+        test<T, host_minimalistic_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
     template <typename Policy>
     void test_view_hetero(Policy&& exec, auto view, auto algo, auto& checker, auto... args)
     {
-        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id), algo, checker, view, std::identity{}, args...);
+        test<T, usm_subrange<T>,              mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id),      algo, checker, view, std::identity{}, args...);
+        test<T, usm_minimalistic_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, view, std::identity{}, args...);
     }
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
@@ -868,13 +884,14 @@ struct test_range_algo
         auto span_view = span_view_fo{};
 #endif
 
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{},  std::identity{}, args...);
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
-        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        test<T, host_vector<T>,                mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{},  std::identity{}, args...);
+        test<T, host_vector<T>,                mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
+        test<T, host_vector<T>,                mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        test<T, host_subrange<T>,              mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        test<T, host_minimalistic_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
-        test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        test<T, host_vector<T>,                mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
+        test<T, host_span<T>,                  mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #endif
     }
 
