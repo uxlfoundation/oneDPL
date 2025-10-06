@@ -34,9 +34,8 @@ Fixed Issues
 ------------
 - Removed requirement of GPU double precision support to use ``set_union``, ``set_difference``, ``set_intersection``,
   and ``set_symmetric_difference`` on Windows operating systems.
-- Removed copy constructible requirements from value type for ``reduce`` and ``transform_reduce`` algorithms when used
-  with a host policy, and default constructible requirements from value type for ``reduce`` and ``transform_reduce``
-  when used with any execution policy.
+- Removed default-constructible requirements from the value type for ``reduce`` and ``transform_reduce`` algorithms,
+  as well as copy-constructible requirements when these algorithms are used with a native ("host") policy.
 - Fixed an issue with incorrect handling of different projections by ``ranges::merge``.
 - Fixed ``equal`` returning a ``false`` for empty input sequences; now it returns ``true``.
 - Fixed a compilation error **SYCL kernel cannot use exceptions** occurring with libstdc++ version 10 when calling
