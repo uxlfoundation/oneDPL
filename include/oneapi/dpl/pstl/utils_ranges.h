@@ -134,11 +134,25 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 
 namespace __ranges
 {
+
+template <typename _R, typename = void>
+struct __has_empty : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std::true_type
+{
+};
+
 template <typename _Range>
 bool
 __empty(_Range&& __rng)
 {
-    return __rng.begin() == __rng.end();
+    if constexpr (__has_empty<_Range>::value)
+        return __rng.empty();
+    else
+        return __rng.begin() == __rng.end();
 }
 
 template <typename _R, typename = void>
