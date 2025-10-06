@@ -497,7 +497,7 @@ struct drop_view_simple
     bool
     empty() const
     {
-        return oneapi::dpl::__ranges::__empty(__r);
+        return size() == 0;
     }
 
     auto
