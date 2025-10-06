@@ -730,12 +730,12 @@ struct permutation_discard_view
 };
 
 template <typename _R, typename = void>
-struct __has_subsctiption_op : std::false_type
+struct __has_subscription_op : std::false_type
 {
 };
 
 template <typename _R>
-struct __has_subsctiption_op<_R, std::void_t<decltype(std::declval<_R>().operator[](0))>> : std::true_type
+struct __has_subscription_op<_R, std::void_t<decltype(std::declval<_R>().operator[](0))>> : std::true_type
 {
 };
 
@@ -743,7 +743,7 @@ template <typename _Source, typename _Base = std::decay_t<_Source>>
 struct __subscription_impl_view_simple : _Base
 {
     static_assert(
-        !__has_subsctiption_op<_Base>::value,
+        !__has_subscription_op<_Base>::value,
         "The usage of __subscription_impl_view_simple prohibited if std::decay_t<_Source>::operator[] implemented");
 
     using value_type = oneapi::dpl::__internal::__value_t<_Base>;
@@ -782,7 +782,7 @@ template <typename _Range>
 decltype(auto)
 __get_subscription_view(_Range&& __rng)
 {
-    if constexpr (__has_subsctiption_op<_Range>::value)
+    if constexpr (__has_subscription_op<_Range>::value)
     {
         return std::forward<_Range>(__rng);
     }
