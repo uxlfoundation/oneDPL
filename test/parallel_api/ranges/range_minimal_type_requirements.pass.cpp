@@ -57,6 +57,22 @@ void test_merge(Policy policy)
     EXPECT_EQ_N(v3_expected.data(), r3.begin(), v3_expected.size(), msg.c_str());
 }
 
+template <typename Policy>
+void test_copy_if(Policy policy)
+{
+    std::vector<int> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    std::vector<int> v3(6);
+    std::vector<int> v3_expected = {0, 2, 4, 6, 8, 10};
+
+    TestUtils::MinimalisticRange r1{v1.begin(), v1.end()};
+    TestUtils::MinimalisticRange r3{v3.begin(), v3.end()};
+
+    oneapi::dpl::ranges::copy_if(policy, r1, r3, [](int x) { return x % 2 == 0; });
+
+    std::string msg = "wrong effect from copy_if, " + std::string(typeid(Policy).name());
+    EXPECT_EQ_N(v3_expected.data(), r3.begin(), v3_expected.size(), msg.c_str());
+}
+
 #endif // _ENABLE_STD_RANGES_TESTING
 
 int main()
@@ -77,6 +93,14 @@ int main()
     test_merge(oneapi::dpl::execution::par_unseq);
 #if TEST_DPCPP_BACKEND_PRESENT
     test_merge(TestUtils::get_dpcpp_test_policy());
+#endif
+
+    test_copy_if(oneapi::dpl::execution::seq);
+    test_copy_if(oneapi::dpl::execution::unseq);
+    test_copy_if(oneapi::dpl::execution::par);
+    test_copy_if(oneapi::dpl::execution::par_unseq);
+#if TEST_DPCPP_BACKEND_PRESENT
+    test_copy_if(TestUtils::get_dpcpp_test_policy());
 #endif
 
 #endif // _ENABLE_STD_RANGES_TESTING
