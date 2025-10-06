@@ -443,6 +443,7 @@ struct take_view_simple
     _Size
     size() const
     {
+        assert(__n <= oneapi::dpl::__ranges::__size(__r));
         return __n;
     }
 
