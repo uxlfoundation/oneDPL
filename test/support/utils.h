@@ -1340,6 +1340,17 @@ struct NoDefaultCtorWrapper {
     }
 };
 
+struct DefaultInitializedToOne
+{
+    int value = 1;
+
+    friend bool
+    operator==(const DefaultInitializedToOne& x, const DefaultInitializedToOne& y)
+    {
+        return x.value == y.value;
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H

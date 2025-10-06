@@ -100,6 +100,36 @@ struct test_non_const
     }
 };
 
+void test_empty_list_initialization()
+{
+    std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
+    {
+        auto val = oneapi::dpl::count(oneapi::dpl::execution::seq, v.begin(), v.end(), {});
+        EXPECT_TRUE(val == 3, "an empty list-initialized value is not found by oneapi::dpl::count with `seq` policy");
+    }
+    {
+        auto val = oneapi::dpl::count(oneapi::dpl::execution::unseq, v.begin(), v.end(), {});
+        EXPECT_TRUE(val == 3, "an empty list-initialized value is not found by oneapi::dpl::count with `unseq` policy");
+    }
+
+    {
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{1},{3},{1},{8},{2},{0},{1}};
+        {
+            auto val = oneapi::dpl::count(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), {});
+            EXPECT_TRUE(val == 4, "an empty list-initialized value is not found by oneapi::dpl::count with `par` policy");
+        }
+        {
+            auto val = oneapi::dpl::count(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), {});
+            EXPECT_TRUE(val == 4, "an empty list-initialized value is not found by oneapi::dpl::count with `par_unseq` policy");
+        }
+    }
+#if TEST_DPCPP_BACKEND_PRESENT
+    sycl::buffer<int> buf(v);
+    auto val = oneapi::dpl::count(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
+    EXPECT_TRUE(val == 3, "an empty list-initialized value is not found by oneapi::dpl::count with `device_policy` policy");
+#endif
+}
+
 int
 main()
 {
@@ -113,6 +143,8 @@ main()
 #ifdef _PSTL_TEST_COUNT_IF
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const>());
 #endif
+
+    test_empty_list_initialization();
 
     return done();
 }
