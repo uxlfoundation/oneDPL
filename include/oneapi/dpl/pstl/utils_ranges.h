@@ -165,17 +165,17 @@ __empty(_Range&& __rng)
 #endif
 
 template <typename _R, typename = void>
-struct __is_eval_size_through_size : std::false_type
+struct __has_size : std::false_type
 {
 };
 
 template <typename _R>
-struct __is_eval_size_through_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
+struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
 {
 };
 
 template <typename _Range>
-std::enable_if_t<__is_eval_size_through_size<_Range>::value, decltype(std::declval<_Range>().size())>
+std::enable_if_t<__has_size<_Range>::value, decltype(std::declval<_Range>().size())>
 __size(_Range&& __rng)
 {
     return __rng.size();
@@ -183,7 +183,7 @@ __size(_Range&& __rng)
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
-std::enable_if_t<!__is_eval_size_through_size<_Range>::value,
+std::enable_if_t<!__has_size<_Range>::value,
                  decltype(std::ranges::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
 __size(_Range&& __rng)
 {
@@ -191,7 +191,7 @@ __size(_Range&& __rng)
 }
 #else
 template <typename _Range>
-std::enable_if_t<!__is_eval_size_through_size<_Range>::value,
+std::enable_if_t<!__has_size<_Range>::value,
                  decltype(std::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
 __size(_Range&& __rng)
 {
