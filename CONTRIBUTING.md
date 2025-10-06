@@ -69,7 +69,7 @@ set ONEAPI_DEVICE_SELECTOR=*:gpu
 ONEAPI_DEVICE_SELECTOR=*:gpu
 ```
 
-4. Run the tests from the `build_gpu_tests` directory targetting a gpu device
+4. Run the tests from the `build_gpu_tests` directory targeting a gpu device
 ```
 cd build_gpu_tests
 ctest --output-on-failure --timeout 1200 -R ^reduce.pass$ # Add -R testname (e.g., -R ^reduce.pass$) to run just one test.
