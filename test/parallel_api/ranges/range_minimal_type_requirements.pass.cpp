@@ -22,6 +22,7 @@
 
 #include <vector>
 #include <ranges>
+#include <functional> // for std::invoke
 
 #endif // _ENABLE_STD_RANGES_TESTING
 
@@ -73,36 +74,48 @@ void test_copy_if(Policy policy)
     EXPECT_EQ_N(v3_expected.data(), r3.begin(), v3_expected.size(), msg.c_str());
 }
 
+template <typename Policy>
+void test_transform(Policy policy)
+{
+    std::vector<int> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    std::vector<int> v2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    std::vector<int> v3(11);
+    std::vector<int> v3_expected = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20};
+
+    TestUtils::MinimalisticRange r1{v1.begin(), v1.end()};
+    TestUtils::MinimalisticRange r2{v2.begin(), v2.end()};
+    TestUtils::MinimalisticRange r3{v3.begin(), v3.end()};
+
+    oneapi::dpl::ranges::transform(policy, r1, r2, r3, [](int x1, int x2) { return x1 + x2; });
+
+    std::string msg = "wrong effect from transform, " + std::string(typeid(Policy).name());
+    EXPECT_EQ_N(v3_expected.data(), r3.begin(), v3_expected.size(), msg.c_str());
+}
+
+template <typename Algorithm>
+void call_test_algo(Algorithm&& algo)
+{
+    std::invoke(algo, oneapi::dpl::execution::seq);
+    std::invoke(algo, oneapi::dpl::execution::unseq);
+    std::invoke(algo, oneapi::dpl::execution::par);
+    std::invoke(algo, oneapi::dpl::execution::par_unseq);
+#if TEST_DPCPP_BACKEND_PRESENT
+    std::invoke(algo, TestUtils::get_dpcpp_test_policy());
+#endif
+}
+
 #endif // _ENABLE_STD_RANGES_TESTING
 
 int main()
 {
-
 #if _ENABLE_STD_RANGES_TESTING
-    test_count(oneapi::dpl::execution::seq);
-    test_count(oneapi::dpl::execution::unseq);
-    test_count(oneapi::dpl::execution::par);
-    test_count(oneapi::dpl::execution::par_unseq);
-#if TEST_DPCPP_BACKEND_PRESENT
-    test_count(TestUtils::get_dpcpp_test_policy());
-#endif
 
-    test_merge(oneapi::dpl::execution::seq);
-    test_merge(oneapi::dpl::execution::unseq);
-    test_merge(oneapi::dpl::execution::par);
-    test_merge(oneapi::dpl::execution::par_unseq);
-#if TEST_DPCPP_BACKEND_PRESENT
-    test_merge(TestUtils::get_dpcpp_test_policy());
-#endif
-
-    test_copy_if(oneapi::dpl::execution::seq);
-    test_copy_if(oneapi::dpl::execution::unseq);
-    test_copy_if(oneapi::dpl::execution::par);
-    test_copy_if(oneapi::dpl::execution::par_unseq);
-#if TEST_DPCPP_BACKEND_PRESENT
-    test_copy_if(TestUtils::get_dpcpp_test_policy());
-#endif
+    call_test_algo([](auto policy) { test_count(policy); });
+    call_test_algo([](auto policy) { test_merge(policy); });
+    call_test_algo([](auto policy) { test_copy_if(policy); });
+    call_test_algo([](auto policy) { test_transform(policy); });
 
 #endif // _ENABLE_STD_RANGES_TESTING
+
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
