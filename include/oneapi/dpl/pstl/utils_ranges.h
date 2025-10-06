@@ -160,14 +160,16 @@ __size(_Range&& __rng)
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
-std::enable_if_t<!__is_eval_size_through_size<_Range>::value, decltype(std::ranges::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
+std::enable_if_t<!__is_eval_size_through_size<_Range>::value,
+                 decltype(std::ranges::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
 __size(_Range&& __rng)
 {
     return std::ranges::distance(__rng.begin(), __rng.end());
 }
 #else
 template <typename _Range>
-std::enable_if_t<!__is_eval_size_through_size<_Range>::value, decltype( std::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
+std::enable_if_t<!__is_eval_size_through_size<_Range>::value,
+                 decltype(std::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
 __size(_Range&& __rng)
 {
     return std::distance(__rng.begin(), __rng.end());
@@ -431,7 +433,10 @@ struct take_view_simple
     _R __r;
     _Size __n;
 
-    take_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size) { assert(__n >= 0 && __n <= oneapi::dpl::__ranges::__size(__r)); }
+    take_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size)
+    {
+        assert(__n >= 0 && __n <= oneapi::dpl::__ranges::__size(__r));
+    }
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
@@ -470,7 +475,10 @@ struct drop_view_simple
     _R __r;
     _Size __n;
 
-    drop_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size) { assert(__n >= 0 && __n <= oneapi::dpl::__ranges::__size(__r)); }
+    drop_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size)
+    {
+        assert(__n >= 0 && __n <= oneapi::dpl::__ranges::__size(__r));
+    }
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
@@ -711,7 +719,9 @@ struct __has_subsctiption_op<_R, std::void_t<decltype(std::declval<_R>().operato
 template <typename _Source, typename _Base = std::decay_t<_Source>>
 struct __subscription_impl_view_simple : _Base
 {
-    static_assert(!__has_subsctiption_op<_Base>::value, "The usage of __subscription_impl_view_simple prohibited if std::decay_t<_Source>::operator[] implemented");
+    static_assert(
+        !__has_subsctiption_op<_Base>::value,
+        "The usage of __subscription_impl_view_simple prohibited if std::decay_t<_Source>::operator[] implemented");
 
     using value_type = oneapi::dpl::__internal::__value_t<_Base>;
     using index_type = oneapi::dpl::__internal::__difference_t<_Base>;
@@ -723,13 +733,15 @@ struct __subscription_impl_view_simple : _Base
 
     // Define custom constructor to forward arguments to the base class
     template <typename... _Args>
-    __subscription_impl_view_simple(_Args&& ...__args) : _Base(std::forward<_Args>(__args)...)
+    __subscription_impl_view_simple(_Args&&... __args) : _Base(std::forward<_Args>(__args)...)
     {
     }
 
     // Define default operator=
-    __subscription_impl_view_simple& operator=(const __subscription_impl_view_simple&) = default;
-    __subscription_impl_view_simple& operator=(__subscription_impl_view_simple&&) = default;
+    __subscription_impl_view_simple&
+    operator=(const __subscription_impl_view_simple&) = default;
+    __subscription_impl_view_simple&
+    operator=(__subscription_impl_view_simple&&) = default;
 
     decltype(auto)
     operator[](index_type __i)

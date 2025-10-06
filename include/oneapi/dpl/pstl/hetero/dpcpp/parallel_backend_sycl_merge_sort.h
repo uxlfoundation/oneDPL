@@ -130,9 +130,9 @@ struct __leaf_sorter
 
     __leaf_sorter(const _Range& __rng, _Compare __comp, std::uint16_t __data_per_workitem,
                   std::uint32_t __workgroup_size)
-        : __rng(__rng), __comp(__comp), __n(oneapi::dpl::__ranges::__size(__rng)), __data_per_workitem(__data_per_workitem),
-          __workgroup_size(__workgroup_size), __process_size(__data_per_workitem * __workgroup_size),
-          __sub_group_sorter(), __group_sorter()
+        : __rng(__rng), __comp(__comp), __n(oneapi::dpl::__ranges::__size(__rng)),
+          __data_per_workitem(__data_per_workitem), __workgroup_size(__workgroup_size),
+          __process_size(__data_per_workitem * __workgroup_size), __sub_group_sorter(), __group_sorter()
     {
         assert((__process_size & (__process_size - 1)) == 0 && "Process size must be a power of 2");
     }
@@ -217,8 +217,8 @@ struct __merge_sort_leaf_submitter<__internal::__optional_kernel_name<_LeafSortN
         return __q.submit([&__rng, &__leaf_sorter](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __storage_acc = __leaf_sorter.create_storage_accessor(__cgh);
-            const std::uint32_t __wg_count =
-                oneapi::dpl::__internal::__dpl_ceiling_div(oneapi::dpl::__ranges::__size(__rng), __leaf_sorter.__process_size);
+            const std::uint32_t __wg_count = oneapi::dpl::__internal::__dpl_ceiling_div(
+                oneapi::dpl::__ranges::__size(__rng), __leaf_sorter.__process_size);
             const sycl::nd_range<1> __nd_range(sycl::range<1>(__wg_count * __leaf_sorter.__workgroup_size),
                                                sycl::range<1>(__leaf_sorter.__workgroup_size));
             __cgh.parallel_for<_LeafSortName...>(

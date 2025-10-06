@@ -646,17 +646,18 @@ struct __get_bounds_partitioned
 
         auto __rng_tmp_diag = std::get<2>(__tuple); // set a temp storage sequence
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<0>(__in_rng.tuple())))>,
-                                             std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<1>(__in_rng.tuple())))>,
-                                             std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(__rng_tmp_diag))>>;
+        using _SizeType = std::common_type_t<
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<0>(__in_rng.tuple())))>,
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<1>(__in_rng.tuple())))>,
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(__rng_tmp_diag))>>;
 
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
         // diagonal index of the tile begin
         const _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
         const _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
-        const _SizeType __wg_end_idx =
-            std::min<_SizeType>(((__id / __signed_tile_size) + 1) * __signed_tile_size, oneapi::dpl::__ranges::__size(__rng_tmp_diag) - 1);
+        const _SizeType __wg_end_idx = std::min<_SizeType>(((__id / __signed_tile_size) + 1) * __signed_tile_size,
+                                                           oneapi::dpl::__ranges::__size(__rng_tmp_diag) - 1);
 
         const auto [begin_rng1, begin_rng2] =
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
@@ -859,9 +860,10 @@ struct __gen_set_balanced_path
             __star = __local_star;
         }
 
-        _IndexT __eles_to_process = std::min(
-            _IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
-            oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) - _IndexT{__id * __diagonal_spacing - 1});
+        _IndexT __eles_to_process =
+            std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
+                     oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) -
+                         _IndexT{__id * __diagonal_spacing - 1});
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
                                                __eles_to_process, __temp_data, __comp, __proj1, __proj2);
@@ -897,7 +899,8 @@ struct __gen_set_op_from_known_balanced_path
         // set a temp storage sequence, star value in sign bit
         const auto __rng1_temp_diag = std::get<2>(__tuple);
 
-        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
+        using _SizeType =
+            oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
