@@ -1455,12 +1455,8 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_keys_values_range_wrapper>(__exec),
             __copy_range,
-            oneapi::dpl::__ranges::zip_view(
-                oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__keys)),
-                oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__values))),
-            oneapi::dpl::__ranges::zip_view(
-                oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__out_keys)),
-                oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range4>(__out_values))));
+            oneapi::dpl::__ranges::zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
+            oneapi::dpl::__ranges::zip_view(std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values)));
 
         return 1;
     }
