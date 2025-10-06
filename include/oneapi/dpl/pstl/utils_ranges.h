@@ -750,7 +750,6 @@ struct __subscription_impl_view_simple : _Base
     using index_type = oneapi::dpl::__internal::__difference_t<_Base>;
 
     // Define default constructors
-    __subscription_impl_view_simple() = default;
     __subscription_impl_view_simple(const __subscription_impl_view_simple&) = default;
     __subscription_impl_view_simple(__subscription_impl_view_simple&&) = default;
 
