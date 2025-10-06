@@ -225,6 +225,15 @@ inline const fpga_policy<> dpcpp_fpga{__internal::__global_instance_tag{}};
 
 #endif // _ONEDPL_PREDEFINED_POLICIES
 
+template <typename KernelName = DefaultKernelName>
+const device_policy<KernelName> dpdefault {sycl::queue{sycl::default_selector_v}};
+
+template <typename KernelName = DefaultKernelName>
+const device_policy<KernelName> dpgpu {sycl::queue{sycl::gpu_selector_v}};
+
+template <typename KernelName = DefaultKernelName>
+const device_policy<KernelName> dpcpu {sycl::queue{sycl::cpu_selector_v}};
+
 // make_policy functions
 template <typename KernelName = DefaultKernelName>
 device_policy<KernelName>
