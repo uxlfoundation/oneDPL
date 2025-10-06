@@ -525,13 +525,13 @@ struct replicate_start_view_simple
     size() const
     {
         // if base range is empty, replication does not extend the valid size
-        return (__r.empty()) ? 0 : __r.size() + __repl_count;
+        return empty() ? 0 : oneapi::dpl::__ranges::__size(__r) + __repl_count;
     }
 
     bool
     empty() const
     {
-        return size() == 0;
+        return oneapi::dpl::__ranges::__empty(__r);
     }
 
     auto
