@@ -61,6 +61,7 @@ cmake --build build_gpu_tests --target build-onedpl-tests # specify a specific t
 
 3. Run the tests from the `build_gpu_tests` directory targetting a gpu device
 ```
+cd build_gpu_tests
 set ONEAPI_DEVICE_SELECTOR=*:gpu
 ctest --output-on-failure --timeout 1200 -R ^reduce.pass$ # Add -R testname (e.g., -R ^reduce.pass$) to run just one test.
 ```
