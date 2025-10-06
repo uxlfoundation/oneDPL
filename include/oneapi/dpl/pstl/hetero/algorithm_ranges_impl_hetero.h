@@ -551,10 +551,8 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     //C++ standard libraries (f.e libstdc++ 10), where the implementation might throw C++ exceptions, that is an issue,
     //because "SYCL kernel cannot use exceptions".
 
-    auto&& __rng_s = oneapi::dpl::__ranges::__get_subscription_view(__rng);
-
-    auto __rng1 = oneapi::dpl::__ranges::take_view_simple(__rng_s, __n - 1);
-    auto __rng2 = oneapi::dpl::__ranges::drop_view_simple(__rng_s, 1);
+    auto __rng1 = oneapi::dpl::__ranges::take_view_simple(__rng, __n - 1);
+    auto __rng2 = oneapi::dpl::__ranges::drop_view_simple(__rng, 1);
 
     using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
 
