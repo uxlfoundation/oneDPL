@@ -222,10 +222,10 @@ jobs:
           if [[ "${{ matrix.cxx_compiler }}" == "icpx" ]]; then
             warning_flags="${warning_flags} -Wno-error=recommended-option"
           fi
-          set ONEAPI_DEVICE_SELECTOR=*:${{ matrix.device_type }}
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="${warning_flags}" ..
           make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
+          set ONEAPI_DEVICE_SELECTOR=*:${{ matrix.device_type }}
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags} |& tee ctest.log
 
           # Generate a summary
