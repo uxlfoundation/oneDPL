@@ -327,9 +327,9 @@ class zip_view
     explicit zip_view(_Ranges... __args) : __m_ranges(__args...) {}
 
     auto
-    size() const -> decltype(::std::get<0>(::std::declval<_tuple_ranges_t>()).size())
+    size() const -> decltype(oneapi::dpl::__ranges::__size(std::get<0>(std::declval<_tuple_ranges_t>())))
     {
-        return ::std::get<0>(__m_ranges).size();
+        return oneapi::dpl::__ranges::__size(std::get<0>(__m_ranges));
     }
 
     //TODO: C++ Standard states that the operator[] index should be the diff_type of the underlying range.
