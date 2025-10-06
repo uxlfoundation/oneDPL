@@ -36,7 +36,7 @@ Fixed Issues
   and ``set_symmetric_difference`` on Windows operating systems.
 - Removed default-constructible requirements from the value type for ``reduce`` and ``transform_reduce`` algorithms,
   as well as copy-constructible requirements when these algorithms are used with a native ("host") policy.
-- Fixed an issue with incorrect handling of different projections by ``ranges::merge``.
+- Fixed an issue with ``ranges::merge`` when projections of the two input ranges were not the same.
 - Fixed ``equal`` returning a ``false`` for empty input sequences; now it returns ``true``.
 - Fixed a compilation error **SYCL kernel cannot use exceptions** occurring with libstdc++ version 10 when calling
   ``adjacent_find``, ``is_sorted`` and ``is_sorted_until`` range algorithms with device policies.
