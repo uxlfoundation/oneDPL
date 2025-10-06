@@ -1342,14 +1342,14 @@ struct NoDefaultCtorWrapper {
 
 ////////////////////////////////////////////////////////////////////////////////
 // A minimalistic range that only provides begin() and end() methods.
-template <typename _ForwardIterator>
+template <typename ForwardIterator>
 struct MinimalisticRange
 {
-    _ForwardIterator it_begin;
-    _ForwardIterator it_end;
+    ForwardIterator it_begin;
+    ForwardIterator it_end;
 
-    _ForwardIterator begin() const { return it_begin; };
-    _ForwardIterator end()   const { return it_end;   };
+    ForwardIterator begin() const { return it_begin; };
+    ForwardIterator end()   const { return it_end;   };
 };
 
 #if _ENABLE_STD_RANGES_TESTING
