@@ -558,15 +558,15 @@ struct transform_view_simple
     }
 
     auto
-    size() const -> decltype(__r.size())
+    size() const -> decltype(oneapi::dpl::__ranges::__size(__r))
     {
-        return __r.size();
+        return oneapi::dpl::__ranges::__size(__r);
     }
 
     bool
     empty() const
     {
-        return __r.empty();
+        return oneapi::dpl::__ranges::__empty(__r);
     }
 
     auto
