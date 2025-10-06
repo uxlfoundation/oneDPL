@@ -692,27 +692,41 @@ struct host_vector
 {
     using value_type = T;
 
-    using type = std::vector<T>;
-    type vec;
+    using container_t = std::vector<T>;
+    using container_representation_t = TestUtils::MinimalisticRange<decltype(std::declval<container_t>().begin())>;
+
+    using type = container_representation_t;
+
+    container_t vec_src;
+    container_representation_t vec;
     T* p = nullptr;
 
     template<typename Policy>
-    host_vector(Policy&&, T* data, int n): vec(data, data + n), p(data) {}
+    host_vector(Policy&&, T* data, int n)
+        : vec_src(data, data + n)
+        , vec(vec_src.begin(), vec_src.end())
+        , p(data)
+    {
+    }
 
     template<typename Policy, typename DataGen>
-    host_vector(Policy&&, int n, DataGen gen): vec(n)
+    host_vector(Policy&&, int n, DataGen gen)
+        : vec_src(n)
+        , vec(vec_src.begin(), vec_src.end())
     {
         for(int i = 0; i < n; ++i)
-            vec[i] = gen(i);
+            vec_src[i] = gen(i);
     }
+
     type& operator()()
     {
         return vec;
     }
+
     ~host_vector()
     {
-        if(p)
-            std::copy_n(vec.begin(), vec.size(), p);
+        if (p != nullptr)
+            std::copy_n(vec.begin(), vec_src.size(), p);
     }
 };
 
@@ -723,30 +737,42 @@ struct usm_vector
     using value_type = T;
 
     using shared_allocator = sycl::usm_allocator<T, sycl::usm::alloc::shared>;
-    using type = std::vector<T, shared_allocator>;
+    using container_t = std::vector<T, shared_allocator>;
+    using container_representation_t = TestUtils::MinimalisticRange<decltype(std::declval<container_t>().begin())>;
+    
+    using type = container_representation_t;
 
-    std::vector<T, shared_allocator> vec;
+    container_t vec_src;
+    container_representation_t vec;
     T* p = nullptr;
 
     template<typename Policy>
-    usm_vector(Policy&& exec, T* data, int n): vec(data, data + n, shared_allocator(exec.queue())), p(data)
+    usm_vector(Policy&& exec, T* data, int n)
+        : vec_src(data, data + n, shared_allocator(exec.queue()))
+        , vec(vec_src.begin(), vec_src.end())
+        , p(data)
     {
-        assert(vec.size() == n);
+        assert(vec_src.size() == n);
     }
+
     template<typename Policy, typename DataGen>
-    usm_vector(Policy&& exec, int n, DataGen gen): vec(n, shared_allocator(exec.queue()))
+    usm_vector(Policy&& exec, int n, DataGen gen)
+        : vec_src(n, shared_allocator(exec.queue()))
+        , vec(vec_src.begin(), vec_src.end())
     {
         for(int i = 0; i < n; ++i)
-            vec[i] = gen(i);
+            vec_src[i] = gen(i);
     }
+
     type& operator()()
     {
         return vec;
     }
+
     ~usm_vector()
     {
-        if(p)
-            std::copy_n(vec.begin(), vec.size(), p);
+        if (p != nullptr)
+            std::copy_n(vec.begin(), vec_src.size(), p);
     }
 };
 
