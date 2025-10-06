@@ -78,13 +78,28 @@ main()
 
     test_policy_instance(dpcpp_default);
 
+    test_policy_instance(dpdefault<>);
+    test_policy_instance(dpdefault<Kernel<1>>);
+
+    if (sycl::device::get_devices(sycl::info::device_type::cpu).size() > 0)
+    {
+        test_policy_instance(dpcpu<>);
+        test_policy_instance(dpcpu<Kernel<2>>);
+    }
+
+    if (sycl::device::get_devices(sycl::info::device_type::gpu).size() > 0)
+    {
+        test_policy_instance(dpgpu<>);
+        test_policy_instance(dpgpu<Kernel<3>>);
+    }
+
     // make_device_policy
     test_policy_instance(TestUtils::make_device_policy<Kernel<11>>(q));
 #if TEST_LIBSYCL_VERSION && TEST_LIBSYCL_VERSION < 60000
     // make_device_policy requires a sycl::queue as an argument.
     // Currently, there is no implicit conversion (implicit syc::queue constructor by a device selector)
     // from a device selector to a queue.
-    // The same test call with explicit queue creation we have below in line 78.
+    // The same test call with explicit queue creation we have below.
     test_policy_instance(TestUtils::make_device_policy<Kernel<12>>(TestUtils::default_selector));
 #endif
     test_policy_instance(TestUtils::make_device_policy<Kernel<13>>(sycl::device{TestUtils::default_selector}));
@@ -94,7 +109,7 @@ main()
     test_policy_instance(oneapi::dpl::execution::make_device_policy<Kernel<16>>());
 
     // device_policy
-    EXPECT_TRUE(device_policy<Kernel<1>>(q).queue() == q, "wrong result for queue()");
+    EXPECT_TRUE(device_policy<Kernel<20>>(q).queue() == q, "wrong result for queue()");
     test_policy_instance(device_policy<Kernel<21>>(q));
     test_policy_instance(device_policy<Kernel<22>>(sycl::device{TestUtils::default_selector}));
     test_policy_instance(device_policy<Kernel<23>>(dpcpp_default));

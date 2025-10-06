@@ -51,7 +51,7 @@ int main()
             std::get<1>(x) = (2 * std::get<0>(x)) / n;
         });
     // val_buf = {0,1,2,...,n-1}
-    std::transform(TestUtils::make_device_policy<Transform>(dpl::execution::dpcpp_default),
+    std::transform(TestUtils::make_device_policy<Transform>(dpl::execution::dpdefault<>),
 		counting_first, counting_first + n, val_first, dpl::identity());
     auto result = dpl::inclusive_scan_by_segment(
 		TestUtils::make_device_policy<Scan>(dpl::execution::dpcpp_default),
