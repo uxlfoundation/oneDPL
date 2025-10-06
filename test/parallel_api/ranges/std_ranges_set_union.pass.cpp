@@ -30,19 +30,26 @@ inline int out_size_with_empty_in1<std::remove_cvref_t<decltype(oneapi::dpl::ran
 }
 }
 
-template <typename RngA, typename RngB, typename RngOutExpected>
-void
-test_mixed_types_host(RngA&& __rngA, RngB&& __rngB, const RngOutExpected& out_expected)
+void test_mixed_types_host()
 {
-    std::vector<int> out_seq      (out_expected.size(), 0xCD);
-    std::vector<int> out_par      (out_expected.size(), 0xCD);
-    std::vector<int> out_unseq    (out_expected.size(), 0xCD);
-    std::vector<int> out_par_unseq(out_expected.size(), 0xCD);
+    std::vector<test_std_ranges::A> r1 = {{1}, {2}, {3}};
+    std::vector<test_std_ranges::B> r2 = {{0}, {2}, {2}, {3}};
 
-    oneapi::dpl::ranges::set_union(oneapi::dpl::execution::seq,       __rngA, __rngB, out_seq,       std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    oneapi::dpl::ranges::set_union(oneapi::dpl::execution::par,       __rngA, __rngB, out_par,       std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    oneapi::dpl::ranges::set_union(oneapi::dpl::execution::unseq,     __rngA, __rngB, out_unseq,     std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    oneapi::dpl::ranges::set_union(oneapi::dpl::execution::par_unseq, __rngA, __rngB, out_par_unseq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    std::vector<int> out_expected = {0, 1, 2, 2, 3};
+
+    std::vector<int> out_seq(5, 0xCD);
+    std::vector<int> out_par(5, 0xCD);
+    std::vector<int> out_unseq(5, 0xCD);
+    std::vector<int> out_par_unseq(5, 0xCD);
+
+    oneapi::dpl::ranges::set_union(
+        oneapi::dpl::execution::seq, r1, r2, out_seq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    oneapi::dpl::ranges::set_union(
+        oneapi::dpl::execution::par, r1, r2, out_par, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    oneapi::dpl::ranges::set_union(
+        oneapi::dpl::execution::unseq, r1, r2, out_unseq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    oneapi::dpl::ranges::set_union(
+        oneapi::dpl::execution::par_unseq, r1, r2, out_par_unseq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
 
     EXPECT_EQ_RANGES(out_expected, out_seq, "wrong result with seq policy");
     EXPECT_EQ_RANGES(out_expected, out_par, "wrong result with par policy");
@@ -109,15 +116,7 @@ main()
     test_range_algo<3,  P2, data_in_in_out, mul1_t, div3_t>{}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, &P2::x, &P2::x);
     test_range_algo<4,  P2, data_in_in_out, mul1_t, div3_t>{}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
-    std::vector<test_std_ranges::A> vec_a_src = {{1}, {2}, {3}};
-    std::vector<test_std_ranges::B> vec_b_src = {{0}, {2}, {2}, {3}};
-    std::vector<int> out_expected = {0, 1, 2, 2, 3};
-    test_mixed_types_host(vec_a_src, vec_b_src, out_expected);
-
-    TestUtils::MinimalisticRange vec_a{vec_a_src.begin(), vec_a_src.end()};
-    TestUtils::MinimalisticRange vec_b{vec_b_src.begin(), vec_b_src.end()};
-    test_mixed_types_host(vec_a, vec_b, out_expected);
-
+    test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
     test_mixed_types_device();
 #endif // TEST_DPCPP_BACKEND_PRESENT

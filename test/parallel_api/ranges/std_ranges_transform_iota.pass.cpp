@@ -27,8 +27,7 @@ main()
     std::ranges::iota_view view1(0, n); //size range
     std::ranges::iota_view view2(0, std::unreachable_sentinel_t{}); //unsized
 
-    std::vector<int> res_container(n), expected(n);
-    TestUtils::MinimalisticRange res(res_container.begin(), res_container.end());
+    std::vector<int> res(n), expected(n);
     std::ranges::transform(view1, view2, expected.begin(), binary_f, proj, proj);
 
     dpl_ranges::transform(oneapi::dpl::execution::seq, view1, view2, res, binary_f, proj, proj);

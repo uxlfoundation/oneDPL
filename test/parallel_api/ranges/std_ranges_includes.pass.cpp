@@ -17,20 +17,23 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-template <typename RngA, typename RngB>
-void
-test_mixed_types_host(RngA&& __rngA, RngB&& __rngB)
+void test_mixed_types_host()
 {
-    const bool exp_res = std::ranges::includes(__rngA, __rngB, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    std::vector<test_std_ranges::A> vec_a = {{1}, {2}, {3}};
+    std::vector<test_std_ranges::B> vec_b = {{2}, {3}};
 
-    const bool seq_res       = oneapi::dpl::ranges::includes(oneapi::dpl::execution::seq,       __rngA, __rngB, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    const bool unseq_res     = oneapi::dpl::ranges::includes(oneapi::dpl::execution::unseq,     __rngA, __rngB, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    const bool par_res       = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par,       __rngA, __rngB, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    const bool par_unseq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par_unseq, __rngA, __rngB, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    bool exp_res = std::ranges::includes(vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
 
+    bool seq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::seq, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     EXPECT_EQ(seq_res, exp_res, "wrong result with seq policy");
+
+    bool unseq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::unseq, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     EXPECT_EQ(unseq_res, exp_res, "wrong result with unseq policy");
+
+    bool par_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     EXPECT_EQ(par_res, exp_res, "wrong result with par policy");
+
+    bool par_unseq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par_unseq, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     EXPECT_EQ(par_unseq_res, exp_res, "wrong result with par_unseq policy");
 }
 
@@ -93,15 +96,7 @@ main()
     test_range_algo<6, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
-
-    std::vector<test_std_ranges::A> vec_a_src = {{1}, {2}, {3}};
-    std::vector<test_std_ranges::B> vec_b_src = {{2}, {3}};
-    test_mixed_types_host(vec_a_src, vec_b_src);
-
-    TestUtils::MinimalisticRange vec_a{vec_a_src.begin(), vec_a_src.end()};
-    TestUtils::MinimalisticRange vec_b{vec_b_src.begin(), vec_b_src.end()};
-    test_mixed_types_host(vec_a, vec_b);
-
+    test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
     test_mixed_types_device();
 #endif
