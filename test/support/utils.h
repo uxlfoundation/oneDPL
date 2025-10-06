@@ -1358,9 +1358,6 @@ static_assert(std::ranges::range<MinimalisticRange<std::vector<int>::iterator>>)
 // All oneDPL algorithms require at least a random access range
 static_assert(std::ranges::random_access_range<MinimalisticRange<std::vector<int>::iterator>>);
 
-//template <>
-//inline constexpr bool std::ranges::enable_borrowed_range<MinimalisticRange> = true;
-
 #endif // _ENABLE_STD_RANGES_TESTING
 
 } /* namespace TestUtils */
