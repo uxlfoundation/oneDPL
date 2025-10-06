@@ -482,13 +482,14 @@ struct drop_view_simple
     _Size
     size() const
     {
-        return __r.size() - __n;
+        assert(oneapi::dpl::__ranges::__size(__r) >= __n);
+        return oneapi::dpl::__ranges::__size(__r) - __n;
     }
 
     bool
     empty() const
     {
-        return size() == 0;
+        return oneapi::dpl::__ranges::__empty(__r);
     }
 
     auto
