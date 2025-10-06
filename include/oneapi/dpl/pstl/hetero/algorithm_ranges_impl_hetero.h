@@ -1291,14 +1291,12 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     if (__rng.size() < 2)
         return {0, 0};
 
-    [[maybe_unused]] const auto& [__res_min, __res_max] =
-        __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        std::forward<_Range>(__rng), __comp);
+    std::pair<std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>,
+              std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>>
+        __res = __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                              std::forward<_Range>(__rng), __comp);
 
-    [[maybe_unused]] const auto& [__idx_min, __min] = __res_min;
-    [[maybe_unused]] const auto& [__idx_max, __max] = __res_max;
-
-    return {__idx_min, __idx_max};
+    return {__res.first.first, __res.second.first};
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -1323,14 +1321,12 @@ __pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r,
 {
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
 
-    [[maybe_unused]] const auto& [__res_min, __res_max] =
-        __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        std::forward<_R>(__r), __comp_2);
+    std::pair<std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>,
+              std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>>
+        __res = __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                              std::forward<_R>(__r), __comp_2);
 
-    [[maybe_unused]] const auto& [__idx_min, __min] = __res_min;
-    [[maybe_unused]] const auto& [__idx_max, __max] = __res_max;
-
-    return {__min, __max};
+    return {__res.first.second, __res.second.second};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
