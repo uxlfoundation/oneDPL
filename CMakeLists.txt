@@ -210,50 +210,14 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
         )
 
     if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
-        # check device type for oneDPL test targets
-        if (ONEDPL_DEVICE_TYPE MATCHES "^(CPU|GPU|FPGA_EMU|FPGA_HW)$")
-            if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
-                message(FATAL_ERROR "PSTL offload does device selection on its own, ONEDPL_DEVICE_TYPE ${ONEDPL_DEVICE_TYPE} is useless.")
-            endif()
-            message(STATUS "Using ${ONEDPL_DEVICE_TYPE} device type")
-            set(ONEDPL_USE_DEVICE_${ONEDPL_DEVICE_TYPE} TRUE)
-        elseif (DEFINED ONEDPL_DEVICE_BACKEND)
-            message(FATAL_ERROR "Unsupported device type: ${ONEDPL_DEVICE_TYPE}.\n"
-                "Select one of the following devices: CPU, GPU, FPGA_EMU or FPGA_HW")
-        elseif (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
-            # PSTL offload does device selection on its own
-        else()
-            set(ONEDPL_DEVICE_TYPE "GPU")
-            message(STATUS "Using a default device type (GPU)")
+        # Add warning for removed feature ONEDPL_DEVICE_TYPE if used
+        if (ONEDPL_DEVICE_TYPE)
+            message(STATUS "Warning: ONEDPL_DEVICE_TYPE feature has been removed, please use ONEAPI_DEVICE_SELECTOR instead.")
         endif()
 
-        # check device backend
-        if (ONEDPL_DEVICE_BACKEND MATCHES "^(opencl|level_zero|cuda|hip|\\*)$")
-            message(STATUS "Using ${ONEDPL_DEVICE_BACKEND} device backend")
-        elseif (DEFINED ONEDPL_DEVICE_BACKEND)
-            message(FATAL_ERROR "Unsupported device backend: ${ONEDPL_DEVICE_BACKEND}.\n"
-                "Select one of the following device backends: opencl, level_zero, cuda, hip or *")
-        else()
-            set(ONEDPL_DEVICE_BACKEND "*")
-            message(STATUS "Using a default device backend (*)")
-        endif()
-
-        if (INTEL_LLVM_COMPILER AND INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2023.1)
-            set(DEVICE_SELECTION_VARIABLE "SYCL_DEVICE_FILTER")
-            set(FPGA_DEVICE_TYPE "acc")
-        else()
-            set(DEVICE_SELECTION_VARIABLE "ONEAPI_DEVICE_SELECTOR")
-            set(FPGA_DEVICE_TYPE "fpga")
-        endif()
-
-        # set up device selection line basing on ONEDPL_DEVICE_BACKEND and ONEDPL_DEVICE_TYPE values
-        if (DEFINED ONEDPL_DEVICE_BACKEND AND DEFINED ONEDPL_DEVICE_TYPE)
-            if (ONEDPL_DEVICE_TYPE MATCHES "FPGA")
-                set(DEVICE_SELECTION_LINE "${DEVICE_SELECTION_VARIABLE}=${ONEDPL_DEVICE_BACKEND}:${FPGA_DEVICE_TYPE}")
-            else()
-                string(TOLOWER ${ONEDPL_DEVICE_TYPE} ONEDPL_DEVICE_TYPE)
-                set(DEVICE_SELECTION_LINE "${DEVICE_SELECTION_VARIABLE}=${ONEDPL_DEVICE_BACKEND}:${ONEDPL_DEVICE_TYPE}")
-            endif()
+        # Add warning for removed feature ONEDPL_DEVICE_BACKEND if used
+        if (ONEDPL_DEVICE_BACKEND)
+            message(STATUS "Warning: ONEDPL_DEVICE_BACKEND feature has been removed, please use ONEAPI_DEVICE_SELECTOR instead.")
         endif()
 
         # Check correctness of STATIC_REPORT

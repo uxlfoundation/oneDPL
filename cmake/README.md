@@ -9,8 +9,6 @@ The following variables are provided for oneDPL configuration:
 | Variable                                 | Type   | Description                                                                                   | Default value |
 |------------------------------------------|--------|-----------------------------------------------------------------------------------------------|---------------|
 | ONEDPL_BACKEND                           | STRING | Threading backend; supported values: tbb, dpcpp, dpcpp_only, serial, ...; the default value is defined by compiler: dpcpp for DPC++ and tbb for others | tbb/dpcpp |
-| ONEDPL_DEVICE_TYPE                       | STRING | Select device type for oneDPL test targets; affects only DPC++ backends; supported values: GPU, CPU, FPGA_HW, FPGA_EMU | GPU           |
-| ONEDPL_DEVICE_BACKEND                    | STRING | Select device backend type for oneDPL test targets; affects only oneDPL DPC++ backends; supported values: opencl, level_zero, cuda, hip or * (the best backend as per DPC++ runtime heuristics). | * |
 | ONEDPL_USE_UNNAMED_LAMBDA                | BOOL   | Pass `-fsycl-unnamed-lambda`, `-fno-sycl-unnamed-lambda` compile options or nothing           |               |
 | ONEDPL_FPGA_STATIC_REPORT                | BOOL   | Enable the static report generation for the FPGA_HW device type                               | OFF           |
 | ONEDPL_USE_AOT_COMPILATION (deprecated)  | BOOL   | Enable ahead-of-time compilation for the GPU or CPU device types. Deprecated, use standard CMake means such as `CMAKE_CXX_FLAGS`   | OFF           |

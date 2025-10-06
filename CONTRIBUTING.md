@@ -51,7 +51,7 @@ using the GPU on your local system using the Intel® oneAPI DPC++ Compiler.
 
 1. Configure the build files by running the following command that creates a build directory named `build_gpu_tests`.
 ```
-cmake -DCMAKE_CXX_COMPILER=icpx -DCMAKE_CXX_STANDARD=17 -DONEDPL_BACKEND=dpcpp -DONEDPL_DEVICE_TYPE=gpu -DCMAKE_BUILD_TYPE=release -B build_gpu_tests
+cmake -DCMAKE_CXX_COMPILER=icpx -DCMAKE_CXX_STANDARD=17 -DONEDPL_BACKEND=dpcpp -DCMAKE_BUILD_TYPE=release -B build_gpu_tests
 ```
 
 2. Build the tests
