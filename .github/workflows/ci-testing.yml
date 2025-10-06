@@ -225,7 +225,7 @@ jobs:
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="${warning_flags}" ..
           make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
-          set ONEAPI_DEVICE_SELECTOR=*:${{ matrix.device_type }}
+          ONEAPI_DEVICE_SELECTOR=*:${{ matrix.device_type }}
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags} |& tee ctest.log
 
           # Generate a summary
