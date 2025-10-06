@@ -4056,7 +4056,7 @@ __brick_minmax_element(_RandomAccessIterator __first, _RandomAccessIterator __la
 
 template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare>
 ::std::pair<_ForwardIterator, _ForwardIterator>
-__pattern_minmax_element(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,       // oneapi::dpl::__internal : std::pair<_ForwardIterator, _ForwardIterator>
+__pattern_minmax_element(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
                          _Compare __comp) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
@@ -4066,7 +4066,7 @@ __pattern_minmax_element(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Fo
 
 template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare>
 ::std::pair<_RandomAccessIterator, _RandomAccessIterator>
-__pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,   // oneapi::dpl::__internal : std::pair<_RandomAccessIterator, _RandomAccessIterator>
+__pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
                          _RandomAccessIterator __last, _Compare __comp)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;

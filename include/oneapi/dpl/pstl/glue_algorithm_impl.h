@@ -1184,7 +1184,7 @@ minmax_element(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIter
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    return oneapi::dpl::__internal::__pattern_minmax_element(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),      // oneapi::dpl::__internal : std::pair<_ForwardIterator, _ForwardIterator>
+    return oneapi::dpl::__internal::__pattern_minmax_element(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
                                                              __first, __last, __comp);
 }
 
