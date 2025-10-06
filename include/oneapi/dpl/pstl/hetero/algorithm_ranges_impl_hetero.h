@@ -61,7 +61,7 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
             unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
-            std::forward<_Ranges>(__rngs)...)
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Ranges>(__rngs))...)
             .__checked_deferrable_wait();
     }
     return __n;
