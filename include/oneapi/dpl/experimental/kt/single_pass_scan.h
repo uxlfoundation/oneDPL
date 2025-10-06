@@ -130,7 +130,6 @@ struct __single_pass_scan_kernel_func
          const std::size_t __sub_group_next_offset) const
     {
         auto __sub_group_local_id = __sub_group.get_local_linear_id();
-        auto __sub_group_group_id = __sub_group.get_group_linear_id();
 
         oneapi::dpl::__internal::__lazy_ctor_storage<_Type> __grf_partials[__data_per_workitem];
 
@@ -161,8 +160,6 @@ struct __single_pass_scan_kernel_func
     operator()(const sycl::nd_item<1>& __item) const
     {
         auto __group = __item.get_group();
-        auto __subgroup = __item.get_sub_group();
-        auto __local_id = __item.get_local_id(0);
 
         std::uint32_t __tile_id = 0;
 
@@ -179,7 +176,6 @@ struct __single_pass_scan_kernel_func
             __tile_id = sycl::group_broadcast(__group, __tile_id, 0);
         }
         auto __sub_group = __item.get_sub_group();
-        auto __sub_group_local_id = __sub_group.get_local_linear_id();
         auto __sub_group_group_id = __sub_group.get_group_linear_id();
 
         std::size_t __work_group_offset = static_cast<std::size_t>(__tile_id) * __elems_in_tile;
@@ -255,9 +251,6 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     static_assert(_Inclusive, "Single-pass scan only available for inclusive scan");
     assert("This device does not support 64-bit atomics" &&
            (sizeof(_Type) < 8 || __queue.get_device().has(sycl::aspect::atomic64)));
-
-    // Next power of 2 greater than or equal to __n
-    auto __n_uniform = ::oneapi::dpl::__internal::__dpl_bit_ceil(__n);
 
     constexpr std::uint16_t __workgroup_size = _KernelParam::workgroup_size;
     constexpr std::uint16_t __data_per_workitem = _KernelParam::data_per_workitem;
