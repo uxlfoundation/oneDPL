@@ -128,6 +128,9 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 
 namespace __ranges
 {
+template <typename _R>
+using iterator_t = decltype(std::declval<_R&>().begin());
+
 template <typename _Range>
 auto
 __size(const _Range& __rng)
