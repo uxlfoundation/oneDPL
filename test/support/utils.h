@@ -1345,11 +1345,11 @@ struct NoDefaultCtorWrapper {
 template <typename _ForwardIterator>
 struct MinimalisticRange
 {
-    _ForwardIterator __begin;
-    _ForwardIterator __end;
+    _ForwardIterator begin;
+    _ForwardIterator end;
 
-    _ForwardIterator begin() const { return __begin; };
-    _ForwardIterator end()   const { return __end;   };
+    _ForwardIterator begin() const { return begin; };
+    _ForwardIterator end()   const { return end;   };
 };
 
 #if _ENABLE_STD_RANGES_TESTING
