@@ -91,7 +91,7 @@ void
 __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r,
                     _F __op, _Proj __proj)
 {
-    assert(oneapi::dpl::__ranges::__size(__in_r) <= oneapi::dpl::__ranges::__size(__out_r)); // for debug purposes only
+    assert(std::ranges::size(__in_r) <= std::ranges::size(__out_r)); // for debug purposes only
     oneapi::dpl::__internal::__unary_op<_F, _Proj> __unary_op{__op, __proj};
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
