@@ -209,16 +209,20 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
         $<$<BOOL:${SET_BACKEND_TBB}>:ONEDPL_USE_DPCPP_BACKEND=0>
         )
 
-    if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
-        # Add warning for removed feature ONEDPL_DEVICE_TYPE if used
-        if (ONEDPL_DEVICE_TYPE)
-            message(STATUS "Warning: ONEDPL_DEVICE_TYPE feature has been removed, please use ONEAPI_DEVICE_SELECTOR instead.")
+    # Add error for removed feature ONEDPL_DEVICE_TYPE if used
+    if (ONEDPL_DEVICE_TYPE OR DEFINED ONEDPL_DEVICE_BACKEND)
+        set(device_backend "*")
+        set(device_type "*")
+        if (DEFINED ONEDPL_DEVICE_TYPE)
+            string(TOLOWER "${ONEDPL_DEVICE_TYPE}" device_type)
         endif()
+        if (DEFINED ONEDPL_DEVICE_BACKEND)
+            string(TOLOWER "${ONEDPL_DEVICE_BACKEND}" device_backend)
+        endif()
+        message(FATAL_ERROR "ONEDPL_DEVICE_TYPE and ONEDPL_DEVICE_BACKEND cmake settings have been removed.\nUse \"ONEAPI_DEVICE_SELECTOR=${device_backend}:${device_type}\" before running instead for the same effect.")
+    endif()
 
-        # Add warning for removed feature ONEDPL_DEVICE_BACKEND if used
-        if (ONEDPL_DEVICE_BACKEND)
-            message(STATUS "Warning: ONEDPL_DEVICE_BACKEND feature has been removed, please use ONEAPI_DEVICE_SELECTOR instead.")
-        endif()
+    if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
 
         # Check correctness of STATIC_REPORT
         if (ONEDPL_FPGA_STATIC_REPORT)
