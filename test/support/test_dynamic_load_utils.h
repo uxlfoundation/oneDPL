@@ -18,6 +18,8 @@
 #include <algorithm>
 #include <iostream>
 
+#include "support/utils_sycl_defs.h" // for TestUtils::unique_kernel_name and etc.
+
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 
 class load1;
