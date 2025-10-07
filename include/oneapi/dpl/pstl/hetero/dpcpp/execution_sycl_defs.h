@@ -127,6 +127,20 @@ __get_default_queue()
     return __q;
 }
 
+inline sycl::queue
+__get_gpu_queue()
+{
+    static sycl::queue __q{sycl::gpu_selector_v};
+    return __q;
+}
+
+inline sycl::queue
+__get_cpu_queue()
+{
+    static sycl::queue __q{sycl::cpu_selector_v};
+    return __q;
+}
+
 #if _ONEDPL_FPGA_DEVICE
 inline sycl::queue
 __get_fpga_default_queue()
@@ -171,11 +185,8 @@ class device_policy
     }
 
 #if _ONEDPL_PREDEFINED_POLICIES
-    explicit device_policy(__internal::__global_instance_tag __t)
-        : __qh(__t, /*factory*/__internal::__get_default_queue) {}
-
-  protected:
-    device_policy(__internal::__global_instance_tag __t, __internal::__queue_factory __f) : __qh(__t, __f) {}
+    explicit device_policy(__internal::__global_instance_tag __t,
+                           __internal::__queue_factory __f = __internal::__get_default_queue) : __qh(__t, __f) {}
 #endif
 
   private:
@@ -226,13 +237,13 @@ inline const fpga_policy<> dpcpp_fpga{__internal::__global_instance_tag{}};
 #endif // _ONEDPL_PREDEFINED_POLICIES
 
 template <typename KernelName = DefaultKernelName>
-const device_policy<KernelName> dpdefault {sycl::queue{sycl::default_selector_v}};
+const device_policy<KernelName> dpdefault {__internal::__global_instance_tag{}};
 
 template <typename KernelName = DefaultKernelName>
-const device_policy<KernelName> dpgpu {sycl::queue{sycl::gpu_selector_v}};
+const device_policy<KernelName> dpgpu {__internal::__global_instance_tag{}, __internal::__get_gpu_queue};
 
 template <typename KernelName = DefaultKernelName>
-const device_policy<KernelName> dpcpu {sycl::queue{sycl::cpu_selector_v}};
+const device_policy<KernelName> dpcpu {__internal::__global_instance_tag{}, __internal::__get_cpu_queue};
 
 // make_policy functions
 template <typename KernelName = DefaultKernelName>
