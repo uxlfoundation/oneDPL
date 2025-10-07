@@ -35,89 +35,6 @@ namespace oneapi
 namespace dpl
 {
 
-namespace __internal
-{
-
-template <typename _R>
-auto
-get_value_type(int) -> typename ::std::decay_t<_R>::value_type;
-
-template <typename _R>
-auto
-get_value_type(long) ->
-    typename ::std::iterator_traits<::std::decay_t<decltype(::std::declval<_R&>().begin())>>::value_type;
-
-template <typename _It>
-auto
-get_value_type(long long) -> typename ::std::iterator_traits<_It>::value_type;
-
-template <typename _R>
-auto
-get_value_type(...)
-{
-    //static_assert should always fail when this overload is chosen, so its condition must depend on
-    //the template parameter and evaluate to false
-    static_assert(std::is_same_v<_R, void>,
-        "error: the range has no 'value_type'; define an alias or typedef named 'value_type' in the range class");
-}
-
-template <typename _R>
-using __value_t = decltype(oneapi::dpl::__internal::get_value_type<_R>(0));
-
-template <typename _Proj, typename _R>
-using __key_t = ::std::remove_cv_t<::std::remove_reference_t<::std::invoke_result_t<_Proj&, __value_t<_R>>>>;
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
-//The following '__range_size' type trait should be used in only the context with std::common_type
-//together with a sized range.
-template <typename R>
-struct __range_size {
-    using type = std::uint8_t;
-};
-
-template <std::ranges::sized_range R>
-struct __range_size<R> {
-    using type = std::ranges::range_size_t<R>;
-};
-
-template <typename _R>
-using __range_size_t = typename __range_size<_R>::type;
-
-#endif //_ONEDPL_CPP20_RANGES_PRESENT
-
-template <typename _R>
-auto
-__check_size(int) -> decltype(std::declval<_R&>().size());
-
-template <typename _R>
-auto
-__check_size(long) -> decltype(std::declval<_R&>().get_count());
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _R>
-auto
-__check_size(long long) -> decltype(std::ranges::size(std::declval<_R&>()));
-#endif // _ONEDPL_CPP20_RANGES_PRESENT
-
-template <typename _It>
-auto
-__check_size(...) -> typename std::iterator_traits<_It>::difference_type;
-
-template <typename _R>
-using __difference_t = std::make_signed_t<decltype(__check_size<_R>(0))>;
-
-} //namespace __internal
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
-#    if _ONEDPL_CPP26_DEFAULT_VALUE_TYPE_PRESENT
-template <std::indirectly_readable I, std::indirectly_regular_unary_invocable<I> Proj>
-using projected_value_t = std::projected_value_t<I, Proj>;
-#    else
-template <std::indirectly_readable I, std::indirectly_regular_unary_invocable<I> Proj>
-using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::iter_value_t<I>&>>;
-#    endif
-#endif //_ONEDPL_CPP20_RANGES_PRESENT
-
 namespace __ranges
 {
 // __begin() / __end() functions
@@ -233,6 +150,71 @@ using __iterator_t =
 #else
     decltype(__begin(std::declval<_Rng>()));
 #endif
+
+} // namespace __ranges
+
+namespace __internal
+{
+
+template <typename _R>
+using __value_t = std::iterator_traits<oneapi::dpl::__ranges::__iterator_t<_R>>::value_type;
+
+template <typename _Proj, typename _R>
+using __key_t = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<_Proj&, __value_t<_R>>>>;
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+//The following '__range_size' type trait should be used in only the context with std::common_type
+//together with a sized range.
+template <typename R>
+struct __range_size {
+    using type = std::uint8_t;
+};
+
+template <std::ranges::sized_range R>
+struct __range_size<R> {
+    using type = std::ranges::range_size_t<R>;
+};
+
+template <typename _R>
+using __range_size_t = typename __range_size<_R>::type;
+
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _R>
+auto
+__check_size(int) -> decltype(std::declval<_R&>().size());
+
+template <typename _R>
+auto
+__check_size(long) -> decltype(std::declval<_R&>().get_count());
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _R>
+auto
+__check_size(long long) -> decltype(std::ranges::size(std::declval<_R&>()));
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _It>
+auto
+__check_size(...) -> typename std::iterator_traits<_It>::difference_type;
+
+template <typename _R>
+using __difference_t = std::make_signed_t<decltype(__check_size<_R>(0))>;
+
+} //namespace __internal
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    if _ONEDPL_CPP26_DEFAULT_VALUE_TYPE_PRESENT
+template <std::indirectly_readable I, std::indirectly_regular_unary_invocable<I> Proj>
+using projected_value_t = std::projected_value_t<I, Proj>;
+#    else
+template <std::indirectly_readable I, std::indirectly_regular_unary_invocable<I> Proj>
+using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::iter_value_t<I>&>>;
+#    endif
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
+namespace __ranges
+{
 
 // __empty() function
 #if _ONEDPL_CPP20_RANGES_PRESENT
